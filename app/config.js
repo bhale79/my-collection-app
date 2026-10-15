@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1954';
+const APP_VERSION = 'v0.9.1955';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -3126,6 +3126,22 @@ const RR_PIC_FIRST = {
   // v0.9.1950 (Brad: "have read picture button under the change/remove
   // buttons"): reads the picture already added \u2014 no second pick.
   readBtn: '\ud83d\udd0d Read picture',
+  // v0.9.1955 (Brad: "need the crop option on the your picture box \u2026 lets have
+  // a option check box that when you load a picture, it automatically starts
+  // to read it in the background and have the results pop up under the
+  // picture"). The tick is an ACCOUNT setting (_prefSet / _prefGet).
+  cropBtn: '\u2702 Crop',
+  cropTitle: 'Crop your picture',
+  autoReadLabel: 'Read it automatically',
+  autoReadKey: 'rr_picfirst_autoread',
+  resReading: 'Reading the picture (free)\u2026',
+  resFound: 'Found it \u2014 tap to use it',
+  resChoose: 'Which one is yours?',
+  resNoneOf: 'None of these',
+  resNone: 'Couldn\u2019t read a number from this picture. Try \u2702 Crop around the number, or:',
+  resPhotoId: '\ud83d\udcf7 Photo ID',
+  resLens: '\ud83d\udd0d Google Lens',
+  resError: 'That picture could not be opened \u2014 try Change.',
   sideMinWidth: 980,     // the window must be at least this wide for the side view
   sideWidthPx: 300,      // the side view's width
 };
@@ -3139,6 +3155,7 @@ const RR_PHOTO_ID_CLOSER = {
   // "2026" outvoted the box's 1927690): when the closer look reads numbers the
   // catalog knows but confirms none, they are offered, longest first.
   maxChoices: 4,
+  maxRows: 6,        // v0.9.1955: catalog rows the Your Picture box lists at most
   lettering: 'Lettering: read several numbers — not sure which is yours',
   stage: 'Catalog: which number is YOUR item?',
   choose: 'The closer look read these numbers in the picture, and the catalog knows each one. Which one is YOUR item?',

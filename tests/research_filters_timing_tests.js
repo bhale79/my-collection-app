@@ -52,7 +52,9 @@ function untimed(body, names) {
 const WAITS = ['_biCapture', '_biCrop', '_biNumPicker', 'showCandidatePicker', '_bcConfirmCard', '_biFailCard'];
 const SLOW  = ['_bcAiRescue', '_ensureTesseract', 'T.recognize', '_biCanvasToFile'];
 function flowTimed(src) {
-  const core = fnBody(src, 'async function _biPipelineCore(');
+  // v0.9.1955: the reading step (barcode + lettering) moved into _biReadPicture,
+  // shared with the Your Picture box — it is part of the flow and is scanned too
+  const core = fnBody(src, 'async function _biPipelineCore(') + fnBody(src, 'async function _biReadPicture(');
   const open = fnBody(src, 'async function openBoxIdentify(');
   return { ok: !!core && !!open && !untimed(core + open, WAITS.concat(SLOW)).length, bad: untimed(core + open, WAITS.concat(SLOW)) };
 }

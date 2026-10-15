@@ -2493,7 +2493,7 @@ function _eraForMfr(mfr) {
   return map[m] || '';
 }
 
-function _wizScanBarcode(opts) {
+function _wizScanBarcode() {
   if (typeof window.openBarcodeScanner !== 'function') {
     showToast && showToast('Barcode scanner not loaded', 3000, true);
     return;
@@ -2501,107 +2501,112 @@ function _wizScanBarcode(opts) {
   const eraHint = (wizard && wizard.data && wizard.data._era) || '';
   // v0.9.1950 (Brad: "if i hit photo id, should bring up the reader and google
   // search using the uploaded picture"): a picture added first is the one
-  // Photo ID opens on — the crop screen with Photo ID and Google Lens — and
-  // the Read picture button ({ read: true }) reads it straight away.
+  // Photo ID opens on — the crop screen with Photo ID and Google Lens.
   var _heldPic = (typeof window._wizPicFirstFile === 'function') ? window._wizPicFirstFile() : null;
-  var _start = _heldPic ? { file: _heldPic, read: !!(opts && opts.read === true) } : null;
-  (window.openBoxIdentify || window.openBarcodeScanner)(function(result) {
-    // On successful scan: fill the item number field and advance if possible
-    if (!wizard || !wizard.data) return;
-    // v0.9.746 (Brad): in the SELL flows the photo can only identify something
-    // you OWN — snap the result to the collection instead of the catalog.
-    if (result.itemNum && (wizard.tab === 'forsale' || wizard.tab === 'sold')) {
-      var _sBase = (typeof baseItemNum === 'function') ? baseItemNum(String(result.itemNum)) : String(result.itemNum);
-      var _sKeys = Object.keys(state.personalData || {}).filter(function (k) {
-        var p = state.personalData[k];
-        if (!p || !p.owned) return false;
-        var pb = (typeof baseItemNum === 'function') ? baseItemNum(String(p.itemNum || '')) : String(p.itemNum || '');
-        return pb === _sBase;
-      });
-      if (_sKeys.length === 1) {
-        showToast && showToast('\u2713 Found in your collection: ' + result.itemNum, 2500);
-        if (typeof _selectCollItem === 'function') { _selectCollItem(_sKeys[0]); return; }
-      } else if (_sKeys.length > 1) {
-        wizard.data.itemNum = String(result.itemNum);
-        renderWizardStep();
-        setTimeout(function () {
-          var i = document.getElementById('wiz-input');
-          if (i) i.value = String(result.itemNum);
-          if (typeof _filterCollPicker === 'function') _filterCollPicker(String(result.itemNum));
-        }, 80);
-        showToast && showToast('You own ' + _sKeys.length + ' of these \u2014 pick the copy below', 3500);
-        return;
-      } else {
-        showToast && showToast(result.itemNum + " isn't in your collection \u2014 you can only sell items you own", 4000, true);
-        return;
-      }
-    }
-    if (result.itemNum) {
-      wizard.data.itemNum = result.itemNum;
-      if (result.variation) wizard.data.variation = result.variation;
-      if (result.masterItem) wizard.matchedItem = result.masterItem;
-      // Session 167: cross-era support. If the scanner found this item in a
-      // different era's IDB cache, the matched item carries an _era tag.
-      // Adopt it so _resolveSaveEra() writes the row to the correct tab.
-      if (result.masterItem && result.masterItem._era) {
-        wizard.data._era = result.masterItem._era;
-      } else if (result.era) {
-        wizard.data._era = result.era;
-      }
-      // v0.9.649: a not-in-master scan already KNOWS its maker (extractor
-      // patterns tag it) — carry it into the manual flow so the saved row
-      // doesn't default to Lionel/postwar (Brad's RMT-66299-21 did exactly
-      // that: saved as Lionel/pw, invisible under the RMT filter).
-      if (result.notInMaster && result.manufacturer) {
-        if (!wizard.data.manualManufacturer) wizard.data.manualManufacturer = result.manufacturer;
-        var _sEra = _eraForMfr(result.manufacturer);
-        if (_sEra && (!wizard.data._era || wizard.data._era === 'all')) wizard.data._era = _sEra;
-      }
-      // v0.9.659: not-in-master scans pivot into the FULL manual-entry flow via the
-      // same single-source router the photo-ID path uses, carrying the AI's full
-      // metadata (aiMeta: road name, sub-type, year, cab#, description) when the AI
-      // rescue produced it, else the label-read description. Previously this path
-      // just stamped mfr+era and advanced the CATALOG flow, which has no
-      // description/type steps for an unknown item — a dead end (Brad's 10-2210).
-      // v0.9.665: photographed a box/label → we obviously have the box, and the
-      // shot doubles as the Box photo (auto-attached at the photos step).
-      if (result._boxPhoto) {
-        if (!wizard.data.manualHasBox) wizard.data.manualHasBox = 'Yes';
-        // v0.9.687 (Brad): the CATALOG flow reads d.hasBox, not manualHasBox —
-        // without this the box question re-appeared for in-catalog items AND
-        // photosBox (where the label shot auto-attaches) was skipIf'd away.
-        if (!wizard.data.hasBox) wizard.data.hasBox = 'Yes';
-        wizard.data._boxAutoKnown = true;
-        if (result._boxPhotoFile) wizard.data._biBoxPhotoFile = result._boxPhotoFile;
-      }
-      // v0.9.811 (TODO-011): item shot from the identify pipeline → attach as
-      // the ITEM photo at the photos step (was silently discarded before).
-      if (result._itemPhotoFile && !wizard.data._idItemPhotoFile) wizard.data._idItemPhotoFile = result._itemPhotoFile;
-      if (result.notInMaster && typeof _identifyRouteToManualEntry === 'function') {
-        var _nmMeta = result.aiMeta || { manufacturer: result.manufacturer || '',
-          description: result.labelDescription || result.description || '' };
-        if (!_nmMeta.description && (result.labelDescription || result.description)) _nmMeta.description = result.labelDescription || result.description;
-        if (_identifyRouteToManualEntry(result.itemNum, _nmMeta, [])) {
-          showToast && showToast(result.statusMessage || ('Not in catalog — add ' + result.itemNum + ' with full details'), 3500);
-          return;
-        }
-      }
-      // Non-Lionel phase-2 flows: just prefill, let user advance manually
-      if (result.phase2 || result.unknownPrefix) {
-        showToast && showToast(result.statusMessage || 'Type the item# manually', 3500);
-        renderWizardStep();
-        return;
-      }
-      showToast && showToast('✓ ' + (result.statusMessage || ('Scanned ' + result.itemNum)), 2500);
-      if (typeof _fyiAlreadyOwned === 'function') setTimeout(function() { _fyiAlreadyOwned(result.itemNum); }, 2600);   // v0.9.647
-      // Advance to next step
-      wizard.step++;
-      renderWizardStep();
-    }
-  }, function() {
+  var _start = _heldPic ? { file: _heldPic } : null;
+  (window.openBoxIdentify || window.openBarcodeScanner)(_wizApplyIdResult, function() {
     // Cancelled — user can type the item# instead
   }, eraHint, _start);
 }
+
+// v0.9.1955 — what an identified item DOES to the Add screen, in ONE place:
+// Photo ID's answer and an answer tapped in the Your Picture box land the same
+// way (fill the number, adopt the era, box flags, advance).
+function _wizApplyIdResult(result) {
+  // On successful scan: fill the item number field and advance if possible
+  if (!wizard || !wizard.data) return;
+  // v0.9.746 (Brad): in the SELL flows the photo can only identify something
+  // you OWN — snap the result to the collection instead of the catalog.
+  if (result.itemNum && (wizard.tab === 'forsale' || wizard.tab === 'sold')) {
+    var _sBase = (typeof baseItemNum === 'function') ? baseItemNum(String(result.itemNum)) : String(result.itemNum);
+    var _sKeys = Object.keys(state.personalData || {}).filter(function (k) {
+      var p = state.personalData[k];
+      if (!p || !p.owned) return false;
+      var pb = (typeof baseItemNum === 'function') ? baseItemNum(String(p.itemNum || '')) : String(p.itemNum || '');
+      return pb === _sBase;
+    });
+    if (_sKeys.length === 1) {
+      showToast && showToast('\u2713 Found in your collection: ' + result.itemNum, 2500);
+      if (typeof _selectCollItem === 'function') { _selectCollItem(_sKeys[0]); return; }
+    } else if (_sKeys.length > 1) {
+      wizard.data.itemNum = String(result.itemNum);
+      renderWizardStep();
+      setTimeout(function () {
+        var i = document.getElementById('wiz-input');
+        if (i) i.value = String(result.itemNum);
+        if (typeof _filterCollPicker === 'function') _filterCollPicker(String(result.itemNum));
+      }, 80);
+      showToast && showToast('You own ' + _sKeys.length + ' of these \u2014 pick the copy below', 3500);
+      return;
+    } else {
+      showToast && showToast(result.itemNum + " isn't in your collection \u2014 you can only sell items you own", 4000, true);
+      return;
+    }
+  }
+  if (result.itemNum) {
+    wizard.data.itemNum = result.itemNum;
+    if (result.variation) wizard.data.variation = result.variation;
+    if (result.masterItem) wizard.matchedItem = result.masterItem;
+    // Session 167: cross-era support. If the scanner found this item in a
+    // different era's IDB cache, the matched item carries an _era tag.
+    // Adopt it so _resolveSaveEra() writes the row to the correct tab.
+    if (result.masterItem && result.masterItem._era) {
+      wizard.data._era = result.masterItem._era;
+    } else if (result.era) {
+      wizard.data._era = result.era;
+    }
+    // v0.9.649: a not-in-master scan already KNOWS its maker (extractor
+    // patterns tag it) — carry it into the manual flow so the saved row
+    // doesn't default to Lionel/postwar (Brad's RMT-66299-21 did exactly
+    // that: saved as Lionel/pw, invisible under the RMT filter).
+    if (result.notInMaster && result.manufacturer) {
+      if (!wizard.data.manualManufacturer) wizard.data.manualManufacturer = result.manufacturer;
+      var _sEra = _eraForMfr(result.manufacturer);
+      if (_sEra && (!wizard.data._era || wizard.data._era === 'all')) wizard.data._era = _sEra;
+    }
+    // v0.9.659: not-in-master scans pivot into the FULL manual-entry flow via the
+    // same single-source router the photo-ID path uses, carrying the AI's full
+    // metadata (aiMeta: road name, sub-type, year, cab#, description) when the AI
+    // rescue produced it, else the label-read description. Previously this path
+    // just stamped mfr+era and advanced the CATALOG flow, which has no
+    // description/type steps for an unknown item — a dead end (Brad's 10-2210).
+    // v0.9.665: photographed a box/label → we obviously have the box, and the
+    // shot doubles as the Box photo (auto-attached at the photos step).
+    if (result._boxPhoto) {
+      if (!wizard.data.manualHasBox) wizard.data.manualHasBox = 'Yes';
+      // v0.9.687 (Brad): the CATALOG flow reads d.hasBox, not manualHasBox —
+      // without this the box question re-appeared for in-catalog items AND
+      // photosBox (where the label shot auto-attaches) was skipIf'd away.
+      if (!wizard.data.hasBox) wizard.data.hasBox = 'Yes';
+      wizard.data._boxAutoKnown = true;
+      if (result._boxPhotoFile) wizard.data._biBoxPhotoFile = result._boxPhotoFile;
+    }
+    // v0.9.811 (TODO-011): item shot from the identify pipeline → attach as
+    // the ITEM photo at the photos step (was silently discarded before).
+    if (result._itemPhotoFile && !wizard.data._idItemPhotoFile) wizard.data._idItemPhotoFile = result._itemPhotoFile;
+    if (result.notInMaster && typeof _identifyRouteToManualEntry === 'function') {
+      var _nmMeta = result.aiMeta || { manufacturer: result.manufacturer || '',
+        description: result.labelDescription || result.description || '' };
+      if (!_nmMeta.description && (result.labelDescription || result.description)) _nmMeta.description = result.labelDescription || result.description;
+      if (_identifyRouteToManualEntry(result.itemNum, _nmMeta, [])) {
+        showToast && showToast(result.statusMessage || ('Not in catalog — add ' + result.itemNum + ' with full details'), 3500);
+        return;
+      }
+    }
+    // Non-Lionel phase-2 flows: just prefill, let user advance manually
+    if (result.phase2 || result.unknownPrefix) {
+      showToast && showToast(result.statusMessage || 'Type the item# manually', 3500);
+      renderWizardStep();
+      return;
+    }
+    showToast && showToast('✓ ' + (result.statusMessage || ('Scanned ' + result.itemNum)), 2500);
+    if (typeof _fyiAlreadyOwned === 'function') setTimeout(function() { _fyiAlreadyOwned(result.itemNum); }, 2600);   // v0.9.647
+    // Advance to next step
+    wizard.step++;
+    renderWizardStep();
+  }
+}
+window._wizApplyIdResult = _wizApplyIdResult;
 
 // ══════════════════════════════════════════════════════════════
 // Session 168: OCR Label scanner — pairs with the Scan Barcode

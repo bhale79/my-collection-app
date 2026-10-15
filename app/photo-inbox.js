@@ -10774,7 +10774,15 @@
   // each checked against the catalog — read 1927690 off the same picture.
   // ONE strong free reader for the whole app: Photo ID asks it here when its
   // quick look comes back empty (barcode.js _biPipelineCore).
-  window.rrFreeReadBlob = _freeReadBlob;
+  // v0.9.1955: ONE read at a time through this door. The Your Picture box can
+  // be reading in the background when Photo ID starts; both share one reader
+  // whose settings change pass by pass, so a second read waits its turn.
+  var _freeReadQueue = Promise.resolve();
+  window.rrFreeReadBlob = function (blob, maxDim, prefer) {
+    var run = _freeReadQueue.then(function () { return _freeReadBlob(blob, maxDim, prefer); });
+    _freeReadQueue = run.catch(function () {});
+    return run;
+  };
 
   // ══ What the car SAYS versus what the number claims ══════════════════════
   // v0.9.1077b — this used to run only when the numbers had failed outright,

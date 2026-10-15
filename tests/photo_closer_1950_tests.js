@@ -161,10 +161,13 @@ async function waitFor(pg, fn, ms) {
     {
       const bc = read('barcode.js');
       const start = bc.indexOf("    if (!(rawCands || []).length && !(opts && opts.ignoreNums) && typeof window.rrFreeReadBlob === 'function') {");
-      const end = start < 0 ? -1 : bc.indexOf('      if (_biStop) return { __biCancel: true };\n    }\n', start);
+      // v0.9.1955: the reading step moved into _biReadPicture (shared with the
+      // Your Picture box); its stop check reads stopped() now
+      const END = '      if (stopped()) return { cancel: true };\n    }\n';
+      const end = start < 0 ? -1 : bc.indexOf(END, start);
       if (start < 0 || end < 0) T('A PLANTED: could plant Photo ID without the closer look', false, { start, end });
       else {
-        const old = bc.slice(0, start) + bc.slice(end + '      if (_biStop) return { __biCancel: true };\n    }\n'.length);
+        const old = bc.slice(0, start) + bc.slice(end + END.length);
         const { pg } = await boot(browser, { ocr: true, files: { 'barcode.js': old } });
         const p = await runPhotoIdOnPic(pg, b64);
         T('A PLANTED: without the closer look, the same picture reads "no item number read" (A would fail)', /no item number read|nothing readable/.test(p.t) && !/found 1927690/.test(p.t), p);
@@ -244,9 +247,13 @@ async function waitFor(pg, fn, ms) {
       });
       T('C a "Read picture" button sits under Change / Remove, full width', lay.has && /Read picture/.test(lay.text) && lay.below && lay.wide, lay);
       await pg.click('#wiz-picfirst-panel [data-pf="read"]');
-      const s = await waitFor(pg, x => x.confirm || x.crop || x.picker, 10000);
-      T('C it reads the picture straight away — no crop screen, no picker', s.confirm && !s.crop && !s.picker, s);
-      await pg.click('[data-a="use"]');
+      // v0.9.1955 (Brad: "have the results pop up under the picture"): the
+      // answer shows in the box itself — no crop screen, no picker, no card
+      await pg.waitForSelector('#wiz-picfirst-result .wiz-pf-item', { timeout: 10000 }).catch(() => {});
+      const s = await screen(pg);
+      const inBox = await pg.evaluate(() => (document.querySelector('#wiz-picfirst-result .wiz-pf-item') || {}).textContent || '');
+      T('C it reads the picture straight away — the answer is in the box, no crop screen, no picker', /1927690/.test(inBox) && !s.crop && !s.picker && !s.confirm, { s, inBox });
+      await pg.click('#wiz-picfirst-result .wiz-pf-item');
       await pg.waitForTimeout(800);
       const num = await pg.evaluate(() => wizard.data.itemNum);
       T('C …and fills the item number: 1927690', num === '1927690', num);

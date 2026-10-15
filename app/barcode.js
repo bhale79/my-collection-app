@@ -3514,34 +3514,18 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   // v0.9.1949: a test runs Photo ID on a canvas it drew, with the real stages
   // (photo_fixes_1949_tests). Nothing in the app calls it.
   window._biPipelineOnCanvas = function (c, opts) { return _biPipeline(c, c, null, '', opts || {}); };
-  async function _biPipelineCore(fullCanvas, workCanvas, lockedBc, eraHint, opts) {
-    var d = _biOverlay(
-      '<div style="width:100%;max-width:560px">'
-      + '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;margin:0.2rem 0 0.6rem">'
-      + '<div style="color:var(--text,#fff);font-family:var(--font-head,sans-serif);font-size:1.02rem">🔎 Identifying…</div>'
-      + '<button id="bi-stop-btn" style="padding:0.35rem 0.85rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--t-red);font-family:var(--font-body,sans-serif);font-weight:700;font-size:0.8rem;cursor:pointer">Stop</button>'
-      + '</div>'
-      + '<style>@keyframes bispin{to{transform:rotate(360deg)}}.bi-spin{display:inline-block;animation:bispin 0.9s linear infinite}</style>'
-      + '<div id="bi-stages" style="display:flex;flex-direction:column;gap:0.45rem;font-size:0.86rem;font-family:var(--font-body,sans-serif)"></div>'
-      + '<div id="bi-actions" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.8rem"></div>'
-      + '</div>');
-    var stagesEl = d.querySelector('#bi-stages');
-    // Stop is checked between stages and around every slow await — pressing it
-    // hands control straight back to the wizard (callers treat __biCancel like
-    // a user cancel; nothing is filled, nothing is saved).
-    _biStop = false;
-    var _stopBtn = d.querySelector('#bi-stop-btn');
-    if (_stopBtn) _stopBtn.onclick = function () { _biStop = true; _stopBtn.disabled = true; _stopBtn.textContent = 'Stopping…'; };
-    var rows = {};
-    function st(key, icon, text, color) {
-      if (!rows[key]) {
-        var r = document.createElement('div');
-        r.style.cssText = 'padding:0.55rem 0.7rem;border-radius:9px;background:var(--surface2,#1d2040);border:1px solid var(--border,#333);color:var(--text-mid,#ccc)';
-        stagesEl.appendChild(r); rows[key] = r;
-      }
-      rows[key].innerHTML = '<span style="margin-right:0.4rem">' + icon + '</span>' + text;
-      if (color) rows[key].style.borderColor = color;
-    }
+  // v0.9.1955 — ONE reading step for Photo ID and the Your Picture box
+  // (Brad: "lets have a option check box that when you load a picture, it
+  // automatically starts to read it in the background"). Stages 1 and 2 —
+  // the barcode, the quick read of the lettering, the 7-digit rule, the closer
+  // look — live HERE, so the box and Photo ID can never read the same picture
+  // two different ways. st(key, icon, text, color) draws a stage line (the
+  // box passes a no-op); stopped() says the reader was told to stop.
+  // -> { cancel: true } or { out, bc, bcResult, ocrText, rawCands,
+  //      numsFromFullFrame, closerUnsure }
+  async function _biReadPicture(fullCanvas, workCanvas, lockedBc, eraHint, opts, st, stopped) {
+    st = st || function () {};
+    stopped = stopped || function () { return false; };
     var out = { bcMaker: '', ocrDesc: '', ocrNums: [], why: {} };
 
     // Stage 1 — barcode (always from the FULL frame)
@@ -3571,7 +3555,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       } else st('bc', '📊', 'Barcode: ✓ ' + bc.rawValue, '#2ecc71');
     } else st('bc', '➖', 'Barcode: none found (fine for bare items)');
     _rtStep('barcode', _rtNow() - _rtBc);
-    if (_biStop) return { __biCancel: true };
+    if (stopped()) return { cancel: true };
 
     // Stage 2 — label / lettering OCR (from the WORK canvas = crop)
     st('ocr', '<span class="bi-spin">⟳</span>', 'Lettering: reading…');
@@ -3599,7 +3583,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         if ((_extractItemNumberCandidates(t2) || []).length) { ocrText = t2; _numsFromFullFrame = true; }
       }
     } catch (e) {}
-    if (_biStop) return { __biCancel: true };
+    if (stopped()) return { cancel: true };
     var rawCands = ocrText ? _extractItemNumberCandidates(ocrText) : [];
     // v0.9.1949 (Brad's Woodruff 2-pack box end, "1927690" printed big and
     // clear: "you should easily read this number"): a bare 7-digit number is
@@ -3639,7 +3623,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           if (_frKnown.length) { rawCands = _frKnown.map(function (n) { return { raw: n, mfr: '' }; }); _closerUnsure = true; }
         }
       } catch (eFR) {}
-      if (_biStop) return { __biCancel: true };
+      if (stopped()) return { cancel: true };
     }
     // v0.9.691: "Not this — identify the item by AI" re-run: printed numbers
     // in frame belong to NEIGHBORING items — ignore them all.
@@ -3657,6 +3641,43 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     st('ocr', out.ocrNums.length ? '🔤' : '➖',
        'Lettering: ' + (out.ocrNums.length ? ('✓ found ' + out.ocrNums.slice(0, 3).join(', ')) : (ocrText ? 'no item number read' : 'nothing readable')),
        out.ocrNums.length ? '#2ecc71' : null);
+
+    return { out: out, bc: bc, bcResult: bcResult, ocrText: ocrText, rawCands: rawCands,
+             numsFromFullFrame: _numsFromFullFrame, closerUnsure: _closerUnsure };
+  }
+
+  async function _biPipelineCore(fullCanvas, workCanvas, lockedBc, eraHint, opts) {
+    var d = _biOverlay(
+      '<div style="width:100%;max-width:560px">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;margin:0.2rem 0 0.6rem">'
+      + '<div style="color:var(--text,#fff);font-family:var(--font-head,sans-serif);font-size:1.02rem">🔎 Identifying…</div>'
+      + '<button id="bi-stop-btn" style="padding:0.35rem 0.85rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--t-red);font-family:var(--font-body,sans-serif);font-weight:700;font-size:0.8rem;cursor:pointer">Stop</button>'
+      + '</div>'
+      + '<style>@keyframes bispin{to{transform:rotate(360deg)}}.bi-spin{display:inline-block;animation:bispin 0.9s linear infinite}</style>'
+      + '<div id="bi-stages" style="display:flex;flex-direction:column;gap:0.45rem;font-size:0.86rem;font-family:var(--font-body,sans-serif)"></div>'
+      + '<div id="bi-actions" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.8rem"></div>'
+      + '</div>');
+    var stagesEl = d.querySelector('#bi-stages');
+    // Stop is checked between stages and around every slow await — pressing it
+    // hands control straight back to the wizard (callers treat __biCancel like
+    // a user cancel; nothing is filled, nothing is saved).
+    _biStop = false;
+    var _stopBtn = d.querySelector('#bi-stop-btn');
+    if (_stopBtn) _stopBtn.onclick = function () { _biStop = true; _stopBtn.disabled = true; _stopBtn.textContent = 'Stopping…'; };
+    var rows = {};
+    function st(key, icon, text, color) {
+      if (!rows[key]) {
+        var r = document.createElement('div');
+        r.style.cssText = 'padding:0.55rem 0.7rem;border-radius:9px;background:var(--surface2,#1d2040);border:1px solid var(--border,#333);color:var(--text-mid,#ccc)';
+        stagesEl.appendChild(r); rows[key] = r;
+      }
+      rows[key].innerHTML = '<span style="margin-right:0.4rem">' + icon + '</span>' + text;
+      if (color) rows[key].style.borderColor = color;
+    }
+    var _rp = await _biReadPicture(fullCanvas, workCanvas, lockedBc, eraHint, opts, st, function () { return _biStop; });
+    if (_rp.cancel) return { __biCancel: true };
+    var out = _rp.out, bc = _rp.bc, bcResult = _rp.bcResult, ocrText = _rp.ocrText, rawCands = _rp.rawCands;
+    var _numsFromFullFrame = _rp.numsFromFullFrame, _closerUnsure = _rp.closerUnsure;
 
     // Stage 3 — master lookup (printed number WINS over barcode)
     st('master', '<span class="bi-spin">⟳</span>', 'Catalog: checking…');
@@ -3916,10 +3937,10 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   // ── Public entry ──
   // v0.9.1950 (Brad: "if you pick the add photo first, you can't use the free
   // reader, you hit photo id and then you have to select the photo again"):
-  // start = { file, read }. With a file, the first pass skips the camera /
-  // picker and opens on that picture — the crop screen, with Photo ID and
-  // Google Lens. read:true (the "Read picture" button) goes straight to
-  // Photo ID on the whole picture. Retake still opens the camera as always.
+  // start = { file }. With a file, the first pass skips the camera / picker
+  // and opens on that picture — the crop screen, with Photo ID and Google
+  // Lens. Retake still opens the camera as always. (v0.9.1955: the Read
+  // picture button reads in the Your Picture box instead — rrReadPictureFile.)
   function _biFileToCanvas(f) {
     return new Promise(function (resolve) {
       var img = new Image(), u = '';
@@ -3935,7 +3956,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     });
   }
   async function openBoxIdentify(onScanned, onCancel, eraHint, start) {
-    var _startFile = (start && start.file) || null, _startRead = !!(start && start.read);
+    var _startFile = (start && start.file) || null;
     // v0.9.686 (Brad): device/browser BACK closes the identify overlay like
     // Cancel does, instead of navigating the app away underneath it.
     _biOnCancel = onCancel || null;
@@ -4058,9 +4079,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           else if (onCancel) onCancel();
           return;
         }
-        var cr = (_fromStart && _startRead) ? { work: cap.view, action: 'go' }
-          : await _rtWait('crop screen', _biCrop(cap.view, cap.lockedBc));
-        _startRead = false;
+        var cr = await _rtWait('crop screen', _biCrop(cap.view, cap.lockedBc));
         if (cr.action === 'retake') continue;
         if (cr.action === 'cancel') { _biKill(); if (onCancel) onCancel(); return; }
         if (cr.action === 'lens') {
@@ -4213,6 +4232,59 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     }
   }
   window.openBoxIdentify = openBoxIdentify;
+
+  // ── v0.9.1955 — the Your Picture box reads in the background ─────────────
+  // Brad: "lets have a option check box that when you load a picture, it
+  // automatically starts to read it in the background and have the results
+  // pop up under the picture". The SAME reading step as Photo ID
+  // (_biReadPicture), with no screen of its own; then the catalog says what
+  // each number is. Nothing is filled here — the box shows the answers and
+  // the person taps one.
+  //   ctl = { stopped: fn → true when the picture changed, onStage: fn(text) }
+  //   -> { kind: 'sure', item: { num, row } }
+  //    | { kind: 'choices', items: [{ num, row }, …] }   (longest number first)
+  //    | { kind: 'none' } | { kind: 'cancel' } | { kind: 'error' }
+  //   + boxShot: a barcode or a printed number was read (Photo ID's own rule)
+  async function rrReadPictureFile(file, ctl) {
+    ctl = ctl || {};
+    var stopped = function () { return !!(ctl.stopped && ctl.stopped()); };
+    var c = file ? await _biFileToCanvas(file) : null;
+    if (!c) return { kind: 'error' };
+    var say = function (key, icon, text) { if (ctl.onStage && /reading/i.test(String(text))) try { ctl.onStage(String(text).replace(/<[^>]*>/g, '')); } catch (e) {} };
+    var rp = await _biReadPicture(c, c, null, ctl.eraHint || '', {}, say, stopped);
+    if (rp.cancel || stopped()) return { kind: 'cancel' };
+    var nums = Array.from(new Set(rp.out.ocrNums || []));
+    var boxShot = !!(rp.bc || nums.length);
+    var items = [], seen = {};
+    var addRow = function (num, row) {
+      if (!row) return;
+      var k = String(row.itemNum) + '|' + String(row.variation || '') + '|' + String(row._tab || '');
+      if (seen[k]) return; seen[k] = 1;
+      items.push({ num: String(num), row: row });
+    };
+    // a barcode the catalog decoded comes first — it is read off the box itself
+    var bcr = rp.bcResult;
+    if (bcr && bcr.masterItem) addRow(bcr.itemNum || bcr.masterItem.itemNum, bcr.masterItem);
+    else if (bcr && bcr.multipleMatches) (bcr.candidates || []).forEach(function (r) { addRow(r.itemNum, r); });
+    for (var i = 0; i < nums.length && i < RR_PHOTO_ID_CLOSER.maxChoices; i++) {
+      var n = nums[i], lk = [n];
+      if (/^\d/.test(n)) lk.push('6-' + n);
+      var nb = n.replace(/[A-Za-z]{1,2}$/, '');
+      if (nb && nb !== n && nb.length >= 2) { lk.push(nb); if (/^\d/.test(nb)) lk.push('6-' + nb); }
+      var hits = [];
+      try { hits = await _findMasterItemsAllEras(lk); } catch (eH) { hits = []; }
+      hits.forEach(function (r) { addRow(n, r); });
+      if (stopped()) return { kind: 'cancel' };
+    }
+    if (!items.length) return { kind: 'none', boxShot: boxShot };
+    var bases = Array.from(new Set(items.map(function (x) { return _bcBaseNum(x.num); })));
+    var sure = items.length === 1 && !rp.closerUnsure && !rp.numsFromFullFrame && bases.length === 1;
+    if (sure) return { kind: 'sure', item: items[0], boxShot: boxShot };
+    return { kind: 'choices', items: items.slice(0, RR_PHOTO_ID_CLOSER.maxRows), boxShot: boxShot };
+  }
+  // the same "is it the same number?" rule the pipeline's own picker uses
+  function _bcBaseNum(n) { return String(n || '').replace(/^6-/, '').replace(/-\d{1,3}$/, '').replace(/[A-Z]{1,2}$/i, ''); }
+  window.rrReadPictureFile = rrReadPictureFile;
 
   window.openLabelScanner = openLabelScanner;
   window._ensureTesseract = _ensureTesseract;   // v0.9.672: screenshot-read path

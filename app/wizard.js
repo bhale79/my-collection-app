@@ -8149,6 +8149,7 @@ function _wizPicFirstTake(f) {
   wizard.data._idItemPhotoFile = f;
   wizard.data._picFirst = true;
   _wizPicFirstRefresh();
+  if (_wizPicAutoReadOn()) _wizPicFirstRead();   // v0.9.1955
 }
 function _wizPicFirstPick(camera) {
   var inp = document.createElement('input');
@@ -8169,6 +8170,7 @@ function _wizPicFirstRemove() {
     delete wizard.data._idItemPhotoFile;
     delete wizard.data._picFirst;
   }
+  _wizPicRead.tok++; _wizPicRead.file = null; _wizPicRead.res = null; _wizPicRead.busy = false;   // v0.9.1955: a read under way is dropped
   _wizPicFirstRefresh();
 }
 // Button label, header thumbnail and side view — all from wizard.data.
@@ -8190,6 +8192,7 @@ function _wizPicFirstSync() {
   var roomy = !window.IS_MOBILE_UA && (window.innerWidth || 0) >= RR_PIC_FIRST.sideMinWidth;
   if (!ov || !f || !roomy) { if (p) p.remove(); return; }
   var sig = (f.name || '') + '|' + f.size + '|' + (f.lastModified || 0);
+  _wizPicFirstFit(p);
   if (p && p.getAttribute('data-sig') === sig) return;
   if (!p) {
     p = document.createElement('div');
@@ -8207,21 +8210,139 @@ function _wizPicFirstSync() {
     '<div class="wiz-picfirst-note">' + RR_PIC_FIRST.panelNote + '</div>' +
     '<div class="wiz-picfirst-acts">' +
       '<button type="button" data-pf="change">Change</button>' +
+      // v0.9.1955 (Brad: "need the crop option on the your picture box")
+      '<button type="button" data-pf="crop">' + RR_PIC_FIRST.cropBtn + '</button>' +
       '<button type="button" data-pf="remove">Remove</button>' +
     '</div>' +
+    // v0.9.1955: read every picture as it arrives — an account setting
+    '<label class="wiz-picfirst-auto"><input type="checkbox" data-pf="auto"' + (_wizPicAutoReadOn() ? ' checked' : '') + '> ' + RR_PIC_FIRST.autoReadLabel + '</label>' +
     // v0.9.1950 (Brad: "have read picture button under the change/remove
-    // buttons"): Photo ID on THIS picture, no second pick.
-    '<button type="button" data-pf="read" class="wiz-picfirst-read">' + RR_PIC_FIRST.readBtn + '</button>';
+    // buttons"): THIS picture, no second pick. v0.9.1955: the answer shows
+    // in the box below, like the automatic read.
+    '<button type="button" data-pf="read" class="wiz-picfirst-read">' + RR_PIC_FIRST.readBtn + '</button>' +
+    // v0.9.1955 (Brad: "have the results pop up under the picture")
+    '<div class="wiz-picfirst-result" id="wiz-picfirst-result" aria-live="polite"></div>';
   var im = p.querySelector('img');
   if (im && url) im.src = url;
   p.querySelector('.wiz-picfirst-img').onclick = function () {
     if (typeof window._wizVarZoom === 'function') window._wizVarZoom(url);
   };
   p.querySelector('[data-pf="change"]').onclick = function () { _wizPicFirstChoose(); };
+  p.querySelector('[data-pf="crop"]').onclick = function () { _wizPicFirstCrop(); };
   p.querySelector('[data-pf="remove"]').onclick = function () { _wizPicFirstRemove(); };
-  p.querySelector('[data-pf="read"]').onclick = function () {
-    if (typeof _wizScanBarcode === 'function') _wizScanBarcode({ read: true });
+  p.querySelector('[data-pf="read"]').onclick = function () { _wizPicFirstRead(); };
+  p.querySelector('[data-pf="auto"]').onchange = function () {
+    var on = !!this.checked;
+    try { _prefSet(RR_PIC_FIRST.autoReadKey, on ? '1' : '0'); } catch (e) {}
+    if (on && !_wizPicRead.res && !_wizPicRead.busy) _wizPicFirstRead();
   };
+  _wizPicFirstFit(p);
+  if (_wizPicRead.file === f && _wizPicRead.res) _wizPicFirstShow(_wizPicRead.res);
+}
+
+// ── v0.9.1955 — the Your Picture box: tall as the Add screen, crop, read ───
+// Brad: "move the your picture box up even with the top of the collection
+// box". Both are centred in the same row, so the SAME HEIGHT puts their tops
+// level — the box follows the Add screen's height (a watcher keeps it so as
+// steps change size) and the answers get the room below the picture.
+function _wizPicFirstFit(p) {
+  p = p || document.getElementById('wiz-picfirst-panel');
+  var m = document.querySelector('#wizard-modal .modal');
+  if (!p || !m) return;
+  // Measured on SCREEN (getBoundingClientRect): the Add screen is drawn
+  // zoomed on a big window, so its offsetHeight is not the height you see.
+  var h = m.getBoundingClientRect().height;
+  var pz = (p.offsetHeight > 0) ? (p.getBoundingClientRect().height / p.offsetHeight) || 1 : 1;
+  if (h > 0) p.style.height = Math.round(h / pz) + 'px';
+  if (!m._pfFitWatch && typeof ResizeObserver === 'function') {
+    m._pfFitWatch = new ResizeObserver(function () { _wizPicFirstFit(); });
+    m._pfFitWatch.observe(m);
+  }
+}
+function _wizPicAutoReadOn() {
+  try { return String(_prefGet(RR_PIC_FIRST.autoReadKey, '0')) === '1'; } catch (e) { return false; }
+}
+// The one read in progress / last answer, tied to the picture it is about. A
+// new picture, a crop or Remove makes an older read's answer stale — it is
+// dropped when it arrives (stopped() tells the reader to quit early).
+var _wizPicRead = { tok: 0, file: null, res: null, busy: false };
+function _wizPicFirstRead() {
+  var f = _wizPicFirstFile();
+  var box = document.getElementById('wiz-picfirst-result');
+  if (!f || !box || typeof window.rrReadPictureFile !== 'function') return;
+  var tok = ++_wizPicRead.tok;
+  _wizPicRead.file = f; _wizPicRead.res = null; _wizPicRead.busy = true;
+  var live = function () { return tok === _wizPicRead.tok && _wizPicFirstFile() === f; };
+  _wizPicFirstShow({ kind: 'reading' });
+  window.rrReadPictureFile(f, {
+    eraHint: (wizard && wizard.data && wizard.data._era) || '',
+    stopped: function () { return !live(); },
+    onStage: function (t) { if (live()) _wizPicFirstShow({ kind: 'reading', text: t }); },
+  }).then(function (res) {
+    if (!live()) return;
+    _wizPicRead.busy = false; _wizPicRead.res = res;
+    _wizPicFirstShow(res);
+  }, function () {
+    if (!live()) return;
+    _wizPicRead.busy = false; _wizPicRead.res = { kind: 'error' };
+    _wizPicFirstShow(_wizPicRead.res);
+  });
+}
+function _wizPicFirstShow(res) {
+  var box = document.getElementById('wiz-picfirst-result');
+  if (!box || !res) return;
+  var T = RR_PIC_FIRST;
+  var esc = function (v) { return (typeof rrEsc === 'function') ? rrEsc(v) : String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; }); };
+  var row = function (it, i) {
+    var r = it.row || {};
+    return '<button type="button" class="wiz-pf-item" data-pfr="' + i + '"><b>' + esc(r.itemNum || it.num) + '</b>' +
+      '<span>' + esc(String(r.description || '').slice(0, 70)) + (r._tab ? ' · ' + esc(r._tab) : '') + '</span></button>';
+  };
+  var html = '';
+  if (res.kind === 'reading') html = '<div class="wiz-pf-wait"><span class="wiz-pf-spin"></span>' + esc(res.text || T.resReading) + '</div>';
+  else if (res.kind === 'sure') html = '<div class="wiz-pf-head">' + T.resFound + '</div>' + row(res.item, 0);
+  else if (res.kind === 'choices') html = '<div class="wiz-pf-head">' + T.resChoose + '</div>' + res.items.map(row).join('') +
+    '<button type="button" class="wiz-pf-noneof" data-pfr="none">' + T.resNoneOf + '</button>';
+  else if (res.kind === 'none' || res.kind === 'error') html = '<div class="wiz-pf-msg">' + (res.kind === 'error' ? T.resError : T.resNone) + '</div>' +
+    (res.kind === 'none' ? '<div class="wiz-pf-alts"><button type="button" data-pfr="photoid">' + T.resPhotoId + '</button><button type="button" data-pfr="lens">' + T.resLens + '</button></div>' : '');
+  box.innerHTML = html;
+  box.onclick = function (e) {
+    var b = e.target && e.target.closest ? e.target.closest('[data-pfr]') : null;
+    if (!b) return;
+    var a = b.getAttribute('data-pfr');
+    if (a === 'none') { _wizPicRead.res = { kind: 'none' }; _wizPicFirstShow(_wizPicRead.res); return; }
+    if (a === 'photoid') { if (typeof _wizScanBarcode === 'function') _wizScanBarcode(); return; }
+    if (a === 'lens') { var lf = _wizPicFirstFile(); if (lf && typeof window._identifyOpenWithPhoto === 'function') window._identifyOpenWithPhoto(lf, true); return; }
+    var list = res.kind === 'sure' ? [res.item] : (res.items || []);
+    var it = list[parseInt(a, 10)];
+    if (!it || !it.row || typeof window._wizApplyIdResult !== 'function') return;
+    var r = it.row;
+    window._wizApplyIdResult({ itemNum: r.itemNum, variation: r.variation || '', masterItem: r,
+      manufacturer: r.manufacturer || '', roadName: r.roadName || '', description: r.description || '',
+      _boxPhoto: !!res.boxShot, _fromHeldPicture: true,
+      statusMessage: 'Using ' + r.itemNum + ' — ' + String(r.description || '').substring(0, 40) });
+  };
+}
+// The SAME crop tool as every other photo in the app (photo-crop.js). The
+// cropped picture REPLACES the one added — that is the one that goes in as the
+// first photo — and, with the box ticked, it is read again.
+function _wizPicFirstCrop() {
+  var f = _wizPicFirstFile();
+  if (!f || typeof window._openCropper !== 'function') return;
+  var u = '';
+  try { u = URL.createObjectURL(f); } catch (e) { return; }
+  window._openCropper(u, function (blob) {
+    try { URL.revokeObjectURL(u); } catch (e) {}
+    if (!blob || _wizPicFirstFile() !== f) return;
+    var name = String(f.name || 'picture.jpg').replace(/\.[^.]+$/, '') + '-cropped.jpg';
+    var nf;
+    try { nf = new File([blob], name, { type: 'image/jpeg', lastModified: Date.now() }); }
+    catch (eF) { nf = blob; nf.name = name; }
+    wizard.data._idItemPhotoFile = nf;
+    _wizPicRead.tok++; _wizPicRead.res = null; _wizPicRead.busy = false;
+    _wizPicFirstRefresh();
+    if (_wizPicAutoReadOn()) _wizPicFirstRead();
+  }, function () { try { URL.revokeObjectURL(u); } catch (e) {} }, { title: RR_PIC_FIRST.cropTitle });
 }
 // v0.9.1950 (Brad: "you hit photo id and then you have to select the photo
 // again"): the picture this add already holds, for Photo ID to open on —

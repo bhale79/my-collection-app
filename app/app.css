@@ -2981,7 +2981,9 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
 .wiz-picfirst-btn.is-set { border-style: solid; }
 .wiz-picfirst-panel {
   flex: 0 0 auto; align-self: center; margin-left: 1rem; box-sizing: border-box;
-  max-height: 580px; display: flex; flex-direction: column; gap: 0.55rem;
+  /* v0.9.1955: as tall as the Add screen (wizard.js _wizPicFirstFit), so the
+     two tops sit level; 580px only until the first fit */
+  height: 580px; max-height: 96vh; display: flex; flex-direction: column; gap: 0.5rem; overflow: hidden;
   padding: 0.9rem; border-radius: 16px; border: 1px solid var(--border);
   background: var(--surface);
 }
@@ -2993,7 +2995,8 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
   border-radius: 10px; overflow: hidden; background: var(--bg); cursor: zoom-in;
   display: flex; align-items: center; justify-content: center; min-height: 160px;
 }
-.wiz-picfirst-img img { width: 100%; max-height: 400px; object-fit: contain; display: block; }
+.wiz-picfirst-img img { width: 100%; max-height: 220px; object-fit: contain; display: block; }
+.wiz-picfirst-img { flex: 0 0 auto; }
 .wiz-picfirst-note { font-size: 0.78rem; color: var(--text-dim); line-height: 1.45; }
 .wiz-picfirst-acts { display: flex; gap: 0.5rem; }
 .wiz-picfirst-acts button {
@@ -3007,6 +3010,37 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
   border: 1.5px solid var(--accent); background: var(--accent); color: var(--on-accent, #fff);
   font-family: var(--font-body); font-size: 0.85rem; font-weight: 700;
 }
+
+/* v0.9.1955 — read automatically, and the answers under the picture */
+.wiz-picfirst-auto {
+  display: flex; align-items: center; gap: 0.45rem; cursor: pointer;
+  font-family: var(--font-body); font-size: 0.82rem; color: var(--text);
+}
+.wiz-picfirst-auto input { width: 16px; height: 16px; accent-color: var(--accent); margin: 0; }
+.wiz-picfirst-result { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 0.4rem; }
+.wiz-picfirst-result:empty { display: none; }
+.wiz-pf-head { font-size: 0.8rem; font-weight: 700; color: var(--text-mid); }
+.wiz-pf-wait, .wiz-pf-msg { font-size: 0.8rem; color: var(--text-mid); line-height: 1.45; display: flex; align-items: center; gap: 0.45rem; }
+.wiz-pf-spin {
+  width: 12px; height: 12px; flex: 0 0 auto; border-radius: 50%;
+  border: 2px solid var(--border); border-top-color: var(--accent); animation: wizpfspin 0.9s linear infinite;
+}
+@keyframes wizpfspin { to { transform: rotate(360deg); } }
+.wiz-pf-item {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 0.1rem; text-align: left;
+  padding: 0.45rem 0.6rem; border-radius: 8px; cursor: pointer;
+  border: 1.5px solid var(--accent); background: var(--surface2); color: var(--text);
+  font-family: var(--font-body); font-size: 0.8rem;
+}
+.wiz-pf-item b { font-size: 0.95rem; }
+.wiz-pf-item span { color: var(--text-mid); font-size: 0.74rem; line-height: 1.35; }
+.wiz-pf-noneof, .wiz-pf-alts button {
+  padding: 0.4rem 0.6rem; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--surface2); color: var(--text);
+  font-family: var(--font-body); font-size: 0.8rem; font-weight: 600;
+}
+.wiz-pf-alts { display: flex; gap: 0.4rem; }
+.wiz-pf-alts button { flex: 1; }
 
 /* v0.9.1930 — where is the picture? (wizard.js _wizPicFirstChoose) */
 .wiz-picfirst-choose {
