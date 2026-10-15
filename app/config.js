@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1951';
+const APP_VERSION = 'v0.9.1952';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -925,6 +925,11 @@ const ADMIN_EMAIL  = 'support@therailroster.com';
 // Brad out of his own console; that fallback is a seatbelt, not a second
 // source of truth. THIS is the list to edit.
 const RR_OWNER_EMAILS = ['bhale@ipd-llc.com', 'support@therailroster.com'];
+// v0.9.1952 (Brad: "yes" to an "Allow master edits" button): the accounts that
+// may ask Google for the FULL Sheets permission from Preferences → Owner tools,
+// so master-catalog fixes can be written. support@ (the demo account) is an
+// owner but never edits the master, so it is not on this list.
+const RR_MASTER_EDITOR_EMAILS = ['bhale@ipd-llc.com'];
 
 // ── GOOGLE LENS HAND-OFF (v0.9.1911) ─────────────────────────────────────
 // Brad, 2026-10-10: Lens took ~35 s on his phone — "sending your photo" for
@@ -1515,6 +1520,7 @@ try {
 
 try {
   window.RR_OWNER_EMAILS = RR_OWNER_EMAILS;
+  window.RR_MASTER_EDITOR_EMAILS = RR_MASTER_EDITOR_EMAILS;
   window.RR_LENS = RR_LENS;
   window.RR_FLAG_NOTES  = RR_FLAG_NOTES;
   window.rrFlagKind     = rrFlagKind;

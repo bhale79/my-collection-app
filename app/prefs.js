@@ -150,6 +150,7 @@ function _prefsOwnerToolsHtml() {
       +         '<div class="pref-toggle-track"></div>'
       +       '</label>'
       +     '</div>'
+      +     _prefsMasterEditsRowHtml()
       +     (on
         ? '<div class="pref-row"><div class="pref-row-label"><span style="color:var(--accent2);font-weight:600">'
           + 'Recording mode is ON \u2014 your owner tools are hidden. Turn it off here when you are done recording.'
@@ -159,6 +160,51 @@ function _prefsOwnerToolsHtml() {
       + '</div>';
   } catch (e) { return ''; }
 }
+
+// ── Owner tools — Allow master edits (v0.9.1952) ─────────────────────────
+// Brad, 2026-10-14: "yes" to a button that asks Google for the full Sheets
+// permission. The app signs in with narrow access ("only files the app made");
+// writing a fix to the MASTER catalog sheet needs the full Sheets permission,
+// and only a click from the account holder may ask Google for it (a script in
+// the page is refused, rightly). One row, shown only to RR_MASTER_EDITOR_EMAILS
+// (config.js): it says whether THIS sign-in already carries the permission
+// (Google's own answer — _rrPassHasScope) and, if not, offers the button.
+function _prefsIsMasterEditor() {
+  try {
+    var em = String((window.state && window.state.user && window.state.user.email) || '').toLowerCase();
+    return !!em && (typeof RR_MASTER_EDITOR_EMAILS !== 'undefined') && RR_MASTER_EDITOR_EMAILS.indexOf(em) >= 0;
+  } catch (e) { return false; }
+}
+function _prefsMasterEditsRowHtml() {
+  try {
+    if (!_prefsIsMasterEditor()) return '';
+    var has = (typeof _rrPassHasScope === 'function') && (typeof SCOPE_SHEETS_FULL !== 'undefined') && _rrPassHasScope(SCOPE_SHEETS_FULL);
+    return ''
+      + '<div class="pref-row" id="pref-master-edits">'
+      +   '<div class="pref-row-label">'
+      +     '<strong>Allow master edits</strong>'
+      +     '<span>Lets this sign-in write fixes to the master catalog sheet. Google opens a window for you to approve. '
+      +     'It lasts until you sign out or Google renews your sign-in; click it again then. Only you can see this.</span>'
+      +   '</div>'
+      +   (has
+        ? '<span id="pref-master-edits-on" style="color:var(--t-green);font-weight:700;white-space:nowrap">\u2713 Allowed</span>'
+        : '<button id="pref-master-edits-btn" class="pref-btn" onclick="_prefsAllowMasterEdits()" style="white-space:nowrap">Allow</button>')
+      + '</div>';
+  } catch (e) { return ''; }
+}
+async function _prefsAllowMasterEdits() {
+  try {
+    if (!_prefsIsMasterEditor() || typeof _ensureFullSheetsScope !== 'function') return;
+    var ok = await _ensureFullSheetsScope();
+    if (typeof showToast === 'function') {
+      showToast(ok ? '\u2713 Master edits allowed on this sign-in' : 'Google did not give the permission \u2014 nothing changed.', ok ? 2500 : 4000, !ok);
+    }
+    if (typeof buildPrefsPage === 'function') buildPrefsPage();
+  } catch (e) {
+    if (typeof showToast === 'function') showToast('Could not ask Google for the permission.', 3500, true);
+  }
+}
+if (typeof window !== 'undefined') { window._prefsAllowMasterEdits = _prefsAllowMasterEdits; }
 
 function _prefsToggleRecordingMode(on) {
   try {
