@@ -1782,6 +1782,9 @@
   // Called with no argument they read what is SAVED — that is the boot path,
   // and the path Cancel uses to put the app back the way it was.
   function applyBranding(rec) {
+    // v0.9.1957: recording mode shows what a new member sees — no logo marks
+    // of the owner's own. Only the BOOT read is skipped; nothing is erased.
+    if (rec === undefined && typeof rrRecordingMode === 'function' && rrRecordingMode()) rec = _brandFill({});
     if (rec === undefined) rec = _brandRec();
     applyLogoBackdrop(rec.watermark);
     _applySidebarMark(rec.sidebar);
@@ -1886,7 +1889,7 @@
     cover: 'cover'
   };
   function applyLogoBackdrop(slot) {
-    if (slot === undefined) slot = _brandRec().watermark;
+    if (slot === undefined) slot = (typeof rrRecordingMode === 'function' && rrRecordingMode()) ? null : _brandRec().watermark;   // v0.9.1957
     var el = document.getElementById('rr-logo-bg');
     if (!slot || !slot.data) {
       if (el) el.remove();

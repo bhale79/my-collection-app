@@ -1095,6 +1095,10 @@ function buildDashboard() {
         var slot = s.slot, i = s.i;
         var card = CARD_CATALOG.find(function(c){return c.id===slot.id;});
         if (!card) return '';
+        // v0.9.1957 (Brad: "in the recording mode, do not show the logo cards"
+        // — "recording mode should only show what a new user would be
+        // seeing"): a new member has no logo cards, so a recording shows none.
+        if (card.logoCard && typeof rrRecordingMode === 'function' && rrRecordingMode()) return '';
         var result = card.compute(state, i);
         var cardLabel = card.label;
         var inner;
@@ -2310,6 +2314,10 @@ function _dashEdDrop(ev, type, i) {
 function _dashEdSpot(type, entry, i, total) {
   var base = 'position:relative;border-radius:9px;min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.25rem;padding:0.4rem 0.3rem;text-align:center;font-size:0.72rem;font-family:var(--font-body)';
   var dnd = ' ondragover="event.preventDefault()" ondrop="_dashEdDrop(event,\'' + type + '\',' + i + ')"';
+  // v0.9.1957: recording mode shows what a new member sees — a logo card
+  // already placed shows as the empty spot it is for them (it stays saved).
+  if (entry && type === 's' && typeof rrRecordingMode === 'function' && rrRecordingMode()
+      && (CARD_CATALOG.find(function (c) { return c.id === entry.id; }) || {}).logoCard) entry = null;
   if (!entry) {
     return '<div style="' + base + ';border:1.5px dashed var(--border,#2a3a5c);color:var(--text-dim,#888)"' + dnd + '>Empty<br>spot ' + (i + 1) + '</div>';
   }

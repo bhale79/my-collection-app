@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1956';
+const APP_VERSION = 'v0.9.1957';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -36,6 +36,9 @@ const APPEARANCE_BETA_ONLY = true;
 // editor is hidden. A constant read inline in two files is a fact with two
 // answers waiting to happen.
 function rrAppearanceOn() {
+  // v0.9.1957 (Brad: "recording mode should only show what a new user would
+  // be seeing"): a new member has no Appearance — so recording mode has none.
+  if (typeof rrRecordingMode === 'function' && rrRecordingMode()) return false;
   // Master switch first — true means on for everyone, beta or not.
   if (typeof APPEARANCE_ENABLED !== 'undefined' && APPEARANCE_ENABLED) return true;
   if (typeof APPEARANCE_BETA_ONLY === 'undefined' || !APPEARANCE_BETA_ONLY) return false;

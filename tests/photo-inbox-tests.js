@@ -8557,7 +8557,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
     // ── the marks reach the real app ─────────────────────────────────────
     ok('one entry point paints all three homes',
-       /function applyBranding\(rec\)[\s\S]{0,300}applyLogoBackdrop\(rec\.watermark\)[\s\S]{0,120}_applySidebarMark\(rec\.sidebar\)[\s\S]{0,120}_applyHeaderMark\(rec\.header, rec\.title\)/.test(ap));
+       // v0.9.1957: room for the recording-mode note at the top of applyBranding
+       /function applyBranding\(rec\)[\s\S]{0,600}applyLogoBackdrop\(rec\.watermark\)[\s\S]{0,120}_applySidebarMark\(rec\.sidebar\)[\s\S]{0,120}_applyHeaderMark\(rec\.header, rec\.title\)/.test(ap));
     ok('…and the app shell calls it once the shell exists',
        /applyBranding\(\)/.test(setup));
     ok('the sidebar mark is appended to the sidebar itself, so it stays last',

@@ -4134,6 +4134,9 @@ function applyTheme() {
   const validKeys = (themeCfg.options || [{ key: 'dark' }, { key: 'light' }]).map(o => o.key);
   let theme = _prefGet(themeCfg.storageKey || 'lv_theme', themeCfg.defaultKey || 'dark');
   if (theme !== 'custom' && validKeys.indexOf(theme) < 0) theme = themeCfg.defaultKey || 'dark';
+  // v0.9.1957: recording mode shows what a new member sees — the colours made
+  // in Appearance (the 'custom' look) are not theirs. Nothing saved changes.
+  if (theme === 'custom' && typeof rrRecordingMode === 'function' && rrRecordingMode()) theme = themeCfg.defaultKey || 'dark';
 
   // Clear any inline custom-skin variables from a previous 'custom' selection
   // so switching to a normal theme doesn't leave stale overrides behind.
