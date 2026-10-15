@@ -3085,25 +3085,17 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
 /* v0.9.1958 (Brad, laptop: "This is way too big. is so big that i can't see all
    the buttons as i get lost" — "just do it"): the Photo Inbox review card, laptop
    layout. The card is a fixed height (the step above) so the photo can fill its
-   cell. Side by side for an ordinary photo; a very wide shot (RR_PIN_RV.wideShot,
-   photo-inbox.js _pinRvFitHero adds .pin-rv-wideshot) runs across the top. */
+   cell. v0.9.1959 (Brad: "be freaking consistant"): EVERY photo beside the
+   buttons — one arrangement, whatever the photo's shape. */
 .pin-rv-grid {
   grid-template-columns: minmax(0, 1.55fr) minmax(340px, 1fr);
   grid-template-rows: max-content minmax(0, 1fr);
   grid-template-areas: "photo act" "photo read";
-  gap: 0.7rem 1.1rem;
+  gap: 0.45rem 1.1rem;
 }
 .pin-rv-grid .pin-rv-photo   { grid-area: photo; }
 .pin-rv-grid .pin-rv-actcol  { grid-area: act; }
 .pin-rv-grid .pin-rv-readcol { grid-area: read; }
-.pin-rv-grid.pin-rv-wideshot {
-  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
-  grid-template-rows: max-content minmax(0, 1fr);
-  grid-template-areas: "photo photo" "act read";
-  gap: 1rem;
-}
-/* the two button groups: stacked beside an ordinary photo; side by side under a
-   wide one, so the wide photo keeps its height */
-.pin-rv-btns { display: flex; flex-direction: column; gap: 0.9rem; }
-.pin-rv-btns > .pin-rv-grp { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
-.pin-rv-wideshot .pin-rv-btns { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 0.5rem 1rem; align-items: start; }
+/* v0.9.1959 (Brad: "scale the buttons back"): tighter spacing to match the smaller buttons */
+.pin-rv-btns { display: flex; flex-direction: column; gap: 0.55rem; }
+.pin-rv-btns > .pin-rv-grp { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; }

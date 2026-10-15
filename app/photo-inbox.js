@@ -4802,33 +4802,17 @@
   // photo said + the catalog details), so they are not cut off either. The
   // cap itself is read back from the photo's own style the first time (one
   // source: the _photoWide line).
-  // v0.9.1958: two arrangements on the laptop card, picked by the photo's
-  // shape (RR_PIN_RV.wideShot): side by side for an ordinary photo — the photo
-  // as tall as the card's photo cell allows — or across the top for a very
-  // wide one, where the old rule holds (cap, then give way to the buttons).
+  // v0.9.1959 (Brad: "be freaking consistant"): ONE arrangement on the laptop
+  // card, whatever the photo's shape — the photo beside the buttons, as tall
+  // as its cell allows (less the strip beneath it). v1958 sent very wide shots
+  // across the top instead; that exception is gone.
   function _pinRvFitHero() {
-    var img = document.getElementById('pin-rv-main'), act = document.getElementById('pin-rv-act');
-    var read = document.getElementById('pin-rv-read'), top = document.getElementById('pin-rv-top');
-    var grid = document.getElementById('pin-rv-cols');
-    if (!img || !act || !top || !grid) return;   // the laptop card only
+    var img = document.getElementById('pin-rv-main'), top = document.getElementById('pin-rv-top');
+    if (!img || !top || !document.getElementById('pin-rv-cols')) return;   // the laptop card only
     var box = img.parentElement;
-    if (!img.getAttribute('data-cap')) img.setAttribute('data-cap', img.style.maxHeight || '40vh');
-    var cap = img.getAttribute('data-cap');
-    var wide = img.naturalWidth > 0 && img.naturalHeight > 0
-      && (img.naturalWidth / img.naturalHeight) >= ((typeof RR_PIN_RV !== 'undefined' && RR_PIN_RV.wideShot) || 2);
-    grid.classList.toggle('pin-rv-wideshot', !!wide);
-    if (!wide) {
-      // side by side: the photo fills its cell, less the strip beneath it
-      var strip = document.getElementById('pin-rv-strip');
-      var room = top.clientHeight - (strip ? strip.offsetHeight + 8 : 0) - 8;
-      var h0 = Math.max(160, room);
-      img.style.maxHeight = h0 + 'px'; if (box) box.style.maxHeight = h0 + 'px';
-      return;
-    }
-    img.style.maxHeight = cap; if (box) box.style.maxHeight = cap;
-    var over = Math.max(act.scrollHeight - act.clientHeight, read ? read.scrollHeight - read.clientHeight : 0);
-    if (over <= 1) return;
-    var h = Math.max(120, img.offsetHeight - over - 2);
+    var strip = document.getElementById('pin-rv-strip');
+    var room = top.clientHeight - (strip ? strip.offsetHeight + 8 : 0) - 8;
+    var h = Math.max(160, room);
     img.style.maxHeight = h + 'px'; if (box) box.style.maxHeight = h + 'px';
   }
   try { window.addEventListener('resize', _pinRvFitHero); } catch (eRz) {}
@@ -4937,7 +4921,10 @@
     // gets the compact size; the phone and the 1000px card keep exactly the sizes
     // they had (the second line of _RV_SIZE is those old numbers, unchanged).
     var _RV_SIZE = _wide2
-      ? { add: 'padding:0.72rem 0.6rem;font-size:0.98rem;', main: 'padding:0.5rem 0.5rem;font-size:0.84rem;', grid: 'padding:0.5rem 0.5rem;font-size:0.84rem;' }   // v0.9.1958: the ONE main button stands out
+      // v0.9.1958: the ONE main button stands out. v0.9.1959 (Brad: "scale the
+      // buttons back so they are not so gigantic"): about a third smaller, so
+      // what the photo said fits under them without scrolling.
+      ? { add: 'padding:0.42rem 0.6rem;font-size:0.86rem;', main: 'padding:0.3rem 0.45rem;font-size:0.76rem;', grid: 'padding:0.3rem 0.45rem;font-size:0.76rem;' }
       : { add: 'padding:0.72rem;font-size:0.93rem;', main: 'padding:0.68rem;font-size:0.9rem;', grid: 'padding:0.62rem 0.5rem;font-size:0.82rem;' };
     // the stacked buttons' space between them; in the laptop grid the grid's gap does it
     var _rvStackGap = _wide2 ? '' : 'margin-bottom:0.5rem;';
@@ -5044,7 +5031,9 @@
             : 'Read this photo (1 photo ID)') + '</button>');
     var _numBox =
       _guessChip +
-      '<input id="pin-rv-num" list="pin-rv-list" type="text" value="' + sug.replace(/"/g, '&quot;') + '" placeholder="Item number — e.g. 2343 or 6464-1" autocomplete="off" spellcheck="false" oninput="_pinReviewLookup(this.value)" style="width:100%;box-sizing:border-box;padding:0.6rem 0.75rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:1rem;margin-bottom:0.55rem">' +
+      '<input id="pin-rv-num" list="pin-rv-list" type="text" value="' + sug.replace(/"/g, '&quot;') + '" placeholder="Item number — e.g. 2343 or 6464-1" autocomplete="off" spellcheck="false" oninput="_pinReviewLookup(this.value)" style="width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-family:var(--font-mono);'
+        // v0.9.1959: a step slimmer on the laptop card, so the reading fits; the phone keeps its size
+        + (_wide2 ? 'padding:0.4rem 0.7rem;font-size:0.95rem;margin-bottom:0.4rem' : 'padding:0.6rem 0.75rem;font-size:1rem;margin-bottom:0.55rem') + '">' +
       '<datalist id="pin-rv-list">' + opts + '</datalist>' +
       _pinAltChips();
     var _btnArea = _wide2
@@ -5053,24 +5042,26 @@
       // the heading; Discard as a quiet link at the foot. One main button, a
       // few secondary ones, two small links — so the eye knows where to start.
       ? _numBox +
-        '<div id="pin-rv-btns" class="pin-rv-btns" style="margin-top:0.2rem">' +
+        '<div id="pin-rv-btns" class="pin-rv-btns">' +
          '<div class="pin-rv-grp">' +
           '<div style="' + _lbl + 'margin:0">What do you want to do with it?</div>' +
           _setBtn +
           _addBtn +
-          '<div id="pin-rv-do" style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">' + _sellBtn + _attachBtn + '</div>' +
+          // v0.9.1959: each button as wide as its words, so "Add to an existing
+          // item in my collection" stays on one line where there is room
+          '<div id="pin-rv-do" style="display:grid;grid-template-columns:max-content minmax(0,1fr);gap:0.35rem">' + _sellBtn + _attachBtn + '</div>' +
          '</div>' +
          '<div class="pin-rv-grp">' +
           '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem">' +
             '<div style="' + _lbl + 'margin:0">Not sure what it is?</div>' +
             // v0.9.1181 (Brad): what each button does and the steps to follow —
             // the copy lives in help-photo-id.js. v0.9.1958: a small ? here.
-            '<button id="pin-rv-help" onclick="_pinHelpOpen()" title="How best to use these features" aria-label="How best to use these features" style="width:30px;height:30px;flex:0 0 auto;border-radius:50%;border:1.5px solid var(--info);background:var(--surface2);color:var(--info);font-family:var(--font-body);font-weight:800;font-size:0.95rem;line-height:1;cursor:pointer;padding:0">?</button>' +
+            '<button id="pin-rv-help" onclick="_pinHelpOpen()" title="How best to use these features" aria-label="How best to use these features" style="width:22px;height:22px;flex:0 0 auto;border-radius:50%;border:1.5px solid var(--info);background:var(--surface2);color:var(--info);font-family:var(--font-body);font-weight:800;font-size:0.78rem;line-height:1;cursor:pointer;padding:0">?</button>' +
           '</div>' +
-          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">' + _rescanBtn + _researchBtn + _lensBtn + _tokBtn + '</div>' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.35rem">' + _rescanBtn + _researchBtn + _lensBtn + _tokBtn + '</div>' +
           (_pinAr() ? _tokLine() : '') +
          '</div>' +
-          '<button id="pin-rv-discard" onclick="_pinReviewDiscard()" style="align-self:flex-start;justify-self:start;background:none;border:none;padding:0.25rem 0;margin-top:0.2rem;color:var(--t-red);font-family:var(--font-body);font-weight:700;font-size:0.82rem;text-decoration:underline;cursor:pointer">' + _discardTxt + '</button>' +
+          '<button id="pin-rv-discard" onclick="_pinReviewDiscard()" style="align-self:flex-start;justify-self:start;background:none;border:none;padding:0.1rem 0;margin-top:0;color:var(--t-red);font-family:var(--font-body);font-weight:700;font-size:0.76rem;text-decoration:underline;cursor:pointer">' + _discardTxt + '</button>' +
         '</div>'
       // ── the phone and the 1000px card: the arrangement they always had
       : _numBox +
@@ -5207,12 +5198,9 @@
     // i get lost" — "just do it"): photo and controls SIDE BY SIDE. The photo
     // takes the left of the card at its full height; on the right, the number,
     // the buttons, then what the photo said and the catalog details (those
-    // scroll on their own, the buttons never move). A very WIDE shot (2:1 or
-    // wider — a long side view of a car, a box end) would come out short in a
-    // column, so for those the photo runs across the top instead, as v1943 had
-    // it; _pinRvFitHero picks the arrangement from the photo's own shape. CSS
-    // grid areas in app.css (.pin-rv-grid) do the arranging — the pieces are
-    // the same either way.
+    // scroll on their own, the buttons never move). v0.9.1959 (Brad: "be
+    // freaking consistant"): every photo, whatever its shape — no wide-shot
+    // exception. CSS grid areas in app.css (.pin-rv-grid) do the arranging.
     var _wideBody2 =
       (_pinLensGroups ? _pinLensBannerHtml() : '') +
       '<div id="pin-rv-cols" class="pin-rv-grid" style="display:grid;min-height:0;flex:1">' +
