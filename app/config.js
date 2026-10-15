@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1957';
+const APP_VERSION = 'v0.9.1958';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -3152,6 +3152,11 @@ const RR_PIC_FIRST = {
 // v0.9.1950 — Photo ID's closer look. When the quick look at the lettering
 // finds no number, the multi-pass reader (photo-inbox.js rrFreeReadBlob) gets
 // the same picture. Still free; only a catalog-confirmed number is kept.
+// v0.9.1958 — the Photo Inbox review card on a computer. A photo this many
+// times wider than it is tall runs across the top of the card; anything less
+// sits beside the buttons (photo-inbox.js _pinRvFitHero).
+const RR_PIN_RV = { wideShot: 2.5 };
+
 const RR_PHOTO_ID_CLOSER = {
   reading: 'Lettering: reading closer…',
   // v0.9.1951 (Brad's screenshot of the whole screen — the browser's own

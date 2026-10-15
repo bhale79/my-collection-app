@@ -23759,19 +23759,23 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // ── 1200 and up: two columns, ACT left, READ right ───────────────────
       const h = lap.html;
       const iCols = h.indexOf('id="pin-rv-cols"'), iAct = h.indexOf('id="pin-rv-act"'), iRead = h.indexOf('id="pin-rv-read"');
-      ok('337 laptop: the two-column grid exists', iCols > 0 && /id="pin-rv-cols" style="display:grid;grid-template-columns:[^"]+"/.test(h));
+      // v0.9.1958: the grid's arrangement lives in app.css (.pin-rv-grid areas)
+      ok('337 laptop: the two-column grid exists', iCols > 0 && /id="pin-rv-cols" class="pin-rv-grid" style="display:grid;/.test(h));
       ok('337 laptop: ACT column comes first, READ second', iAct > iCols && iRead > iAct, iCols + '/' + iAct + '/' + iRead);
       const iAdd = h.indexOf('id="pin-rv-add"'), iHero = h.indexOf('id="pin-rv-main"'), iInfo = h.indexOf('id="pin-rv-info"');
       // v0.9.1943 (Brad: "you can [hardly] even see the photo"): the photo runs across the
       // full width ABOVE the two columns; the buttons are in the ACT column under it.
       const iTop = h.indexOf('id="pin-rv-top"');
-      ok('337 laptop: the photo sits above the columns, full width (v1943)', iTop > 0 && iHero > iTop && iHero < iCols, iTop + '/' + iHero + '/' + iCols);
+      // v0.9.1958 (Brad: "This is way too big" — "just do it"): the photo is a
+      // CELL of the grid now — beside the buttons, or across the top for a very
+      // wide shot (review_card_laptop_tests measures both); it comes first.
+      ok('337 laptop: the photo is the grid\'s first cell (v1958)', iTop > iCols && iHero > iTop && iHero < iAct, iTop + '/' + iHero + '/' + iCols);
       ok('337 laptop: the Add button is in the ACT column, under the photo', iAdd > iAct && iAdd < iRead && iAdd > iHero, String(iAdd));
       ok('337 laptop: the catalog/owned/pick panel box is in the READ column', iInfo > iRead, String(iInfo));
       ok('337 laptop: BOTH columns may shrink and scroll on their own (min-height:0 + overflow-y:auto)',
-         /id="pin-rv-act" style="[^"]*min-height:0[^"]*overflow-y:auto/.test(h)
-         && /id="pin-rv-read" style="[^"]*min-height:0[^"]*overflow-y:auto/.test(h));
-      ok('337 laptop: the grid itself can shrink inside the capped card', /id="pin-rv-cols" style="[^"]*min-height:0[^"]*flex:1/.test(h));
+         /id="pin-rv-act" class="pin-rv-actcol" style="[^"]*min-height:0[^"]*overflow-y:auto/.test(h)
+         && /id="pin-rv-read" class="pin-rv-readcol" style="[^"]*min-height:0[^"]*overflow-y:auto/.test(h));
+      ok('337 laptop: the grid itself can shrink inside the capped card', /id="pin-rv-cols" class="pin-rv-grid" style="[^"]*min-height:0[^"]*flex:1/.test(h));
       ok('337 laptop: the card is a flex column with overflow managed (rr-card-flex) and wears pin-rv-card (its own zoom step, v1943)', /class="rr-card rr-card-flex pin-rv-card"/.test(h));
       ok('337 laptop: the card is wide — up to 1500px, never past the screen', /max-width:min\(1500px,96vw\)/.test(h));
       ok('337 laptop: the picture is capped at 40vh, not 52', /max-height:40vh/.test(h) && !/max-height:52vh/.test(h));

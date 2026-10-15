@@ -160,7 +160,7 @@ section('E. "6464 — use this" only when there is nothing to pick between');
 
 section('F. Both card layouts draw the chips from the one function');
 {
-  ok('the stacked card and the two-column card both call _pinAltChips() (the definition + two callers)', (SRC.match(/_pinAltChips\(\)/g) || []).length === 3 && /_pinAltChips\(\) \+/.test(SRC) && /_chips = _pinAltChips\(\);/.test(SRC), String((SRC.match(/_pinAltChips\(\)/g) || []).length));
+  ok('the stacked card and the two-column card both call _pinAltChips() (the definition + two callers)', (SRC.match(/_pinAltChips\(\)/g) || []).length === 3 && /'<\/datalist>' \+\s*\n\s*_pinAltChips\(\)/.test(SRC) && /_chips = _pinAltChips\(\);/.test(SRC)   /* v0.9.1958: the number box (_numBox) both layouts share ends on it */, String((SRC.match(/_pinAltChips\(\)/g) || []).length));
   ok('_pinAltChips is defined once and only draws — the list lives in _pinAltList', (SRC.match(/function _pinAltChips\(\)/g) || []).length === 1 && /var list = _pinAltList\(\);/.test(grab(SRC, 'function _pinAltChips()')));
 }
 

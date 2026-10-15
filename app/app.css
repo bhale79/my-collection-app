@@ -2874,10 +2874,10 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
    step smaller than the other pop-ups, so the photo and every button fit
    together. Change the step here: both lines of each block, like the rule above. */
 @media (min-width: 1000px) and (max-width: 1399px) {
-  .rr-card.pin-rv-card { zoom: 1.1; max-height: calc(86dvh / 1.1) !important; }
+  .rr-card.pin-rv-card { zoom: 1.1; max-height: calc(86dvh / 1.1) !important; height: calc(86dvh / 1.1); }
 }
 @media (min-width: 1400px) {
-  .rr-card.pin-rv-card { zoom: 1.25; max-height: calc(86dvh / 1.25) !important; }
+  .rr-card.pin-rv-card { zoom: 1.25; max-height: calc(86dvh / 1.25) !important; height: calc(86dvh / 1.25); }
 }
 
 /* ── v0.9.1806 (Brad: "increase the picture size and show the complete picture,
@@ -3081,3 +3081,29 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
 .rr-account-use { border: none; background: var(--accent); color: var(--on-accent); }
 .rr-account-back { border: 1.5px solid var(--border); background: var(--surface2); color: var(--text); }
 .rr-account-note { font-size: 0.78rem; line-height: 1.45; color: var(--text-dim); margin-top: -0.3rem; }
+
+/* v0.9.1958 (Brad, laptop: "This is way too big. is so big that i can't see all
+   the buttons as i get lost" — "just do it"): the Photo Inbox review card, laptop
+   layout. The card is a fixed height (the step above) so the photo can fill its
+   cell. Side by side for an ordinary photo; a very wide shot (RR_PIN_RV.wideShot,
+   photo-inbox.js _pinRvFitHero adds .pin-rv-wideshot) runs across the top. */
+.pin-rv-grid {
+  grid-template-columns: minmax(0, 1.55fr) minmax(340px, 1fr);
+  grid-template-rows: max-content minmax(0, 1fr);
+  grid-template-areas: "photo act" "photo read";
+  gap: 0.7rem 1.1rem;
+}
+.pin-rv-grid .pin-rv-photo   { grid-area: photo; }
+.pin-rv-grid .pin-rv-actcol  { grid-area: act; }
+.pin-rv-grid .pin-rv-readcol { grid-area: read; }
+.pin-rv-grid.pin-rv-wideshot {
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  grid-template-rows: max-content minmax(0, 1fr);
+  grid-template-areas: "photo photo" "act read";
+  gap: 1rem;
+}
+/* the two button groups: stacked beside an ordinary photo; side by side under a
+   wide one, so the wide photo keeps its height */
+.pin-rv-btns { display: flex; flex-direction: column; gap: 0.9rem; }
+.pin-rv-btns > .pin-rv-grp { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
+.pin-rv-wideshot .pin-rv-btns { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 0.5rem 1rem; align-items: start; }

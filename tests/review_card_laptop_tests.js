@@ -28,6 +28,18 @@
 //   W6c    a 3:2 photo + three photos: the photo gives way (the case that needs the fit)
 //   X1     PLANTED: _pinRvFitHero a no-op → that case hides buttons (caught)
 //   X2     PLANTED: the photo back in the left column → the long shot is short again (caught)
+//
+// v0.9.1958 (Brad, the same card: "This is way too big. is so big that i can't
+// see all the buttons as i get lost" — "just do it"): photo and controls SIDE BY
+// SIDE for an ordinary photo; a very wide shot (RR_PIN_RV.wideShot, 2.5:1) still
+// runs across the top with the two button groups side by side under it. ONE big
+// orange Add, the other two adds side by side, help as a small ?, Discard as a
+// quiet link. W1/W2/W4/W5 rewritten for that; S1–S4 and X3 added.
+//   S1  a 3:2 photo: beside the buttons, at least two thirds of the card tall
+//   S2  a tall photo: beside the buttons, every button on screen
+//   S3  Brad's People Pack crop (3.3:1): across the top, ≥ 250px tall, every button on screen
+//   S4  the calmer controls: one main button, help is "?", Discard is a link
+//   X3  PLANTED: never side by side → the 3:2 photo is short again (caught)
 // ═══════════════════════════════════════════════════════════════════════════
 const fs = require('fs'), path = require('path');
 let chromium;
@@ -73,7 +85,7 @@ async function open(browser, o) {
   await pg.evaluate(async (shape) => {
     const pic = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d');
       g.fillStyle = '#c0282d'; g.fillRect(0, 0, w, h); g.fillStyle = '#fff'; for (let x = 0; x < w; x += 40) g.fillRect(x, 0, 6, h); return c.toDataURL('image/jpeg', 0.8); };
-    const img = shape === '32' ? pic(1600, 1067) : pic(1600, 228);
+    const img = shape === '32' ? pic(1600, 1067) : shape === 'tall' ? pic(900, 1200) : shape === 'pp' ? pic(1464, 448) : pic(1600, 228);
     const mk = (n, t, desc) => ({ itemNum: n, variation: '', itemType: t, description: desc, _era: 'pw', _tab: 'Lionel PW - Items', rowId: 'KKKKKKKKKK', yearProd: '1958', roadName: 'M-K-T', gauge: 'O', varDesc: '' });
     state.masterData = [mk('6556', 'Stock Car', 'M-K-T Stock Car, red with white lettering')];
     _rebuildMasterIndex(); state.masterByItemAll = state.masterByItem; state.masterAllRows = state.masterData.slice(); state.masterByRowIdAll = state.masterByRowId; window._allIdxComplete = true;
@@ -90,7 +102,7 @@ async function open(browser, o) {
     const act = document.getElementById('pin-rv-act'), read = document.getElementById('pin-rv-read');
     const btns = ['pin-rv-add', 'pin-rv-sell', 'pin-rv-attach'].map(id => document.getElementById(id));
     btns.push([...document.querySelectorAll('#pin-review-ov button')].find(b => /Discard/.test(b.textContent)));
-    const help = [...document.querySelectorAll('#pin-review-ov button')].find(b => /How best/.test(b.textContent));
+    const help = document.getElementById('pin-rv-help') || [...document.querySelectorAll('#pin-review-ov button')].find(b => /How best/.test(b.textContent));
     const every = [...document.querySelectorAll('#pin-rv-act button')];
     const cardR = R(card);
     // a second, ordinary pop-up card for the zoom comparison
@@ -107,6 +119,9 @@ async function open(browser, o) {
       four: btns.map(R), help: R(help), hidden: every.filter(b => R(b).b > cardR.b + 1).map(b => b.textContent.trim()),
       phone: btns.map(b => b && { fs: cs(b).fontSize, pad: cs(b).paddingTop, mb: cs(b).marginBottom }),
       grid: !!document.getElementById('pin-rv-do'), inner: [innerWidth, innerHeight],
+      actR: R(act), wideshot: !!document.querySelector('#pin-rv-cols.pin-rv-wideshot'),
+      helpTxt: help ? help.textContent.trim() : '', discard: (() => { const d = document.getElementById('pin-rv-discard'); return d ? { bg: getComputedStyle(d).backgroundColor, txt: d.textContent.trim(), deco: getComputedStyle(d).textDecorationLine } : null; })(),
+      addH: R(document.getElementById('pin-rv-add')), sellR: R(document.getElementById('pin-rv-sell')), attR: R(document.getElementById('pin-rv-attach')),
     };
   });
   await ctx.close();
@@ -122,17 +137,27 @@ async function open(browser, o) {
   console.log('== Brad\'s laptop, a long side shot of a car ==');
   const a = await open(browser, Object.assign({}, BRAD));
   T('W0 no script error', a.errs.length === 0, a.errs);
-  T('W1 the photo is above the columns', a.m.top && a.m.order[0] > 0 && a.m.order[0] < a.m.order[1], a.m.order);
+  T('W1 a 7:1 side shot runs across the TOP (the wide-shot arrangement)', a.m.wideshot && a.m.photo.b <= a.m.actR.y + 2, { photo: a.m.photo, act: a.m.actR });
   T('W2 a 7:1 side shot runs the card\'s full width (≥ 90%) and is ≥ 200px tall (was 94)', a.m.photo.w >= 0.9 * (a.m.card.w - 60) && a.m.photo.h >= 200, { photo: a.m.photo, card: a.m.card });
   T('W3 every button is on screen, none below the card', onScreen(a.m), { act: a.m.act, hidden: a.m.hidden, help: a.m.help, card: a.m.card });
-  const f = a.m.four, xs = new Set(f.map(r => Math.round(r.x))), ys = new Set(f.map(r => Math.round(r.y)));
-  T('W4 the four "what to do" buttons are a 2 x 2 grid', a.m.grid && xs.size === 2 && ys.size === 2, f);
+  // v0.9.1958: ONE big Add across, the other two adds side by side under it
+  T('W4 one big Add, with Sales List and the existing-item add side by side under it',
+    a.m.grid && Math.abs(a.m.sellR.y - a.m.attR.y) < 2 && a.m.sellR.y > a.m.addH.b - 2 && a.m.addH.w > a.m.sellR.w * 1.6, { add: a.m.addH, sell: a.m.sellR, att: a.m.attR });
+  T('S4 the calmer controls: help is a small "?", Discard is a plain red link (no button box)',
+    a.m.helpTxt === '?' && a.m.help.w < 50 && a.m.discard && /Discard Photo/.test(a.m.discard.txt) && /underline/.test(a.m.discard.deco) && /rgba\(0, 0, 0, 0\)|transparent/.test(a.m.discard.bg), { help: a.m.helpTxt, discard: a.m.discard });
   T('W8 this card is at 1.25x; every other pop-up keeps 1.5x', a.m.zoom === '1.25' && a.m.otherZoom === '1.5', [a.m.zoom, a.m.otherZoom]);
 
   console.log('== a normal 3:2 photo ==');
   const b = await open(browser, Object.assign({ shape: '32' }, BRAD));
   T('W5 the whole 3:2 photo is on screen and at least a third of the page tall', b.m.photo.y >= b.m.card.y && b.m.photo.h >= b.m.inner[1] / 3, { photo: b.m.photo, card: b.m.card });
   T('W5b …and every button is on screen', onScreen(b.m), { act: b.m.act, hidden: b.m.hidden });
+  T('S1 the 3:2 photo sits BESIDE the buttons and is at least two thirds of the card tall', !b.m.wideshot && b.m.photo.r <= b.m.actR.x + 2 && b.m.photo.h >= 0.66 * b.m.card.h, { photo: b.m.photo, act: b.m.actR, card: b.m.card });
+
+  console.log('== a tall photo, and Brad\'s People Pack crop ==');
+  const tl = await open(browser, Object.assign({ shape: 'tall' }, BRAD));
+  T('S2 a tall photo: beside the buttons, every button on screen', !tl.m.wideshot && tl.m.photo.r <= tl.m.actR.x + 2 && onScreen(tl.m), { photo: tl.m.photo, act: tl.m.act, hidden: tl.m.hidden });
+  const pp = await open(browser, Object.assign({ shape: 'pp' }, BRAD));
+  T('S3 the People Pack crop (3.3:1): across the top, ≥ 250px tall, every button on screen', pp.m.wideshot && pp.m.photo.h >= 250 && onScreen(pp.m), { photo: pp.m.photo, act: pp.m.act, hidden: pp.m.hidden });
 
   console.log('== three photos ==');
   const c = await open(browser, Object.assign({ files: 3 }, BRAD));
@@ -141,6 +166,9 @@ async function open(browser, o) {
   // the case that NEEDS the fit: a normal-shaped photo (its full 40vh) + the strip + the slots
   const c2 = await open(browser, Object.assign({ files: 3, shape: '32' }, BRAD));
   T('W6c a 3:2 photo with three photos: the photo gives way, every button on screen', onScreen(c2.m) && c2.m.photo.h >= 120, { act: c2.m.act, hidden: c2.m.hidden, photo: c2.m.photo });
+
+  const c3 = await open(browser, Object.assign({ files: 3, shape: 'pp' }, BRAD));
+  T('W6d a wide crop with three photos: the photo gives way, every button on screen', c3.m.wideshot && onScreen(c3.m) && c3.m.photo.h >= 120, { act: c3.m.act, hidden: c3.m.hidden, photo: c3.m.photo });
 
   console.log('== Large text ==');
   const d = await open(browser, Object.assign({ scale: 'large' }, BRAD));
@@ -156,14 +184,16 @@ async function open(browser, o) {
     && px(p.m.phone[3].fs) === 14.4 && px(p.m.phone[3].mb) === 0, p.m.phone);
 
   console.log('== planted offenders ==');
-  const x1 = await open(browser, Object.assign({ files: 3, shape: '32', src: planted("    var over = Math.max(act.scrollHeight - act.clientHeight, read ? read.scrollHeight - read.clientHeight : 0);",
+  // v0.9.1958: the give-way is the WIDE-shot arrangement's rule now (a photo beside the buttons cannot push them)
+  const x1 = await open(browser, Object.assign({ files: 3, shape: 'pp', src: planted("    var over = Math.max(act.scrollHeight - act.clientHeight, read ? read.scrollHeight - read.clientHeight : 0);",
     "    var over = 0;   // planted: never fit", 'no fit') }, BRAD));
-  T('X1 PLANTED: _pinRvFitHero a no-op → a 3:2 photo with three photos hides buttons (caught)', !onScreen(x1.m), { act: x1.m.act, hidden: x1.m.hidden });
-  let s2 = planted("      '<div id=\"pin-rv-top\" style=\"flex-shrink:0\">' + _photoWide2 + '</div>' +\n", '', 'photo on top');
-  s2 = s2.replace("        '<div id=\"pin-rv-act\" style=\"display:flex;flex-direction:column;min-width:0;min-height:0;overflow-y:auto\">' +\n          _btnArea +",
-                  "        '<div id=\"pin-rv-act\" style=\"display:flex;flex-direction:column;min-width:0;min-height:0;overflow-y:auto\">' +\n          _photoWide + _btnArea +");
+  T('X1 PLANTED: _pinRvFitHero a no-op → a wide crop with three photos hides buttons (caught)', !onScreen(x1.m), { act: x1.m.act, hidden: x1.m.hidden });
+  const s2 = planted("    grid.classList.toggle('pin-rv-wideshot', !!wide);", "    wide = false; grid.classList.toggle('pin-rv-wideshot', false);   // planted", 'no wide shot');
   const x2 = await open(browser, Object.assign({ src: s2 }, BRAD));
-  T('X2 PLANTED: the photo back in the left column → the long shot is short again (caught)', x2.m.photo && x2.m.photo.h < 200, x2.m.photo);
+  T('X2 PLANTED: no wide-shot arrangement → the long shot is short again (caught)', x2.m.photo && x2.m.photo.h < 200, x2.m.photo);
+  const s3 = planted("    var wide = img.naturalWidth > 0", "    var wide = true || img.naturalWidth > 0", 'never side by side');
+  const x3 = await open(browser, Object.assign({ shape: '32', src: s3 }, BRAD));
+  T('X3 PLANTED: never side by side → the 3:2 photo is short again (caught)', x3.m.photo && x3.m.photo.h < 0.66 * x3.m.card.h, { photo: x3.m.photo, card: x3.m.card });
 
   await browser.close();
   console.log('\n' + pass + ' passed, ' + fail + ' failed');
