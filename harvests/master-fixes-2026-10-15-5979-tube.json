@@ -1,0 +1,135 @@
+{
+ "what": "Master Version 2.48 — Lionel PW - Items 5979 (Row ID 73WBG62HXY) was a hand-entered \"Dealer Display\" (Source Manual, note \"non-COTT\", link to COTT's service-station-tools page, which never mentions 5979). COTT's other-items-lionel-produced page has a real No. 5979: the \"5979/BS-1 REPLACEMENT ELECTRON TUBE\" with its own bookmark #5979 and code SS0432 (no year, no text beyond the heading). The 5979 row becomes that tube, filled like the 700/715 survey-meter rows from the same page (Misc Lionel / Other). The 715 meter row (BH7BTZF3F5) carried the tube's SS0432 — COTT prints no code for the 715 — so its COTT Code is cleared. Nothing else changes; both Row IDs stay.",
+ "stated": "Brad (2026-10-15): \"yes\" to the 5979/715 fix as the next Master Version",
+ "masterVersion": "2.48",
+ "date": "2026-10-15",
+ "planReadAt": "public CSV export of Lionel PW - Items and PW - Other, and COTT's live other-items-lionel-produced page, read 2026-10-15 right before this record",
+ "laterItems": [
+  "700 and 715 survey meters are on BOTH PW - Items (BXADZXSE9H, BH7BTZF3F5) and PW - Other (S2WG6NA6GV, VFBTCA8NVK)",
+  "Original COTT Desc on several rows from this page ran on into the next entries (715 holds the 5979/41090/46500/Helios text; 861, 866, 867 and PW - Other 850 also end with the next heading) — left as is here"
+ ],
+ "cellFormat": "[tab, item number (column A), column header, old, new, sheet row as a hint, Row ID of the row]",
+ "counts": {
+  "cells": 10,
+  "rows": 2
+ },
+ "tab": "Lionel PW - Items",
+ "header": [
+  "Item Number",
+  "Item Type",
+  "Sub-Type",
+  "Unit",
+  "Powered/Dummy",
+  "Control",
+  "Road Name",
+  "Description",
+  "Gauge",
+  "Year Produced",
+  "Variation #",
+  "Variation Details",
+  "Reference Link",
+  "Notes",
+  "Est. Market Value",
+  "Source",
+  "COTT Code",
+  "Original COTT Desc",
+  "Category",
+  "Track Power",
+  "MSRP",
+  "Body Color",
+  "Stamped Markings",
+  "Row ID"
+ ],
+ "cells": [
+  [
+   "Lionel PW - Items",
+   "5979",
+   "Item Type",
+   "Accessory",
+   "Misc Lionel",
+   1658,
+   "73WBG62HXY"
+  ],
+  [
+   "Lionel PW - Items",
+   "5979",
+   "Sub-Type",
+   "",
+   "Other",
+   1658,
+   "73WBG62HXY"
+  ],
+  [
+   "Lionel PW - Items",
+   "5979",
+   "Control",
+   "Traditional",
+   "",
+   1658,
+   "73WBG62HXY"
+  ],
+  [
+   "Lionel PW - Items",
+   "5979",
+   "Description",
+   "Dealer Display",
+   "BS-1 Replacement Electron Tube",
+   1658,
+   "73WBG62HXY"
+  ],
+  [
+   "Lionel PW - Items",
+   "5979",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/service-station-tools/",
+   "https://cornucopiaoftoytrains.com/other-items-lionel-produced/#5979",
+   1658,
+   "73WBG62HXY"
+  ],
+  [
+   "Lionel PW - Items",
+   "5979",
+   "Notes",
+   "Preserved from live (Manual source — non-COTT)",
+   "",
+   1658,
+   "73WBG62HXY"
+  ],
+  [
+   "Lionel PW - Items",
+   "5979",
+   "Source",
+   "Manual",
+   "COTT",
+   1658,
+   "73WBG62HXY"
+  ],
+  [
+   "Lionel PW - Items",
+   "5979",
+   "COTT Code",
+   "",
+   "SS0432",
+   1658,
+   "73WBG62HXY"
+  ],
+  [
+   "Lionel PW - Items",
+   "5979",
+   "Original COTT Desc",
+   "",
+   "No. 5979/BS-1 REPLACEMENT ELECTRON TUBE\nSS0432",
+   1658,
+   "73WBG62HXY"
+  ],
+  [
+   "Lionel PW - Items",
+   "715",
+   "COTT Code",
+   "SS0432",
+   "",
+   2723,
+   "BH7BTZF3F5"
+  ]
+ ]
+}
