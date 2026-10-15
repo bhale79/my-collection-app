@@ -1,0 +1,70 @@
+{
+ "what": "Master Version 2.46 — Lionel PW - Science 79 v4 (Row ID ZQREFWFZXU) carried the 79 N 2264 Sears Student Chemistry Lab in every field (details $8.99 p. 246, COTT link #CHEMQQQ, COTT Code SS0133, COTT text) except its Description, which named the 79 N 1937c Sears Senior Chemistry Lab. Description → \"N 2264 Sears Student Chemistry Lab\". The real 79 N 1937C (COTT #SCL64: 1964, page 247, $13.99, 400 experiments, SS0410) had no row anywhere in the master — added at the bottom of the tab as 79 v7 with a new Row ID.",
+ "stated": "Brad (2026-10-14): \"yes\" to renaming 79 v4 to the 2264 and adding the 1937C as Master Version 2.46",
+ "masterVersion": "2.46",
+ "date": "2026-10-14",
+ "planReadAt": "public CSV export of every tab and COTT's live chemistry-sets-lionel page, read 2026-10-14 right before this record",
+ "cellFormat": "[tab, item number (column A), column header, old, new, sheet row as a hint, Row ID of the row]",
+ "counts": {
+  "cells": 1,
+  "rowsAdded": 1
+ },
+ "cells": [
+  [
+   "Lionel PW - Science",
+   "79",
+   "Description",
+   "N 1937c Sears Senior Chemistry Lab",
+   "N 2264 Sears Student Chemistry Lab",
+   27,
+   "ZQREFWFZXU"
+  ]
+ ],
+ "tab": "Lionel PW - Science",
+ "header": [
+  "Item Number",
+  "Item Type",
+  "Sub-Type",
+  "Unit",
+  "Powered/Dummy",
+  "Control",
+  "Road Name",
+  "Description",
+  "Gauge",
+  "Year Produced",
+  "Variation #",
+  "Variation Details",
+  "Reference Link",
+  "Notes",
+  "Est. Market Value",
+  "Source",
+  "COTT Code",
+  "Original COTT Desc",
+  "Stamped Markings",
+  "Row ID"
+ ],
+ "addRows": [
+  [
+   "79",
+   "Science Set",
+   "",
+   "",
+   "",
+   "",
+   "",
+   "N 1937c Sears Senior Chemistry Lab",
+   "",
+   "1964",
+   "7",
+   "SEARS SENIOR CHEMISTRY LAB 1964 shown on page 247 Sears Christmas Book, catalog price $13.99, 400 experiments",
+   "https://cornucopiaoftoytrains.com/chemistry-sets-lionel/#SCL64",
+   "",
+   "",
+   "COTT",
+   "SS0410",
+   "No. 79 N 1937C SEARS SENIOR CHEMISTRY LAB 1964 shown on page 247 Sears Christmas Book, catalog price $13.99 400 experiments SS0410",
+   "",
+   "T9E7EP64RN"
+  ]
+ ]
+}
