@@ -183,8 +183,8 @@ function _prefsMasterEditsRowHtml() {
       + '<div class="pref-row" id="pref-master-edits">'
       +   '<div class="pref-row-label">'
       +     '<strong>Allow master edits</strong>'
-      +     '<span>Lets this sign-in write fixes to the master catalog sheet. Google opens a window for you to approve. '
-      +     'It lasts until you sign out or Google renews your sign-in; click it again then. Only you can see this.</span>'
+      +     '<span>Lets the app write fixes to the master catalog sheet. Google opens a window for you to approve, once; '
+      +     'after that it stays on for your account. Only you can see this.</span>'
       +   '</div>'
       +   (has
         ? '<span id="pref-master-edits-on" style="color:var(--t-green);font-weight:700;white-space:nowrap">\u2713 Allowed</span>'
@@ -192,14 +192,25 @@ function _prefsMasterEditsRowHtml() {
       + '</div>';
   } catch (e) { return ''; }
 }
-async function _prefsAllowMasterEdits() {
-  try {
-    if (!_prefsIsMasterEditor() || typeof _ensureFullSheetsScope !== 'function') return;
-    var ok = await _ensureFullSheetsScope();
+// v0.9.1953: the click asks for the permission that LASTS first (Google's code
+// window + the relay's renewal key — _rrLinkLastingScope); only when that road
+// is not there at all does it open the one-hour window, inside the same click.
+function _prefsAllowMasterEdits() {
+  if (!_prefsIsMasterEditor()) return;
+  var finish = function (ok, lasting) {
     if (typeof showToast === 'function') {
-      showToast(ok ? '\u2713 Master edits allowed on this sign-in' : 'Google did not give the permission \u2014 nothing changed.', ok ? 2500 : 4000, !ok);
+      showToast(!ok ? 'Google did not give the permission \u2014 nothing changed.'
+                : (lasting ? '\u2713 Master edits allowed \u2014 it stays on for your account'
+                           : '\u2713 Master edits allowed for this hour'), ok ? 3000 : 4000, !ok);
     }
     if (typeof buildPrefsPage === 'function') buildPrefsPage();
+  };
+  try {
+    var started = (typeof _rrLinkLastingScope === 'function' && typeof SCOPE_SHEETS_FULL !== 'undefined')
+      && _rrLinkLastingScope(SCOPE_SHEETS_FULL, finish);
+    if (started) return;
+    if (typeof _ensureFullSheetsScope !== 'function') return finish(false, false);
+    _ensureFullSheetsScope().then(function (ok) { finish(ok, false); }, function () { finish(false, false); });
   } catch (e) {
     if (typeof showToast === 'function') showToast('Could not ask Google for the permission.', 3500, true);
   }

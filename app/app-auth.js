@@ -1219,6 +1219,86 @@ function _rrQuietOnCode(resp, real, opts) {
       try { _rrArmGestureRenew(); } catch (e2) {}
     });
 }
+// ══ v0.9.1953 — AN EXTRA PERMISSION THAT LASTS (Brad: "yes") ═══════════════
+// The extra-permission window (_rrRequestExtraScope) gives a pass for ONE hour:
+// the next quiet renewal comes from the relay's renewal key, which was made for
+// the app's normal permissions only, so the extra one drops. This asks Google's
+// CODE window instead — normal permissions + the extra one, prompt 'consent' so
+// Google hands a NEW renewal key — and auth_link swaps it in for this account
+// (the relay keeps one key per account). Then ONE renewal is asked for at once:
+// the pass it brings is the proof — if it carries the extra permission, every
+// renewal after it will. Returns false at once (nothing opened) when this road
+// is not available, so the caller can open the one-hour window inside the same
+// click. onDone(granted, lasting).
+function _rrLinkLastingScope(extraScope, onDone) {
+  var done = function (g, l) { try { if (onDone) onDone(!!g, !!l); } catch (e) {} };
+  var em = _rrQuietUser();
+  if (!_rrQuietOn() || !em || typeof vaultPost !== 'function' || typeof google === 'undefined'
+      || !google.accounts || !google.accounts.oauth2 || !google.accounts.oauth2.initCodeClient) return false;
+  var has = function (sc) { return (' ' + (sc || '') + ' ').indexOf(' ' + extraScope + ' ') >= 0; };
+  var usePass = function (pass) {
+    accessToken = pass.access_token;
+    window.accessToken = accessToken;
+    _rrNoteGrantedScopes(pass.scope, pass.access_token);
+    try {
+      localStorage.setItem('lv_token', accessToken);
+      localStorage.setItem('lv_token_expiry', String(Date.now() + ((parseInt(pass.expires_in || '3600', 10) || 3600) - 300) * 1000));
+    } catch (e) {}
+  };
+  try {
+    var cc = google.accounts.oauth2.initCodeClient({
+      client_id: CLIENT_ID,
+      scope: SCOPES + ' ' + extraScope,
+      include_granted_scopes: true,
+      prompt: 'consent',
+      ux_mode: 'popup',
+      login_hint: em,
+      callback: function (resp) {
+        if (!resp || resp.error || !resp.code) { _rrAuthLog('lasting permission: ' + ((resp && resp.error) || 'no code')); return done(false, false); }
+        var old = _rrQuietStoredDevice();
+        Promise.resolve(vaultPost({ action: 'auth_link', code: resp.code, email: em, old_device: (old && old.device) || undefined }))
+          .then(function (out) {
+            if (!out || !out.access_token) {
+              _rrAuthLog('lasting permission: the relay said ' + (out ? out.status + ' ' + (out.message || '') : 'nothing'));
+              return done(false, false);
+            }
+            usePass(out);
+            if (!(out.status === 200 && out.device)) {          // a pass, but no renewal key stored for it
+              _rrAuthLog('lasting permission: ' + (has(out.scope) ? 'granted for this hour only (no renewal key)' : 'NOT granted'));
+              return done(has(out.scope), false);
+            }
+            _rrQuietSave(out.device, out.email || em);
+            // the proof: one renewal through the new key
+            return Promise.resolve(vaultPost({ action: 'auth_renew', device: out.device, email: out.email || em }))
+              .then(function (r) {
+                if (r && r.status === 200 && r.access_token && has(r.scope)) {
+                  usePass(r);
+                  _rrAuthLog('lasting permission: granted and kept through renewals');
+                  return done(true, true);
+                }
+                // the renewal came back without it (or not at all): keep the pass the
+                // window gave — it carries the permission for this hour — and say so
+                if (r && r.status === 200 && r.access_token) _rrAuthLog('lasting permission: granted, but the renewal dropped it — this hour only');
+                else _rrAuthLog('lasting permission: renewal check failed (' + (r ? r.status : 'no answer') + ')');
+                done(has(out.scope), false);
+              });
+          })
+          .catch(function (e) { _rrAuthLog('lasting permission error: ' + (e && e.message)); done(false, false); });
+      },
+      error_callback: function (err) {
+        _rrAuthLog('lasting permission window FAILED: ' + ((err && (err.type || err.message)) || 'unknown'));
+        done(false, false);
+      },
+    });
+    cc.requestCode();
+    return true;
+  } catch (e) {
+    _rrAuthLog('lasting permission could not start: ' + (e && e.message));
+    return false;
+  }
+}
+if (typeof window !== 'undefined') window._rrLinkLastingScope = _rrLinkLastingScope;
+
 // THE door. Every requestAccessToken in the app reaches Google through this.
 function _rrWrapTokenClient(real) {
   return {

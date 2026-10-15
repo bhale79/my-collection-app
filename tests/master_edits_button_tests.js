@@ -14,6 +14,16 @@
 //   M6  Google says no: nothing changes, the button stays
 //   M7  PLANTED: the row gated on the owner list → support@ sees it (caught)
 //   M8  the list lives in ONE place (config.js)
+// v0.9.1953 — THE PERMISSION THAT LASTS (Brad: "yes"). The click opens Google's
+// CODE window (normal permissions + Sheets, prompt consent) and the relay swaps
+// in a renewal key that carries it; one renewal at once is the proof.
+//   L1  the code window asks for Sheets + the normal permissions, consent, Brad's account
+//   L2  the relay gets the code and this device's old key to drop; the new key is kept
+//   L3  the renewal proof carries Sheets → "stays on", the row says Allowed
+//   L4  the renewal drops it → "this hour only" (never claimed as lasting)
+//   L5  the person closes Google's window → no second window, the button stays
+//   L6  no code window available → the one-hour window, inside the same click
+//   L7  PLANTED: prompt 'consent' removed (Google would hand no new key) → caught
 // ═══════════════════════════════════════════════════════════════════════════
 const fs = require('fs'), path = require('path');
 let chromium;
@@ -116,7 +126,8 @@ async function as(pg, email, opts) {
     r.btn = html.indexOf('id="pref-master-edits-btn"') >= 0;
     r.allowed = html.indexOf('id="pref-master-edits-on"') >= 0;
     if (opts.click) {
-      await _prefsAllowMasterEdits();
+      _prefsAllowMasterEdits();
+      await new Promise(r => setTimeout(r, 80));
       const after = _prefsOwnerToolsHtml();
       r.afterAllowed = after.indexOf('id="pref-master-edits-on"') >= 0;
       r.afterBtn = after.indexOf('id="pref-master-edits-btn"') >= 0;
@@ -143,7 +154,59 @@ async function as(pg, email, opts) {
   T('M5 a sign-in that already carries it: Allowed, no button, nothing asked', m5.allowed && !m5.btn && m5.asked === 0, m5);
   const m6 = await as(pg, 'bhale@ipd-llc.com', { click: true, grant: false });
   T('M6 Google says no: the button stays, nothing claims Allowed', m6.asked === 1 && m6.afterBtn && !m6.afterAllowed, m6);
+
+  // ── v0.9.1953: the lasting route ──
+  async function lasting(pgX, o) {
+    return pgX.evaluate(async ([o, SHEETS]) => {
+      state.user = { email: 'bhale@ipd-llc.com', name: 'X' };
+      RR_QUIET_RENEW_TEST = true;
+      localStorage.setItem(RR_RENEW_DEVICE_KEY, JSON.stringify({ device: 'OLD', email: 'bhale@ipd-llc.com' }));
+      localStorage.setItem(RR_TOKEN_SCOPES_KEY, JSON.stringify({ fp: _rrPassPrint(accessToken), scope: 'openid email https://www.googleapis.com/auth/drive.file' }));
+      window.showToast = function (m) { window.__toast = m; };
+      window.__asked = 0; window.__cfg = null; window.__posts = [];
+      window._ensureFullSheetsScope = async function () { window.__asked++; return false; };
+      window.google = o.noCode ? { accounts: { oauth2: {} } } : { accounts: { oauth2: { initCodeClient: function (cfg) {
+        window.__cfg = cfg;
+        return { requestCode: function () { setTimeout(function () {
+          if (o.closeWindow) cfg.error_callback({ type: 'popup_closed' }); else cfg.callback({ code: 'CODE1' });
+        }, 5); } };
+      } } } };
+      window.vaultPost = async function (p) {
+        window.__posts.push(JSON.parse(JSON.stringify(p)));
+        if (p.action === 'auth_link') return { status: 200, device: 'NEW', email: 'bhale@ipd-llc.com', access_token: 'tokLINK', expires_in: 3600, scope: 'openid email https://www.googleapis.com/auth/drive.file ' + SHEETS };
+        if (p.action === 'auth_renew') return { status: 200, access_token: 'tokRENEW', expires_in: 3600, email: 'bhale@ipd-llc.com', scope: o.renewDrops ? 'openid email https://www.googleapis.com/auth/drive.file' : 'openid email https://www.googleapis.com/auth/drive.file ' + SHEETS };
+        return { status: 400 };
+      };
+      _prefsAllowMasterEdits();
+      await new Promise(r => setTimeout(r, 120));
+      const html = _prefsOwnerToolsHtml();
+      let dev = null; try { dev = JSON.parse(localStorage.getItem(RR_RENEW_DEVICE_KEY)); } catch (e) {}
+      return { cfg: window.__cfg && { scope: window.__cfg.scope, prompt: window.__cfg.prompt, igs: window.__cfg.include_granted_scopes, hint: window.__cfg.login_hint },
+               posts: window.__posts, asked: window.__asked, toast: window.__toast || '', dev: dev && dev.device, token: accessToken,
+               allowed: html.indexOf('id="pref-master-edits-on"') >= 0, btn: html.indexOf('id="pref-master-edits-btn"') >= 0 };
+    }, [o || {}, SHEETS]);
+  }
+  const l1 = await lasting(pg, {});
+  T('L1 the code window asks for Sheets + the normal permissions, consent, for bhale@',
+    l1.cfg && / https:\/\/www\.googleapis\.com\/auth\/spreadsheets$/.test(l1.cfg.scope) && /drive\.file/.test(l1.cfg.scope)
+    && l1.cfg.prompt === 'consent' && l1.cfg.igs === true && l1.cfg.hint === 'bhale@ipd-llc.com', l1.cfg);
+  T('L2 the relay gets the code + the old device to drop; the new device key is kept',
+    l1.posts[0] && l1.posts[0].action === 'auth_link' && l1.posts[0].code === 'CODE1' && l1.posts[0].old_device === 'OLD' && l1.dev === 'NEW', { posts: l1.posts, dev: l1.dev });
+  T('L3 the renewal proof carries Sheets → "stays on", Allowed, the renewed pass in use, no one-hour window',
+    l1.posts[1] && l1.posts[1].action === 'auth_renew' && l1.posts[1].device === 'NEW' && /stays on/.test(l1.toast) && l1.allowed && l1.token === 'tokRENEW' && l1.asked === 0, l1);
+  const l4 = await lasting(pg, { renewDrops: true });
+  T('L4 the renewal drops it → keeps the window\'s pass (it has Sheets), says "this hour only", never "stays on"', /this hour/.test(l4.toast) && !/stays on/.test(l4.toast) && l4.token === 'tokLINK' && l4.allowed, l4);
+  const l5 = await lasting(pg, { closeWindow: true });
+  T('L5 Google\'s window closed → nothing claimed, no second window, the button stays', l5.asked === 0 && l5.btn && !l5.allowed && /did not give/.test(l5.toast) && l5.posts.length === 0, l5);
+  const l6 = await lasting(pg, { noCode: true });
+  T('L6 no code window available → the one-hour window is asked, inside the same click', l6.asked === 1 && !l6.cfg, l6);
   await pg.close();
+  const auth = fs.readFileSync(path.join(APP, 'app-auth.js'), 'utf8');
+  const fnA = auth.slice(auth.indexOf('function _rrLinkLastingScope('), auth.indexOf("window._rrLinkLastingScope = _rrLinkLastingScope"));
+  const plantedAuth = auth.replace("      prompt: 'consent',\n      ux_mode: 'popup',\n      login_hint: em,", "      ux_mode: 'popup',\n      login_hint: em,");
+  T('L7 PLANTED: the consent prompt removed → the L1 rule catches it (and the real code has it once)',
+    plantedAuth !== auth && !/prompt: 'consent'/.test(plantedAuth.slice(plantedAuth.indexOf('function _rrLinkLastingScope('), plantedAuth.indexOf("window._rrLinkLastingScope")))
+    && (fnA.match(/prompt: 'consent'/g) || []).length === 1, null);
   const src = fs.readFileSync(path.join(APP, 'prefs.js'), 'utf8');
   const gate = "return !!em && (typeof RR_MASTER_EDITOR_EMAILS !== 'undefined') && RR_MASTER_EDITOR_EMAILS.indexOf(em) >= 0;";
   if (src.indexOf(gate) < 0) throw new Error('the gate line moved; update this test');
