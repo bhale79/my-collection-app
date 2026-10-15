@@ -2476,14 +2476,14 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       }
       return;
     }
-    if (btn) { btn.disabled = false; btn.innerHTML = '🔎 Compare with the catalog photo — free'; }
+    if (btn) { btn.disabled = false; btn.innerHTML = '🔎 Compare with the catalog photo'; }
     var mine = '';
     try { mine = info._verifySrc.toDataURL('image/jpeg', 0.9); } catch (e) { mine = ''; }
     var ov = document.createElement('div');
     ov.style.cssText = 'position:fixed;inset:0;z-index:100001;background:rgba(0,0,0,0.88);display:flex;align-items:center;justify-content:center;padding:1rem';
     ov.innerHTML =
       '<div class="rr-card" style="max-width:760px;color:var(--text);font-family:var(--font-body)">'
-      + '<div style="font-size:0.95rem;font-weight:700;margin-bottom:10px">Same item? <span style="font-family:var(--font-mono);color:var(--t-accent)">' + _bcEsc(info.itemNum || '') + '</span><span style="font-size:0.75rem;color:var(--text-dim,#999);font-weight:400"> — you decide, nothing is spent</span></div>'
+      + '<div style="font-size:0.95rem;font-weight:700;margin-bottom:10px">Same item? <span style="font-family:var(--font-mono);color:var(--t-accent)">' + _bcEsc(info.itemNum || '') + '</span><span style="font-size:0.75rem;color:var(--text-dim,#999);font-weight:400"> — you decide</span></div>'
       + '<div style="display:flex;gap:10px;flex-wrap:wrap">'
       +   '<div style="flex:1;min-width:240px"><div style="font-size:0.7rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-dim,#999);margin-bottom:4px">Your photo</div>'
       +     '<div style="border-radius:10px;overflow:hidden;background:#000">' + (mine ? '<img src="' + mine + '" style="width:100%;max-height:300px;object-fit:contain;display:block">' : '<div style="padding:2rem;color:#777">photo unavailable</div>') + '</div></div>'
@@ -2550,7 +2550,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         // (v2.8 ref_photo — no reader, no reads spent, user's photo never
         // leaves the device); human eyes make the call.
         + ((info.refLink && info._verifySrc && typeof window.rrFetchRefPhoto === 'function' && !info.notInMaster)
-          ? '<button data-a="verify" style="display:block;width:100%;margin-top:10px;padding:9px;border-radius:10px;border:1px solid var(--gold,#d4a843);background:var(--bg-card);background:color-mix(in srgb, rgb(212,168,67) 8%, var(--bg-card));color:var(--gold,#d4a843);font-size:0.84rem;cursor:pointer">🔎 Compare with the catalog photo — free</button>'
+          ? '<button data-a="verify" style="display:block;width:100%;margin-top:10px;padding:9px;border-radius:10px;border:1px solid var(--gold,#d4a843);background:var(--bg-card);background:color-mix(in srgb, rgb(212,168,67) 8%, var(--bg-card));color:var(--gold,#d4a843);font-size:0.84rem;cursor:pointer">🔎 Compare with the catalog photo</button>'
           : '')
         + '<button data-a="use" style="display:block;width:100%;margin-top:14px;padding:12px;border-radius:10px;border:2px solid var(--accent,#e8401c);background:var(--bg-card);background:color-mix(in srgb, rgb(232,64,28) 12%, var(--bg-card));color:var(--text,#fff);font-weight:600;font-size:0.95rem;cursor:pointer">Use this</button>'
         + '<div style="display:flex;gap:8px;margin-top:8px">'
@@ -3312,9 +3312,9 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         // the three buttons should be the same size"). Row 1: the three
         // readers, equal width, plain words, count living ON Auto Read.
         // Rotation is the slider's job alone now.
-        + _biBtn({ act: 'go', txt: 'Photo ID<br><span style="font-size:0.68rem;font-weight:400;opacity:0.9">always free</span>' }, 'background:var(--accent,#e8401c);border:1.5px solid var(--accent,#e8401c);color:#fff;flex:1;min-width:0')
+        + _biBtn({ act: 'go', txt: 'Photo ID<br><span style="font-size:0.68rem;font-weight:400;opacity:0.9">' + (_ar ? 'always free' : 'reads the number') + '</span>' }, 'background:var(--accent,#e8401c);border:1.5px solid var(--accent,#e8401c);color:#fff;flex:1;min-width:0')
         + (!_ar ? '' : _biBtn({ act: 'auto', txt: 'Auto Read<br><span id="bi-ai-left" style="font-size:0.68rem;font-weight:400;opacity:0.95">' + ((typeof rrAiRemainingLabel === 'function' && rrAiRemainingLabel()) || 'checking reads left\u2026') + '</span>' }, 'background:var(--surface2,#252848);border:1.5px solid var(--gold,#d4a843);color:var(--gold,#d4a843);flex:1;min-width:0'))
-        + _biBtn({ act: 'lens', txt: 'Google Lens<br><span style="font-size:0.68rem;font-weight:400;opacity:0.9">free Google search</span>' }, 'background:var(--surface2,#252848);border:1.5px solid var(--border,#444);color:var(--text,#fff);flex:1;min-width:0')
+        + _biBtn({ act: 'lens', txt: 'Google Lens<br><span style="font-size:0.68rem;font-weight:400;opacity:0.9">search Google with this photo</span>' }, 'background:var(--surface2,#252848);border:1.5px solid var(--border,#444);color:var(--text,#fff);flex:1;min-width:0')
         + '</div>'
         + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.5rem">'
         + _biBtn({ act: 'retake', txt: 'Retake' })
@@ -3328,8 +3328,8 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + (_ar
           ? '<b style="color:var(--t-accent)">&bull; Photo ID</b> — <b>always free</b>: reads the barcode and the printed number. If they can\'t tell, nothing is spent — you choose what happens next.<br>'
             + '<b style="color:var(--gold,#d4a843)">&bull; Auto Read</b> — the closer look. Free readers run first; <b>one of your daily photo ID reads</b> is spent only if they can\'t tell. Best for unlettered or tricky items.<br>'
-          : '<b style="color:var(--t-accent)">&bull; Photo ID</b> — <b>free</b>: reads the barcode and the printed number. If it can\'t tell, you choose what happens next.<br>')
-        + '<b style="color:#9ecbff">&bull; Google Lens</b> — free Google search by photo, better for <b>unmarked items</b>: buildings, promos, store brands, posters &amp; paper. Also the backup when Photo ID can\'t tell.'
+          : '<b style="color:var(--t-accent)">&bull; Photo ID</b> — reads the barcode and the printed number. If it can\'t tell, you choose what happens next.<br>')
+        + '<b style="color:#9ecbff">&bull; Google Lens</b> — a Google search by photo, better for <b>unmarked items</b>: buildings, promos, store brands, posters &amp; paper. Also the backup when Photo ID can\'t tell.'
         // v0.9.1474: the allowance count moved ONTO the Auto Read button
         // (span#bi-ai-left up there) — no separate row.
         + '</div></div>')));

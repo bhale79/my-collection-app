@@ -190,7 +190,7 @@ function T(n, cond, detail) { console.log((cond ? 'PASS' : 'FAIL') + '  ' + n + 
   // v0.9.1927: Auto Read (the daily allowance) is a beta feature — this new
   // member has not got it, so their card says Photo ID is free and never
   // mentions an allowance (auto_read_beta_tests.js checks the beta version).
-  T('E1  the first Add an Item shows "Scanning and photo ID"', !!c1 && /Scanning and photo ID/.test(c1) && /Photo ID is free too/.test(c1) && !/allowance/i.test(c1), c1);
+  T('E1  the first Add an Item shows "Scanning and photo ID"', !!c1 && /Scanning and photo ID/.test(c1) && /Photo ID\./.test(c1) && !/\bfree\b/i.test(c1) && !/allowance/i.test(c1), c1);   // v0.9.1956: no "free" without Auto Read
   T('E2  …its footer points at the Help row that exists', !!c1 && /Help \(in the side menu\) → Scanning and photo ID/.test(c1), c1);
   await pg.evaluate(() => document.getElementById('rr-ai-usage-go').click());
   await pg.evaluate(() => rrMaybeShowAddHelp());

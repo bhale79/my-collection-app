@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1955';
+const APP_VERSION = 'v0.9.1956';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -3134,7 +3134,7 @@ const RR_PIC_FIRST = {
   cropTitle: 'Crop your picture',
   autoReadLabel: 'Read it automatically',
   autoReadKey: 'rr_picfirst_autoread',
-  resReading: 'Reading the picture (free)\u2026',
+  resReading: 'Reading the picture\u2026',
   resFound: 'Found it \u2014 tap to use it',
   resChoose: 'Which one is yours?',
   resNoneOf: 'None of these',
@@ -3150,7 +3150,7 @@ const RR_PIC_FIRST = {
 // finds no number, the multi-pass reader (photo-inbox.js rrFreeReadBlob) gets
 // the same picture. Still free; only a catalog-confirmed number is kept.
 const RR_PHOTO_ID_CLOSER = {
-  reading: 'Lettering: reading closer (free)…',
+  reading: 'Lettering: reading closer…',
   // v0.9.1951 (Brad's screenshot of the whole screen — the browser's own
   // "2026" outvoted the box's 1927690): when the closer look reads numbers the
   // catalog knows but confirms none, they are offered, longest first.

@@ -408,7 +408,7 @@ const GUIDES = {
       { selector: '#wiz-photoid-block, #wizard-idphoto-btn', optional: true,
         watch: true, needs: function () { return _gtWizardOpen(); },
         title: 'Or let a photo do it',
-        body: 'Don\'t know the number? <strong>Photo ID</strong> on this screen reads it off a picture instead. The free readers try first and cost nothing.' },
+        body: 'Don\'t know the number? <strong>Photo ID</strong> on this screen reads it off a picture instead.' },
       // v0.9.1365 (Brad): this step had NO selector, so the card centred itself
       // — straight on top of the match list the user needs to read. Pointing it
       // at #wiz-suggestions (450x290, 8% of the viewport) both highlights the
@@ -505,8 +505,8 @@ const GUIDES = {
     icon: '🔍', label: 'Photo Inbox: reading item numbers', desc: 'What it reads, and what to do when it cannot',
     open: function () { if (typeof _pinGo === 'function') _pinGo(null); },
     steps: [
-      { selector: '#pin-identify-btn', optional: true, title: 'Free first, always',
-        body: 'Every photo is checked <strong>free</strong>. This reads printed numbers and barcodes across the whole inbox at no cost. Run it as often as you like.' },
+      { selector: '#pin-identify-btn', optional: true, title: 'Start here',
+        body: 'This reads printed numbers and barcodes across the whole inbox. Run it as often as you like.' },
       { title: 'What a reading looks like',
         body: 'On a tile, a blue <strong>2328</strong> means the number was found in the catalog. <strong>best guess</strong> in orange means treat it with suspicion. <strong>could not read</strong> means it tried and found nothing. Check any of them against the item in your hand — this is a helper, not an oracle.' },
       { autoRead: true, selector: '#pin-idall-btn', optional: true, title: 'When free is not enough',
@@ -515,8 +515,8 @@ const GUIDES = {
         body: 'Ticking photos and pressing <strong>Read these</strong> does just those. On a single review card, <strong>Read this photo (1 photo ID)</strong> does one. Same read, same price — and the price is on the button before you press it.' },
       { autoRead: true, title: 'Crop first — it is worth a photo ID',
         body: 'The paid read always shows the crop screen first. Frame the item, or better the number itself, then <strong>Read this</strong>. A tight crop is the difference between a right answer and a wasted read.' },
-      { title: 'Google Search is free',
-        body: 'On a review card, <strong>Google Search</strong> sends the picture to Google Lens and costs nothing. Copy Google\'s answer, come back, paste it in the gold box, and the app reads it for you.' },
+      { title: 'Google Search',
+        body: 'On a review card, <strong>Google Search</strong> sends the picture to Google Lens. Copy Google\'s answer, come back, paste it in the gold box, and the app reads it for you.' },
       { autoRead: true, selector: _gNav('buildPrefsPage'), title: 'Turning paid reads off',
         body: 'In <strong>Preferences → Photo ID</strong>, untick <strong>Use my daily photo ID reads</strong> and nothing is ever spent. The free readers keep working; when they cannot tell, you are asked to type the number.' }
     ]
@@ -985,7 +985,7 @@ function openHelpHub(opts) {
     +   hdr('Getting Started')
     // v0.9.1893: the welcome card is gone; its row now reopens the scanning /
     // photo ID explainer that the first Add an Item shows once.
-    +   row(X + "if(typeof showAiUsageCard==='function')showAiUsageCard(true);", '📷', 'Scanning and photo ID', ((typeof rrAutoReadOn === 'function') && rrAutoReadOn()) ? 'What is free and unlimited, and the daily photo ID allowance' : 'Scanning and Photo ID are both free')
+    +   row(X + "if(typeof showAiUsageCard==='function')showAiUsageCard(true);", '📷', 'Scanning and photo ID', ((typeof rrAutoReadOn === 'function') && rrAutoReadOn()) ? 'What is free and unlimited, and the daily photo ID allowance' : 'How the app reads barcodes, labels and photos')
     +   hdr('Tips & Recovery')
     +   row(X + "if(typeof _uiShowVersionHistoryHelp==='function')_uiShowVersionHistoryHelp();", '↩️', 'How to undo a mistake', 'Restore an earlier version of your data')
     +   row(X + "if(typeof _rrTwoDevicesHelp==='function')_rrTwoDevicesHelp();", '\ud83d\udcf1', 'Using more than one device', 'Phone and computer both work \u2014 here is the one thing to know')
@@ -1141,7 +1141,7 @@ function _rrGuidePhotos() {
     + h2('4', 'Getting them into your collection')
     + h3('Let the reader try')
     + p(chip('Identify my items', 'primary') + ' goes through your photos and tries to identify each item. Clear side photos of postwar and prewar trains mostly work. Box ends, barcodes and UPCs read well too. A modern item with no box will probably need one of the options below.')
-    + p('<b>Attempt is the key word.</b> This is the free reader. You can hit <i>This is wrong — re-scan</i> and let it try again; a lot of the time that works.')
+    + p('<b>Attempt is the key word.</b> You can hit <i>This is wrong — re-scan</i> and let it try again; a lot of the time that works.')
     + '<ul style="padding-left:1.2rem;line-height:1.6">'
     // v0.9.1927: Read this photo is Auto Read — a beta feature.
     +   (!((typeof rrAutoReadOn === 'function') && rrAutoReadOn()) ? '' : '<li>' + chip('Read this photo', 'gold') + ' — the limited reader. It works well and it’s automatic. <i>I actually have to pay for this one, so I have to be careful with it</i> — which is why it’s per-photo, on the photo you’re looking at, and never a whole batch by surprise.</li>')

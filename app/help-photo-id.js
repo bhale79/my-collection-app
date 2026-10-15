@@ -58,10 +58,14 @@
     return '<div style="border-left:3px solid var(--border);padding:0.1rem 0 0.1rem 0.75rem;'
       + 'margin-bottom:0.9rem">'
       + '<div style="font-weight:800;font-size:0.9rem">' + n + '. ' + title + '</div>'
-      + '<div style="font-size:0.74rem;font-weight:700;text-transform:uppercase;'
+      + (cost ? '<div style="font-size:0.74rem;font-weight:700;text-transform:uppercase;'
       + 'letter-spacing:0.04em;color:' + (free ? 'var(--green)' : 'var(--accent2)') + '">'
-      + cost + '</div>' + body + '</div>';
+      + cost + '</div>' : '') + body + '</div>';
   }
+  // v0.9.1956 (Brad: "we need to get rid of the free terminology as that had
+  // to do with the autoreader"): without Auto Read nothing has a price, so a
+  // step carries no cost line at all. FREE is the tag only beside a paid step.
+  function _stepTag(n, title, body, ar) { return ar ? _step(n, title, 'Free', true, body) : _step(n, title, '', true, body); }
   function _sp(t) {
     return '<p style="margin:0.2rem 0 0;font-size:0.85rem;color:var(--text-mid);'
       + 'line-height:1.5">' + t + '</p>';
@@ -82,9 +86,9 @@
     // v0.9.1920 (Brad, booth camera list #5): nothing reads a photo by itself
     // any more (since v0.9.1297) — the free read runs when you press Identify
     // my items. (The old opening claimed the read had already run, for free.)
-    + '<p style="' + _P + '"><b>Start with the free read.</b></p>'
+    + '<p style="' + _P + '"><b>Start with Identify my items.</b></p>'
     + '<p style="' + _P + '">Press <b>Identify my items</b> on the inbox page and we look for a '
-      + 'printed number on every photo \u2014 free, as often as you like. That alone gets most items. '
+      + 'printed number on every photo \u2014 as often as you like. That alone gets most items. '
       + 'If this photo says nothing has been read yet, that\u2019s the first thing to try.</p>'
 
     + '<div style="' + _H2 + '">What we can usually read</div>'
@@ -141,7 +145,7 @@
 
     + '<div style="background:var(--surface2);border:1.5px solid var(--accent);border-radius:10px;'
       + 'padding:0.7rem 0.85rem;font-size:0.86rem;margin:0.9rem 0;line-height:1.55">'
-      + '<b>If your photo looks like one of those, don’t bother with the free reader or re-scan.</b> '
+      + '<b>If your photo looks like one of those, don’t bother with Identify or re-scan.</b> '
       + (ar ? 'Go straight to Google Search or Read this photo. Those two look at the shape, the colours '
       + 'and the whole item, not just printed text — so they’re the ones that can work with no '
       + 'number at all.</div>'
@@ -168,14 +172,14 @@
     + _HR
 
     + '<div style="' + _H2 + '">If the answer is wrong, work down this list</div>'
-    + _step(1, 'This is wrong — re-scan', 'Free', true,
+    + _stepTag(1, 'This is wrong — re-scan',
         _sp('Throws away the answer and looks again, harder. You can watch what it sees while it '
-          + 'works — often that alone tells you why it went wrong.'))
-    + _step(2, 'Research Number', 'Free', true,
+          + 'works — often that alone tells you why it went wrong.'), ar)
+    + _stepTag(2, 'Research Number',
         _sp('If you already know the number, or you can read it yourself in the photo, type it in '
           + 'and this looks it up in the catalog. Fastest route when you can read the number and '
-          + 'the app can’t.'))
-    + _step(3, 'Google Search', 'Free', true,
+          + 'the app can’t.'), ar)
+    + _stepTag(3, 'Google Search',
         _sp('Sends this photo to Google and lets Google find it. This is the one to reach for when '
           + 'there’s nothing printed to read. It usually gets there.')
         + _sp('The catch is that you have to carry the answer back yourself:')
@@ -186,7 +190,7 @@
               + 'Come back here, press and hold in the paste box and choose <b>Paste</b>.</div>'
             : 'In the Google tab: <b>Ctrl+A</b> (select all), then <b>Ctrl+C</b> (copy). Come back '
               + 'here and press <b>Ctrl+V</b> in the paste box.</div>')
-        + _sp((window.IS_MOBILE_UA ? 'A few taps.' : 'Four keystrokes.') + ' If you don’t mind them, this costs you nothing.'))
+        + _sp((window.IS_MOBILE_UA ? 'A few taps.' : 'Four keystrokes.') + (ar ? ' If you don’t mind them, this costs you nothing.' : '')), ar)
     + (ar ? (''
     + _step(4, 'Read this photo', '1 photo ID', false,
         _sp('A different reader looks at the whole photo — the shape, the colours, the lettering — '
@@ -209,12 +213,21 @@
       ) : '')
 
     + '<div style="' + _H2 + '">The short version</div>'
+    + (ar ? (''
     + '<table style="width:100%;border-collapse:collapse;font-size:0.84rem;margin-top:0.4rem">'
       + _row('Identify my items (the first read)', 'Free', false)
       + _row('This is wrong — re-scan', 'Free', false)
       + _row('Research Number', 'Free', false)
       + _row('Google Search', 'Free', false)
-      + (ar ? _row('Read this photo', '1 photo ID', true) : '')
-    + '</table>';
+      + _row('Read this photo', '1 photo ID', true)
+    + '</table>')
+    // v0.9.1956: without Auto Read there is no price to compare — the short
+    // version is simply the order to try them in
+    : ('<ol style="' + _UL + '">'
+      + '<li>Identify my items (the first read)</li>'
+      + '<li>This is wrong — re-scan</li>'
+      + '<li>Research Number</li>'
+      + '<li>Google Search</li>'
+    + '</ol>'));
   };
 })();

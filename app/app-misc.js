@@ -94,12 +94,12 @@ function showAiUsageCard(force) {
   ov.innerHTML =
     '<div style="background:var(--surface,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;max-width:480px;width:100%;padding:20px 22px 18px;color:var(--text,#eee);font-family:var(--font-body,sans-serif);max-height:calc(100vh - 36px);overflow-y:auto;-webkit-overflow-scrolling:touch;margin:auto 0;box-shadow:0 12px 40px rgba(0,0,0,0.5)">'
     + '<div style="font-family:var(--font-head,sans-serif);font-size:1.25rem;text-align:center;font-weight:700;margin-bottom:4px">Scanning and photo ID</div>'
-    + '<div style="text-align:center;font-size:0.8rem;color:var(--text-dim,#888);margin-bottom:14px;letter-spacing:0.04em">' + (ar ? 'Scanning is free. Photo ID is the one part with a limit.' : 'Scanning and Photo ID are both free.') + '</div>'
+    + '<div style="text-align:center;font-size:0.8rem;color:var(--text-dim,#888);margin-bottom:14px;letter-spacing:0.04em">' + (ar ? 'Scanning is free. Photo ID is the one part with a limit.' : 'How the app reads barcodes, labels and photos.') + '</div>'
 
     + (ar ? '<div style="font-size:0.88rem;color:var(--text-mid,#bbb);line-height:1.55;margin-bottom:14px">Most items go in without using anything up \u2014 here\'s the difference.</div>' : '')
 
     + '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;padding:10px 12px;background:var(--surface2,#222);border-radius:9px;border:1px solid var(--border,#333)">'
-    +   '<div style="font-size:0.86rem;line-height:1.5"><strong style="color:var(--text,#eee)">Scanning is free and unlimited.</strong> Point the camera at a barcode or a printed label and the app reads it right on your own phone. Scan as much as you like \u2014 it never counts against anything.</div>'
+    +   '<div style="font-size:0.86rem;line-height:1.5"><strong style="color:var(--text,#eee)">' + (ar ? 'Scanning is free and unlimited.' : 'Scanning.') + '</strong> Point the camera at a barcode or a printed label and the app reads it right on your own phone. Scan as much as you like' + (ar ? ' \u2014 it never counts against anything' : '') + '.</div>'
     + '</div>'
 
     + (ar ? (''
@@ -112,7 +112,7 @@ function showAiUsageCard(force) {
     + '</div>'
       ) : (''
     + '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:18px;padding:10px 12px;background:var(--surface2,#222);border-radius:9px;border:1px solid var(--border,#333)">'
-    +   '<div style="font-size:0.86rem;line-height:1.5"><strong style="color:var(--text,#eee)">Photo ID is free too.</strong> No barcode? Take a photo and the app reads the printed number on the item or its box. If it can\'t tell, you can type the number in or search for it.</div>'
+    +   '<div style="font-size:0.86rem;line-height:1.5"><strong style="color:var(--text,#eee)">Photo ID.</strong> No barcode? Take a photo and the app reads the printed number on the item or its box. If it can\'t tell, you can type the number in or search for it.</div>'
     + '</div>'
       ))
 

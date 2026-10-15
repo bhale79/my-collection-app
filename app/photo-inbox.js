@@ -5391,7 +5391,7 @@
                 + ', which is not in this photo\u2019s catalog \u2014 a closer one from its own answer was used instead.' : '')
             + '</div>'
           : '')
-      + (raw ? 'The free reader saw: \u201c' + rrEsc(raw) + '\u201d'
+      + (raw ? 'The reader saw: \u201c' + rrEsc(raw) + '\u201d'
              : (ai && ai.aiRaw ? '' : 'The reader returned no text at all.'))
       + (dbg
           ? '<div style="margin-top:0.35rem">'
@@ -6595,7 +6595,7 @@
       if (!_pinApplyMeta(meta, gs, ai && ai.text)) { showToast('No item info found in that screenshot — type the number instead', 4000, true); return; }
       showToast(meta._hedge
         ? 'Read the screenshot — the number is a best guess, double-check it'
-        : ('Read the screenshot' + (_freeRead ? ' (free — no photo ID used)' : '') + ' — check it over and hit Add'), 4000);
+        : ('Read the screenshot' + ((_freeRead && _pinAr()) ? ' (free — no photo ID used)' : '') + ' — check it over and hit Add'), 4000);
     } catch (e) {
       console.warn('[Inbox] read screenshot:', e);
       showToast('Could not read that screenshot — try again or type the number', 3800, true);
@@ -11359,8 +11359,8 @@
       // thing that actually works next.
       if (!(r && r.num)) {
         showToast(_hadPaid
-          ? 'The free reader could not pick out a number this time — your earlier identification has been kept, nothing was lost'
-          : (_pinAr() ? 'The free reader could not pick out a number on this one — type it in, or use “Read this photo” for a closer look' : 'The free reader could not pick out a number on this one — type it in, or try Google Search'), 4500);
+          ? 'The reader could not pick out a number this time — your earlier identification has been kept, nothing was lost'
+          : (_pinAr() ? 'The free reader could not pick out a number on this one — type it in, or use “Read this photo” for a closer look' : 'The reader could not pick out a number on this one — type it in, or try Google Search'), 4500);
       } else if (_hadPaid && !_keepPaid(r.num)) {
         // Only say this when it is TRUE: the old read named a different number,
         // so its maker/description really did describe a different item.
@@ -11438,7 +11438,7 @@
       } else sn.style.display = 'none';
     }
     if (n > 0 && !_selectMode) {
-      b.textContent = 'Identify my items — read ' + n + ' (free)';
+      b.textContent = 'Identify my items — read ' + n + (_pinAr() ? ' (free)' : '');   // v0.9.1956: "free" only beside Auto Read's daily limit
       b.style.display = '';
     } else {
       b.style.display = 'none';

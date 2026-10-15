@@ -1058,7 +1058,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
   // surfaces — the free read says (free), the paid selection prices itself
   // on the button (v1351 rule kept), and the daily pill says "left today"
   // so the number cannot read as a spendable balance.
-  ok('the label says what the number IS', /Identify my items — read ' \+ n \+ ' \(free\)/.test(tb));
+  // v0.9.1956: "(free)" only beside Auto Read's daily limit
+  ok('the label says what the number IS', /Identify my items — read ' \+ n \+ \(_pinAr\(\) \? ' \(free\)' : ''\)/.test(tb));
   ok('and that the photo IDs are a cost', /Read these ' \+ n \+ ' · ' \+ n \+ ' photo IDs/.test(tb));
   ok('with the daily pill honest about what remains', /photo ID' \+ \(n === 1 \? '' : 's'\) \+ ' left today/.test(tb));
   ok('the old balance-looking label is gone', !/Read ' \+ n \+ ' \(' \+ n \+ ' token/.test(tb));
@@ -1451,7 +1452,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('the disclosure can show it', /The paid reader answered/.test(pr));
   ok('and explains a swap in plain words', /a closer one from its own answer was used instead/.test(pr));
   ok('it is escaped, not injected', /rrEsc\(ai\.aiRaw\)/.test(pr));
-  ok('a free-only read still reads naturally', /The free reader saw/.test(pr));
+  ok('a free-only read still reads naturally', /The reader saw/.test(pr));   // v0.9.1956: no "free"
   // v0.9.1092 supersedes: stored under the ON-SCREEN photo, readable fallback.
   ok('the single read stores under the photo on screen',
      /var fid0 = _pinOnScreenFid\(\) \|\| _pinReadFid\(gs\[0\]\)/.test(pr));

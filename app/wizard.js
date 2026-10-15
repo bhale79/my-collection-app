@@ -838,7 +838,7 @@ function _buildWizardModal() {
       // of the day's reads without a single screen having mentioned a price.
       // Named like every other button ("Photo ID") and carrying the same
       // remaining-count line barcode.js already renders.
-      +   '<button id="id-search-btn" type="button" disabled style="width:100%;padding:0.75rem;border-radius:9px;background:var(--surface2);border:1.5px solid var(--border);color:var(--text-dim);font-family:var(--font-head);font-size:0.95rem;letter-spacing:0.05em;cursor:not-allowed;margin-bottom:0.35rem">' + (((typeof rrAutoReadOn === 'function') && rrAutoReadOn()) ? '\ud83d\udd0d Photo ID \u2014 uses 1 photo ID read' : '\ud83d\udd0d Photo ID \u2014 free') + '</button>'
+      +   '<button id="id-search-btn" type="button" disabled style="width:100%;padding:0.75rem;border-radius:9px;background:var(--surface2);border:1.5px solid var(--border);color:var(--text-dim);font-family:var(--font-head);font-size:0.95rem;letter-spacing:0.05em;cursor:not-allowed;margin-bottom:0.35rem">' + (((typeof rrAutoReadOn === 'function') && rrAutoReadOn()) ? '\ud83d\udd0d Photo ID \u2014 uses 1 photo ID read' : '\ud83d\udd0d Photo ID') + '</button>'
       // v0.9.1927: the reads-left line belongs to Auto Read (a beta feature).
       +   (((typeof rrAutoReadOn === 'function') && rrAutoReadOn())
           ? '<div style="font-size:0.72rem;color:var(--text-dim);text-align:center;margin-bottom:0.5rem">'
