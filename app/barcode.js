@@ -1377,8 +1377,15 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       // points below where the fresh decode has already failed to name an
       // item — never ahead of one. Returns a result, or null to carry on to
       // the manual-entry answer that was there before.
-      const _catalogUpcHit = async function () {
-        const hits = await findMasterByUpc(upc12, raw);
+      // v0.9.1954: `onlyMfr` keeps the hits to the maker the prefix proved
+      // (a Lionel box can only be a Lionel row), so a stray pairing on
+      // another maker's tab can never answer for it.
+      const _catalogUpcHit = async function (onlyMfr) {
+        let hits = await findMasterByUpc(upc12, raw);
+        if (onlyMfr) {
+          const _want = _bcMfrKey(onlyMfr);
+          hits = hits.filter(function (m) { return _bcRowIsMfr(m, _want); });
+        }
         if (!hits.length) return null;
         const mfrOf = function (m) {
           return String((m && (m.manufacturer || m.maker)) || (info && info.mfr) || '');
@@ -1401,6 +1408,21 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         };
       };
       if (info && info.mfr === 'Lionel') {
+        // v0.9.1954 (Brad, 2026-10-15: "yes" — an exact barcode match wins).
+        // For a Lionel box the "decode" below is not a real reading: it takes
+        // the five digits inside the barcode and GUESSES 6-XXXXX / XXXXX. A
+        // modern 7-digit item's barcode does not carry its number at all
+        // (2533502 is 0 23922 06597 1), so the guess can land on an older
+        // 6-XXXXX item that merely shares five digits. Since Master Version
+        // 2.47 the catalog's "UPC / Barcode" column carries the MAKER's own
+        // barcode for 1,978 modern Lionel items (checked: Lionel prefix,
+        // check digit, one item per listing). An exact match there is a
+        // fact about this box, so it is asked FIRST — Lionel rows only.
+        // Unchanged: the learned Barcode Map is still never consulted during
+        // a scan (v1465, "recording, not recalling"), and every other maker
+        // still reaches the column only after its own decode has failed.
+        const _lionelExact = await _catalogUpcHit('Lionel');
+        if (_lionelExact) return _lionelExact;
         const parsed = info.parse(upc12);
         // v0.9.1605(a): the prefix proved the maker — hand it to the lookup
         // so a last-5 guess can never wander into another maker's catalog.
@@ -1434,10 +1456,8 @@ window.eraSupportsBarcode = eraSupportsBarcode;
             statusMessage: matches.length + ' possible matches — pick the right one',
           };
         }
-        // Lionel prefix but not in master — the decode is spent, so the
-        // catalog's barcode column may answer before we fall back to manual.
-        const _lionelByUpc = await _catalogUpcHit();
-        if (_lionelByUpc) return _lionelByUpc;
+        // Lionel prefix but not in master — the catalog's barcode column was
+        // already asked above (v0.9.1954), so straight to manual entry.
         // offer manual entry with item# pre-filled
         return {
           handled: true,

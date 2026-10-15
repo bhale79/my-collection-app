@@ -16,7 +16,9 @@
 //    Brad chose the careful version on 2026-09-12: a fresh decode still wins,
 //    and the catalog column only answers where the decode found nothing. The
 //    pins below exist so nobody later "simplifies" that ordering away and
-//    walks back into the trap.
+//    walks back into the trap. v0.9.1954 (Brad 2026-10-15): ONE exception —
+//    a Lionel box, whose "decode" is only a five-digit guess, asks the catalog
+//    barcode (Lionel rows only) first. Behaviour: lionel_exact_upc_tests.js.
 //
 // Run:  node tests/microtrains_barcode_tests.js
 // ═══════════════════════════════════════════════════════════════
@@ -52,16 +54,22 @@ ok('…and the pre-UPC Lionel eras are still excluded',
    !/SHOW = \[[^\]]*'pw'/.test(bc) && !/SHOW = \[[^\]]*'prewar'/.test(bc));
 
 // ── 3. the ORDER — this is the one that matters ─────────────────
-// The catalog lookup must sit BELOW the decode at every point it is reached.
-section('A fresh decode always wins (the v1465 rule)');
+// v0.9.1954 ([stated] Brad 2026-10-15, after Master 2.47 loaded 1,978 maker
+// barcodes into Lionel MPC-Modern): for a LIONEL box the "decode" is only a
+// five-digit guess, so an exact catalog barcode on a Lionel row is asked
+// FIRST. Every other maker keeps the 2026-09-12 order: its own decode first,
+// the catalog column only where that found nothing. The learned map stays out.
+section('Lionel: exact catalog barcode first; everyone else: decode first');
 const decode = bc.slice(bc.indexOf('async function decodeBarcode'));
-const firstHit = decode.indexOf('_catalogUpcHit()');
+const lionelExact = decode.indexOf("_catalogUpcHit('Lionel')");
 const lionelFind = decode.indexOf('findMasterItems(parsed.itemNumCandidates');
-ok('the Lionel decode is attempted before any catalog-UPC lookup',
-   lionelFind > -1 && firstHit > -1 && lionelFind < firstHit);
-ok('the Lionel fall-through consults the catalog before offering manual entry',
-   /_lionelByUpc = await _catalogUpcHit\(\);\s*\n\s*if \(_lionelByUpc\) return _lionelByUpc;[\s\S]{0,400}?notInMaster: true/.test(decode));
-ok('the non-Lionel prefixes consult it before the Phase 2 answer',
+ok('a Lionel box asks the catalog barcode (Lionel rows only) before the five-digit guess',
+   lionelExact > -1 && lionelFind > -1 && lionelExact < lionelFind);
+ok('…and the catalog is asked ONCE for a Lionel box (no second, unfiltered ask)',
+   (decode.match(/_catalogUpcHit\(/g) || []).length === 2);
+ok('the catalog hits are filtered to the maker the prefix proved',
+   /hits = hits\.filter\(function \(m\) \{ return _bcRowIsMfr\(m, _want\); \}\)/.test(decode));
+ok('the non-Lionel prefixes consult it before the Phase 2 answer (decode-first order unchanged for them)',
    /_otherByUpc = await _catalogUpcHit\(\);\s*\n\s*if \(_otherByUpc\) return _otherByUpc;\s*\n\s*if \(info\)/.test(decode));
 ok('a hit is marked, so the picker can say where it came from',
    /byCatalogUpc: true/.test(decode) && /_byCatalogUpc = true/.test(bc));
