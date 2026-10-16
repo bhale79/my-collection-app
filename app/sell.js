@@ -88,6 +88,16 @@ function _rrFitText(x, txt, maxW) {
   while (t.length > 1 && x.measureText(t + '…').width > maxW) t = t.slice(0, -1);
   return t.replace(/\s+$/, '') + '…';
 }
+// v0.9.1963 (Brad: the person he sent cards to "can zoom in and out but not the
+// actually item picture, just the card"): the WHOLE photo goes on the card,
+// fitted inside its frame — it was cropped to fill it, so the caboose's ends and
+// wheels were cut off. ONE fit for both cards.
+function _rrPhotoFit(iw, ih, bw, bh) {
+  if (!(iw > 0) || !(ih > 0)) return { w: bw, h: bh, dx: 0, dy: 0 };
+  var s = Math.min(bw / iw, bh / ih), w = iw * s, h = ih * s;
+  return { w: w, h: h, dx: (bw - w) / 2, dy: (bh - h) / 2 };
+}
+if (typeof window !== 'undefined') window._rrPhotoFit = _rrPhotoFit;
 function _rrCard(d, photoImg, source, photoIdx, photoTotal) {
   var W = 720, H = 900, c = document.createElement('canvas'); c.width = W; c.height = H;
   var x = c.getContext('2d');
@@ -105,8 +115,8 @@ function _rrCard(d, photoImg, source, photoIdx, photoTotal) {
   var py = 84, ph = 420; x.fillStyle = '#1e2740'; _rrRound(x, 36, py, W - 72, ph, 16); x.fill();
   if (photoImg) {
     x.save(); _rrRound(x, 36, py, W - 72, ph, 16); x.clip();
-    var iw = photoImg.width, ih = photoImg.height, s = Math.max((W - 72) / iw, ph / ih), dw = iw * s, dh = ih * s;
-    x.drawImage(photoImg, 36 + ((W - 72) - dw) / 2, py + (ph - dh) / 2, dw, dh); x.restore();
+    var _f = _rrPhotoFit(photoImg.width, photoImg.height, W - 72, ph);
+    x.drawImage(photoImg, 36 + _f.dx, py + _f.dy, _f.w, _f.h); x.restore();
   } else { x.fillStyle = '#46537a'; x.font = '400 20px Arial'; x.textAlign = 'center'; x.fillText('photo', W / 2, py + ph / 2); x.textAlign = 'left'; }
   if (photoTotal && photoTotal > 1) {
     var _lbl = (photoIdx || 1) + ' of ' + photoTotal;
@@ -150,8 +160,8 @@ function _rrPhotoCard(num, photoImg, source, idx, total) {
   var py = 84, ph = 680; x.fillStyle = '#1e2740'; _rrRound(x, 36, py, W - 72, ph, 16); x.fill();
   if (photoImg) {
     x.save(); _rrRound(x, 36, py, W - 72, ph, 16); x.clip();
-    var iw = photoImg.width, ih = photoImg.height, s = Math.max((W - 72) / iw, ph / ih), dw = iw * s, dh = ih * s;
-    x.drawImage(photoImg, 36 + ((W - 72) - dw) / 2, py + (ph - dh) / 2, dw, dh); x.restore();
+    var _f = _rrPhotoFit(photoImg.width, photoImg.height, W - 72, ph);
+    x.drawImage(photoImg, 36 + _f.dx, py + _f.dy, _f.w, _f.h); x.restore();
   } else { x.fillStyle = '#46537a'; x.font = '400 20px Arial'; x.textAlign = 'center'; x.fillText('photo', W / 2, py + ph / 2); x.textAlign = 'left'; }
   var by = py + ph + 58;
   var _pl = 'Photo ' + idx + ' of ' + total;

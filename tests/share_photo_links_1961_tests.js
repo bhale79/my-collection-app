@@ -18,6 +18,11 @@
 //   P1  the PDF writes "See the full-size photo ›" under a linked photo, linked
 //       to that photo — a picture alone gives no sign it can be tapped
 //   P2  …and not when the photo was not opened up
+//   v0.9.1963 (Brad: "it can zoom in and out but not the actually item picture,
+//   just the card" — his screenshot had the links box UNTICKED; "yes"):
+//   W1  a click on the box's words does NOT untick it (only the box toggles)
+//   W2  the card shows the WHOLE photo — a wide photo's blue ends are on the card
+//       (they were cropped off), on the item card and the extra-photo card
 //   X*  PLANTED: each undone in the code is caught
 // ═══════════════════════════════════════════════════════════════════════════
 const fs = require('fs'), path = require('path');
@@ -104,7 +109,7 @@ const pdf = pg => pg.evaluate(async (dot) => {
 (async () => {
   const ex = '/opt/pw-browsers/chromium';
   const browser = await chromium.launch(fs.existsSync(ex) ? { executablePath: ex } : {});
-  let r, m;
+  let r, m, x;
 
   console.log('== the setting ==');
   r = await open(browser, {});
@@ -141,8 +146,38 @@ const pdf = pg => pg.evaluate(async (dot) => {
   T('page errors', r.errs.length === 0, r.errs);
   await r.ctx.close();
 
+  console.log('== v1963: the words, and the whole photo ==');
+  r = await open(browser, {});
+  await r.pg.click('#sf-linkphotos-words');
+  m = await r.pg.evaluate(() => document.getElementById('sf-linkphotos').checked);
+  T('W1 a click on "Full-size photo links…" leaves the box ticked', m === true, m);
+  const ends = pg => pg.evaluate(async () => {
+    // a 3:1 photo, grey in the middle, pure blue at its far left and right ends
+    const c = document.createElement('canvas'); c.width = 1500; c.height = 500; const g = c.getContext('2d');
+    g.fillStyle = '#808080'; g.fillRect(0, 0, 1500, 500); g.fillStyle = '#0000ff'; g.fillRect(0, 0, 60, 500); g.fillRect(1440, 0, 60, 500);
+    const img = await new Promise(res => { const im = new Image(); im.onload = () => res(im); im.src = c.toDataURL('image/png'); });
+    const blue = cv => { const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data; let n = 0;
+      for (let i = 0; i < d.length; i += 4) if (d[i] < 40 && d[i + 1] < 40 && d[i + 2] > 200) n++; return n; };
+    const card = _rrCard({ num: '6517', name: 'Lionel Lines · Caboose', price: 'asking $40', chips: [], note: '', sub: 'Caboose' }, img, 'forsale', 1, 1);
+    const pcard = _rrPhotoCard('6517', img, 'forsale', 2, 2);
+    return { card: blue(card), pcard: blue(pcard) };
+  });
+  m = await ends(r.pg);
+  T('W2 the item card shows the whole photo — both blue ends are on it', m.card > 2000, m);
+  T('W2 …and so does the extra-photo card', m.pcard > 2000, m);
+  await r.ctx.close();
+
   console.log('== planted offenders ==');
-  let x = await open(browser, { share: planted(SHARE, 'id="sf-linkphotos" checked onchange', 'id="sf-linkphotos" onchange', 'off by default') });
+  x = await open(browser, { sell: planted(SELL, "  var s = Math.min(bw / iw, bh / ih), w = iw * s, h = ih * s;", "  var s = Math.max(bw / iw, bh / ih), w = iw * s, h = ih * s;   // planted", 'crop') });
+  m = await ends(x.pg);
+  T('X-W2 PLANTED: cropped to fill → the blue ends are cut off (W2 would fail)', m.card < 200 && m.pcard < 200, m);
+  await x.ctx.close();
+  x = await open(browser, { share: planted(SHARE, "'<div style=\"display:flex;align-items:center;gap:0.5rem;font-size:0.85rem;color:var(--text);margin-top:0.55rem\"><input type=\"checkbox\" id=\"sf-linkphotos\"", "'<label style=\"display:flex;align-items:center;gap:0.5rem;font-size:0.85rem;color:var(--text);margin-top:0.55rem\"><input type=\"checkbox\" id=\"sf-linkphotos\"", 'label').replace("<span id=\"sf-linkphotos-words\">Full-size photo links — they can open each photo full size</span></div>' +", "<span id=\"sf-linkphotos-words\">Full-size photo links — they can open each photo full size</span></label>' +") });
+  await x.pg.click('#sf-linkphotos-words');
+  m = await x.pg.evaluate(() => document.getElementById('sf-linkphotos').checked);
+  T('X-W1 PLANTED: back to a <label> → a click on the words unticks it (W1 would fail)', m === false, m);
+  await x.ctx.close();
+  x = await open(browser, { share: planted(SHARE, 'id="sf-linkphotos" checked onchange', 'id="sf-linkphotos" onchange', 'off by default') });
   m = await x.pg.evaluate(() => document.getElementById('sf-linkphotos').checked);
   T('X-S1 PLANTED: off by default → caught', m === false, m);
   await x.ctx.close();
