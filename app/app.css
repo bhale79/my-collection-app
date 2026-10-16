@@ -1413,6 +1413,16 @@
 
   .cd-fields { display: grid; grid-template-columns: 1fr; gap: 0; align-items: start; }
   .cd-col.cd-2up .cd-fields { grid-template-columns: 1fr 1fr; column-gap: 1rem; }
+  /* v0.9.1969 (Brad, the Add screen's step 2 on his laptop: "why do we have to
+     scroll it"): three columns of questions on a computer, not two — Condition
+     · All Original · Has Box, then Instruction Sheet · Master Box · Error Item.
+     With every Yes answered the step was 110px taller than his window. The
+     item's name and its "View on …" button share one line (.cd-head). Phones
+     and engine/tender columns are unchanged (no .cd-2up there). */
+  .cd-col.cd-2up .cd-fields { grid-template-columns: 1fr 1fr 1fr; }
+  .cd-col.cd-2up .cd-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; }
+  .cd-col.cd-2up .cd-head-text { min-width: 0; }
+  .cd-col.cd-2up .cd-head > div:last-child:not(.cd-head-text) { margin-bottom: 0 !important; flex-shrink: 0; }
   .cd-blk { min-width: 0; }
   .form-field label { font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase;
     color: var(--text-dim); display: block; margin-bottom: 0.3rem; }
@@ -2860,24 +2870,31 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
    scope note above) keep their own size on purpose. 86 rather than 92:
    .rr-card is content-box, so its 1.4rem padding sits OUTSIDE max-height
    and is zoomed too — measured at 92 the card ran edge to edge. */
-@media (min-width: 1000px) and (max-width: 1399px) {
-  .maint-card, .rr-desk-zoom, .rr-card, .modal { zoom: 1.25; }
-  .rr-card, .modal { max-height: calc(86dvh / 1.25) !important; }
-}
-@media (min-width: 1400px) {
-  .maint-card, .rr-desk-zoom, .rr-card, .modal { zoom: 1.5; }
-  .rr-card, .modal { max-height: calc(86dvh / 1.5) !important; }
-}
-/* v0.9.1943 (Brad, the photo inbox's review card on his laptop: "scale things
-   down so you get a decent photo to see. all the other text is large"): that
-   ONE card — the laptop layout, class pin-rv-card, 1200px and up — is shown one
-   step smaller than the other pop-ups, so the photo and every button fit
-   together. Change the step here: both lines of each block, like the rule above. */
-@media (min-width: 1000px) and (max-width: 1399px) {
-  .rr-card.pin-rv-card { zoom: 1.1; max-height: calc(86dvh / 1.1) !important; height: calc(86dvh / 1.1); }
-}
-@media (min-width: 1400px) {
-  .rr-card.pin-rv-card { zoom: 1.25; max-height: calc(86dvh / 1.25) !important; height: calc(86dvh / 1.25); }
+/* v0.9.1969 (Brad, the Add screen on his laptop: "why is this screen so
+   huge?" … "and why do we have to scroll it") — THE POP-UP SIZE, ONE PLACE.
+   The step used to be picked by window WIDTH alone: his laptop window is 1536
+   wide, so it got the biggest step (1.5x), but it is only 737 tall — the Add
+   screen's step 2 ran 64px past the window (190px with every Yes answered).
+   The step is now picked by width AND height, and set here once:
+     window                         pop-ups   review card / crop screen
+     1400+ wide and 900+ tall        1.5       1.25
+     1400+ wide, 730–899 tall        1.25      1.25   (Brad's laptop, 737 tall)
+     1000–1399 wide, 730+ tall       1.25      1.1
+     1000+ wide, under 730 tall      1.1       1
+   (730, not 700: measured, a 1280x720 window ran step 2 4px over at 1.25.)
+   v0.9.1943's review card and v0.9.1968's crop screen read the second column
+   from the same variables — no copies of the numbers anywhere else. */
+:root { --rr-pop-zoom: 1; --rr-pop-zoom-sm: 1; }
+@media (min-width: 1000px) { :root { --rr-pop-zoom: 1.1; --rr-pop-zoom-sm: 1; } }
+@media (min-width: 1000px) and (min-height: 730px) { :root { --rr-pop-zoom: 1.25; --rr-pop-zoom-sm: 1.1; } }
+@media (min-width: 1400px) and (min-height: 730px) { :root { --rr-pop-zoom-sm: 1.25; } }
+@media (min-width: 1400px) and (min-height: 900px) { :root { --rr-pop-zoom: 1.5; } }
+@media (min-width: 1000px) {
+  .maint-card, .rr-desk-zoom, .rr-card, .modal { zoom: var(--rr-pop-zoom); }
+  .rr-card, .modal { max-height: calc(86dvh / var(--rr-pop-zoom)) !important; }
+  /* v0.9.1943 (Brad: "scale things down so you get a decent photo to see"):
+     the Photo Inbox review card's laptop layout — the second column above */
+  .rr-card.pin-rv-card { zoom: var(--rr-pop-zoom-sm); max-height: calc(86dvh / var(--rr-pop-zoom-sm)) !important; height: calc(86dvh / var(--rr-pop-zoom-sm)); }
 }
 
 /* ── v0.9.1806 (Brad: "increase the picture size and show the complete picture,
@@ -3115,11 +3132,7 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
 .rr-card.bi-crop-card { max-width: 1000px; }
 .bi-crop-card #bi-cropwrap { max-height: none !important; height: calc(86dvh - 1rem); }
 .bi-crop-card #bi-cropimg { max-height: 100%; }
-@media (min-width: 1000px) and (max-width: 1399px) {
-  .rr-card.bi-crop-card { zoom: 1.1; max-height: calc(86dvh / 1.1) !important; }
-  .bi-crop-card #bi-cropwrap, .bi-crop-card .bi-crop-side { height: calc(86dvh / 1.1 - 0.5rem); }
-}
-@media (min-width: 1400px) {
-  .rr-card.bi-crop-card { zoom: 1.25; max-height: calc(86dvh / 1.25) !important; }
-  .bi-crop-card #bi-cropwrap, .bi-crop-card .bi-crop-side { height: calc(86dvh / 1.25 - 0.5rem); }
+@media (min-width: 1000px) {   /* v0.9.1969: the size step from the ONE table (--rr-pop-zoom-sm) */
+  .rr-card.bi-crop-card { zoom: var(--rr-pop-zoom-sm); max-height: calc(86dvh / var(--rr-pop-zoom-sm)) !important; }
+  .bi-crop-card #bi-cropwrap, .bi-crop-card .bi-crop-side { height: calc(86dvh / var(--rr-pop-zoom-sm) - 0.5rem); }
 }

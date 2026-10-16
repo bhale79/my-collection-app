@@ -451,8 +451,9 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
 
       ok('add step: the narrow box is still one column',
          narrow.cols === 1, JSON.stringify(narrow.cols));
-      ok('add step: the wide box is two',
-         wide.cols === 2, JSON.stringify(wide.cols));
+      // v0.9.1969 (Brad: "why do we have to scroll it"): three columns on a computer
+      ok('add step: the wide box is three',
+         wide.cols === 3, JSON.stringify(wide.cols));
       ok('add step: nothing sticks out of the narrow box',
          narrow.over.length === 0, narrow.over.join(' '));
       ok('add step: nothing sticks out of the wide box',

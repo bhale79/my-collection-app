@@ -122,7 +122,11 @@ async function toPhotos(pg) {
       const { pg, net } = await open(browser, sz);
       let s = await peek(pg);
       T('P1 ' + sz.name + ': the button is at the end of the item-number row', s.btn && s.btn.vis && s.boxOnly && s.btn.l >= s.boxOnly.r && Math.abs(s.btn.t - s.input.t) <= 6 && /Add a picture first/.test(s.btnText), s);
-      T('P1 ' + sz.name + ': the item-number box keeps room to type', s.input && s.input.w >= 220, s.input);
+      // v0.9.1969: the pop-up size step now follows the window's height too (1280x720
+      // → 1.1, was 1.25), so the room is judged in the card's own units: 176 = the
+      // 220 screen px this check used to ask for at 1.25.
+      const _pz = await pg.evaluate(() => parseFloat(getComputedStyle(document.querySelector('#wizard-modal .modal')).zoom) || 1);
+      T('P1 ' + sz.name + ': the item-number box keeps room to type', s.input && s.input.w / _pz >= 176, { input: s.input, zoom: _pz });
       const net0 = net.length;   // page-load requests (fonts, libraries) are not the picture
       await pick(pg, JPG);
       s = await peek(pg);

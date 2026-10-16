@@ -174,7 +174,9 @@ async function open(browser, o) {
     a.m.grid && Math.abs(a.m.sellR.y - a.m.attR.y) < 2 && a.m.sellR.y > a.m.addH.b - 2 && a.m.addH.w > a.m.sellR.w * 1.6, { add: a.m.addH, sell: a.m.sellR, att: a.m.attR });
   T('S4 the calmer controls: help is a small "?", Discard is a plain red link (no button box)',
     a.m.helpTxt === '?' && a.m.help.w < 40 && a.m.discard && /Discard Photo/.test(a.m.discard.txt) && /underline/.test(a.m.discard.deco) && /rgba\(0, 0, 0, 0\)|transparent/.test(a.m.discard.bg), { help: a.m.helpTxt, discard: a.m.discard });
-  T('W8 this card is at 1.25x; every other pop-up keeps 1.5x', a.m.zoom === '1.25' && a.m.otherZoom === '1.5', [a.m.zoom, a.m.otherZoom]);
+  // v0.9.1969: the size table follows the window's height too — on this short
+  // window (1536x737) every pop-up is 1.25 now, and this card stays at 1.25
+  T('W8 this card is at 1.25x, as every other pop-up is on this short window (v1969 table)', a.m.zoom === '1.25' && a.m.otherZoom === '1.25', [a.m.zoom, a.m.otherZoom]);
   // v0.9.1959: "scale the buttons back so they are not so gigantic" — from the ONE place (_RV_SIZE)
   T('B1 the laptop buttons are the smaller sizes: Add 0.86rem, the others 0.76rem (were 0.98 / 0.84)',
     a.m.sizes.add === '13.76px' && a.m.sizes.sell === '12.16px' && a.m.sizes.attach === '12.16px', a.m.sizes);

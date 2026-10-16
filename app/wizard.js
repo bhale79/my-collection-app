@@ -5755,7 +5755,12 @@ function renderWizardStep() {
             + 'background:var(--bg);min-height:34px;box-sizing:border-box">View on ' + _cdLbl + ' \u2197</a></div>';
         }
       }
-      html += '<div style="font-weight:700;font-size:0.82rem;color:var(--accent2);padding-bottom:0.2rem">' + col.label + (col.sublabel ? ' <span style=\"font-weight:400;color:var(--text-dim);font-size:0.75rem\">(' + col.sublabel + ')</span>' : '') + '</div>'
+      // v0.9.1969 (Brad: "why do we have to scroll it"): on a computer the
+      // item's name and its "View on …" button share ONE line (.cd-head, the
+      // button on the right) — the button's own row was most of what ran the
+      // step past a laptop window.
+      html += '<div class="cd-head"><div class="cd-head-text">'
+        + '<div style="font-weight:700;font-size:0.82rem;color:var(--accent2);padding-bottom:0.2rem">' + col.label + (col.sublabel ? ' <span style=\"font-weight:400;color:var(--text-dim);font-size:0.75rem\">(' + col.sublabel + ')</span>' : '') + '</div>'
         + (col.description ? '<div style="font-size:0.78rem;color:var(--text-mid);font-style:italic;margin-bottom:0.35rem;line-height:1.35">' + String(col.description).replace(/</g,'&lt;') + '</div>' : '')
         // v0.9.1873: a cancelled item says so on the step that describes it
         + ((col.id === 'main' && _cdMaster && typeof rrCatalogStatusChip === 'function') ? rrCatalogStatusChip(_cdMaster, { block: true }) : '')
@@ -5768,7 +5773,7 @@ function renderWizardStep() {
               + '<span style="font-size:0.8rem;color:var(--accent2);font-weight:600">' + rrEsc(f.value) + '</span>'
               + '</div>';
           }).join('') : '')
-        + _cdExtLink
+        + '</div>' + _cdExtLink + '</div>'
         + '<div style="margin-bottom:0.5rem;padding-bottom:0.4rem;border-bottom:1px solid var(--border)"></div>'
         // v0.9.1232: everything below is a grid cell. One column as before;
         // two side by side when .cd-2up is on. Each block is wrapped so a

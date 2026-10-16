@@ -84,7 +84,13 @@ async function open(browser, o) {
     // PLANTED: the focus guard without its computer check
     const planted = WIZ.replace("      if (!window.IS_MOBILE_UA) return;\n", '');
     if (planted === WIZ) throw new Error('could not plant');
-    const pr = await open(browser, { w: 1536, h: 826, scale: 1.25, wiz: planted });
+    // v0.9.1969: the pop-up size now follows the window's height too, so Brad's
+    // 1536x826 window gets a smaller step and the step fits without scrolling —
+    // the planted mistake only shows where the step still overflows: a short
+    // 1000x600 window (measured: planted scrolls 15px down, the real code 0).
+    const ok6 = await open(browser, { w: 1000, h: 600 });
+    T('O5 a short 1000x600 window: still opens at the very top', ok6.scrollTop === 0, ok6.scrollTop);
+    const pr = await open(browser, { w: 1000, h: 600, wiz: planted });
     T('O5 PLANTED: without the computer check the window opens scrolled down', pr.scrollTop > 0, pr.scrollTop);
   } finally { await browser.close(); }
   console.log('\nadd_screen_open_tests: ' + pass + ' passed, ' + fail + ' failed');
