@@ -146,10 +146,10 @@
     + '<div style="background:var(--surface2);border:1.5px solid var(--accent);border-radius:10px;'
       + 'padding:0.7rem 0.85rem;font-size:0.86rem;margin:0.9rem 0;line-height:1.55">'
       + '<b>If your photo looks like one of those, don’t bother with Identify or re-scan.</b> '
-      + (ar ? 'Go straight to Google Search or Read this photo. Those two look at the shape, the colours '
+      + (ar ? 'Go straight to Google Photo ID or Read this photo. Those two look at the shape, the colours '
       + 'and the whole item, not just printed text — so they’re the ones that can work with no '
       + 'number at all.</div>'
-      : 'Go straight to Google Search. It looks at the shape, the colours and the whole item, not '
+      : 'Go straight to Google Photo ID. It looks at the shape, the colours and the whole item, not '
       + 'just printed text — so it’s the one that can work with no number at all.</div>')
 
     + '<p style="' + _P + '"><b>And we get it wrong sometimes.</b> The reader is as good as we can '
@@ -179,7 +179,7 @@
         _sp('If you already know the number, or you can read it yourself in the photo, type it in '
           + 'and this looks it up in the catalog. Fastest route when you can read the number and '
           + 'the app can’t.'), ar)
-    + _stepTag(3, 'Google Search',
+    + _stepTag(3, 'Google Photo ID',
         _sp('Sends this photo to Google and lets Google find it. This is the one to reach for when '
           + 'there’s nothing printed to read. It usually gets there.')
         + _sp('The catch is that you have to carry the answer back yourself:')
@@ -207,7 +207,7 @@
     + '<p style="' + _P + '">You get a set number of photo reads every day, included with the app. '
       + 'The count sits right under the buttons, and it starts over each night.</p>'
     + '<p style="' + _P + '">Only <b>Read this photo</b> uses one. <b>Identify my items</b>, re-scanning, '
-      + 'Research Number and Google Search never do — you could use those all day.</p>'
+      + 'Research Number and Google Photo ID never do — you could use those all day.</p>'
     + '<p style="' + _P + '">If you’d rather never spend one, you can switch photo reads off '
       + 'entirely in <b>Preferences › Photo ID</b>.</p>'
       ) : '')
@@ -218,7 +218,7 @@
       + _row('Identify my items (the first read)', 'Free', false)
       + _row('This is wrong — re-scan', 'Free', false)
       + _row('Research Number', 'Free', false)
-      + _row('Google Search', 'Free', false)
+      + _row('Google Photo ID', 'Free', false)
       + _row('Read this photo', '1 photo ID', true)
     + '</table>')
     // v0.9.1956: without Auto Read there is no price to compare — the short
@@ -227,7 +227,7 @@
       + '<li>Identify my items (the first read)</li>'
       + '<li>This is wrong — re-scan</li>'
       + '<li>Research Number</li>'
-      + '<li>Google Search</li>'
+      + '<li>Google Photo ID</li>'
     + '</ol>'));
   };
 })();

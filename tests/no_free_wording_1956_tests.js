@@ -78,7 +78,7 @@ const KEPT = [
   { f: 'app/help-photo-id.js', has: "_row('Identify my items (the first read)', 'Free', false)", why: 'Auto Read only (the table is behind ar)' },
   { f: 'app/help-photo-id.js', has: "_row('This is wrong — re-scan', 'Free', false)", why: 'Auto Read only' },
   { f: 'app/help-photo-id.js', has: "_row('Research Number', 'Free', false)", why: 'Auto Read only' },
-  { f: 'app/help-photo-id.js', has: "_row('Google Search', 'Free', false)", why: 'Auto Read only' },
+  { f: 'app/help-photo-id.js', has: "_row('Google Photo ID', 'Free', false)", why: 'Auto Read only' },
   { f: 'app/photo-inbox.js', has: "(_pinAr() ? 'The free reader could not pick out a number on this one", why: 'Auto Read only' },
   { f: 'app/photo-inbox.js', has: "(_pinAr() ? ' (free)' : '')", why: 'Auto Read only' },
   { f: 'app/photo-inbox.js', has: "((_freeRead && _pinAr()) ? ' (free — no photo ID used)' : '')", why: 'Auto Read only' },

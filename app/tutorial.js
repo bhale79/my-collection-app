@@ -515,8 +515,8 @@ const GUIDES = {
         body: 'Ticking photos and pressing <strong>Read these</strong> does just those. On a single review card, <strong>Read this photo (1 photo ID)</strong> does one. Same read, same price — and the price is on the button before you press it.' },
       { autoRead: true, title: 'Crop first — it is worth a photo ID',
         body: 'The paid read always shows the crop screen first. Frame the item, or better the number itself, then <strong>Read this</strong>. A tight crop is the difference between a right answer and a wasted read.' },
-      { title: 'Google Search',
-        body: 'On a review card, <strong>Google Search</strong> sends the picture to Google Lens. Copy Google\'s answer, come back, paste it in the gold box, and the app reads it for you.' },
+      { title: 'Google Photo ID',
+        body: 'On a review card, <strong>Google Photo ID</strong> sends the picture to Google Lens. Copy Google\'s answer, come back, paste it in the gold box, and the app reads it for you.' },
       { autoRead: true, selector: _gNav('buildPrefsPage'), title: 'Turning paid reads off',
         body: 'In <strong>Preferences → Photo ID</strong>, untick <strong>Use my daily photo ID reads</strong> and nothing is ever spent. The free readers keep working; when they cannot tell, you are asked to type the number.' }
     ]
@@ -1145,7 +1145,7 @@ function _rrGuidePhotos() {
     + '<ul style="padding-left:1.2rem;line-height:1.6">'
     // v0.9.1927: Read this photo is Auto Read — a beta feature.
     +   (!((typeof rrAutoReadOn === 'function') && rrAutoReadOn()) ? '' : '<li>' + chip('Read this photo', 'gold') + ' — the limited reader. It works well and it’s automatic. <i>I actually have to pay for this one, so I have to be careful with it</i> — which is why it’s per-photo, on the photo you’re looking at, and never a whole batch by surprise.</li>')
-    +   '<li>' + chip('Google Search', 'ghost') + ' — takes you to Google Lens. Honestly, I have not seen it miss an item yet. You copy the answer back into the app.</li>'
+    +   '<li>' + chip('Google Photo ID', 'ghost') + ' — takes you to Google Lens. Honestly, I have not seen it miss an item yet. You copy the answer back into the app.</li>'
     + '</ul>'
     + h3('You already know what it is')
     + p('Click the photo, then ' + chip('Add to my Collection', 'primary') + ', and walk the steps.')

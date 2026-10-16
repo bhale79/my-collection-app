@@ -473,7 +473,7 @@ if (typeof window !== 'undefined') {
 // {ok:false, reason:'optout'} without ever contacting the reader — no request
 // sent, nothing spent. But the Photo Inbox recognised only 'quota' and
 // 'noconsent' and let every other reason fall through to "Could not read that
-// photo — try Google Search", so a switched-off read looked identical to a
+// photo — try Google Photo ID", so a switched-off read looked identical to a
 // broken one. It sent him hunting a fault that did not exist, and pointed him
 // away from the switch that did. Each of the Photo Inbox's three read buttons
 // carried its own copy of that two-reason list.
@@ -495,9 +495,9 @@ function rrReadFailMessage(reason, fallback) {
   var r = String(reason || '');
   // v0.9.1927: Auto Read is a beta feature. For everyone else a refused paid read
   // is simply "the free reader could not tell" — the caller's own wording.
-  if (r === 'notbeta') return fallback || 'Could not read the number from that photo — try Google Search, or type the number';
+  if (r === 'notbeta') return fallback || 'Could not read the number from that photo — try Google Photo ID, or type the number';
   if (Object.prototype.hasOwnProperty.call(_RR_READ_FAIL, r)) return _RR_READ_FAIL[r];
-  return fallback || 'Could not read that photo — try Google Search, or type the number';
+  return fallback || 'Could not read that photo — try Google Photo ID, or type the number';
 }
 
 if (typeof window !== 'undefined') {

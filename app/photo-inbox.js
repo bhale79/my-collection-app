@@ -65,6 +65,7 @@
   // the two things people actually do — put photos together, and say what they
   // are — had no front door. Two named buttons now, one selection mechanic.
   var _rvKey = '';           // group key the review card is open on ('' = multi-select)
+  var _rvStayOn = '';        // v0.9.1960: the photo the card stays on when it repaints itself (a slot drop, a discard)
   // v0.9.1307 (Brad: "i selected a filter for not scanned, and there is no
   // next or previous arrows"): the arrows walked the LIVE filtered list, so
   // the moment a card was read it fell out of a not-read filter, its index
@@ -440,8 +441,65 @@
     });
     // A group of nothing BUT together shots still deserves an attempt rather
     // than becoming unreadable — fall back to everything.
-    return body.length ? body : g.files.slice();
+    var out = body.length ? body : g.files.slice();
+    // v0.9.1960 (Brad: "if not selected, use right side"): in a group of ONE
+    // item, the photo placed in the Right Side box is the one that speaks for
+    // it — read first by Identify, the fallback for every read button. A set's
+    // members are different items and keep their shot order.
+    var kind = (g.files[0] && g.files[0]._meta && g.files[0]._meta.kind) || g.kind || 'single';
+    if (!_PIN_MULTI_KIND[kind]) {
+      for (var i = 1; i < out.length; i++) {
+        if (((out[i] && out[i]._meta) || {}).view === 'RSV') { out = [out[i]].concat(out.slice(0, i), out.slice(i + 1)); break; }
+      }
+    }
+    return out;
   }
+
+  // ══ v0.9.1960 — a group of ONE item keeps its identification ═════════════
+  // Brad: "if i group a set of pictures and 1 of them is id by the reader or by
+  // the google lens, the group should keep that id". Each photo keeps its own
+  // record (v0.9.1090) — but in a group of angles of ONE item, a photo with no
+  // read of its own (or only a weaker one) shows the group's best: a number you
+  // typed (after Google Photo ID) beats a confirmed read, which beats a best
+  // guess; on a tie, the photo that leads the group (the Right Side) wins. A
+  // set, an engine + tender or an A-B-A is several items, so each photo there
+  // still speaks only for itself.
+  function _pinRecRank(rec) {
+    if (!rec || !rec.num) return 0;
+    if (rec.userTyped) return 3;
+    return rec.guess ? 1 : 2;
+  }
+  function _pinGroupOfFid(fid) {
+    var lists = [_rvGroups || [], _groups || []];
+    for (var l = 0; l < lists.length; l++) {
+      for (var i = 0; i < lists[l].length; i++) {
+        var g = lists[l][i];
+        if (g && g.files && g.files.some(function (f) { return f && f.id === fid; })) return g;
+      }
+    }
+    return null;
+  }
+  function _pinIsOneItemGroup(g) {
+    if (!g || !g.files || g.files.length < 2) return false;
+    var kind = (g.files[0] && g.files[0]._meta && g.files[0]._meta.kind) || g.kind || 'single';
+    return !_PIN_MULTI_KIND[kind];
+  }
+  // The record a photo SHOWS: its own, or — in a one-item group — the group's
+  // best when that is stronger. { rec, from } — from is the photo it came from
+  // when it was borrowed, '' when it is the photo's own.
+  function _pinRecFor(fid) {
+    var all = _ids(), own = (fid && all[fid]) || null;
+    var g = _pinGroupOfFid(fid);
+    if (!_pinIsOneItemGroup(g)) return { rec: own, from: '' };
+    var best = null, bestFid = '';
+    _pinReadFiles(g).concat(g.files).forEach(function (f) {
+      var r = f && all[f.id];
+      if (_pinRecRank(r) > _pinRecRank(best)) { best = r; bestFid = f.id; }
+    });
+    if (best && bestFid !== fid && _pinRecRank(best) > _pinRecRank(own)) return { rec: best, from: bestFid };
+    return { rec: own, from: '' };
+  }
+  if (typeof window !== 'undefined') window._pinRecFor = _pinRecFor;
   // ══ v0.9.1090 — a set is SEVERAL items (Brad: "it got the engine in the
   // set, but i dont think it got the rest of the items"). His seven-photo
   // Burlington set: the 2328 engine was read because it happens to lead the
@@ -2338,7 +2396,7 @@
       var when = '';
       try { when = new Date(g.files[0].createdTime).toLocaleDateString(); } catch (e) {}
       // v0.9.886: AI suggestion (from Identify all) shows on the tile bar
-      var sug = _ids()[_pinReadFid(g)];
+      var sug = _pinRecFor(_pinReadFid(g)).rec;   // v0.9.1960: a one-item group's tile shows the number any of its photos was given
       var _altN = '';   // v0.9.902 (Brad): candidates but no confident number = still a lead, not "no read"
       if (sug && !sug.num && Array.isArray(sug.alts) && sug.alts.length) {
         var _a0 = String(sug.alts[0]); var _mm = _a0.match(/[0-9][0-9A-Za-z.\-\/]*/); _altN = _mm ? _mm[0] : _a0.slice(0, 12);
@@ -2454,7 +2512,7 @@
     var b = document.getElementById('pin-idall-btn');
     if (!b) return;
     var ids = _ids();
-    var n = _groups.filter(function (g) { return !ids[_pinReadFid(g)]; }).length;
+    var n = _groups.filter(function (g) { return !_pinRecFor(_pinReadFid(g)).rec; }).length;   // v0.9.1960: identified on any photo = identified
     // v0.9.1436 (Brad): "get rid of the paid ai reader button here. we will
     // keep it on the individual photo add page." The batch paid-read button is
     // retired from the toolbar (and from the phone's More menu, which only
@@ -4337,18 +4395,23 @@
     }
     _rvEdgeArmed = 0;
     _rvEdgeNoteKill();
-    window._pinRvSetMain(fl[j].id);
-    // The arrows and the counter now describe a different member, so they have to
-    // be redrawn — otherwise "2 of 6" freezes and the greying lies at the ends.
+    window._pinRvSetMain(fl[j].id);   // redraws the arrows and the counter (_pinRvNavRefresh)
+  };
+  // The arrows and the counter describe the photo on screen, so they are redrawn
+  // whenever it changes — otherwise "2 of 6" freezes and the greying lies at the
+  // ends. v0.9.1960: from _pinRvSetMain, so a TAPPED photo updates them too (only
+  // the arrows did), now that the photo on screen is the one every button uses.
+  function _pinRvNavRefresh() {
     try {
+      if (!_pinRvMembers()) return;
       var hd = document.getElementById('pin-rv-nav');
-      if (hd && hd.children.length >= 3) {
+      if (hd && hd.children.length >= 4) {
         hd.children[0].outerHTML = _pinRvNavHtml('prev');
         hd.children[2].outerHTML = _pinRvPosHtml();
         hd.children[3].outerHTML = _pinRvNavHtml('next');
       }
     } catch (eN) {}
-  };
+  }
 
   // ONE button builder for both sequences. The member and inbox arrows differ only
   // in what they call and what they are called — duplicating the style gave the
@@ -4790,7 +4853,39 @@
     }
     if (!picked && holder) { holder._meta = holder._meta || {}; if (_tog) holder._meta.role = ''; else holder._meta.view = ''; }
     var pk = document.getElementById('pin-rv-slotpick'); if (pk) pk.remove();
+    try { _rvStayOn = _pinOnScreenFid(); } catch (eS) {}   // v0.9.1960: no jump back to the first photo
     try { window._pinReview(_rvKey || '', _rvGroups); } catch (e) {}
+  };
+
+  // ── v0.9.1960 — discard ONE leftover photo from the card ──
+  // Brad: "need a way to delete extra group pictures when you move the photos
+  // to the orientation boxes like right side and have 1 or 2 left over". The
+  // same Drive trash the Discard button uses (recoverable about 30 days), the
+  // same styled confirm — for one photo, and the card stays open on the rest.
+  window._pinRvDiscardOne = async function (fid) {
+    if (!fid) return;
+    if (_busy) { _pinBusyBounce(); return; }
+    if (!(await appConfirm('Discard this photo? It goes to your Google Drive trash, recoverable for about 30 days.',
+          { title: 'Discard photo', ok: 'Discard', cancel: 'Keep it', danger: true }))) return;
+    try {
+      await driveRequest('PATCH', '/files/' + fid, { trashed: true });
+    } catch (e) {
+      showToast(_pinOffline() ? 'You’re offline — discarding needs a connection. Nothing was changed.' : 'Could not discard that photo — try again.', 4200, true);
+      return;
+    }
+    var onScreen = _pinOnScreenFid();
+    var drop = function (list) { (list || []).forEach(function (g) { if (g && g.files) g.files = g.files.filter(function (f) { return f && f.id !== fid; }); }); };
+    drop(_rvGroups); drop(_groups);
+    try { var mm = _ids(); if (mm[fid]) { delete mm[fid]; _idsSave(mm); } } catch (eI) {}
+    var left = 0; (_rvGroups || []).forEach(function (g) { left += (g.files || []).length; });
+    showToast('Discarded 1 photo', 2200);
+    if (!left) {
+      var ov = document.getElementById('pin-review-ov'); if (ov) ov.remove();
+    } else {
+      _rvStayOn = onScreen !== fid ? onScreen : '';
+      try { window._pinReview(_rvKey || '', _rvGroups); } catch (eR) {}
+    }
+    try { window._pinRefresh(); } catch (eF) {}
   };
 
   // ══ v0.9.1943 — the laptop card's photo takes the room the buttons leave ══
@@ -4845,6 +4940,25 @@
     var sug = '', sugGuess = '';
     _rvAiMfr = '';
     _rvAiRec = null;
+    // v0.9.1960 (Brad: "the highlighted one should be the one sent to google or
+    // gets read. if not selected, use right side" — and dropping the last photo
+    // into its box made the card jump): the photo on screen is the one you were
+    // on when the card repaints itself (a slot drop, a discard); on opening it is
+    // the Right Side photo, else the first. Every read button and Google Photo ID
+    // use the photo on screen (_pinOnScreenFid), so this is the one rule.
+    var _mainFid0 = (function () {
+      var all = [];
+      _rvGroups.forEach(function (g) { g.files.forEach(function (f) { all.push(f.id); }); });
+      var stay = _rvStayOn; _rvStayOn = '';
+      if (stay && all.indexOf(stay) >= 0) return stay;
+      var lead = _pinReadFile(_rvGroups[0]);
+      if (lead && ((lead._meta || {}).view === 'RSV')) return lead.id;
+      for (var gi = 0; gi < _rvGroups.length; gi++) {
+        var rs = _rvGroups[gi].files.filter(function (f) { return ((f && f._meta) || {}).view === 'RSV'; })[0];
+        if (rs) return rs.id;
+      }
+      return all[0];
+    })();
     try {
       // v0.9.1096 fixed the chip reading a different slot than the card
       // (6424 vs "080 — use this") by preferring the readable slot. Brad's
@@ -4855,7 +4969,9 @@
       // 959 — Barn Set. One record feeds everything now, in the SAME order
       // the card resolves it: the photo on screen first, the readable slot
       // as the fallback.
-      var s0 = _ids()[_rvGroups[0].files[0].id]
+      // v0.9.1960: the photo on screen (_mainFid0), through _pinRecFor — so a
+      // one-item group opens with the number one of its photos was given.
+      var s0 = _pinRecFor(_mainFid0).rec
             || _ids()[_pinReadFid(_rvGroups[0]) || _rvGroups[0].files[0].id];
       if (s0 && s0.num) { if (s0.guess) sugGuess = String(s0.num); else sug = String(s0.num); }
       if (s0 && s0.mfr) _rvAiMfr = String(s0.mfr);
@@ -4887,8 +5003,12 @@
     // so the card keeps its anchor and the MAIN VIEW badge means something.
     var _viewOfFid = {};
     _rvGroups.forEach(function (g) { g.files.forEach(function (f) { if (f._meta && f._meta.view) _viewOfFid[f.id] = f._meta.view; }); });
-    var _railThumbs = thumbs.filter(function (t) { return !_viewOfFid[t]; });
-    if (!_railThumbs.length) _railThumbs = thumbs.slice(0, 1);
+    // v0.9.1960 (Brad: "you get to the last one, the screen flashes and the
+    // last one disappears"): the strip used to hide itself when ONE photo was
+    // left to sort, so that photo vanished. It now shows while ANY photo is
+    // unsorted (in a card of two or more), and goes when all are in boxes.
+    var _railThumbs = thumbs.length > 1 ? thumbs.filter(function (t) { return !_viewOfFid[t]; }) : [];
+    var _rsvTaken = Object.keys(_viewOfFid).some(function (t) { return _viewOfFid[t] === 'RSV'; });
     // v0.9.913 (Brad): desktop shows a two-column split — details on the left,
     // a big full-res photo filling the right half so you can read the label
     // without a separate zoom. Phone stays stacked (small screen).
@@ -4902,14 +5022,14 @@
     // a car has nine variations and a mismatch warning; the buttons never
     // move. 900-1199 keeps the stacked wide layout it always had.
     var _wide2 = _wide && (window.innerWidth || 0) >= 1200;
-    var _mainFid = thumbs[0];
+    var _mainFid = _mainFid0;
 
     // v0.9.963 (Brad): answer-first layout. The read summary + catalog details
     // lead the card in a readable size (that's what you came to see); the number
     // box and actions follow; research helpers sit at the bottom. No emoji.
     // v0.9.969 (Brad): shared button area — number box, then two columns: LEFT
     // the 1×3 "what to do" stack (Add / Sales List / Discard), RIGHT the 2×2
-    // "not sure" grid (re-scan / Research Number / Google Search / token read)
+    // "not sure" grid (re-scan / Research Number / Google Photo ID / token read)
     // with the daily token count beneath it. Same block on desktop and phone;
     // the two columns sit side by side when there's room and stack when narrow.
     var _lbl = 'font-size:0.74rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em;margin:0 0 0.5rem';
@@ -5015,7 +5135,7 @@
     var _discardTxt = _isGrp ? 'Discard group' : 'Discard Photo' + (n > 1 ? 's' : '');
     var _rescanBtn = '<button id="pin-rv-rescan" onclick="_pinRescan()" title="Forget this read and scan the photo again at higher detail" style="' + _gBtn + 'border:1.5px solid #f05008;background:var(--bg-card);background:color-mix(in srgb, rgb(240,80,8) 10%, var(--bg-card));color:var(--t-red)">This is wrong — re-scan</button>';
     var _researchBtn = '<button onclick="_pinReviewResearch()" style="' + _gBtn + 'border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--t-link)">Research Number</button>';
-    var _lensBtn = '<button id="pin-rv-lens" onclick="_pinReviewLens()" style="' + _gBtn + 'border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--t-link)">Google Search</button>';
+    var _lensBtn = '<button id="pin-rv-lens" onclick="_pinReviewLens()" style="' + _gBtn + 'border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--t-link)">Google Photo ID</button>';
     // v0.9.1163: don't quote a price the app will not charge. With reads
     // switched off this button still said "(1 token)" and then reported a
     // failure, which is how Brad ended up thinking it was broken.
@@ -5136,14 +5256,18 @@
     // photo. Only drawn when there is more than one — a lone thumb under a
     // big picture of the same photo says nothing.
     function _pinRvRailHtml(sizePx) {
-      if (_railThumbs.length <= 1) return '';
+      if (!_railThumbs.length) return '';
       var canDrag = !window.IS_MOBILE_UA;   // _pinWireRvDrag is desktop-only
       return '<div id="pin-rv-photos" style="display:flex;gap:0.4rem;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:0.6rem;padding:2px">' +
         _railThumbs.slice(0, 12).map(function (fidT, i) {
           var _tSug = _ids()[fidT];
           var _tNum = (_tSug && _tSug.num) ? String(_tSug.num) : '';
           return '<div data-dragfid="' + fidT + '" onclick="_pinRvSetMain(\'' + fidT + '\')" title="Show this photo' + (canDrag ? ' — drag to reorder' : '') + '" style="position:relative;flex-shrink:0;width:' + sizePx + 'px;height:' + sizePx + 'px;border-radius:8px;overflow:hidden;background:var(--surface2,#26262e);cursor:pointer;border:1.5px solid transparent">' +
-            (i === 0 ? '<div style="position:absolute;top:0;left:0;background:var(--accent);color:#fff;font-size:0.55rem;font-weight:700;letter-spacing:0.04em;padding:1px 6px;border-radius:0 0 6px 0;z-index:2;pointer-events:none">MAIN VIEW</div>' : '') +
+            (i === 0 && !_rsvTaken ? '<div style="position:absolute;top:0;left:0;background:var(--accent);color:#fff;font-size:0.55rem;font-weight:700;letter-spacing:0.04em;padding:1px 6px;border-radius:0 0 6px 0;z-index:2;pointer-events:none">MAIN VIEW</div>' : '') +
+            // v0.9.1960 (Brad: "need a way to delete extra group pictures when you
+            // move the photos to the orientation boxes ... and have 1 or 2 left
+            // over"): each photo still waiting here can be discarded on its own.
+            '<button data-rvdiscard="' + fidT + '" onclick="event.stopPropagation();_pinRvDiscardOne(\'' + fidT + '\')" draggable="false" title="Discard this photo (to your Google Drive trash)" aria-label="Discard this photo" style="position:absolute;top:2px;right:2px;z-index:3;width:20px;height:20px;border-radius:50%;border:none;background:rgba(0,0,0,0.7);color:#fff;font-size:0.72rem;font-weight:800;line-height:1;cursor:pointer;padding:0">\u2715</button>' +
             '<img data-rvfid="' + fidT + '" class="rr-fit" style="width:100%;height:100%;display:block" alt="">' +
             (_tNum ? '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.62);color:' + (_tSug.guess ? '#ffb454' : '#7ec3ef') + ';font-size:0.58rem;font-weight:700;text-align:center;padding:1px 2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + rrEsc(_tNum) + '</div>' : '') +
           '</div>';
@@ -5547,6 +5671,15 @@
   }
 
   function _pinAiLine(fid) {
+    var rf = _pinRecFor(fid);
+    var h = _pinAiLineFor(fid, rf.rec);
+    // v0.9.1960: a borrowed read says where it came from
+    if (h && rf.from) {
+      h = h.replace(/<\/div>$/, '<div data-rvinherit="' + rf.from + '" style="font-size:0.72rem;color:var(--text-dim);margin-top:0.3rem">From another photo in this group</div></div>');
+    }
+    return h;
+  }
+  function _pinAiLineFor(fid, rec) {
     var s = {};
     // v0.9.1087: the readable photo, matching where every reader now WRITES.
     // v0.9.1090: or the photo actually ON SCREEN — in a set, each member has
@@ -5557,7 +5690,7 @@
     // a read that exists is never hidden by keying on the wrong photo.
     try {
       var ids0 = _ids();
-      s = (fid && ids0[fid])
+      s = rec || (fid && ids0[fid])
         || ids0[_pinReadFid(_rvGroups[0]) || _rvGroups[0].files[0].id]
         || {};
     } catch (e) {}
@@ -5616,7 +5749,7 @@
         + '</div>';
     }
     // ── v0.9.1486 (Brad: 'can we get to where this says, "no lettering
-    // picked up. Try Read this photo or Google Search."'): a guess whose
+    // picked up. Try Read this photo or Google Photo ID."'): a guess whose
     // number is a short unconfirmed token no longer wears the Best-guess
     // crown. The headline says what is TRUE; the token stays visible in the
     // why-lines below, so no possible guess is lost.
@@ -5624,7 +5757,7 @@
     if (_weakTok) {
       return '<div style="margin-bottom:0.6rem;padding:0.6rem 0.75rem;border-left:3px solid var(--text-dim);background:var(--surface2);border-radius:0 8px 8px 0">'
         + '<div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;color:var(--text-dim);margin-bottom:0.25rem">No lettering picked up</div>'
-        + '<div style="font-size:0.92rem;color:var(--text);line-height:1.4">Nothing readable enough to name this item — try ' + (_pinAr() ? '<b>Read this photo (1 photo ID)</b> or ' : '') + '<b>Google Search</b>.</div>'
+        + '<div style="font-size:0.92rem;color:var(--text);line-height:1.4">Nothing readable enough to name this item — try ' + (_pinAr() ? '<b>Read this photo (1 photo ID)</b> or ' : '') + '<b>Google Photo ID</b>.</div>'
         + _mismatch
         + _pinWhyHtml(s.raw, s.dbg, s)
         + '</div>';
@@ -6342,7 +6475,9 @@
       // uploading it back. A copy still alive is reused (same photo searched
       // again inside ten minutes → the link opens at once). The words on the
       // link below are untouched.
-      var staged = await driveStageLensCopy(gs[0].files[0].id);
+      // v0.9.1960 (Brad): the photo ON SCREEN — the one you highlighted, or the
+      // Right Side the card opened on — not always the group's first photo.
+      var staged = await driveStageLensCopy(_pinOnScreenFid() || gs[0].files[0].id);
       if (!staged.reused) setTimeout(function () { try { driveCleanupLensStaging(staged.id); } catch (e) {} }, 10 * 60 * 1000);
       // v0.9.917 (Brad): question text built by the ONE shared builder in
       // ai-id.js (rrIdentifyQuery) — change it there, every button updates.
@@ -6374,7 +6509,7 @@
         + (_hint ? '&q=' + encodeURIComponent(_hint) + '&lns_mode=mu' : '');
       if (tab) { try { tab.location = url; } catch (e) { tab = null; } }
       if (!tab) window.open(url, '_blank');
-      if (btn) { btn.disabled = false; btn.textContent = 'Google Search'; }
+      if (btn) { btn.disabled = false; btn.textContent = 'Google Photo ID'; }
       // v0.9.895 (Brad: "i copied it, now what?") — same return trip as the
       // wizard's Lens flow: when he comes back with Google's answer copied,
       // parse the clipboard and reopen the review card with it applied.
@@ -6395,7 +6530,7 @@
     } catch (e) {
       console.warn('[Inbox] research-by-photo:', e);
       try { if (tab) tab.close(); } catch (e2) {}
-      if (btn) { btn.disabled = false; btn.textContent = 'Google Search'; }
+      if (btn) { btn.disabled = false; btn.textContent = 'Google Photo ID'; }
       showToast('Could not stage the photo for Google — try again', 3000, true);
     }
   };
@@ -6765,11 +6900,11 @@
       var ai = (typeof aiIdentifyImage2 === 'function') ? await aiIdentifyImage2(blobs, _h1) : await aiIdentifyImage(blobs[0], {});
       if (!ai || !ai.ok) {
         // v0.9.1163 — THE one Brad hit. His reads were switched off, so this
-        // said "Could not read that photo — try Google Search" and he went
+        // said "Could not read that photo — try Google Photo ID" and he went
         // looking for a broken reader. One shared message source now.
         var _m1 = (typeof rrReadFailMessage === 'function')
           ? rrReadFailMessage(ai && ai.reason)
-          : 'Could not read that photo — try Google Search, or type the number';
+          : 'Could not read that photo — try Google Photo ID, or type the number';
         if (_m1) showToast(_m1, 4500, true);
         return;
       }
@@ -6780,7 +6915,7 @@
         var _ldR = window.rrAnswerLeadNumber(ai.text);
         if (_ldR) meta.itemNum = _ldR;
       }
-      if (!_pinApplyMeta(meta, gs, ai && ai.text)) { showToast('Could not pull an item number from the photo — try Google Search', 4200, true); return; }
+      if (!_pinApplyMeta(meta, gs, ai && ai.text)) { showToast('Could not pull an item number from the photo — try Google Photo ID', 4200, true); return; }
       _pinStepsReset();
       showToast(meta._hedge
         ? 'Best guess from the photo — double-check the number (1 photo ID used)'
@@ -11382,7 +11517,7 @@
       if (!(r && r.num)) {
         showToast(_hadPaid
           ? 'The reader could not pick out a number this time — your earlier identification has been kept, nothing was lost'
-          : (_pinAr() ? 'The free reader could not pick out a number on this one — type it in, or use “Read this photo” for a closer look' : 'The reader could not pick out a number on this one — type it in, or try Google Search'), 4500);
+          : (_pinAr() ? 'The free reader could not pick out a number on this one — type it in, or use “Read this photo” for a closer look' : 'The reader could not pick out a number on this one — type it in, or try Google Photo ID'), 4500);
       } else if (_hadPaid && !_keepPaid(r.num)) {
         // Only say this when it is TRUE: the old read named a different number,
         // so its maker/description really did describe a different item.
@@ -11680,7 +11815,10 @@
         var _typed = String(_boxEl0.value || '').trim();
         var _all = _ids();
         var _prevRec = _all[_prevFid] || {};
-        if (_typed && _typed !== String(_prevRec.num || '')) {
+        // v0.9.1960: compare with what the box was SHOWING (a borrowed group
+        // number is not something typed, and must not become this photo's own)
+        var _shown = (_pinRecFor(_prevFid).rec || {}).num || '';
+        if (_typed && _typed !== String(_shown)) {
           _prevRec.num = _typed;
           _prevRec.userTyped = 1;
           _all[_prevFid] = _prevRec;
@@ -11691,6 +11829,7 @@
     img.setAttribute('data-rvbig', fid);
     window._pinRvLoadFull(img, fid);
     try { _pinRvMarkCurrent(fid); } catch (eMk) {}   // v0.9.1705
+    _pinRvNavRefresh();   // v0.9.1960: the counter follows a tapped photo too
     // v0.9.1090: the identification follows the photo. Tap the Summit car and
     // the line describes the Summit car, not the engine at the front of the
     // group.
@@ -11715,7 +11854,7 @@
     //
     // Three elements describe one photo. All three follow it.
     try {
-      var _e = _ids()[fid] || {};
+      var _e = _pinRecFor(fid).rec || {};   // v0.9.1960: a one-item group keeps its number
       var _num = _e.num ? String(_e.num) : '';
       var _box = document.getElementById('pin-rv-num');
       _rvAiMfr = _e.mfr || '';          // the maker hint belongs to this photo too
@@ -12238,7 +12377,7 @@
     // v0.9.1340: the type gate matters MOST here — this button spends a real
     // photo ID per item. Paper / Catalog / Other are held back; ticking one and
     // pressing Identify still reads it.
-    var _allTodo = _groups.filter(function (g) { return !ids[_pinReadFid(g)]; });
+    var _allTodo = _groups.filter(function (g) { return !_pinRecFor(_pinReadFid(g)).rec; });   // v0.9.1960: a group identified on any photo is not read again
     var todo = _allTodo.filter(function (g) { return !_pinSkipBatchGroup(g); });
     var _held = _allTodo.length - todo.length;
     if (!todo.length) {

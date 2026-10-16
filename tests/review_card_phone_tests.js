@@ -123,11 +123,13 @@ section('Behaviour, executed');
   };
   function build(mobile, railThumbs) {
     const w = Object.assign({}, stubs, { window: { IS_MOBILE_UA: mobile }, _railThumbs: railThumbs || stubs._railThumbs });
-    return new Function('_mainFid', '_cornBtn', '_railThumbs', '_ids', 'rrEsc', 'window',
+    return new Function('_mainFid', '_cornBtn', '_railThumbs', '_ids', 'rrEsc', 'window', '_rsvTaken',
       hero + '\n' + rail + '\nreturn { hero: _pinRvHeroHtml, rail: _pinRvRailHtml };')(
-      w._mainFid, w._cornBtn, w._railThumbs, w._ids, w.rrEsc, w.window);
+      w._mainFid, w._cornBtn, w._railThumbs, w._ids, w.rrEsc, w.window, false);
   }
-  const d = build(false), m = build(true), one = build(true, ['f1']);
+  // v0.9.1960: a one-photo card has an EMPTY strip list (_pinReview decides that),
+  // and ONE photo left to sort in a card of several is still drawn (it vanished)
+  const d = build(false), m = build(true), one = build(true, []), lastOne = build(true, ['f3']);
   const ph = m.hero('40vh'), dh = d.hero('52vh');
   ok('RUN: the phone hero sizes to the photo up to 40vh — no fixed height any more (v1829)',
      /max-height:40vh;/.test(ph) && !/height:40vh;/.test(ph.replace(/max-height:40vh;/g, '')) && /min-height:64px/.test(ph), '');
@@ -146,6 +148,8 @@ section('Behaviour, executed');
   ok('RUN: a phone tile never promises a drag; a desktop tile does',
      !/drag to reorder/.test(pr) && /drag to reorder/.test(dr) && /width:74px;height:74px/.test(pr) && /width:64px;height:64px/.test(dr), '');
   ok('RUN: one photo → no rail (a lone thumb under the same big picture says nothing)', one.rail(74) === '', '');
+  ok('RUN: v1960 — one photo LEFT to sort in a bigger card is still drawn', (lastOne.rail(74).match(/data-dragfid=/g) || []).length === 1, '');
+  ok('RUN: v1960 — the one-photo rule lives where the list is made', /var _railThumbs = thumbs\.length > 1 \?/.test(PI), '');
 
   // The slot cell is a pure function of (slot, file, role).
   const slotFn = new Function(cell + '\nreturn _pinRvSlotCell;')();

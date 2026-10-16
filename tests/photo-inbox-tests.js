@@ -993,7 +993,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
   // the IDS map alone, so a blank read — which lives on the tried-map, not ids
   // — still qualifies. Name the requirement, not the spelling.
   ok('so it still counts as unread for the paid batch',
-     /_groups\.filter\(function \(g\) \{ return !ids\[_pinReadFid\(g\)\]; \}\)/.test(f1));
+     // v0.9.1960: through _pinRecFor (still the ids map — a group identified on any photo counts)
+     /_groups\.filter\(function \(g\) \{ return !_pinRecFor\(_pinReadFid\(g\)\)\.rec; \}\)/.test(f1));
   ok('the empty state shows the same disclosure', /_pinFailInfo\(\)/.test(f1) && /_pinWhyHtml\(_fi\.raw/.test(f1));
   ok('the why-block is shared, not duplicated', (f1.match(/function _pinWhyHtml/g) || []).length === 1);
   ok('an empty answer never outranks a real one',
@@ -1892,7 +1893,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
   // the SAME record as the headline card, in the same order — on-screen photo
   // first, readable slot as fallback.
   ok('the chip and input read the same slot as the card',
-     /var s0 = _ids\(\)\[_rvGroups\[0\]\.files\[0\]\.id\]\s*\n\s*\|\| _ids\(\)\[_pinReadFid\(_rvGroups\[0\]\)/.test(el));
+     // v0.9.1960: the on-screen photo is _mainFid0 (the Right Side when nothing is chosen), through _pinRecFor
+     /var s0 = _pinRecFor\(_mainFid0\)\.rec\s*\n\s*\|\| _ids\(\)\[_pinReadFid\(_rvGroups\[0\]\)/.test(el));
 
   section('76. Reconstructions need stronger paperwork');
   // Brad's 6175: raw text near-verbatim; 1523 is a SET row hiding in the
@@ -5346,7 +5348,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('the read line still follows the photo (v0.9.1090 holds)',
        /_pinAiLine\(fid\)/.test(setMain));
     ok('the NUMBER BOX now follows it too',
-       /_box\.value = _num/.test(setMain) && /_ids\(\)\[fid\]/.test(setMain));
+       /_box\.value = _num/.test(setMain) && /_pinRecFor\(fid\)\.rec/.test(setMain));   // v0.9.1960: a one-item group keeps its number
     ok('...and so does the catalog panel beside it',
        /_pinReviewLookup\(_num\)/.test(setMain));
     ok('...and the maker hint, which decides which catalog row the panel picks',
@@ -6169,7 +6171,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     const html = window.rrPhotoIdHelpHtml();
     if (_arWas === undefined) delete globalThis.rrAutoReadOn; else globalThis.rrAutoReadOn = _arWas;
     ok('without Auto Read the page names no price and no Preferences switch',
-       !/photo ID/i.test(htmlOff.replace(/<[^>]*>/g, ' ')) && htmlOff.indexOf('Preferences') < 0 && htmlOff.length > 3000);
+       !/(?<!Google )photo ID/i.test(htmlOff.replace(/<[^>]*>/g, ' ')) && htmlOff.indexOf('Preferences') < 0 && htmlOff.length > 3000);   // v0.9.1960: "Google Photo ID" is free
     ok('it produces a real panel, not a stub', html.length > 4000);
 
     // ── the promises the wording must keep ──────────────────────────────────
@@ -15385,9 +15387,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
          && (pin33.match(/_pinRvRailHtml\(\d+\)/g) || []).length === 3,
          String((pin33.match(/data-dragfid="' \+ fidT \+ '"/g) || []).length));
       ok('233 …and it badges its FIRST photo as the main view',
-         (pin33.match(/\(i === 0 \? '<div style="position:absolute;top:0;left:0;background:var\(--accent\)/g) || []).length === 1
-         && /\(i === 0 \? '<div style="position:absolute;top:0;left:0;background:var\(--accent\)/.test(_rail33),
-         String((pin33.match(/\(i === 0 \? '<div/g) || []).length));
+         // v0.9.1960: …unless a photo already holds the Right Side box (that one is the main view)
+         (pin33.match(/\(i === 0 && !_rsvTaken \? '<div style="position:absolute;top:0;left:0;background:var\(--accent\)/g) || []).length === 1
+         && /\(i === 0 && !_rsvTaken \? '<div style="position:absolute;top:0;left:0;background:var\(--accent\)/.test(_rail33),
+         String((pin33.match(/\(i === 0 && !_rsvTaken \? '<div/g) || []).length));
       ok('233 the wiring refuses multi-item cards — order has no meaning across items',
          /_rvGroups\.length !== 1\) return;/.test(pin33.slice(pin33.indexOf('function _pinWireRvDrag'), pin33.indexOf('window._pinSaveRvOrder'))));
 
@@ -18637,7 +18640,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const rend0 = pi69.indexOf('function _render()');
       const rend = pi69.slice(rend0, rend0 + 6000);
       ok('269 _ids() is still called inside the per-tile map (so the cache still matters)',
-         /_ids\(\)/.test(rend));
+         /_ids\(\)|_pinRecFor\(/.test(rend));   // v0.9.1960: _pinRecFor calls _ids() for each tile
     })();
 
     // ═══════════════════════════════════════════════════════════
@@ -22811,10 +22814,15 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
       // ── v0.9.1617 (Brad's two refinements, same evening) ──
       ok('320/1617 an assigned photo LEAVES the rail (it lives in its slot)',
-         /_railThumbs = thumbs\.filter\(function \(t\) \{ return !_viewOfFid\[t\]; \}\)/.test(pi20)
+         /_railThumbs = thumbs\.length > 1 \? thumbs\.filter\(function \(t\) \{ return !_viewOfFid\[t\]; \}\) : \[\];/.test(pi20)
          && (pi20.match(/_railThumbs\.slice\(0, 12\)\.map\(/g) || []).length === 1, '');   // v0.9.1705: one rail builder
+      // v0.9.1960 RE-PIN (Brad: "the last one disappears"): the old anchor thumb
+      // was never drawn (a strip of one was hidden) — and that same rule hid the
+      // LAST unsorted photo. Now the strip shows while any photo is unsorted and
+      // goes when all are boxed; the card anchors on the photo on screen.
       ok('320/1617 …but the card never loses its anchor when all are sorted',
-         /if \(!_railThumbs\.length\) _railThumbs = thumbs\.slice\(0, 1\);/.test(pi20), '');
+         /function _pinRvRailHtml\(sizePx\) \{\n      if \(!_railThumbs\.length\) return '';/.test(pi20)
+         && /var _mainFid = _mainFid0;/.test(pi20), '');
       // v0.9.1618 RE-PIN: the drop handler moved into the shared slot cell
       // (dropJs, built once for flat AND sectioned bars) — same behaviour,
       // new spelling.

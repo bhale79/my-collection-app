@@ -179,7 +179,7 @@ ok('BRAD\'S CLAIM: and removal clears the row rather than deleting it',
       const text = (d.textContent || '').replace(/\s+/g, ' ').trim();
       return { missing: false, chars: text.length,
                pricesTheRead: /1 photo ID/.test(text),
-               offHasNoPrice: !/photo ID/i.test(off.textContent || ''),
+               offHasNoPrice: !/(?<!Google )photo ID/i.test(off.textContent || ''),   // v0.9.1960: "Google Photo ID" is free
                saysFreeFirst: /free/i.test(text),
                brokenImg: Array.from(d.querySelectorAll('img')).filter(i => !i.getAttribute('src')).length };
     });

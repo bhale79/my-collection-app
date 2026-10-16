@@ -160,7 +160,7 @@ const previews = (sb) => sb.log.filter(e => e[0] === 'preview');
   section('E. The callers: the words stay on the link');
   {
     const inbox = grab(PI, 'window._pinLensSearch = async function ()');
-    ok('the inbox button asks for the server-side copy of the photo it has', /var staged = await driveStageLensCopy\(gs\[0\]\.files\[0\]\.id\);/.test(inbox));
+    ok('the inbox button asks for the server-side copy of the photo it has', /var staged = await driveStageLensCopy\(_pinOnScreenFid\(\) \|\| gs\[0\]\.files\[0\]\.id\);/.test(inbox)   /* v0.9.1960: the photo on screen */);
     ok('…and no longer downloads the bytes to re-upload them', !/_pinBytes\(/.test(inbox) && !/new File\(/.test(inbox) && !/driveStageLensPhoto/.test(inbox));
     ok('the Lens link still carries the picture AND the words (q= + multisearch mode)', /'https:\/\/lens\.google\.com\/uploadbyurl\?url=' \+ encodeURIComponent\(staged\.url\)\n\s*\+ \(_hint \? '&q=' \+ encodeURIComponent\(_hint\) \+ '&lns_mode=mu' : ''\);/.test(inbox));
     ok('…built from the photo\'s tag and settings as before (maker, era, years, gauge, type)', /_lh\.mfrs/.test(inbox) && /_lh\.eraLabel/.test(inbox) && /_lh\.eraYears/.test(inbox) && /_lh\.scale/.test(inbox) && /_lh\.type \|\| 'model train'/.test(inbox));
@@ -224,7 +224,7 @@ const previews = (sb) => sb.log.filter(e => e[0] === 'preview');
     await sb2.copy('p'); await sb2.copy('p');
     ok('OFFENDER 2: without the memo the second search copies again → B red', asks(sb2).length === 4);
     // 3. the inbox button going back to download + upload
-    const oldInbox = PI.replace('var staged = await driveStageLensCopy(gs[0].files[0].id);', "var blob = await _pinBytes(gs[0].files[0].id);\n      var file = new File([blob], 'inbox-photo.jpg', { type: blob.type || 'image/jpeg' });\n      var staged = await driveStageLensPhoto(file);");
+    const oldInbox = PI.replace('var staged = await driveStageLensCopy(_pinOnScreenFid() || gs[0].files[0].id);', "var blob = await _pinBytes(gs[0].files[0].id);\n      var file = new File([blob], 'inbox-photo.jpg', { type: blob.type || 'image/jpeg' });\n      var staged = await driveStageLensPhoto(file);");
     ok('offender 3 changed the source', oldInbox !== PI);
     const oi = grab(oldInbox, 'window._pinLensSearch = async function ()');
     ok('OFFENDER 3: the round trip is back → E red', !(/driveStageLensCopy\(/.test(oi)) && /_pinBytes\(/.test(oi));

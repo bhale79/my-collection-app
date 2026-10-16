@@ -162,8 +162,8 @@ async function boot(browser, on) {
         T('R2 the refusal reads in the caller\'s own words', r.msg === 'CALLER WORDS', r.msg);
         // v0.9.1956 (Brad: "get rid of the free terminology as that had to do with the autoreader")
         T('R3 ' + who + ': the first-run card says how the app reads — no "free", no allowance', /How the app reads barcodes, labels and photos/.test(r.card) && !/\bfree\b/i.test(r.card) && !/allowance|Need more/i.test(r.card), r.card.slice(0, 400));
-        T('R4 ' + who + ': the help page offers only free buttons', !/photo ID|Read this photo|Preferences › Photo ID/i.test(r.help) && /Google Search/.test(r.help), (r.help.match(/.{40}(photo ID|Read this photo).{40}/i) || [])[0]);
-        T('R5 ' + who + ': the Photo Inbox guide has its 3 free steps', r.steps.length === 3 && !r.steps.some(t => /photo ID|three doors|paid/i.test(t)), r.steps);
+        T('R4 ' + who + ': the help page offers only free buttons', !/(?<!Google )photo ID|Read this photo|Preferences › Photo ID/i.test(r.help) && /Google Photo ID/.test(r.help), (r.help.match(/.{40}((?<!Google )photo ID|Read this photo).{40}/i) || [])[0]);   // v0.9.1960: Google's button is "Google Photo ID" (Brad) — free, not a paid photo ID
+        T('R5 ' + who + ': the Photo Inbox guide has its 3 free steps', r.steps.length === 3 && !r.steps.some(t => /(?<!Google )photo ID|three doors|paid/i.test(t)), r.steps);   // v0.9.1960: "Google Photo ID" is Google's free search
         T('R6 ' + who + ': Preferences has no daily-reads switch', r.prefPage && !r.prefSwitch, r);
       } else {
         T('R1 ' + who + ': aiSpendBlocked lets the read through', r.on === true && r.blocked === null, r.blocked);

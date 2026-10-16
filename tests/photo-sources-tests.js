@@ -201,7 +201,8 @@ if (drivePreFix === DRIVE) {
           // rescue scan, set routing) added five more busy paths — and
           // inbox-busy-tests' count-free "no guard is silent" property holds
           // for all fifteen, which is the check that actually matters.
-          (INBOX.match(/_pinBusyBounce\(\); return;/g) || []).length === 15,
+          // v0.9.1960: 15 → 16 — discarding one leftover photo from the review card.
+          (INBOX.match(/_pinBusyBounce\(\); return;/g) || []).length === 16,
           /\{ showToast\('Still working on the last batch…', 2500, true\); return; \}/.test(INBOX));
   ok('the bounce repaints the waiting line before it scolds',
      /_pinGPStatus\(\)/.test(bounce) && /Cancel/.test(bounce));
