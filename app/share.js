@@ -210,8 +210,12 @@ function openShareBuilder() {
           // v0.9.1303 (Brad): clickable full-size photos with an auto-expiring
           // link. The photos become viewable by anyone with the link until the
           // deadline (or until turned off in Collection Tools > Shared photos).
-          '<label style="display:flex;align-items:center;gap:0.5rem;font-size:0.85rem;color:var(--text);margin-top:0.55rem;cursor:pointer"><input type="checkbox" id="sf-linkphotos" onchange="var r=document.getElementById(\'sf-linklife-row\');if(r)r.style.display=this.checked?\'\':\'none\'" style="accent-color:var(--accent);width:1rem;height:1rem">Clickable photos — tap a picture in the PDF to see it full size</label>' +
-          '<div id="sf-linklife-row" style="display:none;margin:0.4rem 0 0 1.5rem">' +
+          // v0.9.1961 (Brad: "the text or email you get you can not open the
+          // picture" — chose a link per item): ON by default, and it now serves
+          // BOTH routes — the PDF's pictures link to the full photo, and the
+          // images' message carries a full-size link for each item.
+          '<label style="display:flex;align-items:center;gap:0.5rem;font-size:0.85rem;color:var(--text);margin-top:0.55rem;cursor:pointer"><input type="checkbox" id="sf-linkphotos" checked onchange="var r=document.getElementById(\'sf-linklife-row\');if(r)r.style.display=this.checked?\'\':\'none\'" style="accent-color:var(--accent);width:1rem;height:1rem">Full-size photo links — they can open each photo full size</label>' +
+          '<div id="sf-linklife-row" style="margin:0.4rem 0 0 1.5rem">' +
             '<label style="font-size:0.8rem;color:var(--text-mid)">Links work for ' +
               '<select id="sf-linklife" style="margin-left:0.3rem;padding:0.3rem 0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem">' +
                 '<option value="86400000">1 day</option>' +
@@ -267,6 +271,16 @@ function _shareFieldCheck(id, label, checked) {
 // every shared PDF came out with no pictures at all — silently, because the
 // radios still sat there promising otherwise. Read the radios that actually
 // exist, and honour "All photos of item" instead of quietly treating it as one.
+// v0.9.1961: how long the photo links work, in words, for the message that
+// carries them (the same <select> the PDF uses).
+function rrShareLinkLifeWords() {
+  var el = document.getElementById('sf-linklife');
+  var o = el && el.options && el.options[el.selectedIndex];
+  var t = o ? String(o.textContent || '').trim() : '';
+  if (!t) return '';
+  return /until/i.test(t) ? '' : 'links work for ' + t;
+}
+if (typeof window !== 'undefined') { window.rrShareLinkLifeWords = rrShareLinkLifeWords; }
 function _getShareFields() {
   var _pm = document.querySelector('input[name="rr-photomode"]:checked');
   var _mode = _pm ? _pm.value : (document.querySelector('input[name="rr-photomode"]') ? 'main' : '');
@@ -595,6 +609,10 @@ function rrShareCardPlan(vals, fields, split, photoPlanned, contentW) {
   if (fields.cond && vals.condition) rows.push({ kind: 'cond', h: 13 });
   if (fields.box && vals.hasBox)     rows.push({ kind: 'box', h: 13 });
   if (fields.price && vals.price)    rows.push({ kind: 'price', h: 13 });
+  // v0.9.1961: a linked photo says so in words — a PDF viewer gives no sign
+  // that a picture can be tapped, which is how "you can not open the picture"
+  // happened even with clickable photos on.
+  if (vals.photoLink) rows.push({ kind: 'link', h: 13 });
   if (fields.notes) {
     // v0.9.1332 (Brad): the Notes line prints even when empty — "Notes: none"
     // tells a buyer the seller left it blank on purpose, rather than looking
@@ -681,7 +699,8 @@ async function _buildPDF(items, fields, message) {
     // one line while jsPDF drew them all.
     var _photoPlanned = !!(fields.photo && it._photoDataUrl);
     var _plan = rrShareCardPlan(
-      { roadName: roadName, varDesc: varDesc, condition: condition, hasBox: hasBox, price: price, notes: notes },
+      { roadName: roadName, varDesc: varDesc, condition: condition, hasBox: hasBox, price: price, notes: notes,
+        photoLink: !!(_photoPlanned && it._photoLinked && it._photoFileId) },
       fields, function (t, w) { return doc.splitTextToSize(t, w); }, _photoPlanned, contentW);
     var cardH = _plan.cardH;
     // Extra photos ride in a strip under the text, so the main-photo layout
@@ -754,6 +773,12 @@ async function _buildPDF(items, fields, message) {
         if (row.kind === 'vardesc' || row.kind === 'notes') doc.text(row.lines, textX, cy);
         else if (row.kind === 'cond') doc.text('Condition: ' + condition + '/10', textX, cy);
         else if (row.kind === 'box') doc.text('Has Box: ' + hasBox, textX, cy);
+        else if (row.kind === 'link') {
+          // v0.9.1961: the full-size photo, in words, linked
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(41, 128, 185);
+          doc.textWithLink('See the full-size photo \u203a', textX, cy, { url: 'https://drive.google.com/file/d/' + it._photoFileId + '/view' });
+        }
       }
       cy += row.h;
     }

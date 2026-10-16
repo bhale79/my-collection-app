@@ -175,7 +175,7 @@ function _dataUrlToFile(dataUrl, name) {
   while (n--) u8[n] = bin.charCodeAt(n);
   return new File([u8], name, { type: mime });
 }
-async function _rrItemPhotoDataUrls(pd, all) {
+async function _rrItemPhotoDataUrls(pd, all, idsOut) {
   var out = [];
   try {
     if (pd && pd.photoItem && typeof driveGetFolderPhotos === 'function') {
@@ -184,7 +184,7 @@ async function _rrItemPhotoDataUrls(pd, all) {
         var list = all ? ph : ph.slice(0, 1);
         for (var i = 0; i < list.length; i++) {
           var du = await _fetchPhotoAsDataUrl(list[i].id);
-          if (du) out.push(du);
+          if (du) { out.push(du); if (idsOut) idsOut.push(list[i].id); }   // v0.9.1961: which photo each card shows
         }
       }
     }
@@ -203,6 +203,10 @@ async function shareAsCards() {
   if (acts) acts.style.display = 'none';
   try {
     var files = [];
+    // v0.9.1961: the full-size photo links (the one setting both routes read)
+    var _f0 = (typeof _getShareFields === 'function') ? _getShareFields() : {};
+    var _lnk = { on: !!_f0.linkPhotos, exp: _f0.linkLifeMs > 0 ? Date.now() + _f0.linkLifeMs : 0 };
+    var _links = [];
     for (var i = 0; i < items.length; i++) {
       var it = items[i];
       if (prog) prog.textContent = 'Building card ' + (i + 1) + ' of ' + items.length + '…';
@@ -214,7 +218,24 @@ async function shareAsCards() {
         var _cm = findMaster(pd.itemNum, pd.variation, pd) || it.master;
         it = Object.assign({}, it, { itemNum: pd.itemNum, variation: pd.variation || '', master: _cm });
       }
-      var photoUrls = await _rrItemPhotoDataUrls(pd, allPhotos);
+      var photoIds = [];
+      var photoUrls = await _rrItemPhotoDataUrls(pd, allPhotos, photoIds);
+      // v0.9.1961 (Brad: "the text or email you get you can not open the
+      // picture" — "lets do 1"): a card is one flat picture, so the full-size
+      // photo travels as a LINK in the message — opened up the same way, with
+      // the same deadline, as the PDF's clickable photos (rrShareOpenPhoto).
+      // A link is written only if opening the photo up succeeded.
+      if (_lnk.on && photoIds.length && typeof rrShareOpenPhoto === 'function') {
+        var _okIds = [];
+        for (var _q = 0; _q < photoIds.length; _q++) {
+          if (await rrShareOpenPhoto(photoIds[_q], _lnk.exp)) _okIds.push(photoIds[_q]);
+        }
+        if (_okIds.length) {
+          var _cd = _rrCardData(it, source) || {};
+          var _nm = ('No. ' + (it.itemNum || '') + (_cd.name ? ' ' + _cd.name.replace(/ · /g, ' ') : '')).replace(/\s+/g, ' ').trim();
+          _links.push(_nm + ':\n' + _okIds.map(function (pid) { return 'https://drive.google.com/file/d/' + pid + '/view'; }).join('\n'));
+        }
+      }
       var N = photoUrls.length;
       var mainImg = N ? await _rrLoadImg(photoUrls[0]) : null;
       var card = _rrCard(_rrCardData(it, source), mainImg, source, 1, N);
@@ -229,12 +250,18 @@ async function shareAsCards() {
       } catch (itemErr) { console.warn('card build skipped for an item:', itemErr); }
     }
     var title = source === 'want' ? 'Items I am looking for' : (source === 'collection' ? 'From my collection' : 'Items for sale');
+    // v0.9.1961: the links block, written once — the share sheet's message, and
+    // the "Copy the photo links" button for the copy-and-paste email route.
+    var _lifeW = (typeof rrShareLinkLifeWords === 'function') ? rrShareLinkLifeWords() : '';
+    window._rrShareLinks = _links.length
+      ? 'Tap a link to see the full-size photo' + (_lifeW ? ' (' + _lifeW + ')' : '') + ':\n\n' + _links.join('\n\n')
+      : '';
     var isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints || 0) > 1;
     var canFileShare = !!(navigator.canShare && navigator.canShare({ files: files }));
     if (isMobile && canFileShare) {
       // Cards are built. The share sheet must open from a FRESH tap (building the
       // cards used up the original tap's user-gesture), so show a button to tap.
-      window._rrShareFiles = files; window._rrShareText = msg || title;
+      window._rrShareFiles = files; window._rrShareText = _rrShareTextWithLinks(msg || title);
       if (prog) prog.style.display = 'none';
       if (acts) {
         _rrActsStash(acts);
@@ -249,7 +276,7 @@ async function shareAsCards() {
     // above is untouched. Share must open from a fresh click (building
     // the cards used up the original click's user-gesture).
     if (!isMobile && canFileShare) {
-      window._rrShareFiles = files; window._rrShareText = msg || title;
+      window._rrShareFiles = files; window._rrShareText = _rrShareTextWithLinks(msg || title);
       if (prog) prog.style.display = 'none';
       if (acts) {
         _rrActsStash(acts);
@@ -267,6 +294,13 @@ async function shareAsCards() {
           '<button onclick="_rrCopyCardsToClipboard()" style="padding:0.55rem;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">' +
             'Copy for email — then paste into your message' +
           '</button>' +
+          // v0.9.1961: a pasted picture cannot carry links, so the links are a
+          // second paste — straight under the picture.
+          (window._rrShareLinks
+            ? '<button id="rr-copy-photo-links" onclick="_rrCopyShareLinks()" style="padding:0.55rem;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">' +
+                'Copy the photo links — paste them under the picture' +
+              '</button>'
+            : '') +
           '<button onclick="_rrDownloadFiles(window._rrShareFiles||[]);showToast(\'Saved to your downloads\',3000)" style="padding:0.55rem;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">' +
             'Save to downloads instead' +
           '</button>' +
@@ -287,6 +321,19 @@ async function shareAsCards() {
   }
 }
 
+// v0.9.1961: the message that goes with the images, with the full-size links
+function _rrShareTextWithLinks(base) {
+  return window._rrShareLinks ? (String(base || '') + '\n\n' + window._rrShareLinks) : String(base || '');
+}
+function _rrCopyShareLinks() {
+  var t = window._rrShareLinks || '';
+  if (!t) return;
+  try {
+    navigator.clipboard.writeText(t).then(function () {
+      showToast('Photo links copied — paste them under the picture in your email', 3500);
+    }, function () { showToast('Could not copy the links on this browser', 3500, true); });
+  } catch (e) { showToast('Could not copy the links on this browser', 3500, true); }
+}
 function _rrDownloadFiles(files) {
   for (var f = 0; f < files.length; f++) {
     var url = URL.createObjectURL(files[f]); var a = document.createElement('a');
@@ -363,7 +410,7 @@ async function _rrCopyCardsToClipboard() {
     showToast('Couldn’t copy on this browser — saved the images to your downloads to attach instead', 4500, true);
   }
 }
-if (typeof window !== 'undefined') { window._rrDoShareNow = _rrDoShareNow; window._rrDownloadFiles = _rrDownloadFiles; window._rrActsStash = _rrActsStash; window._rrActsBack = _rrActsBack; window._rrBackBtnHtml = _rrBackBtnHtml; window._rrCopyCardsToClipboard = _rrCopyCardsToClipboard; }
+if (typeof window !== 'undefined') { window._rrDoShareNow = _rrDoShareNow; window._rrDownloadFiles = _rrDownloadFiles; window._rrActsStash = _rrActsStash; window._rrActsBack = _rrActsBack; window._rrBackBtnHtml = _rrBackBtnHtml; window._rrCopyCardsToClipboard = _rrCopyCardsToClipboard; window._rrCopyShareLinks = _rrCopyShareLinks; window._rrShareTextWithLinks = _rrShareTextWithLinks; }
 
 // ═══ TIER 2 — LIVE FOR-SALE SHEET ════════════════════════════════
 async function _sellEnsureSheet() {

@@ -1646,7 +1646,11 @@ window.__pageReady = runSharedPhotos();
       const st = await pg3.evaluate(function () {
         const cb = document.getElementById('sf-linkphotos');
         const row = document.getElementById('sf-linklife-row');
-        const hiddenBefore = row && getComputedStyle(row).display === 'none';
+        // v0.9.1961 (Brad chose a full-size link per item): the box starts TICKED,
+        // so the row starts shown; unticking hides it, ticking brings it back.
+        const onAtStart = !!(cb && cb.checked) && row && getComputedStyle(row).display !== 'none';
+        cb.checked = false; cb.dispatchEvent(new Event('change'));
+        const hiddenBefore = onAtStart && row && getComputedStyle(row).display === 'none';
         cb.checked = true; cb.dispatchEvent(new Event('change'));
         const shownAfter = row && getComputedStyle(row).display !== 'none';
         const sel = document.getElementById('sf-linklife');
@@ -1664,7 +1668,7 @@ window.__pageReady = runSharedPhotos();
       });
       const shot3 = await pg3.screenshot({ type: 'png' });
       await pg3.close();
-      ok('links: the link-life row hides until the box is ticked, then shows',
+      ok('links: the box starts ticked with its link-life row showing; unticked it hides, ticked it shows',
          st.hiddenBefore && st.shownAfter, JSON.stringify(st));
       ok('links: the three presets are 1 day, 1 week (default), until turned off',
          st.opts.join('|') === '1 day|1 week|until I turn them off' && st.preset === '1 week');
