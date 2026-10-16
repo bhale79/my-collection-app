@@ -18,6 +18,36 @@ function _repOwnedItems() {
   });
 }
 
+// ── v0.9.1962 (Brad: "we need to keep past reports so that we can send those
+// quickly") — a report has to be small enough to SEND. The insurance PDF drew
+// each photo 36 points wide but embedded the whole camera picture, so his one
+// saved copy was 142 MB (Gmail stops at 25). Each photo is re-drawn at this
+// many pixels on its longest side first: 240 is more than a 300-dpi printer
+// uses for a half-inch thumbnail, so the page looks the same.
+var REP_PHOTO_MAX_PX = 240;
+function _repShrinkDataUrl(dataUrl, maxPx) {
+  return new Promise(function (resolve) {
+    try {
+      var im = new Image();
+      im.onload = function () {
+        try {
+          var w = im.naturalWidth || im.width, h = im.naturalHeight || im.height;
+          if (!w || !h) return resolve(dataUrl);
+          var s = Math.min(1, maxPx / Math.max(w, h));
+          var c = document.createElement('canvas');
+          c.width = Math.max(1, Math.round(w * s)); c.height = Math.max(1, Math.round(h * s));
+          var x = c.getContext('2d');
+          x.fillStyle = 'white'; x.fillRect(0, 0, c.width, c.height);   // canvas paint, not page colour
+          x.drawImage(im, 0, 0, c.width, c.height);
+          resolve(c.toDataURL('image/jpeg', 0.82));
+        } catch (e) { resolve(dataUrl); }
+      };
+      im.onerror = function () { resolve(dataUrl); };
+      im.src = dataUrl;
+    } catch (e) { resolve(dataUrl); }
+  });
+}
+
 // Preload the first Drive photo (as a data URL) for each item, with a small
 // concurrency limit + progress callback. Returns map keyed by inventoryId.
 async function _repPreloadPhotos(items, onProgress) {
@@ -30,6 +60,9 @@ async function _repPreloadPhotos(items, onProgress) {
       var photos = await driveGetFolderPhotos(pd.photoItem);
       if (photos && photos.length) {
         var url = await _fetchPhotoAsDataUrl(photos[0].id);
+        // v0.9.1962: shrink to the size it is printed at — the full camera
+        // photo behind each 36-point thumbnail made Brad's insurance PDF 142 MB.
+        if (url) url = await _repShrinkDataUrl(url, REP_PHOTO_MAX_PX);
         if (url) out[pd.inventoryId || (pd.itemNum + '|' + (pd.variation || ''))] = url;
       }
     } catch (e) { /* skip */ }
@@ -373,19 +406,144 @@ async function _archiveBlob(blob, name, mime) {
     var form = new FormData();
     form.append('metadata', new Blob([meta], { type: 'application/json' }));
     form.append('file', new Blob([blob], { type: mime || 'application/octet-stream' }));
-    await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
+    var res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
       method: 'POST', headers: { Authorization: 'Bearer ' + accessToken }, body: form
     });
+    if (!res.ok) console.warn('[Past reports] archive refused:', res.status);   // v0.9.1962: a refusal is not a save
   } catch (e) { console.warn('[Past reports] archive failed:', e); }
 }
+// ══ v0.9.1962 — PAST REPORTS, inside the app ═══════════════════════════════
+// Brad: "on the reports, we need to keep past reports so that we can send those
+// quickly". Every export was already filed in the Drive folder — but the button
+// only opened Drive, and nothing in the app could list or send one. This lists
+// the folder newest first; each report can be Sent (the device's share menu,
+// with the file attached — the route Share as images uses), Opened or
+// Downloaded. A Google Doc is sent and downloaded as a PDF.
+var REP_EMAIL_MAX_BYTES = 25 * 1024 * 1024;   // Gmail's attachment limit
+var _pastReportFile = {};   // id -> File, loaded by Send and shared on the next tap
+function _repFmtSize(n) {
+  n = parseInt(n, 10) || 0;
+  if (!n) return '';
+  return n >= 1048576 ? (Math.round(n / 104857.6) / 10) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+}
+function _repIsDoc(f) { return f && f.mimeType === 'application/vnd.google-apps.document'; }
+async function _repPastList() {
+  var id = await _ensurePastReports();
+  if (!id) throw new Error('no folder');
+  var q = encodeURIComponent("'" + id + "' in parents and trashed=false");
+  var r = await driveRequest('GET', '/files?q=' + q + '&orderBy=createdTime desc&pageSize=200&fields=files(id,name,mimeType,createdTime,size,webViewLink)');
+  return { folderId: id, files: (r && r.files) || [] };
+}
 async function _openPastReports() {
-  try { var id = await _ensurePastReports(); if (id) window.open('https://drive.google.com/drive/folders/' + id, '_blank', 'noopener'); else showToast('Could not open the Past reports folder.', 5000, true); }
-  catch (e) { console.warn('[Past reports] open failed:', e); showToast('Could not open the Past reports folder.', 5000, true); }
+  var old = document.getElementById('rep-past-ov'); if (old) old.remove();
+  var ov = document.createElement('div');
+  ov.id = 'rep-past-ov';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:9500;background:var(--scrim);display:flex;align-items:center;justify-content:center;padding:1rem';
+  ov.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.1rem;width:100%;max-width:620px;max-height:85vh;display:flex;flex-direction:column">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.4rem">' +
+        '<strong style="font-size:1.1rem;color:var(--text)">Past reports</strong>' +
+        '<button data-close onclick="document.getElementById(\'rep-past-ov\').remove()" aria-label="Close" style="background:none;border:none;color:var(--text-dim);font-size:1.35rem;cursor:pointer;line-height:1">\u2715</button>' +
+      '</div>' +
+      '<div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.7rem">Every report you export is kept here, newest first. Send one straight from this list.</div>' +
+      '<div id="rep-past-list" style="overflow-y:auto;min-height:0;flex:1"><div style="padding:1rem;color:var(--text-dim);font-size:0.85rem">Loading your past reports\u2026</div></div>' +
+      '<div id="rep-past-foot" style="margin-top:0.6rem;font-size:0.75rem;color:var(--text-dim)"></div>' +
+    '</div>';
+  document.body.appendChild(ov);
+  if (typeof rrDismissGuard === 'function') rrDismissGuard(ov);
+  var list = document.getElementById('rep-past-list');
+  try {
+    var got = await _repPastList();
+    var foot = document.getElementById('rep-past-foot');
+    if (foot) foot.innerHTML = '<a href="https://drive.google.com/drive/folders/' + got.folderId + '" target="_blank" rel="noopener" style="color:var(--t-link)">Open the folder in Google Drive</a>';
+    if (!list) return;
+    if (!got.files.length) { list.innerHTML = '<div style="padding:1rem;color:var(--text-dim);font-size:0.85rem">No past reports yet \u2014 export a report (PDF, Google Doc or CSV) and it will be kept here.</div>'; return; }
+    var b = 'padding:0.38rem 0.7rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);font-family:var(--font-body);font-size:0.8rem;font-weight:600;cursor:pointer';
+    list.innerHTML = got.files.map(function (f) {
+      var when = ''; try { when = new Date(f.createdTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' \u00b7 ' + new Date(f.createdTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); } catch (e) {}
+      var big = !_repIsDoc(f) && (parseInt(f.size, 10) || 0) > REP_EMAIL_MAX_BYTES;
+      var fid = String(f.id).replace(/[^A-Za-z0-9_-]/g, '');
+      return '<div data-pastrep="' + fid + '" style="display:flex;align-items:center;gap:0.6rem;padding:0.6rem 0.2rem;border-bottom:1px solid var(--border);flex-wrap:wrap">' +
+        '<div style="flex:1;min-width:180px">' +
+          '<div style="font-weight:700;color:var(--text);font-size:0.9rem;word-break:break-word">' + _repEsc(f.name) + '</div>' +
+          '<div style="font-size:0.74rem;color:var(--text-dim)">' + _repEsc(when) + (f.size ? ' \u00b7 ' + _repFmtSize(f.size) : '') + (_repIsDoc(f) ? ' \u00b7 Google Doc (sent as a PDF)' : '') + '</div>' +
+          (big ? '<div style="font-size:0.74rem;color:var(--warn);margin-top:2px">Too big to email (over 25 MB) \u2014 export a fresh copy; new ones are much smaller.</div>' : '') +
+        '</div>' +
+        '<div style="display:flex;gap:0.35rem;flex-wrap:wrap">' +
+          (big ? '' : '<button data-pastsend="' + fid + '" onclick="_repPastSend(\'' + fid + '\')" style="' + b + ';border-color:var(--accent);color:var(--accent)">Send</button>') +
+          '<button onclick="_repPastOpen(\'' + fid + '\')" style="' + b + '">Open</button>' +
+          '<button onclick="_repPastDownload(\'' + fid + '\')" style="' + b + '">Download</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+    _repPastFiles = {}; got.files.forEach(function (f) { _repPastFiles[String(f.id).replace(/[^A-Za-z0-9_-]/g, '')] = f; });
+  } catch (e) {
+    console.warn('[Past reports] list failed:', e);
+    if (list) list.innerHTML = '<div style="padding:1rem;color:var(--t-red);font-size:0.85rem">Could not load your past reports \u2014 check your connection and try again.</div>';
+  }
+}
+var _repPastFiles = {};
+// The report as a File: a PDF/CSV as it is, a Google Doc exported to PDF.
+async function _repPastFetchFile(f) {
+  var tok = accessToken || localStorage.getItem('lv_token');
+  var doc = _repIsDoc(f);
+  var url = 'https://www.googleapis.com/drive/v3/files/' + f.id + (doc ? '/export?mimeType=application/pdf' : '?alt=media');
+  var res = await fetch(url, { headers: { Authorization: 'Bearer ' + tok } });
+  if (!res.ok) throw new Error('drive ' + res.status);
+  var blob = await res.blob();
+  var name = doc ? (f.name + '.pdf') : f.name;
+  var type = doc ? 'application/pdf' : (f.mimeType || blob.type || 'application/octet-stream');
+  return new File([blob], name, { type: type });
+}
+function _repSaveFile(file) {
+  var u = URL.createObjectURL(file), a = document.createElement('a');
+  a.href = u; a.download = file.name; a.click();
+  setTimeout(function () { URL.revokeObjectURL(u); }, 5000);
+}
+// Send: load the file, then share it from a FRESH tap — loading uses up the
+// tap that started it, and a share menu only opens from a tap (the same
+// two-step Share as images uses). Where files cannot be shared, it is saved
+// to downloads to attach instead.
+async function _repPastSend(fid) {
+  var f = _repPastFiles[fid]; if (!f) return;
+  var btn = document.querySelector('[data-pastsend="' + fid + '"]');
+  var ready = _pastReportFile[fid];
+  if (ready) {
+    try { await navigator.share({ files: [ready], title: f.name, text: f.name }); }
+    catch (e) { if (!(e && e.name === 'AbortError')) { _repSaveFile(ready); showToast('Saved to your downloads \u2014 attach it to your email or text', 4500); } }
+    return;
+  }
+  if (btn) { btn.disabled = true; btn.textContent = 'Getting it\u2026'; }
+  try {
+    var file = await _repPastFetchFile(f);
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      _pastReportFile[fid] = file;
+      if (btn) { btn.disabled = false; btn.textContent = 'Tap to send'; btn.style.background = 'var(--accent)'; btn.style.color = 'var(--on-accent)'; }
+    } else {
+      _repSaveFile(file);
+      showToast('Saved to your downloads \u2014 attach it to your email or text', 4500);
+      if (btn) { btn.disabled = false; btn.textContent = 'Send'; }
+    }
+  } catch (e) {
+    console.warn('[Past reports] send failed:', e);
+    showToast('Could not get that report from Google Drive \u2014 try again.', 4500, true);
+    if (btn) { btn.disabled = false; btn.textContent = 'Send'; }
+  }
+}
+function _repPastOpen(fid) {
+  var f = _repPastFiles[fid]; if (!f) return;
+  window.open(f.webViewLink || ('https://drive.google.com/file/d/' + f.id + '/view'), '_blank', 'noopener');
+}
+async function _repPastDownload(fid) {
+  var f = _repPastFiles[fid]; if (!f) return;
+  try { _repSaveFile(_pastReportFile[fid] || await _repPastFetchFile(f)); }
+  catch (e) { console.warn('[Past reports] download failed:', e); showToast('Could not download that report \u2014 try again.', 4500, true); }
 }
 
 if (typeof window !== 'undefined') {
   window.exportReportPDF = exportReportPDF;
   window._openPastReports = _openPastReports;
+  window._repPastSend = _repPastSend; window._repPastOpen = _repPastOpen; window._repPastDownload = _repPastDownload;
+  window._repShrinkDataUrl = _repShrinkDataUrl;
   window._archiveBlob = _archiveBlob;
   window.exportReportGoogleDoc = exportReportGoogleDoc;
   window.printReportWithPhotos = printReportWithPhotos;

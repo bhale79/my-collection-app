@@ -238,7 +238,8 @@ ok('every guarded overlay offers Cancel / Done / Close / ✕', trapped.length ==
 // v0.9.1932: 46 — "Which account?" (rr-account-hold, app-auth.js).
 // v0.9.1936: 47 — the Google Photos waiting panel (rr-gp-wait, drive.js).
 // v0.9.1944: 48 — the Record sale box (rr-sale-dlg, app-pages.js rrSaleDetailsDialog).
-ok('48 guarded call sites, and ONE helper behind them', sites === 48, String(sites));
+// v0.9.1962: 49 — the Past reports list (rep-past-ov, report-export.js _openPastReports).
+ok('49 guarded call sites, and ONE helper behind them', sites === 49, String(sites));
 
 // nobody double-wires BackStack any more — the guard does it, once
 let dbl = 0;
