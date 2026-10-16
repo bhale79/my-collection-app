@@ -18,7 +18,7 @@
 //       file attached (a Google Doc exported as a PDF)
 //   S2  where files cannot be shared, Send saves it to downloads instead
 //   D1  Download saves the file
-//   C1  a CSV export is kept in Past reports too, named by report and date
+//   C1  a CSV export is kept in Past reports too, named by report, date and time (v0.9.1966)
 //   P1  the insurance PDF's photos are shrunk: 3 items with camera-size photos
 //       make a PDF well under 1 MB
 //   X*  PLANTED: each undone in the code is caught
@@ -101,7 +101,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   m = await listView(r.pg);
   T('L0 no script error', r.errs.length === 0, r.errs);
   T('L1 Past reports opens a list inside the app, newest first', m.open && JSON.stringify(m.ids) === '["PDF1","DOC1","CSV1","BIG1"]', m.ids);
-  T('L1 each report has Send / Open / Download, and the Drive folder is a link at the foot', m.buttons[0] === 'Send/Open/Download' && m.drive, { b: m.buttons, drive: m.drive });
+  T('L1 each report has Send / Open / Download, and the Drive folder is a link at the foot', m.buttons[0] === 'Send/Open/Download/Delete' && m.drive, { b: m.buttons, drive: m.drive });
   T('L2 the 142 MB report says it is too big to email and offers no Send', !m.send.includes('BIG1') && /Too big to email/.test(m.text) && /135\.5 MB|142/.test(m.text), { send: m.send });
   T('L2 a Google Doc says it is sent as a PDF', /Google Doc \(sent as a PDF\)/.test(m.text), m.text.slice(0, 300));
   await r.pg.mouse.click(10, 10); await sleep(200);
@@ -142,7 +142,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     exportReport();
     return window.__kept;
   });
-  T('C1 a Contacts CSV export is kept in Past reports', m.length === 1 && /^contacts-\d{4}-\d\d-\d\d\.csv$/.test(m[0][0]) && m[0][1] === 'text/csv', m);
+  T('C1 a Contacts CSV export is kept in Past reports', m.length === 1 && /^contacts-\d{4}-\d\d-\d\d-\d{4}\.csv$/.test(m[0][0]) && m[0][1] === 'text/csv', m);
   await r.ctx.close();
 
   console.log('== the insurance PDF is small enough to send ==');
@@ -177,7 +177,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   await x.pg.evaluate(() => _openPastReports()); await sleep(400); m = await listView(x.pg);
   T('X-L2 PLANTED: no 25 MB check → the 142 MB report offers Send (caught)', m.send.includes('BIG1'), m.send);
   await x.ctx.close();
-  x = await open(browser, { rp: planted(RP, " _repKeepCsv(blob, `contacts-${new Date().toISOString().slice(0,10)}.csv`);", "", 'csv not kept') });
+  x = await open(browser, { rp: planted(RP, "a.click(); _repKeepCsv(blob, _cn);", "a.click();", 'csv not kept') });
   m = await x.pg.evaluate(() => { state.contactsData = [{ name: 'Bob' }]; const s = document.getElementById('report-type'); const o = document.createElement('option'); o.value = 'contacts'; s.appendChild(o); s.value = 'contacts'; exportReport(); return window.__kept.length; });
   T('X-C1 PLANTED: the CSV not kept → caught', m === 0, m);
   await x.ctx.close();

@@ -74,33 +74,102 @@ async function _repPreloadPhotos(items, onProgress) {
   return out;
 }
 
-function _repBtnBusy(label) {
+// ══ v0.9.1966 — "Generating your report" ══════════════════════════════════
+// Brad: "when you export to: pdf or what ever, there needs to be a pop up that
+// says, generating report with a progress indicator". Nothing on screen said a
+// report was being made, so a second press made a SECOND copy (two identical
+// insurance PDFs at 8:32 AM). ONE pop-up, driven by the two calls every export
+// already made (_repBtnBusy / _repBtnDone); while it works, another export is
+// refused (_repWorking).
+var _repWorking = false;
+function _repProgOv() {
+  var ov = document.getElementById('rep-gen-ov');
+  if (ov) return ov;
+  ov = document.createElement('div');
+  ov.id = 'rep-gen-ov';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:9600;background:var(--scrim);display:flex;align-items:center;justify-content:center;padding:1rem';
+  ov.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.2rem 1.3rem;width:100%;max-width:420px">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem">' +
+        '<strong id="rep-gen-title" style="font-size:1.05rem;color:var(--text)">Generating your report</strong>' +
+        '<button data-close onclick="var o=document.getElementById(\'rep-gen-ov\');if(o)o.style.display=\'none\'" aria-label="Hide" title="Hide — the report keeps going" style="background:none;border:none;color:var(--text-dim);font-size:1.25rem;cursor:pointer;line-height:1">\u2715</button>' +
+      '</div>' +
+      '<div id="rep-gen-label" style="font-size:0.88rem;color:var(--text-mid);margin-bottom:0.6rem">Working\u2026</div>' +
+      '<div style="height:10px;border-radius:6px;background:var(--surface2);overflow:hidden">' +
+        '<div id="rep-gen-bar" style="height:100%;width:8%;border-radius:6px;background:var(--accent);transition:width 0.25s"></div>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(ov);
+  if (typeof rrDismissGuard === 'function') rrDismissGuard(ov, function () { ov.style.display = 'none'; });
+  return ov;
+}
+// label words; done/total (optional) fill the bar — without them it creeps on its own
+function _repBtnBusy(label, done, total) {
+  _repWorking = true;
   var ids = ['rep-pdf-btn', 'rep-gdoc-btn', 'rep-print-btn'];
   ids.forEach(function (id) { var b = document.getElementById(id); if (b) b.disabled = true; });
   var s = document.getElementById('rep-export-status');
   if (s) { s.style.display = ''; s.textContent = label || 'Working…'; }
+  try {
+    var ov = _repProgOv();
+    var t = document.getElementById('rep-gen-title'); if (t) t.textContent = 'Generating your report';
+    var l = document.getElementById('rep-gen-label'); if (l) l.textContent = label || 'Working\u2026';
+    var bar = document.getElementById('rep-gen-bar');
+    if (bar) {
+      var pct = (total > 0) ? Math.max(5, Math.min(95, Math.round(done / total * 90) + 5))
+        : Math.min(95, (parseFloat(bar.style.width) || 8) + 12);
+      bar.style.width = pct + '%';
+    }
+  } catch (e) {}
 }
 function _repBtnDone(msg) {
+  _repWorking = false;
   ['rep-pdf-btn', 'rep-gdoc-btn', 'rep-print-btn'].forEach(function (id) { var b = document.getElementById(id); if (b) b.disabled = false; });
   var s = document.getElementById('rep-export-status');
   if (s) { if (msg) { s.textContent = msg; setTimeout(function () { s.style.display = 'none'; }, 4000); } else { s.style.display = 'none'; } }
+  var ov = document.getElementById('rep-gen-ov');
+  if (!ov) return;
+  if (!msg) { ov.remove(); return; }
+  var t = document.getElementById('rep-gen-title'); if (t) t.textContent = 'Done';
+  var l = document.getElementById('rep-gen-label'); if (l) l.textContent = msg;
+  var bar = document.getElementById('rep-gen-bar'); if (bar) bar.style.width = '100%';
+  setTimeout(function () { var o = document.getElementById('rep-gen-ov'); if (o && !_repWorking) o.remove(); }, 2500);
+}
+// Building a PDF holds the screen still, so the pop-up is given a moment to
+// show the new step before the work starts — otherwise "Building the PDF…"
+// would never be seen and the screen would sit on the last photo count.
+function _repPaint() { return new Promise(function (r) { setTimeout(r, 40); }); }
+// A second export while one is being made is refused — that is how two
+// identical copies landed in Past reports.
+function _repStillWorking() {
+  if (!_repWorking) return false;
+  try { var ov = document.getElementById('rep-gen-ov'); if (ov) ov.style.display = 'flex'; } catch (e) {}
+  showToast('Still making the last report \u2014 one moment', 2500);
+  return true;
+}
+// v0.9.1966: a saved report's name carries the LOCAL date and time, so two
+// made the same day can be told apart (the date was UTC, a day ahead at night).
+function _repStampName(base, ext) {
+  var d = new Date(), p = function (n) { return (n < 10 ? '0' : '') + n; };
+  return base + '-' + d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes()) + (ext || '');
 }
 
 // ── Download PDF (insurance = rich w/ photos; other types = table) ──
 async function exportReportPDF() {
+  if (_repStillWorking()) return;   // v0.9.1966
   var type = (document.getElementById('report-type') || {}).value || 'insurance';
   if (!(window.jspdf && window.jspdf.jsPDF)) { showToast('The PDF maker is still loading \u2014 try again in a moment.', 4000, true); return; }
   try {
     if (type === 'insurance') { await _insurancePDF(); }
-    else { _tablePDF(type); }
+    else { _repBtnBusy('Building the PDF\u2026'); await _repPaint(); _tablePDF(type); }
   } catch (e) { console.error('[Report PDF]', e); showToast(rrSaveError(e, 'the PDF', { kept: false }), 6000, true); _repBtnDone(); }
 }
 
 async function _insurancePDF() {
-  _repBtnBusy('Loading photos… 0');
+  _repBtnBusy('Loading photos\u2026', 0, 1);
   var items = _repOwnedItems();
-  var photos = await _repPreloadPhotos(items, function (d, t) { _repBtnBusy('Loading photos… ' + d + '/' + t); });
-  _repBtnBusy('Building PDF…');
+  var photos = await _repPreloadPhotos(items, function (d, t) { _repBtnBusy('Loading photos \u2014 ' + d + ' of ' + t, d, t); });
+  _repBtnBusy('Building the PDF\u2026');
+  await _repPaint();
   var CFG = (typeof INSURANCE_REPORT !== 'undefined') ? INSURANCE_REPORT : {};
   var doc = new window.jspdf.jsPDF({ unit: 'pt', format: 'letter' });
   var pageW = doc.internal.pageSize.getWidth(), pageH = doc.internal.pageSize.getHeight();
@@ -165,10 +234,10 @@ async function _insurancePDF() {
   doc.setFontSize(8); doc.setTextColor(90, 90, 90);
   doc.text('Owner signature', M, y + 12); doc.text('Date', pageW - M - 160, y + 12);
 
-  var _fn = 'insurance-report-' + new Date().toISOString().slice(0, 10) + '.pdf';
+  var _fn = _repStampName('insurance-report', '.pdf');
   try { _archiveBlob(doc.output('blob'), _fn, 'application/pdf'); } catch (e) {}
   doc.save(_fn);
-  _repBtnDone('PDF downloaded · copy saved to "Past reports"');
+  _repBtnDone('PDF downloaded \u2014 and kept in Past reports');
 }
 
 // Generic table PDF (Full Collection / Want-Upgrade-Parts) from the rendered table.
@@ -203,7 +272,7 @@ function _repSlugOf(type) {
 }
 
 function _tablePDF(type) {
-  _repBtnBusy('Building PDF…');
+  _repBtnBusy('Building the PDF\u2026');
   var doc = new window.jspdf.jsPDF({ unit: 'pt', format: 'letter', orientation: 'landscape' });
   var pageW = doc.internal.pageSize.getWidth(), pageH = doc.internal.pageSize.getHeight(), M = 36, y = 40;
   var title = _repTitleOf(type);
@@ -294,23 +363,26 @@ function _tablePDF(type) {
     doc.text(dropped + ' column' + (dropped === 1 ? '' : 's') + ' left out of this report — nothing was recorded in ' +
              (dropped === 1 ? 'it' : 'them') + ' for any item.', M, y + 10);
   }
-  var _fn2 = _repSlugOf(type) + '-' + new Date().toISOString().slice(0, 10) + '.pdf';
+  var _fn2 = _repStampName(_repSlugOf(type), '.pdf');
   try { _archiveBlob(doc.output('blob'), _fn2, 'application/pdf'); } catch (e) {}
   doc.save(_fn2);
-  _repBtnDone('PDF downloaded · copy saved to "Past reports"');
+  _repBtnDone('PDF downloaded \u2014 and kept in Past reports');
 }
 
 // ── Google Doc export (editable; sign / send / keep) ──
 // Builds clean HTML and uploads it to Drive as a Google Doc (Drive converts
 // HTML → editable Doc). Uses drive.file scope (the app owns the new file).
 async function exportReportGoogleDoc() {
+  if (_repStillWorking()) return;   // v0.9.1966
   var type = (document.getElementById('report-type') || {}).value || 'insurance';
   if (!accessToken) { showToast('Please sign in first.', 4000, true); return; }
-  _repBtnBusy('Creating Google Doc…');
+  _repBtnBusy('Creating the Google Doc\u2026');
   try {
     var html = _reportToHTML(type);
-    var title = (type === 'insurance') ? 'Insurance Report' : (type === 'collection' ? 'Full Collection' : 'Want-Upgrade-Parts Report');
-    title += ' — ' + new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    // v0.9.1966: the report's real name (Contacts was titled "Want-Upgrade-Parts") + date AND time
+    var title = (typeof _repTitleOf === 'function') ? _repTitleOf(type) : 'Collection Report';
+    title += ' — ' + new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+      + ' ' + new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
     var boundary = '----rr' + Date.now();
     var _folderId = null; try { _folderId = await _ensurePastReports(); } catch (e) {}
     var meta = { name: title, mimeType: 'application/vnd.google-apps.document' };
@@ -325,7 +397,7 @@ async function exportReportGoogleDoc() {
     });
     var d = await res.json();
     if (d.error || !d.webViewLink) throw new Error((d.error && d.error.message) || 'create failed');
-    _repBtnDone('Google Doc created');
+    _repBtnDone('Google Doc created \u2014 and kept in Past reports');
     window.open(d.webViewLink, '_blank', 'noopener');
   } catch (e) { console.error('[Report GoogleDoc]', e); showToast(rrSaveError(e, 'the Google Doc', { kept: false }), 6000, true); _repBtnDone(); }
 }
@@ -374,12 +446,13 @@ function _reportToHTML(type) {
 
 // ── Print, but preload photos first so they appear in the printout ──
 async function printReportWithPhotos() {
+  if (_repStillWorking()) return;   // v0.9.1966
   var type = (document.getElementById('report-type') || {}).value || 'insurance';
   if (type === 'insurance') {
-    _repBtnBusy('Loading photos for print… 0');
+    _repBtnBusy('Loading photos for printing\u2026', 0, 1);
     try {
       var items = _repOwnedItems();
-      await _repPreloadPhotos(items, function (d, t) { _repBtnBusy('Loading photos for print… ' + d + '/' + t); });
+      await _repPreloadPhotos(items, function (d, t) { _repBtnBusy('Loading photos for printing \u2014 ' + d + ' of ' + t, d, t); });
       // Force the on-screen insurance thumbnails to (re)load, then print.
       if (typeof buildReport === 'function') buildReport();
       await new Promise(function (r) { setTimeout(r, 1800); });
@@ -472,6 +545,8 @@ async function _openPastReports() {
           (big ? '' : '<button data-pastsend="' + fid + '" onclick="_repPastSend(\'' + fid + '\')" style="' + b + ';border-color:var(--accent);color:var(--accent)">Send</button>') +
           '<button onclick="_repPastOpen(\'' + fid + '\')" style="' + b + '">Open</button>' +
           '<button onclick="_repPastDownload(\'' + fid + '\')" style="' + b + '">Download</button>' +
+          // v0.9.1966 (Brad: "no way to delete past reports from here")
+          '<button data-pastdel="' + fid + '" onclick="_repPastDelete(\'' + fid + '\')" style="' + b + ';color:var(--t-red)">Delete</button>' +
         '</div>' +
       '</div>';
     }).join('');
@@ -529,6 +604,25 @@ async function _repPastSend(fid) {
     if (btn) { btn.disabled = false; btn.textContent = 'Send'; }
   }
 }
+// v0.9.1966: the same Drive trash every other delete in the app uses — asked
+// first, recoverable for about 30 days.
+async function _repPastDelete(fid) {
+  var f = _repPastFiles[fid]; if (!f) return;
+  if (!(await appConfirm('Delete \u201c' + f.name + '\u201d? It goes to your Google Drive trash, recoverable for about 30 days.',
+        { title: 'Delete report', ok: 'Delete', cancel: 'Keep it', danger: true }))) return;
+  try {
+    await driveRequest('PATCH', '/files/' + f.id, { trashed: true });
+  } catch (e) {
+    console.warn('[Past reports] delete failed:', e);
+    showToast('Could not delete that report \u2014 try again.', 4500, true);
+    return;
+  }
+  delete _repPastFiles[fid]; delete _pastReportFile[fid];
+  var row = document.querySelector('[data-pastrep="' + fid + '"]'); if (row) row.remove();
+  var list = document.getElementById('rep-past-list');
+  if (list && !list.querySelector('[data-pastrep]')) list.innerHTML = '<div style="padding:1rem;color:var(--text-dim);font-size:0.85rem">No past reports left.</div>';
+  showToast('Report deleted (in your Drive trash for about 30 days)', 3000);
+}
 function _repPastOpen(fid) {
   var f = _repPastFiles[fid]; if (!f) return;
   window.open(f.webViewLink || ('https://drive.google.com/file/d/' + f.id + '/view'), '_blank', 'noopener');
@@ -542,7 +636,8 @@ async function _repPastDownload(fid) {
 if (typeof window !== 'undefined') {
   window.exportReportPDF = exportReportPDF;
   window._openPastReports = _openPastReports;
-  window._repPastSend = _repPastSend; window._repPastOpen = _repPastOpen; window._repPastDownload = _repPastDownload;
+  window._repPastSend = _repPastSend; window._repPastOpen = _repPastOpen; window._repPastDownload = _repPastDownload; window._repPastDelete = _repPastDelete;
+  window._repStampName = _repStampName;
   window._repShrinkDataUrl = _repShrinkDataUrl;
   window._archiveBlob = _archiveBlob;
   window.exportReportGoogleDoc = exportReportGoogleDoc;

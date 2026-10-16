@@ -349,6 +349,12 @@ function buildReport() {
 // CSV export is filed in Past reports too, like the PDF and the Google Doc.
 // The generic table's file gets the report's name and the date, so a list of
 // past reports can tell them apart.
+// v0.9.1966: ONE name for a CSV — the download and the kept copy alike — with
+// the local date and time (two made the same day had identical names).
+function _repCsvName(base) {
+  if (typeof window !== 'undefined' && typeof window._repStampName === 'function') return window._repStampName(base, '.csv');
+  return base + '-' + new Date().toISOString().slice(0, 10) + '.csv';
+}
 function _repKeepCsv(blob, name) {
   try { if (typeof window._archiveBlob === 'function') window._archiveBlob(blob, name, 'text/csv'); } catch (e) {}
 }
@@ -370,7 +376,7 @@ function exportReport() {
     const csv = headers.map(h => `"${h}"`).join(',') + '\n' + rows.join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = `contacts-${new Date().toISOString().slice(0,10)}.csv`; a.click(); _repKeepCsv(blob, `contacts-${new Date().toISOString().slice(0,10)}.csv`);
+    const a = document.createElement('a'); a.href = url; const _cn = _repCsvName('contacts'); a.download = _cn; a.click(); _repKeepCsv(blob, _cn);
     return;
   }
 
@@ -400,11 +406,10 @@ function exportReport() {
         esc(pd.photoItem || ''),
       ].join(',');
     });
-    const dateTag = new Date().toISOString().slice(0,10);
     const csv = headers.map(h => `"${h}"`).join(',') + '\n' + rows.join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = `insurance-report-${dateTag}.csv`; a.click(); _repKeepCsv(blob, `insurance-report-${dateTag}.csv`);
+    const a = document.createElement('a'); a.href = url; const _cn = _repCsvName('insurance-report'); a.download = _cn; a.click(); _repKeepCsv(blob, _cn);
     return;
   }
 
@@ -418,7 +423,7 @@ function exportReport() {
   const csv = headers + '\n' + rows;
   const blob = new Blob([csv], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = 'my-collection-report.csv'; a.click(); _repKeepCsv(blob, ((typeof _repSlugOf === 'function') ? _repSlugOf(type) : 'collection-report') + '-' + new Date().toISOString().slice(0,10) + '.csv');
+  const a = document.createElement('a'); a.href = url; const _cn = _repCsvName((typeof _repSlugOf === 'function') ? _repSlugOf(type) : 'collection-report'); a.download = _cn; a.click(); _repKeepCsv(blob, _cn);
 }
 
 // ── REPORT BUILDER ───────────────────────────────────────────────
@@ -884,11 +889,10 @@ function exportCustomReport(def) {
   const header = cols.map(c=>esc(c.label)).join(',');
   const rows = items.map(({pd,master})=>cols.map(c=>esc(_rbCellVal(c.key,pd,master))).join(','));
   const csv = header + '\n' + rows.join('\n');
-  const dateTag = new Date().toISOString().slice(0,10);
   const safeName = (def.name||'report').replace(/[^a-z0-9]/gi,'-').toLowerCase();
   const blob = new Blob([csv],{type:'text/csv'});
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href=url; a.download=`${safeName}-${dateTag}.csv`; a.click(); _repKeepCsv(blob, `${safeName}-${dateTag}.csv`);
+  const a = document.createElement('a'); a.href=url; const _cn = _repCsvName(safeName); a.download=_cn; a.click(); _repKeepCsv(blob, _cn);
 }
 
 // ── PREFERENCES ─────────────────────────────────────────────────

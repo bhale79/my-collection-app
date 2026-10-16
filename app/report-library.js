@@ -106,16 +106,28 @@ function _repToggleMenu(ev, id) {
 document.addEventListener('click', function () { document.querySelectorAll('[id^="repmenu-"]').forEach(function (m) { m.style.display = 'none'; }); });
 
 function _repExport(id, fmt) {
+  // v0.9.1966: one report at a time — checked BEFORE the picker or table changes
+  // under a report that is still being made.
+  if (typeof _repStillWorking === 'function' && _repStillWorking()) return;
   document.querySelectorAll('[id^="repmenu-"]').forEach(function (m) { m.style.display = 'none'; });
   _repSetType(id);
   try { buildReport(); } catch (e) {}   // ensure the table is current (CSV scrape + photo preload use it)
   if (fmt === 'pdf') { exportReportPDF(); }
   else if (fmt === 'doc') { exportReportGoogleDoc(); }
-  else if (fmt === 'csv') { exportReport(); }
+  else if (fmt === 'csv') {
+    // v0.9.1966: the same pop-up as the others
+    if (typeof _repBtnBusy === 'function') _repBtnBusy('Building the CSV\u2026');
+    setTimeout(function () {   // let the pop-up show before the work holds the screen
+      var ok = false;
+      try { exportReport(); ok = true; }
+      finally { if (typeof _repBtnDone === 'function') _repBtnDone(ok ? 'CSV downloaded \u2014 and kept in Past reports' : ''); }
+    }, 40);
+  }
   _repStamp(id); renderReportLibrary();
 }
 
 function _repPrintRow(id) {
+  if (typeof _repStillWorking === 'function' && _repStillWorking()) return;   // v0.9.1966
   _repSetType(id);
   try { buildReport(); } catch (e) {}
   _repShowPreviewModal();
