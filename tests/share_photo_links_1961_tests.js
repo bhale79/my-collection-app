@@ -23,6 +23,12 @@
 //   W1  a click on the box's words does NOT untick it (only the box toggles)
 //   W2  the card shows the WHOLE photo — a wide photo's blue ends are on the card
 //       (they were cropped off), on the item card and the extra-photo card
+//   v0.9.1964 (Brad: "if i click the full size photo links button, it still is
+//   the same as not clicking it" — the box was read ONCE, when the cards were
+//   built; "yes"):
+//   A1  cards built with the box OFF, then the box ticked → the links are made
+//       on the spot: in the message, and "Copy the photo links" shows
+//   A2  …unticked again → the links leave the message and the button hides
 //   X*  PLANTED: each undone in the code is caught
 // ═══════════════════════════════════════════════════════════════════════════
 const fs = require('fs'), path = require('path');
@@ -89,7 +95,7 @@ const cards = async pg => {
   });
   return pg.evaluate(() => ({
     text: window._rrShareText || '', links: window._rrShareLinks || '',
-    copyBtn: !!document.getElementById('rr-copy-photo-links'),
+    copyBtn: (() => { const b = document.getElementById('rr-copy-photo-links'); return !!b && getComputedStyle(b).display !== 'none'; })(),   // v0.9.1964: always drawn, shown only with links
     opened: window.__calls.filter(c => c[0] === 'POST' && /permissions/.test(c[1]) && c[2] && c[2].type === 'anyone').map(c => c[1].split('/')[2]),
   }));
 };
@@ -167,7 +173,30 @@ const pdf = pg => pg.evaluate(async (dot) => {
   T('W2 …and so does the extra-photo card', m.pcard > 2000, m);
   await r.ctx.close();
 
+  console.log('== v1964: the box counts after the cards are built ==');
+  const tickAfter = async (pg) => {
+    await pg.evaluate(async () => { const c = document.getElementById('sf-linkphotos'); c.checked = true; c.dispatchEvent(new Event('change')); });
+    await pg.waitForTimeout(400);
+    return pg.evaluate(() => ({ text: window._rrShareText || '', btn: (() => { const b = document.getElementById('rr-copy-photo-links'); return b ? getComputedStyle(b).display : 'missing'; })(),
+      opened: window.__calls.filter(c => c[0] === 'POST' && /permissions/.test(c[1])).length }));
+  };
+  r = await open(browser, { linkOff: true });
+  m = await cards(r.pg);
+  T('A1 (set-up) built with the box off: no links, no copy button', !/drive\.google\.com/.test(m.text) && !m.copyBtn, m);
+  m = await tickAfter(r.pg);
+  T('A1 ticking the box AFTER the cards are built makes the links on the spot', /PHOTO1\/view/.test(m.text) && /PHOTO2\/view/.test(m.text) && m.opened === 2, m);
+  T('A1 …and "Copy the photo links" shows', m.btn !== 'none' && m.btn !== 'missing', m.btn);
+  await r.pg.evaluate(async () => { const c = document.getElementById('sf-linkphotos'); c.checked = false; c.dispatchEvent(new Event('change')); }); await r.pg.waitForTimeout(300);
+  m = await r.pg.evaluate(() => ({ text: window._rrShareText || '', btn: getComputedStyle(document.getElementById('rr-copy-photo-links')).display }));
+  T('A2 unticking it again takes the links out and hides the button', !/drive\.google\.com/.test(m.text) && m.btn === 'none', m);
+  await r.ctx.close();
+
   console.log('== planted offenders ==');
+  x = await open(browser, { linkOff: true, share: planted(SHARE, ";if(window._rrShareLinksRefresh)window._rrShareLinksRefresh()", "", 'read once') });
+  await cards(x.pg);
+  m = await tickAfter(x.pg);
+  T('X-A1 PLANTED: the box read only when building → ticking afterwards adds nothing (A1 would fail)', !/drive\.google\.com/.test(m.text), m.text.slice(0, 120));
+  await x.ctx.close();
   x = await open(browser, { sell: planted(SELL, "  var s = Math.min(bw / iw, bh / ih), w = iw * s, h = ih * s;", "  var s = Math.max(bw / iw, bh / ih), w = iw * s, h = ih * s;   // planted", 'crop') });
   m = await ends(x.pg);
   T('X-W2 PLANTED: cropped to fill → the blue ends are cut off (W2 would fail)', m.card < 200 && m.pcard < 200, m);

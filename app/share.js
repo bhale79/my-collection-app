@@ -178,6 +178,8 @@ function openShareBuilder() {
   if (count === 0) return;
 
   // Remove existing modal
+  // v0.9.1964: a new builder has no cards yet — the links box must not refer to the last share's
+  try { window._rrShareLinkSrc = null; window._rrShareOpened = {}; window._rrShareLinks = ''; } catch (e0) {}
   var ex = document.getElementById('share-builder-modal');
   if (ex) ex.remove();
 
@@ -216,7 +218,7 @@ function openShareBuilder() {
           // images' message carries a full-size link for each item.
           // v0.9.1963: NOT a <label> — a click on the words flipped the box off,
           // and Brad's email went out with no links. Only the box itself toggles.
-          '<div style="display:flex;align-items:center;gap:0.5rem;font-size:0.85rem;color:var(--text);margin-top:0.55rem"><input type="checkbox" id="sf-linkphotos" checked onchange="var r=document.getElementById(\'sf-linklife-row\');if(r)r.style.display=this.checked?\'\':\'none\'" style="accent-color:var(--accent);width:1.1rem;height:1.1rem;cursor:pointer;flex:0 0 auto"><span id="sf-linkphotos-words">Full-size photo links — they can open each photo full size</span></div>' +
+          '<div style="display:flex;align-items:center;gap:0.5rem;font-size:0.85rem;color:var(--text);margin-top:0.55rem"><input type="checkbox" id="sf-linkphotos" checked onchange="var r=document.getElementById(\'sf-linklife-row\');if(r)r.style.display=this.checked?\'\':\'none\';if(window._rrShareLinksRefresh)window._rrShareLinksRefresh()" style="accent-color:var(--accent);width:1.1rem;height:1.1rem;cursor:pointer;flex:0 0 auto"><span id="sf-linkphotos-words">Full-size photo links — they can open each photo full size</span></div>' +
           '<div id="sf-linklife-row" style="margin:0.4rem 0 0 1.5rem">' +
             '<label style="font-size:0.8rem;color:var(--text-mid)">Links work for ' +
               '<select id="sf-linklife" style="margin-left:0.3rem;padding:0.3rem 0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem">' +
