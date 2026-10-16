@@ -29,6 +29,12 @@
 //   A1  cards built with the box OFF, then the box ticked → the links are made
 //       on the spot: in the message, and "Copy the photo links" shows
 //   A2  …unticked again → the links leave the message and the button hides
+//   v0.9.1965 (Brad on Windows' share menu: "This doesn't seem useful at all";
+//   "okay, just do the gmail draft"):
+//   G1  on a computer the main button is "Email with Gmail"; Windows' menu is a
+//       small "Other apps…"; the old "Email 2 images…" is gone
+//   G2  it copies the cards as one picture, then offers "Open the Gmail draft":
+//       the app's own account, the subject, and the photo links in the body
 //   X*  PLANTED: each undone in the code is caught
 // ═══════════════════════════════════════════════════════════════════════════
 const fs = require('fs'), path = require('path');
@@ -191,7 +197,36 @@ const pdf = pg => pg.evaluate(async (dot) => {
   T('A2 unticking it again takes the links out and hides the button', !/drive\.google\.com/.test(m.text) && m.btn === 'none', m);
   await r.ctx.close();
 
+  console.log('== v1965: Email with Gmail ==');
+  const gmail = async (pg) => {
+    await pg.evaluate(() => {
+      window.__clip = [];
+      state.user = Object.assign({}, state.user || {}, { email: 'support@therailroster.com' });
+      Object.defineProperty(navigator, 'clipboard', { value: { write: async (items) => { window.__clip.push(items.map(i => i.types.join(','))); }, writeText: async () => {} }, configurable: true });
+    });
+    await cards(pg);
+    const before = await pg.evaluate(() => ({ text: document.getElementById('share-builder-actions').innerText,
+      green: (document.getElementById('rr-gmail-btn') || {}).textContent || '', other: !!document.getElementById('rr-other-apps') }));
+    await pg.evaluate(() => document.getElementById('rr-gmail-btn').click()); await pg.waitForTimeout(800);
+    const after = await pg.evaluate(() => { const a = document.getElementById('rr-gmail-open');
+      return { clip: window.__clip, href: a ? a.getAttribute('href') : '', target: a ? a.target : '', words: (document.getElementById('rr-gmail-step') || {}).innerText || '' }; });
+    return Object.assign(before, after);
+  };
+  r = await open(browser, {});
+  m = await gmail(r.pg);
+  T('G1 the main button is "Email with Gmail", Windows\' menu is "Other apps…", no "Email 2 images…"', /Email with Gmail/.test(m.green) && m.other && !/Email \d+ image/.test(m.text), m);
+  const q = m.href ? new URL(m.href.replace(/&amp;/g, '&')).searchParams : new URLSearchParams();
+  T('G2 the cards are copied as one picture first', m.clip.length === 1 && /image\/png/.test(m.clip[0][0]), m.clip);
+  T('G2 "Open the Gmail draft" opens Gmail in the app\'s own account, in a new tab', /^https:\/\/mail\.google\.com\/mail\//.test(m.href) && q.get('authuser') === 'support@therailroster.com' && q.get('view') === 'cm' && m.target === '_blank', m.href.slice(0, 160));
+  T('G2 …with the subject and the photo links already in the body', q.get('su') === 'Items for sale' && /PHOTO1\/view/.test(q.get('body') || '') && /PHOTO2\/view/.test(q.get('body') || '') && /Ctrl\+V/.test(m.words), { su: q.get('su'), body: (q.get('body') || '').slice(0, 200) });
+  await r.ctx.close();
+
   console.log('== planted offenders ==');
+  x = await open(browser, { sell: planted(SELL, "    + '&body=' + encodeURIComponent(window._rrShareText || '');", "    + '&body=' + encodeURIComponent(window._rrShareBase || '');   // planted", 'no links in draft') });
+  m = await gmail(x.pg);
+  const q2 = m.href ? new URL(m.href.replace(/&amp;/g, '&')).searchParams : new URLSearchParams();
+  T('X-G2 PLANTED: the draft without the links → caught (G2 would fail)', !/PHOTO1/.test(q2.get('body') || ''), (q2.get('body') || '').slice(0, 120));
+  await x.ctx.close();
   x = await open(browser, { linkOff: true, share: planted(SHARE, ";if(window._rrShareLinksRefresh)window._rrShareLinksRefresh()", "", 'read once') });
   await cards(x.pg);
   m = await tickAfter(x.pg);
