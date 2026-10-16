@@ -103,7 +103,9 @@ ok('ONE shared renderer serves the user fields (no second copy to drift)',
 // view's "Notes (optional)" sits earlier in the file and is not this step).
 ok('…the catalog Purchase & Value step renders them (before Notes)',
    /_pvHtml \+= _wizUserFieldsHtml\(_pvD\);/.test(wiz)
-   && wiz.indexOf('_pvHtml += _wizUserFieldsHtml(_pvD);') < wiz.indexOf("_pvHtml += '<div style=\"margin-bottom:0.75rem\"><div style=\"font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem\">Notes (optional)</div>'"));
+   // v0.9.1971: the Notes block carries class wiz-pv-notes (two columns on a computer)
+   && wiz.indexOf("_pvHtml += '<div class=\"wiz-pv-notes") > 0
+   && wiz.indexOf('_pvHtml += _wizUserFieldsHtml(_pvD);') < wiz.indexOf("_pvHtml += '<div class=\"wiz-pv-notes"));
 ok('…the manual flow now calls the same shared renderer',
    /v1588 SHARED renderer/.test(wiz) && /_wizUserFieldsHtml\(d\) \+/.test(wiz));
 ok('…location-scoped suggestions still ride along',

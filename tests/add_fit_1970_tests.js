@@ -138,7 +138,9 @@ async function photoStep(pg) {
   await r.ctx.close();
 
   console.log('== planted offenders ==');
-  let x = await open(browser, { w: 1536, h: 737, wiz: planted(WIZ, "               || ((s.type === 'itemNumGrouping' || s.type === 'drivePhotos') && !window.IS_MOBILE_UA && _wizWide())) {", "               ) {", 'narrow box') });
+  // v0.9.1971: a computer's box now comes from the one-width branch first, so
+  // the plant undoes that as well as the v1970 line — back to the 520 box.
+  let x = await open(browser, { w: 1536, h: 737, wiz: planted(planted(WIZ, "               || ((s.type === 'itemNumGrouping' || s.type === 'drivePhotos') && !window.IS_MOBILE_UA && _wizWide())) {", "               ) {", 'narrow box'), '    if (_wizOneWidth()) {\n      // v0.9.1971', '    if (false) {\n      // v0.9.1971', 'one width') });
   m = await step1(x.pg, '2343');
   const _a1ok = m.over <= 0 && m.first && m.first.b <= m.body.b + 1 && m.photo && Math.abs(m.photo.t - m.input.t) <= 8 && m.input.w >= 176 * 1.25;
   T('X-A1 PLANTED: step 1 back in the narrow box → A1/A2 fail (no room for the number, or the first match off screen) (caught)', !_a1ok, { over: m.over, input: m.input, first: m.first });

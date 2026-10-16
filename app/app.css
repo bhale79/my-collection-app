@@ -3160,3 +3160,41 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
 .wiz-ing-wide #wiz-suggestions { flex: 0 1 auto; min-height: 90px; max-height: none !important; }
 /* the whole picture shows in the shorter slot (v0.9.1806's rule for every small photo) */
 .wiz-ph-wide #photo-grid .photo-drop-zone img { object-fit: var(--rr-photo-fit) !important; }
+
+/* v0.9.1971 (Brad: "the screens really need to be more consistent as you step
+   through them") — on a computer every Add step is ONE box (WIZ_STEP_W in
+   wizard.js), so each step fits itself to that box:
+   Step 1: Photo ID in the number row says just "Photo ID" (the full wording is
+   its tooltip), so the number box keeps its room.
+   Photo step: the slot cross's four columns may shrink (minmax 0) so the Left
+   Side slot never runs past the box edge.
+   Step 3 (Purchase & Value) and the Ready-to-save step: two columns
+   (.wiz-pv-2up / .wiz-cf-2up), so neither scrolls on a laptop.
+   Phones never get these classes. */
+.wiz-photoid-inrow .wiz-pid-lead { display: none; }
+.wiz-ph-wide { grid-template-columns: 215px minmax(0, 1fr); }
+.wiz-ph-wide #photo-grid { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+.wiz-ph-wide #photo-grid .photo-drop-zone { min-height: 0 !important; min-width: 0; }
+.wiz-pv-2up { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 1rem; align-content: start; }
+.wiz-pv-2up > .wiz-pv-full { grid-column: 1 / -1; }
+.wiz-cf-2up { display: grid !important; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 0.5rem; }
+.wiz-cf-2up > div > span:first-child { min-width: 104px !important; }
+/* the review lines and the item card, a little tighter in two columns */
+.wiz-cf-wide { padding-top: 0.15rem !important; }
+.wiz-cf-wide .wiz-cf-card { padding: 0.5rem 0.75rem !important; margin-bottom: 0.55rem !important; }
+.wiz-cf-2up { row-gap: 0.25rem !important; }
+.wiz-cf-2up > div { padding: 0.15rem 0.45rem !important; }
+.wiz-cf-2up > div > button { padding: 0.1rem 0.35rem !important; }
+/* the item card on one line or two: number · name · road and type · status */
+.wiz-cf-wide .wiz-cf-card { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 0.6rem; }
+.wiz-cf-wide .wiz-cf-card > div { margin-top: 0 !important; }
+/* a very long review (a big set, many answers) scrolls inside its own box —
+   the item card above it and Save below it never move */
+.wiz-cf-wide { height: 100%; display: flex; flex-direction: column; box-sizing: border-box; }
+.wiz-cf-wide > * { flex-shrink: 0; }
+.wiz-cf-wide > .wiz-cf-rows { flex: 0 1 auto; min-height: 120px; overflow-y: auto; align-content: start; }
+/* the card repeats the "Adding No. …" line above it word for word — on a
+   computer it is left out, unless it carries a catalog status (Announced …) */
+.wiz-cf-wide .wiz-cf-card:not(:has(.rr-cat-status-line)) { display: none; }
+.wiz-cf-2up { row-gap: 0.2rem !important; }
+.wiz-cf-2up > div { padding-top: 0.1rem !important; padding-bottom: 0.1rem !important; }

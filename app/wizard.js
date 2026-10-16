@@ -103,6 +103,14 @@ var WIZ_WIDE_AT = 900;
 function _wizWide() { return (window.innerWidth || 0) >= WIZ_WIDE_AT; }
 window._wizWide = _wizWide;
 
+// v0.9.1971 (Brad): on a computer every Add step is ONE width, so the box does
+// not grow and shrink as you step through. This is that width — the one place
+// it is set. _wizOneWidth() is the one place that asks "is this a computer
+// with room for it?"; a phone or tablet keeps its own sizes.
+var WIZ_STEP_W = 720;
+function _wizOneWidth() { return !window.IS_MOBILE_UA && _wizWide(); }
+window._wizOneWidth = _wizOneWidth;
+
 // v0.9.1233 (Brad, screenshot of Step 2 of 8): a variation description is one
 // attribute per line — "silver rubber stamped numbers", "black stack", "with
 // water scoop" — and in a 520px box that turns a two-inch list into a ribbon a
@@ -2530,7 +2538,14 @@ function renderWizardStep() {
     // Dynamic width: widen for multi-column conditionDetails, reset otherwise
     const _grp = wizard.data._itemGrouping || '';
     const _isMultiCol = s.type === 'conditionDetails' && ['engine_tender','aa','ab','aba'].includes(_grp);
-    if (_isMultiCol) {
+    if (_wizOneWidth()) {
+      // v0.9.1971 (Brad: "the screens really need to be more consistent as you
+      // step through them"): on a computer EVERY step is the same box — one
+      // width (WIZ_STEP_W), one height — so nothing jumps from step to step.
+      // Each step lays itself out to fit that box (see _wizOneWidth's readers).
+      wizModal.style.maxWidth = Math.min(window.innerWidth - 32, WIZ_STEP_W) + 'px';
+      wizModal.style.height = _wizBoxHeight() + 'px';
+    } else if (_isMultiCol) {
       const _numCols = _grp === 'aba' ? 3 : 2;
       const _wideW = Math.min(window.innerWidth - 32, 280 * _numCols + 40);
       wizModal.style.maxWidth = _wideW + 'px';
@@ -3824,7 +3839,7 @@ function renderWizardStep() {
       +   '<input type="number" id="wiz-input" value="' + _ymVal + '" placeholder="e.g. 1957" '
       +     'min="1900" max="' + _ymYear + '" '
       +     'style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;'
-      +     'padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:1rem;outline:none" '
+      +     'padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:1rem;outline:none;box-sizing:border-box" '
       +     'oninput="wizard.data[\'' + s.id + '\']=this.value" '
       +     'onkeydown="if(event.key===\'Enter\')wizardNext()">'
       +   '<div style="margin-top:1.1rem;font-size:0.78rem;font-weight:700;letter-spacing:0.04em;'
@@ -5538,7 +5553,8 @@ function renderWizardStep() {
       _ingPhotoBtn.id = 'wiz-photoid-block';
       _ingPhotoBtn.onclick = function() { if (typeof _wizScanBarcode === 'function') _wizScanBarcode(); else openIdentify('wizard'); };
       _ingPhotoBtn.style.cssText = 'width:100%;margin-top:0.6rem;padding:0.65rem 1rem;border-radius:8px;border:1.5px dashed #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 8%, var(--bg-card));color:var(--t-link);font-family:var(--font-head);font-size:0.78rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;transition:all 0.15s';
-      _ingPhotoBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Don\x27t know the number? Photo ID';
+      _ingPhotoBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> <span class="wiz-pid-lead">Don\x27t know the number? </span>Photo ID';
+      _ingPhotoBtn.title = 'Don\x27t know the number? Identify it from a photo';
       // v0.9.1474 (Brad: "dont want to have to scroll down to see photo id
       // button"): a long suggestion list pushed this below the fold. It sits
       // directly under the input row now, ABOVE the list — always visible.
@@ -6128,7 +6144,11 @@ function renderWizardStep() {
     const _pvLocList = _pvSavedLocs.concat(_pvRecentLocs);
     const _pvLocEnabled = _prefLocEnabled;
     
-    let _pvHtml = '<div style="padding-top:0.25rem;max-height:65vh;overflow-y:auto;-webkit-overflow-scrolling:touch">';
+    // v0.9.1971 (Brad: every Add step one width; this one scrolled on his
+    // laptop): on a computer the fields sit in two columns (.wiz-pv-2up) —
+    // worth beside paid, bought-from beside the date — and Notes and the set
+    // banners span both. Same fields, same ids, same order.
+    let _pvHtml = '<div class="wiz-pv' + ((typeof _wizOneWidth === 'function' && _wizOneWidth()) ? ' wiz-pv-2up' : '') + '" style="padding-top:0.25rem;max-height:65vh;overflow-y:auto;-webkit-overflow-scrolling:touch">';
 
     const _pvIsSetLoco  = _pvD._setMode && (_pvD._setItemIndex || 0) === 0;
     const _pvIsSetOther = _pvD._setMode && (_pvD._setItemIndex || 0) > 0;
@@ -6137,7 +6157,7 @@ function renderWizardStep() {
 
     // ── Set loco banner ──
     if (_pvIsSetLoco) {
-      _pvHtml += '<div style="background:rgba(52,152,219,0.1);border:1.5px solid #3498db;border-radius:10px;padding:0.65rem 0.9rem;margin-bottom:0.85rem;font-size:0.82rem;color:var(--text-mid);line-height:1.45">'
+      _pvHtml += '<div class="wiz-pv-full" style="background:rgba(52,152,219,0.1);border:1.5px solid #3498db;border-radius:10px;padding:0.65rem 0.9rem;margin-bottom:0.85rem;font-size:0.82rem;color:var(--text-mid);line-height:1.45">'
         + '<div style="font-size:0.68rem;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:var(--t-info);margin-bottom:0.25rem">💰 Set Purchase Info</div>'
         + 'Enter what you paid and the <strong style="color:var(--text)">full set\'s estimated value</strong> below. Since you bought these together, price &amp; value are stored here on the locomotive'
         + (_pvSetNum ? ' and linked to set ' + _pvSetNum : '') + '.'
@@ -6146,7 +6166,7 @@ function renderWizardStep() {
 
     // ── Set non-loco info card (replaces price/date/worth) ──
     if (_pvIsSetOther) {
-      _pvHtml += '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.65rem 0.9rem;margin-bottom:0.85rem;font-size:0.82rem;color:var(--text-dim);line-height:1.45">'
+      _pvHtml += '<div class="wiz-pv-full" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.65rem 0.9rem;margin-bottom:0.85rem;font-size:0.82rem;color:var(--text-dim);line-height:1.45">'
         + '<div style="font-size:0.68rem;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.2rem">💰 Price &amp; Value</div>'
         + 'Stored on the locomotive'
         + (_pvLocoNum ? ' <span style="font-family:var(--font-mono);color:var(--t-accent);font-weight:600">' + _pvLocoNum + '</span>' : '')
@@ -6224,7 +6244,12 @@ function renderWizardStep() {
     _pvHtml += _wizUserFieldsHtml(_pvD);
 
     // Notes
-    _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Notes (optional)</div>';
+    // In two columns Notes takes the empty right-hand slot when the fields
+    // before it are an odd count (Storage Location on, say), and runs across
+    // both columns when they are even — so no row is left half empty.
+    var _pvCells = (_pvIsSetOther ? 0 : 4) + (_pvLocEnabled ? 1 : 0)
+      + ((typeof rrEnabledUserFields === 'function') ? rrEnabledUserFields().length : 0);
+    _pvHtml += '<div class="wiz-pv-notes' + (_pvCells % 2 ? '' : ' wiz-pv-full') + '" style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Notes (optional)</div>';
     _pvHtml += '<textarea id="pv-notes" placeholder="e.g. Purchased at train show, minor rust on trucks, runs well" style="width:100%;min-height:60px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data.notes=this.value">' + rrEsc(_pvD.notes) + '</textarea></div>';
     
     _pvHtml += '</div>';
@@ -6548,7 +6573,7 @@ function renderWizardStep() {
     window._cfMoney = _moneyKeys;
     window._cfDate = _dateKeys;
 
-    let confirmHtml = '<div style="padding-top:0.5rem">';
+    let confirmHtml = '<div class="wiz-cf' + ((typeof _wizOneWidth === 'function' && _wizOneWidth()) ? ' wiz-cf-wide' : '') + '" style="padding-top:0.5rem">';
     const _resolvedSet = wizard.data._resolvedSet;
     if (!_isEph && _resolvedSet) {
       // Set with resolved details
@@ -6563,7 +6588,7 @@ function renderWizardStep() {
       var _cfMeta = [item.roadName, item.yearProd, _typeLabel(item)].filter(function(x) {
         return x && x !== item.description;
       }).join(' · ');
-      confirmHtml += '<div style="background:var(--surface2);border-radius:8px;padding:0.85rem;margin-bottom:1rem">'
+      confirmHtml += '<div class="wiz-cf-card" style="background:var(--surface2);border-radius:8px;padding:0.85rem;margin-bottom:1rem">'
         + '<div style="font-family:var(--font-mono);color:var(--accent2);font-size:0.8rem">No. ' + item.itemNum + (item.variation ? ' — Var ' + item.variation : '') + '</div>'
         + '<div style="font-weight:600;margin-top:0.2rem">' + _cfDesc + '</div>'
         + (_cfMeta ? '<div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.1rem">' + _cfMeta + '</div>' : '')
@@ -6674,7 +6699,10 @@ function renderWizardStep() {
       confirmHtml += '</div>';
     }
 
-    confirmHtml += '<div style="display:flex;flex-direction:column;gap:0.3rem;font-size:0.83rem">';
+    // v0.9.1971 (Brad: every Add step one width; this one scrolled on his
+    // laptop): on a computer the review lines sit in two columns (.wiz-cf-2up),
+    // read left to right. Same lines, same order, same edit buttons.
+    confirmHtml += '<div class="wiz-cf-rows' + ((typeof _wizOneWidth === 'function' && _wizOneWidth()) ? ' wiz-cf-2up' : '') + '" style="display:flex;flex-direction:column;gap:0.3rem;font-size:0.83rem">';
     _summaryEntries.forEach(function(entry) {
       var k = entry[0], v = entry[1];
       var label = _keyLabels[k] || k.replace(/^(cat_|eph_)/,'').replace(/([A-Z])/g,' $1').replace(/_/g,' ').toLowerCase().replace(/^./,function(c){return c.toUpperCase();});

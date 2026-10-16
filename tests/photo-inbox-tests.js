@@ -9260,7 +9260,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('the step renderer asks it instead of writing a number',
        !/wizModal\.style\.height = '(\d+)px'/.test(wz) &&
        !/wizModal\.style\.height = 'min\(/.test(wz) &&
-       (wz.match(/wizModal\.style\.height = _wizBoxHeight\(\)/g) || []).length === 3);
+       (wz.match(/wizModal\.style\.height = _wizBoxHeight\(\)/g) || []).length === 4);   // v0.9.1971: + the one-width-on-a-computer branch
     ok('the phone keyboard guard asks it too',
        /box\.style\.height = _wizBoxHeight\(\) \+ 'px'/.test(wz) &&
        !/vh < 596 \? Math\.max\(300, vh - 16\) : 580/.test(wz));
