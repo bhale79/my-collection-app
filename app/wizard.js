@@ -626,6 +626,8 @@ function _buildWizardModal() {
         // click and bring up a large view". It lives between the title and the
         // ✕ so it is in the same place on every step, and it hides itself when
         // the entry has no photo (a plain manual add).
+        // v0.9.1970: Item Type on a computer's wide box (see _syncWizKindBar)
+        '<div id="wizard-kind-side" class="wiz-kind-side" style="display:none"></div>' +
         '<button type="button" class="wiz-hero-photo" id="wiz-hero-photo" title="Tap to see the full photo" style="display:none"></button>' +
         '<button class="btn-close" onclick="closeWizard()">&#x2715;</button>' +
       '</div>' +
@@ -1202,6 +1204,7 @@ function _syncWizKindBar(s) {
   const title = document.getElementById('wizard-title');
   if (!show) {
     bar.style.display = 'none'; bar.innerHTML = '';
+    { const _ks = document.getElementById('wizard-kind-side'); if (_ks) { _ks.style.display = 'none'; _ks.innerHTML = ''; } }   // v0.9.1970
     if (head) { head.style.display = 'none'; head.innerHTML = ''; }
     if (title) title.style.display = '';
     return;
@@ -1209,6 +1212,7 @@ function _syncWizKindBar(s) {
   const cur = _wizCurrentKind();
   // v0.9.1039 (Brad): phones put it in the header, in place of the title.
   if (window.IS_MOBILE_UA && head) {
+    { const _ks = document.getElementById('wizard-kind-side'); if (_ks) { _ks.style.display = 'none'; _ks.innerHTML = ''; } }   // v0.9.1970
     head.style.display = '';
     head.innerHTML = _wizKindSelectHtml(cur, true);
     if (title) title.style.display = 'none';
@@ -1217,6 +1221,17 @@ function _syncWizKindBar(s) {
   }
   if (title) title.style.display = '';
   if (head) { head.style.display = 'none'; head.innerHTML = ''; }
+  // v0.9.1970 (Brad: step 1 scrolled on his laptop): a computer's wide box
+  // puts Item Type in the header, beside the title — a whole row back for the
+  // match list. Same selector (_wizKindSelectHtml), same handler.
+  const side = document.getElementById('wizard-kind-side');
+  if (side) { side.style.display = 'none'; side.innerHTML = ''; }
+  if (side && typeof _wizWide === 'function' && _wizWide()) {
+    bar.style.display = 'none'; bar.innerHTML = '';
+    side.style.display = '';
+    side.innerHTML = '<div class="wiz-kind-side-lbl">Item Type</div>' + _wizKindSelectHtml(cur, true);
+    return;
+  }
   bar.style.display = '';
   bar.innerHTML =
     '<div style="font-size:0.7rem;color:var(--text-dim);letter-spacing:0.08em;text-transform:uppercase;font-weight:600;margin:0.6rem 0 0.25rem">Item Type</div>' +
@@ -2520,7 +2535,9 @@ function renderWizardStep() {
       const _wideW = Math.min(window.innerWidth - 32, 280 * _numCols + 40);
       wizModal.style.maxWidth = _wideW + 'px';
       wizModal.style.height = _wizBoxHeight() + 'px';
-    } else if ((s.type === 'conditionDetails' || s.type === 'variation') && _wizWide()) {
+    } else if ((s.type === 'conditionDetails' || s.type === 'variation') && _wizWide()
+               // v0.9.1970 (Brad: step 1 and the photo step scrolled on his laptop)
+               || ((s.type === 'itemNumGrouping' || s.type === 'drivePhotos') && !window.IS_MOBILE_UA && _wizWide())) {
       // v0.9.1232 (Brad): a SINGLE item got the 520px box while an engine and
       // tender got a wide one — the widening was written for multi-unit adds
       // and single items were never given it. They have the longest stack of
@@ -5000,6 +5017,31 @@ function renderWizardStep() {
     hint.textContent = 'Optional — press Next to skip any views';
     wrap.appendChild(hint);
 
+    // v0.9.1970 (Brad: the photo step "scrolls on every screen size"): on a
+    // computer the step is two columns — everything ABOUT the photos (the
+    // orientation tip, what to do, any fields) on the left, the slots on the
+    // right, shorter (.wiz-ph-wide in app.css), with "Add another photo" in the
+    // cross's empty corner. Same slots, same order, same handlers — only moved.
+    if (!window.IS_MOBILE_UA && typeof _wizWide === 'function' && _wizWide()) {
+      try {
+        var _phSide = document.createElement('div'); _phSide.className = 'wiz-ph-side';
+        var _phMain = document.createElement('div'); _phMain.className = 'wiz-ph-main';
+        var _phKids = Array.prototype.slice.call(wrap.childNodes);
+        var _phGridAt = _phKids.indexOf(grid);
+        _phKids.forEach(function (k, i) { (i < _phGridAt ? _phSide : _phMain).appendChild(k); });
+        // the hint ("Optional — press Next…") reads with the instructions
+        if (hint.parentNode === _phMain) _phSide.appendChild(hint);
+        // "Add another photo" takes the cross's last empty cell, when it has one
+        var _phLast = grid.lastElementChild;
+        if (isOrtho && _phLast && !_phLast.querySelector('.photo-drop-zone') && !_phLast.classList.contains('photo-drop-zone')) {
+          _phLast.classList.add('wiz-ph-corner');
+          _phLast.appendChild(addBtn);
+        }
+        wrap.innerHTML = '';
+        wrap.classList.add('wiz-ph-wide');
+        wrap.appendChild(_phSide); wrap.appendChild(_phMain);
+      } catch (ePW) { console.warn('[photo step wide]', ePW); }
+    }
     body.appendChild(wrap);
 
     // ── Photos this item ALREADY has (v0.9.1029, Brad) ──────────────────
@@ -5320,6 +5362,9 @@ function renderWizardStep() {
     
     const _ingWrap = document.createElement('div');
     _ingWrap.style.cssText = 'padding-top:0.5rem';
+    // v0.9.1970: on a computer the match list takes what is left of the box and
+    // scrolls on its own; the step itself does not scroll (.wiz-ing-wide)
+    if (!window.IS_MOBILE_UA && typeof _wizWide === 'function' && _wizWide()) _ingWrap.classList.add('wiz-ing-wide');
     
     if (_ingPreFilled) {
       // Item already known from Browse — show compact header + grouping buttons only
@@ -5498,7 +5543,15 @@ function renderWizardStep() {
       // button"): a long suggestion list pushed this below the fold. It sits
       // directly under the input row now, ABOVE the list — always visible.
       var _ingSugRef = _ingWrap.querySelector('#wiz-suggestions');
-      if (_ingSugRef) _ingWrap.insertBefore(_ingPhotoBtn, _ingSugRef);
+      // v0.9.1970 (Brad: step 1 "scrolls once the match list shows"): on a
+      // computer's wide box it ends the number row instead of taking a row of
+      // its own — number · Box Only · Add a picture first · Photo ID.
+      var _ingRow = _ingWrap.querySelector('[data-box-only-checkbox]');
+      _ingRow = _ingRow ? _ingRow.parentElement : null;
+      if (_ingRow && typeof _wizWide === 'function' && _wizWide()) {
+        _ingPhotoBtn.classList.add('wiz-photoid-inrow');
+        _ingRow.appendChild(_ingPhotoBtn);
+      } else if (_ingSugRef) _ingWrap.insertBefore(_ingPhotoBtn, _ingSugRef);
       else _ingWrap.appendChild(_ingPhotoBtn);
 
       // v0.9.674 (Brad): ONE identify button — the yellow wording with the blue

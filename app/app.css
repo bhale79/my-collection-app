@@ -3136,3 +3136,27 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
   .rr-card.bi-crop-card { zoom: var(--rr-pop-zoom-sm); max-height: calc(86dvh / var(--rr-pop-zoom-sm)) !important; }
   .bi-crop-card #bi-cropwrap, .bi-crop-card .bi-crop-side { height: calc(86dvh / var(--rr-pop-zoom-sm) - 0.5rem); }
 }
+
+/* v0.9.1970 (Brad, the Add screen on his laptop: step 1 "scrolls once the match
+   list shows", the photo step "scrolls on every screen size") — on a computer:
+   Step 1: Item Type sits in the header beside the title (#wizard-kind-side) and
+   Photo ID ends the number row (.wiz-photoid-inrow), so the match list gets the
+   room. The photo step: two columns — instructions left (.wiz-ph-side), the
+   slot cross right (.wiz-ph-main), slots shorter (2.2:1 — trains are long and low), and
+   "Add another photo" in the cross's empty corner (.wiz-ph-corner).
+   Phones never get these classes. */
+.wiz-kind-side { width: 230px; flex-shrink: 0; margin: 0 0.75rem 0 1rem; align-self: center; }
+.wiz-kind-side-lbl { font-size: 0.62rem; color: var(--text-dim); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; margin-bottom: 0.15rem; }
+.wiz-photoid-inrow { width: auto !important; margin-top: 0 !important; flex-shrink: 0; white-space: nowrap; align-self: stretch; padding-left: 0.8rem !important; padding-right: 0.8rem !important; }
+.wiz-ph-wide { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 1rem; align-items: start; }
+.wiz-ph-side { min-width: 0; }
+.wiz-ph-side .rr-orient-tip img { width: 100px !important; }
+.wiz-ph-main { min-width: 0; }
+.wiz-ph-wide #photo-grid .photo-drop-zone { aspect-ratio: 2.2 / 1 !important; }
+.wiz-ph-wide #photo-grid > div:not(:has(.photo-drop-zone)) { min-height: 0 !important; }
+.wiz-ph-corner { display: flex; align-items: center; justify-content: center; }
+.wiz-ph-corner > button { margin-top: 0 !important; font-size: 0.72rem !important; padding: 0.35rem 0.5rem !important; }
+.wiz-ing-wide { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+.wiz-ing-wide #wiz-suggestions { flex: 0 1 auto; min-height: 90px; max-height: none !important; }
+/* the whole picture shows in the shorter slot (v0.9.1806's rule for every small photo) */
+.wiz-ph-wide #photo-grid .photo-drop-zone img { object-fit: var(--rr-photo-fit) !important; }
