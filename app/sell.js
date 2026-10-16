@@ -79,6 +79,18 @@ function _rrCardData(it, source) {
     sub: master.subType || master.itemType || 'Lionel Postwar'
   };
 }
+// v0.9.1967 (Brad: "lets send all the sale card info like via text in the email
+// with the picture links"): a card's details as lines of words — the price and
+// the chips on one line, the note on the next. Built from _rrCardData's answer,
+// never from the item again, so the words say exactly what the card says.
+function _rrItemWords(cd) {
+  var out = [], bits = [];
+  if (cd && cd.price) bits.push(cd.price.charAt(0).toUpperCase() + cd.price.slice(1));
+  ((cd && cd.chips) || []).forEach(function (c) { if (c) bits.push(c); });
+  if (bits.length) out.push(bits.join(' \u00b7 '));
+  if (cd && cd.note) out.push('\u201c' + String(cd.note).replace(/\s+/g, ' ').trim() + '\u201d');
+  return out;
+}
 // v0.9.878 (Brad): shrink text with an ellipsis so it can never draw
 // over whatever sits to its right (title vs price collided on
 // no-number items whose whole name lives in the title slot).
@@ -233,10 +245,12 @@ async function shareAsCards() {
       }
       var photoIds = [];
       var photoUrls = await _rrItemPhotoDataUrls(pd, allPhotos, photoIds);
-      if (photoIds.length) {
-        var _cd = _rrCardData(it, source) || {};
-        _src.push({ name: ('No. ' + (it.itemNum || '') + (_cd.name ? ' ' + _cd.name.replace(/ · /g, ' ') : '')).replace(/\s+/g, ' ').trim(), ids: photoIds.slice() });
-      }
+      // v0.9.1967: EVERY item goes in the message, written out from the same
+      // _rrCardData the card is drawn from (so the two can never disagree),
+      // whether or not it has photos to link.
+      var _cd = _rrCardData(it, source) || {};
+      _src.push({ name: ('No. ' + (it.itemNum || '') + (_cd.name ? ' ' + _cd.name.replace(/ · /g, ' ') : '')).replace(/\s+/g, ' ').trim(),
+        words: _rrItemWords(_cd), ids: photoIds.slice() });
       var N = photoUrls.length;
       var mainImg = N ? await _rrLoadImg(photoUrls[0]) : null;
       var card = _rrCard(_rrCardData(it, source), mainImg, source, 1, N);
@@ -286,25 +300,28 @@ async function shareAsCards() {
         _rrActsStash(acts);
         acts.style.display = 'flex';
         acts.innerHTML =
-          '<button id="rr-gmail-btn" onclick="_rrGmailCards()" style="padding:0.75rem;border-radius:9px;border:none;background:#2ecc71;color:#fff;font-family:var(--font-body);font-weight:700;font-size:0.95rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem">' +
+          // v0.9.1967 (Brad: "why do i have to paste the card?" → every item is
+          // written out in the draft): ONE click opens the finished draft — no
+          // copy step first, nothing to paste.
+          '<a id="rr-gmail-open" href="' + _rrGmailDraftUrl().replace(/"/g, '&quot;') + '" target="_blank" rel="noopener" onclick="_rrGmailClick()" style="padding:0.75rem;border-radius:9px;border:none;background:#2ecc71;color:#fff;font-family:var(--font-body);font-weight:700;font-size:0.95rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;text-decoration:none">' +
             '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>' +
             'Email with Gmail' +
-          '</button>' +
-          '<div id="rr-gmail-step" style="display:none"></div>' +
+          '</a>' +
+          '<div id="rr-gmail-note" style="text-align:center;font-size:0.78rem;color:var(--text-mid);margin-top:-0.2rem">' + _rrGmailNoteWords() + '</div>' +
           // v0.9.1302 (Brad): "the share copy button doesn't copy it to the
           // clipboard so i can paste in my email." The Copy in the system
           // share window is Windows' own and hands over FILES, which email
           // bodies won't paste. This one is OURS: it stitches the cards into
           // one image and copies THAT, which pastes anywhere.
           '<button onclick="_rrCopyCardsToClipboard()" style="padding:0.55rem;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">' +
-            'Copy for email — then paste into your message' +
+            'Copy for email — the card picture, if you want it in too' +
           '</button>' +
           // v0.9.1961: a pasted picture cannot carry links, so the links are a
           // second paste — straight under the picture.
           // v0.9.1964: always drawn, shown only while there are links (the box
           // can be ticked after the cards are built)
           '<button id="rr-copy-photo-links" onclick="_rrCopyShareLinks()" style="' + (window._rrShareLinks ? '' : 'display:none;') + 'padding:0.55rem;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">' +
-            'Copy the photo links — paste them under the picture' +
+            'Copy the item details and photo links' +
           '</button>' +
           '<button onclick="_rrDownloadFiles(window._rrShareFiles||[]);showToast(\'Saved to your downloads\',3000)" style="padding:0.55rem;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">' +
             'Save to downloads instead' +
@@ -341,58 +358,71 @@ async function _rrShareLinksRefresh() {
     if (!src) return;   // no cards built yet — the build will call this
     var f = (typeof _getShareFields === 'function') ? _getShareFields() : {};
     var opened = window._rrShareOpened = window._rrShareOpened || {};
-    var blocks = [];
-    if (f.linkPhotos && typeof rrShareOpenPhoto === 'function') {
-      var exp = f.linkLifeMs > 0 ? Date.now() + f.linkLifeMs : 0;
-      for (var i = 0; i < src.length; i++) {
-        var ok = [];
+    // v0.9.1967: one block per item — its name, its details in words, then its
+    // photo links (only while the box is ticked, and only photos that opened up)
+    var blocks = [], anyLink = false;
+    var doLinks = !!(f.linkPhotos && typeof rrShareOpenPhoto === 'function');
+    var exp = (doLinks && f.linkLifeMs > 0) ? Date.now() + f.linkLifeMs : 0;
+    for (var i = 0; i < src.length; i++) {
+      var ok = [];
+      if (doLinks) {
         for (var q = 0; q < src[i].ids.length; q++) {
           var id = src[i].ids[q];
           // a link is written only if opening the photo up succeeded
           if (opened[id] === undefined) opened[id] = !!(await rrShareOpenPhoto(id, exp));
           if (opened[id]) ok.push(id);
         }
-        if (ok.length) blocks.push(src[i].name + ':\n' + ok.map(function (pid) { return 'https://drive.google.com/file/d/' + pid + '/view'; }).join('\n'));
       }
+      var lines = [src[i].name].concat(src[i].words || []);
+      if (ok.length) {
+        anyLink = true;
+        lines.push(ok.length > 1 ? 'Full-size photos:' : 'Full-size photo:');
+        ok.forEach(function (pid) { lines.push('https://drive.google.com/file/d/' + pid + '/view'); });
+      }
+      blocks.push(lines.join('\n'));
     }
     var lifeW = (typeof rrShareLinkLifeWords === 'function') ? rrShareLinkLifeWords() : '';
     window._rrShareLinks = blocks.length
-      ? 'Tap a link to see the full-size photo' + (lifeW ? ' (' + lifeW + ')' : '') + ':\n\n' + blocks.join('\n\n')
+      ? (anyLink ? 'Tap a link to see the full-size photo' + (lifeW ? ' (' + lifeW + ')' : '') + '.\n\n' : '') + blocks.join('\n\n')
       : '';
     if (window._rrShareBase !== undefined) window._rrShareText = _rrShareTextWithLinks(window._rrShareBase);
     var btn = document.getElementById('rr-copy-photo-links');
     if (btn) btn.style.display = window._rrShareLinks ? '' : 'none';
     var gm = document.getElementById('rr-gmail-open');   // v0.9.1965: the draft follows the box too
     if (gm) gm.href = _rrGmailDraftUrl();
+    var gn = document.getElementById('rr-gmail-note'); if (gn) gn.textContent = _rrGmailNoteWords();
   })();
   try { await _rrLinksBusy; } finally { _rrLinksBusy = null; }
 }
 // ══ v0.9.1965 — Email with Gmail ════════════════════════════════════════════
 // The draft opens in the account the app is signed in with (authuser), with
-// the subject, the message and the full-size photo links in its body. The
-// picture is copied first; the draft then opens from a FRESH click (copying
-// uses up the click a new window needs, or the browser blocks it).
+// the subject, the message, every item in words and the full-size photo links
+// in its body. v0.9.1967: it opens straight from the button — the picture copy
+// that came first (and needed a second click) is now the optional "Copy for
+// email" below it.
+// A draft link carries its words in the web address, and Google refuses a very
+// long one. A list too long for it is never cut short: the button copies the
+// whole message and the draft opens saying where to paste it.
+var RR_GMAIL_URL_MAX = 7500;
 function _rrGmailDraftUrl() {
   var who = (window.state && state.user && state.user.email) || '';
-  return 'https://mail.google.com/mail/?' + (who ? 'authuser=' + encodeURIComponent(who) + '&' : '')
-    + 'view=cm&fs=1&su=' + encodeURIComponent(window._rrShareTitle || 'From The Rail Roster')
-    + '&body=' + encodeURIComponent(window._rrShareText || '');
+  var head = 'https://mail.google.com/mail/?' + (who ? 'authuser=' + encodeURIComponent(who) + '&' : '')
+    + 'view=cm&fs=1&su=' + encodeURIComponent(window._rrShareTitle || 'From The Rail Roster') + '&body=';
+  var full = head + encodeURIComponent(window._rrShareText || '');
+  window._rrGmailTooLong = full.length > RR_GMAIL_URL_MAX;
+  if (!window._rrGmailTooLong) return full;
+  return head + encodeURIComponent(String(window._rrShareBase || '') +
+    '\n\nThis list is too long to write into the draft by itself \u2014 it was copied when you clicked Email with Gmail. Click here and press Ctrl+V to put every item and its photo links in.');
 }
-async function _rrGmailCards() {
-  var step = document.getElementById('rr-gmail-step');
-  var btn = document.getElementById('rr-gmail-btn');
-  if (btn) { btn.disabled = true; btn.lastChild.textContent = 'Copying the picture…'; }
-  var copied = await _rrCopyCardsToClipboard({ quiet: true });
-  if (btn) { btn.disabled = false; btn.lastChild.textContent = 'Email with Gmail'; }
-  if (!step) return;
-  step.style.display = 'block';
-  step.innerHTML =
-    '<a id="rr-gmail-open" href="' + _rrGmailDraftUrl().replace(/"/g, '&quot;') + '" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;gap:0.5rem;padding:0.75rem;border-radius:9px;background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-weight:700;font-size:0.95rem;text-decoration:none">Open the Gmail draft</a>' +
-    '<div style="text-align:center;font-size:0.78rem;color:var(--text-mid);margin-top:0.35rem">' +
-      (copied
-        ? 'The picture is copied. In the draft, click into the message and press <b>Ctrl+V</b> to put it in — the photo links are already written there.'
-        : 'Your browser would not copy the picture, so the cards were saved to your downloads — attach them to the draft. The photo links are already written there.') +
-    '</div>';
+function _rrGmailClick() {
+  if (!window._rrGmailTooLong) return;
+  try { navigator.clipboard.writeText(window._rrShareText || ''); } catch (e) {}
+}
+// the words under the Gmail button follow the list's length
+function _rrGmailNoteWords() {
+  return window._rrGmailTooLong
+    ? 'This list is long, so the button copies every item and its photo links \u2014 press Ctrl+V in the draft.'
+    : 'Opens a Gmail draft with every item and its photo links already written in.';
 }
 // v0.9.1961: the message that goes with the images, with the full-size links
 function _rrShareTextWithLinks(base) {
@@ -403,7 +433,7 @@ function _rrCopyShareLinks() {
   if (!t) return;
   try {
     navigator.clipboard.writeText(t).then(function () {
-      showToast('Photo links copied — paste them under the picture in your email', 3500);
+      showToast('Item details and photo links copied — paste them into your message', 3500);
     }, function () { showToast('Could not copy the links on this browser', 3500, true); });
   } catch (e) { showToast('Could not copy the links on this browser', 3500, true); }
 }
@@ -486,7 +516,7 @@ async function _rrCopyCardsToClipboard(opt) {
     return false;
   }
 }
-if (typeof window !== 'undefined') { window._rrDoShareNow = _rrDoShareNow; window._rrDownloadFiles = _rrDownloadFiles; window._rrActsStash = _rrActsStash; window._rrActsBack = _rrActsBack; window._rrBackBtnHtml = _rrBackBtnHtml; window._rrCopyCardsToClipboard = _rrCopyCardsToClipboard; window._rrCopyShareLinks = _rrCopyShareLinks; window._rrShareTextWithLinks = _rrShareTextWithLinks; window._rrShareLinksRefresh = _rrShareLinksRefresh; window._rrGmailCards = _rrGmailCards; window._rrGmailDraftUrl = _rrGmailDraftUrl; }
+if (typeof window !== 'undefined') { window._rrDoShareNow = _rrDoShareNow; window._rrDownloadFiles = _rrDownloadFiles; window._rrActsStash = _rrActsStash; window._rrActsBack = _rrActsBack; window._rrBackBtnHtml = _rrBackBtnHtml; window._rrCopyCardsToClipboard = _rrCopyCardsToClipboard; window._rrCopyShareLinks = _rrCopyShareLinks; window._rrShareTextWithLinks = _rrShareTextWithLinks; window._rrShareLinksRefresh = _rrShareLinksRefresh; window._rrGmailDraftUrl = _rrGmailDraftUrl; window._rrGmailClick = _rrGmailClick; window._rrItemWords = _rrItemWords; }
 
 // ═══ TIER 2 — LIVE FOR-SALE SHEET ════════════════════════════════
 async function _sellEnsureSheet() {

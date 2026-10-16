@@ -35,6 +35,16 @@
 //       small "Other apps…"; the old "Email 2 images…" is gone
 //   G2  it copies the cards as one picture, then offers "Open the Gmail draft":
 //       the app's own account, the subject, and the photo links in the body
+//   v0.9.1967 (Brad: "why do i have to paste the card?" → "lets send all the
+//   sale card info like via text in the email with the picture links" → "yes";
+//   the cards themselves unchanged):
+//   D1  every item is written out in the message — name, then price + condition
+//       + box on one line, then its note — from the same data the card uses
+//   D2  …with the box unticked too (words, no links); a want card says "Up to"
+//   G1  "Email with Gmail" OPENS the draft itself — one click, no picture copy
+//       first; "Copy for email" (the picture) is still there, optional
+//   G3  a list too long for a draft link is never cut short: the button copies
+//       it all and the draft says to press Ctrl+V
 //   X*  PLANTED: each undone in the code is caught
 // ═══════════════════════════════════════════════════════════════════════════
 const fs = require('fs'), path = require('path');
@@ -70,6 +80,7 @@ async function open(browser, o) {
   });
   await pg.goto('file://' + path.join(APP, 'index.html'), { waitUntil: 'domcontentloaded' });
   await pg.waitForTimeout(1000);
+  if (o.many) await pg.evaluate(n => { window.__many = n; }, o.many);
   await pg.evaluate(([dot, failOpen]) => {
     window.showToast = function () {};
     window.__calls = [];
@@ -84,9 +95,10 @@ async function open(browser, o) {
     const m2 = { itemNum: '6556', roadName: 'Missouri-Kansas-Texas', itemType: 'Stock Car', description: 'Large Cattle Car' };
     _shareSource = 'forsale';
     _shareItems = {
-      a: { itemNum: '6517', variation: '', master: m1, pd: { itemNum: '6517', photoItem: 'F1', condition: '7' }, fs: { askingPrice: '40', condition: '7' } },
-      b: { itemNum: '6556', variation: '', master: m2, pd: { itemNum: '6556', photoItem: 'F2', condition: '7' }, fs: { askingPrice: '325', condition: '7' } },
+      a: { itemNum: '6517', variation: '', master: m1, pd: { itemNum: '6517', photoItem: 'F1', condition: '7' }, fs: { askingPrice: '40', condition: '7', notes: 'Clean, runs well' } },
+      b: { itemNum: '6556', variation: '', master: m2, pd: { itemNum: '6556', photoItem: 'F2', condition: '7', hasBox: 'Yes' }, fs: { askingPrice: '325', condition: '7' } },
     };
+    for (let k = 0; k < (window.__many || 0); k++) _shareItems['m' + k] = { itemNum: '2343' + k, variation: '', master: m2, pd: { itemNum: '2343' + k, photoItem: 'F2', condition: '8' }, fs: { askingPrice: '1200', condition: '8', notes: 'Original box, tested on the layout last week, runs and whistles' } };
     window.findMaster = function () { return null; };
     openShareBuilder();
   }, [DOT, o.failOpen || []]);
@@ -134,14 +146,18 @@ const pdf = pg => pg.evaluate(async (dot) => {
   m = await cards(r.pg);
   T('I1 both items\' photos are opened up for anyone with the link', m.opened.includes('PHOTO1') && m.opened.includes('PHOTO2'), m.opened);
   T('I1 the message carries each full-size link, named by item number',
-    /No\. 6517 Lionel Lines Caboose:\nhttps:\/\/drive\.google\.com\/file\/d\/PHOTO1\/view/.test(m.text)
-    && /No\. 6556 Missouri-Kansas-Texas Stock Car:\nhttps:\/\/drive\.google\.com\/file\/d\/PHOTO2\/view/.test(m.text), m.text);
+    /No\. 6517 Lionel Lines Caboose\n(?:[^\n]*\n)*?Full-size photo:\nhttps:\/\/drive\.google\.com\/file\/d\/PHOTO1\/view/.test(m.text)
+    && /No\. 6556 Missouri-Kansas-Texas Stock Car\n(?:[^\n]*\n)*?Full-size photo:\nhttps:\/\/drive\.google\.com\/file\/d\/PHOTO2\/view/.test(m.text), m.text);
+  T('D1 each item is written out above its links: "Asking $40 \u00b7 Condition 7/10", and its note',
+    /No\. 6517 Lionel Lines Caboose\nAsking \$40 \u00b7 Condition 7\/10\n\u201cClean, runs well\u201d\nFull-size photo:/.test(m.text)
+    && /No\. 6556 Missouri-Kansas-Texas Stock Car\nAsking \$325 \u00b7 Condition 7\/10 \u00b7 Has box\nFull-size photo:/.test(m.text), m.text);
   T('I2 the message says how long the links work (1 week)', /links work for 1 week/.test(m.text), m.text.slice(0, 160));
   T('I3 the copy-and-paste route offers "Copy the photo links"', m.copyBtn, m.copyBtn);
   await r.ctx.close();
   r = await open(browser, { linkOff: true });
   m = await cards(r.pg);
-  T('I4 with the setting off: no links, nothing opened up', !/drive\.google\.com/.test(m.text) && m.opened.length === 0 && !m.copyBtn, m);
+  T('I4 with the setting off: no links, nothing opened up', !/drive\.google\.com/.test(m.text) && m.opened.length === 0 && !/Tap a link/.test(m.text), m);
+  T('D2 …but every item is still written out (and can be copied)', /No\. 6517 Lionel Lines Caboose\nAsking \$40/.test(m.text) && /No\. 6556 Missouri-Kansas-Texas Stock Car\nAsking \$325/.test(m.text) && m.copyBtn, m);
   await r.ctx.close();
   r = await open(browser, { failOpen: ['PHOTO2'] });
   m = await cards(r.pg);
@@ -188,44 +204,64 @@ const pdf = pg => pg.evaluate(async (dot) => {
   };
   r = await open(browser, { linkOff: true });
   m = await cards(r.pg);
-  T('A1 (set-up) built with the box off: no links, no copy button', !/drive\.google\.com/.test(m.text) && !m.copyBtn, m);
+  T('A1 (set-up) built with the box off: no links', !/drive\.google\.com/.test(m.text), m);
   m = await tickAfter(r.pg);
   T('A1 ticking the box AFTER the cards are built makes the links on the spot', /PHOTO1\/view/.test(m.text) && /PHOTO2\/view/.test(m.text) && m.opened === 2, m);
   T('A1 …and "Copy the photo links" shows', m.btn !== 'none' && m.btn !== 'missing', m.btn);
   await r.pg.evaluate(async () => { const c = document.getElementById('sf-linkphotos'); c.checked = false; c.dispatchEvent(new Event('change')); }); await r.pg.waitForTimeout(300);
   m = await r.pg.evaluate(() => ({ text: window._rrShareText || '', btn: getComputedStyle(document.getElementById('rr-copy-photo-links')).display }));
-  T('A2 unticking it again takes the links out and hides the button', !/drive\.google\.com/.test(m.text) && m.btn === 'none', m);
+  T('A2 unticking it again takes the links out, the items stay written', !/drive\.google\.com/.test(m.text) && /No\. 6517 Lionel Lines Caboose\nAsking \$40/.test(m.text), m);
   await r.ctx.close();
 
-  console.log('== v1965: Email with Gmail ==');
+  console.log('== v1965/v1967: Email with Gmail ==');
   const gmail = async (pg) => {
     await pg.evaluate(() => {
-      window.__clip = [];
+      window.__clip = []; window.__clipText = [];
       state.user = Object.assign({}, state.user || {}, { email: 'support@therailroster.com' });
-      Object.defineProperty(navigator, 'clipboard', { value: { write: async (items) => { window.__clip.push(items.map(i => i.types.join(','))); }, writeText: async () => {} }, configurable: true });
+      Object.defineProperty(navigator, 'clipboard', { value: { write: async (items) => { window.__clip.push(items.map(i => i.types.join(','))); }, writeText: async (t) => { window.__clipText.push(t); } }, configurable: true });
     });
     await cards(pg);
-    const before = await pg.evaluate(() => ({ text: document.getElementById('share-builder-actions').innerText,
-      green: (document.getElementById('rr-gmail-btn') || {}).textContent || '', other: !!document.getElementById('rr-other-apps') }));
-    await pg.evaluate(() => document.getElementById('rr-gmail-btn').click()); await pg.waitForTimeout(800);
-    const after = await pg.evaluate(() => { const a = document.getElementById('rr-gmail-open');
-      return { clip: window.__clip, href: a ? a.getAttribute('href') : '', target: a ? a.target : '', words: (document.getElementById('rr-gmail-step') || {}).innerText || '' }; });
-    return Object.assign(before, after);
+    return pg.evaluate(() => { const a = document.getElementById('rr-gmail-open');
+      return { text: document.getElementById('share-builder-actions').innerText, tag: a ? a.tagName : '', green: a ? a.textContent : '',
+        href: a ? a.getAttribute('href') : '', target: a ? a.target : '', other: !!document.getElementById('rr-other-apps'),
+        clip: window.__clip, note: (document.getElementById('rr-gmail-note') || {}).textContent || '',
+        copyPic: [...document.querySelectorAll('#share-builder-actions button')].some(b => /Copy for email/.test(b.textContent)),
+        full: window._rrShareText || '' }; });
   };
   r = await open(browser, {});
   m = await gmail(r.pg);
   T('G1 the main button is "Email with Gmail", Windows\' menu is "Other apps…", no "Email 2 images…"', /Email with Gmail/.test(m.green) && m.other && !/Email \d+ image/.test(m.text), m);
   const q = m.href ? new URL(m.href.replace(/&amp;/g, '&')).searchParams : new URLSearchParams();
-  T('G2 the cards are copied as one picture first', m.clip.length === 1 && /image\/png/.test(m.clip[0][0]), m.clip);
-  T('G2 "Open the Gmail draft" opens Gmail in the app\'s own account, in a new tab', /^https:\/\/mail\.google\.com\/mail\//.test(m.href) && q.get('authuser') === 'support@therailroster.com' && q.get('view') === 'cm' && m.target === '_blank', m.href.slice(0, 160));
-  T('G2 …with the subject and the photo links already in the body', q.get('su') === 'Items for sale' && /PHOTO1\/view/.test(q.get('body') || '') && /PHOTO2\/view/.test(q.get('body') || '') && /Ctrl\+V/.test(m.words), { su: q.get('su'), body: (q.get('body') || '').slice(0, 200) });
+  T('G1 one click: the button IS the link to the draft — nothing is copied first, nothing to paste', m.tag === 'A' && m.clip.length === 0 && /every item and its photo links already written in/.test(m.note), { tag: m.tag, clip: m.clip, note: m.note });
+  T('G1 "Copy for email" (the card picture) is still there, optional', m.copyPic, m.copyPic);
+  T('G2 it opens Gmail in the app\'s own account, in a new tab', /^https:\/\/mail\.google\.com\/mail\//.test(m.href) && q.get('authuser') === 'support@therailroster.com' && q.get('view') === 'cm' && m.target === '_blank', m.href.slice(0, 160));
+  T('G2 …with the subject, every item written out and the photo links in the body', q.get('su') === 'Items for sale' && /Asking \$40 \u00b7 Condition 7\/10/.test(q.get('body') || '') && /PHOTO1\/view/.test(q.get('body') || '') && /PHOTO2\/view/.test(q.get('body') || ''), { su: q.get('su'), body: (q.get('body') || '').slice(0, 300) });
   await r.ctx.close();
+  r = await open(browser, { many: 40 });
+  m = await gmail(r.pg);
+  const q3 = new URL(m.href.replace(/&amp;/g, '&')).searchParams;
+  T('G3 (set-up) 42 items make a message too long for a draft link', encodeURIComponent(m.full).length > 7500 && (m.full.match(/^No\. /gm) || []).length === 42, m.full.length);
+  T('G3 the draft is NOT cut short — it says to paste, and the words under the button say the same', /press Ctrl\+V/.test(q3.get('body') || '') && !/No\. 23430/.test(q3.get('body') || '') && /press Ctrl\+V in the draft/.test(m.note) && m.href.length <= 7700, { body: (q3.get('body') || '').slice(0, 200), note: m.note, len: m.href.length });
+  await r.pg.evaluate(() => { const a = document.getElementById('rr-gmail-open'); a.removeAttribute('href'); a.click(); });
+  m = await r.pg.evaluate(() => window.__clipText);
+  T('G3 …and the click copies the WHOLE list, all 42 items with their links', m.length === 1 && (m[0].match(/^No\. /gm) || []).length === 42 && /PHOTO2\/view/.test(m[0]), m.length);
+  await r.ctx.close();
+  m = await (async () => { const x0 = await open(browser, {}); const v = await x0.pg.evaluate(() => _rrItemWords(_rrCardData({ itemNum: '2343', master: { roadName: 'Santa Fe', itemType: 'Diesel' }, want: { maxPrice: '900', priority: 'High', targetCond: '8', notes: 'needs  the  horn' } }, 'want'))); await x0.ctx.close(); return v; })();
+  T('D2 a want card\'s words: "Up to $900 · High priority · Want 8/10+" and its note', JSON.stringify(m) === JSON.stringify(['Up to $900 \u00b7 High priority \u00b7 Want 8/10+', '\u201cneeds the horn\u201d']), m);
 
   console.log('== planted offenders ==');
-  x = await open(browser, { sell: planted(SELL, "    + '&body=' + encodeURIComponent(window._rrShareText || '');", "    + '&body=' + encodeURIComponent(window._rrShareBase || '');   // planted", 'no links in draft') });
+  x = await open(browser, { sell: planted(SELL, "  var full = head + encodeURIComponent(window._rrShareText || '');", "  var full = head + encodeURIComponent(window._rrShareBase || '');   // planted", 'no links in draft') });
   m = await gmail(x.pg);
   const q2 = m.href ? new URL(m.href.replace(/&amp;/g, '&')).searchParams : new URLSearchParams();
   T('X-G2 PLANTED: the draft without the links → caught (G2 would fail)', !/PHOTO1/.test(q2.get('body') || ''), (q2.get('body') || '').slice(0, 120));
+  await x.ctx.close();
+  x = await open(browser, { sell: planted(SELL, "        words: _rrItemWords(_cd), ids: photoIds.slice() });", "        words: [], ids: photoIds.slice() });   // planted", 'no words') });
+  m = await cards(x.pg);
+  T('X-D1 PLANTED: the items not written out → caught (D1 would fail)', !/Asking \$40/.test(m.text), m.text.slice(0, 160));
+  await x.ctx.close();
+  x = await open(browser, { many: 40, sell: planted(SELL, "var RR_GMAIL_URL_MAX = 7500;", "var RR_GMAIL_URL_MAX = Infinity;   // planted", 'no length check') });
+  m = await gmail(x.pg);
+  T('X-G3 PLANTED: no length check → the long list goes into a draft link Google refuses (G3 would fail)', !/press Ctrl\+V/.test(m.note) && m.href.length > 7700, m.href.length);
   await x.ctx.close();
   x = await open(browser, { linkOff: true, share: planted(SHARE, ";if(window._rrShareLinksRefresh)window._rrShareLinksRefresh()", "", 'read once') });
   await cards(x.pg);
