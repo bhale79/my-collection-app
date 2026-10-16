@@ -19550,8 +19550,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // nothing on screen calls them, by design.
       // v0.9.1949: 19 → 20. _biPipelineOnCanvas (barcode.js) is a test door —
       // photo_fixes_1949_tests runs the real Photo ID stages on a canvas with it.
-      ok('273 the unreachable-handler list is the known 20',
-         r.dead.length === 20,
+      // v0.9.1968: 20 → 21. _bcDecodeForTest (barcode.js) is a test door —
+      // photo_id_narrow_1968_tests runs the real barcode decode with it.
+      ok('273 the unreachable-handler list is the known 21',
+         r.dead.length === 21,
          r.dead.length + ': ' + r.dead.map(d => d.name).join(','));
       // None of them can be breaking a visible button, by construction: if any
       // onclick named them they would not be in this list at all.

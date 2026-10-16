@@ -3099,3 +3099,27 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
 /* v0.9.1959 (Brad: "scale the buttons back"): tighter spacing to match the smaller buttons */
 .pin-rv-btns { display: flex; flex-direction: column; gap: 0.55rem; }
 .pin-rv-btns > .pin-rv-grp { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; }
+
+/* v0.9.1968 (Brad, Photo ID's crop screen on his laptop: "I get this huge
+   picture that i then have to scroll down to see that i can id it … picture to
+   the left side with the buttons to the right like we did the other"): on a
+   computer the crop card is two columns — the photo fills the left at the
+   card's full height, every control is on the right — and it is shown one step
+   smaller than the other pop-ups, like the Photo Inbox review card, so the
+   whole screen fits the window with nothing to scroll. Phone layout untouched.
+   Change a size in ONE block: the card and the photo's height share the step. */
+.bi-crop-grid { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 1rem; align-items: stretch; width: 100%; }
+.bi-crop-side { display: flex; flex-direction: column; min-width: 0; overflow-y: auto; }
+.bi-crop-side .bi-readers { flex-direction: column; }
+.bi-crop-side .bi-readers > * { flex: none !important; width: 100%; }
+.rr-card.bi-crop-card { max-width: 1000px; }
+.bi-crop-card #bi-cropwrap { max-height: none !important; height: calc(86dvh - 1rem); }
+.bi-crop-card #bi-cropimg { max-height: 100%; }
+@media (min-width: 1000px) and (max-width: 1399px) {
+  .rr-card.bi-crop-card { zoom: 1.1; max-height: calc(86dvh / 1.1) !important; }
+  .bi-crop-card #bi-cropwrap, .bi-crop-card .bi-crop-side { height: calc(86dvh / 1.1 - 0.5rem); }
+}
+@media (min-width: 1400px) {
+  .rr-card.bi-crop-card { zoom: 1.25; max-height: calc(86dvh / 1.25) !important; }
+  .bi-crop-card #bi-cropwrap, .bi-crop-card .bi-crop-side { height: calc(86dvh / 1.25 - 0.5rem); }
+}

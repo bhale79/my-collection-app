@@ -160,7 +160,8 @@ async function waitFor(pg, fn, ms) {
     }
     {
       const bc = read('barcode.js');
-      const start = bc.indexOf("    if (!(rawCands || []).length && !(opts && opts.ignoreNums) && typeof window.rrFreeReadBlob === 'function') {");
+      // v0.9.1968: the condition also skips it once the barcode named items
+      const start = bc.indexOf("    if (!(rawCands || []).length && !_bcNamed && !(opts && opts.ignoreNums) && typeof window.rrFreeReadBlob === 'function') {");
       // v0.9.1955: the reading step moved into _biReadPicture (shared with the
       // Your Picture box); its stop check reads stopped() now
       const END = '      if (stopped()) return { cancel: true };\n    }\n';

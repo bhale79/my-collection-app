@@ -2503,7 +2503,8 @@ function _wizScanBarcode() {
   // search using the uploaded picture"): a picture added first is the one
   // Photo ID opens on — the crop screen with Photo ID and Google Lens.
   var _heldPic = (typeof window._wizPicFirstFile === 'function') ? window._wizPicFirstFile() : null;
-  var _start = _heldPic ? { file: _heldPic } : null;
+  // v0.9.1968: and the Add screen's maker / era / scale narrow its choices
+  var _start = { file: _heldPic || null, addFilters: true };
   (window.openBoxIdentify || window.openBarcodeScanner)(_wizApplyIdResult, function() {
     // Cancelled — user can type the item# instead
   }, eraHint, _start);

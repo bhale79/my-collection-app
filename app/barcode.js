@@ -123,6 +123,38 @@ window.eraSupportsBarcode = eraSupportsBarcode;
          + '</div>';
   }
 
+  // ══ v0.9.1968 — NARROW BEFORE ASKING (Brad: "it read the bar code, so then
+  // it should just give me the options … i already told you it was lionel o
+  // so the answer should be the first one") ═════════════════════════════════
+  // Photo ID's pick lists are narrowed, in order, by: the maker the barcode (or
+  // the box's own words) proved; then — when Photo ID was opened from the Add
+  // screen — the maker, era and scale set there (the Add screen's own
+  // _wizRowFitsFilters, the ONE answer to "does this row fit the filters").
+  // A step applies only if at least one row survives it: a filter can shorten
+  // the list, never empty it. Returns the rows left; one row = the answer.
+  function _biNarrow(hits, ctx) {
+    var r = hits || [];
+    if (r.length < 2) return r;
+    ctx = ctx || {};
+    var steps = [];
+    if (ctx.mfr) { var _pm = _bcMfrKey(ctx.mfr); steps.push(function (h) { return _bcRowIsMfr(h, _pm); }); }
+    if (ctx.addFilters) {
+      var _d = null;
+      try { _d = (typeof wizard !== 'undefined' && wizard && wizard.data) ? wizard.data : null; } catch (eW) {}
+      var _um = _d ? _bcMfrKey(_d._searchFilterManufacturer) : '';
+      if (_um) steps.push(function (h) { return _bcRowIsMfr(h, _um); });
+      if (typeof window._wizRowFitsFilters === 'function') steps.push(function (h) { return window._wizRowFitsFilters(h); });
+    }
+    steps.forEach(function (f) {
+      if (r.length < 2) return;
+      var keep = r.filter(function (h) { try { return f(h); } catch (eF) { return true; } });
+      if (keep.length) r = keep;
+    });
+    return r;
+  }
+  window._biNarrow = _biNarrow;   // v0.9.1968: the test drives it with the 36814 rows
+  window._bcDecodeForTest = function (bc, era) { return decodeBarcode(bc, era); };   // v0.9.1968: tests reach the real decode here
+
   function _bcRankByMaker(hits, mfr) {
     var want = _bcMfrKey(mfr);
     if (!want || !hits || hits.length < 2) return hits || [];
@@ -159,6 +191,19 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           || m.itemNum === ('6-' + cand);
       });
     });
+    // v0.9.1968 (Brad: a Lionel barcode reading 36814 offered Lionel's Rio
+    // Grande caboose AND a Märklin locomotive AND an LGB coach — "i already
+    // told you it was lionel o"): the exact-number pass ignored the maker the
+    // barcode proved; only the last-5 guess below honoured it. When ANY exact
+    // hit is the proven maker's, the other makers' same-number rows go. When
+    // none is (a Lionel-made item filed under another maker), all stay.
+    if (wantMfr && out.length > 1) {
+      var _mineX = out.filter(function (m) { return _bcRowIsMfr(m, wantMfr); });
+      if (_mineX.length && _mineX.length < out.length) {
+        out = _mineX; seen = {};
+        out.forEach(function (m) { seen[(m.itemNum || '') + '|' + (m.variation || '') + '|' + (m._tab || '')] = 1; });
+      }
+    }
     var exactCount = out.length;
     if (candidates[0]) {
       var tail = candidates[0].replace(/^6-/, '').slice(-5);
@@ -3269,13 +3314,22 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       // v0.9.1927: Auto Read (the paid read) only for beta testers + owners —
       // everyone else gets two readers: Photo ID (free) and Google Lens.
       var _ar = (typeof rrAutoReadOn === 'function') && rrAutoReadOn();
-      var d = _biOverlay(
-        '<div style="width:100%;max-width:560px">'
+      // v0.9.1968 (Brad, the crop screen on his laptop: "I get this huge picture
+      // that i then have to scroll down to see that i can id it … do the picture
+      // to the left side with the buttons to the right like we did the other"):
+      // on a computer the photo fills the left and every control sits on the
+      // right, the whole screen inside the window (sizes: .bi-crop-card in
+      // app.css). The phone keeps the stacked layout. Same ids either way, so
+      // the crop, the rotate slider and the buttons work exactly as before.
+      var _wide = !window.IS_MOBILE_UA && (window.innerWidth || 0) >= 900;
+      var _cTop = ''
         + '<div style="color:var(--text,#fff);font-family:var(--font-head,sans-serif);font-size:1.02rem;margin:0.2rem 0 0.35rem">✂ Crop (optional)'
         + (lockedBc ? ' <span style="font-size:0.72rem;background:rgba(46,204,113,0.15);border:1px solid #2ecc71;color:var(--t-green);border-radius:6px;padding:2px 7px;vertical-align:middle">Barcode ✓ locked</span>' : '')
         + '</div>'
         + (_rsOnly ? '<div style="color:var(--t-gold);font-size:0.8rem;margin-bottom:0.45rem">Crop to the item if you like \u2014 <b>less background helps Google Lens</b>. Leave it alone to send the whole photo.</div>'
            : '<div style="color:#ffd27d;font-size:0.8rem;margin-bottom:0.45rem">Adjust the crop frame if you like (<b>less background = better results</b>) — leave it alone to use the whole photo. The barcode is always read from the full shot.</div>')
+      ;
+      var _cStyle = ''
         // v0.9.1468 (Brad: "the crop buttons are hard to hit"): the eight
         // grab points grow to fingertip size, high-contrast. touch-action on
         // the wrapper keeps a drag from ever being read as a page gesture.
@@ -3291,14 +3345,18 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + '#bi-overlay .cropper-point.point-sw{bottom:-11px;left:-11px}'
         + '#bi-overlay .cropper-point.point-se::before{display:none}'
         + '</style>'
+      ;
+      var _cWrap = ''
         + '<div id="bi-cropwrap" style="max-height:52vh;overflow:hidden;border-radius:12px;background:#000;touch-action:none;overscroll-behavior:contain"><img id="bi-cropimg" style="display:block;max-width:100%"></div>'
+      ;
+      var _cRest = ''
         + '<div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.5rem">'
         + '<span style="color:var(--text-mid,#ccc);font-size:0.78rem;white-space:nowrap">Rotate</span>'
         + '<input id="bi-rot" type="range" min="-180" max="180" step="1" value="0" style="flex:1;accent-color:var(--accent,#e8401c)">'
         + '<span id="bi-rotv" style="color:var(--text-mid,#ccc);font-size:0.78rem;min-width:3.2em;text-align:right">0&deg;</span>'
         + '</div>'
         + (_rsOnly
-          ? ('<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.55rem">'
+          ? ('<div class="bi-readers" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.55rem">'
             + _biBtn({ act: 'lens', txt: '🔍 Search with Google Lens' }, 'background:var(--accent);border:1.5px solid var(--accent);color:var(--on-accent);flex:1;min-width:0')
             + '</div>'
             + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.5rem">'
@@ -3306,7 +3364,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
             + _biBtn({ act: 'cancel', txt: 'Cancel' })
             + '</div></div>')
           : (''
-        + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.55rem">'
+        + '<div class="bi-readers" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.55rem">'
         // v0.9.1474 (Brad: "no more little icons… the 19 of 20 reads left
         // should be on the button itself, don't need the rotate button, and
         // the three buttons should be the same size"). Row 1: the three
@@ -3332,7 +3390,11 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + '<b style="color:#9ecbff">&bull; Google Lens</b> — a Google search by photo, better for <b>unmarked items</b>: buildings, promos, store brands, posters &amp; paper. Also the backup when Photo ID can\'t tell.'
         // v0.9.1474: the allowance count moved ONTO the Auto Read button
         // (span#bi-ai-left up there) — no separate row.
-        + '</div></div>')));
+        + '</div></div>'));
+      var d = _biOverlay(_wide
+        ? '<div class="bi-crop-grid">' + _cStyle + _cWrap + '<div class="bi-crop-side">' + _cTop + _cRest + '</div>'
+        : '<div style="width:100%;max-width:560px">' + _cTop + _cStyle + _cWrap + _cRest);
+      if (_wide) { try { d.firstElementChild.classList.add('bi-crop-card'); } catch (eW) {} }
       // v0.9.1015: remember the spending-switch choice the moment it changes.
       // v0.9.1473: bi-ai-opt checkbox removed — see the comment on the count
       // line above. rrAiSetOptOut still lives in Preferences.
@@ -3557,6 +3619,21 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     _rtStep('barcode', _rtNow() - _rtBc);
     if (stopped()) return { cancel: true };
 
+    // v0.9.1968: what the barcode already settled. An exact match in the
+    // catalog's own barcode column is a fact about this box — the lettering is
+    // not read at all. A barcode that named items some other way (Lionel's
+    // five-digit decode is a guess: a modern 7-digit item's barcode does not
+    // carry its number) still gets the QUICK lettering read, which catches a
+    // label that disagrees — but never the slow closer look (Brad waited ~20 s
+    // for it after the barcode had named his caboose). Not when the barcode
+    // came from OUTSIDE the crop: that one may belong to a neighbouring box.
+    var _bcNamed = !!(bcResult && !out.bcOutsideCrop && (bcResult.masterItem || (bcResult.multipleMatches && (bcResult.candidates || []).length)));
+    if (_bcNamed && bcResult.byCatalogUpc && bcResult.masterItem && !(opts && opts.ignoreNums)) {
+      st('ocr', '➖', 'Lettering: not needed — the barcode matched your catalog');
+      return { out: out, bc: bc, bcResult: bcResult, ocrText: '', rawCands: [],
+               numsFromFullFrame: false, closerUnsure: false, bcSettled: true };
+    }
+
     // Stage 2 — label / lettering OCR (from the WORK canvas = crop)
     st('ocr', '<span class="bi-spin">⟳</span>', 'Lettering: reading…');
     var ocrText = '';
@@ -3605,7 +3682,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     // goes to it before Photo ID gives up. Free; a number the catalog does not
     // confirm is not kept. tests/photo_closer_1950_tests.js.
     var _closerUnsure = false;   // v0.9.1951: the closer look read numbers but confirmed none
-    if (!(rawCands || []).length && !(opts && opts.ignoreNums) && typeof window.rrFreeReadBlob === 'function') {
+    if (!(rawCands || []).length && !_bcNamed && !(opts && opts.ignoreNums) && typeof window.rrFreeReadBlob === 'function') {   // v0.9.1968: not once the barcode named items
       st('ocr', '<span class="bi-spin">⟳</span>', RR_PHOTO_ID_CLOSER.reading);
       try {
         var _frBlob = await new Promise(function (res) { workCanvas.toBlob(res, 'image/jpeg', 0.95); });
@@ -3705,6 +3782,16 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         st('master', '🔤', 'Catalog: using ' + _pickN, '#2ecc71');
       }
     }
+    // v0.9.1968: both pick lists below are narrowed first (_biNarrow) — by the
+    // maker the barcode or the box proved, then the Add screen's filters.
+    var _nctx = { mfr: out.bcMaker || '', addFilters: !!(opts && opts.addFilters) };
+    if (bcResult && bcResult.multipleMatches && (bcResult.candidates || []).length > 1) {
+      var _bcLeft = _biNarrow(bcResult.candidates, _nctx);
+      if (_bcLeft.length === 1) {
+        bcResult = Object.assign({}, bcResult, { masterItem: _bcLeft[0], itemNum: _bcLeft[0].itemNum, variation: _bcLeft[0].variation || '',
+          multipleMatches: false, candidates: _bcLeft, narrowed: true });
+      } else bcResult = Object.assign({}, bcResult, { candidates: _bcLeft });
+    }
     var pick = null, verified = '';
     for (var i = 0; i < out.ocrNums.length && !pick; i++) {
       var n = out.ocrNums[i];
@@ -3714,7 +3801,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       // convention baseItemNum() uses app-wide.
       var nb = n.replace(/[A-Za-z]{1,2}$/, '');
       if (nb && nb !== n && nb.length >= 2) { lk.push(nb); if (/^\d/.test(nb)) lk.push('6-' + nb); }
-      var hits = await _findMasterItemsAllEras(lk);
+      var hits = _biNarrow(await _findMasterItemsAllEras(lk), _nctx);   // v0.9.1968
       if (hits.length === 1) { pick = hits[0]; verified = 'label'; }
       else if (hits.length > 1) {
         st('master', '📖', 'Catalog: ' + hits.length + ' items match ' + n + ' — pick yours');
@@ -3957,6 +4044,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   }
   async function openBoxIdentify(onScanned, onCancel, eraHint, start) {
     var _startFile = (start && start.file) || null;
+    var _addF = !!(start && start.addFilters);   // v0.9.1968: opened from the Add screen — its filters narrow the choices
     // v0.9.686 (Brad): device/browser BACK closes the identify overlay like
     // Cancel does, instead of navigating the app away underneath it.
     _biOnCancel = onCancel || null;
@@ -4091,14 +4179,14 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         }
         // v0.9.1473: Photo ID = free readers ONLY; 🤖 Auto Read = may spend.
         var res = await _biPipeline(cap.view || cap.raw, cr.work, cap.lockedBc, eraHint,
-          { noAi: cr.action !== 'auto', forceAi: cr.action === 'auto' });
+          { noAi: cr.action !== 'auto', forceAi: cr.action === 'auto', addFilters: _addF });
         // v0.9.897: Stop pressed = plain cancel — back to the wizard, nothing filled.
         if (res && res.__biCancel) { _biKill(); if (onCancel) onCancel(); return; }
         if (res && res.__biFail) {
           var choice = await _rtWait('could not identify card', _biFailCard(res.out));
           if (choice === 'ai') {
             // same photo, one more shot at the AI (Gemini overload passes quickly)
-            var res2 = await _biPipeline(cap.view || cap.raw, cr.work, cap.lockedBc, eraHint, { forceAi: true });   // v0.9.1473: explicit choice = consent to spend
+            var res2 = await _biPipeline(cap.view || cap.raw, cr.work, cap.lockedBc, eraHint, { forceAi: true, addFilters: _addF });   // v0.9.1473: explicit choice = consent to spend
             if (res2 && res2.__biCancel) { _biKill(); if (onCancel) onCancel(); return; }   // v0.9.897
             if (res2 && !res2.__biFail) { res = res2; }
             else { var c2 = await _rtWait('could not identify card', _biFailCard(res2 && res2.out || {})); if (c2 === 'retake') continue; if (c2 === 'lens') choice = 'lens'; else { _biKill(); if (onCancel) onCancel(); return; } }
