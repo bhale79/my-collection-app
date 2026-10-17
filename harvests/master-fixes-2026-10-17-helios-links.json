@@ -1,0 +1,76 @@
+{
+ "what": "Master Version 2.53 — Lionel PW - Items Reference Links: 861 v1 Helios 21 (RUJF9M42CH) and 866 Helios Anti-Gravity Booster (9BBFB7TGFE) opened the top of COTT's Other Items page; COTT has no #861/#866 bookmark, so both now open #HELIOS (the Helios section: flyers, then 861, 866, 867). 864 \"Boxcar\" (WAEDTMFMRR) and 865 \"Gondola w/ Containers\" (ZGHZECHHA9) linked to that page, which never mentions them — link cleared. With 862/863 beside them (hand-typed \"Passenger Car / Aluminum, 1957-1960\") they look like Lionel postwar HO cars (0862-0865; an HO 0864 NYC Pacemaker boxcar of 1958 is documented) filed under the wrong number; the rows stay for Brad's postwar HO project.",
+ "stated": "Brad (2026-10-17): \"yes\" to looking at the links, then \"yes\" to the 4-cell plan as 2.53",
+ "masterVersion": "2.53",
+ "date": "2026-10-17",
+ "planReadAt": "public CSV export of Lionel PW - Items and COTT's live page bookmarks (OBM, 700, 715, 5979, 27530, 41090, NO.44360, 46500, HELIOS, 867, 850, UDRIVE), read 2026-10-17 right before this record",
+ "cellFormat": "[tab, item number (column A), column header, old, new, sheet row as a hint, Row ID of the row]",
+ "counts": {
+  "cells": 4,
+  "rows": 4
+ },
+ "cells": [
+  [
+   "Lionel PW - Items",
+   "861",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/other-items-lionel-produced/",
+   "https://cornucopiaoftoytrains.com/other-items-lionel-produced/#HELIOS",
+   2772,
+   "RUJF9M42CH"
+  ],
+  [
+   "Lionel PW - Items",
+   "866",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/other-items-lionel-produced/",
+   "https://cornucopiaoftoytrains.com/other-items-lionel-produced/#HELIOS",
+   2777,
+   "9BBFB7TGFE"
+  ],
+  [
+   "Lionel PW - Items",
+   "864",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/other-items-lionel-produced/",
+   "",
+   2775,
+   "WAEDTMFMRR"
+  ],
+  [
+   "Lionel PW - Items",
+   "865",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/other-items-lionel-produced/",
+   "",
+   2776,
+   "ZGHZECHHA9"
+  ]
+ ],
+ "itemsHeader": [
+  "Item Number",
+  "Item Type",
+  "Sub-Type",
+  "Unit",
+  "Powered/Dummy",
+  "Control",
+  "Road Name",
+  "Description",
+  "Gauge",
+  "Year Produced",
+  "Variation #",
+  "Variation Details",
+  "Reference Link",
+  "Notes",
+  "Est. Market Value",
+  "Source",
+  "COTT Code",
+  "Original COTT Desc",
+  "Category",
+  "Track Power",
+  "MSRP",
+  "Body Color",
+  "Stamped Markings",
+  "Row ID"
+ ]
+}
