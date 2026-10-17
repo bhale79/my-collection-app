@@ -247,7 +247,7 @@ try {
   }
   .lscreen { background: #10182c; border: 12px solid #10182c; border-bottom-width: 16px; border-radius: 16px 16px 4px 4px;
     box-shadow: 0 24px 60px rgba(20,25,45,.30); }
-  .lview { position: relative; overflow: hidden; aspect-ratio: 1539 / 784; background: var(--cream); border-radius: 2px; }
+  .lview { position: relative; overflow: hidden; aspect-ratio: 2561 / 1303; background: var(--cream); border-radius: 2px; }
   .ltrack { display: flex; height: 100%; transition: transform .9s cubic-bezier(.65,0,.35,1); }
   .ltrack .zoom { flex: 0 0 100%; height: 100%; }
   .ltrack img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
@@ -342,7 +342,24 @@ try {
     .hero .art { order: -1; }
     .hero .showad { order: -1; }                              /* under the logo, above the headline */
     .hero.has-ad .wrap { padding-left: 1.25rem; padding-right: 1.25rem; }
-    .tk-stamp { right: -10px; top: 92px; width: 78px; height: 78px; }
+    /* phones (Brad 2026-10-17, "the right side ... seems cut off. needs to be resized and centered"): the ticket
+       sits inside the page margins with room for its tilt, and the Save stamp stays inside the ticket's edge */
+    .tk { width: calc(100% - 20px); max-width: 340px; margin: 0 auto; }
+    .tk-stub { flex-basis: 42px; }
+    .tk-stub span { font-size: .8rem; }
+    .tk-main { padding: 1rem .9rem 0; }
+    .tk-top { font-size: 1.25rem; }
+    .tk-sub { font-size: .66rem; letter-spacing: .14em; }
+    .tk-price { gap: .5rem; padding-right: 46px; }             /* the price sits a little left of centre, clear of the stamp */
+    .tk-price s { font-size: 1.35rem; }
+    .tk-price b { font-size: 3.3rem; }
+    .tk-term { font-size: .85rem; padding-right: 46px; }
+    .tk-where { font-size: .86rem; }
+    .tk-when { font-size: .78rem; }
+    .tk-rail { margin: .7rem -.9rem 0; height: 48px; }
+    .tk-stamp { right: 6px; top: 84px; width: 66px; height: 66px; font-size: .66rem; transform: rotate(12deg); }
+    .tk-stamp b { font-size: 1.3rem; }
+    .hero.has-ad .art .logo { width: 115px; }               /* a smaller logo while the ad shows, so the headline starts sooner */
     .hero .art .logo { width: 170px; }
     .hero .lead { margin-left: auto; margin-right: auto; }
     .ctas { justify-content: center; }
@@ -460,11 +477,11 @@ try {
     <div class="loop" id="loop" role="region" aria-roledescription="slide show" aria-label="The Rail Roster on a computer">
       <span class="dev-tag">On a computer</span>
       <div class="lscreen"><div class="lview"><div class="ltrack" id="loop-track">
-        <button class="zoom" type="button" data-full="/site/desk/dashboard.webp" data-cap="The dashboard: worth, counts and recent additions at a glance." aria-label="Enlarge: The dashboard: worth, counts and recent additions at a glance."><img src="/site/desk/dashboard.webp" width="1539" height="784" alt="The dashboard on a computer: worth, counts and recent additions at a glance." loading="lazy"></button>
-        <button class="zoom" type="button" data-full="/site/desk/collection.webp" data-cap="The full collection list — sets and engine-and-tender pairs kept together." aria-label="Enlarge: The full collection list — sets and engine-and-tender pairs kept together."><img src="/site/desk/collection.webp" width="1539" height="784" alt="The full collection list on a computer — sets and engine-and-tender pairs kept together." loading="lazy"></button>
-        <button class="zoom" type="button" data-full="/site/desk/item-full.webp" data-cap="An item’s page: the exact variation, your photo and every detail." aria-label="Enlarge: An item’s page: the exact variation, your photo and every detail."><img src="/site/desk/item-full.webp" width="1539" height="784" alt="The page for a Lionel 2331 Virginian on a computer: the exact variation, the photo and every detail." loading="lazy"></button>
-        <button class="zoom" type="button" data-full="/site/desk/add.webp" data-cap="Adding an item: type the number — it even tells you when you already have one." aria-label="Enlarge: Adding an item: type the number — it even tells you when you already have one."><img src="/site/desk/add.webp" width="1539" height="784" alt="Adding an item on a computer: type the number — it even tells you when you already have one." loading="lazy"></button>
-        <button class="zoom" type="button" data-full="/site/desk/forsale.webp" data-cap="Your For Sale list with asking prices — share it with a friend or your customers." aria-label="Enlarge: Your For Sale list with asking prices — share it with a friend or your customers."><img src="/site/desk/forsale.webp" width="1539" height="784" alt="The For Sale list on a computer, with asking prices and Share buttons." loading="lazy"></button>
+        <button class="zoom" type="button" data-full="/site/desk/dashboard.webp?v=2" data-cap="The dashboard: worth, counts and recent additions at a glance." aria-label="Enlarge: The dashboard: worth, counts and recent additions at a glance."><img src="/site/desk/dashboard.webp?v=2" width="2561" height="1303" alt="The dashboard on a computer: worth, counts and recent additions at a glance." loading="lazy"></button>
+        <button class="zoom" type="button" data-full="/site/desk/collection.webp?v=2" data-cap="The full collection list — sets and engine-and-tender pairs kept together." aria-label="Enlarge: The full collection list — sets and engine-and-tender pairs kept together."><img src="/site/desk/collection.webp?v=2" width="2561" height="1303" alt="The full collection list on a computer — sets and engine-and-tender pairs kept together." loading="lazy"></button>
+        <button class="zoom" type="button" data-full="/site/desk/item-full.webp?v=2" data-cap="An item’s page: the exact variation, your photo and every detail." aria-label="Enlarge: An item’s page: the exact variation, your photo and every detail."><img src="/site/desk/item-full.webp?v=2" width="2561" height="1303" alt="The page for a Lionel 2331 Virginian on a computer: the exact variation, the photo and every detail." loading="lazy"></button>
+        <button class="zoom" type="button" data-full="/site/desk/add.webp?v=2" data-cap="Adding an item: type the number — it even tells you when you already have one." aria-label="Enlarge: Adding an item: type the number — it even tells you when you already have one."><img src="/site/desk/add.webp?v=2" width="2561" height="1303" alt="Adding an item on a computer: type the number — it even tells you when you already have one." loading="lazy"></button>
+        <button class="zoom" type="button" data-full="/site/desk/forsale.webp?v=2" data-cap="Your For Sale list with asking prices — share it with a friend or your customers." aria-label="Enlarge: Your For Sale list with asking prices — share it with a friend or your customers."><img src="/site/desk/forsale.webp?v=2" width="2561" height="1303" alt="The For Sale list on a computer, with asking prices and Share buttons." loading="lazy"></button>
       </div></div></div>
       <div class="lbase"></div>
       <p class="lcap" id="loop-cap">The dashboard: worth, counts and recent additions at a glance.</p>
@@ -483,7 +500,7 @@ try {
           </ul>
         </div>
         <div class="shot"><figure><span class="dev-tag">On your phone</span><button class="zoom" type="button" data-full="/site/shots/add.webp" data-cap="Type a number — the catalog fills in the rest." aria-label="Enlarge: Type a number — the catalog fills in the rest."><img src="/site/shots/add.webp" width="647" height="1240" alt="Typing 2343 on the Add screen finds the Santa Fe F3 in the catalog" loading="lazy"></button><figcaption>Type a number — the catalog fills in the rest.</figcaption></figure></div>
-        <div class="dshot"><figure><span class="dev-tag">On a computer</span><button class="zoom" type="button" data-full="/site/desk/add.webp" data-cap="Adding on a computer: type the number — it even tells you when you already have one." aria-label="Enlarge: Adding on a computer: type the number — it even tells you when you already have one."><img src="/site/desk/add.webp" width="1539" height="784" alt="Adding an item on a computer: typing the number finds it in the catalog." loading="lazy"></button><figcaption>Adding on a computer: type the number — it even tells you when you already have one.</figcaption></figure></div>
+        <div class="dshot"><figure><span class="dev-tag">On a computer</span><button class="zoom" type="button" data-full="/site/desk/add.webp?v=2" data-cap="Adding on a computer: type the number — it even tells you when you already have one." aria-label="Enlarge: Adding on a computer: type the number — it even tells you when you already have one."><img src="/site/desk/add.webp?v=2" width="2561" height="1303" alt="Adding an item on a computer: typing the number finds it in the catalog." loading="lazy"></button><figcaption>Adding on a computer: type the number — it even tells you when you already have one.</figcaption></figure></div>
       </div>
       <div class="band b-split">
         <div class="txt">
@@ -495,7 +512,7 @@ try {
           </ul>
         </div>
         <div class="shot"><figure><span class="dev-tag">On your phone</span><button class="zoom" type="button" data-full="/site/shots/item.webp" data-cap="A postwar 2331 Virginian, variation and all." aria-label="Enlarge: A postwar 2331 Virginian, variation and all."><img src="/site/shots/item.webp" width="647" height="1240" alt="The page for a Lionel 2331 Virginian Train Master with its photo and variation" loading="lazy"></button><figcaption>A postwar 2331 Virginian, variation and all.</figcaption></figure></div>
-        <div class="dshot"><figure><span class="dev-tag">On a computer</span><button class="zoom" type="button" data-full="/site/desk/item-full.webp" data-cap="The same 2331 on a computer: the exact variation, your photo and every detail." aria-label="Enlarge: The same 2331 on a computer: the exact variation, your photo and every detail."><img src="/site/desk/item-full.webp" width="1539" height="784" alt="The page for a Lionel 2331 Virginian on a computer." loading="lazy"></button><figcaption>The same 2331 on a computer: the exact variation, your photo and every detail.</figcaption></figure></div>
+        <div class="dshot"><figure><span class="dev-tag">On a computer</span><button class="zoom" type="button" data-full="/site/desk/item-full.webp?v=2" data-cap="The same 2331 on a computer: the exact variation, your photo and every detail." aria-label="Enlarge: The same 2331 on a computer: the exact variation, your photo and every detail."><img src="/site/desk/item-full.webp?v=2" width="2561" height="1303" alt="The page for a Lionel 2331 Virginian on a computer." loading="lazy"></button><figcaption>The same 2331 on a computer: the exact variation, your photo and every detail.</figcaption></figure></div>
       </div>
       <div class="band b-left">
         <div class="txt">
@@ -506,7 +523,7 @@ try {
           </ul>
         </div>
         <div class="shot"><figure><span class="dev-tag">On your phone</span><button class="zoom" type="button" data-full="/site/shots/collection.webp" data-cap="Your whole collection, with photos, in your pocket." aria-label="Enlarge: Your whole collection, with photos, in your pocket."><img src="/site/shots/collection.webp" width="647" height="1240" alt="A collection list in The Rail Roster on a phone" loading="lazy"></button><figcaption>Your whole collection, with photos, in your pocket.</figcaption></figure></div>
-        <div class="dshot"><figure><span class="dev-tag">On a computer</span><button class="zoom" type="button" data-full="/site/desk/collection.webp" data-cap="The full collection list — sets and engine-and-tender pairs kept together." aria-label="Enlarge: The full collection list — sets and engine-and-tender pairs kept together."><img src="/site/desk/collection.webp" width="1539" height="784" alt="The full collection list on a computer." loading="lazy"></button><figcaption>The full collection list — sets and engine-and-tender pairs kept together.</figcaption></figure></div>
+        <div class="dshot"><figure><span class="dev-tag">On a computer</span><button class="zoom" type="button" data-full="/site/desk/collection.webp?v=2" data-cap="The full collection list — sets and engine-and-tender pairs kept together." aria-label="Enlarge: The full collection list — sets and engine-and-tender pairs kept together."><img src="/site/desk/collection.webp?v=2" width="2561" height="1303" alt="The full collection list on a computer." loading="lazy"></button><figcaption>The full collection list — sets and engine-and-tender pairs kept together.</figcaption></figure></div>
       </div>
       <div class="band b-right">
         <div class="txt">
@@ -517,7 +534,7 @@ try {
           </ul>
         </div>
         <div class="shot"><figure><span class="dev-tag">On your phone</span><button class="zoom" type="button" data-full="/site/shots/worth.webp" data-cap="Estimated worth by maker, at a glance." aria-label="Enlarge: Estimated worth by maker, at a glance."><img src="/site/shots/worth.webp" width="647" height="1240" alt="The Rail Roster dashboard showing a collection's estimated worth" loading="lazy"></button><figcaption>Estimated worth by maker, at a glance.</figcaption></figure></div>
-        <div class="dshot"><figure><span class="dev-tag">On a computer</span><button class="zoom" type="button" data-full="/site/desk/dashboard.webp" data-cap="The dashboard: worth by maker, counts and recent additions at a glance." aria-label="Enlarge: The dashboard: worth by maker, counts and recent additions at a glance."><img src="/site/desk/dashboard.webp" width="1539" height="784" alt="The dashboard on a computer with the collection’s estimated worth." loading="lazy"></button><figcaption>The dashboard: worth by maker, counts and recent additions at a glance.</figcaption></figure></div>
+        <div class="dshot"><figure><span class="dev-tag">On a computer</span><button class="zoom" type="button" data-full="/site/desk/dashboard.webp?v=2" data-cap="The dashboard: worth by maker, counts and recent additions at a glance." aria-label="Enlarge: The dashboard: worth by maker, counts and recent additions at a glance."><img src="/site/desk/dashboard.webp?v=2" width="2561" height="1303" alt="The dashboard on a computer with the collection’s estimated worth." loading="lazy"></button><figcaption>The dashboard: worth by maker, counts and recent additions at a glance.</figcaption></figure></div>
       </div>
       <div class="band b-split">
         <div class="txt">
@@ -528,7 +545,7 @@ try {
           </ul>
         </div>
         <div class="shot"><figure><span class="dev-tag">On your phone</span><button class="zoom" type="button" data-full="/site/shots/forsale.webp" data-cap="Your For Sale list — share it with one tap." aria-label="Enlarge: Your For Sale list — share it with one tap."><img src="/site/shots/forsale.webp" width="647" height="1240" alt="The For Sale list with Share buttons in The Rail Roster" loading="lazy"></button><figcaption>Your For Sale list — share it with one tap.</figcaption></figure></div>
-        <div class="dshot"><figure><span class="dev-tag">On a computer</span><button class="zoom" type="button" data-full="/site/desk/forsale.webp" data-cap="Your For Sale list with asking prices — share it with a friend or your customers." aria-label="Enlarge: Your For Sale list with asking prices — share it with a friend or your customers."><img src="/site/desk/forsale.webp" width="1539" height="784" alt="The For Sale list on a computer, with asking prices and Share buttons." loading="lazy"></button><figcaption>Your For Sale list with asking prices — share it with a friend or your customers.</figcaption></figure></div>
+        <div class="dshot"><figure><span class="dev-tag">On a computer</span><button class="zoom" type="button" data-full="/site/desk/forsale.webp?v=2" data-cap="Your For Sale list with asking prices — share it with a friend or your customers." aria-label="Enlarge: Your For Sale list with asking prices — share it with a friend or your customers."><img src="/site/desk/forsale.webp?v=2" width="2561" height="1303" alt="The For Sale list on a computer, with asking prices and Share buttons." loading="lazy"></button><figcaption>Your For Sale list with asking prices — share it with a friend or your customers.</figcaption></figure></div>
       </div>
     </div>
   </div>
@@ -540,10 +557,10 @@ try {
     <h2>Same collection, every screen</h2>
     <p class="intro">Catalog at your desk with a full-size screen, then take the same collection to the show on your phone. Sign in on each and it’s all there.</p>
     <div class="dgrid">
-        <figure><button class="zoom" type="button" data-full="/site/desk/dashboard.webp" data-cap="The dashboard on a computer: worth, counts and recent additions at a glance." aria-label="Enlarge: The dashboard on a computer: worth, counts and recent additions at a glance."><img src="/site/desk/dashboard.webp" width="1539" height="784" alt="The dashboard on a computer: worth, counts and recent additions at a glance." loading="lazy"></button><figcaption>The dashboard on a computer: worth, counts and recent additions at a glance.</figcaption></figure>
-        <figure><button class="zoom" type="button" data-full="/site/desk/collection.webp" data-cap="The full collection list — sets and engine-and-tender pairs kept together." aria-label="Enlarge: The full collection list — sets and engine-and-tender pairs kept together."><img src="/site/desk/collection.webp" width="1539" height="784" alt="The full collection list — sets and engine-and-tender pairs kept together." loading="lazy"></button><figcaption>The full collection list — sets and engine-and-tender pairs kept together.</figcaption></figure>
-        <figure><button class="zoom" type="button" data-full="/site/desk/item.webp" data-cap="An item’s page: the exact variation, your photo and every detail." aria-label="Enlarge: An item’s page: the exact variation, your photo and every detail."><img src="/site/desk/item.webp" width="1539" height="530" alt="An item’s page: the exact variation, your photo and every detail." loading="lazy"></button><figcaption>An item’s page: the exact variation, your photo and every detail.</figcaption></figure>
-        <figure><button class="zoom" type="button" data-full="/site/desk/add.webp" data-cap="Adding on a computer: type the number — it even tells you when you already have one." aria-label="Enlarge: Adding on a computer: type the number — it even tells you when you already have one."><img src="/site/desk/add.webp" width="1539" height="784" alt="Adding on a computer: type the number — it even tells you when you already have one." loading="lazy"></button><figcaption>Adding on a computer: type the number — it even tells you when you already have one.</figcaption></figure>
+        <figure><button class="zoom" type="button" data-full="/site/desk/dashboard.webp?v=2" data-cap="The dashboard on a computer: worth, counts and recent additions at a glance." aria-label="Enlarge: The dashboard on a computer: worth, counts and recent additions at a glance."><img src="/site/desk/dashboard.webp?v=2" width="2561" height="1303" alt="The dashboard on a computer: worth, counts and recent additions at a glance." loading="lazy"></button><figcaption>The dashboard on a computer: worth, counts and recent additions at a glance.</figcaption></figure>
+        <figure><button class="zoom" type="button" data-full="/site/desk/collection.webp?v=2" data-cap="The full collection list — sets and engine-and-tender pairs kept together." aria-label="Enlarge: The full collection list — sets and engine-and-tender pairs kept together."><img src="/site/desk/collection.webp?v=2" width="2561" height="1303" alt="The full collection list — sets and engine-and-tender pairs kept together." loading="lazy"></button><figcaption>The full collection list — sets and engine-and-tender pairs kept together.</figcaption></figure>
+        <figure><button class="zoom" type="button" data-full="/site/desk/item.webp?v=2" data-cap="An item’s page: the exact variation, your photo and every detail." aria-label="Enlarge: An item’s page: the exact variation, your photo and every detail."><img src="/site/desk/item.webp?v=2" width="2561" height="881" alt="An item’s page: the exact variation, your photo and every detail." loading="lazy"></button><figcaption>An item’s page: the exact variation, your photo and every detail.</figcaption></figure>
+        <figure><button class="zoom" type="button" data-full="/site/desk/add.webp?v=2" data-cap="Adding on a computer: type the number — it even tells you when you already have one." aria-label="Enlarge: Adding on a computer: type the number — it even tells you when you already have one."><img src="/site/desk/add.webp?v=2" width="2561" height="1303" alt="Adding on a computer: type the number — it even tells you when you already have one." loading="lazy"></button><figcaption>Adding on a computer: type the number — it even tells you when you already have one.</figcaption></figure>
     </div>
   </div>
 </section>
