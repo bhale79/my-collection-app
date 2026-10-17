@@ -11013,10 +11013,28 @@
         // lettering independently says Lackawanna. A misread leading digit and a
         // road name pointing at the same item is far stronger evidence than
         // either alone — this is the case worth being confident about.
-        var tailAgrees = haveNum && descNum !== haveNum &&
-          (descNum.replace(/\D/g, '').slice(-haveNum.replace(/\D/g, '').length) === haveNum.replace(/\D/g, ''));
+        // v0.9.1978: a TAIL means a digit was lost in front — the lettering's
+        // number is LONGER. Equal digits are not a tail: 2343-P read against
+        // the lettering's 2343-T (powered vs dummy) used to "agree" here and
+        // swap the powered unit for the dummy.
+        var _dD = descNum.replace(/\D/g, ''), _hD = haveNum ? haveNum.replace(/\D/g, '') : '';
+        var tailAgrees = haveNum && descNum !== haveNum && _hD && _dD.length > _hD.length &&
+          (_dD.slice(-_hD.length) === _hD);
+        // v0.9.1978 — THE SAME ITEM IS AGREEMENT. The number read and the
+        // lettering naming the very same item (0526-1 both ways; 2343P and
+        // 2343-P are one spelling apart) are two signals that agree — it was
+        // falling to the "fingerprint word contradicts a matched number"
+        // branch below and came out unsure, "disagreeing" with itself. Only a
+        // dash before a letter suffix is bridged: 2343-P and 2343-T stay two
+        // different items.
+        var _sameSpelling = function (v) { return String(v || '').trim().toUpperCase().replace(/-(?=[A-Z]+$)/, ''); };
+        var sameItem = !!haveNum && _sameSpelling(descNum) === _sameSpelling(haveNum);
 
-        if (tailAgrees) {
+        if (sameItem) {
+          dbg2.corroborated = haveNum + ' (the number read, and the lettering names the same item)';
+          best.matched = true; best.viaDesc = true; best.descWords = dm.words; best.descOf = descOf; best.dbg = dbg2;
+          delete best.disagreed;
+        } else if (tailAgrees) {
           dbg2.corroborated = descNum + ' (read ' + haveNum + ', lettering agrees)';
           best = { num: descNum, matched: true, viaDesc: true, descWords: dm.words, descOf: descOf, dbg: dbg2 };
         } else if (!best || !best.matched) {
