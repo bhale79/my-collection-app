@@ -20401,7 +20401,19 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const cfgFig = (fs.readFileSync(p84.join(__dirname, '..', 'app', 'config.js'), 'utf8').match(/const BRAND_CATALOG_COUNT = '([\d,]+\+)';/) || [])[1];
       ok('284 config states the figure this section holds the page to', !!cfgFig, String(cfgFig));
       const cFig = cfgFig ? (pv.match(new RegExp(cfgFig.replace('+', '\\+'), 'g')) || []).length : 0;
-      ok('284 …and the page carries config\'s figure in all four places', cFig === 4, String(cFig));
+      // v2026-10-17 (website chat, Brad "yes"): the new sales page fills every figure from config at
+      // load (data-cfg="count"), so the rule is "every figure is config's", not "exactly four". Each
+      // figure in the page body must sit in a data-cfg="count" slot (the meta description is the one
+      // static copy, checked below).
+      ok('284 …and the page carries config\'s figure', cFig >= 1, String(cFig));
+      const bodyPv = pv.slice(pv.indexOf('<body'));
+      const loose = cfgFig ? bodyPv.split(cfgFig).length - 1 - (bodyPv.split('data-cfg="count">' + cfgFig).length - 1) : 1;
+      ok('284 …every figure in the page body is filled from config (data-cfg="count")', loose === 0, String(loose));
+      {
+        const planted = bodyPv.replace('data-cfg="count">' + cfgFig, '>' + cfgFig);
+        const pl = planted.split(cfgFig).length - 1 - (planted.split('data-cfg="count">' + cfgFig).length - 1);
+        ok('284 PLANTED: a figure typed in by hand is caught', planted !== bodyPv && pl === 1, String(pl));
+      }
       ok('284 …and no OTHER six-digit "N+" figure anywhere on it', (pv.match(/\d{2,3},\d{3}\+/g) || []).every(f => f === cfgFig), String(pv.match(/\d{2,3},\d{3}\+/g)));
       // Round DOWN, always. 160,654 real items makes "160,000+" true and keeps
       // it true as the master grows; a rounded-UP figure goes stale the wrong
@@ -20417,7 +20429,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('284 no other unmeasured cadence either',
          !/every (day|month)|daily|weekly updates?/i.test(pv));
       ok('284 …but it still says the catalogue grows, without promising a rate',
-         /Still growing/.test(pv) && /as they are confirmed/.test(pv));
+         (/Still growing/.test(pv) && /as they are confirmed/.test(pv)) || /keeps growing/.test(pv));
 
       // Barcode: real, but only ~1.5% of the catalogue has a UPC on file.
       ok('284 barcode is not offered as an equal identification route',

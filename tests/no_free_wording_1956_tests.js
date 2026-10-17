@@ -93,6 +93,13 @@ const KEPT = [
   { f: 'app/tutorial.js', has: "'What is free and unlimited, and the daily photo ID allowance' : ", why: 'Auto Read only' },
   { f: 'app/wizard-photos.js', has: "rrAutoReadOn()) ? 'Read it free from the photo", why: 'Auto Read only' },
 ];
+// The sales page (the hidden preview now, the home page from launch day) is copy Brad edits
+// often. On it, "free" is allowed BY MEANING — the subscription's free trial, Google's free
+// account, the old beta line — not sentence by sentence, so the next copy edit doesn't go red.
+// Anything else that says "free" on it is still caught (planted check below).
+const SALES_PAGE = /^(preview-[^/]+\/)?index\.html$/;
+const SALES_FREE_OK = /free trial|free for \d+ weeks?|\d+-week free trial|free while in beta|free from Google/gi;
+function salesPageOk(f, line) { return SALES_PAGE.test(f) && !/free/i.test(line.replace(SALES_FREE_OK, '')); }
 function sweep(files) {
   const bad = [];
   Object.keys(files).forEach(f => {
@@ -102,6 +109,7 @@ function sweep(files) {
       const rest = line.replace(new RegExp(NAMES.source, 'g'), '');
       if (!/free/i.test(rest)) return;                       // only program names
       if (KEPT.some(k => k.f === f && line.indexOf(k.has) >= 0)) return;
+      if (salesPageOk(f, line)) return;                      // the trial, by meaning
       bad.push(f + ':' + (i + 1) + '  ' + line.trim().slice(0, 160));
     });
   });
@@ -156,6 +164,10 @@ const cropScreen = pg => pg.evaluate(async () => {
   const planted = Object.assign({}, files);
   planted['app/photo-inbox.js'] = files['app/photo-inbox.js'].replace("(_pinAr() ? ' (free)' : '')", "' (free)'");
   T('S PLANTED: the Inbox button\'s "(free)" back without the Auto Read gate is caught', planted['app/photo-inbox.js'] !== files['app/photo-inbox.js'] && sweep(planted).some(b => /Identify my items/.test(b)), sweep(planted));
+  const plantedSales = Object.assign({}, files);
+  plantedSales['preview-1051ec16/index.html'] = files['preview-1051ec16/index.html'] + '\n<p>Photo ID is free on every phone.</p>\n';
+  T('S PLANTED: a "free" on the sales page that is NOT the trial is still caught', sweep(plantedSales).some(b => /Photo ID is free on every phone/.test(b)), sweep(plantedSales));
+  T('S the sales page\'s trial lines pass by meaning (no sentence list to keep in step)', salesPageOk('preview-1051ec16/index.html', 'Try it free for 3 weeks before you buy!') && salesPageOk('index.html', 'Start your free trial') && !salesPageOk('app/vault.js', 'Start your free trial'));
   T('S the website pages were read too (home, privacy, terms)', ['index.html', 'privacy/index.html', 'terms/index.html'].every(p => p in files), Object.keys(files).filter(k => !/^app\//.test(k)));
 
   const browser = await chromium.launch(fs.existsSync('/opt/pw-browsers/chromium') ? { executablePath: '/opt/pw-browsers/chromium' } : {});
