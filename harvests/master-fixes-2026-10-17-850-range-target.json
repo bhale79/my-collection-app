@@ -1,0 +1,73 @@
+{
+ "what": "Master Version 2.50 — Lionel PW - Items 850 (Row ID SCX2DBVKTP) removed. It was a hand-entered row (Source Manual, note \"Preserved from live (Manual source — non-COTT)\", no link) named \"Range Target Set\", while its Variation Details (\"BLUE No. 850 U-DRIVE BOAT / U-DRIVE BOAT\"), Body Color (blue) and COTT Code (SS0374) are the U-Drive boat's. No source anywhere (COTT, the reference book workbook, Greenberg price file, the web) shows a Lionel postwar O No. 850 Range Target Set; the name most likely strayed from Lionel's HO 0847 Exploding Target Range car / HO 0850 missile car (c. 1960; Lionel postwar HO is not in the master yet). The real No. 850 U-Drive Boat (1964, SS0374) stays on Lionel PW - Other (2Y3ZXAVZ75). Brad owns no 850 (checked 2026-10-17).",
+ "stated": "Brad (2026-10-17): \"yes\" to looking at the 850, then \"approve the delete\"",
+ "masterVersion": "2.50",
+ "date": "2026-10-17",
+ "planReadAt": "public CSV export of Lionel PW - Items, read 2026-10-17 right before this record",
+ "counts": {
+  "cells": 0,
+  "rowsDeleted": 1
+ },
+ "cells": [],
+ "itemsHeader": [
+  "Item Number",
+  "Item Type",
+  "Sub-Type",
+  "Unit",
+  "Powered/Dummy",
+  "Control",
+  "Road Name",
+  "Description",
+  "Gauge",
+  "Year Produced",
+  "Variation #",
+  "Variation Details",
+  "Reference Link",
+  "Notes",
+  "Est. Market Value",
+  "Source",
+  "COTT Code",
+  "Original COTT Desc",
+  "Category",
+  "Track Power",
+  "MSRP",
+  "Body Color",
+  "Stamped Markings",
+  "Row ID"
+ ],
+ "deleted": [
+  {
+   "tab": "Lionel PW - Items",
+   "item": "850",
+   "rowId": "SCX2DBVKTP",
+   "rowHint": 2772,
+   "keeper": "2Y3ZXAVZ75 (Lionel PW - Other)",
+   "fullRow": {
+    "Item Number": "850",
+    "Item Type": "Accessory",
+    "Sub-Type": "",
+    "Unit": "",
+    "Powered/Dummy": "",
+    "Control": "Traditional",
+    "Road Name": "",
+    "Description": "Range Target Set",
+    "Gauge": "",
+    "Year Produced": "",
+    "Variation #": "1",
+    "Variation Details": "BLUE No. 850 U-DRIVE BOAT\nU-DRIVE BOAT",
+    "Reference Link": "",
+    "Notes": "Preserved from live (Manual source — non-COTT)",
+    "Est. Market Value": "",
+    "Source": "Manual",
+    "COTT Code": "SS0374",
+    "Original COTT Desc": "",
+    "Category": "",
+    "Track Power": "",
+    "MSRP": "",
+    "Body Color": "blue",
+    "Stamped Markings": "",
+    "Row ID": "SCX2DBVKTP"
+   }
+  }
+ ]
+}
