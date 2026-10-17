@@ -132,33 +132,50 @@ try {
   .vcard h3 { font-family: var(--head); text-transform: uppercase; letter-spacing: .05em; font-size: 1.15rem; margin-top: .7rem; }
   .vcard p { color: #cdbd99; font-size: .95rem; }
 
-  /* Reason bands — each screenshot is a small thumbnail beside the point it shows; tap to enlarge */
-  .bands { max-width: 860px; margin: 0 auto; }
+  /* Reason bands (Brad 2026-10-17): on a computer a big picture alternates left / right of the points;
+     on a phone each picture is a small thumbnail beside the point it shows. Any picture opens full size. */
+  .bands { max-width: 1060px; margin: 0 auto; }
   .band { padding: 1.8rem 0; border-top: 1px solid #e7d6ad; }
   .band:first-child { border-top: 0; padding-top: .5rem; }
   .band h3 { font-family: var(--head); text-transform: uppercase; font-size: clamp(1.4rem, 3vw, 1.9rem); letter-spacing: .02em; line-height: 1.15; margin-bottom: .8rem; }
   .band h3 span { color: var(--orange); }
-  .points { list-style: none; }
+  .points { list-style: none; display: flow-root; }
   .points li { position: relative; padding: .45rem 0 .45rem 1.7rem; color: var(--ink2); font-size: 1.02rem; }
   .points li::before { content: ''; position: absolute; left: 0; top: .95rem; width: .7rem; height: .7rem; background: var(--orange); border-radius: 2px; }
   .points li b { color: var(--ink); }
   .points li a { color: var(--orange-dk); text-decoration: underline; text-underline-offset: 2px; }
-  /* the thumbnail floats at the right of its point; the points after it flow beside it, so no empty gap */
-  .points { display: flow-root; }
-  .thumb { float: right; margin: .2rem 0 .6rem 1rem; width: 88px; padding: 0; border: 3px solid #10182c; border-radius: 10px; background: #10182c;
-    cursor: zoom-in; overflow: hidden; box-shadow: 0 6px 16px rgba(20,25,45,.22); position: relative; z-index: 2; }  /* above the next points, so the whole picture is tappable */
+  .zoom { display: block; padding: 0; border: 0; background: none; cursor: zoom-in; position: relative; }
+  .zoom:focus-visible { outline: 3px solid var(--orange); outline-offset: 3px; }
+  .thumb { float: right; margin: .2rem 0 .6rem 1rem; width: 88px; border: 3px solid #10182c; border-radius: 10px; background: #10182c;
+    overflow: hidden; box-shadow: 0 6px 16px rgba(20,25,45,.22); z-index: 2; }  /* above the next points, so the whole picture is tappable */
   .thumb img { width: 100%; height: auto; }
-  .thumb::after { content: '⤢'; position: absolute; right: 3px; bottom: 3px; width: 22px; height: 22px; border-radius: 6px;
+  .thumb::after, .desk .zoom::after { content: '⤢'; position: absolute; right: 3px; bottom: 3px; width: 22px; height: 22px; border-radius: 6px;
     background: rgba(11,17,30,.78); color: #fff; font-size: 14px; line-height: 22px; text-align: center; }
-  .thumb:focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; }
-  @media (min-width: 700px) { .thumb { width: 104px; } }
+  .shot { display: none; }
+  .shot figure { margin: 0 auto; width: 100%; max-width: 300px; }
+  .shot img { width: 100%; height: auto; border-radius: 22px; border: 8px solid #10182c; box-shadow: 0 20px 50px rgba(20,25,45,.28); background: #10182c; }
+  .shot figcaption, .desk figcaption { text-align: center; font-size: .85rem; color: var(--ink3); margin-top: .6rem; }
+  @media (min-width: 860px) {
+    .band { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: center; padding: 2.5rem 0; }
+    .band.flip .shot { order: -1; }
+    .shot { display: flex; justify-content: center; }
+    .thumb { display: none; }
+  }
+
+  /* Computer screenshots — larger on a computer, a 2 x 2 grid of small pictures on a phone */
+  .desk { background: var(--cream2); }
+  .dgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; max-width: 1060px; margin: 0 auto; }
+  .dgrid figure { margin: 0; }
+  .dgrid img { width: 100%; height: auto; border-radius: 8px; border: 1px solid #c9b78f; box-shadow: 0 10px 28px rgba(20,25,45,.18); }
+  @media (min-width: 860px) { .dgrid { gap: 2rem; } .desk figcaption { font-size: .92rem; } }
 
   /* Enlarged picture */
-  .lightbox { position: fixed; inset: 0; z-index: 100; background: rgba(5,8,15,.92); display: none;
+  .lightbox { position: fixed; inset: 0; z-index: 100; background: rgba(5,8,15,.97); display: none;
     flex-direction: column; align-items: center; justify-content: center; padding: 3.5rem 1rem 1.5rem; }
   .lightbox.on { display: flex; }
-  .lightbox img { max-width: min(460px, 100%); max-height: calc(100vh - 8rem); width: auto; height: auto;
+  .lightbox img { max-width: 100%; max-height: calc(100vh - 8rem); width: auto; height: auto;
     border-radius: 16px; border: 6px solid #10182c; background: #10182c; }
+  .lightbox img.tall { max-width: min(460px, 100%); }
   .lightbox p { color: var(--cream); text-align: center; margin-top: .8rem; font-size: 1rem; max-width: 30em; }
   .lightbox .x { position: absolute; top: .8rem; right: .8rem; width: 48px; height: 48px; border-radius: 50%; border: 0;
     background: var(--orange); color: #fff; font-size: 1.6rem; line-height: 48px; cursor: pointer; }
@@ -316,47 +333,72 @@ try {
 
     <div class="bands">
       <div class="band">
-        <h3>Add your trains <span>fast</span></h3>
-        <ul class="points">
-          <li class="has-thumb"><button class="thumb" type="button" data-full="/site/shots/add.webp" data-cap="Type a number — the catalog fills in the rest." aria-label="Enlarge: Type a number — the catalog fills in the rest."><img src="/site/shots/add.webp" width="647" height="1240" alt="Typing 2343 on the Add screen finds the Santa Fe F3 in the catalog" loading="lazy"></button><span class="pt">With over <b data-cfg="count">160,000+</b> cataloged items, you can quickly add your trains using your <b>phone or computer</b>.</span></li>
-          <li><span class="pt">Easily identify unknown items with <b>Photo ID</b>.</span></li>
-          <li><span class="pt"><b>Manually add any item</b>, so you can track that lantern collection too!</span></li>
-          <li><span class="pt">Already have your list in <b>Excel</b>? Easily import it in minutes.</span></li>
-        </ul>
+        <div class="txt">
+          <h3>Add your trains <span>fast</span></h3>
+          <ul class="points">
+            <li class="has-thumb"><button class="thumb zoom" type="button" data-full="/site/shots/add.webp" data-cap="Type a number — the catalog fills in the rest." aria-label="Enlarge: Type a number — the catalog fills in the rest."><img src="/site/shots/add.webp" width="647" height="1240" alt="Typing 2343 on the Add screen finds the Santa Fe F3 in the catalog" loading="lazy"></button><span class="pt">With over <b data-cfg="count">160,000+</b> cataloged items, you can quickly add your trains using your <b>phone or computer</b>.</span></li>
+            <li><span class="pt">Easily identify unknown items with <b>Photo ID</b>.</span></li>
+            <li><span class="pt"><b>Manually add any item</b>, so you can track that lantern collection too!</span></li>
+            <li><span class="pt">Already have your list in <b>Excel</b>? Easily import it in minutes.</span></li>
+          </ul>
+        </div>
+        <div class="shot"><figure><button class="zoom" type="button" data-full="/site/shots/add.webp" data-cap="Type a number — the catalog fills in the rest." aria-label="Enlarge: Type a number — the catalog fills in the rest."><img src="/site/shots/add.webp" width="647" height="1240" alt="Typing 2343 on the Add screen finds the Santa Fe F3 in the catalog" loading="lazy"></button><figcaption>Type a number — the catalog fills in the rest.</figcaption></figure></div>
       </div>
-
+      <div class="band flip">
+        <div class="txt">
+          <h3>Every piece, <span>every detail</span></h3>
+          <ul class="points">
+            <li><span class="pt">Each item gets its own page with <b>your photos</b>, condition and notes.</span></li>
+            <li class="has-thumb"><button class="thumb zoom" type="button" data-full="/site/shots/item.webp" data-cap="A postwar 2331 Virginian, variation and all." aria-label="Enlarge: A postwar 2331 Virginian, variation and all."><img src="/site/shots/item.webp" width="647" height="1240" alt="The page for a Lionel 2331 Virginian Train Master with its photo and variation" loading="lazy"></button><span class="pt">Track <b>prewar &amp; postwar variations</b>. Easily identify them using the <a href="https://cornucopiaoftoytrains.com/" target="_blank" rel="noopener"><b>Cornucopia of Toy Trains</b></a> site.</span></li>
+            <li><span class="pt">Engines with their tenders, and diesel A and B units, kept together the way they run.</span></li>
+          </ul>
+        </div>
+        <div class="shot"><figure><button class="zoom" type="button" data-full="/site/shots/item.webp" data-cap="A postwar 2331 Virginian, variation and all." aria-label="Enlarge: A postwar 2331 Virginian, variation and all."><img src="/site/shots/item.webp" width="647" height="1240" alt="The page for a Lionel 2331 Virginian Train Master with its photo and variation" loading="lazy"></button><figcaption>A postwar 2331 Virginian, variation and all.</figcaption></figure></div>
+      </div>
       <div class="band">
-        <h3>Every piece, <span>every detail</span></h3>
-        <ul class="points">
-          <li><span class="pt">Each item gets its own page with <b>your photos</b>, condition and notes.</span></li>
-          <li class="has-thumb"><button class="thumb" type="button" data-full="/site/shots/item.webp" data-cap="A postwar 2331 Virginian, variation and all." aria-label="Enlarge: A postwar 2331 Virginian, variation and all."><img src="/site/shots/item.webp" width="647" height="1240" alt="The page for a Lionel 2331 Virginian Train Master with its photo and variation" loading="lazy"></button><span class="pt">Track <b>prewar &amp; postwar variations</b>. Easily identify them using the <a href="https://cornucopiaoftoytrains.com/" target="_blank" rel="noopener"><b>Cornucopia of Toy Trains</b></a> site.</span></li>
-          <li><span class="pt">Engines with their tenders, and diesel A and B units, kept together the way they run.</span></li>
-        </ul>
+        <div class="txt">
+          <h3>Every list <span>in one place</span></h3>
+          <ul class="points">
+            <li class="has-thumb"><button class="thumb zoom" type="button" data-full="/site/shots/collection.webp" data-cap="Your whole collection, with photos, in your pocket." aria-label="Enlarge: Your whole collection, with photos, in your pocket."><img src="/site/shots/collection.webp" width="647" height="1240" alt="A collection list in The Rail Roster on a phone" loading="lazy"></button><span class="pt">Maintain your <b>Collection, Want, Sales and Parts</b> lists easily.</span></li>
+            <li><span class="pt">Track each item’s <b>location</b> so you can remember where you put it.</span></li>
+          </ul>
+        </div>
+        <div class="shot"><figure><button class="zoom" type="button" data-full="/site/shots/collection.webp" data-cap="Your whole collection, with photos, in your pocket." aria-label="Enlarge: Your whole collection, with photos, in your pocket."><img src="/site/shots/collection.webp" width="647" height="1240" alt="A collection list in The Rail Roster on a phone" loading="lazy"></button><figcaption>Your whole collection, with photos, in your pocket.</figcaption></figure></div>
       </div>
-
+      <div class="band flip">
+        <div class="txt">
+          <h3>Know what it’s <span>worth</span></h3>
+          <ul class="points">
+            <li class="has-thumb"><button class="thumb zoom" type="button" data-full="/site/shots/worth.webp" data-cap="Estimated worth by maker, at a glance." aria-label="Enlarge: Estimated worth by maker, at a glance."><img src="/site/shots/worth.webp" width="647" height="1240" alt="The Rail Roster dashboard showing a collection's estimated worth" loading="lazy"></button><span class="pt">Track the <b>estimated worth</b> of everything in your collection.</span></li>
+            <li><span class="pt">Print <b>insurance reports</b> in a few clicks — with photos — and keep every past report ready to send.</span></li>
+          </ul>
+        </div>
+        <div class="shot"><figure><button class="zoom" type="button" data-full="/site/shots/worth.webp" data-cap="Estimated worth by maker, at a glance." aria-label="Enlarge: Estimated worth by maker, at a glance."><img src="/site/shots/worth.webp" width="647" height="1240" alt="The Rail Roster dashboard showing a collection's estimated worth" loading="lazy"></button><figcaption>Estimated worth by maker, at a glance.</figcaption></figure></div>
+      </div>
       <div class="band">
-        <h3>Every list <span>in one place</span></h3>
-        <ul class="points">
-          <li class="has-thumb"><button class="thumb" type="button" data-full="/site/shots/collection.webp" data-cap="Your whole collection, with photos, in your pocket." aria-label="Enlarge: Your whole collection, with photos, in your pocket."><img src="/site/shots/collection.webp" width="647" height="1240" alt="A collection list in The Rail Roster on a phone" loading="lazy"></button><span class="pt">Maintain your <b>Collection, Want, Sales and Parts</b> lists easily.</span></li>
-          <li><span class="pt">Track each item’s <b>location</b> so you can remember where you put it.</span></li>
-        </ul>
+        <div class="txt">
+          <h3>Share <span>it</span></h3>
+          <ul class="points">
+            <li class="has-thumb"><button class="thumb zoom" type="button" data-full="/site/shots/forsale.webp" data-cap="Your For Sale list — share it with one tap." aria-label="Enlarge: Your For Sale list — share it with one tap."><img src="/site/shots/forsale.webp" width="647" height="1240" alt="The For Sale list with Share buttons in The Rail Roster" loading="lazy"></button><span class="pt">Share your <b>sale items</b> with your friends, or <b>brag</b> about what you just got, by text or email.</span></li>
+            <li><span class="pt">The people you send it to can open every photo at full size.</span></li>
+          </ul>
+        </div>
+        <div class="shot"><figure><button class="zoom" type="button" data-full="/site/shots/forsale.webp" data-cap="Your For Sale list — share it with one tap." aria-label="Enlarge: Your For Sale list — share it with one tap."><img src="/site/shots/forsale.webp" width="647" height="1240" alt="The For Sale list with Share buttons in The Rail Roster" loading="lazy"></button><figcaption>Your For Sale list — share it with one tap.</figcaption></figure></div>
       </div>
+    </div>
+  </div>
+</section>
 
-      <div class="band">
-        <h3>Know what it’s <span>worth</span></h3>
-        <ul class="points">
-          <li class="has-thumb"><button class="thumb" type="button" data-full="/site/shots/worth.webp" data-cap="Estimated worth by maker, at a glance." aria-label="Enlarge: Estimated worth by maker, at a glance."><img src="/site/shots/worth.webp" width="647" height="1240" alt="The Rail Roster dashboard showing a collection's estimated worth" loading="lazy"></button><span class="pt">Track the <b>estimated worth</b> of everything in your collection.</span></li>
-          <li><span class="pt">Print <b>insurance reports</b> in a few clicks — with photos — and keep every past report ready to send.</span></li>
-        </ul>
-      </div>
-
-      <div class="band">
-        <h3>Share <span>it</span></h3>
-        <ul class="points">
-          <li class="has-thumb"><button class="thumb" type="button" data-full="/site/shots/forsale.webp" data-cap="Your For Sale list — share it with one tap." aria-label="Enlarge: Your For Sale list — share it with one tap."><img src="/site/shots/forsale.webp" width="647" height="1240" alt="The For Sale list with Share buttons in The Rail Roster" loading="lazy"></button><span class="pt">Share your <b>sale items</b> with your friends, or <b>brag</b> about what you just got, by text or email.</span></li>
-          <li><span class="pt">The people you send it to can open every photo at full size.</span></li>
-        </ul>
-      </div>
+<section id="desk" class="desk">
+  <div class="wrap">
+    <div class="label">Phone or computer</div>
+    <h2>Same collection, every screen</h2>
+    <p class="intro">Catalog at your desk with a full-size screen, then take the same collection to the show on your phone. Sign in on each and it’s all there.</p>
+    <div class="dgrid">
+        <figure><button class="zoom" type="button" data-full="/site/desk/dashboard.webp" data-cap="The dashboard on a computer: worth, counts and recent additions at a glance." aria-label="Enlarge: The dashboard on a computer: worth, counts and recent additions at a glance."><img src="/site/desk/dashboard.webp" width="1539" height="784" alt="The dashboard on a computer: worth, counts and recent additions at a glance." loading="lazy"></button><figcaption>The dashboard on a computer: worth, counts and recent additions at a glance.</figcaption></figure>
+        <figure><button class="zoom" type="button" data-full="/site/desk/collection.webp" data-cap="The full collection list — sets and engine-and-tender pairs kept together." aria-label="Enlarge: The full collection list — sets and engine-and-tender pairs kept together."><img src="/site/desk/collection.webp" width="1539" height="784" alt="The full collection list — sets and engine-and-tender pairs kept together." loading="lazy"></button><figcaption>The full collection list — sets and engine-and-tender pairs kept together.</figcaption></figure>
+        <figure><button class="zoom" type="button" data-full="/site/desk/item.webp" data-cap="An item’s page: the exact variation, your photo and every detail." aria-label="Enlarge: An item’s page: the exact variation, your photo and every detail."><img src="/site/desk/item.webp" width="1539" height="530" alt="An item’s page: the exact variation, your photo and every detail." loading="lazy"></button><figcaption>An item’s page: the exact variation, your photo and every detail.</figcaption></figure>
+        <figure><button class="zoom" type="button" data-full="/site/desk/add.webp" data-cap="Adding on a computer: type the number — it even tells you when you already have one." aria-label="Enlarge: Adding on a computer: type the number — it even tells you when you already have one."><img src="/site/desk/add.webp" width="1539" height="784" alt="Adding on a computer: type the number — it even tells you when you already have one." loading="lazy"></button><figcaption>Adding on a computer: type the number — it even tells you when you already have one.</figcaption></figure>
     </div>
   </div>
 </section>
@@ -591,9 +633,9 @@ try {
     if (!fromBack && history.state && history.state.rrLightbox) history.back();
   }
   document.addEventListener('click', function (e) {
-    var t = e.target.closest && e.target.closest('.thumb');
+    var t = e.target.closest && e.target.closest('.zoom');
     if (t) {
-      img.src = t.getAttribute('data-full'); img.alt = t.querySelector('img').alt; cap.textContent = t.getAttribute('data-cap');
+      img.src = t.getAttribute('data-full'); img.className = /\/site\/shots\//.test(img.src) ? 'tall' : ''; img.alt = t.querySelector('img').alt; cap.textContent = t.getAttribute('data-cap');
       lb.hidden = false; lb.classList.add('on'); open = true;
       try { history.pushState({ rrLightbox: 1 }, ''); } catch (err) {}
       lb.querySelector('.x').focus();
