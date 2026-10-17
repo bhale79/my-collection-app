@@ -169,6 +169,34 @@ try {
   .dgrid img { width: 100%; height: auto; border-radius: 8px; border: 1px solid #c9b78f; box-shadow: 0 10px 28px rgba(20,25,45,.18); }
   @media (min-width: 860px) { .dgrid { gap: 2rem; } .desk figcaption { font-size: .92rem; } }
 
+  /* Computer loop (Brad 2026-10-17): on a computer, the app's computer screens slide past inside a laptop, over and over,
+     right under the "What it does" intro. Phones don't get it — they keep the "Same collection, every screen" pictures,
+     which a computer no longer shows (the loop has the same screens). Each picture says which device it is. */
+  .dev-tag { display: block; font-family: var(--head); text-transform: uppercase; letter-spacing: .16em; font-size: .8rem;
+    color: var(--ink3); text-align: center; margin-bottom: .6rem; }
+  .dev-tag::before { content: ''; display: inline-block; width: .55rem; height: .55rem; background: var(--orange); border-radius: 2px;
+    margin-right: .45rem; vertical-align: .05em; }
+  .loop { display: none; }
+  @media (min-width: 860px) {
+    .loop { display: block; width: 88%; max-width: 860px; margin: 0 auto 3.2rem; }
+    #desk { display: none; }
+  }
+  .lscreen { background: #10182c; border: 12px solid #10182c; border-bottom-width: 16px; border-radius: 16px 16px 4px 4px;
+    box-shadow: 0 24px 60px rgba(20,25,45,.30); }
+  .lview { position: relative; overflow: hidden; aspect-ratio: 1539 / 784; background: var(--cream); border-radius: 2px; }
+  .ltrack { display: flex; height: 100%; transition: transform .9s cubic-bezier(.65,0,.35,1); }
+  .ltrack .zoom { flex: 0 0 100%; height: 100%; }
+  .ltrack img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+  .lbase { position: relative; height: 15px; margin: 0 -6%; border-radius: 0 0 14px 14px;
+    background: linear-gradient(#d3d6dd, #8e929c); box-shadow: 0 12px 24px rgba(20,25,45,.22); }
+  .lbase::before { content: ''; position: absolute; left: 50%; top: 0; width: 15%; height: 6px; transform: translateX(-50%);
+    background: #7c808a; border-radius: 0 0 8px 8px; }
+  .lcap { text-align: center; font-size: .95rem; color: var(--ink2); margin-top: 1.1rem; min-height: 1.5em; }
+  .ldots { display: flex; justify-content: center; gap: .55rem; margin-top: .55rem; }
+  .ldots button { width: 12px; height: 12px; padding: 0; border: 0; border-radius: 50%; background: #d8c69c; cursor: pointer; }
+  .ldots button.on { background: var(--orange); }
+  .ldots button:focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; }
+
   /* Enlarged picture */
   .lightbox { position: fixed; inset: 0; z-index: 100; background: rgba(5,8,15,.97); display: none;
     flex-direction: column; align-items: center; justify-content: center; padding: 3.5rem 1rem 1.5rem; }
@@ -331,6 +359,20 @@ try {
     <h2>The only way to collect.</h2>
     <p class="intro">Everything you need to catalog, value and share your trains. Every screen below is the real app, with a real collection — tap a picture to see it full size.</p>
 
+    <div class="loop" id="loop" role="region" aria-roledescription="slide show" aria-label="The Rail Roster on a computer">
+      <span class="dev-tag">On a computer</span>
+      <div class="lscreen"><div class="lview"><div class="ltrack" id="loop-track">
+        <button class="zoom" type="button" data-full="/site/desk/dashboard.webp" data-cap="The dashboard: worth, counts and recent additions at a glance." aria-label="Enlarge: The dashboard: worth, counts and recent additions at a glance."><img src="/site/desk/dashboard.webp" width="1539" height="784" alt="The dashboard on a computer: worth, counts and recent additions at a glance." loading="lazy"></button>
+        <button class="zoom" type="button" data-full="/site/desk/collection.webp" data-cap="The full collection list — sets and engine-and-tender pairs kept together." aria-label="Enlarge: The full collection list — sets and engine-and-tender pairs kept together."><img src="/site/desk/collection.webp" width="1539" height="784" alt="The full collection list on a computer — sets and engine-and-tender pairs kept together." loading="lazy"></button>
+        <button class="zoom" type="button" data-full="/site/desk/item-full.webp" data-cap="An item’s page: the exact variation, your photo and every detail." aria-label="Enlarge: An item’s page: the exact variation, your photo and every detail."><img src="/site/desk/item-full.webp" width="1539" height="784" alt="The page for a Lionel 2331 Virginian on a computer: the exact variation, the photo and every detail." loading="lazy"></button>
+        <button class="zoom" type="button" data-full="/site/desk/add.webp" data-cap="Adding an item: type the number — it even tells you when you already have one." aria-label="Enlarge: Adding an item: type the number — it even tells you when you already have one."><img src="/site/desk/add.webp" width="1539" height="784" alt="Adding an item on a computer: type the number — it even tells you when you already have one." loading="lazy"></button>
+        <button class="zoom" type="button" data-full="/site/desk/forsale.webp" data-cap="Your For Sale list with asking prices — share it with a friend or your customers." aria-label="Enlarge: Your For Sale list with asking prices — share it with a friend or your customers."><img src="/site/desk/forsale.webp" width="1539" height="784" alt="The For Sale list on a computer, with asking prices and Share buttons." loading="lazy"></button>
+      </div></div></div>
+      <div class="lbase"></div>
+      <p class="lcap" id="loop-cap">The dashboard: worth, counts and recent additions at a glance.</p>
+      <div class="ldots" id="loop-dots"></div>
+    </div>
+
     <div class="bands">
       <div class="band">
         <div class="txt">
@@ -342,7 +384,7 @@ try {
             <li><span class="pt">Already have your list in <b>Excel</b>? Easily import it in minutes.</span></li>
           </ul>
         </div>
-        <div class="shot"><figure><button class="zoom" type="button" data-full="/site/shots/add.webp" data-cap="Type a number — the catalog fills in the rest." aria-label="Enlarge: Type a number — the catalog fills in the rest."><img src="/site/shots/add.webp" width="647" height="1240" alt="Typing 2343 on the Add screen finds the Santa Fe F3 in the catalog" loading="lazy"></button><figcaption>Type a number — the catalog fills in the rest.</figcaption></figure></div>
+        <div class="shot"><figure><span class="dev-tag">On your phone</span><button class="zoom" type="button" data-full="/site/shots/add.webp" data-cap="Type a number — the catalog fills in the rest." aria-label="Enlarge: Type a number — the catalog fills in the rest."><img src="/site/shots/add.webp" width="647" height="1240" alt="Typing 2343 on the Add screen finds the Santa Fe F3 in the catalog" loading="lazy"></button><figcaption>Type a number — the catalog fills in the rest.</figcaption></figure></div>
       </div>
       <div class="band flip">
         <div class="txt">
@@ -353,7 +395,7 @@ try {
             <li><span class="pt">Engines with their tenders, and diesel A and B units, kept together the way they run.</span></li>
           </ul>
         </div>
-        <div class="shot"><figure><button class="zoom" type="button" data-full="/site/shots/item.webp" data-cap="A postwar 2331 Virginian, variation and all." aria-label="Enlarge: A postwar 2331 Virginian, variation and all."><img src="/site/shots/item.webp" width="647" height="1240" alt="The page for a Lionel 2331 Virginian Train Master with its photo and variation" loading="lazy"></button><figcaption>A postwar 2331 Virginian, variation and all.</figcaption></figure></div>
+        <div class="shot"><figure><span class="dev-tag">On your phone</span><button class="zoom" type="button" data-full="/site/shots/item.webp" data-cap="A postwar 2331 Virginian, variation and all." aria-label="Enlarge: A postwar 2331 Virginian, variation and all."><img src="/site/shots/item.webp" width="647" height="1240" alt="The page for a Lionel 2331 Virginian Train Master with its photo and variation" loading="lazy"></button><figcaption>A postwar 2331 Virginian, variation and all.</figcaption></figure></div>
       </div>
       <div class="band">
         <div class="txt">
@@ -363,7 +405,7 @@ try {
             <li><span class="pt">Track each item’s <b>location</b> so you can remember where you put it.</span></li>
           </ul>
         </div>
-        <div class="shot"><figure><button class="zoom" type="button" data-full="/site/shots/collection.webp" data-cap="Your whole collection, with photos, in your pocket." aria-label="Enlarge: Your whole collection, with photos, in your pocket."><img src="/site/shots/collection.webp" width="647" height="1240" alt="A collection list in The Rail Roster on a phone" loading="lazy"></button><figcaption>Your whole collection, with photos, in your pocket.</figcaption></figure></div>
+        <div class="shot"><figure><span class="dev-tag">On your phone</span><button class="zoom" type="button" data-full="/site/shots/collection.webp" data-cap="Your whole collection, with photos, in your pocket." aria-label="Enlarge: Your whole collection, with photos, in your pocket."><img src="/site/shots/collection.webp" width="647" height="1240" alt="A collection list in The Rail Roster on a phone" loading="lazy"></button><figcaption>Your whole collection, with photos, in your pocket.</figcaption></figure></div>
       </div>
       <div class="band flip">
         <div class="txt">
@@ -373,7 +415,7 @@ try {
             <li><span class="pt">Print <b>insurance reports</b> in a few clicks — with photos — and keep every past report ready to send.</span></li>
           </ul>
         </div>
-        <div class="shot"><figure><button class="zoom" type="button" data-full="/site/shots/worth.webp" data-cap="Estimated worth by maker, at a glance." aria-label="Enlarge: Estimated worth by maker, at a glance."><img src="/site/shots/worth.webp" width="647" height="1240" alt="The Rail Roster dashboard showing a collection's estimated worth" loading="lazy"></button><figcaption>Estimated worth by maker, at a glance.</figcaption></figure></div>
+        <div class="shot"><figure><span class="dev-tag">On your phone</span><button class="zoom" type="button" data-full="/site/shots/worth.webp" data-cap="Estimated worth by maker, at a glance." aria-label="Enlarge: Estimated worth by maker, at a glance."><img src="/site/shots/worth.webp" width="647" height="1240" alt="The Rail Roster dashboard showing a collection's estimated worth" loading="lazy"></button><figcaption>Estimated worth by maker, at a glance.</figcaption></figure></div>
       </div>
       <div class="band">
         <div class="txt">
@@ -383,7 +425,7 @@ try {
             <li><span class="pt">The people you send it to can open every photo at full size.</span></li>
           </ul>
         </div>
-        <div class="shot"><figure><button class="zoom" type="button" data-full="/site/shots/forsale.webp" data-cap="Your For Sale list — share it with one tap." aria-label="Enlarge: Your For Sale list — share it with one tap."><img src="/site/shots/forsale.webp" width="647" height="1240" alt="The For Sale list with Share buttons in The Rail Roster" loading="lazy"></button><figcaption>Your For Sale list — share it with one tap.</figcaption></figure></div>
+        <div class="shot"><figure><span class="dev-tag">On your phone</span><button class="zoom" type="button" data-full="/site/shots/forsale.webp" data-cap="Your For Sale list — share it with one tap." aria-label="Enlarge: Your For Sale list — share it with one tap."><img src="/site/shots/forsale.webp" width="647" height="1240" alt="The For Sale list with Share buttons in The Rail Roster" loading="lazy"></button><figcaption>Your For Sale list — share it with one tap.</figcaption></figure></div>
       </div>
     </div>
   </div>
@@ -619,6 +661,65 @@ try {
   fit();
   window.addEventListener('resize', fit);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
+})();
+</script>
+
+<script>
+/* The computer loop (Brad 2026-10-17). Every few seconds the next computer screen slides in; after the last one
+   it carries on to the first again without jumping back. It waits while the mouse is over it, while a picture is
+   open full size, while it's scrolled out of view or the tab is in the background, and never moves on its own
+   for anyone whose computer is set to reduce motion (the dots still step through). Phones never show it. */
+(function () {
+  var loop = document.getElementById('loop'), track = document.getElementById('loop-track');
+  if (!loop || !track) return;
+  var cap = document.getElementById('loop-cap'), dotsEl = document.getElementById('loop-dots'), lb = document.getElementById('lightbox');
+  var slides = Array.prototype.slice.call(track.children), n = slides.length, EVERY = 4500;
+  var still = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  var i = 0, over = false, inView = false, loaded = false;
+
+  var copy = slides[0].cloneNode(true);                     // the first screen again, so the last one slides into it smoothly
+  copy.setAttribute('aria-hidden', 'true'); copy.tabIndex = -1; track.appendChild(copy);
+
+  var dots = slides.map(function (s, k) {
+    var b = document.createElement('button'); b.type = 'button';
+    b.setAttribute('aria-label', 'Show screen ' + (k + 1) + ' of ' + n);
+    b.addEventListener('click', function () { go(k, true); });
+    dotsEl.appendChild(b); return b;
+  });
+
+  function go(k, animate) {
+    i = k;
+    track.style.transition = animate && !still ? '' : 'none';
+    track.style.transform = 'translateX(' + (-100 * k) + '%)';
+    var r = k % n;
+    cap.textContent = slides[r].getAttribute('data-cap');
+    dots.forEach(function (d, j) { d.classList.toggle('on', j === r); });
+    if (!animate || still) { void track.offsetWidth; track.style.transition = ''; if (k === n) go(0, false); }
+  }
+  track.addEventListener('transitionend', function (e) { if (e.target === track && i === n) go(0, false); });
+
+  function loadAll() {                                      // on a computer only, once it is on screen
+    if (loaded) return; loaded = true;
+    Array.prototype.forEach.call(track.querySelectorAll('img'), function (im) { im.loading = 'eager'; });
+  }
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(function (es) {
+      inView = es[0].isIntersecting;
+      if (inView && loop.offsetWidth) loadAll();
+    }, { rootMargin: '300px 0px' }).observe(loop);
+  } else { inView = true; loadAll(); }
+
+  loop.addEventListener('mouseenter', function () { over = true; });
+  loop.addEventListener('mouseleave', function () { over = false; });
+  loop.addEventListener('focusin', function () { over = true; });
+  loop.addEventListener('focusout', function () { over = false; });
+
+  go(0, false);
+  if (!still) setInterval(function () {
+    if (over || !inView || document.hidden || !loop.offsetWidth || (lb && !lb.hidden)) return;
+    if (i >= n) go(0, false);                                // a slide-in that finished while the tab was hidden
+    go(i + 1, true);
+  }, EVERY);
 })();
 </script>
 
