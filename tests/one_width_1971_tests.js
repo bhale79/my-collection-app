@@ -20,8 +20,8 @@
 //       Notes across both
 //   W4  Ready to save: the review lines in two columns
 //   W5  the photo step: the whole slot cross inside the box
-//   W6  step 1: the number box keeps its room; Photo ID in the row says just
-//       "Photo ID" (the full wording is its tooltip)
+//   W6  step 1 (v0.9.1972): the number box + Box Only on one row at one
+//       height; under it Add a picture first | Photo ID, equal halves
 //   W7  a phone keeps its own sizes and one column
 //   X*  PLANTED: each undone in the code is caught
 // ═══════════════════════════════════════════════════════════════════════════
@@ -117,6 +117,8 @@ const walk = (pg, grouping) => pg.evaluate(async (args) => {
   s1.input = R(inp); s1.pid = R(pid);
   s1.pidText = pid ? pid.innerText.replace(/\s+/g, ' ').trim() : ''; s1.pidTitle = pid ? pid.title : '';
   s1.inRow = !!(pid && pid.classList.contains('wiz-photoid-inrow'));
+  const pf = document.getElementById('wiz-picfirst-btn'), bo = document.querySelector('[data-box-only-checkbox]');
+  s1.pf = R(pf); s1.bo = R(bo);
   res.push(s1);
   try { closeWizard(); } catch (e) {} await S(200);
   // the rest — on the matched item, every Yes answered, a price, a seller, a place
@@ -196,9 +198,16 @@ const brief = steps => steps.map(s => s.id + ' ' + (s.box ? s.box.w + 'x' + s.bo
   const ph = laptop.find(s => s.id === 'photosItem').ph;
   T('W5 the photo step: all six slots inside the box (none past its edge)', ph.zones.length === 6 && ph.maxR <= ph.main.r + 1 && ph.maxR <= ph.body.r, ph);
   const s1 = laptop[0];
-  T('W6 step 1: Photo ID ends the number row and says just "Photo ID"; its tooltip carries the full wording',
-    s1.inRow && /^Photo ID$/i.test(s1.pidText) && /know the number/i.test(s1.pidTitle) && Math.abs(s1.pid.t - s1.input.t) <= 8, { text: s1.pidText, title: s1.pidTitle, pid: s1.pid, input: s1.input });
-  T('W6 step 1: the number box keeps its room (wider than Photo ID)', s1.input.w > s1.pid.w && s1.input.w >= 200, { input: s1.input, pid: s1.pid });
+  // v0.9.1972 (Brad: "Add the picture first button to the left … and the photo
+  // id to the right … and then increase the button size for the item number
+  // entry"): the number row is the number + Box Only at the same height; under
+  // it two equal halves, Add a picture first | Photo ID (full wording back).
+  const s1row = s1.input && s1.bo && s1.pf && s1.pid;
+  T('W6 step 1: the number box and Box Only share a row at the same height; the number box is the wide one',
+    s1row && Math.abs(s1.input.t - s1.bo.t) <= 2 && Math.abs(s1.input.b - s1.bo.b) <= 2 && s1.input.w > 2 * s1.bo.w, { input: s1.input, boxOnly: s1.bo });
+  T('W6 step 1: under it, Add a picture first (left half) and Photo ID (right half), equal size, Photo ID with its full wording',
+    s1row && s1.pf.t >= s1.input.b && Math.abs(s1.pf.t - s1.pid.t) <= 2 && s1.pf.r < s1.pid.l && Math.abs(s1.pf.w - s1.pid.w) <= 2 && Math.abs(s1.pf.h - s1.pid.h) <= 2 && /know the number/i.test(s1.pidText),
+    { pf: s1.pf, pid: s1.pid, input: s1.input, text: s1.pidText });
 
   console.log('== W7 · a phone ==');
   r = await open(browser, { w: 412, h: 860, mobile: true });
@@ -227,9 +236,9 @@ const brief = steps => steps.map(s => s.id + ' ' + (s.box ? s.box.w + 'x' + s.bo
   const xph = m.find(s => s.id === 'photosItem').ph;
   T('X-W5 PLANTED: the slots not allowed to shrink → Left Side runs past the box edge (caught)', xph.maxR > xph.main.r + 1, xph);
   await x.ctx.close();
-  x = await open(browser, { w: 1536, h: 737, css: planted(CSS, '.wiz-photoid-inrow .wiz-pid-lead { display: none; }', '', 'long Photo ID') });
+  x = await open(browser, { w: 1536, h: 737, wiz: planted(WIZ, "      if (_ingPidRow) {", "      if (false) {", 'Photo ID half') });
   m = await walk(x.pg);
-  T('X-W6 PLANTED: Photo ID with its full wording in the row → the number box is squeezed (caught)', !(m[0].input.w > m[0].pid.w && m[0].input.w >= 200), { input: m[0].input, pid: m[0].pid });
+  T('X-W6 PLANTED: Photo ID not put in the right half → the two buttons are not side by side (caught)', !(m[0].pf && m[0].pid && Math.abs(m[0].pf.t - m[0].pid.t) <= 2 && m[0].pf.r < m[0].pid.l && m[0].pf.t >= m[0].input.b), { pf: m[0].pf, pid: m[0].pid });
   await x.ctx.close();
 
   await browser.close();

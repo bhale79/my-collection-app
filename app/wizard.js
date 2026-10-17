@@ -1735,6 +1735,7 @@ function _buildItemSearchFiltersDOM() {
   if (ui.hint) {
     var hint = document.createElement('div');
     hint.style.cssText = 'font-size:0.72rem;color:var(--text-dim);margin-bottom:0.55rem;font-style:italic';
+    hint.className = 'wiz-filter-hint';
     hint.textContent = ui.hint;
     container.appendChild(hint);
   }
@@ -5498,6 +5499,17 @@ function renderWizardStep() {
       if (wizard.tab === 'collection' && typeof _wizPicFirstBtn === 'function') {
         var _pfBtn = _wizPicFirstBtn();
         if (window.IS_MOBILE_UA) { _pfBtn.style.width = '100%'; _pfBtn.style.marginTop = '0.5rem'; }
+        else if (typeof _wizOneWidth === 'function' && _wizOneWidth()) {
+          // v0.9.1972 (Brad: "Add the picture first button to the left … and
+          // the photo id to the right", under the number row): on a computer
+          // the number row is just the number and Box Only, and under it a
+          // row of two equal halves — Add a picture first | Photo ID.
+          var _pidRow = document.createElement('div');
+          _pidRow.className = 'wiz-pid-row';
+          _pidRow.appendChild(_pfBtn);
+          _ingInputRow.classList.add('wiz-num-row');
+          _ingInputRow._pidRow = _pidRow;
+        }
         else _ingInputRow.appendChild(_pfBtn);
         if (window.IS_MOBILE_UA) _ingInputRow._pfBtn = _pfBtn;
       }
@@ -5510,6 +5522,7 @@ function renderWizardStep() {
       }
       _ingWrap.appendChild(_ingInputRow);
       if (_ingInputRow._pfBtn) _ingWrap.appendChild(_ingInputRow._pfBtn);   // v0.9.1929: phone — its own line
+      if (_ingInputRow._pidRow) _ingWrap.appendChild(_ingInputRow._pidRow);   // v0.9.1972: computer — picture first | Photo ID
 
       // v0.9.1037 (Brad: "the picker is cut off on the right side"). The
       // suggestion list used to live INSIDE the input's column, which shares
@@ -5564,7 +5577,12 @@ function renderWizardStep() {
       // its own — number · Box Only · Add a picture first · Photo ID.
       var _ingRow = _ingWrap.querySelector('[data-box-only-checkbox]');
       _ingRow = _ingRow ? _ingRow.parentElement : null;
-      if (_ingRow && typeof _wizWide === 'function' && _wizWide()) {
+      var _ingPidRow = _ingWrap.querySelector('.wiz-pid-row');
+      if (_ingPidRow) {
+        // v0.9.1972: the right half of the row under the number, full wording
+        _ingPhotoBtn.classList.add('wiz-photoid-half');
+        _ingPidRow.appendChild(_ingPhotoBtn);
+      } else if (_ingRow && typeof _wizWide === 'function' && _wizWide()) {
         _ingPhotoBtn.classList.add('wiz-photoid-inrow');
         _ingRow.appendChild(_ingPhotoBtn);
       } else if (_ingSugRef) _ingWrap.insertBefore(_ingPhotoBtn, _ingSugRef);
@@ -6104,6 +6122,12 @@ function renderWizardStep() {
     _cdWrap.innerHTML = _cdHtml;
     body.innerHTML = '';
     body.appendChild(_cdWrap);
+    // v0.9.1972 (Brad: "put both sliders under each other, go to two columns
+    // with sliders on the left, questions on the right"): on a computer, one
+    // item — the sliders stacked on the left, the questions on the right.
+    if (_cd2up && typeof _wizOneWidth === 'function' && _wizOneWidth()) {
+      _cdWrap.querySelectorAll('.cd-col.cd-2up').forEach(function (c) { _cdSplitSliders(c); });
+    }
 
   } else if (s.type === 'purchaseValue') {
     // ── SCREEN 4: Purchase & Value (combined screen) ──
@@ -8513,6 +8537,61 @@ if (typeof window !== 'undefined') window._wizRefreshLocDetails = _wizRefreshLoc
 // to open. Every renderer ends with the same "Poor … Excellent" scale line,
 // so the link lives THERE, written once, and appears wherever a condition is
 // asked for.
+// v0.9.1972 (Brad: "put both sliders under each other, go to two columns with
+// sliders on the left, questions on the right"). Runs on the built step 2 of
+// ONE item on a computer and only MOVES the elements it already has — same
+// inputs, same ids, same handlers: Condition, Box Condition (shown when Has
+// Box is Yes) and the instruction sheet's condition (shown when Instr. Sheet
+// is Yes) stack in .cd-sliders; every question, with the box it reveals (what
+// was changed, sheet #, the error), stays in order in .cd-questions.
+function _cdSplitSliders(col) {
+  var f = col && col.querySelector('.cd-fields');
+  if (!f || f.classList.contains('cd-split')) return;
+  var left = document.createElement('div'); left.className = 'cd-sliders';
+  var right = document.createElement('div'); right.className = 'cd-questions';
+  var condVal = f.querySelector('[id^="cd-cond-val-"]');
+  var condBlk = condVal ? condVal.parentElement.parentElement : null;
+  Array.prototype.slice.call(f.children).forEach(function (k) { (k === condBlk ? left : right).appendChild(k); });
+  // one slider row, drawn like Condition: the label and number on top, the bar under
+  function asRow(box, label) {
+    var val = box.querySelector('span[id$="-val"], span[id*="-val-"]');
+    var rng = box.querySelector('input[type="range"]');
+    if (!val || !rng) return;
+    var head = document.createElement('div'); head.className = 'cd-sl-head';
+    var lab = document.createElement('span'); lab.className = 'cd-sl-label'; lab.textContent = label;
+    head.appendChild(lab); head.appendChild(val);
+    box.innerHTML = ''; box.appendChild(head); box.appendChild(rng);
+    box.classList.add('cd-sl');
+  }
+  var boxCond = right.querySelector('[id^="cd-boxcond-"]:not([id^="cd-boxcond-val-"])');
+  if (boxCond) { asRow(boxCond, 'Box Condition'); left.appendChild(boxCond); }
+  var isCondVal = right.querySelector('#cd-is-cond-val');
+  if (isCondVal) {
+    var isRow = isCondVal.parentElement, isRev = document.getElementById('cd-is-reveal') || right.querySelector('#cd-is-reveal');
+    var isBox = document.createElement('div'); isBox.id = 'cd-is-cond-reveal';
+    isBox.style.display = (isRev && isRev.style.display === 'none') ? 'none' : 'block';
+    isBox.appendChild(isRow); asRow(isBox, 'Instruction Sheet Condition');
+    left.appendChild(isBox);
+  }
+  // each box a question reveals (what was changed, the sheet number, the
+  // error) sits IN its question's row, between the words and the buttons —
+  // the same box, still shown and hidden by its own toggle (by id)
+  right.querySelectorAll('.cd-blk').forEach(function (blk) {
+    var q = blk.children[0], rev = blk.children[1];
+    if (!q || !rev || !/^cd-(mod-|is-reveal$|error-reveal-)/.test(rev.id || '')) return;
+    var lbl = q.querySelector('span');
+    rev.classList.add('cd-inrow');
+    var ta = rev.querySelector('textarea');
+    if (ta && /changed/i.test(ta.placeholder || '')) ta.placeholder = 'What changed?';
+    if (lbl && lbl.nextSibling) q.insertBefore(rev, lbl.nextSibling); else q.appendChild(rev);
+  });
+  f.innerHTML = '';
+  f.appendChild(left); f.appendChild(right);
+  f.classList.add('cd-split');
+  col.classList.add('cd-split-col');
+}
+if (typeof window !== 'undefined') window._cdSplitSliders = _cdSplitSliders;
+
 function _wizCondHelp() {
   return ' <button type="button" title="What do the numbers mean?"'
     + ' onclick="event.preventDefault();event.stopPropagation();if(window.rrgOpen)rrgOpen(\'grading\')"'

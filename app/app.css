@@ -3198,3 +3198,44 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
 .wiz-cf-wide .wiz-cf-card:not(:has(.rr-cat-status-line)) { display: none; }
 .wiz-cf-2up { row-gap: 0.2rem !important; }
 .wiz-cf-2up > div { padding-top: 0.1rem !important; padding-bottom: 0.1rem !important; }
+
+/* v0.9.1972 (Brad: "put both sliders under each other, go to two columns with
+   sliders on the left, questions on the right") — Add step 2, one item, on a
+   computer (_cdSplitSliders in wizard.js puts .cd-split on the fields). */
+.cd-col.cd-2up .cd-fields.cd-split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 1.5rem; }
+.cd-split .cd-sliders, .cd-split .cd-questions { min-width: 0; }
+.cd-split .cd-sl { padding: 0 !important; background: none !important; border: 0 !important; border-radius: 0 !important; margin: 0.35rem 0 0.6rem !important; }
+.cd-split .cd-sl-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px; }
+.cd-split .cd-sl-label { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; }
+.cd-split .cd-sl-head > span:last-child { font-family: var(--font-mono) !important; font-size: 0.95rem !important; color: var(--t-accent) !important; font-weight: 700; width: auto !important; }
+.cd-split .cd-sl input[type="range"] { width: 100%; accent-color: var(--accent); }
+/* the boxes a question reveals, kept short so every answer fits a laptop */
+.cd-split #cd-is-reveal { padding: 0 !important; background: none !important; border: 0 !important; }
+.cd-split #cd-is-reveal input { margin-bottom: 0 !important; }
+.cd-split #cd-is-reveal input { padding: 0.2rem 0.4rem !important; }
+/* the item's number, name and description on one line, "View on …" at the right */
+.cd-split-col .cd-head-text { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 0.6rem; }
+.cd-split-col .cd-head-text > div { margin-bottom: 0 !important; padding-bottom: 0 !important; }
+.cd-split-col .cd-head + div { margin-bottom: 0.35rem !important; padding-bottom: 0.3rem !important; }
+.cd-split .cd-inrow { flex: 1 1 auto; min-width: 0; margin: 0 0.4rem !important; }
+.cd-split .cd-inrow textarea, .cd-split .cd-inrow input { display: block; min-height: 0 !important; height: 1.75rem !important; padding: 0.2rem 0.4rem !important; resize: none !important; margin: 0 !important; line-height: 1.3; }
+.cd-split .cd-questions .cd-blk > div > span:first-child { flex-shrink: 0 !important; }
+/* a description typed into an in-row box grows downward as it wraps (to ~3 lines) */
+.cd-split .cd-inrow textarea { height: auto !important; min-height: 1.75rem !important; max-height: 4.6rem; field-sizing: content; overflow-y: auto; }
+
+/* v0.9.1972 (Brad: "Add the picture first button to the left … and the photo
+   id to the right … and then increase the button size for the item number
+   entry") — Add step 1 on a computer: the number box and Box Only share one
+   row at the same height; under it two equal halves, Add a picture first |
+   Photo ID (with its full wording back). */
+.wiz-num-row { align-items: stretch !important; }
+.wiz-num-row > div:first-child { display: flex; }
+.wiz-num-row #wiz-input { height: auto; min-height: 2.2rem; font-size: 1.1rem !important; padding-top: 0.3rem !important; padding-bottom: 0.3rem !important; }
+.wiz-num-row label[data-box-only-checkbox] { padding-top: 0.3rem !important; padding-bottom: 0.3rem !important; }
+.wiz-pid-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.5rem; margin-top: 0.35rem; }
+.wiz-pid-row > button { width: 100% !important; margin: 0 !important; min-height: 2.2rem; padding-top: 0.25rem !important; padding-bottom: 0.25rem !important; box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+.wiz-ing-wide:has(.wiz-pid-row) #wiz-suggestions { min-height: 60px; }   /* shrinks (and scrolls in its own box) before the step ever does */
+.wiz-ing-wide:has(.wiz-pid-row) #wiz-match > div { padding: 0.3rem 0.75rem !important; }
+.wiz-ing-wide:has(.wiz-pid-row) #wiz-match { margin-top: 0.3rem !important; }
+.wiz-ing-wide:has(.wiz-pid-row) .wiz-filter-hint { margin-bottom: 0.2rem !important; }
+.wiz-ing-wide:has(.wiz-pid-row) #wiz-suggestions > div:first-child { padding-top: 0.15rem !important; padding-bottom: 0.2rem !important; }

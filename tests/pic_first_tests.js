@@ -10,7 +10,7 @@
 // pictures."
 // Boots the REAL app (app/index.html from disk, real Chromium) and picks a real
 // picture through the browser's own file chooser.
-//   P1  the button sits at the end of the item-number row, beside Box Only
+//   P1  the button sits under the item-number row, the left half (v0.9.1972)
 //   P2  picking a picture: the view box appears to the RIGHT of the Add screen,
 //       showing that picture; the button says it is added; header thumbnail too
 //   P3  nothing is uploaded on the way
@@ -121,7 +121,10 @@ async function toPhotos(pg) {
     for (const sz of [{ name: 'Brad 1920×1032 at 125%', w: 1536, h: 826 }, { name: '1280×720', w: 1280, h: 720 }]) {
       const { pg, net } = await open(browser, sz);
       let s = await peek(pg);
-      T('P1 ' + sz.name + ': the button is at the end of the item-number row', s.btn && s.btn.vis && s.boxOnly && s.btn.l >= s.boxOnly.r && Math.abs(s.btn.t - s.input.t) <= 6 && /Add a picture first/.test(s.btnText), s);
+      // v0.9.1972 (Brad: "Add the picture first button to the left … and the
+      // photo id to the right"): it moved off the number row to the left half
+      // of the row under it (Photo ID the right half — W6 in one_width_1971).
+      T('P1 ' + sz.name + ': the button is the left half of the row under the item number', s.btn && s.btn.vis && s.input && s.btn.t >= s.input.b - 1 && Math.abs(s.btn.l - s.input.l) <= 6 && /Add a picture first/.test(s.btnText), s);
       // v0.9.1969: the pop-up size step now follows the window's height too (1280x720
       // → 1.1, was 1.25), so the room is judged in the card's own units: 176 = the
       // 220 screen px this check used to ask for at 1.25.

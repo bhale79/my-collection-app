@@ -110,7 +110,10 @@ const step2 = (pg, allYes) => pg.evaluate(async (args) => {
     T('S1 ' + w + 'x' + h + ': step 2 with every Yes answered fits — nothing to scroll, Next on screen', m.id === 'conditionDetails' && m.over <= 0 && m.next && m.next.b <= m.vh
       && m.answered.box === 'Yes' && m.answered.is === 'Yes' && m.answered.mb === 'Yes' && m.answered.err === 'Yes', m);
     if (w === 1536) {
-      T('S2 three columns: Condition, All Original and Has Box side by side, Instruction Sheet below', m.two && Math.abs(m.cond.t - m.orig.t) < 6 && Math.abs(m.orig.t - m.box.t) < 6 && m.is.t > m.cond.b && m.cond.r < m.orig.l && m.orig.r < m.box.l, m);
+      // v0.9.1972 (Brad: "sliders on the left, questions on the right"): the
+      // three columns became two — Condition on the left, the questions stacked
+      // on the right. The full check lives in sliders_left_1972_tests.
+      T('S2 two columns: Condition on the left, All Original / Has Box / Instr. Sheet stacked on the right', m.two && Math.abs(m.cond.t - m.orig.t) < 6 && m.cond.r < m.orig.l && m.box.t > m.orig.t && m.is.t > m.box.t && Math.abs(m.box.l - m.orig.l) < 4, m);
       T('S2 the item name and its "View on …" button share one line (button on the right)', m.name && m.link && m.link.t < m.name.b && m.link.l > m.name.r - 4, { name: m.name, link: m.link });
       T('page errors', r.errs.length === 0, r.errs);
     }
@@ -127,11 +130,9 @@ const step2 = (pg, allYes) => pg.evaluate(async (args) => {
   m = await step2(r.pg, true);
   T('X-Z1 PLANTED: the step by width alone (1.5 on his laptop) → step 2 runs past the window (caught)', m.over > 0, m.over);
   await r.ctx.close();
-  const twoCols = planted(CSS, '  .cd-col.cd-2up .cd-fields { grid-template-columns: 1fr 1fr 1fr; }', '', 'two columns');
-  r = await open(browser, { w: 1536, h: 737, css: twoCols });
-  m = await step2(r.pg, true);
-  T('X-S1 PLANTED: two columns of questions → with every Yes answered it scrolls again (caught)', m.over > 0, m.over);
-  await r.ctx.close();
+  // (X-S1, "two columns of questions scroll", retired in v0.9.1972: step 2 on a
+  // computer is now sliders-left / questions-right; its planted scroll check is
+  // X-L1 in sliders_left_1972_tests.)
   const noHead = planted(CSS, '  .cd-col.cd-2up .cd-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; }', '', 'no one-line head');
   r = await open(browser, { w: 1536, h: 737, css: noHead });
   m = await step2(r.pg, true);

@@ -317,8 +317,18 @@ function _cdToggleOrig(colId, origKey, val) {
 function _cdToggleBox(colId, val) {
   var reveal = document.getElementById('cd-boxcond-' + colId);
   if (reveal) reveal.style.display = (val === 'Yes') ? 'block' : 'none';
-  // Update sibling button styles (parent div holds both buttons)
-  if (reveal && reveal.previousElementSibling) {
+  // Update the Has Box buttons. v0.9.1972: found by what they call, not by
+  // sitting next to the slider — on a computer the slider lives in the left
+  // column, away from its question.
+  var _bxBtns = document.querySelectorAll('[onclick*="_cdToggleBox(\'' + colId + '\'"]');
+  if (_bxBtns.length) {
+    _bxBtns.forEach(function(btn) {
+      var sel = btn.textContent.trim() === val;
+      btn.style.border = '1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)');
+      btn.style.background = sel ? 'rgba(232,64,28,0.12)' : 'var(--bg)';
+      btn.style.color = sel ? 'var(--t-accent)' : 'var(--text-mid)';
+    });
+  } else if (reveal && reveal.previousElementSibling) {
     reveal.previousElementSibling.querySelectorAll('button').forEach(function(btn) {
       var sel = btn.textContent.trim() === val;
       btn.style.border = '1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)');
@@ -332,6 +342,9 @@ function _cdToggleIS(val) {
   wizard.data.hasIS = val;
   var reveal = document.getElementById('cd-is-reveal');
   if (reveal) reveal.style.display = (val === 'Yes') ? 'block' : 'none';
+  // v0.9.1972: on a computer the sheet's condition slider is in the left column
+  var isCond = document.getElementById('cd-is-cond-reveal');
+  if (isCond) isCond.style.display = (val === 'Yes') ? 'block' : 'none';
   document.querySelectorAll('[onclick*="_cdToggleIS"]').forEach(function(btn) {
     var sel = btn.textContent.trim() === val;
     btn.style.border = '1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)');
@@ -344,8 +357,12 @@ function _cdToggleError(colId, val) {
   var reveal = document.getElementById('cd-error-reveal-' + colId);
   if (reveal) reveal.style.display = (val === 'Yes') ? 'block' : 'none';
   // Style the Yes and No buttons for THIS column only
+  // v0.9.1972: the buttons never carried those ids, so a click on Yes showed
+  // the error box but left No looking chosen — find them by what they call.
+  var _errBtns = {};
+  document.querySelectorAll('[onclick*="_cdToggleError(\'' + colId + '\'"]').forEach(function (b) { _errBtns[b.textContent.trim()] = b; });
   ['Yes','No'].forEach(function(c) {
-    var btn = document.getElementById('cd-err-btn-' + colId + '-' + c);
+    var btn = document.getElementById('cd-err-btn-' + colId + '-' + c) || _errBtns[c];
     if (!btn) return;
     var sel = c === val;
     var isYes = c === 'Yes';

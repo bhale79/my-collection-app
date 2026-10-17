@@ -108,7 +108,9 @@ async function photoStep(pg) {
     T('A1 his laptop, "' + num + '" typed: nothing to scroll, the first match and Next on screen', m.over <= 0 && m.first && m.first.b <= m.body.b + 1 && m.next.b <= m.vh, m);
     if (num === '2343') {
       T('A2 Item Type is in the header beside the title (the row it used to take is gone)', m.sideShown && m.sideInHead && !m.barShown, m);
-      T('A2 Photo ID ends the number row: number · Box Only · Add a picture first · Photo ID', m.photo && Math.abs(m.photo.t - m.input.t) <= 8 && m.photo.l >= m.pic.r - 2 && m.input.w >= 176 * 1.25, { input: m.input, pic: m.pic, photo: m.photo });
+      // v0.9.1972 (Brad): Add a picture first | Photo ID moved to a row of their
+      // own under the number (the full check is W6 in one_width_1971_tests).
+      T('A2 Add a picture first and Photo ID sit side by side under the number row; the number box is wide', m.photo && m.pic && m.pic.t >= m.input.b && Math.abs(m.photo.t - m.pic.t) <= 2 && m.photo.l >= m.pic.r - 2 && m.input.w >= 176 * 1.25, { input: m.input, pic: m.pic, photo: m.photo });
       T('page errors (step 1)', r.errs.length === 0, r.errs);
     }
     await r.ctx.close();
@@ -138,13 +140,10 @@ async function photoStep(pg) {
   await r.ctx.close();
 
   console.log('== planted offenders ==');
-  // v0.9.1971: a computer's box now comes from the one-width branch first, so
-  // the plant undoes that as well as the v1970 line — back to the 520 box.
-  let x = await open(browser, { w: 1536, h: 737, wiz: planted(planted(WIZ, "               || ((s.type === 'itemNumGrouping' || s.type === 'drivePhotos') && !window.IS_MOBILE_UA && _wizWide())) {", "               ) {", 'narrow box'), '    if (_wizOneWidth()) {\n      // v0.9.1971', '    if (false) {\n      // v0.9.1971', 'one width') });
-  m = await step1(x.pg, '2343');
-  const _a1ok = m.over <= 0 && m.first && m.first.b <= m.body.b + 1 && m.photo && Math.abs(m.photo.t - m.input.t) <= 8 && m.input.w >= 176 * 1.25;
-  T('X-A1 PLANTED: step 1 back in the narrow box → A1/A2 fail (no room for the number, or the first match off screen) (caught)', !_a1ok, { over: m.over, input: m.input, first: m.first });
-  await x.ctx.close();
+  // (X-A1, "step 1 in the narrow box fails", retired in v0.9.1972: with the
+  // number row now just the number + Box Only, step 1 fits even the old narrow
+  // box — the box width itself is guarded by X-W1 in one_width_1971_tests.)
+  let x;
   x = await open(browser, { w: 1536, h: 737, wiz: planted(WIZ, "    if (!window.IS_MOBILE_UA && typeof _wizWide === 'function' && _wizWide()) _ingWrap.classList.add('wiz-ing-wide');", '', 'list grows') });
   m = await step1(x.pg, '2343');
   T('X-A2 PLANTED: the match list not held to the box → the step scrolls (caught)', m.over > 0, m.over);
