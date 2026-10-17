@@ -52,6 +52,58 @@ async function handlePhotoDrop(event, stepId, viewKey) {
 }
 
 
+// v0.9.1973 (Brad: "can we suggest they screen shot the picture them selves
+// and paste it?" — worded for ANY picture, never "copy the maker's"): on the
+// Add screen's photo step, Ctrl+V with a picture on the clipboard puts it in a
+// slot through the SAME upload a dropped file takes (uploadWizardPhoto → Drive).
+// Which slot: the one the photo-source chooser was opened for (clicked), else
+// the one under the mouse, else Right Side if empty, else the next empty slot.
+// All full and none picked → it says so; a picture is never replaced unasked.
+// A paste into a text box is left alone. One listener, installed once.
+function _wizPhotoPasteTarget() {
+  if (_pickerStepId && _pickerViewKey) return { sid: _pickerStepId, vk: _pickerViewKey, picked: true };
+  var hov = document.querySelector('#wizard-body .photo-drop-zone:hover');
+  if (hov) return { sid: hov.dataset.sid, vk: hov.dataset.view, hovered: true };
+  var zones = Array.prototype.slice.call(document.querySelectorAll('#wizard-body .photo-drop-zone'));
+  var empty = function (z) {
+    var d = (typeof wizard !== 'undefined' && wizard && wizard.data) ? wizard.data[z.dataset.sid] : null;
+    return !(d && typeof d === 'object' && d[z.dataset.view]) && !z.querySelector('img:not([src*="data:"])');
+  };
+  var rsv = zones.find(function (z) { return z.dataset.view === 'RSV' || z.dataset.view === 'BOX-RSV'; });
+  if (rsv && empty(rsv)) return { sid: rsv.dataset.sid, vk: rsv.dataset.view };
+  var next = zones.find(empty);
+  return next ? { sid: next.dataset.sid, vk: next.dataset.view } : null;
+}
+function _wizPhotoPaste(e) {
+  var wm = document.getElementById('wizard-modal');
+  if (!wm || !wm.classList.contains('open')) return;
+  var st = (typeof wizard !== 'undefined' && wizard && wizard.steps) ? wizard.steps[wizard.step] : null;
+  if (!st || st.type !== 'drivePhotos') return;
+  var t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+  var cd = e.clipboardData; if (!cd) return;
+  var file = null, items = cd.items || [];
+  for (var i = 0; i < items.length; i++) {
+    if (items[i].kind === 'file' && items[i].type && items[i].type.indexOf('image/') === 0) { file = items[i].getAsFile(); if (file) break; }
+  }
+  if (!file && cd.files && cd.files.length && /^image\//.test(cd.files[0].type || '')) file = cd.files[0];
+  if (!file) return;
+  e.preventDefault();
+  var tgt = _wizPhotoPasteTarget();
+  if (!tgt) { showToast('Every slot has a picture \u2014 click the slot you want to replace, then paste', 4000, true); return; }
+  if (tgt.picked) closePhotoPicker();
+  if (!file.name || file.name === 'image.png') {
+    try { file = new File([file], 'pasted-' + Date.now() + '.' + ((file.type.split('/')[1] || 'png').replace('jpeg', 'jpg')), { type: file.type }); } catch (eF) {}
+  }
+  uploadWizardPhoto(file, tgt.sid, tgt.vk);
+}
+if (typeof document !== 'undefined' && !window._wizPhotoPasteOn) {
+  window._wizPhotoPasteOn = true;
+  document.addEventListener('paste', _wizPhotoPaste);
+}
+window._wizPhotoPaste = _wizPhotoPaste;
+window._wizPhotoPasteTarget = _wizPhotoPasteTarget;
+
 async function uploadWizardPhoto(file, stepId, viewKey) {
   // v0.9.1592 (Session 87 offline audit): refuse up front, in honest words.
   // The catch below already toasted, but only AFTER the spinner dance, and
@@ -2403,6 +2455,18 @@ function showPhotoSourcePicker(stepId, viewKey) {
     if (camBtn)   camBtn.style.display = 'none'; // most desktops lack useful camera
   }
   _ensureGPhotosBtn();
+  // v0.9.1973: on a computer the chooser also says a copied picture can be pasted
+  var _pn = document.getElementById('picker-paste-note');
+  if (!window.IS_MOBILE_UA && !_pn) {
+    var _inner = document.getElementById('photo-picker-inner');
+    if (_inner) {
+      _pn = document.createElement('div'); _pn.id = 'picker-paste-note';
+      _pn.style.cssText = 'font-size:0.8rem;color:var(--text-dim);text-align:center;margin:0.35rem 0 0.15rem';
+      _pn.textContent = 'Or press Ctrl+V to paste a copied picture into this slot.';
+      var _bts = _inner.querySelectorAll('button'); var _cn = _bts.length ? _bts[_bts.length - 1] : null;
+      if (_cn) _inner.insertBefore(_pn, _cn); else _inner.appendChild(_pn);
+    }
+  }
   document.getElementById('photo-picker-sheet').classList.add('open');
   // Register with BackStack so the device/browser BACK button closes
   // just this picker (returning to the view grid) instead of popping the

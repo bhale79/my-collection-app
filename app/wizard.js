@@ -4815,6 +4815,17 @@ function renderWizardStep() {
       introDiv.textContent = 'Drag & drop or click each slot to upload. Photos save to Google Drive automatically.';
     }
     wrap.appendChild(introDiv);
+    // v0.9.1973 (Brad: a picture on the screen should be easy to put in a
+    // slot): on a computer a copied picture can be pasted (Ctrl+V) — into the
+    // slot under the mouse, the slot just clicked, or Right Side / the next
+    // empty slot (_wizPhotoPaste in wizard-photos.js). Worded for any picture.
+    if (!window.IS_MOBILE_UA) {
+      const pasteHint = document.createElement('div');
+      pasteHint.className = 'wiz-paste-hint';
+      pasteHint.style.cssText = 'font-size:0.8rem;color:var(--text-dim);margin:-0.2rem 0 0.5rem;line-height:1.4';
+      pasteHint.textContent = 'You can also copy a picture and press Ctrl+V to paste it into a slot.';
+      wrap.appendChild(pasteHint);
+    }
 
     // Condition slider (when embedded in photo step, e.g. IS flow)
     if (s.conditionSlider) {
@@ -5047,6 +5058,10 @@ function renderWizardStep() {
         _phKids.forEach(function (k, i) { (i < _phGridAt ? _phSide : _phMain).appendChild(k); });
         // the hint ("Optional — press Next…") reads with the instructions
         if (hint.parentNode === _phMain) _phSide.appendChild(hint);
+        // v0.9.1973: the Ctrl+V line sits under the slot cross (the slots it is
+        // about), where there is room — the left column is full on a laptop
+        var _phPaste = _phSide.querySelector('.wiz-paste-hint');
+        if (_phPaste) { _phPaste.style.margin = '0.6rem 0 0'; _phPaste.style.textAlign = 'center'; _phMain.appendChild(_phPaste); }
         // "Add another photo" takes the cross's last empty cell, when it has one
         var _phLast = grid.lastElementChild;
         if (isOrtho && _phLast && !_phLast.querySelector('.photo-drop-zone') && !_phLast.classList.contains('photo-drop-zone')) {
