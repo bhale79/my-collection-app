@@ -111,6 +111,54 @@ try {
     letter-spacing: .14em; text-transform: uppercase; font-size: .8rem; padding: .3rem .9rem; border-radius: 999px; margin-bottom: 1rem; }
   .is-show .not-show, .not-show-mode .only-show { display: none !important; }
 
+  /* ── York ad (Brad 2026-10-17): a railroad ticket beside the logo. Shown between site.json show.ad.from and
+     show.ad.until; the prices come from app/config.js and the place and days from site.json, never typed here.
+     On a computer it is a third column; on a smaller laptop it sits under the text and logo; on a phone under the logo. */
+  .showad { display: none; justify-content: center; }
+  .showad.on { display: flex; }
+  .hero.has-ad .wrap { max-width: 1520px; padding-left: 2.5rem; padding-right: 2.5rem; }
+  @media (min-width: 1280px) { .hero.has-ad .wrap { grid-template-columns: 1.05fr .8fr .82fr; gap: 2rem; } }
+  @media (min-width: 861px) and (max-width: 1279px) { .hero.has-ad .showad { grid-column: 1 / -1; } }
+  .tk { position: relative; display: flex; width: 100%; max-width: 400px; color: var(--navy); background: #fbf0d4;
+    background-image: radial-gradient(rgba(150,110,40,.07) 1px, transparent 1px); background-size: 6px 6px;
+    border-radius: 14px; box-shadow: 0 22px 50px rgba(0,0,0,.45); transform: rotate(-2deg); transition: transform .3s; }
+  .tk:hover { transform: rotate(0deg) scale(1.02); }
+  .tk-stub { flex: 0 0 52px; display: flex; align-items: center; justify-content: center; border-right: 2px dashed #c9a75f;
+    background: var(--orange); border-radius: 14px 0 0 14px; position: relative; }
+  .tk-stub span { writing-mode: vertical-rl; transform: rotate(180deg); font-family: var(--head); font-weight: 700; color: #fff;
+    letter-spacing: .3em; text-transform: uppercase; font-size: .9rem; white-space: nowrap; }
+  .tk-stub::before, .tk-stub::after { content: ''; position: absolute; right: -10px; width: 18px; height: 18px; border-radius: 50%; background: #111a30; }
+  .tk-stub::before { top: -9px; } .tk-stub::after { bottom: -9px; }
+  .tk-main { flex: 1; padding: 1.2rem 1.3rem 0; text-align: center; overflow: hidden; border-radius: 0 14px 14px 0; }
+  .tk-top { font-family: var(--head); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; font-size: 1.5rem; line-height: 1.1; color: var(--navy); white-space: nowrap; }
+  .tk-sub i { font-style: normal; color: var(--orange); letter-spacing: 0; }
+  .tk-sub { font-family: var(--head); text-transform: uppercase; letter-spacing: .2em; font-size: .72rem; color: #8a6a2a; margin-top: .35rem; }
+  .tk-price { display: flex; align-items: baseline; justify-content: center; gap: .7rem; margin-top: .5rem; font-family: var(--head); font-weight: 700; }
+  .tk-price s { font-size: 1.7rem; color: #9b8b6c; text-decoration: none; position: relative; }
+  .tk-price s::after { content: ''; position: absolute; left: -8%; right: -8%; top: 52%; height: 4px; background: var(--orange); transform: rotate(-12deg); border-radius: 2px; }
+  .tk-price b { font-size: 4.2rem; line-height: 1; color: var(--orange); text-shadow: 2px 2px 0 var(--navy); }
+  .tk-term { font-family: var(--head); text-transform: uppercase; letter-spacing: .08em; font-size: .95rem; margin-top: .1rem; }
+  .tk-where { margin-top: .8rem; padding-top: .7rem; border-top: 2px dotted #c9a75f; font-weight: 700; font-size: .95rem; }
+  .tk-when { font-size: .82rem; color: #6b5a3a; margin-top: .2rem; }
+  .tk .btn { margin-top: .8rem; width: 100%; }
+  .tk-stamp { position: absolute; top: 96px; right: -26px; width: 88px; height: 88px; border-radius: 50%; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; background: var(--gold); color: var(--navy); border: 3px dashed var(--navy);
+    box-shadow: 0 0 0 4px var(--gold), 0 8px 18px rgba(0,0,0,.4); transform: rotate(14deg); font-family: var(--head);
+    text-transform: uppercase; line-height: 1; font-size: .78rem; letter-spacing: .1em; }
+  .tk-stamp[hidden] { display: none; }
+  .tk-stamp b { font-size: 1.7rem; letter-spacing: 0; margin-top: .1rem; }
+  .tk-rail { position: relative; height: 54px; margin: .9rem -1.3rem 0; overflow: hidden; }
+  .tk-rail::after { content: ''; position: absolute; left: 0; right: 0; bottom: 6px; height: 7px;
+    background: linear-gradient(#3b2f22, #3b2f22) 0 0 / 100% 2px no-repeat, repeating-linear-gradient(90deg, #6b4f33 0 6px, transparent 6px 16px); }
+  .tk-train { position: absolute; bottom: 12px; left: 0; width: 92px; height: 40px; animation: tk-run 9s linear infinite; }
+  @keyframes tk-run { from { transform: translateX(-110px); } to { transform: translateX(420px); } }
+  .tk-puff { animation: tk-puff 1.2s ease-out infinite; transform-origin: center; transform-box: fill-box; }
+  .tk-puff.p2 { animation-delay: .6s; }
+  @keyframes tk-puff { from { opacity: .9; transform: translate(0,0) scale(.6); } to { opacity: 0; transform: translate(-14px,-12px) scale(1.6); } }
+  @media (prefers-reduced-motion: reduce) {
+    .tk-train { animation: none; transform: translateX(150px); } .tk-puff { animation: none; opacity: .6; } .tk, .tk:hover { transition: none; }
+  }
+
   /* ── Trust strip ── */
   .strip { background: var(--navy2); color: #d9c9a6; border-top: 1px solid var(--line); }
   .strip .wrap { display: flex; flex-wrap: wrap; justify-content: center; gap: .4rem 2rem; padding-top: .9rem; padding-bottom: .9rem; font-size: .92rem; text-align: center; }
@@ -155,11 +203,27 @@ try {
   .shot figure { margin: 0 auto; width: 100%; max-width: 300px; }
   .shot img { width: 100%; height: auto; border-radius: 22px; border: 8px solid #10182c; box-shadow: 0 20px 50px rgba(20,25,45,.28); background: #10182c; }
   .shot figcaption, .desk figcaption { text-align: center; font-size: .85rem; color: var(--ink3); margin-top: .6rem; }
+  /* Computer pictures beside each group (Brad 2026-10-17): the same screen as the phone picture, on a computer.
+     The pictures go right of the points, then one either side, then both left, and round again (b-right / b-split /
+     b-left). Wide screens: three across. Smaller laptops: points on top, the two pictures side by side underneath. */
+  .dshot { display: none; }
+  .dshot figure { margin: 0; width: 100%; }
+  .dshot img { width: 100%; height: auto; border-radius: 10px; border: 7px solid #10182c; box-shadow: 0 18px 44px rgba(20,25,45,.26); background: #10182c; }
+  .dshot figcaption { text-align: center; font-size: .85rem; color: var(--ink3); margin-top: .6rem; }
   @media (min-width: 860px) {
-    .band { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: center; padding: 2.5rem 0; }
-    .band.flip .shot { order: -1; }
-    .shot { display: flex; justify-content: center; }
+    .bands { width: min(1340px, calc(100vw - 64px)); max-width: none; margin-left: calc((100% - min(1340px, calc(100vw - 64px))) / 2); }
+    .band { display: grid; gap: 2rem 2.5rem; align-items: center; padding: 2.5rem 0; grid-template-columns: 230px 1fr; }
+    .band .txt { grid-area: txt; } .band .shot { grid-area: phone; } .band .dshot { grid-area: desk; }
+    .band.b-right { grid-template-areas: "txt txt" "phone desk"; }
+    .band.b-split, .band.b-left { grid-template-areas: "txt txt" "desk phone"; grid-template-columns: 1fr 230px; }
+    .shot, .dshot { display: flex; justify-content: center; }
+    .shot figure { max-width: 230px; }
     .thumb { display: none; }
+  }
+  @media (min-width: 1200px) {
+    .band.b-right { grid-template-areas: "txt phone desk"; grid-template-columns: minmax(300px, 1fr) 230px 1.45fr; }
+    .band.b-split { grid-template-areas: "desk txt phone"; grid-template-columns: 1.45fr minmax(300px, 1fr) 230px; }
+    .band.b-left  { grid-template-areas: "desk phone txt"; grid-template-columns: 1.45fr 230px minmax(300px, 1fr); }
   }
 
   /* Computer screenshots — larger on a computer, a 2 x 2 grid of small pictures on a phone */
@@ -276,11 +340,12 @@ try {
   @media (max-width: 860px) {
     .hero .wrap { grid-template-columns: 1fr; text-align: center; padding-top: 2.2rem; padding-bottom: 2.6rem; gap: 1.6rem; }
     .hero .art { order: -1; }
+    .hero .showad { order: -1; }                              /* under the logo, above the headline */
+    .hero.has-ad .wrap { padding-left: 1.25rem; padding-right: 1.25rem; }
+    .tk-stamp { right: -10px; top: 92px; width: 78px; height: 78px; }
     .hero .art .logo { width: 170px; }
     .hero .lead { margin-left: auto; margin-right: auto; }
     .ctas { justify-content: center; }
-    .band, .band.flip { grid-template-columns: 1fr; gap: 1.6rem; }
-    .band .shot, .band.flip .shot { order: 2; }
     .yours .three { grid-template-columns: 1fr; }
     section { padding: 3rem 0; }
   }
@@ -328,11 +393,44 @@ try {
         <a class="btn btn-line" href="#reasons">See what it does</a>
       </div>
       <p class="fine not-show">Sign in with Google, then start your 3-week free trial. Cancel before it ends and you pay nothing.</p>
-      <p class="fine only-show">Show-only price. No free trial with the show price, but you have 7 days to change your mind.</p>
+      <p class="fine only-show">Show-only price, with 7 days to change your mind.</p>
     </div>
     <div class="art">
       <img class="logo" src="/site/img/logo-560.webp" width="420" height="420" alt="The Rail Roster — The only way to collect.">
     </div>
+    <aside class="showad" id="showad" aria-label="Train show special">
+      <div class="tk">
+        <div class="tk-stub"><span id="ad-stub">Admit one</span></div>
+        <div class="tk-main">
+          <div class="tk-top">All aboard for <span id="ad-town">York</span>!</div>
+          <div class="tk-sub"><i>★</i> <span id="ad-name">Train show special</span> <i>★</i></div>
+          <div class="tk-price"><s id="ad-was"></s><b id="ad-now"></b></div>
+          <div class="tk-term" id="ad-term"></div>
+          <div class="tk-where" id="ad-where"></div>
+          <div class="tk-when" id="ad-when"></div>
+          <a class="btn btn-go only-show" href="/app/">Join for the show price</a>
+          <div class="tk-rail" aria-hidden="true">
+            <svg class="tk-train" viewBox="0 0 92 40" width="92" height="40">
+              <circle class="tk-puff" cx="66" cy="6" r="5" fill="#cfc6b4"/>
+              <circle class="tk-puff p2" cx="66" cy="6" r="4" fill="#e2dccf"/>
+              <rect x="60" y="9" width="7" height="9" fill="#1d1710"/>
+              <rect x="44" y="16" width="38" height="13" rx="5" fill="#1d1710"/>
+              <rect x="22" y="8" width="24" height="21" rx="2" fill="#1d1710"/>
+              <rect x="27" y="12" width="9" height="7" fill="#e0b04a"/>
+              <rect x="19" y="6" width="30" height="4" rx="1" fill="#ef5323"/>
+              <path d="M82 22 L91 31 L82 31 Z" fill="#1d1710"/>
+              <rect x="2" y="17" width="18" height="12" rx="2" fill="#2a3558"/>
+              <circle cx="31" cy="31" r="7" fill="#1d1710" stroke="#e0b04a" stroke-width="2"/>
+              <circle cx="50" cy="33" r="5" fill="#1d1710" stroke="#e0b04a" stroke-width="2"/>
+              <circle cx="66" cy="33" r="5" fill="#1d1710" stroke="#e0b04a" stroke-width="2"/>
+              <circle cx="7" cy="33" r="4" fill="#1d1710"/><circle cx="16" cy="33" r="4" fill="#1d1710"/>
+              <rect x="27" y="30" width="44" height="2" fill="#9b8b6c"/>
+            </svg>
+          </div>
+        </div>
+        <div class="tk-stamp" id="ad-save" hidden>Save<b id="ad-save-amt"></b></div>
+      </div>
+    </aside>
   </div>
 </div>
 
@@ -374,7 +472,7 @@ try {
     </div>
 
     <div class="bands">
-      <div class="band">
+      <div class="band b-right">
         <div class="txt">
           <h3>Add your trains <span>fast</span></h3>
           <ul class="points">
@@ -385,8 +483,9 @@ try {
           </ul>
         </div>
         <div class="shot"><figure><span class="dev-tag">On your phone</span><button class="zoom" type="button" data-full="/site/shots/add.webp" data-cap="Type a number — the catalog fills in the rest." aria-label="Enlarge: Type a number — the catalog fills in the rest."><img src="/site/shots/add.webp" width="647" height="1240" alt="Typing 2343 on the Add screen finds the Santa Fe F3 in the catalog" loading="lazy"></button><figcaption>Type a number — the catalog fills in the rest.</figcaption></figure></div>
+        <div class="dshot"><figure><span class="dev-tag">On a computer</span><button class="zoom" type="button" data-full="/site/desk/add.webp" data-cap="Adding on a computer: type the number — it even tells you when you already have one." aria-label="Enlarge: Adding on a computer: type the number — it even tells you when you already have one."><img src="/site/desk/add.webp" width="1539" height="784" alt="Adding an item on a computer: typing the number finds it in the catalog." loading="lazy"></button><figcaption>Adding on a computer: type the number — it even tells you when you already have one.</figcaption></figure></div>
       </div>
-      <div class="band flip">
+      <div class="band b-split">
         <div class="txt">
           <h3>Every piece, <span>every detail</span></h3>
           <ul class="points">
@@ -396,8 +495,9 @@ try {
           </ul>
         </div>
         <div class="shot"><figure><span class="dev-tag">On your phone</span><button class="zoom" type="button" data-full="/site/shots/item.webp" data-cap="A postwar 2331 Virginian, variation and all." aria-label="Enlarge: A postwar 2331 Virginian, variation and all."><img src="/site/shots/item.webp" width="647" height="1240" alt="The page for a Lionel 2331 Virginian Train Master with its photo and variation" loading="lazy"></button><figcaption>A postwar 2331 Virginian, variation and all.</figcaption></figure></div>
+        <div class="dshot"><figure><span class="dev-tag">On a computer</span><button class="zoom" type="button" data-full="/site/desk/item-full.webp" data-cap="The same 2331 on a computer: the exact variation, your photo and every detail." aria-label="Enlarge: The same 2331 on a computer: the exact variation, your photo and every detail."><img src="/site/desk/item-full.webp" width="1539" height="784" alt="The page for a Lionel 2331 Virginian on a computer." loading="lazy"></button><figcaption>The same 2331 on a computer: the exact variation, your photo and every detail.</figcaption></figure></div>
       </div>
-      <div class="band">
+      <div class="band b-left">
         <div class="txt">
           <h3>Every list <span>in one place</span></h3>
           <ul class="points">
@@ -406,8 +506,9 @@ try {
           </ul>
         </div>
         <div class="shot"><figure><span class="dev-tag">On your phone</span><button class="zoom" type="button" data-full="/site/shots/collection.webp" data-cap="Your whole collection, with photos, in your pocket." aria-label="Enlarge: Your whole collection, with photos, in your pocket."><img src="/site/shots/collection.webp" width="647" height="1240" alt="A collection list in The Rail Roster on a phone" loading="lazy"></button><figcaption>Your whole collection, with photos, in your pocket.</figcaption></figure></div>
+        <div class="dshot"><figure><span class="dev-tag">On a computer</span><button class="zoom" type="button" data-full="/site/desk/collection.webp" data-cap="The full collection list — sets and engine-and-tender pairs kept together." aria-label="Enlarge: The full collection list — sets and engine-and-tender pairs kept together."><img src="/site/desk/collection.webp" width="1539" height="784" alt="The full collection list on a computer." loading="lazy"></button><figcaption>The full collection list — sets and engine-and-tender pairs kept together.</figcaption></figure></div>
       </div>
-      <div class="band flip">
+      <div class="band b-right">
         <div class="txt">
           <h3>Know what it’s <span>worth</span></h3>
           <ul class="points">
@@ -416,8 +517,9 @@ try {
           </ul>
         </div>
         <div class="shot"><figure><span class="dev-tag">On your phone</span><button class="zoom" type="button" data-full="/site/shots/worth.webp" data-cap="Estimated worth by maker, at a glance." aria-label="Enlarge: Estimated worth by maker, at a glance."><img src="/site/shots/worth.webp" width="647" height="1240" alt="The Rail Roster dashboard showing a collection's estimated worth" loading="lazy"></button><figcaption>Estimated worth by maker, at a glance.</figcaption></figure></div>
+        <div class="dshot"><figure><span class="dev-tag">On a computer</span><button class="zoom" type="button" data-full="/site/desk/dashboard.webp" data-cap="The dashboard: worth by maker, counts and recent additions at a glance." aria-label="Enlarge: The dashboard: worth by maker, counts and recent additions at a glance."><img src="/site/desk/dashboard.webp" width="1539" height="784" alt="The dashboard on a computer with the collection’s estimated worth." loading="lazy"></button><figcaption>The dashboard: worth by maker, counts and recent additions at a glance.</figcaption></figure></div>
       </div>
-      <div class="band">
+      <div class="band b-split">
         <div class="txt">
           <h3>Share <span>it</span></h3>
           <ul class="points">
@@ -426,6 +528,7 @@ try {
           </ul>
         </div>
         <div class="shot"><figure><span class="dev-tag">On your phone</span><button class="zoom" type="button" data-full="/site/shots/forsale.webp" data-cap="Your For Sale list — share it with one tap." aria-label="Enlarge: Your For Sale list — share it with one tap."><img src="/site/shots/forsale.webp" width="647" height="1240" alt="The For Sale list with Share buttons in The Rail Roster" loading="lazy"></button><figcaption>Your For Sale list — share it with one tap.</figcaption></figure></div>
+        <div class="dshot"><figure><span class="dev-tag">On a computer</span><button class="zoom" type="button" data-full="/site/desk/forsale.webp" data-cap="Your For Sale list with asking prices — share it with a friend or your customers." aria-label="Enlarge: Your For Sale list with asking prices — share it with a friend or your customers."><img src="/site/desk/forsale.webp" width="1539" height="784" alt="The For Sale list on a computer, with asking prices and Share buttons." loading="lazy"></button><figcaption>Your For Sale list with asking prices — share it with a friend or your customers.</figcaption></figure></div>
       </div>
     </div>
   </div>
@@ -471,7 +574,6 @@ try {
         <div class="psub">then <span data-cfg="price"></span></div>
         <ul>
           <li>Only during the show</li>
-          <li>No free trial with the show price</li>
           <li>7 days to change your mind</li>
         </ul>
         <a class="btn btn-go" href="/app/">Join for the show price</a>
@@ -480,12 +582,12 @@ try {
         <div class="ptitle">The Rail Roster</div>
         <div class="pbig" data-cfg="price-main"></div>
         <div class="ptax" data-cfg="price-tax"></div>
-        <div class="psub">Try it free for 3 weeks before you buy!</div>
+        <div class="psub not-show">Try it free for 3 weeks before you buy!</div>
         <ul>
           <li>The whole <span data-cfg="count">160,000+</span> item catalog</li>
           <li>Photo ID, reports, sharing — everything</li>
           <li>Phone and computer, one login</li>
-          <li>Cancel any time before the trial ends and pay nothing</li>
+          <li class="not-show">Cancel any time before the trial ends and pay nothing</li>
         </ul>
         <a class="btn btn-go not-show" href="/app/">Start your free trial</a>
         <a class="btn btn-go only-show" href="/app/">Sign up</a>
@@ -518,7 +620,7 @@ try {
         <div class="a">That’s what Photo ID is for: take a picture of the piece or its box and it suggests the item number for you to confirm. Printed labels can be read too, and box barcodes where the box has one on file.</div></details>
       <details><summary>I already keep my list in Excel.</summary>
         <div class="a">Bring it with you — import your spreadsheet in minutes instead of typing it all again.</div></details>
-      <details><summary>How does the free trial work?</summary>
+      <details class="not-show"><summary>How does the free trial work?</summary>
         <div class="a">Sign in with Google, then start your 3-week free trial. A card is needed to start it, but nothing is charged until the trial ends — cancel any time before then and you pay nothing. After that it’s <span data-cfg="price"></span>, renewing yearly, with an email before each renewal.</div></details>
       <details><summary>What if I cancel?</summary>
         <div class="a">You keep full use until the end of the year you paid for. There are no partial-year refunds. Your list and photos never leave your Google account, so they are always yours to open, print and export.</div></details>
@@ -579,6 +681,36 @@ try {
   function nice(d) { var p = String(d || '').split('-'); return p.length === 3 ? MON[+p[1] - 1] + ' ' + (+p[2]) + ', ' + p[0] : esc(d); }
   function link(u) { u = String(u || ''); return /^(#|\/|https:\/\/)/.test(u) ? u : ''; }
 
+  /* The York ad: needs both the prices (config.js) and the show details (site.json), whichever arrives last draws it. */
+  var CFG = null, AD = null;
+  function money(n) { return '$' + (n % 1 ? n.toFixed(2) : String(n)); }
+  function range(a, b) {
+    var p = String(a).split('-'), q = String(b).split('-');
+    if (p.length !== 3 || q.length !== 3) return '';
+    var m1 = MON[+p[1] - 1], m2 = MON[+q[1] - 1];
+    return m1 + ' ' + (+p[2]) + '–' + (m1 === m2 ? '' : m2 + ' ') + (+q[2]);
+  }
+  function showAd() {
+    if (!CFG || !AD) return;
+    var re = /\$\s?(\d+(?:\.\d{1,2})?)/, was = re.exec(CFG.price || ''), now = re.exec(CFG.showprice || '');
+    if (!now) return;                                         // no show price in config: no ad
+    var a = AD.ad, sh = AD.show, $ = function (id) { return document.getElementById(id); };
+    $('ad-now').textContent = money(+now[1]);
+    if (was && +was[1] > +now[1]) {
+      $('ad-was').textContent = money(+was[1]);
+      $('ad-save-amt').textContent = money(+was[1] - +now[1]);
+      $('ad-save').hidden = false;
+    } else { $('ad-was').style.display = 'none'; }
+    $('ad-term').textContent = CFG.showprice.replace(re, '').replace(/^\s+/, '').replace(/\s+plus /i, ', plus ');
+    if (a.town) $('ad-town').textContent = a.town;
+    if (sh.name) $('ad-name').textContent = sh.name + ' special';
+    $('ad-where').innerHTML = [a.where, a.days].filter(Boolean).map(function (x) { return '<span style="white-space:nowrap">' + esc(x) + '</span>'; }).join(' · ');
+    var r = range(sh.from, sh.until);
+    $('ad-when').textContent = r ? 'Show price ' + r + ' only' : '';
+    $('showad').classList.add('on');
+    document.querySelector('.hero').classList.add('has-ad');
+  }
+
   /* Prices and the item count: ONE place — the app's own config.js. */
   fetch('/app/config.js', { cache: 'no-cache' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (src) {
     function grab(name) { var m = new RegExp('const\\s+' + name + "\\s*=\\s*'([^']*)'").exec(src); return m ? m[1] : ''; }
@@ -591,6 +723,7 @@ try {
       var k = el.getAttribute('data-cfg'); if (v[k]) el.textContent = v[k];
     });
     document.documentElement.setAttribute('data-cfg-loaded', v.price && v.count ? '1' : '0');
+    CFG = v; showAd();
   }).catch(function () {});
 
   /* News, the show switch, videos and quotes: ONE place — /site/site.json. */
@@ -602,6 +735,8 @@ try {
       document.getElementById('show-tag').textContent = s.show.name + ' special';
       document.getElementById('show-card-title').textContent = s.show.name + ' special';
     }
+
+    if (s.show && s.show.ad && within(s.show.ad)) { AD = { ad: s.show.ad, show: s.show }; showAd(); }
 
     var news = (s.news || []).filter(within);
     var rib = news.filter(function (n) { return n.ribbon; })[0];
