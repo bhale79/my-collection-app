@@ -1913,26 +1913,37 @@ function _buildPhotoGallery(el, photos, opts) {
   heroLblTxt.style.cssText = 'font-size:0.68rem;color:#fff;font-family:var(--font-head);letter-spacing:0.05em;text-transform:uppercase';
   heroLbl.appendChild(heroLblTxt);
   heroLink.appendChild(heroImg); heroLink.appendChild(heroLbl);
-  var editBtn = document.createElement('button');
-  editBtn.title = 'Rotate / crop this photo';
-  editBtn.textContent = '\u2702';
-  editBtn.className = 'rr-tap';   // v0.9.1021: 44px tap target on phones
-  editBtn.style.cssText = 'position:absolute;top:4px;right:4px;z-index:2;width:26px;height:26px;border-radius:6px;border:none;background:rgba(0,0,0,0.55);color:#fff;font-size:0.8rem;cursor:pointer;line-height:1';
+  // v0.9.1976 (Brad: "the crop, trash and undo buttons take up most of the
+  // screen, we need to have this above the picture not on the picture" →
+  // "yes"): the three photo buttons sit in a slim row ABOVE the picture,
+  // right-aligned, each with its word — never on the photo. (They were 26 px
+  // squares placed by hand on the photo's corner; on a phone .rr-tap made
+  // them 44 px and they piled up over the picture.) Worded labels, so
+  // .rr-tap-wide (the phone tap floor that lets the button grow to its words).
+  // All three still act on the photo shown large (select() wires them).
+  var photoTools = document.createElement('div');
+  photoTools.className = 'rr-photo-tools';
+  photoTools.style.cssText = 'display:flex;justify-content:flex-end;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.4rem';
+  var _toolBtn = function (glyph, word, title) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.title = title;
+    b.className = 'rr-tap-wide';
+    b.style.cssText = 'display:inline-flex;align-items:center;gap:0.3rem;padding:0.3rem 0.65rem;border-radius:7px;'
+      + 'border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);'
+      + 'font-size:0.78rem;font-weight:600;cursor:pointer;line-height:1.1';
+    b.innerHTML = '<span aria-hidden="true">' + glyph + '</span><span>' + word + '</span>';
+    return b;
+  };
   // v0.9.1499 (Brad): Delete and Send-back-to-Inbox on the big gallery --
   // the page he actually looks at had no delete, and a misfiled photo had
   // no road back to the inbox at all. Both act on the photo shown large.
-  var delBtn = document.createElement('button');
-  delBtn.title = 'Delete this photo (moves to Drive trash \u2014 recoverable)';
-  delBtn.textContent = '\uD83D\uDDD1';
-  delBtn.className = 'rr-tap';
-  delBtn.style.cssText = 'position:absolute;top:4px;right:34px;z-index:2;width:26px;height:26px;border-radius:6px;border:none;background:rgba(0,0,0,0.55);color:#fff;font-size:0.8rem;cursor:pointer;line-height:1';
-  var inboxBtn = document.createElement('button');
-  inboxBtn.title = 'Send this photo back to the Photo Inbox to re-file it';
-  inboxBtn.textContent = '\u21A9';
-  inboxBtn.className = 'rr-tap';
-  inboxBtn.style.cssText = 'position:absolute;top:4px;right:64px;z-index:2;width:26px;height:26px;border-radius:6px;border:none;background:rgba(0,0,0,0.55);color:#fff;font-size:0.85rem;cursor:pointer;line-height:1';
-  heroWrap.appendChild(heroLink); heroWrap.appendChild(editBtn);
-  heroWrap.appendChild(delBtn); heroWrap.appendChild(inboxBtn);
+  var inboxBtn = _toolBtn('\u21A9', 'To Inbox', 'Send this photo back to the Photo Inbox to re-file it');
+  var delBtn = _toolBtn('\uD83D\uDDD1', 'Delete', 'Delete this photo (moves to Drive trash \u2014 recoverable)');
+  var editBtn = _toolBtn('\u2702', 'Crop', 'Rotate / crop this photo');
+  photoTools.appendChild(inboxBtn); photoTools.appendChild(delBtn); photoTools.appendChild(editBtn);
+  heroWrap.appendChild(photoTools);
+  heroWrap.appendChild(heroLink);
   galBody.appendChild(heroWrap);
 
   // Rail (only when there is more than one photo)
