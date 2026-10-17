@@ -1,0 +1,58 @@
+{
+ "what": "Master Version 2.56 — Lionel PW - Items 925 Lionel Train Lubricant Dealer Display (6ZGC7C8Y5V): Variation Details \"Two Variations\" → \"no variation\" (COTT's #DD925 entry shows one display in three photos — the Caplan Collection's and two eBay shots — and names no variations; no second 925 row exists). D40 \"Dealer Display Layout\" (79N3HA8AMV, hand-entered, non-COTT): Reference Link to COTT's transformers page, which never mentions it, cleared; the row stays (no source found for or against a Lionel D-40 — not on COTT, the reference book workbook, the Greenberg price file or the web).",
+ "stated": "Brad (2026-10-17): \"yes\" to looking at D40 and 925, then \"yes\" to the 2-cell plan",
+ "masterVersion": "2.56",
+ "date": "2026-10-17",
+ "planReadAt": "public CSV export of Lionel PW - Items, COTT's live dealer-displays-a and transformers pages, read 2026-10-17 right before this record",
+ "cellFormat": "[tab, item number (column A), column header, old, new, sheet row as a hint, Row ID of the row]",
+ "counts": {
+  "cells": 2,
+  "rows": 2
+ },
+ "cells": [
+  [
+   "Lionel PW - Items",
+   "925",
+   "Variation Details",
+   "Two Variations",
+   "no variation",
+   2807,
+   "6ZGC7C8Y5V"
+  ],
+  [
+   "Lionel PW - Items",
+   "D40",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/transformers/",
+   "",
+   2916,
+   "79N3HA8AMV"
+  ]
+ ],
+ "itemsHeader": [
+  "Item Number",
+  "Item Type",
+  "Sub-Type",
+  "Unit",
+  "Powered/Dummy",
+  "Control",
+  "Road Name",
+  "Description",
+  "Gauge",
+  "Year Produced",
+  "Variation #",
+  "Variation Details",
+  "Reference Link",
+  "Notes",
+  "Est. Market Value",
+  "Source",
+  "COTT Code",
+  "Original COTT Desc",
+  "Category",
+  "Track Power",
+  "MSRP",
+  "Body Color",
+  "Stamped Markings",
+  "Row ID"
+ ]
+}
