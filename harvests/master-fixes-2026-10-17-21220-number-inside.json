@@ -1,0 +1,72 @@
+{
+ "what": "Master Version 2.57 — COTT's chemistry-sets-lionel page lists two versions of the No. 21220 Junior Chemistry Lab: with \"No. 21220\" printed inside (1964, SS0182, bookmark #CHEM21220) and without it (SS0281, #CHEM21220WO). Only the second had a row. Added at the bottom of Lionel PW - Science: 21220 Junior Chemistry Lab (with Number Inside), 1964, Variation # 2, Variation Details \"with number inside\", COTT link #CHEM21220, SS0182. The existing row (WN5JMDZ8PQ) stays Variation # 1; its Variation Details \"no variation\" -> \"without number inside\". SS0182 was on no tab before.",
+ "stated": "Brad (2026-10-17): \"yes\" to looking at 21220, then \"yes\" to the plan",
+ "masterVersion": "2.57",
+ "date": "2026-10-17",
+ "planReadAt": "public CSV export of every Lionel tab and COTT's live chemistry-sets-lionel page (bookmarks CHEM21220, CHEM21220WO), read 2026-10-17 right before this record",
+ "cellFormat": "[tab, item number (column A), column header, old, new, sheet row as a hint, Row ID of the row]",
+ "counts": {
+  "cells": 1,
+  "rowsAdded": 1
+ },
+ "cells": [
+  [
+   "Lionel PW - Science",
+   "21220",
+   "Variation Details",
+   "no variation",
+   "without number inside",
+   151,
+   "WN5JMDZ8PQ"
+  ]
+ ],
+ "scienceHeader": [
+  "Item Number",
+  "Item Type",
+  "Sub-Type",
+  "Unit",
+  "Powered/Dummy",
+  "Control",
+  "Road Name",
+  "Description",
+  "Gauge",
+  "Year Produced",
+  "Variation #",
+  "Variation Details",
+  "Reference Link",
+  "Notes",
+  "Est. Market Value",
+  "Source",
+  "COTT Code",
+  "Original COTT Desc",
+  "Stamped Markings",
+  "Row ID"
+ ],
+ "addRows": [
+  {
+   "tab": "Lionel PW - Science",
+   "row": [
+    "21220",
+    "Science Set",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "Junior Chemistry Lab (with Number Inside)",
+    "",
+    "1964",
+    "2",
+    "with number inside",
+    "https://cornucopiaoftoytrains.com/chemistry-sets-lionel/#CHEM21220",
+    "",
+    "",
+    "COTT",
+    "SS0182",
+    "No. 21220 JUNIOR CHEMISTRY LAB (with number inside) 1964 SS0182 Note, \"JUNIOR CHEMISTRY LAB No. 21220\"",
+    "",
+    "NDQ6VUN7NZ"
+   ]
+  }
+ ]
+}
