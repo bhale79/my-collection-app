@@ -10778,8 +10778,14 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('a dropped connection reads the same as being offline',
        /No connection/.test(say('Failed to fetch', 'your item')));
     ok('a signed-out session says how to fix it',
-       /signed out/.test(say('SESSION_EXPIRED', 'your item')) &&
-       /Sign in again/.test(say('SESSION_EXPIRED', 'your item')));
+       /signed out/.test(say('Not signed in', 'your item')) &&
+       /Sign in again/.test(say('Not signed in', 'your item')));
+    // v0.9.1979 (Brad, "issue 6"): SESSION_EXPIRED is a renewal that did not
+    // arrive in time — never "signed out", and it says the change is kept.
+    ok('a renewal that ran late is never called "signed out", and says the item is kept',
+       !/signed out/i.test(say('SESSION_EXPIRED', 'your item')) &&
+       /renewing your sign-in/.test(say('SESSION_EXPIRED', 'your item')) &&
+       /kept/.test(say('SESSION_EXPIRED', 'your item')), say('SESSION_EXPIRED', 'your item'));
     ok('a rate limit is explained in words, not as 429',
        /slow down/.test(say('Sheets API error 429: quota', 'your item')) &&
        !/429/.test(say('Sheets API error 429: quota', 'your item')));

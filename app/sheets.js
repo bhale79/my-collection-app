@@ -71,21 +71,22 @@ async function sheetsBatchGet(spreadsheetId, ranges) {
 // ── Token refresh helper — silently refreshes expired token then retries ──
 // On mobile, tokens expire and the silent refresh sometimes doesn't fire in time.
 // This wraps any fetch so a 401 triggers a fresh token request before retrying once.
+//
+// v0.9.1979 (Brad, "issue 6": "on my phone app i am having to log in alot"):
+// this helper used to fetch its OWN pass — swapping tokenClient.callback and
+// giving Google 8–10 seconds. Since v0.9.1924 a renewal goes through the relay,
+// which takes longer than that, so the first save after the phone woke lost the
+// race and its catch put the FULL sign-in screen up. Now there is one way to get
+// a pass here: rrWaitForPass (app-auth.js) — the one renewal door, waiting as
+// long as RR_RENEW_WAIT_MS (config.js). A lapsed pass is renewed BEFORE the
+// request instead of after a doomed 401. No pass in that time = SESSION_EXPIRED,
+// which the outbox keeps and sends once the pass is back.
 async function _withTokenRetry(fetchFn) {
-  // If no token at all, try to get one silently first
-  if (!accessToken && tokenClient) {
-    await new Promise((resolve, reject) => {
-      const hint = state.user?.email || '';
-      const prev = tokenClient.callback;
-      tokenClient.callback = (resp) => {
-        tokenClient.callback = prev;
-        if (resp.error) { reject(new Error('Token required: ' + resp.error)); return; }
-        accessToken = resp.access_token;
-        resolve();
-      };
-      tokenClient.requestAccessToken({ prompt: '', login_hint: hint });
-      setTimeout(() => reject(new Error('Sign-in timed out')), 10000);
-    });
+  const _canWait = (typeof rrWaitForPass === 'function') && (typeof rrPassLapsed === 'function') && (typeof rrPassRefused === 'function');
+  if (_canWait && rrPassLapsed()) {
+    // a pass that ran out and did not come back → SESSION_EXPIRED; no pass at
+    // all (offline start, Google never loaded) → the same words as before
+    if (!(await rrWaitForPass('sheets')) && accessToken) throw new Error('SESSION_EXPIRED');
   }
   if (!accessToken) throw new Error('Not signed in — please reload and sign in again');
 
@@ -102,27 +103,12 @@ async function _withTokenRetry(fetchFn) {
     }
   }
   if (res.status === 401 || res.status === 403) {
-    if (!tokenClient) throw new Error('Cannot refresh token — please reload');
-    await new Promise((resolve, reject) => {
-      const hint = state.user?.email || '';
-      const prevCallback = tokenClient.callback;
-      tokenClient.callback = (resp) => {
-        tokenClient.callback = prevCallback;
-        if (resp.error) {
-          // Session 159: typed sentinel so catch blocks can show friendly re-sign-in prompt
-          if (resp.error === 'interaction_required' || resp.error === 'login_required' || resp.error === 'consent_required') {
-            reject(new Error('SESSION_EXPIRED'));
-          } else {
-            reject(new Error('Token refresh failed: ' + resp.error));
-          }
-          return;
-        }
-        accessToken = resp.access_token;
-        resolve();
-      };
-      tokenClient.requestAccessToken({ prompt: '', login_hint: hint });
-      setTimeout(() => reject(new Error('SESSION_EXPIRED')), 8000);
-    });
+    if (!_canWait) throw new Error('Cannot refresh token — please reload');
+    // Google refused the pass we hold, whatever its clock said: renew it
+    // through the one door and try once more (Session 159's typed sentinel,
+    // SESSION_EXPIRED, is still what a caller sees if none comes).
+    rrPassRefused();
+    if (!(await rrWaitForPass('sheets ' + res.status))) throw new Error('SESSION_EXPIRED');
     const retryRes = await fetchFn();
     if (!retryRes.ok) {
       const errBody = await retryRes.json().catch(() => ({}));

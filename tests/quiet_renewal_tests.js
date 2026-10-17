@@ -207,7 +207,10 @@ const DEV = (email) => JSON.stringify({ device: 'dev-123', email: email || 'bhal
   T('W1 the app\'s token client IS the wrapped one', /tokenClient = _rrWrapTokenClient\(google\.accounts\.oauth2\.initTokenClient\(\{/.test(AUTH));
   const V = fs.readFileSync(path.join(APP, 'vault.js'), 'utf8');
   T('W2 the three calls are listed as device-key calls (never carry the proof)', /DEVICE_KEY_ACTIONS: \['auth_link', 'auth_renew', 'auth_unlink'\]/.test(V));
-  T('W3 a slow relay renewal gets 20 s before a click is waited for', /var _waitMs = \(_rrQuietOn\(\) && _rrQuietDevice\(\)\) \? 20000 : 6000;/.test(AUTH));
+  // v0.9.1979: the wait is RR_RENEW_WAIT_MS (config.js), the one number every pass-waiter reads
+  const _rw = (CFG.match(/const RR_RENEW_WAIT_MS = (\d+);/) || [])[1];
+  T('W3 a slow relay renewal gets RR_RENEW_WAIT_MS (≥ 20 s) before a click is waited for',
+    /var _waitMs = \(_rrQuietOn\(\) && _rrQuietDevice\(\)\) \? _rrRenewWaitMs\(\) : 6000;/.test(AUTH) && Number(_rw) >= 20000, { wait: _rw });
 
   // ── P ────────────────────────────────────────────────────────────────────
   {

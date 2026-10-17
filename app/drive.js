@@ -123,31 +123,26 @@ async function driveRequest(method, endpoint, body) {
     if (saved && expiry > Date.now()) accessToken = saved;
     else throw new Error('Not signed in');
   }
+  // v0.9.1979 (Brad, "issue 6"): ONE way to get a renewed pass — rrWaitForPass
+  // (app-auth.js), waiting RR_RENEW_WAIT_MS (config.js). This used to swap
+  // tokenClient.callback and give the renewal 10 s, less than the relay can take.
+  // A lapsed pass is now renewed BEFORE the request.
+  var _canWait = (typeof rrWaitForPass === 'function') && (typeof rrPassLapsed === 'function') && (typeof rrPassRefused === 'function');
+  if (_canWait && state && state.user && rrPassLapsed()) {
+    if (!(await rrWaitForPass('drive'))) throw new Error('Session expired — please sign in again');
+  }
   var res = await fetch('https://www.googleapis.com/drive/v3' + endpoint, {
     method: method,
     headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
-  // If 401 (expired token), try one silent refresh and retry
+  // If 401 (Google refused the pass), renew through the one door and retry once
   if (res.status === 401 && state.user) {
-    console.warn('[Drive] 401 — attempting token refresh');
-    try {
-      await new Promise(function(resolve, reject) {
-        var _origCb = tokenClient.callback;
-        var _done = false;
-        tokenClient.callback = function(resp) {
-          if (_done) return;
-          _done = true;
-          tokenClient.callback = _origCb;
-          if (resp.error) { reject(new Error(resp.error)); return; }
-          onTokenReceived(resp);
-          resolve();
-        };
-        tokenClient.requestAccessToken({ prompt: '', login_hint: state.user.email || '' });
-        setTimeout(function() { if (!_done) { _done = true; tokenClient.callback = _origCb; reject(new Error('Token refresh timeout')); } }, 10000);
-      });
-    } catch(e) {
-      console.error('[Drive] Token refresh failed:', e);
+    console.warn('[Drive] 401 — renewing the pass');
+    if (!_canWait) throw new Error('Session expired — please sign in again');
+    rrPassRefused();
+    if (!(await rrWaitForPass('drive 401'))) {
+      console.error('[Drive] no renewed pass in time');
       throw new Error('Session expired — please sign in again');
     }
     // Retry with fresh token

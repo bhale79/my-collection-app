@@ -545,6 +545,15 @@
         ? RR_ROW_MOVED_MSG
         : 'That row moved in your spreadsheet — nothing was saved. Refresh and try again.';
     }
+    // v0.9.1979 (Brad, "issue 6"): SESSION_EXPIRED means the renewal did not
+    // arrive in time (rrWaitForPass) — he was never signed out. Say what is true.
+    if (raw === 'SESSION_EXPIRED') {
+      return kept
+        ? 'Google is renewing your sign-in, so ' + thing + ' has not reached your sheet yet.' + tail
+        : 'Google is renewing your sign-in — try again in a moment. If a Reconnect bar shows, tap it first.';
+    }
+    // Every other sign-in error ("Not signed in", "Sign in to back up …") really
+    // is no account on this device.
     if (rrIsSignInError(raw)) {
       return 'You have been signed out. Sign in again and ' + thing + ' will save.';
     }

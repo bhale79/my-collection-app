@@ -2577,18 +2577,14 @@ async function saveWizardItem() {
 
   } catch(e) {
     console.error('Save error:', e, '| accessToken:', accessToken ? 'present' : 'MISSING');
-    // Session 159: friendly re-sign-in path when OAuth token expired
-    if (e && e.message === 'SESSION_EXPIRED') {
-      showToast('🔐 Your sign-in expired — please sign in again to save.', 6000, true);
-      try {
-        var _au = document.getElementById('auth-screen');
-        var _ap = document.getElementById('app');
-        if (_au) _au.style.display = 'flex';
-        if (_ap) _ap.classList.remove('active');
-      } catch(_se) { console.warn('show auth-screen failed:', _se); }
-    } else {
-      showToast(rrSaveError(e, 'your item'), 8000, true);
-    }
+    // v0.9.1979 (Brad, "issue 6"): a lapsed sign-in NEVER puts up the sign-in
+    // screen over the app any more — that screen is what he kept landing on
+    // ("having to log in alot"), and tapping it took two or three tries. The
+    // write is kept on this device by the outbox; rrSaveError says so in the
+    // ONE wording for every failed save, and the renewal keeps going (the
+    // relay, then a tap, then the Reconnect bar).
+    showToast(rrSaveError(e, 'your item'), 8000, true);
+    try { if (rrIsSignInError(e) && typeof rrEnsureFreshToken === 'function') rrEnsureFreshToken('save'); } catch (_se) {}
   }
   // v0.9.1325: releases the in-flight lock opened at the top of this function.
   // In a finally so a throw anywhere above — including one the catch above

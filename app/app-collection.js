@@ -503,18 +503,11 @@ function _nonItemDetailEdit(type, key) {
         saveBtn._busy = false;
         saveBtn.disabled = false;
         saveBtn.textContent = 'Save Changes';
-        // Session 159: friendly re-sign-in path when OAuth token expired
-        if (err && err.message === 'SESSION_EXPIRED') {
-          if (typeof showToast === 'function') showToast('🔐 Your sign-in expired — please sign in again to save.', 6000, true);
-          try {
-            var _au = document.getElementById('auth-screen');
-            var _ap = document.getElementById('app');
-            if (_au) _au.style.display = 'flex';
-            if (_ap) _ap.classList.remove('active');
-          } catch(_se) { console.warn('show auth-screen failed:', _se); }
-        } else if (typeof showToast === 'function') {
-          showToast(rrSaveError(err, 'your change'), 4500, true);
-        }
+        // v0.9.1979 (Brad, "issue 6"): a lapsed sign-in never puts the sign-in
+        // screen over the app — one wording (rrSaveError), the write kept by the
+        // outbox, the renewal keeps going.
+        if (typeof showToast === 'function') showToast(rrSaveError(err, 'your change'), 4500, true);
+        try { if (rrIsSignInError(err) && typeof rrEnsureFreshToken === 'function') rrEnsureFreshToken('save'); } catch (_se) {}
       });
   };
 

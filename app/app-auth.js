@@ -876,6 +876,26 @@ function onTokenReceived(resp) {
         loadAllData();
       }
     } catch (eRL) {}
+    // v0.9.1979 ("when i do sign in, its like i have to do it 2 or three
+    // times"): a pass that arrives while the sign-in screen is up — Brad
+    // tapped "Sign in with Google" over an app that had already loaded — is
+    // the sign-in finishing. It used to be taken as a quiet renewal and
+    // nothing else, so the sign-in screen stayed and the tap looked dead.
+    // Bring the app back (showApp hides the sign-in screen and its overlay).
+    try {
+      var _appEl = document.getElementById('app');
+      var _authEl = document.getElementById('auth-screen');
+      var _authUp = !!(_authEl && _authEl.style.display && _authEl.style.display !== 'none');
+      if (_authUp && _appEl && !_appEl.classList.contains('active') && typeof showApp === 'function') {
+        _rrAuthLog('pass arrived over the sign-in screen — showing the app');
+        showApp();
+      }
+    } catch (eSA) {}
+    // v0.9.1979: saves kept on this device while the pass was out go up now,
+    // not at the next minute's retry (the same retry the outbox runs on its own).
+    try {
+      if (typeof rrOutboxCount === 'function' && rrOutboxCount() > 0 && typeof rrOutboxRetry === 'function') rrOutboxRetry();
+    } catch (eOB) {}
     return;
   }
 
@@ -1351,8 +1371,10 @@ function rrEnsureFreshToken(reason) {
     // If nothing comes back, the quiet path was blocked. Do not nag — wait
     // for a click and try again then, when the browser will allow it.
     // v0.9.1924: the relay can take longer than Google's window to answer (a
-    // cold start), so its renewal gets 20 s before a click is waited for.
-    var _waitMs = (_rrQuietOn() && _rrQuietDevice()) ? 20000 : 6000;
+    // cold start), so its renewal gets longer before a click is waited for.
+    // v0.9.1979: that wait is RR_RENEW_WAIT_MS (config.js) — the same number
+    // every waiter in rrWaitForPass uses, so neither gives up before the other.
+    var _waitMs = (_rrQuietOn() && _rrQuietDevice()) ? _rrRenewWaitMs() : 6000;
     setTimeout(function () {
       if (_rrTokenRenewing && !_rrTokenHealthy()) {
         _rrTokenRenewing = false;
@@ -1365,6 +1387,57 @@ function rrEnsureFreshToken(reason) {
     console.warn('[Auth] renew failed:', e && e.message);
     _rrArmGestureRenew();
   }
+}
+// ═══ v0.9.1979 — WAITING FOR A PASS (Brad, "issue 6") ═════════════════════
+// "on my phone app i am having to log in alot … i dont see it on the desktop
+// app" and "when i do sign in, its like i have to do it 2 or three times".
+// The phone sleeps the app, the one-hour pass runs out while it sleeps, and the
+// first save after waking found it dead. sheets.js then asked Google for a new
+// one through its OWN side door and gave it 8 seconds — the quiet renewal goes
+// through the relay, which takes longer than that (2–5 s for its simplest call,
+// measured 2026-10-17) — so the save gave up and put the full sign-in screen up
+// over an app that was never signed out.
+//
+// Now every request that needs a pass and finds it lapsed waits HERE: the one
+// renewal door (rrEnsureFreshToken → the relay, no window), for as long as
+// RR_RENEW_WAIT_MS (config.js). Resolves true the moment a usable pass is
+// held, false if none came — never throws, never shows a screen. A pass with
+// an unknown expiry (nothing stored) counts as held, exactly as before.
+// config.js loads before this file (index.html), so the number is always there.
+function _rrRenewWaitMs() { return RR_RENEW_WAIT_MS; }
+function rrPassLapsed() {
+  if (!accessToken) return true;
+  var ex = _rrTokenExpiry();
+  return ex > 0 && ex <= Date.now() + _RR_TOKEN_USABLE_MS;
+}
+// Google refused the pass we hold (401/403): it is dead whatever its clock says.
+function rrPassRefused() {
+  try { localStorage.setItem('lv_token_expiry', '1'); } catch (e) {}
+}
+function rrWaitForPass(why) {
+  return new Promise(function (resolve) {
+    if (!rrPassLapsed()) return resolve(true);
+    if (!state || !state.user) return resolve(false);          // nobody signed in: nothing to renew
+    // Nothing CAN renew it — Google's sign-in never loaded, or the device is
+    // offline (show mode): answer at once, exactly as before, never a long hang.
+    if (typeof tokenClient === 'undefined' || !tokenClient) return resolve(false);
+    try { if (window._offlineMode || (typeof navigator !== 'undefined' && navigator.onLine === false)) return resolve(false); } catch (e) {}
+    try { rrEnsureFreshToken(why || 'wait'); } catch (e) {}
+    var limit = _rrRenewWaitMs(), t0 = Date.now();
+    (function poll() {
+      if (!rrPassLapsed()) return resolve(true);
+      if (Date.now() - t0 >= limit) {
+        _rrAuthLog('no pass after ' + Math.round(limit / 1000) + 's (' + (why || 'wait') + ')');
+        return resolve(false);
+      }
+      setTimeout(poll, 250);
+    })();
+  });
+}
+if (typeof window !== 'undefined') {
+  window.rrWaitForPass = rrWaitForPass;
+  window.rrPassLapsed = rrPassLapsed;
+  window.rrPassRefused = rrPassRefused;
 }
 // Layer 2. One-shot listeners; they remove themselves the moment they fire.
 //

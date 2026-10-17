@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1978';
+const APP_VERSION = 'v0.9.1979';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -1299,6 +1299,16 @@ const RR_TOKEN_SCOPES_KEY = 'lv_token_scopes';
 const RR_QUIET_RENEW = 'all';
 const RR_RENEW_DEVICE_KEY = 'lv_renew_device';        // { device, email } — this device's key from the relay
 const RR_RENEW_NOKEY_KEY  = 'lv_renew_nokey_until';   // Google gave no renewal key: don't try again before this time
+// v0.9.1979 — HOW LONG ANYTHING WAITS FOR A RENEWED PASS (Brad, "issue 6": "on my
+// phone app i am having to log in alot … when i do sign in, its like i have to do it
+// 2 or three times"). A save that found the pass lapsed waited 8 s for the renewal
+// (sheets.js), then put up the full sign-in screen — but the quiet renewal goes
+// through the relay, which answered its SIMPLEST call in 2–5 s from the cloud
+// (measured 2026-10-17, five tries), before it even asks Google. The phone sleeps,
+// the pass runs out, the first save after waking lost that race. Every wait for a
+// renewed pass (rrWaitForPass, app-auth.js; the quiet renewal's own fallback timer)
+// reads THIS one number. Never type a renewal wait anywhere else.
+const RR_RENEW_WAIT_MS = 25000;
 
 function rrRecordingMode() {
   try { return localStorage.getItem(RR_RECORDING_MODE_KEY) === '1'; } catch (e) { return false; }
