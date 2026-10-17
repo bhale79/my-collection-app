@@ -1343,9 +1343,11 @@ _identifyShowPasteEcho(Array(40).join('The Lionel 2331 Virginian Train Master is
     {
       const bcSrc = fs.readFileSync(path.join(APP, 'barcode.js'), 'utf8');
       const s0 = bcSrc.indexOf('function showCandidatePicker(candidates, scanResult) {');
-      const s1 = bcSrc.indexOf('function _confirmCameraUse', s0) > 0
-        ? bcSrc.indexOf('function _confirmCameraUse', s0)
-        : bcSrc.indexOf('\n  // Expose globally', s0);
+      // v0.9.1977: "// Expose globally" went with the old scanner (one reader) —
+      // the label reader that now follows the picker ends the slice instead
+      const _ends = ['function _confirmCameraUse', '\n  // Expose globally', '\n  var _tesseractLoadingPromise']
+        .map(m => bcSrc.indexOf(m, s0)).filter(i => i > 0);
+      const s1 = _ends.length ? Math.min.apply(null, _ends) : -1;
       ok('picker: the real source slice was found', s0 > 0 && s1 > s0);
       // v0.9.1780 gave the picker a section divider, _bcDivider, defined
       // OUTSIDE the sliced function. Hand-stubbing helpers is how this harness

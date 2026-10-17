@@ -264,8 +264,8 @@ const level = pg => pg.evaluate(() => {
           && (src.match(/window\.rrFreeReadBlob\(/g) || []).length === 1 && !/rrFreeReadBlob/.test(c) && !/rrFreeReadBlob/.test(b);
       };
       T('O Photo ID and the box both read through _biReadPicture; the closer look lives only there', one(bc), { core: core.length, box: boxFn.length, rp: rp.length });
-      const planted = bc.replace("    var rp = await _biReadPicture(c, c, null, ctl.eraHint || '', {}, say, stopped);",
-        "    var _frB = await new Promise(function (r) { c.toBlob(r, 'image/jpeg', 0.95); }); var _frX = await window.rrFreeReadBlob(_frB, 2400, null);\n    var rp = await _biReadPicture(c, c, null, ctl.eraHint || '', {}, say, stopped);");
+      const planted = bc.replace("    var rp = await _biReadPicture(c, c, null, ctl.eraHint || '', _ro, say, stopped);",   // v0.9.1977: the box reads with the screen's filters (_ro)
+        "    var _frB = await new Promise(function (r) { c.toBlob(r, 'image/jpeg', 0.95); }); var _frX = await window.rrFreeReadBlob(_frB, 2400, null);\n    var rp = await _biReadPicture(c, c, null, ctl.eraHint || '', _ro, say, stopped);");
       T('O PLANTED: a second reader inside the box is caught', planted !== bc && !one(planted));
     }
 

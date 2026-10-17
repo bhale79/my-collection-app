@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1976';
+const APP_VERSION = 'v0.9.1977';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -3140,6 +3140,8 @@ const RR_PIC_FIRST = {
   resReading: 'Reading the picture\u2026',
   resFound: 'Found it \u2014 tap to use it',
   resChoose: 'Which one is yours?',
+  // v0.9.1977: every number read is only in catalogs outside the Add screen's filters
+  resOutside: 'Nothing in your filter matched \u2014 these are outside it. Is one yours?',
   resNoneOf: 'None of these',
   resNone: 'Couldn\u2019t read a number from this picture. Try \u2702 Crop around the number, or:',
   resPhotoId: '\ud83d\udcf7 Photo ID',

@@ -23,7 +23,7 @@
 //   - updateItemSuggestions (wizard-suggestions.js)
 //   - wizardNext, renderWizardStep (wizard.js)
 //   - onPageSearch, showPage (app.js)
-//   - window.openBarcodeScanner (barcode.js)
+//   - window.openBoxIdentify (barcode.js) — the one picture reader
 // ═══════════════════════════════════════════════════════════════
 
 // ── Photo Source Picker state ─────────────────────────────────
@@ -898,6 +898,25 @@ function _wireIdentifyModalV2() {
   _updateSearchButton();
 }
 
+// v0.9.1977 — the Identify screen's filters for the one reader: its maker
+// (when one is ticked), scale and type; anything it leaves open falls back to
+// the Add screen's own filters when it was opened from there.
+function _identifyReaderPrefer() {
+  if (typeof window.rrReaderPreferFrom !== 'function') return null;
+  var mf = _getSelectedIdentifyMfrs();
+  var sc = (document.getElementById('id-scale') || {}).value || '';
+  var ty = (document.getElementById('id-type') || {}).value || '';
+  var d = (typeof wizard !== 'undefined' && wizard && wizard.data && _identifyCallerContext === 'wizard') ? wizard.data : {};
+  if (_identifyCallerContext === 'research' && typeof window.rrResearchFilters === 'function') {
+    var rf = window.rrResearchFilters() || {};
+    d = { _searchFilterManufacturer: rf.mfr, _searchFilterScale: rf.scale, _searchFilterPeriod: rf.period, _searchFilterType: rf.type };
+  }
+  return window.rrReaderPreferFrom({
+    manufacturer: mf.length === 1 ? mf[0] : (mf.length ? '' : (d._searchFilterManufacturer || '')),
+    scale: sc || d._searchFilterScale || '',
+    period: d._searchFilterPeriod || d._typedSearchPeriod || '',
+    type: ty || d._searchFilterType || '' });
+}
 async function _identifySearchLens() {
   if (!_identifyPhotoFile) return;
   const searchBtn = document.getElementById('id-search-btn');
@@ -910,8 +929,11 @@ async function _identifySearchLens() {
   if (typeof window.rrIdentifyFree === 'function') {
     if (searchBtn) { searchBtn.disabled = true; searchBtn.innerHTML = '🔎 Reading the photo…'; }
     try {
-      var _free = await window.rrIdentifyFree(_identifyPhotoFile);
-      if (_free && _free.itemNum && _identifyProcessText('Item Number: ' + _free.itemNum) === 'applied') {
+      // v0.9.1977 — ONE READER: the same read every screen does (barcode, the
+      // label, the closer look), with this screen's own filters
+      var _free = await window.rrIdentifyFree(_identifyPhotoFile, _identifyReaderPrefer());
+      var _readTxt = _free && _free.itemNum ? ((_free.manufacturer ? 'Manufacturer: ' + _free.manufacturer + '\n' : '') + 'Item Number: ' + _free.itemNum) : '';
+      if (_readTxt && _identifyProcessText(_readTxt) === 'applied') {
         if (searchBtn) { searchBtn.disabled = false; searchBtn.innerHTML = origText; }
         if (typeof showToast === 'function') showToast(((typeof rrAutoReadOn === 'function') && rrAutoReadOn()) ? 'Read it free from the photo — no photo ID used' : 'Read it from the photo', 2800);
         return;
@@ -2558,8 +2580,8 @@ function _eraForMfr(mfr) {
 }
 
 function _wizScanBarcode() {
-  if (typeof window.openBarcodeScanner !== 'function') {
-    showToast && showToast('Barcode scanner not loaded', 3000, true);
+  if (typeof window.openBoxIdentify !== 'function') {   // v0.9.1977: the one reader
+    showToast && showToast('Photo ID is still loading — try again in a second', 3000, true);
     return;
   }
   const eraHint = (wizard && wizard.data && wizard.data._era) || '';
@@ -2569,7 +2591,7 @@ function _wizScanBarcode() {
   var _heldPic = (typeof window._wizPicFirstFile === 'function') ? window._wizPicFirstFile() : null;
   // v0.9.1968: and the Add screen's maker / era / scale narrow its choices
   var _start = { file: _heldPic || null, addFilters: true };
-  (window.openBoxIdentify || window.openBarcodeScanner)(_wizApplyIdResult, function() {
+  window.openBoxIdentify(_wizApplyIdResult, function() {
     // Cancelled — user can type the item# instead
   }, eraHint, _start);
 }
@@ -2673,59 +2695,6 @@ function _wizApplyIdResult(result) {
 }
 window._wizApplyIdResult = _wizApplyIdResult;
 
-// ══════════════════════════════════════════════════════════════
-// Session 168: OCR Label scanner — pairs with the Scan Barcode
-// button. Snaps a photo of the box-end label, OCRs it, extracts
-// the item number, looks it up cross-era and fills the wizard.
-// ══════════════════════════════════════════════════════════════
-function _wizScanLabel() {
-  if (typeof window.openLabelScanner !== 'function') {
-    showToast && showToast('Label scanner not loaded', 3000, true);
-    return;
-  }
-  window.openLabelScanner(function(result) {
-    if (!wizard || !wizard.data) return;
-    if (!result || !result.itemNum) return;
-    wizard.data.itemNum = result.itemNum;
-    if (result.variation) wizard.data.variation = result.variation;
-    if (result.masterItem) wizard.matchedItem = result.masterItem;
-    // Adopt the matched era so save routes to the right tab (same as
-    // Session 167 cross-era barcode lookup).
-    if (result.masterItem && result.masterItem._era) {
-      wizard.data._era = result.masterItem._era;
-    }
-    if (result.notInMaster) {
-      // v0.9.649: carry the scan-detected maker + its home era (see barcode path).
-      if (result.manufacturer) {
-        if (!wizard.data.manualManufacturer) wizard.data.manualManufacturer = result.manufacturer;
-        var _sEra2 = _eraForMfr(result.manufacturer);
-        if (_sEra2 && (!wizard.data._era || wizard.data._era === 'all')) wizard.data._era = _sEra2;
-      }
-      // v0.9.659: pivot into the FULL manual-entry flow with AI/label prefills
-      // (same single-source router as the barcode + photo-ID paths).
-      if (typeof _identifyRouteToManualEntry === 'function') {
-        var _nmMeta2 = result.aiMeta || { manufacturer: result.manufacturer || '',
-          description: result.labelDescription || result.description || '' };
-        if (_identifyRouteToManualEntry(result.itemNum, _nmMeta2, [])) {
-          showToast && showToast(result.statusMessage || 'Not in catalog — add it with full details', 3500);
-          return;
-        }
-      }
-      // Fallback (non-collection wizard tab): old prefill behavior.
-      if (result.labelDescription && !wizard.data.manualDesc) wizard.data.manualDesc = result.labelDescription;
-      showToast && showToast(result.statusMessage || 'Detected — fill in details manually', 3500);
-      renderWizardStep();
-      return;
-    }
-    showToast && showToast('✓ ' + (result.statusMessage || ('Scanned ' + result.itemNum)), 2500);
-    if (typeof _fyiAlreadyOwned === 'function') setTimeout(function() { _fyiAlreadyOwned(result.itemNum); }, 2600);   // v0.9.647
-    // Advance to next wizard step
-    wizard.step++;
-    renderWizardStep();
-  }, function() {
-    // Cancelled — leave wizard as-is, user can type manually
-  });
-}
 
 
 // ══ v0.9.1629 — THE PHOTO TRAY (photo-only mode) ═══════════════════════════

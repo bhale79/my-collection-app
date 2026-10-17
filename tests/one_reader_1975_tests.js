@@ -192,7 +192,7 @@ const CAR_GARBLED = 'The Katy SERVES THE SOUTHWEST MKT 6556 BLT 1-58 EW 9-7 IW 9
   m = await runPid(b.pg, { noAi: true, addFilters: true });
   T('X-P3 PLANTED: the outside-the-filters guard removed → 43725 is "Found it" straight away (caught)', m.item === '43725' && m.picker === 0, m);
   await b.ctx.close();
-  b = await boot({ says: '6556', bcSrc: planted(BC, "window.rrFreeReadBlob(_frBlob, 2400, _frPref)", "window.rrFreeReadBlob(_frBlob, 2400, null)", 'no prefer') });
+  b = await boot({ says: '6556', bcSrc: planted(BC, "window.rrFreeReadBlob(_frBlob, 2400, _frPref, { barcodeDone: true })", "window.rrFreeReadBlob(_frBlob, 2400, null, { barcodeDone: true })", 'no prefer') });
   m = await runPid(b.pg, { noAi: true, addFilters: true });
   T('X-P1 PLANTED: the filters not handed over → the reader gets nothing (caught)', m.pref === null, m.pref);
   await b.ctx.close();

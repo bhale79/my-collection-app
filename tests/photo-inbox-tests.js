@@ -719,7 +719,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   // carry the hint, and no hint-less blob caller may reappear.
   ok('every free-read path passes the era hint',
      /_freeReadBlob\(bytes, 1600, pref\)/.test(body5) &&
-     /_freeReadBlob\(bytes, 2400, pref\)/.test(body5) &&
+     /_freeReadBlob\(bytes, 2400, pref, \{ barcodeDone: true \}\)/.test(body5) &&   // v0.9.1977: the barcode was looked for by the 1600 read
      /var pref = _preferForFid\(fileId\)/.test(body5) &&
      /_freeReadBlob\(blob, 2400, _pfR\)/.test(body5));
 
@@ -2051,7 +2051,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('the veto only ever demotes', /if \(out\.matched\) out\.matched = false;/.test(cv));
   ok('the card explains a color veto', /Colors disagree: /.test(cv));
   ok('the auto pass escalates to full size', /_freeReadBlob\(bytes, 1600, pref\)/.test(cv)
-     && /_freeReadBlob\(bytes, 2400, pref\)/.test(cv));
+     && /_freeReadBlob\(bytes, 2400, pref, \{ barcodeDone: true \}\)/.test(cv));
   ok('escalation only when the fast read fell short', /if \(!\(r && r\.matched && r\.num\)\) \{\s*\n\s*var r2/.test(cv));
   ok('the bigger read cannot erase a smaller answer', /r2\.num \|\| !\(r && r\.num\)/.test(cv));
 
@@ -2173,8 +2173,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
      /_bcMapEnsureLoaded\(\)/.test(bmz) && /saved from an earlier scan/.test(bmz));
   ok('a confirmed scan with a locked barcode saves its pairing',
      /rrBcMapLearn\(cap\.lockedBc\.rawValue, res\.itemNum/.test(bmz));
-  ok('a label correction saves the strongest pairing of all',
-     /rrBcMapLearn\(result\.upc, _ci\._labelResult\.itemNum/.test(bmz) && /label-correction/.test(bmz));
+  // v0.9.1977: the old scanner's "label corrects the barcode" card went with it
+  // (one reader); a label read after a barcode the catalog does not know is
+  // where that pairing is saved now.
+  ok('a label read after an unknown barcode saves the pairing',
+     /rrBcMapLearn\(rawL, pickL\.itemNum, resL\.manufacturer, 'scan-label', true\)/.test(bmz));
   ok('EAN-13 and UPC-A normalize to one key',
      /v\.charAt\(0\) === '0'\) v = v\.substring\(1\)/.test(bmz));
   ok('the map lives on the personal sheet, visible and durable',
@@ -2836,7 +2839,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('and learning never blocks or breaks a read',
        /\.catch\(function \(\) \{\}\);\s*\/\/ never let a pairing failure disturb a read/.test(pi2));
     (function () {
-      const i = pi2.indexOf('async function _readBarcode(blob)');
+      const i = pi2.indexOf('async function _readBarcode(blob, prefer)');   // v0.9.1977: the screen's filters ride along
       const fn = pi2.slice(i, pi2.indexOf('\n  }', pi2.indexOf('return null;', i)));
       ok('a barcode the catalog does NOT know is still learned',
          /var known = !!\(r\.masterItem && !r\.notInMaster\);[\s\S]{0,120}_bcLearn\(rv, r\.itemNum/.test(fn));

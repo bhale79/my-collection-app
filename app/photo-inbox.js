@@ -10357,14 +10357,28 @@
     } catch (e) {}
   }
 
-  async function _readBarcode(blob) {
-    if (!('BarcodeDetector' in window)) return null;
-    var decode = (window._barcodeDebug && window._barcodeDebug.decodeBarcode) || null;
+  // v0.9.1977 — ONE READER: the barcode is found the way Photo ID finds it
+  // (_biDetectCanvas: the browser's own detector, then the ZXing reader, which
+  // is the only one an iPhone has — the native-only read found nothing there),
+  // and decoded with the era the screen's filters point to.
+  async function _barcodeCodes(blob) {
+    var bmp = await createImageBitmap(blob);
     try {
-      var det = new window.BarcodeDetector();
-      var bmp = await createImageBitmap(blob);
-      var codes = await det.detect(bmp);
-      if (bmp.close) bmp.close();
+      if (typeof window._biDetectCanvas === 'function') {
+        var cv = document.createElement('canvas');
+        cv.width = bmp.width; cv.height = bmp.height;
+        cv.getContext('2d', { willReadFrequently: true }).drawImage(bmp, 0, 0);
+        return await window._biDetectCanvas(cv);
+      }
+      if (!('BarcodeDetector' in window)) return [];
+      return await new window.BarcodeDetector().detect(bmp);
+    } finally { if (bmp && bmp.close) bmp.close(); }
+  }
+  async function _readBarcode(blob, prefer) {
+    var decode = (window._barcodeDebug && window._barcodeDebug.decodeBarcode) || null;
+    var eraHint = (prefer && prefer.era) || '';
+    try {
+      var codes = await _barcodeCodes(blob);
       var fm = (typeof findMaster === 'function') ? findMaster : null;
       for (var i = 0; i < (codes || []).length; i++) {
         var rv = String(codes[i].rawValue || '');
@@ -10373,7 +10387,7 @@
         // Primary: the app's real UPC resolver (shared with the wizard scanner).
         if (decode) {
           try {
-            var r = await decode({ rawValue: rv, format: fmt }, '');
+            var r = await decode({ rawValue: rv, format: fmt }, eraHint);
             if (r && r.itemNum) {
               var known = !!(r.masterItem && !r.notInMaster);
               _bcLearn(rv, r.itemNum, r.manufacturer, known);
@@ -10383,8 +10397,9 @@
         }
         // Fallback: a barcode whose value IS a catalog number.
         var t = rv.replace(/\D/g, '');
-        if (fm && fm(rv)) { _bcLearn(rv, rv, '', true); return { num: rv, matched: true }; }
-        if (fm && t.length >= 3 && t.length <= 7 && fm(t)) { _bcLearn(rv, t, '', true); return { num: t, matched: true }; }
+        // (with what the screen knows — never a number-only first find)
+        if (fm && fm(rv, '', prefer || undefined)) { _bcLearn(rv, rv, '', true); return { num: rv, matched: true }; }
+        if (fm && t.length >= 3 && t.length <= 7 && fm(t, '', prefer || undefined)) { _bcLearn(rv, t, '', true); return { num: t, matched: true }; }
       }
     } catch (e) {}
     return null;
@@ -10754,8 +10769,10 @@
   var _WL_FULL = '0123456789-ABCDEFGHIJKLMNOPQRSTUVWXYZ ';
   var _WL_DIGITS = '0123456789-';
 
-  async function _freeReadBlob(blob, maxDim, prefer) {
-    var bc = await _readBarcode(blob);
+  // v0.9.1977: opt.barcodeDone — the one reader already looked for a barcode
+  // on this picture (Photo ID, the Your Picture box), so it is not read twice
+  async function _freeReadBlob(blob, maxDim, prefer, opt) {
+    var bc = (opt && opt.barcodeDone) ? null : await _readBarcode(blob, prefer);
     if (bc) return bc;
     var w = await _tessGet(); if (!w) return null;
     var bmp = null;
@@ -10893,6 +10910,33 @@
         }
       }
     } catch (ePool) {}
+    // ── v0.9.1977 — ONE READER: the box-label rules ───────────────────────
+    // Photo ID's quick label read knows how a BOX prints its number — a maker's
+    // own prefix ("6-36814", "10-2210", "Item No. …"). Those rules used to live
+    // only there; now this reader uses them too, so nothing either one caught
+    // is lost. Only when no pass confirmed a number, and only a number the
+    // catalog holds inside the screen's filters.
+    try {
+      if (textAll && !(best && best.matched) && typeof window._extractItemNumberCandidates === 'function' && typeof findMaster === 'function') {
+        var _rej = (prefer && Array.isArray(prefer.reject)) ? prefer.reject.map(String) : [];
+        var _lc = window._extractItemNumberCandidates(textAll) || [];
+        for (var li = 0; li < _lc.length; li++) {
+          var _lr = String((_lc[li] && (_lc[li].raw || _lc[li].num)) || '').trim();
+          if (!_lr) continue;
+          var _try = [_lr]; if (/^6-\d/.test(_lr)) _try.push(_lr.slice(2));
+          for (var lt = 0; lt < _try.length; lt++) {
+            if (_rej.indexOf(_try[lt]) >= 0) continue;
+            var _row = findMaster(_try[lt], null, prefer || null);
+            if (!_row) continue;
+            if (prefer && typeof window.rrRowFitsPrefer === 'function' && !window.rrRowFitsPrefer(_row, prefer)) continue;
+            best = { num: String(_row.itemNum || _try[lt]), matched: true, alts: (best && best.alts) || [],
+                     dbg: Object.assign({}, (best && best.dbg) || {}, { boxLabel: _lr, note: 'read by the box-label rules' }) };
+            text = textAll; break;
+          }
+          if (best && best.matched) break;
+        }
+      }
+    } catch (eBL) {}
     // What the stamp pass saw survives into the disclosure even when it lost —
     // the next failure report then shows what it read instead of a blank.
     try { if (best && best.dbg && stampSaw && !best.dbg.stampPass) best.dbg.stampSaw = stampSaw; } catch (eSS) {}
@@ -10937,8 +10981,8 @@
   // be reading in the background when Photo ID starts; both share one reader
   // whose settings change pass by pass, so a second read waits its turn.
   var _freeReadQueue = Promise.resolve();
-  window.rrFreeReadBlob = function (blob, maxDim, prefer) {
-    var run = _freeReadQueue.then(function () { return _freeReadBlob(blob, maxDim, prefer); });
+  window.rrFreeReadBlob = function (blob, maxDim, prefer, opt) {
+    var run = _freeReadQueue.then(function () { return _freeReadBlob(blob, maxDim, prefer, opt); });
     _freeReadQueue = run.catch(function () {});
     return run;
   };
@@ -11319,7 +11363,7 @@
     var r = await _freeReadBlob(bytes, 1600, pref);
     if (!(r && r.matched && r.num)) {
       var r2 = null;
-      try { r2 = await _freeReadBlob(bytes, 2400, pref); } catch (e2) {}
+      try { r2 = await _freeReadBlob(bytes, 2400, pref, { barcodeDone: true }); } catch (e2) {}   // v0.9.1977: the barcode was looked for a moment ago
       // The bigger read wins unless it came back with less than the fast one.
       if (r2 && (r2.num || !(r && r.num))) {
         if (r2.dbg) r2.dbg.escalated = true;
@@ -11342,9 +11386,19 @@
   // confirmed. Exposed globally so EVERY screen (inbox, wizard Identify,
   // Research by Photo) can try the free read before spending a paid AI credit.
   // Returns { itemNum, matched:true } only on a CONFIDENT (master-backed) hit.
-  window.rrIdentifyFree = async function (blob) {
+  // v0.9.1977 — ONE READER: the read goes through the same door as Photo ID
+  // and the Your Picture box (barcode.js rrReadPictureFile: barcode first, the
+  // label next, then this file's closer look), with the screen's filters.
+  // Only a single sure answer inside them comes back.
+  window.rrIdentifyFree = async function (blob, prefer) {
     try {
-      var r = await _freeReadBlob(blob);
+      if (typeof window.rrReadPictureFile === 'function') {
+        var p = await window.rrReadPictureFile(blob, { prefer: prefer || null });
+        if (p && p.kind === 'sure' && p.item && p.item.row)
+          return { itemNum: p.item.row.itemNum || p.item.num, matched: true, row: p.item.row, manufacturer: p.item.row.manufacturer || '' };
+        return null;
+      }
+      var r = await _freeReadBlob(blob, 2400, prefer || null);
       if (r && r.num && r.matched) return { itemNum: r.num, matched: true };
     } catch (e) {}
     return null;

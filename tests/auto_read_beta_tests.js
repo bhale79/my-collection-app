@@ -100,7 +100,9 @@ T('S3 every guide step about a paid read is marked autoRead', s3now.length === 0
 }
 T('S4 every scanner close look asks _bcArOn() first', s4(BC).length === 0, s4(BC));
 {
-  const planted = BC.replace("if (!cands.length && typeof _bcAiRescue === 'function' && _bcArOn()) {", "if (!cands.length && typeof _bcAiRescue === 'function') {");
+  // v0.9.1977: the old label scanner that held the first planted line is gone (one reader) — plant in Photo ID's own
+  const planted = BC.replace("      if (_bcArOn()) {   // v0.9.1927: the close look is Auto Read — beta feature\n        st('ai', '<span class=\"bi-spin\">⟳</span>', 'Close look: getting the details…');",
+    "      if (true) {\n        st('ai', '<span class=\"bi-spin\">⟳</span>', 'Close look: getting the details…');");
   T('S4 PLANTED: an unguarded close look is caught', planted !== BC && s4(planted).length === 1, s4(planted));
 }
 

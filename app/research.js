@@ -310,10 +310,12 @@
     // Flag consulted by the identify modal (Lens fail-safe path): while true,
     // extracted results route to the research card instead of the Add wizard.
     window._researchActive = true;
+    // v0.9.1977 — ONE READER: a picture read here uses Research's own filters
     window.openBoxIdentify(
       function (res) { _showCard(res || {}); },
       function () { window._researchActive = false; },
-      null
+      null,
+      { preferFrom: function () { return (typeof window.rrReaderPreferFrom === 'function' && typeof window.rrResearchFilters === 'function') ? window.rrReaderPreferFrom(window.rrResearchFilters()) : null; } }
     );
   };
 

@@ -1,17 +1,19 @@
 // ══════════════════════════════════════════════════════════════
-//  barcode.js — Phase 1 Barcode Scanner (Lionel Modern only)
+//  barcode.js — the ONE picture reader (v0.9.1977)
 //
-//  Entry point: openBarcodeScanner(onScanned, onCancel, eraHint)
-//    onScanned(result) — called on successful parse.
-//      result = { itemNum, upc, manufacturer, rawBarcode, format }
-//    onCancel()        — called if user closes without scanning
-//    eraHint ('mpc'|'mod'|undefined) — used to hint which prefix we expect
-//
-//  Supports: UPC-A (12 digits), EAN-13 (13), Code 128, Code 39.
-//  Phase 1 parses only Lionel prefix 023922 (UPC-A) +
-//  Code 128 SKU formats like "10-XXXX" (MTH routing for Phase 2).
-//
-//  Requires: BarcodeDetector API (Chrome/Edge/Safari modern).
+//  Brad: "all readers, i mean all, should read the same way, barcode first
+//  because its fast, then switch to the other". Every screen that reads a
+//  picture of an item goes through _biReadPicture, with that screen's filters:
+//    1. the barcode (the browser's detector, then ZXing — the one iPhones have)
+//    2. the quick label read (the box-label rules: _extractItemNumberCandidates)
+//    3. the closer look (photo-inbox.js rrFreeReadBlob)
+//  Doors in:
+//    openBoxIdentify(onScanned, onCancel, eraHint, start) — Photo ID, the
+//      tender Photo ID, Research. start = { file, addFilters, prefer, preferFrom }
+//    rrReadPictureFile(file, ctl) — no screen of its own: the Your Picture box
+//      and Identify from photo (via photo-inbox.js rrIdentifyFree)
+//  The old live-camera scanners (openBarcodeScanner, openLabelScanner) are
+//  gone; tests/one_reader_1977_tests.js fails if a screen reads another way.
 // ══════════════════════════════════════════════════════════════
 
 // ── Session 139 (Tier 3.18) ── Era gating for the barcode scanner UI ──
@@ -37,7 +39,6 @@ function eraSupportsBarcode(era) {
 window.eraSupportsBarcode = eraSupportsBarcode;
 
 (function() {
-  const EXPLAINER_ACK_KEY = 'lv_barcode_explainer_ack';
 
   // Manufacturer prefix → handler
   // v0.9.1781: the status amber was thirteen copies of the same hex; a
@@ -132,12 +133,44 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   // _wizRowFitsFilters, the ONE answer to "does this row fit the filters").
   // A step applies only if at least one row survives it: a filter can shorten
   // the list, never empty it. Returns the rows left; one row = the answer.
+  // ══ v0.9.1977 — ONE READER (Brad: "all readers, i mean all, should read the
+  // same way, barcode first because its fast, then switch to the other") ═════
+  // Every screen that reads a picture of an item goes through _biReadPicture:
+  // the barcode first, then the quick label read (the box-label rules), then the
+  // Photo Inbox reader — always with the filters of the screen it came from.
+  // These two say what those filters are and whether a catalog row fits them.
+  //   opts.prefer     — a screen's own filters as a reader preference (Research)
+  //   opts.addFilters — the Add screen's filters (_wizReaderPrefer)
+  function _biPreferOf(opts) {
+    if (opts && opts.prefer) return opts.prefer;
+    if (opts && opts.addFilters && typeof window._wizReaderPrefer === 'function') { try { return window._wizReaderPrefer(); } catch (eP) {} }
+    return null;
+  }
+  function _biFits(h, opts) {
+    if (!h || !opts) return true;
+    try {
+      if (opts.prefer) {
+        if (typeof window.rrRowFitsPrefer === 'function') return window.rrRowFitsPrefer(h, opts.prefer);
+        var es = (opts.prefer.eras && opts.prefer.eras.length) ? opts.prefer.eras : (opts.prefer.era ? [opts.prefer.era] : []);
+        return !es.length || !h._era || es.indexOf(h._era) >= 0;
+      }
+      if (opts.addFilters) {
+        var _d = (typeof wizard !== 'undefined' && wizard && wizard.data) ? wizard.data : null;
+        var _um = _d ? _bcMfrKey(_d._searchFilterManufacturer) : '';
+        if (_um && !_bcRowIsMfr(h, _um)) return false;
+        if (typeof window._wizRowFitsFilters === 'function' && !window._wizRowFitsFilters(h)) return false;
+      }
+    } catch (eF) {}
+    return true;
+  }
+  window._biPreferOf = _biPreferOf; window._biFits = _biFits;
   function _biNarrow(hits, ctx) {
     var r = hits || [];
     if (r.length < 2) return r;
     ctx = ctx || {};
     var steps = [];
     if (ctx.mfr) { var _pm = _bcMfrKey(ctx.mfr); steps.push(function (h) { return _bcRowIsMfr(h, _pm); }); }
+    if (ctx.prefer) steps.push(function (h) { return _biFits(h, { prefer: ctx.prefer }); });   // v0.9.1977: a screen's own filters
     if (ctx.addFilters) {
       var _d = null;
       try { _d = (typeof wizard !== 'undefined' && wizard && wizard.data) ? wizard.data : null; } catch (eW) {}
@@ -566,44 +599,6 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   }
   window._masterTextSearchAllEras = _masterTextSearchAllEras;
 
-  // v0.9.640: modern reissues usually QUOTE the postwar number in their
-  // description ('Postwar "6468" NH DD Boxcar'). For a postwar-format scan,
-  // offer those rows too — clearly labeled, never auto-picked (a road number
-  // can collide, e.g. a diesel cab numbered 6468).
-  async function _findReissueByDesc(numRaw, excludeSeen) {
-    var base = String(numRaw || '').toUpperCase();
-    if (!/^\d{3,4}(-\d{1,4})?[A-Z]{0,2}$/.test(base)) return [];
-    var pats = [base];
-    if (base.indexOf('-') > 0) pats.push(base.split('-')[0]);
-    var re;
-    try { re = new RegExp('(^|[^0-9A-Z])(' + pats.join('|').replace(/-/g, '\\-') + ')([^0-9]|$)'); } catch (e) { return []; }
-    var out = [], seen = excludeSeen || {};
-    function scan(arr, era) {
-      if (!arr) return;
-      for (var i = 0; i < arr.length && out.length < 6; i++) {
-        var m = arr[i];
-        var d = String(m.description || '');
-        if (!d || !re.test(d.toUpperCase())) continue;
-        var e = m._era || era;
-        var key = (m.itemNum || '') + '|' + (m.variation || '') + '|' + (m._tab || '') + '|' + e;
-        if (seen[key]) continue;
-        seen[key] = 1;
-        if (!m._era) m._era = era;
-        m._descMatch = true;
-        out.push(m);
-      }
-    }
-    var curEra = (typeof _currentEra !== 'undefined') ? _currentEra : '';
-    if (typeof state !== 'undefined' && state.masterData) scan(state.masterData, curEra);
-    if (typeof REAL_ERA_IDS !== 'undefined' && Array.isArray(REAL_ERA_IDS) && typeof idbGet === 'function') {
-      for (var i = 0; i < REAL_ERA_IDS.length && out.length < 6; i++) {
-        var era = REAL_ERA_IDS[i];
-        if (era === curEra) continue;
-        try { scan(await idbGet('lv_master_cache_' + era), era); } catch (e) {}
-      }
-    }
-    return out;
-  }
   // Friendly era name for badges ('mpc' -> its ERAS label when available).
   function _eraLabel(e) {
     if (!e) return '';
@@ -673,22 +668,6 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     return null;
   };
 
-  // Unified detect: returns [{rawValue, format}] from whichever engine is active.
-  var _bcFrameCanvas = null, _bcFrameCtx = null;
-  async function _bcDetect(video, nativeDetector) {
-    if (nativeDetector) return await nativeDetector.detect(video);
-    var mod = _zxingMod;
-    if (!mod) return [];
-    var vw = video.videoWidth | 0, vh = video.videoHeight | 0;
-    if (!vw || !vh) return [];
-    if (!_bcFrameCanvas) { _bcFrameCanvas = document.createElement('canvas'); _bcFrameCtx = _bcFrameCanvas.getContext('2d', { willReadFrequently: true }); }
-    if (_bcFrameCanvas.width !== vw) _bcFrameCanvas.width = vw;
-    if (_bcFrameCanvas.height !== vh) _bcFrameCanvas.height = vh;
-    _bcFrameCtx.drawImage(video, 0, 0, vw, vh);
-    var img = _bcFrameCtx.getImageData(0, 0, vw, vh);
-    var res = await mod.readBarcodesFromImageData(img, { tryHarder: true, formats: ['EAN13', 'UPCA', 'EAN8', 'UPCE', 'Code128', 'Code39'], maxNumberOfSymbols: 1 });
-    return (res || []).filter(function (r) { return r.text; }).map(function (r) { return { rawValue: r.text, format: _zxFmtToStd(r.format) }; });
-  }
 
   // ── v0.9.1468 (Brad: "whats the point of me focusing on the end of my box
   // when my camera catches more than what it shows me") — WYSIWYG scanning.
@@ -766,60 +745,6 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       octx.putImageData(oimg, 0, 0);
       return out;
     } catch (e) { return src; }
-  }
-  async function _bcLabelVerify(video) {
-    var vw = video.videoWidth | 0, vh = video.videoHeight | 0;
-    if (!vw || !vh) return { nums: [], text: '' };
-    var full = document.createElement('canvas'); full.width = vw; full.height = vh;
-    full.getContext('2d').drawImage(video, 0, 0, vw, vh);
-    var sx = Math.floor(vw * 0.10), sy = Math.floor(vh * 0.06);
-    var sw = vw - 2 * sx, sh = vh - 2 * sy;
-    var crop = document.createElement('canvas'); crop.width = sw; crop.height = sh;
-    crop.getContext('2d').drawImage(full, sx, sy, sw, sh, 0, 0, sw, sh);
-    try {
-      var Tesseract = await _ensureTesseract();
-      var ocr = await Tesseract.recognize(_bcPreprocessForOCR(crop), 'eng', {});
-      var text = (ocr && ocr.data && ocr.data.text) || '';
-      var cands = (typeof _extractItemNumberCandidates === 'function') ? (_extractItemNumberCandidates(text) || []) : [];
-      var nums = cands.map(function (c) { return String(c.raw || '').replace(/\D+/g, ''); }).filter(function (n) { return n.length >= 4; });
-      (text.match(/\d{6,7}/g) || []).forEach(function (n) { if (nums.indexOf(n) < 0) nums.push(n); });
-      return { nums: nums, text: text };
-    } catch (e) { return { nums: [], text: '' }; }
-  }
-  // Which barcode candidate does the label confirm? Only a full (>=6-digit)
-  // label number can disambiguate — a bare 5-digit read matches them all.
-  // v0.9.638: full label-rescue on the current frame. Used when the barcode is a
-  // dead end (unknown prefix / Phase-2 maker) — instead of giving up, OCR the
-  // printed label and try to identify the item the same way the label scanner does.
-  // Returns a result object for the confirm card, or null if nothing was read.
-  async function _bcLabelRescue(video) {
-    var vw = video.videoWidth | 0, vh = video.videoHeight | 0;
-    if (!vw || !vh) return null;
-    var full = document.createElement('canvas'); full.width = vw; full.height = vh;
-    full.getContext('2d').drawImage(video, 0, 0, vw, vh);
-    var sx = Math.floor(vw * 0.10), sy = Math.floor(vh * 0.06);
-    var crop = document.createElement('canvas'); crop.width = vw - 2 * sx; crop.height = vh - 2 * sy;
-    crop.getContext('2d').drawImage(full, sx, sy, crop.width, crop.height, 0, 0, crop.width, crop.height);
-    try {
-      var T = await _ensureTesseract();
-      var ocr = await T.recognize(_bcPreprocessForOCR(crop), 'eng', {});
-      var text = (ocr && ocr.data && ocr.data.text) || '';
-      var cands = _extractItemNumberCandidates(text);
-      if (!cands || !cands.length) return null;
-      var best = cands[0];
-      var raw = best.raw;
-      var lookup = [raw];
-      if (raw.indexOf('6-') === 0) lookup.push(raw.substring(2));
-      else if (/^\d/.test(raw)) lookup.push('6-' + raw);
-      var hits = await _findMasterItemsExact(lookup);
-      if (hits.length) {
-        var m = _biPreferMfrHit(hits, best.mfr) || hits[0];   // v0.9.1015: stated maker wins cross-catalog collisions
-        return { handled: true, itemNum: m.itemNum, variation: m.variation || '', masterItem: m, manufacturer: best.mfr || 'Lionel', roadName: (m.roadName || ''), description: (m.description || ''), verifiedNote: '✓ Read from the printed label', verifiedBy: 'label', statusMessage: 'Found ' + m.itemNum + ' — ' + (m.description || '').substring(0, 40) };
-      }
-      var labelDesc = _bcDescriptionGuess(text, raw);
-      if (labelDesc && !_bcLooksLikeWords(labelDesc)) labelDesc = '';   // v0.9.640
-      return { handled: true, itemNum: raw, variation: '', notInMaster: true, manufacturer: best.mfr, labelDescription: labelDesc, description: labelDesc, statusMessage: 'Read ' + raw + ' off the label — not in our catalog, adding manually…' };
-    } catch (e) { return null; }
   }
   // v0.9.655: Tier 3 — AI rescue. Sends the current frame/canvas to the AI
   // relay (ai-id.js → Apps Script v1.3 → Gemini) when barcode + local OCR
@@ -912,324 +837,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       return { handled: true, itemNum: raw, variation: '', notInMaster: true, manufacturer: meta.manufacturer || '', labelDescription: desc, description: desc, aiMeta: meta, verifiedBy: 'ai', aiGuess: true, statusMessage: 'Read ' + raw + ' — not in our catalog, adding manually…' };
     } catch (e) { reasonOut.reason = 'error'; return null; }
   }
-  function _bcPickByLabel(cands, ocrNums, code5) {
-    if (!cands || !cands.length || !ocrNums || !ocrNums.length) return null;
-    for (var i = 0; i < cands.length; i++) {
-      var cn = String(cands[i].itemNum || '').replace(/\D+/g, '');
-      if (!cn) continue;
-      for (var j = 0; j < ocrNums.length; j++) {
-        var on = ocrNums[j];
-        if (!on || on.length < 6) continue;
-        if (cn === on || (on.length >= cn.length && on.slice(-cn.length) === cn)) return cands[i];
-      }
-    }
-    return null;
-  }
 
-  // ── Main entry ──
-  async function openBarcodeScanner(onScanned, onCancel, eraHint) {
-    // Support check — native engine (Android/Chromium) OR ZXing-WASM fallback (iOS/Safari).
-    var _hasNativeBD = ('BarcodeDetector' in window);
-
-    // First-time explainer
-    if (!localStorage.getItem(EXPLAINER_ACK_KEY)) {
-      const proceed = await showExplainer();
-      if (!proceed) { if (onCancel) onCancel(); return; }
-      localStorage.setItem(EXPLAINER_ACK_KEY, '1');
-    }
-
-    // Build scanner UI
-    const overlay = document.createElement('div');
-    overlay.id = 'barcode-scanner-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1rem';
-    overlay.innerHTML = `
-      <div style="width:100%;max-width:520px;display:flex;flex-direction:column;gap:1rem;align-items:center">
-        <div style="color:#fff;font-family:var(--font-head,sans-serif);font-size:1.1rem;text-align:center;position:relative;width:100%">📷 Scan Barcode / Label<button id="bc-help" type="button" style="position:absolute;right:0;top:-4px;background:var(--bg-card);background:color-mix(in srgb, rgb(255,255,255) 12%, var(--bg-card));border:none;color:#fff;width:28px;height:28px;border-radius:50%;font-size:1rem;cursor:pointer">?</button></div>
-        <div style="position:relative;width:100%;aspect-ratio:4/3;background:#000;border-radius:12px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
-          <video id="bc-video" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover"></video>
-          <div style="position:absolute;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center">
-            <div style="width:84%;height:52%;border:2px dashed rgba(255,255,255,0.6);border-radius:8px"></div>
-          </div>
-        </div>
-        <div style="color:#9fb4c8;font-size:0.8rem;text-align:center;width:100%;line-height:1.35">Make sure the barcode and/or item number is completely in the picture.</div>
-        <div id="bc-controls" style="display:flex;gap:0.6rem;width:100%;align-items:center;justify-content:center">
-          <button id="bc-torch" type="button" style="display:none;padding:0.5rem 0.9rem;border-radius:10px;border:1px solid #444;background:#222;color:#eee;font-size:0.85rem;cursor:pointer">🔦 Light</button>
-          <div id="bc-zoomwrap" style="display:none;flex:1;max-width:240px;align-items:center;gap:0.4rem">
-            <span style="color:#aaa;font-size:0.78rem">Zoom</span>
-            <input id="bc-zoom" type="range" style="flex:1;accent-color:var(--accent)">
-          </div>
-        </div>
-        <div id="bc-status" style="color:#ccc;font-size:0.85rem;text-align:center;min-height:1.4em">Fit the barcode & item number fully in the frame</div>
-        <button id="bc-tolabel" type="button" style="width:100%;padding:0.7rem;border-radius:10px;border:1px solid #3a6ea5;background:var(--bg-card);background:color-mix(in srgb, rgb(58,110,165) 18%, var(--bg-card));color:#cfe3ff;font-size:0.9rem;font-family:inherit;cursor:pointer">📸 Can't scan? Read the label instead</button>
-        <div style="display:flex;gap:0.6rem;width:100%">
-          <button id="bc-cancel" style="flex:1;padding:0.8rem;border-radius:10px;border:1px solid #444;background:#222;color:#eee;font-size:0.95rem;font-family:inherit;cursor:pointer">Cancel</button>
-          <button id="bc-manual" style="flex:2;padding:0.8rem;border-radius:10px;border:none;background:var(--accent);color:var(--on-accent);font-size:0.95rem;font-family:inherit;font-weight:600;cursor:pointer">Can't Read — Type Instead</button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(overlay);
-
-    const video = overlay.querySelector('#bc-video');
-    const statusEl = overlay.querySelector('#bc-status');
-    const cancelBtn = overlay.querySelector('#bc-cancel');
-    const manualBtn = overlay.querySelector('#bc-manual');
-    const helpBtn = overlay.querySelector('#bc-help'); if (helpBtn) helpBtn.onclick = () => _bcHelpPanel('barcode');
-    const torchBtn = overlay.querySelector('#bc-torch');
-    const zoomWrap = overlay.querySelector('#bc-zoomwrap');
-    const zoomSlider = overlay.querySelector('#bc-zoom');
-    const toLabelBtn = overlay.querySelector('#bc-tolabel');
-
-    let stream = null;
-    let stopScanning = false;
-
-    const cleanup = () => {
-      stopScanning = true;
-      if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
-      overlay.remove();
-      if (window.BackStack) BackStack.pop('barcode-scanner-overlay'); // v0.9.807 TODO-012
-    };
-
-    cancelBtn.onclick = () => { cleanup(); if (onCancel) onCancel(); };
-    // v0.9.807 TODO-012: device Back = Cancel (stops the camera too).
-    if (window.BackStack) BackStack.push('barcode-scanner-overlay', () => { cleanup(); if (onCancel) onCancel(); });
-    manualBtn.onclick = () => { cleanup(); if (onCancel) onCancel(); };
-    // Always-available handoff to the OCR label reader (barcode damaged / not in UPC db / no barcode).
-    if (toLabelBtn) toLabelBtn.onclick = () => { cleanup(); openLabelScanner(onScanned, onCancel, eraHint); };
-
-    // Request camera
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-          advanced: [{ focusMode: 'continuous' }],
-        },
-        audio: false,
-      });
-      video.srcObject = stream;
-    } catch (e) {
-      statusEl.textContent = 'Camera access denied or unavailable. Type the number instead.';
-      statusEl.style.color = '#ff9580';
-      return;
-    }
-
-    // Detection engine: native BarcodeDetector (Android/Chromium) or ZXing-WASM fallback (iOS/Safari).
-    const nativeDetector = _hasNativeBD ? new window.BarcodeDetector({
-      formats: ['upc_a', 'ean_13', 'code_128', 'code_39']
-    }) : null;
-
-    await new Promise(r => video.addEventListener('loadedmetadata', r, { once: true }));
-
-    // Tune the camera track: continuous focus, torch button, zoom slider (all capability-gated).
-    try {
-      const _bcTrack = stream.getVideoTracks()[0];
-      const _caps = (_bcTrack && _bcTrack.getCapabilities) ? _bcTrack.getCapabilities() : {};
-      if (_caps.focusMode && _caps.focusMode.indexOf('continuous') >= 0) {
-        try { await _bcTrack.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch (e) {}
-      }
-      if (torchBtn && _caps.torch) {
-        torchBtn.style.display = '';
-        let _torchOn = false;
-        torchBtn.onclick = async () => { _torchOn = !_torchOn; try { await _bcTrack.applyConstraints({ advanced: [{ torch: _torchOn }] }); torchBtn.style.background = _torchOn ? '#e8a020' : '#222'; } catch (e) {} };
-      }
-      if (zoomWrap && zoomSlider && _caps.zoom) {
-        zoomWrap.style.display = 'flex';
-        zoomSlider.min = _caps.zoom.min; zoomSlider.max = _caps.zoom.max; zoomSlider.step = _caps.zoom.step || 0.1;
-        try { zoomSlider.value = (_bcTrack.getSettings && _bcTrack.getSettings().zoom) || _caps.zoom.min; } catch (e) {}
-        zoomSlider.oninput = async () => { try { await _bcTrack.applyConstraints({ advanced: [{ zoom: parseFloat(zoomSlider.value) }] }); } catch (e) {} };
-      }
-    } catch (e) {}
-
-    // On the fallback engine (iOS), warm up ZXing-WASM before the loop.
-    if (!nativeDetector) {
-      statusEl.textContent = 'Loading scanner…';
-      try { await _loadZXing(); } catch (e) { statusEl.textContent = 'Could not load the scanner — tap "Type Instead".'; statusEl.style.color = '#ff9580'; return; }
-      statusEl.textContent = 'Fit the barcode & item number fully in the frame';
-    }
-
-    let _bcLastRaw = null, _bcConfirm = 0;
-    // v0.9.638: sticky status — once we have something meaningful to say, hold it
-    // on screen instead of letting the next frame overwrite it (the old behavior
-    // made messages flash on/off too fast to read).
-    let _bcStickyUntil = 0;
-    const _bcRescueTried = {};
-    const _setStatus = (msg, color, holdMs) => {
-      if (Date.now() < _bcStickyUntil) return;
-      statusEl.textContent = msg;
-      statusEl.style.color = color || '#ccc';
-      if (holdMs) _bcStickyUntil = Date.now() + holdMs;
-    };
-    (async function loop() {
-      while (!stopScanning) {
-        try {
-          const barcodes = await _bcDetect(video, nativeDetector);
-          if (barcodes && barcodes.length > 0) {
-            const bc = barcodes[0];
-            // Two-read consensus: require the same value on two frames before accepting.
-            if (bc.rawValue === _bcLastRaw) { _bcConfirm++; } else { _bcLastRaw = bc.rawValue; _bcConfirm = 1; }
-            if (_bcConfirm < 2) { _setStatus('Reading…', _BC_AMBER); await new Promise(r => setTimeout(r, 90)); continue; }
-            const result = await decodeBarcode(bc, eraHint);
-            if (result.handled && result.multipleMatches) {
-              stopScanning = true;
-              // Always double-verify: OCR the label on the SAME frame to auto-resolve the shared-barcode ambiguity.
-              statusEl.textContent = 'Barcode matches ' + result.candidates.length + ' items — reading the label to confirm…';
-              statusEl.style.color = _BC_AMBER;
-              const _lvP = _bcLabelVerify(video);   // captures the current frame synchronously
-              cleanup();
-              const _lv = await _lvP;
-              const _autoMatch = _bcPickByLabel(result.candidates, _lv.nums, result.code5);
-              // v0.9.641: label read a number the barcode candidates DON'T cover
-              // (e.g. printed 2243101 vs coincidental Atlas/MTH tail matches) —
-              // look it up and lead the picker with it.
-              if (!_autoMatch && _lv.nums && _lv.nums.length) {
-                for (const _ln of _lv.nums) {
-                  if (!_ln || _ln.length < 6) continue;
-                  const _lh = await _findMasterItemsExact([_ln, '6-' + _ln]);
-                  if (_lh.length) {
-                    _lh.forEach(function (h) { h._labelRead = true; });
-                    result.candidates = _lh.concat(result.candidates);
-                    break;
-                  }
-                }
-              }
-              if (_autoMatch) {
-                const _cc = await _bcConfirmCard({ itemNum: _autoMatch.itemNum, manufacturer: 'Lionel', roadName: (_autoMatch.roadName || ''), description: (_autoMatch.description || ''), verifiedNote: '✓ Barcode + label agree' });
-                if (_cc === 'use') { if (onScanned) onScanned({ handled: true, rawBarcode: result.rawBarcode, format: result.format, upc: result.upc, manufacturer: 'Lionel', itemNum: _autoMatch.itemNum, variation: _autoMatch.variation || '', masterItem: _autoMatch, verifiedBy: 'barcode+label', isSet: String(_autoMatch.itemType || '').toLowerCase() === 'set' }); return; }
-                if (_cc === 'manual') { if (onCancel) onCancel(); return; }
-                if (_cc === 'cancel') { if (onCancel) onCancel(); return; }
-                openBarcodeScanner(onScanned, onCancel, eraHint); return;
-              }
-              // Label didn't resolve it — fall back to the manual picker.
-              const chosen = await showCandidatePicker(result.candidates, result);
-              if (chosen && chosen.__notInList) {
-                // v0.9.638: user says the box is the classic-form number, not in the master yet.
-                if (onScanned) onScanned({ handled: true, rawBarcode: result.rawBarcode, format: result.format, upc: result.upc, manufacturer: 'Lionel', itemNum: chosen.itemNum, variation: '', notInMaster: true, statusMessage: 'Adding ' + chosen.itemNum + ' manually…' });
-                return;
-              }
-              if (chosen) {
-                if (onScanned) onScanned({
-                  handled: true,
-                  rawBarcode: result.rawBarcode,
-                  format: result.format,
-                  upc: result.upc,
-                  manufacturer: 'Lionel',
-                  itemNum: chosen.itemNum,
-                  variation: chosen.variation || '',
-                  masterItem: chosen,
-                  isSet: String(chosen.itemType || '').toLowerCase() === 'set',
-                });
-              } else {
-                if (onCancel) onCancel();
-              }
-              return;
-            }
-            if (result.handled) {
-              if (result.itemNum) {
-                statusEl.textContent = result.statusMessage || 'Detected!';
-                statusEl.style.color = result.error ? '#ff9580' : '#a6e87e';
-                await new Promise(r => setTimeout(r, 300));
-                stopScanning = true;
-                // v0.9.640: a Lionel barcode with NO catalog match used to offer a
-                // made-up "6-code5" — but on Vision-era boxes the UPC code isn't
-                // the catalog number at all. Read the printed label first and
-                // prefer what it says (a master hit or the raw printed number).
-                let _res = result;
-                if (result.notInMaster && result.upc && !_bcRescueTried['nm|' + bc.rawValue]) {
-                  _bcRescueTried['nm|' + bc.rawValue] = 1;
-                  _setStatus('Barcode has no catalog match — reading the printed label…', _BC_AMBER, 30000);
-                  const _rr2 = await _bcLabelRescue(video);
-                  _bcStickyUntil = 0;
-                  if (_rr2 && _rr2.itemNum) { _res = _rr2; _res.rawBarcode = result.rawBarcode; _res.format = result.format; _res.upc = result.upc; }
-                }
-                // Always double-verify: read the label in the background; warn only if it conflicts.
-                const _bgVerify = (_res === result && result.masterItem && !result.notInMaster) ? _bcLabelVerify(video) : null;
-                const _ci = { itemNum: _res.itemNum, manufacturer: _res.manufacturer, roadName: (_res.masterItem && _res.masterItem.roadName) || '', description: (_res.masterItem && _res.masterItem.description) || (_res.description || ''), notInMaster: _res.notInMaster, verifiedNote: _res.verifiedNote, verifyPromise: _bgVerify, expectNum: String(_res.itemNum || '').replace(/\D+/g, '') };
-                const _bcChoice = await _bcConfirmCard(_ci);
-                if (_bcChoice === 'use') { cleanup(); if (onScanned) onScanned(_res); return; }
-                if (_bcChoice === 'uselabel') {
-                  cleanup();
-                  // v0.9.1112: the user just told us the barcode's OLD match was
-                  // wrong and the label is right — that correction is the most
-                  // valuable pairing of all.
-                  try {
-                    if (_ci._labelResult && _ci._labelResult.itemNum && result && result.upc) {
-                      rrBcMapLearn(result.upc, _ci._labelResult.itemNum, _ci._labelResult.manufacturer || '',
-                        'label-correction', !_ci._labelResult.notInMaster);
-                    }
-                  } catch (eL2) {}
-                  if (onScanned && _ci._labelResult) onScanned(_ci._labelResult); return;
-                }
-                if (_bcChoice === 'manual') { cleanup(); if (onCancel) onCancel(); return; }
-                if (_bcChoice === 'cancel') { cleanup(); if (onCancel) onCancel(); return; }
-                // v0.9.655: 'Rescan' on a not-in-master card = tier-3 trigger.
-                // The user just said the read is wrong — let the AI look at the
-                // frame once before dropping them back into the scanner.
-                if (_res.notInMaster && typeof _bcAiRescue === 'function' && _bcArOn() && !_bcRescueTried['ai|' + bc.rawValue]) {
-                  _bcRescueTried['ai|' + bc.rawValue] = 1;
-                  _setStatus('🔍 Taking a closer look…', _BC_AMBER, 45000);
-                  const _aiR3 = await _bcAiRescue(video, eraHint, {}, (_res && _res.manufacturer) || '');
-                  _bcStickyUntil = 0;
-                  if (_aiR3 && _aiR3.itemNum && _aiR3.itemNum !== _res.itemNum) {
-                    const _aiC3 = await _bcConfirmCard(_aiR3);
-                    if (_aiC3 === 'use') { cleanup(); if (onScanned) onScanned(_aiR3); return; }
-                    if (_aiC3 === 'manual' || _aiC3 === 'cancel') { cleanup(); if (onCancel) onCancel(); return; }
-                  }
-                }
-                cleanup(); openBarcodeScanner(onScanned, onCancel, eraHint); return;
-              }
-              // v0.9.638: dead-end barcode (unknown prefix / Phase-2 maker / bad
-              // length) — the old code closed the scanner silently after a 300ms
-              // flash. Instead: try ONE automatic label rescue (OCR the printed
-              // item number on this same frame), and if that fails keep the
-              // scanner open with a readable, held message.
-              if ((result.unknownPrefix || result.phase2) && !_bcRescueTried[bc.rawValue]) {
-                _bcRescueTried[bc.rawValue] = 1;
-                _bcStickyUntil = 0;
-                _setStatus('Barcode doesn\'t identify the item — reading the printed label instead…', _BC_AMBER, 30000);
-                const _rr = await _bcLabelRescue(video);
-                _bcStickyUntil = 0;
-                if (_rr && !stopScanning) {
-                  stopScanning = true;
-                  const _rc = await _bcConfirmCard(_rr);
-                  if (_rc === 'use') { cleanup(); if (onScanned) onScanned(_rr); return; }
-                  if (_rc === 'manual' || _rc === 'cancel') { cleanup(); if (onCancel) onCancel(); return; }
-                  cleanup(); openBarcodeScanner(onScanned, onCancel, eraHint); return;
-                }
-                if (stopScanning) return;   // user hit Cancel / label button while OCR ran
-                // v0.9.655: Tier 3 — barcode dead end AND label OCR failed.
-                // Give the AI one look at the same frame before giving up.
-                var _aiWhy = {};
-                if (_bcArOn()) _setStatus('🔍 Taking a closer look…', _BC_AMBER, 45000);
-                const _aiR = _bcArOn() ? await _bcAiRescue(video, eraHint, _aiWhy, (result && result.manufacturer) || '') : null;
-                _bcStickyUntil = 0;
-                if (_aiR && !stopScanning) {
-                  stopScanning = true;
-                  const _aiC = await _bcConfirmCard(_aiR);
-                  if (_aiC === 'use') { cleanup(); if (onScanned) onScanned(_aiR); return; }
-                  if (_aiC === 'manual' || _aiC === 'cancel') { cleanup(); if (onCancel) onCancel(); return; }
-                  cleanup(); openBarcodeScanner(onScanned, onCancel, eraHint); return;
-                }
-                if (stopScanning) return;   // user bailed while the AI ran
-                _setStatus(_aiWhy.reason === 'quota'
-                  ? 'Daily photo-reading limit reached — try 📸 "Read the label" up close, or type the number.'
-                  : 'Couldn\'t read the label either — try 📸 "Read the label" up close, or type the number.', '#ff9580', 6000);
-                await new Promise(r => setTimeout(r, 250));
-                continue;
-              }
-              // Other no-item results: hold the message so it's readable, keep scanning.
-              _setStatus(result.statusMessage || 'Barcode read, but no item found — try the label button.', _BC_AMBER, 5000);
-              await new Promise(r => setTimeout(r, 250));
-              continue;
-            } else {
-              _setStatus(result.statusMessage || ('Unknown barcode: ' + bc.rawValue), _BC_AMBER);
-            }
-          }
-        } catch (e) { /* frame failed, continue */ }
-        await new Promise(r => setTimeout(r, 120));
-      }
-    })();
-  }
 
   // ── Decode & route ──
   // Session 167: async because findMasterItems now reads cross-era IDB caches.
@@ -1733,47 +1341,12 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     });
   }
 
-  // ── First-time explainer ──
-  function showExplainer() {
-    return new Promise((resolve) => {
-      const overlay = document.createElement('div');
-      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99999;display:flex;align-items:center;justify-content:center;padding:1rem';
-      overlay.innerHTML = `
-        <div class="rr-card" style="color:var(--text);font-family:var(--font-body)">
-          <div style="font-size:1.1rem;font-weight:600;margin-bottom:0.8rem">📷 Camera access needed</div>
-          <div style="font-size:0.9rem;line-height:1.5;color:var(--text-mid,#bbb);margin-bottom:1rem">
-            We'll use your phone or laptop camera to read barcodes on modern boxes so you can add items without typing.
-            <br><br>
-            <strong style="color:var(--text,#eee)">Your camera stays on your device.</strong> Only the decoded barcode number is used — nothing is uploaded except the item lookup against the master catalog.
-          </div>
-          <div style="display:flex;gap:0.5rem;justify-content:flex-end">
-            <button id="bc-exp-cancel" style="padding:0.6rem 1rem;border-radius:8px;border:1px solid var(--border,#444);background:transparent;color:var(--text-dim,#888);cursor:pointer">Cancel</button>
-            <button id="bc-exp-ok" style="padding:0.6rem 1.2rem;border-radius:8px;border:none;background:var(--accent,#e04028);color:#fff;font-weight:600;cursor:pointer">Enable Camera</button>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(overlay);
-      if (window.BackStack && BackStack.wire) BackStack.wire(overlay); // v0.9.807 TODO-012: device Back closes this pop-up
-      overlay.querySelector('#bc-exp-cancel').onclick = () => { overlay.remove(); resolve(false); };
-      overlay.querySelector('#bc-exp-ok').onclick   = () => { overlay.remove(); resolve(true);  };
-    });
-  }
 
-  // Expose globally
-  window.openBarcodeScanner = openBarcodeScanner;
 
   // ══════════════════════════════════════════════════════════════════
-  // Session 168: OCR LABEL SCANNER
-  //
-  // Lazy-loads Tesseract.js from CDN on first use, opens the camera with
-  // a simple "Capture" button, OCRs the full frame, extracts item-number
-  // patterns, looks them up cross-era via findMasterItems, returns the
-  // best match. No barcode required — works on any printed label.
-  //
-  // Public API: window.openLabelScanner(onFound, onCancel)
-  //   onFound(result) — result has same shape as openBarcodeScanner:
-  //     { handled, itemNum, variation, masterItem, statusMessage, ... }
-  //   onCancel() — user dismissed the scanner without picking.
+  // The label reader (Tesseract.js, loaded on first use) and the item-number
+  // patterns — stage 2 of the one reader. (Session 168's separate label
+  // scanner screen was retired in v0.9.1977.)
   // ══════════════════════════════════════════════════════════════════
   var _tesseractLoadingPromise = null;
   window._ensureTesseract = function () { return _ensureTesseract(); };   // contacts hook: business-card OCR
@@ -1927,249 +1500,6 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     return '';
   }
 
-  async function openLabelScanner(onFound, onCancel, eraHint) {
-    var Tesseract;
-    var preflightMsg = 'Loading scanner (one-time)…';
-    var loaderOverlay = _makeBusyOverlay(preflightMsg);
-    try {
-      Tesseract = await _ensureTesseract();
-    } catch (e) {
-      loaderOverlay.remove();
-      showToast && showToast('Could not load OCR engine. Check your connection.', 4000, true);
-      if (onCancel) onCancel();
-      return;
-    }
-    loaderOverlay.remove();
-
-    // Build camera UI — simpler than the barcode loop: one Capture button.
-    var stream;
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-          advanced: [{ focusMode: 'continuous' }],
-        },
-        audio: false
-      });
-    } catch (e) {
-      showToast && showToast('Camera permission denied.', 4000, true);
-      if (onCancel) onCancel();
-      return;
-    }
-
-    var overlay = document.createElement('div');
-    overlay.id = 'label-scanner-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:99999;'
-      + 'display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:1rem;gap:0.7rem;overflow-y:auto';
-    overlay.innerHTML = ''
-      + '<div style="color:#fff;font-family:var(--font-head,sans-serif);font-size:1.1rem;position:relative;width:100%;max-width:520px;text-align:center">📷 Scan Item Label<button id="lbl-help" type="button" style="position:absolute;right:0;top:-4px;background:var(--bg-card);background:color-mix(in srgb, rgb(255,255,255) 12%, var(--bg-card));border:none;color:#fff;width:28px;height:28px;border-radius:50%;font-size:1rem;cursor:pointer">?</button></div>'
-      + '<div style="position:relative;width:100%;max-width:520px">'
-      + '  <video id="lbl-video" autoplay playsinline muted style="width:100%;max-height:46vh;object-fit:contain;border-radius:12px;background:#000"></video>'
-      + '  <div style="position:absolute;inset:8% 12%;border:2px dashed rgba(255,255,255,0.6);border-radius:10px;pointer-events:none"></div>'
-      + '</div>'
-      + '<div id="lbl-controls" style="display:flex;gap:0.6rem;width:100%;max-width:520px;align-items:center;justify-content:center">'
-      +   '<button id="lbl-torch" type="button" style="display:none;padding:0.5rem 0.9rem;border-radius:9px;border:1px solid #555;background:transparent;color:#ddd;font-size:0.85rem;cursor:pointer">🔦 Light</button>'
-      +   '<div id="lbl-zoomwrap" style="display:none;flex:1;max-width:240px;align-items:center;gap:0.4rem">'
-      +     '<span style="color:#aaa;font-size:0.78rem">Zoom</span>'
-      +     '<input id="lbl-zoom" type="range" style="flex:1;accent-color:var(--accent)">'
-      +   '</div>'
-      + '</div>'
-      + '<div id="lbl-status" style="color:#ccc;font-size:0.85rem;text-align:center;min-height:1.4em">Aim at the item-number label — held right-side up — then tap Capture.</div>'
-      + '<div style="display:flex;gap:0.6rem;width:100%;max-width:520px">'
-      + '  <button id="lbl-cancel" style="flex:1;padding:0.75rem;border-radius:9px;border:1.5px solid #555;background:transparent;color:#ccc;font-family:var(--font-head,sans-serif);font-size:0.9rem;cursor:pointer">Cancel</button>'
-      + '  <button id="lbl-capture" style="flex:2;padding:0.85rem;border-radius:9px;border:none;background:var(--accent,#e8401c);color:#fff;font-family:var(--font-head,sans-serif);font-size:1rem;font-weight:700;cursor:pointer">📸 Capture</button>'
-      + '</div>';
-    document.body.appendChild(overlay);
-    var video = document.getElementById('lbl-video');
-    video.srcObject = stream;
-    await new Promise(function(r) { video.addEventListener('loadedmetadata', r, { once: true }); });
-
-    // Camera tuning: continuous focus, torch button, zoom slider (capability-gated) — sharper OCR frames.
-    try {
-      var _lblTrack = stream.getVideoTracks()[0];
-      var _lblCaps = (_lblTrack && _lblTrack.getCapabilities) ? _lblTrack.getCapabilities() : {};
-      if (_lblCaps.focusMode && _lblCaps.focusMode.indexOf('continuous') >= 0) {
-        try { await _lblTrack.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch (e) {}
-      }
-      var _lblTorch = document.getElementById('lbl-torch');
-      if (_lblTorch && _lblCaps.torch) {
-        _lblTorch.style.display = '';
-        var _lblTorchOn = false;
-        _lblTorch.onclick = async function(){ _lblTorchOn = !_lblTorchOn; try { await _lblTrack.applyConstraints({ advanced: [{ torch: _lblTorchOn }] }); _lblTorch.style.background = _lblTorchOn ? '#e8a020' : 'transparent'; } catch (e) {} };
-      }
-      var _lblZoomWrap = document.getElementById('lbl-zoomwrap');
-      var _lblZoom = document.getElementById('lbl-zoom');
-      if (_lblZoomWrap && _lblZoom && _lblCaps.zoom) {
-        _lblZoomWrap.style.display = 'flex';
-        _lblZoom.min = _lblCaps.zoom.min; _lblZoom.max = _lblCaps.zoom.max; _lblZoom.step = _lblCaps.zoom.step || 0.1;
-        try { _lblZoom.value = (_lblTrack.getSettings && _lblTrack.getSettings().zoom) || _lblCaps.zoom.min; } catch (e) {}
-        _lblZoom.oninput = async function(){ try { await _lblTrack.applyConstraints({ advanced: [{ zoom: parseFloat(_lblZoom.value) }] }); } catch (e) {} };
-      }
-    } catch (e) {}
-
-    function cleanup() {
-      try { stream.getTracks().forEach(function(t){ t.stop(); }); } catch (e) {}
-      if (overlay && overlay.isConnected) overlay.remove();
-      if (window.BackStack) BackStack.pop('label-scanner-overlay'); // v0.9.807 TODO-012
-    }
-    var statusEl = document.getElementById('lbl-status');
-    document.getElementById('lbl-cancel').onclick = function() { cleanup(); if (onCancel) onCancel(); };
-    // v0.9.807 TODO-012: device Back = Cancel (stops the camera too).
-    if (window.BackStack) BackStack.push('label-scanner-overlay', function () { cleanup(); if (onCancel) onCancel(); });
-    var _lblHelp = document.getElementById('lbl-help'); if (_lblHelp) _lblHelp.onclick = function(){ _bcHelpPanel('label'); };
-    document.getElementById('lbl-capture').onclick = async function() {
-      var captureBtn = this;
-      captureBtn.disabled = true;
-      captureBtn.textContent = 'Reading…';
-      statusEl.textContent = 'Reading text from the label — 3-5 seconds…';
-      // Snapshot the current frame.
-      var canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      var ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0);
-      try {
-        // Crop to the dashed guide (center 76% x 84%) so background noise drops.
-        var sx = Math.floor(canvas.width * 0.12);
-        var sy = Math.floor(canvas.height * 0.08);
-        var sw = canvas.width  - 2 * sx;
-        var sh = canvas.height - 2 * sy;
-        var crop = document.createElement('canvas');
-        crop.width = sw; crop.height = sh;
-        crop.getContext('2d').drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
-        var ocr = await Tesseract.recognize(_bcPreprocessForOCR(crop), 'eng', {
-          // No logger to keep things quiet; default progress prints to console.
-        });
-        var text = (ocr && ocr.data && ocr.data.text) || '';
-        var cands = _extractItemNumberCandidates(text);
-        if (!cands.length && typeof _bcAiRescue === 'function' && _bcArOn()) {
-          // v0.9.655: Tier 3 — OCR found no item number at all. The AI gets
-          // the captured frame before we fall back to description-only.
-          statusEl.textContent = '🔍 Taking a closer look…';
-          var _aiWhyL = {};
-          var _aiRL = await _bcAiRescue(crop, eraHint, _aiWhyL, _mfrFromKeywords(text) || '');
-          if (_aiRL) {
-            var _aiCL = await _bcConfirmCard(_aiRL);
-            if (_aiCL === 'use') { cleanup(); if (onFound) onFound(_aiRL); return; }
-            if (_aiCL === 'manual' || _aiCL === 'cancel') { cleanup(); if (onCancel) onCancel(); return; }
-            captureBtn.disabled = false; captureBtn.textContent = '📸 Capture'; statusEl.textContent = 'Aim at the item-number label — held right-side up — then tap Capture.';
-            return;
-          }
-          if (_aiWhyL.reason === 'quota') {
-            statusEl.textContent = 'Daily photo-reading limit reached — hold the label right-side up, fill the dashed box, then Capture again.';
-            captureBtn.disabled = false;
-            captureBtn.textContent = '📸 Try again';
-            return;
-          }
-        }
-        if (!cands.length) {
-          // No catalog number on the box (common on Weaver/Quality Craft freight,
-          // which print only a description + road number). Offer the guessed
-          // description with a BLANK item number so the user can add/assign it.
-          var _dOnly = _bcDescriptionGuess(text, null);
-          if (_dOnly && !_bcLooksLikeWords(_dOnly)) _dOnly = '';   // v0.9.640: never offer letter-salad
-          if (_dOnly && _dOnly.replace(/[^a-z0-9]/gi, '').length >= 5) {
-            var _rd = { handled: true, itemNum: '', variation: '', notInMaster: true, noItemNum: true, manufacturer: _mfrFromKeywords(text) || '', labelDescription: _dOnly, description: _dOnly, statusMessage: 'No item number on the label — using the description' };
-            var _cd = await _bcConfirmCard(_rd);
-            if (_cd === 'use') { cleanup(); if (onFound) onFound(_rd); }
-            else if (_cd === 'manual' || _cd === 'cancel') { cleanup(); if (onCancel) onCancel(); }
-            else { captureBtn.disabled = false; captureBtn.textContent = '📸 Capture'; statusEl.textContent = 'Aim at the item-number label — held right-side up — then tap Capture.'; }
-            return;
-          }
-          statusEl.textContent = 'No item number found — hold the label right-side up, fill the dashed box, add light, hold steady, then Capture again.';
-          captureBtn.disabled = false;
-          captureBtn.textContent = '📸 Try again';
-          return;
-        }
-        // If the box lists several variant numbers (e.g. Weaver 2-rail / 3-rail /
-        // with-sound), let the user pick which one is actually checked.
-        var best;
-        if (cands.length > 1) {
-          var _picked = await _bcPickCandidate(cands);
-          if (!_picked) { captureBtn.disabled = false; captureBtn.textContent = '📸 Capture'; statusEl.textContent = 'Aim at the item-number label — held right-side up — then tap Capture.'; return; }
-          best = _picked;
-        } else {
-          best = cands[0];
-        }
-        var raw = best.raw;
-        var labelDesc = _bcDescriptionGuess(text, raw);
-        if (labelDesc && !_bcLooksLikeWords(labelDesc)) labelDesc = '';   // v0.9.640
-        // Generate match-candidate variants: as-is, without 6- prefix, with 6- prefix.
-        var lookupCands = [raw];
-        if (raw.indexOf('6-') === 0) lookupCands.push(raw.substring(2));
-        else if (/^\d/.test(raw))   lookupCands.push('6-' + raw);
-        // Session 169: OCR mode uses EXACT match only (no fuzzy last-5 fallback)
-        // because OCR misreads turn into false matches via fuzzy. Barcode flow
-        // still uses fuzzy because UPCs map cleanly to Lionel item numbers.
-        // v0.9.640: matches from EVERY era + modern reissues quoted in
-        // descriptions, so the user can pick original vs remake.
-        var hits = await _findMasterItemsAllEras(lookupCands);
-        // v0.9.1780 (Brad): a barcode ending 36814 offered him a Lionel, a
-        // Märklin HO and an LGB G. All three are REAL rows — three makers use
-        // that number — but the UPC prefix had already proved the maker, and
-        // this lookup takes only the number.
-        //
-        // v0.9.1605 added a maker filter, but only to FUZZY hits; this path is
-        // exact-across-every-era, so the filter never reached it.
-        //
-        // DEMOTED, NOT DELETED — the same rule as the 6464 family work: narrow
-        // the field, never throw it away. A wrong-maker row can still be the
-        // right answer when a barcode is reused or a prefix is wrong, so it
-        // stays reachable behind a divider instead of vanishing.
-        hits = _bcRankByMaker(hits, best.mfr);
-        var _seenH = {};
-        hits.forEach(function (h) { _seenH[(h.itemNum || '') + '|' + (h.variation || '') + '|' + (h._tab || '') + '|' + (h._era || '')] = 1; });
-        var _reissues = await _findReissueByDesc(raw, _seenH);
-        if (_reissues.length) hits = hits.concat(_reissues);
-        var _eraMismatch = !!(eraHint && hits.length && hits.every(function (h) { return h._era && h._era !== eraHint; }));
-        if (hits.length === 1) {
-          var m = hits[0];
-          var _r1 = { handled: true, itemNum: m.itemNum, variation: m.variation || '', masterItem: m, manufacturer: best.mfr, roadName: (m.roadName || ''), description: (m.description || ''), eraTag: _eraLabel(m._era), cautionNote: _eraMismatch ? ('This matches a ' + _eraLabel(m._era) + ' item, but you\'re adding in a different era. Reissue boxes reuse the original artwork — an embossed stamp near LIONEL or any barcode means it\'s a modern remake.') : '', statusMessage: 'Found ' + m.itemNum + ' — ' + (m.description || '').substring(0, 40) };
-          var _c1 = await _bcConfirmCard(_r1);
-          if (_c1 === 'use') { cleanup(); if (onFound) onFound(_r1); }
-          else if (_c1 === 'manual' || _c1 === 'cancel') { cleanup(); if (onCancel) onCancel(); }
-          else { captureBtn.disabled = false; captureBtn.textContent = '📸 Capture'; statusEl.textContent = 'Aim at the item-number label — held right-side up — then tap Capture.'; }
-          return;
-        }
-        if (hits.length > 1) {
-          // Show the candidate picker (reuse showCandidatePicker if available).
-          cleanup();
-          var chosen = (typeof showCandidatePicker === 'function')
-            ? await showCandidatePicker(hits, { code5: raw, cautionHtml: _eraMismatch ? 'None of these matches the era you\'re adding in — if the box has a barcode or an embossed stamp near LIONEL, it\'s a modern remake.' : '' })
-            : hits[0];
-          if (chosen && chosen.__notInList) {
-            if (onFound) onFound({ handled: true, itemNum: chosen.itemNum, variation: '', notInMaster: true, manufacturer: best.mfr, labelDescription: labelDesc, description: labelDesc, statusMessage: 'Adding ' + chosen.itemNum + ' manually…' });
-            return;
-          }
-          if (chosen) {
-            if (onFound) onFound({
-              handled: true,
-              itemNum: chosen.itemNum,
-              variation: chosen.variation || '',
-              masterItem: chosen,
-              manufacturer: best.mfr,
-              statusMessage: 'Found ' + chosen.itemNum,
-            });
-          } else if (onCancel) {
-            onCancel();
-          }
-          return;
-        }
-        // No hit in master — offer raw candidate + label description for confirm.
-        var _r0 = { handled: true, itemNum: raw, variation: '', notInMaster: true, manufacturer: best.mfr, labelDescription: labelDesc, description: labelDesc, statusMessage: 'Detected ' + raw + ' — not in our catalog, adding manually…' };
-        var _c0 = await _bcConfirmCard(_r0);
-        if (_c0 === 'use') { cleanup(); if (onFound) onFound(_r0); }
-        else if (_c0 === 'manual' || _c0 === 'cancel') { cleanup(); if (onCancel) onCancel(); }
-        else { captureBtn.disabled = false; captureBtn.textContent = '📸 Capture'; statusEl.textContent = 'Aim at the item-number label — held right-side up — then tap Capture.'; }
-      } catch (e) {
-        statusEl.textContent = 'Scan failed: ' + (e && e.message ? e.message : 'unknown error');
-        captureBtn.disabled = false;
-        captureBtn.textContent = '📸 Try again';
-      }
-    };
-  }
 
   // ── Description guess from OCR label text (Session 180) ──
   // Pulls the meaningful words off the label (minus the item#, UPC digit-runs,
@@ -2179,16 +1509,6 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   // car-type we want in a description. Whole line is skipped if it matches.
   var _BC_REJECT = /trademark|reproduced|under\s*licen|licensed|all\s*rights|patent|copyright|©|manufactured|made\s+(and|in)\b|litho|standards?\s+and\s+spec|gateway|corporation|model\s+railroad|accessories|\bfeatures?\b|for\s+ages|\bages?\s+\d|and\s+up\b|assembled|electric\s+trains|rail\s?king|www\.|https?:|\.com\b|set\s+contains|wheels?\s+and\s+axles|die-?cast|couplers?|\bcurves?\b|wheel\s+sets?|needlepoint|paint\s+schemes?|abs\s+bod|scale\s+dimension|(set|unit|car)\s+measures|fast-?angle|operates?\s+on|handrails|brake\s+wheels|proto-?sound|flywheel|transformers|electronic\s+(horn|reverse)|headlight|\bdcru\b|baked\s+enamel|stamped\s+steel|brass\s+trim|\bnickel\b|\bweighs\b|dimensions?:|each\s+car|sliding\s+car\s+door|mounting\s+pad|kadee|qty\s+per\s+case|proof\s+of\s+purchase|rolling\s+stock|master\s+(passenger|line|series|rolling)|premier\s+(locomotive|passenger|rolling)|founders?\s+series|motive\s+power|streamlighting|fully\s+furnished|furnished\s+interior|passenger\s+figures?|extruded\s+alum|legacy\s+(control|railsounds|and\s+bluetooth)|railsounds|electro-?\s?coupler|bluetooth|\blvc\b|minimum\s+curve|sprung\s+trucks|opening\s+doors|all\s+new\s+road|activate\s+sounds|lionel\s+vision\s+line|powerhouse|circuit\s+breaker|over-?current|throttle|whistle\s+steam|fan-?driven|watts?\s+of\s+ac|quality\s+craft|weaver\s+models|door\s+guides|boxcar\s+body|brake\s?wheel|1[\s\-]?800|metal\s+wheels|\baxles\b|layout\s+dimensions|track\s+requirements|pack\s+includes|\bincludes\s*:|\(\d+\s+sections?\)/i;
 
-  // v0.9.640: does OCR output look like real words (vs letter-salad from a
-  // failed read, e.g. off a computer screen)? Most letter-tokens must be
-  // 3+ chars and contain a vowel.
-  function _bcLooksLikeWords(s) {
-    var toks = String(s || '').split(/\s+/).filter(Boolean);
-    if (!toks.length) return false;
-    var letter = toks.filter(function (t) { return /^[A-Za-z][A-Za-z'&.\-]*$/.test(t); });
-    var wordy = letter.filter(function (t) { return t.length >= 3 && /[aeiouy]/i.test(t); });
-    return letter.length >= 3 && wordy.length >= Math.ceil(letter.length * 0.6) && letter.length >= toks.length * 0.45;
-  }
   // v0.9.1780. A line is a brand wordmark if it is a contiguous run of 4+
   // characters from a maker's name — "IONEL", "LIONE", "TLAS". Four is the
   // floor on purpose: shorter runs ("ION", "MTH" reversed out of another
@@ -2466,34 +1786,6 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     return out.join(' - ').replace(/\s+/g, ' ').trim().slice(0, 120);
   }
 
-  // ── Confirm-before-fill card (Session 180) ── resolves 'use' | 'rescan' | 'manual'
-  // Variant picker (2026-07-01): when a label lists several item numbers (Weaver
-  // 2-rail/3-rail/with-sound variants), show them all so the user taps the one that
-  // is actually checked. Resolves to the chosen {raw,mfr} candidate, or null.
-  function _bcPickCandidate(cands) {
-    return new Promise(function (resolve) {
-      var d = document.createElement('div');
-      d.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;padding:1rem';
-      var rows = cands.map(function (c, i) {
-        return '<button data-i="' + i + '" style="display:block;width:100%;text-align:left;margin-top:8px;padding:12px;border-radius:10px;border:1px solid var(--border,#444);background:#222;color:var(--text,#fff);font-family:var(--font-mono);font-size:1.05rem;font-weight:700;cursor:pointer">'
-          + _bcEsc(c.raw) + (c.mfr ? ' <span style="font-size:0.72rem;color:var(--text-dim,#999);font-weight:400">' + _bcEsc(c.mfr) + '</span>' : '') + '</button>';
-      }).join('');
-      d.innerHTML = '<div class="rr-card" style="color:var(--text);font-family:var(--font-body)">'
-        + '<div style="font-size:0.95rem;font-weight:600;margin-bottom:4px">Which one is checked on the box?</div>'
-        + '<div style="font-size:0.78rem;color:var(--text-dim,#999);margin-bottom:6px">The label lists more than one number (2-rail / 3-rail / with sound). Tap the one that matches your item.</div>'
-        + rows
-        + '<button data-i="cancel" style="display:block;width:100%;margin-top:12px;padding:10px;border-radius:10px;border:1px solid var(--border,#444);background:none;color:var(--text-mid,#ccc);cursor:pointer">Cancel</button>'
-        + '</div>';
-      d.addEventListener('click', function (e) {
-        var t = e.target; while (t && t !== d && !(t.getAttribute && t.getAttribute('data-i'))) t = t.parentNode;
-        var v = t && t.getAttribute && t.getAttribute('data-i'); if (v === null || v === undefined) return;
-        d.remove(); resolve(v === 'cancel' ? null : cands[parseInt(v, 10)] || null);
-      });
-      document.body.appendChild(d);
-      try { var _mp = d.querySelector('#bc-my-photo'); if (_mp && info._verifySrc) _mp.src = info._verifySrc.toDataURL('image/jpeg', 0.85); } catch (e) {}   // v0.9.1018
-      if (window.BackStack && BackStack.wire) BackStack.wire(d); // v0.9.807 TODO-012: device Back closes this pop-up
-    });
-  }
 
   // v0.9.1016 (Brad): FREE side-by-side compare from the confirm card. The
   // relay fetches the reference page's product photo (no reader, no reads);
@@ -2661,39 +1953,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     if (window.BackStack && BackStack.wire) BackStack.wire(d); // v0.9.807 TODO-012: device Back closes this pop-up
   }
 
-  // ── Help / info panel (Session 180) ──
-  function _bcHelpPanel(kind) {
-    var isLabel = kind === 'label';
-    var d = document.createElement('div');
-    d.style.cssText = 'position:fixed;inset:0;z-index:100001;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:1rem';
-    var body = isLabel
-      ? '<p><strong style="color:var(--text,#fff)">What it does:</strong> reads the printed item number \u2014 and, when it can, the description \u2014 off your box/label using on-device text recognition.</p>'
-        + '<p><strong style="color:var(--text,#fff)">Works for:</strong> Lionel (6-####), MTH (10/20/\u2026-####), K-Line, RMT, Menards Gold Line (275/279-####), plus Atlas and any box that prints “Item #…”. Other makers: type the number.</p>'
-        + '<p><strong style="color:var(--text,#fff)">Tips:</strong> hold the label right-side up (OCR can’t read upside-down text), fill the dashed box, use good even light, avoid glare, hold steady, then tap Capture.</p>'
-        + '<p>You will get a confirm screen \u2014 nothing is filled in until you say so.</p>'
-      : '<p><strong style="color:var(--text,#fff)">What it does:</strong> reads the UPC barcode and, on the same shot, reads the printed item number off the label — then cross-checks the two so you get the right item. Your camera stays on your device.</p>'
-        + '<p><strong style="color:var(--text,#fff)">Shared barcodes:</strong> some Lionel reissues share one barcode; the label reading tells them apart automatically, so you usually won’t have to pick.</p>'
-        + '<p><strong style="color:var(--text,#fff)">No barcode?</strong> tap “Read the label instead” to identify the box by its printed item number.</p>'
-        + '<p><strong style="color:var(--text,#fff)">Tips:</strong> fit the whole barcode AND the item number in the frame, hold the box right-side up and steady with good even light. You will confirm the result before anything fills.</p>';
-    d.innerHTML = '<div class="rr-card" style="color:var(--text-mid);font-size:0.88rem;line-height:1.5;font-family:var(--font-body)">'
-      + '<div style="font-size:1.05rem;font-weight:600;color:var(--text,#fff);margin-bottom:10px">' + (isLabel ? 'Scan Label \u2014 help' : 'Scan Barcode / Label \u2014 help') + '</div>'
-      + body
-      + '<button data-close="1" style="display:block;width:100%;margin-top:12px;padding:11px;border-radius:10px;border:2px solid var(--accent,#e8401c);background:var(--bg-card);background:color-mix(in srgb, rgb(232,64,28) 12%, var(--bg-card));color:var(--text,#fff);font-weight:600;cursor:pointer">Got it</button></div>';
-    // v0.9.1791: the data-close BUTTON still closes it; the backdrop no longer does.
-    d.addEventListener('click', function (e) { if (e.target.getAttribute && e.target.getAttribute('data-close')) d.remove(); });
-    document.body.appendChild(d);
-    if (window.BackStack && BackStack.wire) BackStack.wire(d); // v0.9.807 TODO-012: device Back closes this pop-up
-  }
 
-  function _makeBusyOverlay(msg) {
-    var d = document.createElement('div');
-    d.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99998;'
-      + 'display:flex;align-items:center;justify-content:center;color:#fff;'
-      + 'font-family:var(--font-head,sans-serif);font-size:0.95rem;text-align:center;padding:1rem';
-    d.textContent = msg || 'Loading…';
-    document.body.appendChild(d);
-    return d;
-  }
 
 
   // ════════════════════════════════════════════════════════════════
@@ -3690,8 +2950,8 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         // era) — the same preference the Photo Inbox gives it — so a number
         // only another maker's catalog knows (a car's "LT WT 43725" = a
         // Marklin HO coach) never counts as confirmed while filtered to Lionel O.
-        var _frPref = (opts && opts.addFilters && typeof window._wizReaderPrefer === 'function') ? window._wizReaderPrefer() : null;
-        var _fr = _frBlob ? await _rtTime('label read (closer)', window.rrFreeReadBlob(_frBlob, 2400, _frPref)) : null;
+        var _frPref = _biPreferOf(opts);   // v0.9.1977: whichever screen it came from
+        var _fr = _frBlob ? await _rtTime('label read (closer)', window.rrFreeReadBlob(_frBlob, 2400, _frPref, { barcodeDone: true })) : null;
         if (_fr && _fr.matched && _fr.num) rawCands = [{ raw: String(_fr.num), mfr: '' }];
         else if (_fr) {
           // v0.9.1951 (Brad's screenshot of the whole screen: the browser's
@@ -3789,7 +3049,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     }
     // v0.9.1968: both pick lists below are narrowed first (_biNarrow) — by the
     // maker the barcode or the box proved, then the Add screen's filters.
-    var _nctx = { mfr: out.bcMaker || '', addFilters: !!(opts && opts.addFilters) };
+    var _nctx = { mfr: out.bcMaker || '', addFilters: !!(opts && opts.addFilters), prefer: (opts && opts.prefer) || null };
     if (bcResult && bcResult.multipleMatches && (bcResult.candidates || []).length > 1) {
       var _bcLeft = _biNarrow(bcResult.candidates, _nctx);
       if (_bcLeft.length === 1) {
@@ -3804,16 +3064,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     // numbers read get their turn first; if none fits, those rows are offered
     // below the "Outside your filter" divider — his choice, never an auto-pick.
     var _outsideRows = [];
-    var _fitsAdd = function (h) {
-      if (!(opts && opts.addFilters) || !h) return true;
-      try {
-        var _d = (typeof wizard !== 'undefined' && wizard && wizard.data) ? wizard.data : null;
-        var _um = _d ? _bcMfrKey(_d._searchFilterManufacturer) : '';
-        if (_um && !_bcRowIsMfr(h, _um)) return false;
-        if (typeof window._wizRowFitsFilters === 'function' && !window._wizRowFitsFilters(h)) return false;
-      } catch (eFA) {}
-      return true;
-    };
+    var _fitsAdd = function (h) { return _biFits(h, opts); };   // v0.9.1977: one answer for every screen
     for (var i = 0; i < out.ocrNums.length && !pick; i++) {
       var n = out.ocrNums[i];
       var lk = [n]; if (/^\d/.test(n)) lk.push('6-' + n);
@@ -4076,6 +3327,9 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   async function openBoxIdentify(onScanned, onCancel, eraHint, start) {
     var _startFile = (start && start.file) || null;
     var _addF = !!(start && start.addFilters);   // v0.9.1968: opened from the Add screen — its filters narrow the choices
+    // v0.9.1977: a screen's own filters (Research) — asked at the moment of
+    // reading, because its Filters panel can change them after it opens
+    var _prefOf = function () { try { return (start && (start.prefer || (typeof start.preferFrom === 'function' && start.preferFrom()))) || null; } catch (eP) { return null; } };
     // v0.9.686 (Brad): device/browser BACK closes the identify overlay like
     // Cancel does, instead of navigating the app away underneath it.
     _biOnCancel = onCancel || null;
@@ -4125,21 +3379,30 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           _biOverlay('<div style="width:100%;max-width:560px;text-align:center;padding:1.2rem 0.5rem"><div style="font-size:2rem">\ud83d\udd0e</div>'
             + '<div class="rr-card-title" style="margin:0.4rem 0">Reading the label\u2026</div>'
             + '<div style="font-size:0.85rem;color:var(--text-mid)">The barcode (\u2026' + _bcEsc(String(rawL).slice(-5)) + ') is not in our catalog \u2014 reading the printed number.</div></div>');
-          var textL = '';
-          try {
-            var TL = await _rtTime('label reader start', _ensureTesseract());
-            var oL = await _rtTime('label read', TL.recognize(_bcPreprocessForOCR(cap.view || cap.raw), 'eng', {}));
-            textL = (oL && oL.data && oL.data.text) || '';
-          } catch (eL0) {}
+          // v0.9.1977: the ONE reader — the same barcode → label → closer look
+          // every screen uses, with Research's filters (it used to read the
+          // label once, quickly, and go straight to Google Lens).
+          var textL = '', rpL = null;
+          try { rpL = await _biReadPicture(cap.view || cap.raw, cap.view || cap.raw, cap.lockedBc, eraHint, { prefer: _prefOf() }, function () {}, function () { return false; }); } catch (eL0) {}
+          textL = (rpL && rpL.ocrText) || '';
           var numsL = _biLabelNums(textL, mfrL);
+          ((rpL && rpL.out && rpL.out.ocrNums) || []).forEach(function (n) { if (numsL.indexOf(n) < 0) numsL.push(n); });
           var rowsL = [];
           if (numsL.length) {
             try { rowsL = await _rtTime('catalog & checks', _findMasterItemsExact(numsL)); } catch (eL1) {}
             if (mfrL) rowsL = (rowsL || []).filter(function (m) { return _bcRowIsMfr(m, _bcMfrKey(mfrL)); });
           }
+          // v0.9.1977: Research's filters — rows that fit win; rows that sit
+          // only outside them are offered, never taken as the answer
+          var _prefL = _prefOf(), _outL = false;
+          if (_prefL && rowsL && rowsL.length) {
+            var _fitL = rowsL.filter(function (m) { return _biFits(m, { prefer: _prefL }); });
+            if (_fitL.length) rowsL = _fitL;
+            else { _outL = true; rowsL.forEach(function (m) { try { if (!m._offEra) m._offEra = (typeof _eraLabel === 'function' && _eraLabel(m._era)) || 'another catalog'; } catch (eO) {} }); }
+          }
           if (rowsL && rowsL.length) {
             var pickL = rowsL[0];
-            if (rowsL.length > 1) {
+            if (rowsL.length > 1 || _outL) {
               _biKill();
               pickL = await _rtWait('pick the item', showCandidatePicker(rowsL, { itemNum: rowsL[0].itemNum }));
               if (!pickL) { _biArmBack(); continue; }
@@ -4210,14 +3473,14 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         }
         // v0.9.1473: Photo ID = free readers ONLY; 🤖 Auto Read = may spend.
         var res = await _biPipeline(cap.view || cap.raw, cr.work, cap.lockedBc, eraHint,
-          { noAi: cr.action !== 'auto', forceAi: cr.action === 'auto', addFilters: _addF });
+          { noAi: cr.action !== 'auto', forceAi: cr.action === 'auto', addFilters: _addF, prefer: _prefOf() });
         // v0.9.897: Stop pressed = plain cancel — back to the wizard, nothing filled.
         if (res && res.__biCancel) { _biKill(); if (onCancel) onCancel(); return; }
         if (res && res.__biFail) {
           var choice = await _rtWait('could not identify card', _biFailCard(res.out));
           if (choice === 'ai') {
             // same photo, one more shot at the AI (Gemini overload passes quickly)
-            var res2 = await _biPipeline(cap.view || cap.raw, cr.work, cap.lockedBc, eraHint, { forceAi: true, addFilters: _addF });   // v0.9.1473: explicit choice = consent to spend
+            var res2 = await _biPipeline(cap.view || cap.raw, cr.work, cap.lockedBc, eraHint, { forceAi: true, addFilters: _addF, prefer: _prefOf() });   // v0.9.1473: explicit choice = consent to spend
             if (res2 && res2.__biCancel) { _biKill(); if (onCancel) onCancel(); return; }   // v0.9.897
             if (res2 && !res2.__biFail) { res = res2; }
             else { var c2 = await _rtWait('could not identify card', _biFailCard(res2 && res2.out || {})); if (c2 === 'retake') continue; if (c2 === 'lens') choice = 'lens'; else { _biKill(); if (onCancel) onCancel(); return; } }
@@ -4370,7 +3633,9 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     var c = file ? await _biFileToCanvas(file) : null;
     if (!c) return { kind: 'error' };
     var say = function (key, icon, text) { if (ctl.onStage && /reading/i.test(String(text))) try { ctl.onStage(String(text).replace(/<[^>]*>/g, '')); } catch (e) {} };
-    var rp = await _biReadPicture(c, c, null, ctl.eraHint || '', {}, say, stopped);
+    // v0.9.1977: the same filters Photo ID on the same screen reads with
+    var _ro = { addFilters: !!ctl.addFilters, prefer: ctl.prefer || null };
+    var rp = await _biReadPicture(c, c, null, ctl.eraHint || '', _ro, say, stopped);
     if (rp.cancel || stopped()) return { kind: 'cancel' };
     var nums = Array.from(new Set(rp.out.ocrNums || []));
     var boxShot = !!(rp.bc || nums.length);
@@ -4396,17 +3661,23 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       if (stopped()) return { kind: 'cancel' };
     }
     if (!items.length) return { kind: 'none', boxShot: boxShot };
+    // v0.9.1977: rows outside the screen's filters go when any row fits; when
+    // none fits they stay, tagged, and are never "sure"
+    var _fitI = items.filter(function (x) { return _biFits(x.row, _ro); });
+    var _outsideOnly = !_fitI.length && (_ro.addFilters || _ro.prefer);
+    if (_fitI.length) items = _fitI;
+    else if (_outsideOnly) items.forEach(function (x) { try { if (!x.row._offEra) x.row._offEra = (typeof _eraLabel === 'function' && _eraLabel(x.row._era)) || 'another catalog'; } catch (eO) {} x.outside = true; });
     var bases = Array.from(new Set(items.map(function (x) { return _bcBaseNum(x.num); })));
-    var sure = items.length === 1 && !rp.closerUnsure && !rp.numsFromFullFrame && bases.length === 1;
+    var sure = items.length === 1 && !rp.closerUnsure && !rp.numsFromFullFrame && bases.length === 1 && !_outsideOnly;
     if (sure) return { kind: 'sure', item: items[0], boxShot: boxShot };
-    return { kind: 'choices', items: items.slice(0, RR_PHOTO_ID_CLOSER.maxRows), boxShot: boxShot };
+    return { kind: 'choices', items: items.slice(0, RR_PHOTO_ID_CLOSER.maxRows), boxShot: boxShot, outside: !!_outsideOnly };
   }
   // the same "is it the same number?" rule the pipeline's own picker uses
   function _bcBaseNum(n) { return String(n || '').replace(/^6-/, '').replace(/-\d{1,3}$/, '').replace(/[A-Z]{1,2}$/i, ''); }
   window.rrReadPictureFile = rrReadPictureFile;
 
-  window.openLabelScanner = openLabelScanner;
   window._ensureTesseract = _ensureTesseract;   // v0.9.672: screenshot-read path
+  window._biDetectCanvas = _biDetectCanvas;   // v0.9.1977: the Photo Inbox reader finds barcodes the same way
   window._extractItemNumberCandidates = _extractItemNumberCandidates;
   window._barcodeDebug = { decodeBarcode, findMasterItem, findMasterItems, showCandidatePicker, UPC_PREFIXES, _bcDescriptionGuess, _extractItemNumberCandidates, _biCrop };   // _biCrop: v0.9.1927 auto_read_beta_tests opens the real crop screen
 })();

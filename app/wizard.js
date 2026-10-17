@@ -297,13 +297,16 @@ function _wizMasterPrefer() {
 // as unconfirmed. eras = every catalog of the chosen maker that carries the
 // chosen scale (rrLineScales knows Pre-War is O and Standard). null when
 // nothing is set: an unfiltered Add screen asks a neutral question.
-function _wizReaderPrefer() {
-  var d = (typeof wizard !== 'undefined' && wizard && wizard.data) ? wizard.data : null;
-  if (!d) return null;
-  var mfr = String(d._searchFilterManufacturer || '').trim();
-  var scale = String(d._searchFilterScale || '').trim();
-  var period = String(d._searchFilterPeriod || d._typedSearchPeriod || '').trim();
-  var type = String(d._searchFilterType || '').trim();
+// v0.9.1977 — ONE READER: any screen's filters (maker / scale / period / type)
+// as a reader preference, so the Add screen and Research hand the reader the
+// same shape. Research calls its era 'pw'; the reader's word is 'postwar'.
+function rrReaderPreferFrom(f) {
+  f = f || {};
+  var mfr = String(f.manufacturer || f.mfr || '').trim();
+  var scale = String(f.scale || '').trim();
+  var period = String(f.period || '').trim();
+  if (period === 'pw') period = 'postwar';
+  var type = String(f.type || '').trim();
   if (!mfr && !scale && !period) return type ? { era: '', eras: [], manufacturer: '', scale: '', period: '', type: type, kind: '', _fromFilter: true } : null;
   var norm = function (v) { return String(v || '').toLowerCase().replace(/[^a-z0-9]/g, ''); };
   var eras = [], maker = '';
@@ -325,6 +328,27 @@ function _wizReaderPrefer() {
   return { era: eras.length === 1 ? eras[0] : '', eras: eras, manufacturer: maker || mfr, scale: scale, period: period,
            type: type, kind: '', label: '', years: '', _fromFilter: true };
 }
+// Does a catalog row fit a reader preference? Its catalog is one of the
+// preference's catalogs, and its period / scale agree when the row knows them
+// (the same per-row answers _wizRowFitsFilters gives the Add screen).
+function rrRowFitsPrefer(m, pref) {
+  if (!m || !pref) return true;
+  try {
+    var es = (pref.eras && pref.eras.length) ? pref.eras : (pref.era ? [pref.era] : []);
+    if (es.length && m._era && es.indexOf(m._era) < 0) return false;
+    if (!es.length && pref.manufacturer && pref.scale) return false;   // no catalog of that maker carries that scale
+    if (pref.period) { var rp = _wizPeriodOfRow(m); if (rp && rp !== pref.period) return false; }
+    if (pref.scale) { var rs = _wizScaleOfRow(m); if (rs && rs.toLowerCase() !== String(pref.scale).toLowerCase()) return false; }
+  } catch (eR) {}
+  return true;
+}
+function _wizReaderPrefer() {
+  var d = (typeof wizard !== 'undefined' && wizard && wizard.data) ? wizard.data : null;
+  if (!d) return null;
+  return rrReaderPreferFrom({ manufacturer: d._searchFilterManufacturer, scale: d._searchFilterScale,
+                              period: d._searchFilterPeriod || d._typedSearchPeriod, type: d._searchFilterType });
+}
+if (typeof window !== 'undefined') { window.rrReaderPreferFrom = rrReaderPreferFrom; window.rrRowFitsPrefer = rrRowFitsPrefer; }
 if (typeof window !== 'undefined') window._wizReaderPrefer = _wizReaderPrefer;
 
 // Which of the three collecting periods a 4-digit year falls in. Same
@@ -8439,6 +8463,7 @@ function _wizPicFirstRead() {
   _wizPicFirstShow({ kind: 'reading' });
   window.rrReadPictureFile(f, {
     eraHint: (wizard && wizard.data && wizard.data._era) || '',
+    addFilters: true,   // v0.9.1977: the same filters Photo ID beside it reads with
     stopped: function () { return !live(); },
     onStage: function (t) { if (live()) _wizPicFirstShow({ kind: 'reading', text: t }); },
   }).then(function (res) {
@@ -8464,7 +8489,7 @@ function _wizPicFirstShow(res) {
   var html = '';
   if (res.kind === 'reading') html = '<div class="wiz-pf-wait"><span class="wiz-pf-spin"></span>' + esc(res.text || T.resReading) + '</div>';
   else if (res.kind === 'sure') html = '<div class="wiz-pf-head">' + T.resFound + '</div>' + row(res.item, 0);
-  else if (res.kind === 'choices') html = '<div class="wiz-pf-head">' + T.resChoose + '</div>' + res.items.map(row).join('') +
+  else if (res.kind === 'choices') html = '<div class="wiz-pf-head">' + (res.outside ? T.resOutside : T.resChoose) + '</div>' + res.items.map(row).join('') +
     '<button type="button" class="wiz-pf-noneof" data-pfr="none">' + T.resNoneOf + '</button>';
   else if (res.kind === 'none' || res.kind === 'error') html = '<div class="wiz-pf-msg">' + (res.kind === 'error' ? T.resError : T.resNone) + '</div>' +
     (res.kind === 'none' ? '<div class="wiz-pf-alts"><button type="button" data-pfr="photoid">' + T.resPhotoId + '</button><button type="button" data-pfr="lens">' + T.resLens + '</button></div>' : '');
