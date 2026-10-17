@@ -1326,7 +1326,7 @@ function _subScreen(kind, r) {
     var trialIso = trialEnd.getFullYear() + '-' + String(trialEnd.getMonth() + 1).padStart(2, '0') + '-' + String(trialEnd.getDate()).padStart(2, '0');
     if (r.showMode) {
       h = '<h1 style="font-size:' + head + ';margin:0;color:var(--text)">Welcome to The Rail Roster</h1>' +
-          '<p style="' + p + '">York show special: <strong style="color:var(--text)">' + _subEsc(showPrice) + '</strong>, then ' + _subEsc(price) + '. No free trial with the show price, but you have 7 days to change your mind.</p>' +
+          '<p style="' + p + '">York show special: <strong style="color:var(--text)">' + _subEsc(showPrice) + '</strong>, then ' + _subEsc(price) + '. Show-only price, with 7 days to change your mind.</p>' +
           '<a id="sub-go" href="' + _subEsc(_subCheckoutUrl(r.payLink)) + '" style="' + big + '">Join for the show price</a>';
     } else {
       h = '<h1 style="font-size:' + head + ';margin:0;color:var(--text)">Welcome to The Rail Roster</h1>' +

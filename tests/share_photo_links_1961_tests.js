@@ -45,6 +45,11 @@
 //       first; "Copy for email" (the picture) is still there, optional
 //   G3  a list too long for a draft link is never cut short: the button copies
 //       it all and the draft says to press Ctrl+V
+//   v0.9.1981 (Brad 2026-10-17: "after you hit email ... when you come back to
+//   the app, you have to hit cancel"):
+//   E1  after Email with Gmail the window says "Your email is open in Gmail"
+//       with ONE Done button and no Cancel; the card picture can still be copied
+//   E2  Done closes the window, clears the picks and the pick bar
 //   X*  PLANTED: each undone in the code is caught
 // ═══════════════════════════════════════════════════════════════════════════
 const fs = require('fs'), path = require('path');
@@ -248,6 +253,29 @@ const pdf = pg => pg.evaluate(async (dot) => {
   await r.ctx.close();
   m = await (async () => { const x0 = await open(browser, {}); const v = await x0.pg.evaluate(() => _rrItemWords(_rrCardData({ itemNum: '2343', master: { roadName: 'Santa Fe', itemType: 'Diesel' }, want: { maxPrice: '900', priority: 'High', targetCond: '8', notes: 'needs  the  horn' } }, 'want'))); await x0.ctx.close(); return v; })();
   T('D2 a want card\'s words: "Up to $900 · High priority · Want 8/10+" and its note', JSON.stringify(m) === JSON.stringify(['Up to $900 \u00b7 High priority \u00b7 Want 8/10+', '\u201cneeds the horn\u201d']), m);
+
+  console.log('== v1981: after Email with Gmail, one Done ==');
+  const emailed = async (pg) => {
+    await gmail(pg);
+    await pg.evaluate(() => { _shareMode = true; const b = document.createElement('div'); b.id = 'share-bottom-bar'; b.textContent = '2 items selected Cancel Share'; document.body.appendChild(b);
+      const a = document.getElementById('rr-gmail-open'); a.removeAttribute('href'); a.click(); });
+    await pg.waitForTimeout(700);
+    return pg.evaluate(() => { const acts = document.getElementById('share-builder-actions');
+      return { said: (document.getElementById('rr-emailed') || {}).textContent || '', done: !!document.getElementById('rr-share-done'),
+        text: acts ? acts.innerText : '', copyPic: acts ? [...acts.querySelectorAll('button')].some(b => /card picture/.test(b.textContent)) : false }; });
+  };
+  r = await open(browser, {});
+  m = await emailed(r.pg);
+  T('E1 back in the app: "Your email is open in Gmail", one Done button, no Cancel', /Your email is open in Gmail/.test(m.said) && m.done && !/Cancel/i.test(m.text), m);
+  T('E1 …the card picture can still be copied into the email', m.copyPic, m.text);
+  await r.pg.click('#rr-share-done'); await r.pg.waitForTimeout(300);
+  m = await r.pg.evaluate(() => ({ modal: !!document.getElementById('share-builder-modal'), bar: !!document.getElementById('share-bottom-bar'), mode: _shareMode, picks: Object.keys(_shareItems).length }));
+  T('E2 Done closes the window and clears the picks and the pick bar', !m.modal && !m.bar && m.mode === false && m.picks === 0, m);
+  await r.ctx.close();
+  x = await open(browser, { sell: planted(SELL, "  setTimeout(_rrShareEmailedScreen, 400);", "", 'no done screen') });
+  m = await emailed(x.pg);
+  T('X-E1 PLANTED: the window left as it was after emailing → caught (E1 would fail)', !m.done && !/Your email is open/.test(m.said), m.said);
+  await x.ctx.close();
 
   console.log('== planted offenders ==');
   x = await open(browser, { sell: planted(SELL, "  var full = head + encodeURIComponent(window._rrShareText || '');", "  var full = head + encodeURIComponent(window._rrShareBase || '');   // planted", 'no links in draft') });

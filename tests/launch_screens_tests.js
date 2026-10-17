@@ -121,7 +121,11 @@ console.log('3. welcome');
   const h = p.screen().innerHTML;
   ok('show dates: York special wording and price', /York show special/.test(h) && /\$60 first year plus tax/.test(h));
   ok('…the show link keeps its code AND gets the locked email (&, not a second ?)', h.indexOf(SHOW + '&amp;locked_prefilled_email=pat.doe%40gmail.com') >= 0, h);
-  ok('…tells them about the 7 days', /7 days/.test(h)); }
+  ok('…tells them about the 7 days', /7 days/.test(h));
+  // v0.9.1981 (Brad 2026-10-17, "remove the 3 week free trial stuff as that is gone for the special"):
+  // the show screen matches the sales page — no trial mentioned at all.
+  ok('…and says nothing about a free trial (the sales page does not either)', !/free trial|trial/i.test(h), h);
+  ok('…PLANTED: the old "No free trial with the show price" line would be caught', /free trial|trial/i.test(h + 'No free trial with the show price')); }
 
 // ── 4. lapsed → lock ──────────────────────────────────────────────────────
 console.log('4. lock screen');

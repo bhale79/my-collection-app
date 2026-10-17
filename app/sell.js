@@ -442,9 +442,44 @@ function _rrGmailDraftUrl() {
     '\n\nThis list is too long to write into the draft by itself \u2014 it was copied when you clicked Email with Gmail. Click here and press Ctrl+V to put every item and its photo links in.');
 }
 function _rrGmailClick() {
-  if (!window._rrGmailTooLong) return;
-  try { navigator.clipboard.writeText(window._rrShareText || ''); } catch (e) {}
+  if (window._rrGmailTooLong) {
+    try { navigator.clipboard.writeText(window._rrShareText || ''); } catch (e) {}
+  }
+  // v0.9.1981 (Brad 2026-10-17: "when you come back to the app, you have to hit
+  // cancel"): the draft is open in its own tab, so the window behind it turns
+  // into "Your email is open in Gmail" with ONE Done button. It still never
+  // closes by itself (v0.9.1302: you may come back for the card picture).
+  setTimeout(_rrShareEmailedScreen, 400);
 }
+// The window after Email with Gmail: Done closes it and clears the picks;
+// the card picture and the links can still be copied into the email.
+function _rrShareEmailedScreen() {
+  var acts = document.getElementById('share-builder-actions');
+  if (!acts) return;
+  var prog = document.getElementById('share-progress');
+  if (prog) prog.style.display = 'none';
+  acts.style.display = 'flex';
+  acts.innerHTML =
+    '<div id="rr-emailed" style="text-align:center;padding:0.3rem 0 0.2rem">' +
+      '<div style="font-family:var(--font-head);font-size:1.1rem;font-weight:700;color:var(--text)">Your email is open in Gmail</div>' +
+      '<div style="font-size:0.85rem;color:var(--text-mid);margin-top:0.3rem">Send it from the Gmail tab, then press Done here.</div>' +
+    '</div>' +
+    '<button id="rr-share-done" onclick="_rrShareDone()" style="padding:0.8rem;border-radius:9px;border:none;background:var(--accent);color:var(--on-accent, #fff);font-family:var(--font-body);font-weight:700;font-size:1rem;cursor:pointer">Done</button>' +
+    '<button onclick="_rrCopyCardsToClipboard()" style="padding:0.55rem;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">' +
+      'Copy the card picture, to paste into the email' +
+    '</button>' +
+    (window._rrShareLinks
+      ? '<button onclick="_rrCopyShareLinks()" style="padding:0.55rem;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">Copy the item details and photo links</button>'
+      : '');
+  try { document.getElementById('rr-share-done').focus(); } catch (e) {}
+}
+function _rrShareDone() {
+  var m = document.getElementById('share-builder-modal');
+  if (m) m.remove();
+  try { if (typeof cancelShareMode === 'function') cancelShareMode(); } catch (e) {}
+  try { showToast('Done \u2014 your picks are cleared.', 2500); } catch (e) {}
+}
+if (typeof window !== 'undefined') { window._rrShareEmailedScreen = _rrShareEmailedScreen; window._rrShareDone = _rrShareDone; }
 // the words under the Gmail button follow the list's length
 function _rrGmailNoteWords() {
   return window._rrGmailTooLong

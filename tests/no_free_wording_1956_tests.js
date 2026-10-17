@@ -49,7 +49,6 @@ const KEPT = [
   { f: 'app/prefs.js', has: "line = 'Free trial'", why: 'subscription trial' },
   { f: 'app/prefs.js', has: "line = 'Free trial' + (s.trialEnds", why: 'subscription trial' },
   { f: 'app/vault.js', has: "Your free trial ends", why: 'subscription trial' },
-  { f: 'app/vault.js', has: "No free trial with the show price", why: 'subscription trial' },
   { f: 'app/vault.js', has: "Try everything free for 3 weeks", why: 'subscription trial' },
   { f: 'app/vault.js', has: "Start your 3-week free trial", why: 'subscription trial' },
   { f: 'terms/index.html', has: "Free trial:", why: 'subscription trial' },
