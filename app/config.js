@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1973';
+const APP_VERSION = 'v0.9.1974';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -3188,3 +3188,7 @@ const RR_ACCOUNT_CHECK = {
   pendingOk: 'Switch',
   pendingCancel: 'Stay',
 };
+
+// v0.9.1974: how many items' photos the share cards fetch from Drive at the
+// same time (sell.js shareAsCards). The thumbnail loader uses 6 as well.
+const RR_SHARE_PHOTOS_AT_ONCE = 6;

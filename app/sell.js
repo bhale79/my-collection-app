@@ -232,19 +232,46 @@ async function shareAsCards() {
     // here, so ticking it afterwards did nothing — Brad: "it still is the same
     // as not clicking it").
     var _src = [];
-    for (var i = 0; i < items.length; i++) {
-      var it = items[i];
-      if (prog) prog.textContent = 'Building card ' + (i + 1) + ' of ' + items.length + '…';
+    // v0.9.1974 ([stated] Brad "yes" — "share cards faster"): the photos are
+    // fetched SEVERAL AT ONCE. Each card waited for its own full-size Drive
+    // download before the next one started; now the downloads for the next
+    // RR_SHARE_PHOTOS_AT_ONCE items (config.js) run together while the cards
+    // are still drawn ONE BY ONE in list order. Only that many items' photos
+    // are ever held at a time (a phone's memory), and a failed download is an
+    // item with no photo, never a stopped share — exactly as before.
+    // (Drive's small ready-made copies are NOT usable here: lh3 refuses a page
+    // that draws them onto a canvas — measured 2026-08-28, see drive.js.)
+    var _prep = items.map(function (it0) {
       try {
-      // v0.9.1302: ONE resolver for "where does this share entry's collection
-      // record live" — shared with the PDF builder (rrSharePdOf in share.js).
-      var pd = rrSharePdOf(it);
-      if (pd && pd.itemNum && String(pd.itemNum) !== String(it.itemNum)) {
-        var _cm = findMaster(pd.itemNum, pd.variation, pd) || it.master;
-        it = Object.assign({}, it, { itemNum: pd.itemNum, variation: pd.variation || '', master: _cm });
-      }
-      var photoIds = [];
-      var photoUrls = await _rrItemPhotoDataUrls(pd, allPhotos, photoIds);
+        var it = it0;
+        // v0.9.1302: ONE resolver for "where does this share entry's collection
+        // record live" — shared with the PDF builder (rrSharePdOf in share.js).
+        var pd = rrSharePdOf(it);
+        if (pd && pd.itemNum && String(pd.itemNum) !== String(it.itemNum)) {
+          var _cm = findMaster(pd.itemNum, pd.variation, pd) || it.master;
+          it = Object.assign({}, it, { itemNum: pd.itemNum, variation: pd.variation || '', master: _cm });
+        }
+        return { it: it, pd: pd };
+      } catch (prepErr) { console.warn('card build skipped for an item:', prepErr); return null; }
+    });
+    var _photos = [], _started = [];
+    var _startPhotos = function (j) {
+      if (j >= _prep.length || _started[j] || !_prep[j]) return;
+      _started[j] = true;
+      var ids = [];
+      _photos[j] = _rrItemPhotoDataUrls(_prep[j].pd, allPhotos, ids)
+        .then(function (u) { return { urls: u || [], ids: ids }; }, function () { return { urls: [], ids: [] }; });
+    };
+    for (var i = 0; i < items.length; i++) {
+      for (var j = i; j < i + RR_SHARE_PHOTOS_AT_ONCE; j++) _startPhotos(j);
+      if (prog) prog.textContent = 'Building card ' + (i + 1) + ' of ' + items.length + '…';
+      if (!_prep[i]) continue;
+      try {
+      var it = _prep[i].it, pd = _prep[i].pd;
+      var _got = await _photos[i];
+      _photos[i] = null;   // let this item's photos go once its cards are drawn
+      var photoIds = _got.ids;
+      var photoUrls = _got.urls;
       // v0.9.1967: EVERY item goes in the message, written out from the same
       // _rrCardData the card is drawn from (so the two can never disagree),
       // whether or not it has photos to link.
