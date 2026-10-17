@@ -289,6 +289,44 @@ function _wizMasterPrefer() {
   return { manufacturer: mfr, era: era, year: year, period: period, scale: scale };
 }
 
+// v0.9.1975 (Brad: "why the wrong suggestion when i say its lionel o guage" —
+// Photo ID read a stock car's "LT WT 43725" and offered a Marklin HO coach):
+// THE Add screen's filters as a picture-reader preference — the same shape the
+// Photo Inbox gives its reader (_pinPreferOf: era / eras / manufacturer /
+// scale / period / type), so the reader treats a number outside these catalogs
+// as unconfirmed. eras = every catalog of the chosen maker that carries the
+// chosen scale (rrLineScales knows Pre-War is O and Standard). null when
+// nothing is set: an unfiltered Add screen asks a neutral question.
+function _wizReaderPrefer() {
+  var d = (typeof wizard !== 'undefined' && wizard && wizard.data) ? wizard.data : null;
+  if (!d) return null;
+  var mfr = String(d._searchFilterManufacturer || '').trim();
+  var scale = String(d._searchFilterScale || '').trim();
+  var period = String(d._searchFilterPeriod || d._typedSearchPeriod || '').trim();
+  var type = String(d._searchFilterType || '').trim();
+  if (!mfr && !scale && !period) return type ? { era: '', eras: [], manufacturer: '', scale: '', period: '', type: type, kind: '', _fromFilter: true } : null;
+  var norm = function (v) { return String(v || '').toLowerCase().replace(/[^a-z0-9]/g, ''); };
+  var eras = [], maker = '';
+  try {
+    // the item catalogs (REAL_ERA_IDS) — the parts lists are lookup-only
+    var _lookupOnly = (typeof LOOKUP_ONLY_ERAS !== 'undefined') ? LOOKUP_ONLY_ERAS : [];
+    ((typeof REAL_ERA_IDS !== 'undefined') ? REAL_ERA_IDS : Object.keys(ERAS || {})).forEach(function (k) {
+      var e = ERAS[k];
+      if (!e || e._isAll || k === 'all' || _lookupOnly.indexOf(k) >= 0) return;
+      if (mfr && norm(e.manufacturer) !== norm(mfr)) return;
+      if (scale) {
+        var sc = (typeof rrLineScales === 'function') ? rrLineScales(k) : [String((typeof ERA_SCALE !== 'undefined' && ERA_SCALE[k]) || '').toLowerCase()];
+        if (sc.indexOf(scale.toLowerCase()) < 0) return;   // a catalog of no stated scale does not carry O
+      }
+      eras.push(k);
+      if (!maker) maker = e.manufacturer || '';
+    });
+  } catch (eE) {}
+  return { era: eras.length === 1 ? eras[0] : '', eras: eras, manufacturer: maker || mfr, scale: scale, period: period,
+           type: type, kind: '', label: '', years: '', _fromFilter: true };
+}
+if (typeof window !== 'undefined') window._wizReaderPrefer = _wizReaderPrefer;
+
 // Which of the three collecting periods a 4-digit year falls in. Same
 // boundaries the suggestion list and the era filters already use.
 function _wizPeriodOfYear(year) {

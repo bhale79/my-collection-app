@@ -9385,7 +9385,9 @@
     // the side of every freight car — genuinely on the item, genuinely in some
     // catalog somewhere, and never what the user is looking at. Same shape as
     // the build-date problem, different costume.
-    var reCap = /(?:CAPY|CAP'?Y|LD\s*LMT|LDLMT|LT\s*WT|LTWT|WT\s*LMT|CAPACITY)[^0-9]{0,10}(\d{3,7})/g;
+    // v0.9.1975 (Brad's 6556 M-K-T stock car): CU FT (cubic feet, "CU FT 2111")
+    // is the same kind of stencil — a size, never an item number.
+    var reCap = /(?:CAPY|CAP'?Y|LD\s*LMT|LDLMT|LT\s*WT|LTWT|WT\s*LMT|CAPACITY|CU\s*FT|CUFT)[^0-9]{0,10}(\d{3,7})/g;
     var capStamp = {};
     while ((m = reCap.exec(UP))) { capStamp[m[1]] = 1; }
     var toks = (UP.match(/\d[\dA-Z]*(?:-[\dA-Z]+)*/g) || [])

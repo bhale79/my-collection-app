@@ -3686,7 +3686,12 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       st('ocr', '<span class="bi-spin">⟳</span>', RR_PHOTO_ID_CLOSER.reading);
       try {
         var _frBlob = await new Promise(function (res) { workCanvas.toBlob(res, 'image/jpeg', 0.95); });
-        var _fr = _frBlob ? await _rtTime('label read (closer)', window.rrFreeReadBlob(_frBlob, 2400, null)) : null;
+        // v0.9.1975: the reader gets the Add screen's filters (maker, scale,
+        // era) — the same preference the Photo Inbox gives it — so a number
+        // only another maker's catalog knows (a car's "LT WT 43725" = a
+        // Marklin HO coach) never counts as confirmed while filtered to Lionel O.
+        var _frPref = (opts && opts.addFilters && typeof window._wizReaderPrefer === 'function') ? window._wizReaderPrefer() : null;
+        var _fr = _frBlob ? await _rtTime('label read (closer)', window.rrFreeReadBlob(_frBlob, 2400, _frPref)) : null;
         if (_fr && _fr.matched && _fr.num) rawCands = [{ raw: String(_fr.num), mfr: '' }];
         else if (_fr) {
           // v0.9.1951 (Brad's screenshot of the whole screen: the browser's
@@ -3793,6 +3798,22 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       } else bcResult = Object.assign({}, bcResult, { candidates: _bcLeft });
     }
     var pick = null, verified = '';
+    // v0.9.1975 (Brad: Photo ID said "Found it" for a Marklin HO coach while
+    // the Add screen said Lionel O): a number whose ONLY catalog rows sit
+    // outside the Add screen's filters is never taken as the answer. The other
+    // numbers read get their turn first; if none fits, those rows are offered
+    // below the "Outside your filter" divider — his choice, never an auto-pick.
+    var _outsideRows = [];
+    var _fitsAdd = function (h) {
+      if (!(opts && opts.addFilters) || !h) return true;
+      try {
+        var _d = (typeof wizard !== 'undefined' && wizard && wizard.data) ? wizard.data : null;
+        var _um = _d ? _bcMfrKey(_d._searchFilterManufacturer) : '';
+        if (_um && !_bcRowIsMfr(h, _um)) return false;
+        if (typeof window._wizRowFitsFilters === 'function' && !window._wizRowFitsFilters(h)) return false;
+      } catch (eFA) {}
+      return true;
+    };
     for (var i = 0; i < out.ocrNums.length && !pick; i++) {
       var n = out.ocrNums[i];
       var lk = [n]; if (/^\d/.test(n)) lk.push('6-' + n);
@@ -3802,6 +3823,10 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       var nb = n.replace(/[A-Za-z]{1,2}$/, '');
       if (nb && nb !== n && nb.length >= 2) { lk.push(nb); if (/^\d/.test(nb)) lk.push('6-' + nb); }
       var hits = _biNarrow(await _findMasterItemsAllEras(lk), _nctx);   // v0.9.1968
+      if (hits.length && !hits.some(_fitsAdd)) {   // v0.9.1975: nothing here fits the filters
+        hits.forEach(function (h) { if (!h._offEra) h._offEra = (typeof _eraLabel === 'function' && _eraLabel(h._era)) || 'another catalog'; _outsideRows.push(h); });
+        continue;
+      }
       if (hits.length === 1) { pick = hits[0]; verified = 'label'; }
       else if (hits.length > 1) {
         st('master', '📖', 'Catalog: ' + hits.length + ' items match ' + n + ' — pick yours');
@@ -3839,6 +3864,12 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         if (ch2 && !ch2.__notInList) { pick = ch2; verified = 'barcode'; }
         else if (ch2 && ch2.__notInList) { out.typedNum = ch2.itemNum; }
       }
+    }
+    if (!pick && !out.typedNum && _outsideRows.length) {   // v0.9.1975
+      st('master', '❓', 'Catalog: ' + _outsideRows[0].itemNum + ' is not in your filters — is it yours?', _BC_AMBER);
+      var chO = await _rtWait('pick the item', showCandidatePicker(_outsideRows, { itemNum: _outsideRows[0].itemNum }));
+      if (chO && !chO.__notInList) { pick = chO; verified = 'label'; }
+      else if (chO && chO.__notInList) { out.typedNum = chO.itemNum; }
     }
     out.isBoxShot = !!(bc || out.ocrNums.length);   // barcode or printed SKU = it's a box/label
     if (pick) {
