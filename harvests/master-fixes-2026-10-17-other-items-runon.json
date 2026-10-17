@@ -1,0 +1,107 @@
+{
+ "what": "Master Version 2.51 — COTT text that ran on into the next entries of COTT's Other Items page is trimmed back to each item's own entry: PW - Items 861 Helios 21 (dropped the Sears 79 N 5871CM / SS0422 block that follows it), 866 Helios Anti-Gravity Booster (dropped the next heading), 867 Helios Control Panel Production Sample (held the U-Drive boat's text; now its own heading line + credit), PW - Other 46500 (dropped the Helios flyers and 861 text, which had been cut off at 500 characters). 46500's Description \"Accessory\" → \"Movie-Jector Set\" (COTT: MOVIE – JECTOR SET No. 46500). The 850 boat's trailing \"U-DRIVE BOAT\" is its own photo caption on COTT — unchanged.",
+ "stated": "Brad (2026-10-17): \"yes\" to looking at the run-on rows, then \"yes\" to the 5-cell plan as 2.51",
+ "masterVersion": "2.51",
+ "date": "2026-10-17",
+ "planReadAt": "public CSV export of Lionel PW - Items and PW - Other and COTT's live other-items-lionel-produced page, read 2026-10-17 right before this record",
+ "cellFormat": "[tab, item number (column A), column header, old, new, sheet row as a hint, Row ID of the row]",
+ "counts": {
+  "cells": 5,
+  "rows": 4
+ },
+ "cells": [
+  [
+   "Lionel PW - Items",
+   "861",
+   "Original COTT Desc",
+   "top\nSS0425\nfront\nback\nright side\nleft side\nrectifier\ninstruction No. 861 - 79 dated 10/64. four pages, black printing on white paper\nREPLACEMENT PARTS FOR \"HELIOS 21\" No. 861 - 54, one page, printed in black on white paper\nHELIOS 21 1964\nSEARS No. 79 N 5871CM\nshown in Sears Christmas Book page 205, catalog price $14.99\ntop\nSS0422\ntop - No. 860-22 liner, 10 3/8 X 8 3/8 with 1 1/4 X 1 1/4 cutouts in all four corners\nbottom - two liners 2 5/8 X 13 3/8\ngoes above the capsul and below the space ship, the cutout is for the foam motor housing\n16 X 13 1/2 X 3, cutout appromatly 8 X 3 5/8\n15 5/8 x 5 7/8\ngoes between the control panel, booster box and the area for the space ship/capsul\n13 1/4 X 15 1/2\ngoes on the very bottom, the capsul is placed on it\nfront\nback\nright side\nleft side\nside 1\nside 2\nblueprint for the Satellite, part No. 872 - 4, dated 6 - 8 - 64\nrectifier\ninstruction No. 861 - 79 dated 10/64. four pages, black printing on white paper\ninstruction No. 870 - 10, dated 9/64, two pages, printed black on white paper",
+   "top\nSS0425\nfront\nback\nright side\nleft side\nrectifier\ninstruction No. 861 - 79 dated 10/64. four pages, black printing on white paper\nREPLACEMENT PARTS FOR \"HELIOS 21\" No. 861 - 54, one page, printed in black on white paper",
+   2772,
+   "RUJF9M42CH"
+  ],
+  [
+   "Lionel PW - Items",
+   "866",
+   "Original COTT Desc",
+   "SEARS offered also No. 79 N 5874M\nshown in Sears Christmas Book page 205, catalog price $5.99\nSS0426\nfront\nback\nright side\nleft side\nHELIOS CONTROL PANEL PRODUCTION SAMPLE",
+   "SEARS offered also No. 79 N 5874M\nshown in Sears Christmas Book page 205, catalog price $5.99\nSS0426\nfront\nback\nright side\nleft side",
+   2777,
+   "9BBFB7TGFE"
+  ],
+  [
+   "Lionel PW - Items",
+   "867",
+   "Original COTT Desc",
+   "Courtesy of \"The Shank Collection\"\nBLUE No. 850 U-DRIVE BOAT\n1964\nSS0374\nU-DRIVE BOAT",
+   "HELIOS CONTROL PANEL PRODUCTION SAMPLE No. 867 - 25, dated SEP 23 1964\nCourtesy of \"The Shank Collection\"",
+   2778,
+   "G8KHZBN7YP"
+  ],
+  [
+   "Lionel PW - Other",
+   "46500",
+   "Original COTT Desc",
+   "No. 46500 THE BATTERY POWERED SLIDE STRIP PROJECTOR INST. # 46500 - 15 DATED 6/64 6 RECORDS \"A\" SIDE 6 RECORDS \"B\" SIDE 6 SLIDE STRIPS FRONT VIEW BOX CONTAINING 6 RECORDS AND 6 SLIDE STRIP HELIOS SPACECRAFT Dealer Flyer announcing the Helios circa 1965 Another Flyer for the Helios No. 861 HELIOS 21 top SS0425 front back right side left side rectifier instruction No. 861 - 79 dated 10/64. four pages, black printing on white paper REPLACEMENT PARTS FOR \"HELIOS 21\" No. 861 - 54, one page, printed i",
+   "No. 46500 THE BATTERY POWERED SLIDE STRIP PROJECTOR INST. # 46500 - 15 DATED 6/64 6 RECORDS \"A\" SIDE 6 RECORDS \"B\" SIDE 6 SLIDE STRIPS FRONT VIEW BOX CONTAINING 6 RECORDS AND 6 SLIDE STRIP",
+   6,
+   "MDV6MKMN38"
+  ],
+  [
+   "Lionel PW - Other",
+   "46500",
+   "Description",
+   "Accessory",
+   "Movie-Jector Set",
+   6,
+   "MDV6MKMN38"
+  ]
+ ],
+ "itemsHeader": [
+  "Item Number",
+  "Item Type",
+  "Sub-Type",
+  "Unit",
+  "Powered/Dummy",
+  "Control",
+  "Road Name",
+  "Description",
+  "Gauge",
+  "Year Produced",
+  "Variation #",
+  "Variation Details",
+  "Reference Link",
+  "Notes",
+  "Est. Market Value",
+  "Source",
+  "COTT Code",
+  "Original COTT Desc",
+  "Category",
+  "Track Power",
+  "MSRP",
+  "Body Color",
+  "Stamped Markings",
+  "Row ID"
+ ],
+ "otherHeader": [
+  "Item Number",
+  "Item Type",
+  "Sub-Type",
+  "Unit",
+  "Powered/Dummy",
+  "Control",
+  "Road Name",
+  "Description",
+  "Gauge",
+  "Year Produced",
+  "Variation #",
+  "Variation Details",
+  "Reference Link",
+  "Notes",
+  "Est. Market Value",
+  "Source",
+  "COTT Code",
+  "Original COTT Desc",
+  "Stamped Markings",
+  "Row ID"
+ ]
+}
