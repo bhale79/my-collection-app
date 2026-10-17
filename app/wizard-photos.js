@@ -1683,9 +1683,10 @@ function extractIdentifyMetadata(text, opts) {
     if (m1) return m1[1];
     return null;
   }
+  let _cabFromLabel = false;   // v0.9.1980: a labeled cab number vs one fished out of a sentence
   if (lblCab) {
     const c = _grabCab(lblCab);
-    if (c) out.cabNum = c;
+    if (c) { out.cabNum = c; _cabFromLabel = true; }
   }
   if (!out.cabNum && !_pageSized) {   // v0.9.1195: no loose-number fishing in a page-sized paste (Etsy's "Item #922")
     const cabMatch = raw.match(/(?:#|No\.?\s?|number\s)(\d{2,5})(?![\d-])/i);
@@ -1773,9 +1774,30 @@ function extractIdentifyMetadata(text, opts) {
   // We saw this on the Weaver Blue Goose where Google returned
   // "Manufacturer SKU: 3460" and "Cab Number: 3460" — both the same digit.
   // Treat as hedged and reject the item#.
+  // v0.9.1980 (Brad's 6120 work caboose: the reader said "Lionel No. 6120
+  // Unmarked Work Caboose" and the card said "No number picked up"): "No."
+  // written straight after the MAKER's name is how Lionel writes its catalog
+  // numbers — the loose cab-number regex just picked the item number up a
+  // second time. Then it is the item number and there is no separate cab
+  // number. Anywhere else the defense stands: "A Lionel 2037 …, No. 6110
+  // painted on the cab" still keeps 6110 out of the item number, and two
+  // LABELED lines that agree (Weaver "SKU: 3460" / "Cab Number: 3460") too.
   if (out.itemNum && out.cabNum && out.itemNum === out.cabNum) {
-    out._hedge = true;
-    delete out.itemNum;
+    let _makersNo = false;
+    if (!_cabFromLabel) {
+      try {
+        const _mk = _IDENTIFY_MFRS.map(function (m) { return m.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/[-]/g, '[-\\s]?'); }).join('|');
+        const _num = String(out.itemNum).replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+        // the maker, its 's, up to two plain words ("Lionel postwar No. 6120"), then No. / # and the number
+        _makersNo = new RegExp('\\b(?:' + _mk + ')(?:[\'\u2019]s)?(?:\\s+[A-Za-z][A-Za-z\'\u2019-]*){0,2}\\s+(?:No\\.?\\s?|#\\s?)' + _num + '(?![\\d-])', 'i').test(raw);
+      } catch (eMk) {}
+    }
+    if (_makersNo) {
+      delete out.cabNum;
+    } else {
+      out._hedge = true;
+      delete out.itemNum;
+    }
   }
   // Same defense for the YEAR. We saw the bare regex catching "2024" from
   // "Year Manufactured: 2024" and treating it as a Lionel postwar item#.
