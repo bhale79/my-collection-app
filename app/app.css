@@ -3199,6 +3199,39 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
 .wiz-cf-2up { row-gap: 0.2rem !important; }
 .wiz-cf-2up > div { padding-top: 0.1rem !important; padding-bottom: 0.1rem !important; }
 
+/* v0.9.1983 (Brad: "under the 2378 which is the powered a unit, it says b unit")
+   — a set's review: one labeled box per unit (_cfUnitBlocks in wizard.js) and
+   one box for the whole set. On a computer the units sit side by side; on a
+   phone they stack. The whole lot scrolls together inside its own box, so the
+   item card above and Save below never move. */
+.wiz-cf-unitwrap { display: flex; flex-direction: column; gap: 0.5rem; }
+.wiz-cf-wide > .wiz-cf-unitwrap { flex: 0 1 auto; min-height: 120px; overflow-y: auto; }
+.wiz-cf-units { display: flex; flex-direction: column; gap: 0.5rem; }
+.wiz-cf-units-2up { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.5rem; align-items: start; }
+.wiz-cf-unit { border: 1px solid var(--border); border-radius: 8px; padding: 0.35rem 0.45rem 0.45rem; }
+.wiz-cf-unit-head { font-family: var(--font-head); font-size: 0.86rem; letter-spacing: 0.02em; color: var(--t-accent); margin: 0 0 0.3rem 0.1rem; }
+.wiz-cf-unit-note { color: var(--text-dim); font-family: var(--font-body); font-size: 0.78rem; letter-spacing: 0; }
+.wiz-cf-unit-head { display: flex; align-items: center; gap: 0.4rem; min-height: 1.2rem; line-height: 1.25; }
+.wiz-cf-unit-title { flex: 1; min-width: 0; }
+.wiz-cf-unit-edit { flex-shrink: 0; background: none; border: 1px solid var(--border); border-radius: 5px; padding: 0 0.35rem; line-height: 1.35; cursor: pointer; color: var(--text-dim); font-size: 0.7rem; font-family: var(--font-body); margin-right: 0.05rem; }
+.wiz-cf-unit-empty { color: var(--text-dim); font-size: 0.78rem; padding: 0.2rem 0.4rem; }
+.wiz-cf-unit > .wiz-cf-rows { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.83rem; }
+/* on a computer: the same tight lines as the two-column review, so a whole AB
+   set (two units + the set's own lines) fits without scrolling on a laptop */
+.wiz-cf-units-2up, .wiz-cf-unitwrap:has(.wiz-cf-units-2up) { gap: 0.2rem; }
+.wiz-cf-units-2up .wiz-cf-unit { padding: 0.05rem 0.35rem 0.2rem; }
+/* the set's own lines need no frame on a computer — the slim heading says what they are */
+.wiz-cf-unitwrap:has(.wiz-cf-units-2up) > .wiz-cf-shared { border: none; padding: 0; }
+.wiz-cf-unitwrap:has(.wiz-cf-units-2up) > .wiz-cf-shared > .wiz-cf-unit-head { margin-bottom: 0.05rem; }
+.wiz-cf-unitwrap:has(.wiz-cf-units-2up) > .wiz-cf-shared > .wiz-cf-rows { row-gap: 0.15rem !important; }
+.wiz-cf-units-2up .wiz-cf-unit-head, .wiz-cf-unitwrap:has(.wiz-cf-units-2up) > .wiz-cf-shared > .wiz-cf-unit-head { margin-bottom: 0.05rem; font-size: 0.8rem; }
+.wiz-cf-units-2up .wiz-cf-unit > .wiz-cf-rows { gap: 0.15rem; }
+.wiz-cf-units-2up .wiz-cf-unit > .wiz-cf-rows > div { padding: 0.05rem 0.45rem !important; }
+.wiz-cf-unitwrap:has(.wiz-cf-units-2up) > .wiz-cf-shared > .wiz-cf-rows > div { padding-top: 0.05rem !important; padding-bottom: 0.05rem !important; }
+.wiz-cf-units-2up .wiz-cf-unit > .wiz-cf-rows > div > button { padding: 0.1rem 0.35rem !important; }
+.wiz-cf-units-2up .wiz-cf-unit > .wiz-cf-rows > div > span:first-child { min-width: 104px !important; }
+
+
 /* v0.9.1972 (Brad: "put both sliders under each other, go to two columns with
    sliders on the left, questions on the right") — Add step 2, one item, on a
    computer (_cdSplitSliders in wizard.js puts .cd-split on the fields). */

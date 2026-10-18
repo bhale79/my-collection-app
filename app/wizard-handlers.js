@@ -483,6 +483,10 @@ function _confirmDoneEdit(key) {
   if (key === 'purchasedFrom' && typeof window._ctLabel === 'function') dispVal = v ? window._ctLabel(v) : '— Not tracked —';   // v0.9.1920
   if (valEl) valEl.textContent = dispVal;
   if (btnEl) btnEl.style.display = '';
+  // v0.9.1983: a unit's number also sits in its box heading ("B unit — 2378C")
+  try {
+    document.querySelectorAll('[data-cf-num="' + key + '"]').forEach(function (el) { el.textContent = String(v); });
+  } catch (e) {}
 }
 
 // _pvRefreshYear removed Session 120 — only called by .pv-yr-btn elements that were never rendered.

@@ -119,8 +119,12 @@ async function runB(browser, planted) {
     r.name = /Dave Miller — Miller's Trains/.test(txt);
     r.code = /C-1700000000001/.test(txt);
     r.boughtLabel = /Bought From/.test(txt);
-    r.bUnit = /B Unit\s*2343C/.test(txt);
-    r.bUnitCond = /B Unit Condition/.test(txt);
+    // v0.9.1983: the review gives each unit its own labeled box — the B unit's
+    // name is its box heading, its lines sit inside that box without a prefix
+    const _bt = body.querySelector('[data-cf-unit="b"] .wiz-cf-unit-title');
+    r.bUnit = !!_bt && /^B unit — 2343C$/.test(_bt.textContent.trim());
+    const _bc = body.querySelector('[data-cf-unit="b"] #confirm-val-unit2Condition');
+    r.bUnitCond = !!_bc && /^Condition$/.test((_bc.previousElementSibling || {}).textContent || '');
     r.raw = /Unit2 item num|Unit2 power|Unit 2 Item/i.test(txt);
     // the pencil on the seller row → a list of contacts, not a text box
     _confirmEdit('purchasedFrom');
@@ -134,7 +138,8 @@ async function runB(browser, planted) {
     wizard.data._itemGrouping = 'aa'; wizard.data.unit2ItemNum = '2343T'; wizard.data.unit2Power = 'Dummy';
     renderWizardStep();
     const t2 = (document.getElementById('wizard-body') || document.getElementById('wizard-modal')).textContent;
-    r.aaDummy = /Dummy A Unit\s*2343T/.test(t2);
+    const _at = (document.getElementById('wizard-body') || document).querySelector('[data-cf-unit="a2"] .wiz-cf-unit-title');
+    r.aaDummy = !!_at && /^A unit — 2343T \(dummy\)$/.test(_at.textContent.trim());   // v0.9.1983 box heading
     r.aaPower = /Dummy A Unit Power|Unit2 power|power\s*Dummy/i.test(t2);
     return r;
   });
@@ -254,11 +259,11 @@ function openerScan(files) {
     r = await runB(browser, null);
     T('B1 the last screen shows the seller by name — "Dave Miller — Miller\'s Trains"', r.out.name && !r.out.code, r.out);
     T('B2 its label reads "Bought From"', r.out.boughtLabel, r.out.txt);
-    T('B3 the AB set\'s second unit reads "B Unit 2343C" and its condition "B Unit Condition"', r.out.bUnit && r.out.bUnitCond, r.out.txt);
+    T('B3 the AB set\'s second unit is named "B unit — 2343C" (its box heading, v0.9.1983) and its condition sits in that box', r.out.bUnit && r.out.bUnitCond, r.out.txt);
     T('B4 no raw "Unit2 item num" / "Unit2 power" rows', !r.out.raw, r.out.txt);
     T('B5 the seller pencil opens a LIST of contacts (no free-text box)', r.out.selTag === 'SELECT' && r.out.opts.includes("Dave Miller — Miller's Trains") && r.out.opts.includes('Linda Carver') && !r.out.opts.some(o => /Add someone new/.test(o)), r.out.opts);
     T('B6 picking from the list keeps an ID and shows the name', r.out.after === 'C-1700000000002' && r.out.afterShown === 'Linda Carver', r.out);
-    T('B7 an AA\'s second unit reads "Dummy A Unit 2343T", no power row', r.out.aaDummy && !r.out.aaPower, r.out);
+    T('B7 an AA\'s second unit is named "A unit — 2343T (dummy)" (its box heading, v0.9.1983), no power row', r.out.aaDummy && !r.out.aaPower, r.out);
     T('B8 no page errors', r.errs.length === 0, r.errs);
     r = await runB(browser, PLANT.seller());
     T('B9 PLANTED: without the seller line the "C-…" code shows again', r.out.code, r.out.txt);

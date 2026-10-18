@@ -2531,6 +2531,58 @@ function _wizTabOrder() {
   } catch (e) {}
 }
 
+// v0.9.1983 — THE REVIEW STEP'S PER-UNIT BOXES (Brad, 2026-10-18: on his 2378
+// AB F3 the review read "B Unit 2378C" beside the 2378 and "B Unit All Original"
+// under it, and the A unit's own lines had no unit name — "there is no a unit
+// info to edit"). This is the ONE place that decides which unit a review line
+// belongs to and the order inside a unit's box. A unit's keys are its prefix +
+// the base name ('' → condition, 'tender' → tenderCondition, 'unit2' →
+// unit2Condition). Everything not listed here goes in "For the whole set".
+// Returns null for anything that is not a set of units (a single item keeps
+// its one list). Never decide a line's unit anywhere else.
+const RR_CF_UNIT_BASE = ['itemNum', 'variation', 'condition', 'allOriginal', 'notOriginalDesc',
+  'hasBox', 'boxCond', 'isError', 'errorDesc'];
+function _cfUnitBlocks(d, grouping) {
+  d = d || {};
+  var g = grouping || d._itemGrouping || 'single';
+  var low = function (s) { return String(s || '').toLowerCase(); };
+  var mainNum = String(d.itemNum || '');
+  // the lead unit's power: what the data says; else the Lionel convention —
+  // the bare number is the powered unit, a T on the end is the dummy
+  var mainNote = d.unitPower ? low(d.unitPower) : (/-?T$/i.test(mainNum) ? 'dummy' : 'powered');
+  var units;
+  if (g === 'engine_tender') {
+    units = [
+      { id: 'engine', p: '', role: 'Engine', num: mainNum, numKey: 'itemNum' },
+      { id: 'tender', p: 'tender', role: 'Tender', num: String(d.tenderMatch || ''), numKey: 'tenderMatch' },
+    ];
+  } else if (g === 'aa') {
+    units = [
+      { id: 'a', p: '', role: 'A unit', num: mainNum, numKey: 'itemNum', note: mainNote },
+      { id: 'a2', p: 'unit2', role: 'A unit', num: String(d.unit2ItemNum || ''), numKey: 'unit2ItemNum', note: d.unit2Power ? low(d.unit2Power) : 'dummy' },
+    ];
+  } else if (g === 'ab') {
+    units = [
+      { id: 'a', p: '', role: 'A unit', num: mainNum, numKey: 'itemNum', note: mainNote },
+      { id: 'b', p: 'unit2', role: 'B unit', num: String(d.unit2ItemNum || ''), numKey: 'unit2ItemNum' },
+    ];
+  } else if (g === 'aba') {
+    // the two A units side by side, the B unit under them
+    units = [
+      { id: 'a', p: '', role: 'A unit', num: mainNum, numKey: 'itemNum', note: mainNote },
+      { id: 'a2', p: 'unit3', role: 'A unit', num: String(d.unit3ItemNum || ''), numKey: 'unit3ItemNum', note: d.unit3Power ? low(d.unit3Power) : 'dummy' },
+      { id: 'b', p: 'unit2', role: 'B unit', num: String(d.unit2ItemNum || ''), numKey: 'unit2ItemNum' },
+    ];
+  } else {
+    return null;
+  }
+  units.forEach(function (u) {
+    u.keys = RR_CF_UNIT_BASE.map(function (b) { return u.p ? u.p + b.charAt(0).toUpperCase() + b.slice(1) : b; });
+  });
+  return units;
+}
+if (typeof window !== 'undefined') { window._cfUnitBlocks = _cfUnitBlocks; }
+
 function renderWizardStep() {
   // v0.9.1587: after this render settles (every branch of it), fix the ring.
   setTimeout(_wizTabOrder, 0);
@@ -6803,21 +6855,69 @@ function renderWizardStep() {
     // v0.9.1971 (Brad: every Add step one width; this one scrolled on his
     // laptop): on a computer the review lines sit in two columns (.wiz-cf-2up),
     // read left to right. Same lines, same order, same edit buttons.
-    confirmHtml += '<div class="wiz-cf-rows' + ((typeof _wizOneWidth === 'function' && _wizOneWidth()) ? ' wiz-cf-2up' : '') + '" style="display:flex;flex-direction:column;gap:0.3rem;font-size:0.83rem">';
-    _summaryEntries.forEach(function(entry) {
-      var k = entry[0], v = entry[1];
-      var label = _keyLabels[k] || k.replace(/^(cat_|eph_)/,'').replace(/([A-Z])/g,' $1').replace(/_/g,' ').toLowerCase().replace(/^./,function(c){return c.toUpperCase();});
+    var _cfWide = (typeof _wizOneWidth === 'function' && _wizOneWidth());
+    var _cfRow = function (k, v, labelOverride) {
+      var label = labelOverride || _keyLabels[k] || k.replace(/^(cat_|eph_)/,'').replace(/([A-Z])/g,' $1').replace(/_/g,' ').toLowerCase().replace(/^./,function(c){return c.toUpperCase();});
       var isMoney = _moneyKeys.indexOf(k) >= 0;
       var dispVal = isMoney && parseFloat(v) ? _currencySymbol() + parseFloat(v).toLocaleString() : v;
       // v0.9.1920 (camera list #2): the seller is a Contact ID — show the person.
       if (k === 'purchasedFrom' && typeof window._ctLabel === 'function') dispVal = window._ctLabel(v);
-      confirmHtml += '<div style="display:flex;align-items:center;gap:0.4rem;padding:0.3rem 0.5rem;border-radius:6px;background:var(--surface2)">'
+      return '<div style="display:flex;align-items:center;gap:0.4rem;padding:0.3rem 0.5rem;border-radius:6px;background:var(--surface2)">'
         + '<span style="color:var(--text-dim);min-width:120px;flex-shrink:0;font-size:0.78rem">' + label + '</span>'
         + '<span id="confirm-val-' + k + '" style="flex:1;word-break:break-word">' + rrEsc(dispVal) + '</span>'
         + '<button onclick="_confirmEdit(\'' + k + '\')" id="confirm-edit-btn-' + k + '" title="Edit" style="flex-shrink:0;background:none;border:1px solid var(--border);border-radius:5px;padding:0.2rem 0.45rem;cursor:pointer;color:var(--text-dim);font-size:0.72rem;font-family:var(--font-body)">✏️</button>'
         + '</div>';
+    };
+    // v0.9.1983 (Brad, 2026-10-18, adding his 2378 AB F3 set: "under the 2378
+    // which is the powered a unit, it says b unit … so there is no a unit info
+    // to edit"): a set of units gets ONE labeled box per unit — "A unit — 2378
+    // (powered)", "B unit — 2378C", "Engine", "Tender" — and one box for the
+    // whole set. Which lines go in which box, and in what order, is decided
+    // ONLY by _cfUnitBlocks (below this function). Single items keep one list.
+    var _cfUnits = (!_isEph && !wizard.data._setMode) ? _cfUnitBlocks(wizard.data, _cfGrouping) : null;
+    if (_cfUnits) {
+      var _cfByKey = {};
+      _summaryEntries.forEach(function (e) { _cfByKey[e[0]] = e[1]; });
+      var _cfUsed = {};
+      confirmHtml += '<div class="wiz-cf-unitwrap"><div class="wiz-cf-units' + (_cfWide ? ' wiz-cf-units-2up' : '') + '">';
+      _cfUnits.forEach(function (u) {
+        var rows = '';
+        u.keys.forEach(function (k, i) {
+          if (!(k in _cfByKey)) return;
+          _cfUsed[k] = true;
+          if (k === u.numKey) return;   // the unit's number is in its heading, with its own pencil
+          rows += _cfRow(k, _cfByKey[k], _keyLabels[RR_CF_UNIT_BASE[i]]);
+        });
+        // the heading carries the unit's number — the same value span and pencil
+        // the line had (confirm-val-<key> / _confirmEdit), so editing works as before
+        var _numEditable = u.numKey in _cfByKey;
+        confirmHtml += '<div class="wiz-cf-unit" data-cf-unit="' + u.id + '">'
+          + '<div class="wiz-cf-unit-head"><span class="wiz-cf-unit-title">' + rrEsc(u.role)
+          + (u.num ? ' — <span data-cf-num="' + u.numKey + '"' + (_numEditable ? ' id="confirm-val-' + u.numKey + '"' : '') + '>' + rrEsc(u.num) + '</span>' : '')
+          + (u.note ? ' <span class="wiz-cf-unit-note">(' + rrEsc(u.note) + ')</span>' : '')
+          + '</span>'
+          + (_numEditable ? '<button onclick="_confirmEdit(\'' + u.numKey + '\')" id="confirm-edit-btn-' + u.numKey + '" title="Edit this unit’s number" class="wiz-cf-unit-edit">✏️</button>' : '')
+          + '</div>'
+          + '<div class="wiz-cf-rows">' + (rows || '<div class="wiz-cf-unit-empty">Nothing recorded for this unit yet.</div>') + '</div>'
+          + '</div>';
+      });
+      confirmHtml += '</div>';
+      var _cfRest = '';
+      _summaryEntries.forEach(function (e) { if (!_cfUsed[e[0]]) _cfRest += _cfRow(e[0], e[1]); });
+      if (_cfRest) {
+        confirmHtml += '<div class="wiz-cf-unit wiz-cf-shared" data-cf-unit="set">'
+          + '<div class="wiz-cf-unit-head">For the whole set</div>'
+          + '<div class="wiz-cf-rows' + (_cfWide ? ' wiz-cf-2up' : '') + '" style="display:flex;flex-direction:column;gap:0.3rem;font-size:0.83rem">' + _cfRest + '</div>'
+          + '</div>';
+      }
+      confirmHtml += '</div>';   // .wiz-cf-unitwrap
+    } else {
+    confirmHtml += '<div class="wiz-cf-rows' + (_cfWide ? ' wiz-cf-2up' : '') + '" style="display:flex;flex-direction:column;gap:0.3rem;font-size:0.83rem">';
+    _summaryEntries.forEach(function(entry) {
+      confirmHtml += _cfRow(entry[0], entry[1]);
     });
     confirmHtml += '</div>';
+    }
     // v0.9.1944 (Brad: "sold to: ex Bob, sold at: ex York Trainshow"): the same
     // fields the Record sale box has (app-pages.js rrSaleFieldsHTML), so the
     // two ways of recording a sale ask the same questions.
