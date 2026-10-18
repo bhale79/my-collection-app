@@ -1092,12 +1092,16 @@ function lookupItem(num) {
       </div>`;
     }
   } else {
-    // Normal mode: show catalog match + check for existing box-only row
-    const boxOnlyKeys = Object.keys(state.personalData).filter(k => {
-      const pd = state.personalData[k];
-      return pd.itemNum === trimmed + '-BOX' && pd.owned;
-    });
-    const hasBoxOnlyRow = boxOnlyKeys.length > 0;
+    // Normal mode: show catalog match + check for a LOOSE box-only row.
+    // v0.9.1984 (Brad's 3376: "why does it think i have a box for this
+    // item?" — his 3376-BOX was already grouped with his first 3376): the
+    // question is the one the save asks, findGroupingCandidates (wizard.js),
+    // which skips a box already in a group. Asking it separately here (any
+    // owned NNNN-BOX at all) let the screen promise a box the save would never
+    // link. One rule, one place.
+    const hasBoxOnlyRow = (typeof findGroupingCandidates === 'function')
+      && findGroupingCandidates(Object.assign({}, wizard.data, { itemNum: trimmed, boxOnly: false }))
+           .some(c => c.type === 'box');
 
     if (match) {
       // Session 115 fix: don't duplicate itemType when it already served as
