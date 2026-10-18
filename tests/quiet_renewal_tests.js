@@ -210,7 +210,8 @@ const DEV = (email) => JSON.stringify({ device: 'dev-123', email: email || 'bhal
   // v0.9.1979: the wait is RR_RENEW_WAIT_MS (config.js), the one number every pass-waiter reads
   const _rw = (CFG.match(/const RR_RENEW_WAIT_MS = (\d+);/) || [])[1];
   T('W3 a slow relay renewal gets RR_RENEW_WAIT_MS (≥ 20 s) before a click is waited for',
-    /var _waitMs = \(_rrQuietOn\(\) && _rrQuietDevice\(\)\) \? _rrRenewWaitMs\(\) : 6000;/.test(AUTH) && Number(_rw) >= 20000, { wait: _rw });
+    // v0.9.1982: Google's setup window (no key yet) waits for its own answer first
+    /var _waitMs = _rrLinkWaiting\(\) \? RR_LINK_WINDOW_MAX_MS\s*: \(_rrQuietOn\(\) && _rrQuietDevice\(\)\) \? _rrRenewWaitMs\(\) : 6000;/.test(AUTH) && Number(_rw) >= 20000, { wait: _rw });
 
   // ── P ────────────────────────────────────────────────────────────────────
   {

@@ -1103,6 +1103,16 @@ function _rrTokenHealthy() { return _rrTokenFresh(); }
 // RR_QUIET_RENEW in config.js.
 var _rrQuietDownUntil = 0;          // the relay could not help recently → use the window until then
 var _rrCodeClient = null, _rrCodeFor = '';
+// v0.9.1982 (Brad, 2026-10-18: "i hit continue and then continue again. then it
+// asked me again, like 10 seconds later"): when Google's one-time setup window is
+// open, this is when it opened. While it is open, the app waits for ITS answer —
+// no second window, no 6-second "silent" timer, no click-retry, no consent window
+// on top. Its answer or its closing clears it; RR_LINK_WINDOW_MAX_MS (config.js) is
+// only the outer limit for a window that never answers.
+var _rrLinkOpenAt = 0;
+function _rrLinkWaiting() {
+  return _rrLinkOpenAt > 0 && (Date.now() - _rrLinkOpenAt) < RR_LINK_WINDOW_MAX_MS;
+}
 var _RR_QUIET_DOWN_MS = 10 * 60 * 1000;
 var _RR_QUIET_UNSET_MS = 6 * 60 * 60 * 1000;     // relay has no secret yet — look again in 6 hours
 var _RR_QUIET_NOKEY_MS = 7 * 24 * 60 * 60 * 1000;
@@ -1179,6 +1189,10 @@ function _rrQuietRenew(dev, real, opts) {
 }
 function _rrQuietLink(real, opts) {
   var em = _rrQuietUser();
+  if (_rrLinkWaiting()) {
+    _rrAuthLog('quiet renewal: Google’s setup window is already open — waiting for its answer, not opening another');
+    return;
+  }
   if (!_rrCodeClient || _rrCodeFor !== em) {
     _rrCodeFor = em;
     _rrCodeClient = google.accounts.oauth2.initCodeClient({
@@ -1189,6 +1203,7 @@ function _rrQuietLink(real, opts) {
       callback: function (resp) { _rrQuietOnCode(resp, real, opts); },
       error_callback: function (err) {
         var type = (err && (err.type || err.message)) || 'unknown';
+        _rrLinkOpenAt = 0;
         _rrAuthLog('quiet link window FAILED: ' + type);
         _rrQuietDownUntil = Date.now() + _RR_QUIET_DOWN_MS;
         // The same as the token window failing: wait for a click.
@@ -1198,9 +1213,12 @@ function _rrQuietLink(real, opts) {
     });
   }
   _rrAuthLog('quiet renewal: linking this device (Google’s window, once)');
-  _rrCodeClient.requestCode();
+  _rrLinkOpenAt = Date.now();
+  try { _rrCodeClient.requestCode(); }
+  catch (e) { _rrLinkOpenAt = 0; throw e; }   // it never opened: nothing to wait for
 }
 function _rrQuietOnCode(resp, real, opts) {
+  _rrLinkOpenAt = 0;   // the window answered: it is closed
   if (!resp || resp.error || !resp.code) {
     _rrAuthLog('quiet link answer: ' + ((resp && resp.error) || 'no code'));
     _rrQuietDownUntil = Date.now() + _RR_QUIET_DOWN_MS;
@@ -1355,6 +1373,7 @@ if (typeof window !== 'undefined') {
   window._rrWrapTokenClient = _rrWrapTokenClient;
   window._rrQuietOn = _rrQuietOn;
   window._rrQuietDevice = _rrQuietDevice;
+  window._rrLinkWaiting = _rrLinkWaiting;
 }
 
 // The only place that asks Google for a token outside of first sign-in.
@@ -1374,7 +1393,13 @@ function rrEnsureFreshToken(reason) {
     // cold start), so its renewal gets longer before a click is waited for.
     // v0.9.1979: that wait is RR_RENEW_WAIT_MS (config.js) — the same number
     // every waiter in rrWaitForPass uses, so neither gives up before the other.
-    var _waitMs = (_rrQuietOn() && _rrQuietDevice()) ? _rrRenewWaitMs() : 6000;
+    // v0.9.1982: when that request opened Google's one-time setup window, the
+    // person is reading it and clicking Continue — 6 s cut him off and the
+    // click-retry opened it again (Brad, 2026-10-18). The window's own answer
+    // decides; this timer is only the outer limit.
+    var _waitMs = _rrLinkWaiting() ? RR_LINK_WINDOW_MAX_MS
+                : (_rrQuietOn() && _rrQuietDevice()) ? _rrRenewWaitMs() : 6000;
+    if (_rrLinkWaiting()) _rrAuthLog('waiting for Google’s setup window — no timer cuts it short');
     setTimeout(function () {
       if (_rrTokenRenewing && !_rrTokenHealthy()) {
         _rrTokenRenewing = false;
@@ -1426,7 +1451,9 @@ function rrWaitForPass(why) {
     var limit = _rrRenewWaitMs(), t0 = Date.now();
     (function poll() {
       if (!rrPassLapsed()) return resolve(true);
-      if (Date.now() - t0 >= limit) {
+      // v0.9.1982: while Google's setup window is open the person is answering
+      // it — keep waiting for that answer (it has its own outer limit).
+      if (Date.now() - t0 >= limit && !_rrLinkWaiting()) {
         _rrAuthLog('no pass after ' + Math.round(limit / 1000) + 's (' + (why || 'wait') + ')');
         return resolve(false);
       }
@@ -1470,12 +1497,16 @@ function _rrArmGestureRenew() {
     _rrTokenGestureArmed = false;
     // v0.9.1924: a slow quiet renewal may have landed after this was armed.
     if (_rrTokenFresh()) { _rrAuthLog('tap retry skipped: the pass already arrived'); return; }
+    // v0.9.1982: this click is probably the person answering Google's setup
+    // window — that window's answer is on its way; never open another.
+    if (_rrLinkWaiting()) { _rrAuthLog('tap retry skipped: Google’s setup window is open'); return; }
     _rrAuthLog('tap retry: requesting token');
     try {
       _rrTokenRenewing = true;
       tokenClient.requestAccessToken({ prompt: '', login_hint: (state.user && state.user.email) || '' });
       setTimeout(function () {
         if (_rrTokenFresh()) return;
+        if (_rrLinkWaiting()) return;   // v0.9.1982: the setup window it opened decides
         _rrTokenRenewing = false;
         // v0.9.1792: a failed renewal is only worth telling him about if the
         // token it failed to replace has actually run out. Otherwise keep quiet
@@ -1526,6 +1557,14 @@ function rrReconnectNow() {
     tokenClient.requestAccessToken({ prompt: '', login_hint: (state.user && state.user.email) || '' });
     setTimeout(function () {
       if (_rrTokenHealthy()) return;
+      // v0.9.1982: Google's setup window is open and being answered — never a
+      // consent window on top of it; its own answer decides.
+      if (_rrLinkWaiting()) {
+        _rrAuthLog('Reconnect: Google’s setup window is open — no consent window on top');
+        var bw = bar && bar.querySelector('button');
+        if (bw) { bw.disabled = false; bw.textContent = 'Reconnect'; }
+        return;
+      }
       // Still nothing: ask Google to show the account chooser. Still not a
       // sign-out — the app and its data stay exactly where they are.
       _rrTokenRenewing = false;

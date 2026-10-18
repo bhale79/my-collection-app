@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1981';
+const APP_VERSION = 'v0.9.1982';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -1309,6 +1309,15 @@ const RR_RENEW_NOKEY_KEY  = 'lv_renew_nokey_until';   // Google gave no renewal 
 // renewed pass (rrWaitForPass, app-auth.js; the quiet renewal's own fallback timer)
 // reads THIS one number. Never type a renewal wait anywhere else.
 const RR_RENEW_WAIT_MS = 25000;
+// v0.9.1982 — HOW LONG GOOGLE'S ONE-TIME SETUP WINDOW MAY STAY OPEN (Brad, 2026-10-18:
+// "this popped up on me, i hit continue and then continue again. then it asked me
+// again, like 10 seconds later"). A device with no renewal key yet gets Google's
+// setup window once ("wants access to your Google Account"). The app gave him 6 s
+// to answer it, gave up while he was still clicking Continue, and opened the same
+// window a second time on his next click. While that window is open nothing else
+// asks Google and nothing times out — the window's own answer (or closing it)
+// decides. This is only the outer limit, for a window that never answers at all.
+const RR_LINK_WINDOW_MAX_MS = 180000;
 
 function rrRecordingMode() {
   try { return localStorage.getItem(RR_RECORDING_MODE_KEY) === '1'; } catch (e) { return false; }

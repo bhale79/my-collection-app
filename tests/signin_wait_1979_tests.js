@@ -109,6 +109,9 @@ function authWorld(o) {
     navigator: { onLine: o.offline ? false : true },
     _rrAuthLog: m => log.push(m),
     RR_RENEW_WAIT_MS: o.waitMs || WAIT_MS,
+    // v0.9.1982: no Google setup window is open in this world (that case is
+    // setup_window_once_1982_tests); the waiter asks, so it must be answerable
+    _rrLinkWaiting: () => false,
   };
   ctx.window = ctx;
   // the real expiry reader, the real waiter block; rrEnsureFreshToken is the
