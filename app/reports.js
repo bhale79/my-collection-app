@@ -593,7 +593,7 @@ function openReportBuilder(editId) {
         <div class="rb-tabs" style="margin-top:0.75rem">
           <button class="rb-tab" id="rbtab-columns" onclick="_rbShowTab('columns')">Columns</button>
           <button class="rb-tab" id="rbtab-filters" onclick="_rbShowTab('filters')">Filters</button>
-          <button class="rb-tab" id="rbtab-sort"    onclick="_rbShowTab('sort')">Sort</button>
+          <button class="rb-tab" id="rbtab-preview" onclick="_rbShowTab('preview')">Preview &amp; Sort</button>
         </div>
       </div>
       <div class="rb-body" id="rb-body" style="flex:1;overflow-y:auto;padding:1rem 1.25rem;-webkit-overflow-scrolling:touch"></div>
@@ -601,6 +601,8 @@ function openReportBuilder(editId) {
         <div id="rb-match-foot" class="rb-match-foot"></div>
         <button onclick="_rbCloseOverlay()"
           style="flex:1;max-width:9rem;padding:0.7rem;border-radius:9px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.88rem;cursor:pointer">Cancel</button>
+        <button id="rb-print-btn" onclick="_rbSave('print')" style="display:none;flex:1;max-width:8rem;padding:0.7rem;border-radius:9px;border:1.5px solid var(--accent2);background:none;color:var(--accent2);font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer" title="Save the report, then print it">Print</button>
+        <button id="rb-pdf-btn" onclick="_rbSave('pdf')" style="display:none;flex:1;max-width:8rem;padding:0.7rem;border-radius:9px;border:1.5px solid var(--accent2);background:none;color:var(--accent2);font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer" title="Save the report, then make a PDF">PDF</button>
         <button id="rb-save-btn" onclick="_rbSave()"
           style="flex:1;max-width:12rem;padding:0.7rem;border-radius:9px;border:none;background:var(--accent2);color:white;font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer">Save Report</button>
       </div>
@@ -609,6 +611,7 @@ function openReportBuilder(editId) {
   ov.querySelector('#rb-body').addEventListener('click', _rbBodyClick);
   ov.querySelector('#rb-body').addEventListener('change', _rbBodyChange);
   ov.querySelector('#rb-body').addEventListener('input', _rbBodyInput);
+  ov.querySelector('#rb-body').addEventListener('pointerdown', _rbPointerDown);
   _rbShowTab('columns');
   if (window.BackStack) window.BackStack.push('report-builder', _rbCloseOverlaySilently);
 }
@@ -630,14 +633,17 @@ function _rbShowTab(tab) {
   _rbActiveTab = tab;
   const nameEl = document.getElementById('rb-name');
   if (nameEl) _rbState.name = nameEl.value;
-  ['columns','filters','sort'].forEach(t => {
+  ['columns','filters','preview'].forEach(t => {
     document.getElementById('rbtab-'+t)?.classList.toggle('active', t===tab);
   });
   const body = document.getElementById('rb-body');
   if (!body) return;
   if (tab==='columns')      body.innerHTML = _rbColumnsHTML();
   else if (tab==='filters') body.innerHTML = _rbFiltersHTML();
-  else if (tab==='sort')    body.innerHTML = _rbSortHTML();
+  else if (tab==='preview') body.innerHTML = _rbPreviewHTML();
+  const pp = document.getElementById('rb-print-btn'), pd = document.getElementById('rb-pdf-btn');
+  if (pp) pp.style.display = tab === 'preview' ? '' : 'none';
+  if (pd) pd.style.display = tab === 'preview' ? '' : 'none';
   _rbPaintMatch();
 }
 
@@ -670,7 +676,7 @@ function _rbColumnsHTML() {
       }).join('')}
     </div>`;
   }).join('');
-  return '<div class="rb-hint">Tick the columns you want in this report. They appear in the order you tick them.</div>'
+  return '<div class="rb-hint">Tick the columns you want in this report. They appear in the order you tick them — move them on <b>Preview &amp; Sort</b>.</div>'
     + '<div class="rb-colgrid">' + groups + '</div>'
     + '<div class="rb-colorder" id="rb-colorder">' + _rbOrderLine(cols) + '</div>';
 }
@@ -841,19 +847,19 @@ function _rbBodyClick(e) {
     yn.parentNode.querySelectorAll('.rb-chip').forEach(c => c.classList.toggle('selected', c === yn));
     _rbRepaintFilters(); return;
   }
-  const flip = e.target.closest('[data-rb-flip]');
-  if (flip) { _rbFlipDir(parseInt(flip.getAttribute('data-rb-flip'), 10), flip); }
+  const sx = e.target.closest('[data-rb-sortx]');
+  if (sx) { _rbSortRemove(parseInt(sx.getAttribute('data-rb-sortx'), 10)); return; }
+  const sf = e.target.closest('[data-rb-sortflip]');
+  if (sf) { _rbSortBy(sf.getAttribute('data-rb-sortflip'), true); return; }
+  if (e.target.closest('[data-rb-grip]')) return;   // a press on ⋮⋮ is a drag, not a sort
+  const th = e.target.closest('[data-rb-pvcol]');
+  if (th) { _rbSortBy(th.getAttribute('data-rb-pvcol'), !!e.shiftKey); }
 }
 function _rbBodyChange(e) {
   const box = e.target.closest('[data-rb-colbox]');
   if (box) { _rbToggleCol(box.getAttribute('data-rb-colbox'), box.checked); return; }
-  const sel = e.target.closest('[data-rb-sortfield]');
-  if (sel) {
-    const i = parseInt(sel.getAttribute('data-rb-sortfield'), 10);
-    _rbState.sort[i].field = sel.value;
-    const btn = document.querySelector('[data-rb-flip="' + i + '"]');
-    if (btn) btn.textContent = _rbDirWords(sel.value, _rbState.sort[i].dir);
-  }
+  const add = e.target.closest('[data-rb-addsort]');
+  if (add && add.value) { _rbSortBy(add.value, true); }
 }
 function _rbBodyInput(e) {
   const inp = e.target.closest('[data-rb-range]');
@@ -863,13 +869,27 @@ function _rbBodyInput(e) {
   _rbRepaintFilters();
 }
 
-// ── Sort tab ─────────────────────────────────────────────────────
-// The direction words fit the column: numbers Low → High, dates Oldest →
-// Newest, everything else A → Z.
+// ── Preview tab (v0.9.1986) ──────────────────────────────────────
+// Brad, 2026-10-18: "sort, i just don't understand this page … a preview
+// page may help alot. maybe that is where sort shows up". The Sort tab is
+// gone; the order is set ON the report itself:
+//   * click a heading to sort by it, click it again to flip it;
+//   * Shift-click another heading to add "then by" (or "+ then by" on a phone);
+//   * the line above the table says the order in words, each part with ×;
+//   * drag a heading by its ⋮⋮ to move the column;
+//   * Save, Print and PDF sit right under it.
+// The preview draws the first RB_PREVIEW_ROWS rows of the very rows the saved
+// report will hold (_rbRowsCache through _rbRowPasses and _rbSortRows — the
+// same two functions _rbGetItems uses), so what you see is what you get.
+const RB_PREVIEW_ROWS = 25;
+
+// The direction words fit the column: numbers Low → High, years and dates
+// Oldest → Newest, everything else A → Z.
 function _rbSortKind(key) {
   if (_RB_NUM_KEYS[key]) return 'num';
   if (_RB_YEAR_KEYS[key]) return 'year';
   if (_RB_DATE_KEYS[key]) return 'date';
+  if (key === 'itemNum') return 'catnum';
   return 'text';
 }
 function _rbDirWords(key, dir) {
@@ -879,30 +899,166 @@ function _rbDirWords(key, dir) {
     : ['A → Z', 'Z → A'];
   return dir === 'desc' ? w[1] : w[0];
 }
-function _rbSortHTML() {
-  const sort = _rbState.sort || (_rbState.sort = []);
-  while (sort.length<2) sort.push({field:'',dir:'asc'});
-  const cols = _rbColumns(_rbRowsCache, _rbState);
-  const opts = (sel) => '<option value="">— None —</option>'
-    + cols.map(c=>`<option value="${rrEsc(c.key)}"${sel===c.key?' selected':''}>${rrEsc(c.label)}</option>`).join('');
-  const row = (s,i) => `
-    <div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.7rem">
-      <div style="font-size:0.75rem;color:var(--text-dim);width:4.5rem;flex-shrink:0;text-align:right">${i===0?'Sort by':'then by'}</div>
-      <select data-rb-sortfield="${i}"
-        style="flex:1;padding:0.45rem 0.5rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none">
-        ${opts(s.field)}
-      </select>
-      <button class="rb-sort-dir ${s.dir}" data-rb-flip="${i}">${_rbDirWords(s.field, s.dir)}</button>
-    </div>`;
-  return '<div class="rb-hint">The report is put in order by the first choice; the second decides between rows that tie.</div>'
-    + sort.map((s,i)=>row(s,i)).join('');
+// THE order of a report's rows — the preview and the saved report both sort
+// here. A blank sorts LAST whichever way the column runs (a missing price is
+// not the cheapest item); Item # uses the catalog's own number order
+// (rrCatalogNumberKey, app.js) so 2343 comes before 2343C and 6464-25 before
+// 6464-100.
+function _rbSortKey(kind, v) {
+  const s = String(v == null ? '' : v).trim();
+  if (!s || s === '—') return null;
+  if (kind === 'num') { const n = parseFloat(s.replace(/[^0-9.\-]/g, '')); return isNaN(n) ? null : n; }
+  if (kind === 'year') return _rbYearOf(s) || null;
+  if (kind === 'date') { const t = Date.parse(s); return isNaN(t) ? null : t; }
+  if (kind === 'catnum' && typeof rrCatalogNumberKey === 'function') return rrCatalogNumberKey(s);
+  return s.toLowerCase();
 }
-window._rbFlipDir = (idx, btn) => {
-  const s = _rbState.sort[idx];
-  s.dir = s.dir==='asc'?'desc':'asc';
-  btn.textContent = _rbDirWords(s.field, s.dir);
-  btn.className = 'rb-sort-dir ' + s.dir;
-};
+function _rbCompareKeys(kind, a, b) {
+  if (kind === 'catnum' && typeof rrCompareCatalogKeys === 'function' && a && typeof a === 'object') return rrCompareCatalogKeys(a, b);
+  if (typeof a === 'string') return a.localeCompare(b, undefined, { numeric: true });
+  return a < b ? -1 : (a > b ? 1 : 0);
+}
+function _rbSortRows(items, sorts) {
+  sorts = (sorts || []).filter(s => s && s.field);
+  if (!sorts.length) return items.slice();
+  const keyed = items.map((r, i) => ({ r, i, k: sorts.map(s => _rbSortKey(_rbSortKind(s.field), _rbCellVal(s.field, r.pd, r.master, r))) }));
+  keyed.sort((a, b) => {
+    for (let j = 0; j < sorts.length; j++) {
+      const ka = a.k[j], kb = b.k[j];
+      if (ka == null || kb == null) { if (ka == null && kb == null) continue; return ka == null ? 1 : -1; }
+      const c = _rbCompareKeys(_rbSortKind(sorts[j].field), ka, kb);
+      if (c) return sorts[j].dir === 'desc' ? -c : c;
+    }
+    return a.i - b.i;
+  });
+  return keyed.map(e => e.r);
+}
+
+function _rbSortList() {
+  if (!Array.isArray(_rbState.sort)) _rbState.sort = [];
+  _rbState.sort = _rbState.sort.filter(s => s && s.field);
+  return _rbState.sort;
+}
+// A heading clicked: plain = sort by it alone (or flip it if it already
+// leads); add = Shift-click / "+ then by" = flip it where it stands, or add it
+// at the end.
+function _rbSortBy(key, add) {
+  const list = _rbSortList();
+  const at = list.findIndex(s => s.field === key);
+  if (add) {
+    if (at >= 0) list[at].dir = list[at].dir === 'asc' ? 'desc' : 'asc';
+    else list.push({ field: key, dir: 'asc' });
+  } else if (at === 0) {
+    list[0].dir = list[0].dir === 'asc' ? 'desc' : 'asc';
+    _rbState.sort = list.slice(0, 1);
+  } else {
+    _rbState.sort = [{ field: key, dir: 'asc' }];
+  }
+  _rbRepaintPreview();
+}
+function _rbSortRemove(i) {
+  const list = _rbSortList();
+  list.splice(i, 1);
+  _rbRepaintPreview();
+}
+// Move a column: `key` goes in front of `beforeKey` ('' = to the end).
+function _rbMoveCol(key, beforeKey) {
+  if (!key || key === beforeKey) return;
+  const order = _rbEnabledOrder().filter(k => k !== key);
+  const at = beforeKey ? order.indexOf(beforeKey) : -1;
+  if (at >= 0) order.splice(at, 0, key); else order.push(key);
+  _rbState.colOrder = order.concat((_rbState.colOrder || []).filter(k => !_rbState.colEnabled[k] && order.indexOf(k) < 0));
+  _rbRepaintPreview();
+}
+
+function _rbPreviewHTML() {
+  const cols = _rbColumns(_rbRowsCache, _rbState);
+  const order = _rbEnabledOrder(cols);
+  if (!order.length) return '<div class="rb-hint">Tick some columns on the Columns tab first.</div>';
+  const f = _rbState.filters || {};
+  const rows = _rbSortRows((_rbRowsCache || []).filter(r => _rbRowPasses(r, f, null)), _rbSortList());
+  const shown = rows.slice(0, RB_PREVIEW_ROWS);
+  const sorts = _rbSortList();
+  const labelOf = (k) => { const c = _rbColByKey(k, cols); return c ? c.label : k; };
+  const sortLine = sorts.length
+    ? '<span class="rb-sortline-lbl">Sorted by</span> ' + sorts.map((s, i) =>
+        (i ? '<span class="rb-sortline-then">then</span> ' : '') +
+        `<span class="rb-sortpart"><button class="rb-sortpart-flip" data-rb-sortflip="${rrEsc(s.field)}" title="Flip the direction">${rrEsc(labelOf(s.field))} <b>${_rbDirWords(s.field, s.dir)}</b></button><button class="rb-sortpart-x" data-rb-sortx="${i}" aria-label="Stop sorting by ${rrEsc(labelOf(s.field))}">×</button></span>`
+      ).join(' ')
+    : '<span class="rb-sortline-lbl">Not sorted</span> — the report keeps the order your items were added.';
+  const thenOpts = cols.filter(c => !sorts.some(s => s.field === c.key))
+    .map(c => `<option value="${rrEsc(c.key)}">${rrEsc(c.label)}</option>`).join('');
+  const addSel = `<select class="rb-thenby" data-rb-addsort aria-label="Add a sort"><option value="">${sorts.length ? '+ then by…' : '+ sort by…'}</option>${thenOpts}</select>`;
+  const head = order.map(k => {
+    const at = sorts.findIndex(s => s.field === k);
+    const arrow = at < 0 ? '' : (sorts[at].dir === 'desc' ? ' ▼' : ' ▲');
+    const rank = (at >= 0 && sorts.length > 1) ? `<sup class="rb-pv-rank">${at + 1}</sup>` : '';
+    return `<th data-rb-pvcol="${rrEsc(k)}" class="${at >= 0 ? 'sorted' : ''}" title="Click to sort · Shift-click to add “then by” · drag ⋮⋮ to move">
+      <span class="rb-pv-grip" data-rb-grip="${rrEsc(k)}" aria-label="Move ${rrEsc(labelOf(k))}">⋮⋮</span><span class="rb-pv-lbl">${rrEsc(labelOf(k))}${arrow}${rank}</span></th>`;
+  }).join('');
+  const body = shown.length
+    ? shown.map(r => '<tr>' + order.map(k => `<td>${_rbCellHTML(k, _rbCellVal(k, r.pd, r.master, r))}</td>`).join('') + '</tr>').join('')
+    : `<tr><td colspan="${order.length}" class="ui-empty">No items match these filters</td></tr>`;
+  const more = rows.length > shown.length
+    ? `Showing the first ${shown.length} of ${rows.length.toLocaleString()} items — the whole report prints, exports and saves.`
+    : `All ${rows.length.toLocaleString()} item${rows.length === 1 ? '' : 's'} shown.`;
+  return `<div class="rb-sortline" id="rb-sortline">${sortLine} ${addSel}</div>
+    <div class="rb-hint" style="margin-bottom:0.5rem">Click a heading to sort by it, click again to flip it.<span class="rb-hint-shift"> Shift-click another heading for “then by”.</span> Drag ⋮⋮ to move a column.</div>
+    <div class="rb-pv-wrap"><table class="report-table rb-pv-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>
+    <div class="rb-pv-more">${more}</div>`;
+}
+function _rbRepaintPreview() {
+  if (_rbActiveTab !== 'preview') return;
+  const body = document.getElementById('rb-body');
+  if (!body) return;
+  const wrap = body.querySelector('.rb-pv-wrap');
+  const sx = wrap ? wrap.scrollLeft : 0, sy = body.scrollTop;
+  body.innerHTML = _rbPreviewHTML();
+  const w2 = body.querySelector('.rb-pv-wrap'); if (w2) w2.scrollLeft = sx;
+  body.scrollTop = sy;
+  _rbPaintMatch();
+}
+// Dragging a heading by its ⋮⋮ — pointer events, so a finger works as well
+// as a mouse. A press that never moves is not a drag.
+let _rbDrag = null;
+function _rbPointerDown(e) {
+  const grip = e.target.closest('[data-rb-grip]');
+  if (!grip) return;
+  e.preventDefault();
+  _rbDrag = { key: grip.getAttribute('data-rb-grip'), x: e.clientX, y: e.clientY, moved: false, over: null };
+  try { grip.setPointerCapture(e.pointerId); } catch (eC) {}
+  grip.addEventListener('pointermove', _rbPointerMove);
+  grip.addEventListener('pointerup', _rbPointerUp);
+  grip.addEventListener('pointercancel', _rbPointerUp);
+}
+function _rbDropTarget(x, y) {
+  const el = document.elementFromPoint(x, y);
+  const th = el && el.closest ? el.closest('[data-rb-pvcol]') : null;
+  if (!th) return null;
+  const r = th.getBoundingClientRect();
+  const k = th.getAttribute('data-rb-pvcol');
+  if (x < r.left + r.width / 2) return { before: k, th, side: 'l' };
+  const nx = th.nextElementSibling;
+  return { before: nx ? nx.getAttribute('data-rb-pvcol') : '', th, side: 'r' };
+}
+function _rbPointerMove(e) {
+  if (!_rbDrag) return;
+  if (!_rbDrag.moved && Math.abs(e.clientX - _rbDrag.x) + Math.abs(e.clientY - _rbDrag.y) < 6) return;
+  _rbDrag.moved = true;
+  document.querySelectorAll('.rb-pv-table th.drop-l, .rb-pv-table th.drop-r, .rb-pv-table th.dragging').forEach(t => t.classList.remove('drop-l', 'drop-r', 'dragging'));
+  const src = document.querySelector('[data-rb-pvcol="' + (window.CSS && CSS.escape ? CSS.escape(_rbDrag.key) : _rbDrag.key) + '"]');
+  if (src) src.classList.add('dragging');
+  const t = _rbDropTarget(e.clientX, e.clientY);
+  _rbDrag.over = t;
+  if (t) t.th.classList.add(t.side === 'l' ? 'drop-l' : 'drop-r');
+}
+function _rbPointerUp(e) {
+  const d = _rbDrag; _rbDrag = null;
+  const grip = e.currentTarget;
+  if (grip) { grip.removeEventListener('pointermove', _rbPointerMove); grip.removeEventListener('pointerup', _rbPointerUp); grip.removeEventListener('pointercancel', _rbPointerUp); }
+  if (!d || !d.moved || !d.over || e.type === 'pointercancel') { _rbRepaintPreview(); return; }
+  _rbMoveCol(d.key, d.over.before);
+}
 
 // ── Save / Load ──────────────────────────────────────────────────
 // v0.9.1985: saved reports are an ACCOUNT setting — written through the one
@@ -929,7 +1085,10 @@ function _rbSyncSaved() {
   return state.savedReports;
 }
 
-function _rbSave() {
+// then: 'print' or 'pdf' (the Preview's buttons) — saved first, so the
+// printed / exported report IS the saved one, then handed to the library's
+// own Print / PDF (report-library.js) exactly as its row buttons do.
+function _rbSave(then) {
   const nameEl = document.getElementById('rb-name');
   if (nameEl) _rbState.name = nameEl.value.trim();
   if (!_rbState.name) {
@@ -955,6 +1114,8 @@ function _rbSave() {
   const sel = document.getElementById('report-type');
   if (sel) { sel.value = 'custom:'+savedId; buildReport(); _rbUpdateCustomControls(); }
   showToast('✓ Report "'+savedName+'" saved');
+  if (then === 'print' && typeof _repPrintRow === 'function') _repPrintRow('custom:' + savedId);
+  else if (then === 'pdf' && typeof _repExport === 'function') _repExport('custom:' + savedId, 'pdf');
 }
 
 function _rbRefreshDropdown() {
@@ -1291,24 +1452,7 @@ function _rbGetItems(def) {
   // A report saved by an older release runs exactly as it always did (its raw
   // Type words); it is moved to the Type chips only when opened to edit.
   const f = (def && def.filters) || {};
-  let items = _rbAllRows().filter(r => _rbRowPasses(r, f, null));
-  const sorts = ((def && def.sort)||[]).filter(s=>s.field);
-  if (sorts.length) {
-    items.sort((a,b) => {
-      for (const s of sorts) {
-        const va=_rbCellVal(s.field,a.pd,a.master,a), vb=_rbCellVal(s.field,b.pd,b.master,b);
-        const kind = _rbSortKind(s.field);
-        let cmp;
-        if (kind === 'num') cmp = (parseFloat(String(va).replace(/[^0-9.\-]/g,''))||0)-(parseFloat(String(vb).replace(/[^0-9.\-]/g,''))||0);
-        else if (kind === 'year') cmp = (_rbYearOf(va)||0)-(_rbYearOf(vb)||0);
-        else if (kind === 'date') cmp = ((Date.parse(va)||0)-(Date.parse(vb)||0));
-        else cmp = String(va).localeCompare(String(vb),undefined,{numeric:true});
-        if (cmp!==0) return s.dir==='desc'?-cmp:cmp;
-      }
-      return 0;
-    });
-  }
-  return items;
+  return _rbSortRows(_rbAllRows().filter(r => _rbRowPasses(r, f, null)), (def && def.sort) || []);
 }
 // The columns a saved report shows, in its order, with today's labels.
 function _rbReportCols(def) {

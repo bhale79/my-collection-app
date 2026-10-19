@@ -62,6 +62,14 @@ function renderReportLibrary() {
   }).join('');
 }
 
+// v0.9.1986: a report's name — ONE reader for Preview and Print (Print used to
+// title every custom report just "Report").
+function _repNameOf(id) {
+  var def = REPORT_DEFS.find(function (d) { return d.id === id; });
+  if (def) return def.name;
+  if (String(id).indexOf('custom:') === 0) return ((state.savedReports || []).find(function (r) { return 'custom:' + r.id === id; }) || {}).name || '';
+  return id;
+}
 function _repSetType(id) { var s = document.getElementById('report-type'); if (s) { s.value = id; if (s.value !== id) { var o = document.createElement('option'); o.value = id; o.textContent = id; s.appendChild(o); s.value = id; } } }
 
 function _repPreview(id) {
@@ -70,9 +78,7 @@ function _repPreview(id) {
   // (want/upgrade/parts) one fresh attempt; automatic re-renders never do.
   if (typeof _wupPartsFailed !== 'undefined') _wupPartsFailed = false;
   try { buildReport(); } catch (e) { console.error(e); }
-  var def = REPORT_DEFS.find(function (d) { return d.id === id; });
-  var nm = def ? def.name : (id.indexOf('custom:') === 0 ? ((state.savedReports || []).find(function (r) { return 'custom:' + r.id === id; }) || {}).name : id);
-  var t = document.getElementById('rep-prev-title'); if (t) t.textContent = nm || 'Report';
+  var t = document.getElementById('rep-prev-title'); if (t) t.textContent = _repNameOf(id) || 'Report';
   _repShowPreviewModal();
   _repStamp(id); renderReportLibrary();
 }
@@ -134,8 +140,8 @@ function _repPrintRow(id) {
   _repSetType(id);
   try { buildReport(); } catch (e) {}
   _repShowPreviewModal();
-  var t = document.getElementById('rep-prev-title'); var def = REPORT_DEFS.find(function (d) { return d.id === id; });
-  if (t) t.textContent = (def ? def.name : 'Report');
+  var t = document.getElementById('rep-prev-title');
+  if (t) t.textContent = _repNameOf(id) || 'Report';
   _repStamp(id); renderReportLibrary();
   if (typeof printReportWithPhotos === 'function') printReportWithPhotos(); else window.print();
 }
