@@ -2193,9 +2193,21 @@ window._grpRemoveMember = async function (idx, i) {
 // source. His decision (S84): a ticked field with nothing in it shows a
 // dash, so gaps stay visible instead of vanishing.
 var _RR_DETAIL_FIELDS_PREF = 'lv_detail_fields_v1';
+// v0.9.1989 (Brad "yes" to: "the Edit fields list is saved separately in each
+// browser — your phone and computer can show different detail cards"): the
+// choice is an ACCOUNT setting now — read ONLY here (rrPrefRead → _prefGet,
+// whose first read of an old unstamped value stamps it and sends it to the
+// account) and written ONLY by _rrDetailFieldsWrite (rrPrefWrite → _prefSet).
+// "Back to the default card" is written as '' — a removal cannot travel to the
+// other devices, an empty value can, and this reader treats '' as no choice.
+function _rrDetailFieldsWrite(list) {
+  var v = (Array.isArray(list) && list.length) ? JSON.stringify(list) : '';
+  if (typeof rrPrefWrite === 'function') rrPrefWrite(_RR_DETAIL_FIELDS_PREF, v);
+  else { try { localStorage.setItem(_RR_DETAIL_FIELDS_PREF, v); } catch (e) {} }
+}
 function _rrDetailFieldCfg() {
   try {
-    var raw = localStorage.getItem(_RR_DETAIL_FIELDS_PREF);
+    var raw = (typeof rrPrefRead === 'function') ? rrPrefRead(_RR_DETAIL_FIELDS_PREF) : localStorage.getItem(_RR_DETAIL_FIELDS_PREF);
     if (!raw) return null;
     var arr = JSON.parse(raw);
     return (Array.isArray(arr) && arr.length) ? arr : null;
@@ -2211,7 +2223,7 @@ function rrDetailFieldsJoin(id) {
     var cfg = _rrDetailFieldCfg();
     if (!cfg || cfg.indexOf(id) >= 0) return false;
     cfg.push(id);
-    localStorage.setItem(_RR_DETAIL_FIELDS_PREF, JSON.stringify(cfg));
+    _rrDetailFieldsWrite(cfg);
     return true;
   } catch (e) { return false; }
 }
@@ -2282,17 +2294,14 @@ function _rrDetailFieldsApply() {
     var cb = r.querySelector('input[type=checkbox]');
     if (cb && cb.checked) out.push(r.dataset.field);
   });
-  try {
-    if (out.length) localStorage.setItem(_RR_DETAIL_FIELDS_PREF, JSON.stringify(out));
-    else localStorage.removeItem(_RR_DETAIL_FIELDS_PREF);   // nothing ticked = back to default
-  } catch (e) {}
+  _rrDetailFieldsWrite(out);   // nothing ticked = back to the default card ('')
   var ov = document.getElementById('df-overlay');
   if (ov) ov.remove();
   if (typeof window._rrDetailReopen === 'function') window._rrDetailReopen();
   if (typeof showToast === 'function') showToast('Details card updated', 2000);
 }
 function _rrDetailFieldsReset() {
-  try { localStorage.removeItem('lv_detail_fields_v1'); } catch (e) {}
+  _rrDetailFieldsWrite([]);   // v0.9.1989: '' through the account door, so every device resets
   var ov = document.getElementById('df-overlay');
   if (ov) ov.remove();
   if (typeof window._rrDetailReopen === 'function') window._rrDetailReopen();

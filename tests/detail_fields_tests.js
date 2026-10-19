@@ -54,8 +54,8 @@ ok('the picker mirrors the column picker: drag ☰ to reorder',
    /_rrDetailFieldsPicker[\s\S]{0,3000}(\\u2630|☰)/.test(coll));
 ok('...tick to show', /_rrDetailFieldsPicker[\s\S]{0,3000}type=.?checkbox/.test(coll)
    || /_rrDetailFieldsPicker[\s\S]{0,3000}checkbox/.test(coll));
-ok('...and Reset to default brings back the old card',
-   /_rrDetailFieldsReset[\s\S]{0,300}removeItem\('lv_detail_fields_v1'\)/.test(coll));
+ok('...and Reset to default brings back the old card (v0.9.1989: written as an empty choice through the account door)',
+   /_rrDetailFieldsReset[\s\S]{0,300}_rrDetailFieldsWrite\(\[\]\)/.test(coll));
 ok('saving reopens the page so the change is seen immediately',
    /_rrDetailReopen/.test(coll) && /_rrDetailFieldsApply[\s\S]{0,600}_rrDetailReopen/.test(coll));
 ok('the picker reads the field list the page just built (custom names included, ONE source)',
