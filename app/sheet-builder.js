@@ -46,9 +46,17 @@ const SB = {
   ink:      { red: 0.063, green: 0.094, blue: 0.169 },   // #10182B body text
 };
 
-const CONDUCTOR_URL = 'https://therailroster.com/conductor-list.png';   // v13: own domain, no GitHub address visible to users
 // App header mascot — matches the app's top-left conductor exactly.
-const CONDUCTOR_HEADER_URL = 'https://therailroster.com/img/conductor-header.png';   // v13: own domain
+// v0.9.1993 (Brad: "why does the image not show up"): the app moved into
+// /app/ (PHASE B) and the picture moved with it; this address still named the
+// old place, which answers "page not found", so every user's Dashboard showed
+// an empty box. The Dashboard header is rewritten on every app start
+// (_writeDashboardContent), so fixing the address fixes every sheet — no
+// re-format needed. tests/site_addresses_1993_tests.js fails on any
+// therailroster.com file address in app/ that names a file the site does not
+// have. (CONDUCTOR_URL, the list-tab conductor, was defined and never used —
+// removed.)
+const CONDUCTOR_HEADER_URL = 'https://therailroster.com/app/img/conductor-header.png';
 
 // True while a full format run is in flight. ensureSheetProtection waits rather
 // than adding protection to a sheet that is mid-rewrite.

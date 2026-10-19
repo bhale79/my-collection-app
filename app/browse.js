@@ -239,7 +239,11 @@ function _mfrBadge(item) {
     if (document.getElementById('rr-mfr-badge-css')) return;
     var st = document.createElement('style');
     st.id = 'rr-mfr-badge-css';
-    st.textContent = '.mfr-badge{display:inline-block;max-width:8.5rem;overflow:hidden;' +
+    // v0.9.1993: in My Collection's table a long maker name WRAPS inside its
+    // pill (two short lines, every letter shown) instead of widening the Mfr.
+    // column for every row — one "AMERICAN FLYER" made it 129 px wide.
+    st.textContent = '.item-table.collection-view .mfr-badge{white-space:normal!important;max-width:5.5rem;word-break:normal;overflow-wrap:anywhere;text-align:center}' +
+      '.mfr-badge{display:inline-block;max-width:8.5rem;overflow:hidden;' +
       'text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}' +
       '@media (max-width:820px){.mfr-badge{max-width:5.5rem}}';
     (document.head || document.documentElement).appendChild(st);
@@ -5464,7 +5468,7 @@ function _rrBrowseCore(_co) {
         })();
         _cells.num = `<td data-col="num" style="max-width:170px;overflow:hidden">
           <span class="item-num" style="display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom" title="${String(_displayItemNum(item)).replace(/"/g,'&quot;')}">${_displayItemNum(item)}</span>${rrSampleTag(item)}${_noNumTag(item.itemNum)}
-          <div style="margin-top:1px;line-height:1.1;white-space:nowrap">
+          <div class="rr-num-badges" style="margin-top:1px;line-height:1.25">
             ${(typeof eraBadgeHTML === 'function' && window.ERA_BADGES && window.ERA_BADGES.showInBrowse) ? eraBadgeHTML(item._tab) : ''}${(typeof lineBadgeHTML === 'function') ? lineBadgeHTML(item) : ''}
             ${(function(){
               // v0.9.1569 (audit step 4): the folded lead row wears the

@@ -28,8 +28,11 @@ ok('no width in the collection table is keyed to a column POSITION',
    'nth-child widths are what broke when the column count became variable');
 ok('widths follow the column id instead', /collection-view th\[data-col="num"\]/.test(css));
 ok('Actions keeps a real width of its own', /th\[data-col="actions"\][\s\S]{0,120}min-width: 250px/.test(css));
-ok('an added column can never be squeezed to nothing',
-   /th\[data-col\],[\s\S]{0,120}min-width: 90px/.test(css));
+// v0.9.1993: the 90 px floor is for the columns a USER adds — it had been
+// overriding the built-in columns' own widths too (Var. "1" took 108 px).
+// collection_widths_1993_tests measures the result in real Chromium.
+ok('an added column can never be squeezed to nothing (the 90 px floor, built-in columns excluded)',
+   /th\[data-col\]:not\(\[data-col="mfr"\]\)[^{]*\{ min-width: 90px; \}/.test(css) && /:not\(\[data-col="actions"\]\)/.test(css));
 ok('the table may be wider than the panel now', /collection-view \{ table-layout: auto/.test(css));
 // (Other pages still use nth-child legitimately — they have fixed columns.
 // This only asserts it for the collection table, which does not.)

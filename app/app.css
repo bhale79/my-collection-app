@@ -962,24 +962,31 @@
      columns' worth of space. */
   #page-browse .item-table.collection-view { table-layout: auto; width: 100%; min-width: 100%; }
   #page-browse .item-table.collection-view th[data-col="mfr"],
-  #page-browse .item-table.collection-view td[data-col="mfr"] { width: 54px; }
+  #page-browse .item-table.collection-view td[data-col="mfr"] { width: 88px; max-width: 88px; }
   #page-browse .item-table.collection-view th[data-col="num"],
-  #page-browse .item-table.collection-view td[data-col="num"] { width: 92px; }
+  #page-browse .item-table.collection-view td[data-col="num"] { width: 104px; max-width: 120px; }
   #page-browse .item-table.collection-view th[data-col="var"],
   #page-browse .item-table.collection-view td[data-col="var"] { width: 44px; }
   #page-browse .item-table.collection-view th[data-col="type"],
-  #page-browse .item-table.collection-view td[data-col="type"] { width: 66px; }
+  #page-browse .item-table.collection-view td[data-col="type"] { width: 80px; }
   #page-browse .item-table.collection-view th[data-col="photo"],
   #page-browse .item-table.collection-view td[data-col="photo"] { width: calc(var(--rr-thumb-w) + 8px); }   /* v0.9.1806: from the ONE thumb size */
   #page-browse .item-table.collection-view th[data-col="desc"],
   #page-browse .item-table.collection-view td[data-col="desc"] { min-width: 220px; }
   #page-browse .item-table.collection-view th[data-col="worth"],
-  #page-browse .item-table.collection-view td[data-col="worth"] { width: 88px; text-align: center; }
+  #page-browse .item-table.collection-view td[data-col="worth"] { width: 80px; text-align: center; }
   #page-browse .item-table.collection-view th[data-col="added"],
   #page-browse .item-table.collection-view td[data-col="added"] { width: 88px; text-align: center; }
-  /* Anything the user adds: readable, capped, and never squeezed to zero. */
-  #page-browse .item-table.collection-view th[data-col],
-  #page-browse .item-table.collection-view td[data-col] { min-width: 90px; }
+  /* Anything the user adds: readable, capped, and never squeezed to zero.
+     v0.9.1993 (Brad, his list at 1536 px: "this is wasted space on the
+     screen"): the built-in columns above are NOT covered by this floor — it
+     was overriding their own widths (a min-width beats a width), so Var. ("1")
+     and Type took 108 px each. And one long entry anywhere in the list — an
+     "AMERICAN FLYER" badge, a "🔗 SET · 2 pieces" line under an item number —
+     used to stretch Mfr. / Item # for EVERY row; those now wrap inside their
+     column (browse.js), so the room goes to Description and Actions fits. */
+  #page-browse .item-table.collection-view th[data-col]:not([data-col="mfr"]):not([data-col="num"]):not([data-col="var"]):not([data-col="type"]):not([data-col="photo"]):not([data-col="worth"]):not([data-col="added"]):not([data-col="actions"]),
+  #page-browse .item-table.collection-view td[data-col]:not([data-col="mfr"]):not([data-col="num"]):not([data-col="var"]):not([data-col="type"]):not([data-col="photo"]):not([data-col="worth"]):not([data-col="added"]):not([data-col="actions"]) { min-width: 90px; }
   #page-browse .item-table.collection-view th[data-col="actions"],
   #page-browse .item-table.collection-view td[data-col="actions"] { width: 250px; min-width: 250px; text-align: right; }
   /* v0.9.1543 (Brad: "scroll bar needs to be at the bottom of the page but
