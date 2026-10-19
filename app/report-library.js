@@ -27,6 +27,9 @@ function _repEsc(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').r
 function renderReportLibrary() {
   var el = document.getElementById('report-library');
   if (!el) return;
+  // v0.9.1985: the saved reports are read fresh from storage on every visit —
+  // nothing read them back at start-up, so yesterday's reports were missing.
+  if (typeof _rbSyncSaved === 'function') _rbSyncSaved();
   if (typeof _rbRefreshDropdown === 'function') _rbRefreshDropdown(); // keep hidden select's custom options in sync
   var meta = _repMeta();
   var defs = REPORT_DEFS.slice();

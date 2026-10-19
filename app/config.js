@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1984';
+const APP_VERSION = 'v0.9.1985';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -2659,7 +2659,25 @@ window.rrLocationsUnion = function (accountText, deviceText) {
 // The keys whose two device lists are COMBINED on first meeting instead of the
 // newer one replacing the other (drive.js rrPrefsMerge / _prefsLocalState).
 // ONE list; a key joins by being named here with its combiner.
-window.RR_PREF_UNION = { lv_saved_locations: function (a, d) { return window.rrLocationsUnion(a, d); } };
+// v0.9.1985: the saved custom reports (reports.js) — every report either
+// device built is kept, matched by its id; where both hold the same report
+// the account's copy stands.
+window.rrSavedReportsUnion = function (accountText, deviceText) {
+  var rd = function (t) { try { var a = JSON.parse(t || '[]'); return Array.isArray(a) ? a : null; } catch (e) { return null; } };
+  var A = rd(accountText), D = rd(deviceText);
+  if (!A) return D ? String(deviceText) : String(accountText || '[]');
+  if (!D) return String(accountText);
+  var out = [], seen = {};
+  A.concat(D).forEach(function (r) {
+    if (!r || typeof r !== 'object' || !r.id || seen[r.id]) return;
+    seen[r.id] = 1; out.push(r);
+  });
+  return JSON.stringify(out);
+};
+window.RR_PREF_UNION = {
+  lv_saved_locations: function (a, d) { return window.rrLocationsUnion(a, d); },
+  lv_saved_reports:   function (a, d) { return window.rrSavedReportsUnion(a, d); },
+};
 // The details belonging to ONE location. An unknown or blank location returns
 // every detail the user has — a suggestion list that vanishes the moment you
 // mistype the location above it would be worse than useless.

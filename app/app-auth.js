@@ -678,6 +678,8 @@ function _rrPullAccountPrefs() {
       // v0.9.1920: a name typed on another device arrives here — repaint it.
       try { if (typeof updateUserUI === 'function') updateUserUI(); } catch (e) {}
       try { if (typeof rrPaintGreeting === 'function') rrPaintGreeting(); } catch (e) {}
+      // v0.9.1985: a report saved on another device arrives here — redraw the list.
+      try { if (typeof renderReportLibrary === 'function') renderReportLibrary(); } catch (e) {}
     });
   } catch (e) { console.warn('prefs sync:', e); }
 }

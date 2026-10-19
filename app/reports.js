@@ -427,54 +427,166 @@ function exportReport() {
 }
 
 // ── REPORT BUILDER ───────────────────────────────────────────────
+// ══ v0.9.1985 — THE BUILD A REPORT SETUP, REBUILT ═════════════════
+// Brad, 2026-10-18 (brainstorm, then "yes"): "lets clean up the build a
+// report set up screen … two rows of columns maybe. also, we need to have the
+// custom columns that a user can set up here too. filters, this is crazy, we
+// need item types to somehow do like boxcars, then do the sub types … also we
+// are missing eras like postwar, then things like catalogs, drawings, mock
+// ups etc."
+//
+// What was wrong, measured in the code:
+//   * the column list was a hand-typed copy (18 entries) — none of the user's
+//     own fields (Custom 1–5 under their names, Location Detail, Shipper,
+//     Sub-collection) and no Maker, Era, Road Name or Section;
+//   * a report only ever read My Collection's train rows — catalogs, paper,
+//     mock-ups, instruction sheets and science / construction sets kept on
+//     their own tabs were never in any custom report;
+//   * the Type filter listed every Type word in the whole catalog (hundreds,
+//     most of which the user owns none of), and the year box stopped at 1969;
+//   * saved reports were written to this browser only, AND nothing read them
+//     back when the app started (the reader lost its caller on 2026-03-06),
+//     so a report saved yesterday was gone today — and saving a new one then
+//     wrote over the old ones.
+//
+// Now:
+//   * COLUMNS come from ONE list (REPORT_COLS below) whose user-field entries
+//     are made from RR_USER_FIELDS (config.js) — a field switched on in
+//     Preferences, or holding data, is offered here under the user's own name.
+//     Shown grouped, two to a row on a computer.
+//   * ROWS come from ONE gatherer (_rbAllRows) — every owned row on every tab,
+//     each knowing its section, era, maker, type and sub-type ONCE.
+//   * FILTERS offer only what the user owns, with counts, and every count is
+//     the number you would get if you picked it (each group counted with the
+//     other groups' picks in force). A live "N items match" says what the
+//     report will hold before you save it.
+//   * SAVED REPORTS go through the one settings door (_prefSet), so they
+//     follow the account to every device, and are read back on every visit
+//     to Reports. Two devices that each saved reports before this are
+//     COMBINED the first time they meet (RR_PREF_UNION, config.js).
+// tests/report_builder_1985_tests.js holds all of it, in a real browser.
 
-const REPORT_COLS = [
-  { key:'itemNum',       label:'Item #'          },
-  { key:'description',   label:'Description'     },
-  { key:'itemType',      label:'Type'            },
-  { key:'yearMade',      label:'Year Made'       },
-  { key:'variation',     label:'Variation #'     },
-  { key:'varDesc',       label:'Variation Desc.' },
-  { key:'condition',     label:'Condition'       },
-  { key:'allOriginal',   label:'All Original'    },
-  { key:'hasBox',        label:'Has Box'         },
-  { key:'boxCond',       label:'Box Condition'   },
-  { key:'priceItem',     label:'Amount Paid'     },
-  { key:'userEstWorth',  label:'Est. Worth'      },
-  { key:'datePurchased', label:'Date Acquired'   },
-  { key:'location',      label:'Location'        },
-  { key:'notes',         label:'Notes'           },
-  { key:'hasPhoto',      label:'Has Photo'       },
-  { key:'groupId',       label:'Set/Group ID'    },
-  { key:'isError',       label:'Error Variation' },
+const REPORT_COL_GROUPS = [
+  { id: 'item',  label: 'The item' },
+  { id: 'cond',  label: 'Condition' },
+  { id: 'money', label: 'Money' },
+  { id: 'where', label: 'Where it is' },
+  { id: 'own',   label: 'Your own fields' },
+  { id: 'notes', label: 'Photos & notes' },
 ];
+// The fixed columns. `field` names the personal-sheet field, so the one-line
+// help (rrFieldHelp, config.js) can be shown on hover. The user's own fields
+// are added from RR_USER_FIELDS by _rbColumns() — never typed here.
+const REPORT_COLS = [
+  { key:'itemNum',       label:'Item #',          group:'item',  field:'itemNum' },
+  { key:'description',   label:'Description',     group:'item',  field:'description' },
+  { key:'manufacturer',  label:'Maker',           group:'item',  field:'manufacturer' },
+  { key:'section',       label:'Section',         group:'item' },
+  { key:'itemType',      label:'Type',            group:'item',  field:'itemType' },
+  { key:'eraPeriod',     label:'Era',             group:'item' },
+  { key:'yearMade',      label:'Year Made',       group:'item',  field:'yearMade' },
+  { key:'variation',     label:'Variation #',     group:'item',  field:'variation' },
+  { key:'varDesc',       label:'Variation Desc.', group:'item' },
+  { key:'roadName',      label:'Road Name',       group:'item',  field:'roadName' },
+  { key:'roadNumber',    label:'Road Number',     group:'item',  field:'roadNumber' },
+  { key:'groupId',       label:'Set/Group ID',    group:'item',  field:'groupId' },
+  { key:'isError',       label:'Error Variation', group:'item',  field:'isError' },
+  { key:'condition',     label:'Condition',       group:'cond',  field:'condition' },
+  { key:'yourGrade',     label:'Your Grade',      group:'cond',  field:'yourGrade' },
+  { key:'allOriginal',   label:'All Original',    group:'cond',  field:'allOriginal' },
+  { key:'hasBox',        label:'Has Box',         group:'cond',  field:'hasBox' },
+  { key:'boxCond',       label:'Box Condition',   group:'cond',  field:'boxCond' },
+  { key:'priceItem',     label:'Amount Paid',     group:'money', field:'priceItem' },
+  { key:'userEstWorth',  label:'Est. Worth',      group:'money', field:'userEstWorth' },
+  { key:'datePurchased', label:'Date Acquired',   group:'money', field:'datePurchased' },
+  { key:'purchasedFrom', label:'Bought From',     group:'money', field:'purchasedFrom' },
+  { key:'location',      label:'Location',        group:'where', field:'location' },
+  { key:'hasPhoto',      label:'Has Photo',       group:'notes', field:'photoItem' },
+  { key:'notes',         label:'Notes',           group:'notes', field:'notes' },
+  { key:'yourDescription', label:'Your Description', group:'notes', field:'yourDescription' },
+  { key:'dateAdded',     label:'Date Added',      group:'notes', field:'dateAdded' },
+];
+// Which group a user field sits in: the spot inside a location sits with
+// Location; every other one is the user's own.
+const _RB_USER_FIELD_GROUP = { locationDetail: 'where', shipper: 'where' };
+// The words each kind of column sorts by.
+const _RB_NUM_KEYS  = { condition:1, priceItem:1, userEstWorth:1, boxCond:1 };
+const _RB_YEAR_KEYS = { yearMade:1 };
+const _RB_DATE_KEYS = { datePurchased:1, dateAdded:1 };
+
+// Every column a report can show, in group order: the fixed ones, then each
+// user field (RR_USER_FIELDS) that is switched on, holds data in one of the
+// rows, or is already in this report. Labels are the user's own (rrFieldLabel).
+function _rbColumns(rows, def) {
+  const out = REPORT_COLS.map(c => Object.assign({}, c));
+  const enabledIn = (def && def.colEnabled) || {};
+  (window.RR_USER_FIELDS || []).forEach(f => {
+    let show = false;
+    try { show = (typeof rrFieldEnabled === 'function') && rrFieldEnabled(f); } catch (e) {}
+    if (!show && enabledIn[f.key]) show = true;
+    if (!show && rows) show = rows.some(r => String((r.pd && r.pd[f.key]) || '').trim() !== '');
+    if (!show) return;
+    let label = f.label;
+    try { if (typeof rrFieldLabel === 'function') label = rrFieldLabel(f) || f.label; } catch (e) {}
+    out.push({ key: f.key, label: label, group: _RB_USER_FIELD_GROUP[f.key] || 'own', field: f.key, userField: true });
+  });
+  return out;
+}
+function _rbColByKey(key, cols) {
+  return (cols || _rbColumns(null, _rbState)).find(c => c.key === key) || null;
+}
 
 let _rbState  = null;
 let _rbActiveTab = 'columns';
+let _rbRowsCache = null;
 
-function openReportBuilder(editId) {
-  const existing = editId ? (state.savedReports||[]).find(r=>r.id===editId) : null;
-  _rbState = existing ? JSON.parse(JSON.stringify(existing)) : {
+function _rbBlankState() {
+  return {
     id: null, name: '',
-    colOrder:   REPORT_COLS.map(c=>c.key),
-    colEnabled: Object.fromEntries(REPORT_COLS.map(c=>[c.key,
-      ['itemNum','description','itemType','yearMade','condition','hasBox','priceItem','userEstWorth'].includes(c.key)
-    ])),
+    colOrder: ['itemNum','description','itemType','yearMade','condition','hasBox','priceItem','userEstWorth'],
+    colEnabled: Object.fromEntries(['itemNum','description','itemType','yearMade','condition','hasBox','priceItem','userEstWorth'].map(k => [k, true])),
     filters: {},
     sort: [{ field:'itemType', dir:'asc' },{ field:'itemNum', dir:'asc' }],
   };
+}
+// A report saved before v0.9.1985 picked raw catalog Type words ("Boxcar",
+// "Box Car", "Operating Boxcar"…). Opened here, each becomes the type group
+// the app files it under — the same groups the chips offer.
+function _rbUpgradeFilters(f) {
+  if (!f || !Array.isArray(f.itemType) || !f.itemType.length || (Array.isArray(f.type) && f.type.length)) return f;
+  const seen = {};
+  f.type = [];
+  f.itemType.forEach(t => {
+    const sec = (typeof ephSectionOfType === 'function') ? ephSectionOfType(t) : '';
+    const word = sec ? ((ephTab(sec) || {}).single || t)
+      : ((typeof getTypeBucket === 'function' ? getTypeBucket({ itemType: t }) : '') || t);
+    if (!seen[word]) { seen[word] = 1; f.type.push(word); }
+  });
+  delete f.itemType;
+  return f;
+}
+
+function openReportBuilder(editId) {
+  if (typeof _rbSyncSaved === 'function') _rbSyncSaved();
+  const existing = editId ? (state.savedReports||[]).find(r=>r.id===editId) : null;
+  _rbState = existing ? JSON.parse(JSON.stringify(existing)) : _rbBlankState();
+  if (!_rbState.filters) _rbState.filters = {};
+  if (!_rbState.colEnabled) _rbState.colEnabled = {};
+  if (!Array.isArray(_rbState.colOrder)) _rbState.colOrder = [];
+  _rbUpgradeFilters(_rbState.filters);
+  _rbRowsCache = _rbAllRows();
   _rbActiveTab = 'columns';
 
   const ov = document.createElement('div');
   ov.className = 'rb-overlay'; ov.id = 'rb-overlay';
   ov.innerHTML = `
-    <div class="rb-sheet">
+    <div class="rb-sheet rb-sheet-wide">
       <div style="padding:1rem 1.25rem 0;flex-shrink:0">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.65rem">
           <div style="font-family:var(--font-head);font-size:1.05rem;font-weight:700">${existing?'Edit Report':'Build a Report'}</div>
-          <button onclick="_rbCloseOverlay()" style="background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer;padding:0.2rem 0.5rem;border-radius:6px">✕</button>
+          <button onclick="_rbCloseOverlay()" aria-label="Close" style="background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer;padding:0.2rem 0.5rem;border-radius:6px">✕</button>
         </div>
-        <input type="text" id="rb-name" value="${(_rbState.name||'').replace(/"/g,'&quot;')}"
+        <input type="text" id="rb-name" value="${rrEsc(_rbState.name||'')}"
           placeholder="Report name (e.g. Unboxed Locomotives)…"
           style="width:100%;padding:0.55rem 0.75rem;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box"
           oninput="_rbState.name=this.value">
@@ -485,14 +597,18 @@ function openReportBuilder(editId) {
         </div>
       </div>
       <div class="rb-body" id="rb-body" style="flex:1;overflow-y:auto;padding:1rem 1.25rem;-webkit-overflow-scrolling:touch"></div>
-      <div style="padding:0.85rem 1.25rem;border-top:1px solid var(--border);display:flex;gap:0.6rem;flex-shrink:0">
+      <div style="padding:0.85rem 1.25rem;border-top:1px solid var(--border);display:flex;gap:0.6rem;align-items:center;flex-shrink:0">
+        <div id="rb-match-foot" class="rb-match-foot"></div>
         <button onclick="_rbCloseOverlay()"
-          style="flex:1;padding:0.7rem;border-radius:9px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.88rem;cursor:pointer">Cancel</button>
-        <button onclick="_rbSave()"
-          style="flex:2;padding:0.7rem;border-radius:9px;border:none;background:var(--accent2);color:white;font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer">Save Report</button>
+          style="flex:1;max-width:9rem;padding:0.7rem;border-radius:9px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.88rem;cursor:pointer">Cancel</button>
+        <button id="rb-save-btn" onclick="_rbSave()"
+          style="flex:1;max-width:12rem;padding:0.7rem;border-radius:9px;border:none;background:var(--accent2);color:white;font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer">Save Report</button>
       </div>
     </div>`;
   document.body.appendChild(ov);
+  ov.querySelector('#rb-body').addEventListener('click', _rbBodyClick);
+  ov.querySelector('#rb-body').addEventListener('change', _rbBodyChange);
+  ov.querySelector('#rb-body').addEventListener('input', _rbBodyInput);
   _rbShowTab('columns');
   if (window.BackStack) window.BackStack.push('report-builder', _rbCloseOverlaySilently);
 }
@@ -507,6 +623,7 @@ function _rbCloseOverlay() {
 // device-back press (BackStack has already popped its own entry).
 function _rbCloseOverlaySilently() {
   document.getElementById('rb-overlay')?.remove();
+  _rbRowsCache = null;
 }
 
 function _rbShowTab(tab) {
@@ -518,144 +635,300 @@ function _rbShowTab(tab) {
   });
   const body = document.getElementById('rb-body');
   if (!body) return;
-  if (tab==='columns') { body.innerHTML = _rbColumnsHTML(); _rbAttachDrag(); }
+  if (tab==='columns')      body.innerHTML = _rbColumnsHTML();
   else if (tab==='filters') body.innerHTML = _rbFiltersHTML();
   else if (tab==='sort')    body.innerHTML = _rbSortHTML();
+  _rbPaintMatch();
 }
 
 // ── Columns tab ──────────────────────────────────────────────────
+// The columns ticked, in the order the report shows them.
+function _rbEnabledOrder(cols) {
+  cols = cols || _rbColumns(_rbRowsCache, _rbState);
+  const known = {}; cols.forEach(c => { known[c.key] = 1; });
+  const order = (_rbState.colOrder || []).filter(k => known[k] && _rbState.colEnabled[k]);
+  cols.forEach(c => { if (_rbState.colEnabled[c.key] && order.indexOf(c.key) < 0) order.push(c.key); });
+  return order;
+}
 function _rbColumnsHTML() {
-  return '<div style="font-size:0.74rem;color:var(--text-dim);margin-bottom:0.75rem">Check columns to include · Drag <strong>⠿</strong> to reorder</div>'
-    + '<div id="rb-col-list">'
-    + _rbState.colOrder.map((key,idx) => {
-        const col = REPORT_COLS.find(c=>c.key===key); if (!col) return '';
-        const on = !!_rbState.colEnabled[key];
-        return `<div class="rb-col-item" draggable="true" data-key="${key}" data-idx="${idx}">
-          <span class="rb-drag-handle" title="Drag to reorder">⠿</span>
-          <input type="checkbox" id="rbcol-${key}" ${on?'checked':''} onchange="_rbToggleCol('${key}',this.checked)">
-          <label for="rbcol-${key}" style="${on?'':'color:var(--text-dim)'}">${col.label}</label>
-        </div>`;
-      }).join('')
-    + '</div>';
+  const cols = _rbColumns(_rbRowsCache, _rbState);
+  const help = (c) => {
+    try { return c.field && typeof rrFieldHelp === 'function' ? (rrFieldHelp(c.field) || '') : ''; } catch (e) { return ''; }
+  };
+  const groups = REPORT_COL_GROUPS.map(g => {
+    const mine = cols.filter(c => c.group === g.id);
+    if (!mine.length) return '';
+    return `<div class="rb-colgroup" data-rb-group="${g.id}">
+      <div class="rb-colgroup-title">${rrEsc(g.label)}</div>
+      ${mine.map(c => {
+        const on = !!_rbState.colEnabled[c.key];
+        const h = help(c);
+        return `<label class="rb-colpick${on?' on':''}" data-rb-col="${rrEsc(c.key)}"${h?` title="${rrEsc(h)}"`:''}>
+          <input type="checkbox" data-rb-colbox="${rrEsc(c.key)}" ${on?'checked':''}>
+          <span>${rrEsc(c.label)}</span>
+        </label>`;
+      }).join('')}
+    </div>`;
+  }).join('');
+  return '<div class="rb-hint">Tick the columns you want in this report. They appear in the order you tick them.</div>'
+    + '<div class="rb-colgrid">' + groups + '</div>'
+    + '<div class="rb-colorder" id="rb-colorder">' + _rbOrderLine(cols) + '</div>';
 }
-
-function _rbAttachDrag() {
-  const list = document.getElementById('rb-col-list');
-  if (!list) return;
-  let src = null;
-  list.addEventListener('dragstart', e => {
-    const el = e.target.closest('.rb-col-item'); if (!el) return;
-    src = parseInt(el.dataset.idx);
-    setTimeout(()=>el.classList.add('dragging'),0);
-    e.dataTransfer.effectAllowed = 'move';
-  });
-  list.addEventListener('dragend', e => {
-    e.target.closest('.rb-col-item')?.classList.remove('dragging');
-    list.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
-  });
-  list.addEventListener('dragover', e => {
-    e.preventDefault();
-    const el = e.target.closest('.rb-col-item'); if (!el) return;
-    list.querySelectorAll('.drag-over').forEach(x=>x.classList.remove('drag-over'));
-    el.classList.add('drag-over');
-    e.dataTransfer.dropEffect = 'move';
-  });
-  list.addEventListener('drop', e => {
-    e.preventDefault();
-    const el = e.target.closest('.rb-col-item'); if (!el) return;
-    const dest = parseInt(el.dataset.idx);
-    if (src===null || src===dest) return;
-    const ord = [..._rbState.colOrder];
-    const [moved] = ord.splice(src,1);
-    ord.splice(dest,0,moved);
-    _rbState.colOrder = ord; src = null;
-    document.getElementById('rb-body').innerHTML = _rbColumnsHTML();
-    _rbAttachDrag();
-  });
+function _rbOrderLine(cols) {
+  const order = _rbEnabledOrder(cols);
+  if (!order.length) return '<span class="rb-warn">No columns ticked yet.</span>';
+  return '<span class="rb-colorder-lbl">In this report:</span> ' +
+    order.map(k => { const c = _rbColByKey(k, cols); return '<span class="rb-colorder-chip">' + rrEsc(c ? c.label : k) + '</span>'; }).join('');
 }
-
-window._rbToggleCol = (key, checked) => { _rbState.colEnabled[key]=checked; };
+function _rbToggleCol(key, checked) {
+  _rbState.colEnabled[key] = !!checked;
+  const ord = (_rbState.colOrder || []).filter(k => k !== key);
+  if (checked) {
+    // after the last ticked column — "the order you tick them"
+    let at = -1;
+    ord.forEach((k, i) => { if (_rbState.colEnabled[k]) at = i; });
+    ord.splice(at + 1, 0, key);
+  }
+  _rbState.colOrder = ord;
+  const box = document.querySelector('[data-rb-col="' + (window.CSS && CSS.escape ? CSS.escape(key) : key) + '"]');
+  if (box) box.classList.toggle('on', !!checked);
+  const line = document.getElementById('rb-colorder');
+  if (line) line.innerHTML = _rbOrderLine();
+}
+window._rbToggleCol = _rbToggleCol;
 
 // ── Filters tab ──────────────────────────────────────────────────
+const _RB_FACETS = [
+  { id: 'section', label: 'Section' },
+  { id: 'era',     label: 'Era' },
+  { id: 'maker',   label: 'Maker' },
+  { id: 'type',    label: 'Type' },
+  { id: 'sub',     label: 'Sub-type' },
+];
+function _rbFacetValue(row, id) {
+  if (id === 'section') return row.secLabel;
+  if (id === 'era')     return row.eraLabel;
+  if (id === 'maker')   return row.maker;
+  if (id === 'type')    return row.type;
+  if (id === 'sub')     return row.sub;
+  return '';
+}
+// The chips for one group: every value the rows passing the OTHER groups'
+// picks carry, with how many. A picked value with no rows left still shows
+// (at 0) so it can be un-picked.
+function _rbFacetCounts(rows, f, id) {
+  const skip = (id === 'type') ? { type: 1, sub: 1 } : { [id]: 1 };
+  const counts = {};
+  rows.forEach(r => {
+    if (!_rbRowPasses(r, f, skip)) return;
+    const v = _rbFacetValue(r, id);
+    if (!v) return;
+    counts[v] = (counts[v] || 0) + 1;
+  });
+  (f[id] || []).forEach(v => { if (!(v in counts)) counts[v] = 0; });
+  return counts;
+}
+function _rbFacetOrder(id, counts) {
+  const keys = Object.keys(counts);
+  if (id === 'era') {
+    const rank = { 'Pre-war': 0, 'Postwar': 1, 'Modern': 2 };
+    return keys.sort((a, b) => ((a in rank) ? rank[a] : 9) - ((b in rank) ? rank[b] : 9) || a.localeCompare(b));
+  }
+  if (id === 'section') {
+    return keys.sort((a, b) => (a === 'Trains' ? -1 : b === 'Trains' ? 1 : a.localeCompare(b)));
+  }
+  return keys.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+}
+function _rbChipsHTML() {
+  const f = _rbState.filters || {};
+  const rows = _rbRowsCache || [];
+  return _RB_FACETS.map(fc => {
+    if (fc.id === 'sub' && !(f.type && f.type.length)) {
+      return `<div class="rb-filter-row" data-rb-facet="sub"><div class="rb-filter-label">Sub-type</div>
+        <div class="rb-hint" style="margin:0">Pick a Type above to narrow it further (Boxcar → Operating, Refrigerator…).</div></div>`;
+    }
+    const counts = _rbFacetCounts(rows, f, fc.id);
+    const keys = _rbFacetOrder(fc.id, counts);
+    if (!keys.length) {
+      if (fc.id === 'sub') return `<div class="rb-filter-row" data-rb-facet="sub"><div class="rb-filter-label">Sub-type</div><div class="rb-hint" style="margin:0">None of these have a sub-type.</div></div>`;
+      return '';
+    }
+    const sel = f[fc.id] || [];
+    return `<div class="rb-filter-row" data-rb-facet="${fc.id}">
+      <div class="rb-filter-label">${fc.label}${sel.length ? ` <button class="rb-clear" data-rb-clear="${fc.id}">clear</button>` : ''}</div>
+      <div class="rb-filter-chips">${keys.map(k =>
+        `<span class="rb-chip${sel.indexOf(k) >= 0 ? ' selected' : ''}" data-rb-facet-chip="${fc.id}" data-rb-val="${rrEsc(k)}">${rrEsc(k)} <span class="rb-chip-n">${counts[k].toLocaleString()}</span></span>`
+      ).join('')}</div></div>`;
+  }).join('');
+}
 function _rbFiltersHTML() {
   const f = _rbState.filters || {};
-  const types = [...new Set(state.masterData.map(m=>m.itemType).filter(Boolean))].sort();
-  const selTypes = f.itemType || [];
-
-  const typeChips = types.map(t=>`<span class="rb-chip${selTypes.includes(t)?' selected':''}"
-    onclick="_rbToggleType('${t.replace(/'/g,"\\'")}',this)">${t}</span>`).join('');
-
-  const yneChips = (key) => ['Either','Yes','No'].map(v=>`<span class="rb-chip${
-    (!f[key]&&v==='Either')||(f[key]===v)?' selected':''}" onclick="_rbSetF('${key}','${v}',this)">${v}</span>`).join('');
-
-  const fld = (placeholder,stateKey,extra='') =>
-    `<input type="number" value="${f[stateKey]||''}" placeholder="${placeholder}" ${extra}
-      style="flex:1;padding:0.38rem 0.55rem;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font-mono);font-size:0.85rem;outline:none;min-width:0"
-      oninput="_rbState.filters['${stateKey}']=this.value">`;
-
+  const yne = (key) => ['Either','Yes','No'].map(v => `<span class="rb-chip${(!f[key]&&v==='Either')||(f[key]===v)?' selected':''}" data-rb-yn="${key}" data-rb-val="${v}">${v}</span>`).join('');
+  const years = (_rbRowsCache || []).map(r => r.year).filter(Boolean);
+  const yLo = years.length ? Math.min.apply(null, years) : '';
+  const yHi = years.length ? Math.max.apply(null, years) : '';
+  const fld = (placeholder, key, extra) =>
+    `<input type="number" value="${rrEsc(f[key]||'')}" placeholder="${placeholder}" ${extra||''} data-rb-range="${key}">`;
   return `
-    <div class="rb-filter-row"><div class="rb-filter-label">Item Type (select any)</div>
-      <div class="rb-filter-chips">${typeChips}</div></div>
-    <div class="rb-filter-row"><div class="rb-filter-label">Has Box</div>
-      <div class="rb-filter-chips">${yneChips('hasBox')}</div></div>
-    <div class="rb-filter-row"><div class="rb-filter-label">All Original</div>
-      <div class="rb-filter-chips">${yneChips('allOriginal')}</div></div>
-    <div class="rb-filter-row"><div class="rb-filter-label">Has Photo</div>
-      <div class="rb-filter-chips">${yneChips('hasPhoto')}</div></div>
-    <div class="rb-filter-row"><div class="rb-filter-label">Condition (1–10)</div>
-      <div class="rb-range">${fld('Min','condMin','min="1" max="10"')} <span style="color:var(--text-dim);font-size:0.85rem">to</span> ${fld('Max','condMax','min="1" max="10"')}</div></div>
-    <div class="rb-filter-row"><div class="rb-filter-label">Year Made</div>
-      <div class="rb-range">${fld('1945','yearMin','min="1945" max="1969"')} <span style="color:var(--text-dim);font-size:0.85rem">to</span> ${fld('1969','yearMax','min="1945" max="1969"')}</div></div>
-    <div class="rb-filter-row"><div class="rb-filter-label">Est. Worth ($)</div>
-      <div class="rb-range">${fld('Min','worthMin','min="0"')} <span style="color:var(--text-dim);font-size:0.85rem">to</span> ${fld('Max','worthMax','min="0"')}</div></div>
-    <div class="rb-filter-row"><div class="rb-filter-label">Amount Paid ($)</div>
-      <div class="rb-range">${fld('Min','paidMin','min="0"')} <span style="color:var(--text-dim);font-size:0.85rem">to</span> ${fld('Max','paidMax','min="0"')}</div></div>
-    <div class="rb-filter-row"><div class="rb-filter-label">Location (contains)</div>
-      <input type="text" value="${(f.location||'').replace(/"/g,'&quot;')}" placeholder="e.g. Basement Shelf A"
-        style="width:100%;padding:0.4rem 0.6rem;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;box-sizing:border-box"
-        oninput="_rbState.filters.location=this.value"></div>`;
+    <div class="rb-match" id="rb-match-top"></div>
+    <div id="rb-fchips">${_rbChipsHTML()}</div>
+    <div class="rb-filter-grid">
+      <div class="rb-filter-row"><div class="rb-filter-label">Has Box</div><div class="rb-filter-chips">${yne('hasBox')}</div></div>
+      <div class="rb-filter-row"><div class="rb-filter-label">All Original</div><div class="rb-filter-chips">${yne('allOriginal')}</div></div>
+      <div class="rb-filter-row"><div class="rb-filter-label">Has Photo</div><div class="rb-filter-chips">${yne('hasPhoto')}</div></div>
+      <div class="rb-filter-row"><div class="rb-filter-label">Condition (1–10)</div>
+        <div class="rb-range">${fld('Min','condMin','min="1" max="10"')} <span class="rb-to">to</span> ${fld('Max','condMax','min="1" max="10"')}</div></div>
+      <div class="rb-filter-row"><div class="rb-filter-label">Year Made</div>
+        <div class="rb-range">${fld(yLo || 'From','yearMin')} <span class="rb-to">to</span> ${fld(yHi || 'To','yearMax')}</div></div>
+      <div class="rb-filter-row"><div class="rb-filter-label">Est. Worth</div>
+        <div class="rb-range">${fld('Min','worthMin','min="0"')} <span class="rb-to">to</span> ${fld('Max','worthMax','min="0"')}</div></div>
+      <div class="rb-filter-row"><div class="rb-filter-label">Amount Paid</div>
+        <div class="rb-range">${fld('Min','paidMin','min="0"')} <span class="rb-to">to</span> ${fld('Max','paidMax','min="0"')}</div></div>
+      <div class="rb-filter-row"><div class="rb-filter-label">Location (contains)</div>
+        <input type="text" class="rb-text" value="${rrEsc(f.location||'')}" placeholder="e.g. Basement" data-rb-range="location"></div>
+    </div>`;
+}
+// "N items match" — at the top of Filters and in the footer on every tab.
+function _rbMatchCount() {
+  const f = _rbState ? (_rbState.filters || {}) : {};
+  return (_rbRowsCache || []).filter(r => _rbRowPasses(r, f, null)).length;
+}
+function _rbPaintMatch() {
+  const n = _rbMatchCount(), total = (_rbRowsCache || []).length;
+  const txt = n === total ? `All ${total.toLocaleString()} of your items` : `${n.toLocaleString()} of your ${total.toLocaleString()} items match`;
+  const top = document.getElementById('rb-match-top');
+  if (top) { top.textContent = txt; top.classList.toggle('none', n === 0); }
+  const foot = document.getElementById('rb-match-foot');
+  if (foot) { foot.textContent = txt; foot.classList.toggle('none', n === 0); }
+}
+function _rbRepaintFilters() {
+  const box = document.getElementById('rb-fchips');
+  if (box) box.innerHTML = _rbChipsHTML();
+  _rbPaintMatch();
+}
+function _rbToggleFacet(id, val) {
+  const f = _rbState.filters;
+  const arr = Array.isArray(f[id]) ? f[id] : (f[id] = []);
+  const i = arr.indexOf(val);
+  if (i >= 0) arr.splice(i, 1); else arr.push(val);
+  if (!arr.length) delete f[id];
+  // A sub-type belongs to a type: with no type picked there is no sub-type,
+  // and a sub-type no longer offered under the picked types is let go.
+  if (id === 'type') {
+    if (!f.type) delete f.sub;
+    else if (f.sub) {
+      const still = _rbFacetCounts(_rbRowsCache || [], f, 'sub');
+      f.sub = f.sub.filter(s => still[s] > 0);
+      if (!f.sub.length) delete f.sub;
+    }
+  }
+  _rbRepaintFilters();
+}
+function _rbBodyClick(e) {
+  const chip = e.target.closest('[data-rb-facet-chip]');
+  if (chip) { _rbToggleFacet(chip.getAttribute('data-rb-facet-chip'), chip.getAttribute('data-rb-val')); return; }
+  const clr = e.target.closest('[data-rb-clear]');
+  if (clr) {
+    const id = clr.getAttribute('data-rb-clear');
+    delete _rbState.filters[id];
+    if (id === 'type') delete _rbState.filters.sub;
+    _rbRepaintFilters(); return;
+  }
+  const yn = e.target.closest('[data-rb-yn]');
+  if (yn) {
+    const key = yn.getAttribute('data-rb-yn'), v = yn.getAttribute('data-rb-val');
+    if (v === 'Either') delete _rbState.filters[key]; else _rbState.filters[key] = v;
+    yn.parentNode.querySelectorAll('.rb-chip').forEach(c => c.classList.toggle('selected', c === yn));
+    _rbRepaintFilters(); return;
+  }
+  const flip = e.target.closest('[data-rb-flip]');
+  if (flip) { _rbFlipDir(parseInt(flip.getAttribute('data-rb-flip'), 10), flip); }
+}
+function _rbBodyChange(e) {
+  const box = e.target.closest('[data-rb-colbox]');
+  if (box) { _rbToggleCol(box.getAttribute('data-rb-colbox'), box.checked); return; }
+  const sel = e.target.closest('[data-rb-sortfield]');
+  if (sel) {
+    const i = parseInt(sel.getAttribute('data-rb-sortfield'), 10);
+    _rbState.sort[i].field = sel.value;
+    const btn = document.querySelector('[data-rb-flip="' + i + '"]');
+    if (btn) btn.textContent = _rbDirWords(sel.value, _rbState.sort[i].dir);
+  }
+}
+function _rbBodyInput(e) {
+  const inp = e.target.closest('[data-rb-range]');
+  if (!inp) return;
+  const key = inp.getAttribute('data-rb-range');
+  if (String(inp.value).trim() === '') delete _rbState.filters[key]; else _rbState.filters[key] = inp.value;
+  _rbRepaintFilters();
 }
 
-window._rbToggleType = (type, el) => {
-  if (!_rbState.filters.itemType) _rbState.filters.itemType=[];
-  const arr=_rbState.filters.itemType, idx=arr.indexOf(type);
-  if (idx>=0){arr.splice(idx,1);el.classList.remove('selected');}
-  else{arr.push(type);el.classList.add('selected');}
-};
-window._rbSetF = (key, val, el) => {
-  _rbState.filters[key]=val;
-  el.closest('.rb-filter-chips')?.querySelectorAll('.rb-chip').forEach(c=>c.classList.remove('selected'));
-  el.classList.add('selected');
-};
-
 // ── Sort tab ─────────────────────────────────────────────────────
+// The direction words fit the column: numbers Low → High, dates Oldest →
+// Newest, everything else A → Z.
+function _rbSortKind(key) {
+  if (_RB_NUM_KEYS[key]) return 'num';
+  if (_RB_YEAR_KEYS[key]) return 'year';
+  if (_RB_DATE_KEYS[key]) return 'date';
+  return 'text';
+}
+function _rbDirWords(key, dir) {
+  const k = _rbSortKind(key);
+  const w = k === 'num' ? ['Low → High', 'High → Low']
+    : (k === 'year' || k === 'date') ? ['Oldest → Newest', 'Newest → Oldest']
+    : ['A → Z', 'Z → A'];
+  return dir === 'desc' ? w[1] : w[0];
+}
 function _rbSortHTML() {
-  const sort = _rbState.sort || [];
+  const sort = _rbState.sort || (_rbState.sort = []);
   while (sort.length<2) sort.push({field:'',dir:'asc'});
+  const cols = _rbColumns(_rbRowsCache, _rbState);
   const opts = (sel) => '<option value="">— None —</option>'
-    + REPORT_COLS.map(c=>`<option value="${c.key}"${sel===c.key?' selected':''}>${c.label}</option>`).join('');
+    + cols.map(c=>`<option value="${rrEsc(c.key)}"${sel===c.key?' selected':''}>${rrEsc(c.label)}</option>`).join('');
   const row = (s,i) => `
     <div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.7rem">
-      <div style="font-size:0.7rem;color:var(--text-dim);width:30px;flex-shrink:0;text-align:right">${i===0?'1st':'2nd'}</div>
-      <select onchange="_rbState.sort[${i}].field=this.value"
+      <div style="font-size:0.75rem;color:var(--text-dim);width:4.5rem;flex-shrink:0;text-align:right">${i===0?'Sort by':'then by'}</div>
+      <select data-rb-sortfield="${i}"
         style="flex:1;padding:0.45rem 0.5rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none">
         ${opts(s.field)}
       </select>
-      <button class="rb-sort-dir ${s.dir}" onclick="_rbFlipDir(${i},this)">
-        ${s.dir==='asc'?'A → Z':'Z → A'}
-      </button>
+      <button class="rb-sort-dir ${s.dir}" data-rb-flip="${i}">${_rbDirWords(s.field, s.dir)}</button>
     </div>`;
-  return '<div style="font-size:0.74rem;color:var(--text-dim);margin-bottom:0.85rem">First sort takes priority.</div>'
+  return '<div class="rb-hint">The report is put in order by the first choice; the second decides between rows that tie.</div>'
     + sort.map((s,i)=>row(s,i)).join('');
 }
 window._rbFlipDir = (idx, btn) => {
   const s = _rbState.sort[idx];
   s.dir = s.dir==='asc'?'desc':'asc';
-  btn.textContent = s.dir==='asc'?'A → Z':'Z → A';
+  btn.textContent = _rbDirWords(s.field, s.dir);
   btn.className = 'rb-sort-dir ' + s.dir;
 };
 
 // ── Save / Load ──────────────────────────────────────────────────
+// v0.9.1985: saved reports are an ACCOUNT setting — written through the one
+// settings door (_prefSet, via rrPrefWrite) and read through the one reader
+// (_prefGet, via rrPrefRead), so a report built on the computer is there on
+// the phone. ONE reader and ONE writer here; nothing else touches the key.
+const RB_SAVED_KEY = 'lv_saved_reports';
+function _rbReadSaved() {
+  try {
+    const raw = (typeof rrPrefRead === 'function') ? rrPrefRead(RB_SAVED_KEY) : localStorage.getItem(RB_SAVED_KEY);
+    const a = JSON.parse(raw || '[]');
+    return Array.isArray(a) ? a.filter(r => r && r.id) : [];
+  } catch (e) { return []; }
+}
+function _rbWriteSaved(list) {
+  const txt = JSON.stringify(list || []);
+  if (typeof rrPrefWrite === 'function') rrPrefWrite(RB_SAVED_KEY, txt);
+  else localStorage.setItem(RB_SAVED_KEY, txt);
+}
+// What is stored is the truth: every visit to Reports reads it fresh (an
+// account sync may have brought a report from another device meanwhile).
+function _rbSyncSaved() {
+  state.savedReports = _rbReadSaved();
+  return state.savedReports;
+}
+
 function _rbSave() {
   const nameEl = document.getElementById('rb-name');
   if (nameEl) _rbState.name = nameEl.value.trim();
@@ -663,20 +936,25 @@ function _rbSave() {
     if (nameEl) { nameEl.style.borderColor='var(--accent)'; nameEl.focus(); }
     showToast('Give your report a name first', 2500, true); return;
   }
-  if (!Object.values(_rbState.colEnabled).some(Boolean)) {
-    showToast('Select at least one column', 2500, true); return;
+  if (!_rbEnabledOrder().length) {
+    showToast('Tick at least one column', 2500, true); return;
   }
+  _rbState.colOrder = _rbEnabledOrder().concat((_rbState.colOrder || []).filter(k => !_rbState.colEnabled[k]));
   if (!_rbState.id) _rbState.id = 'rpt_' + Date.now().toString(36);
-  if (!state.savedReports) state.savedReports = [];
-  const idx = state.savedReports.findIndex(r=>r.id===_rbState.id);
-  if (idx>=0) state.savedReports[idx] = _rbState;
-  else state.savedReports.push(_rbState);
-  localStorage.setItem('lv_saved_reports', JSON.stringify(state.savedReports));
+  // Read the stored list at the moment of saving — never write a list that
+  // was read before another report was added (that is how reports were lost).
+  const list = _rbReadSaved();
+  const idx = list.findIndex(r=>r.id===_rbState.id);
+  if (idx>=0) list[idx] = _rbState;
+  else list.push(_rbState);
+  _rbWriteSaved(list);
+  state.savedReports = list;
   _rbRefreshDropdown(); if (typeof renderReportLibrary==='function') renderReportLibrary();
+  const savedName = _rbState.name, savedId = _rbState.id;
   _rbCloseOverlay();
   const sel = document.getElementById('report-type');
-  if (sel) { sel.value = 'custom:'+_rbState.id; buildReport(); _rbUpdateCustomControls(); }
-  showToast('✓ Report "'+_rbState.name+'" saved');
+  if (sel) { sel.value = 'custom:'+savedId; buildReport(); _rbUpdateCustomControls(); }
+  showToast('✓ Report "'+savedName+'" saved');
 }
 
 function _rbRefreshDropdown() {
@@ -697,8 +975,7 @@ function _rbRefreshDropdown() {
 }
 
 function loadSavedReports() {
-  try { state.savedReports = JSON.parse(localStorage.getItem('lv_saved_reports')||'[]'); }
-  catch(e) { state.savedReports=[]; }
+  _rbSyncSaved();
   _rbRefreshDropdown(); if (typeof renderReportLibrary==='function') renderReportLibrary();
 }
 
@@ -720,16 +997,216 @@ async function _rbDeleteSelected() {
   const sel = document.getElementById('report-type');
   if (!sel?.value?.startsWith('custom:')) return;
   const id  = sel.value.replace('custom:','');
-  const rpt = (state.savedReports||[]).find(r=>r.id===id);
+  const rpt = _rbReadSaved().find(r=>r.id===id);
   const okDel = await appConfirm('Delete report "' + rrEsc(rpt?.name||'this report') + '"?', { danger: true, ok: 'Delete', title: 'Delete report' });
   if (!okDel) return;
-  state.savedReports = (state.savedReports||[]).filter(r=>r.id!==id);
-  localStorage.setItem('lv_saved_reports', JSON.stringify(state.savedReports));
+  const list = _rbReadSaved().filter(r=>r.id!==id);
+  _rbWriteSaved(list);
+  state.savedReports = list;
   _rbRefreshDropdown(); if (typeof renderReportLibrary==='function') renderReportLibrary();
   sel.value = 'insurance';
   buildReport();
   _rbUpdateCustomControls();
   showToast('Report deleted');
+}
+
+
+// ── The rows a custom report can hold — ONE gatherer (v0.9.1985) ─────────
+// Every owned row on every tab, as { pd, master, sec, secLabel, era,
+// eraLabel, maker, type, sub, year }. pd is the row's own record — for the
+// tabs that keep their own columns (catalogs, paper, mock-ups and other on a
+// pre-v0.9.990 sheet, instruction sheets, science and construction sets) it
+// is that record read into My Collection's field names, so every column and
+// every filter below reads one shape. Sets are NOT rows of their own: a set's
+// pieces are already in My Collection, and counting the set too would count
+// its worth twice.
+const _RB_SECTION_LABELS = { items: 'Trains', is: 'Instruction Sheets', science: 'Science Sets', construction: 'Construction Sets' };
+const _RB_ERA_LABELS = { prewar: 'Pre-war', postwar: 'Postwar', modern: 'Modern' };
+function _rbSectionLabel(sec) {
+  if (_RB_SECTION_LABELS[sec]) return _RB_SECTION_LABELS[sec];
+  const t = (typeof ephTab === 'function') ? ephTab(sec) : null;
+  if (t) return t.label;
+  const ut = ((typeof state !== 'undefined' && state.userDefinedTabs) || []).find(x => x && x.id === sec);
+  return ut ? ut.label : sec;
+}
+function _rbYearOf(v) {
+  const m = String(v == null ? '' : v).match(/\b(1[89]\d\d|20\d\d)\b/);
+  return m ? parseInt(m[1], 10) : 0;
+}
+function _rbMakerLabel(word) {
+  const w = String(word || '').trim();
+  if (!w) return '';
+  const WIC = (typeof window !== 'undefined' && window.WHAT_I_COLLECT) || {};
+  const mc = WIC.MANUFACTURERS && WIC.MANUFACTURERS[w.toLowerCase()];
+  return (mc && mc.label) || w;
+}
+// The kind of item a section holds, in the words its Type is written with
+// ("Catalog", "Paper Item", "Instruction Sheet"…).
+function _rbSectionKind(sec) {
+  const t = (typeof ephTab === 'function') ? ephTab(sec) : null;
+  if (t) return t.single;
+  if (sec === 'is') return 'Instruction Sheet';
+  if (sec === 'science') return 'Science Set';
+  if (sec === 'construction') return 'Construction Set';
+  return _rbSectionLabel(sec);
+}
+// The Type a row is filed under: a train by the catalog's own groups
+// (getTypeBucket — the same answer the Dashboard counts by); anything else
+// by its section's kind — so Type → Sub-type reads the same everywhere:
+// Boxcar → Operating Boxcar, Catalog → Consumer, Paper Item → Poster.
+function _rbTypeOf(pd, master, sec) {
+  if (sec !== 'items') return _rbSectionKind(sec);
+  let b = '';
+  try {
+    if (typeof getTypeBucket === 'function') {
+      b = (master && Object.keys(master).length) ? getTypeBucket(master)
+        : getTypeBucket({ itemType: pd.itemType || '', description: pd.description || '', _personalOnly: true });
+    }
+  } catch (e) {}
+  return b || String((master && master.itemType) || pd.itemType || '').trim();
+}
+// The Sub-type: the user's own Sub Type first; for a train then the
+// catalog's sub type, then the catalog's Type word when it says more than the
+// group does (a Refrigerator Car under Boxcar). Spelling-only differences
+// ("Box Car") are not a sub-type. A catalog's Consumer / Advance and a paper
+// item's kind arrive as the row's own sub type (_rbFromOwnTab).
+function _rbSubOf(pd, master, sec, type) {
+  const flat = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const own = String(pd.subType || '').trim();
+  if (own && flat(own) !== flat(type)) return own;
+  if (sec !== 'items') return '';
+  const ms = String((master && master.subType) || '').trim();
+  if (ms && flat(ms) !== flat(type)) return ms;
+  const mt = String((master && master.itemType) || '').trim();
+  if (mt && flat(mt) !== flat(type)) {
+    const lbl = ((window.TYPE_BUCKETS || []).find(b => b.id === type) || {}).label;
+    if (!lbl || flat(mt) !== flat(lbl)) return mt;
+  }
+  return '';
+}
+function _rbRowOf(pd, master, sec) {
+  master = master || {};
+  let eraKey = null;
+  try {
+    if (typeof _itemEraPeriod === 'function') {
+      eraKey = _itemEraPeriod({
+        eraPeriod: pd.eraPeriod, yearProd: master.yearProd, yearMade: pd.yearMade,
+        _era: master._era || pd.era, era: pd.era, _tab: master._tab,
+      });
+    }
+  } catch (e) {}
+  let makerWord = String(pd.manufacturer || '').trim();
+  if (!makerWord && Object.keys(master).length) {
+    try { makerWord = (typeof _manufacturerOfItem === 'function') ? (_manufacturerOfItem(master) || '') : ''; } catch (e) {}
+  }
+  const type = _rbTypeOf(pd, master, sec);
+  return {
+    pd, master, sec,
+    secLabel: _rbSectionLabel(sec),
+    era: eraKey || '',
+    eraLabel: _RB_ERA_LABELS[eraKey] || 'Not dated',
+    maker: _rbMakerLabel(makerWord),
+    type: type,
+    sub: _rbSubOf(pd, master, sec, type),
+    year: _rbYearOf(pd.yearMade) || _rbYearOf(master.yearProd),
+  };
+}
+// A record from one of the tabs with their own columns, in My Collection's
+// field names.
+function _rbFromOwnTab(rec, sec) {
+  const typeWord = _rbSectionKind(sec);
+  const desc = sec === 'is'
+    ? ['Instruction sheet', rec.linkedItem ? 'for ' + rec.linkedItem : '', rec.formCode || ''].filter(Boolean).join(' ')
+    : [rec.title || '', (rec.description && rec.description !== rec.title) ? rec.description : ''].filter(Boolean).join(' — ');
+  return {
+    _ownTab: sec,
+    itemNum: rec.itemNum || rec.sheetNum || '',
+    itemType: typeWord,
+    description: desc || rec.description || '',
+    variation: rec.variation || '',
+    yearMade: rec.year || '',
+    manufacturer: rec.manufacturer || '',
+    condition: rec.condition || '',
+    allOriginal: rec.allOriginal || '',
+    hasBox: rec.hasCase || rec.hasMailer || '',
+    boxCond: rec.caseCond || '',
+    priceItem: rec.pricePaid || '',
+    userEstWorth: rec.estValue || rec.estWorth || '',
+    datePurchased: rec.dateAcquired || '',
+    notes: rec.notes || '',
+    photoItem: rec.photoLink || '',
+    groupId: rec.groupId || '',
+    inventoryId: rec.inventoryId || '',
+    subType: rec.catType || rec.paperType || '',
+  };
+}
+// The section a My Collection row is in, by what it IS (its Type) — the rule
+// My Collection's Show chips use (ephSectionOfType, config.js).
+function _rbSectionOfPd(pd, master) {
+  const t = pd.itemType || (master && master.itemType) || '';
+  const eph = (typeof ephSectionOfType === 'function') ? ephSectionOfType(t) : '';
+  if (eph) return eph;
+  const tl = String(t).trim().toLowerCase();
+  if (tl === 'science set') return 'science';
+  if (tl === 'construction set') return 'construction';
+  if (tl === 'instruction sheet') return 'is';
+  return 'items';
+}
+function _rbAllRows() {
+  const out = [];
+  Object.values(state.personalData || {}).forEach(pd => {
+    if (!pd || !pd.owned) return;
+    // The rule every collection report has always used: a box entered on
+    // its own, with no condition and no price, is part of its item, not an
+    // item of its own.
+    const condVal = pd.condition?.toString().trim(), priceVal = pd.priceItem?.toString().trim();
+    const noC = !condVal||condVal==='N/A', noP = !priceVal||priceVal==='N/A';
+    if (pd.hasBox==='Yes' && noC && noP) return;
+    const master = (typeof findMaster === 'function' ? findMaster(pd.itemNum, pd.variation, pd) : null) || {};
+    out.push(_rbRowOf(pd, master, _rbSectionOfPd(pd, master)));
+  });
+  Object.entries(state.ephemeraData || {}).forEach(([sec, bucket]) => {
+    Object.values(bucket || {}).forEach(rec => { if (rec) out.push(_rbRowOf(_rbFromOwnTab(rec, sec), {}, sec)); });
+  });
+  [['is', state.isData], ['science', state.scienceData], ['construction', state.constructionData]].forEach(([sec, bucket]) => {
+    Object.values(bucket || {}).forEach(rec => { if (rec) out.push(_rbRowOf(_rbFromOwnTab(rec, sec), {}, sec)); });
+  });
+  return out;
+}
+
+// Does a row pass the filters? `skip` names filter groups to leave out (the
+// chip counts ask "how many if I picked this", so a group is counted with
+// every OTHER group's picks in force).
+function _rbRowPasses(row, f, skip) {
+  f = f || {}; skip = skip || {};
+  const pd = row.pd, master = row.master;
+  const inList = (id, v) => skip[id] || !Array.isArray(f[id]) || !f[id].length || f[id].indexOf(v) >= 0;
+  if (!inList('section', row.secLabel)) return false;
+  if (!inList('era', row.eraLabel)) return false;
+  if (!inList('maker', row.maker)) return false;
+  if (!inList('type', row.type)) return false;
+  if (!inList('sub', row.sub)) return false;
+  // A report saved before v0.9.1985 and not opened since: its raw Type words.
+  if (Array.isArray(f.itemType) && f.itemType.length && f.itemType.indexOf(master.itemType || pd.itemType || '') < 0) return false;
+  if (f.hasBox && f.hasBox!=='Either' && pd.hasBox!==f.hasBox) return false;
+  if (f.allOriginal && f.allOriginal!=='Either' && pd.allOriginal!==f.allOriginal) return false;
+  if (f.hasPhoto && f.hasPhoto!=='Either') { const h=!!pd.photoItem; if(f.hasPhoto==='Yes'&&!h) return false; if(f.hasPhoto==='No'&&h) return false; }
+  if (f.quickEntry && f.quickEntry!=='Include') { const q=!!pd.quickEntry; if(f.quickEntry==='Exclude'&&q) return false; if(f.quickEntry==='Only'&&!q) return false; }
+  const num = (v) => parseFloat(String(v == null ? '' : v).replace(/[^0-9.\-]/g, ''));
+  const rng = (fMin, fMax, v) => {
+    const has = (x) => x !== '' && x !== undefined && x !== null && !isNaN(parseFloat(x));
+    if (!has(fMin) && !has(fMax)) return true;
+    if (isNaN(v)) return false;
+    if (has(fMin) && v < parseFloat(fMin)) return false;
+    if (has(fMax) && v > parseFloat(fMax)) return false;
+    return true;
+  };
+  if (!rng(f.condMin,  f.condMax,  num(pd.condition))) return false;
+  if (!rng(f.yearMin,  f.yearMax,  row.year || NaN)) return false;
+  if (!rng(f.worthMin, f.worthMax, num(pd.userEstWorth))) return false;
+  if (!rng(f.paidMin,  f.paidMax,  num(pd.priceComplete||pd.priceItem))) return false;
+  if (f.location && String(f.location).trim() && !(pd.location||'').toLowerCase().includes(String(f.location).trim().toLowerCase())) return false;
+  return true;
 }
 
 // ── Run a custom report ──────────────────────────────────────────
@@ -755,14 +1232,22 @@ function _repCleanDesc(desc, itemNum) {
 }
 if (typeof window !== 'undefined') window._repCleanDesc = _repCleanDesc;
 
-function _rbCellVal(key, pd, master) {
+// The words one cell shows. `row` (from _rbAllRows) carries what the row IS
+// — section, era, maker — worked out once.
+function _rbCellVal(key, pd, master, row) {
+  master = master || {}; row = row || {};
   switch(key) {
     case 'itemNum':       return pd.itemNum || '';
-    case 'description':   return _repCleanDesc(master.roadName || master.description || '', pd.itemNum);
-    case 'itemType':      return master.itemType || '';
+    case 'description':   return _repCleanDesc(master.roadName || master.description || pd.description || pd.masterDescription || '', pd.itemNum);
+    case 'manufacturer':  return row.maker || _rbMakerLabel(pd.manufacturer);
+    case 'section':       return row.secLabel || '';
+    case 'itemType':      return master.itemType || pd.itemType || '';
+    case 'eraPeriod':     return row.era ? (_RB_ERA_LABELS[row.era] || '') : '';
     case 'yearMade':      return pd.yearMade || master.yearProd || '';
     case 'variation':     return pd.variation || '';
-    case 'varDesc':       return master.varDesc || master.variationDesc || '';
+    case 'varDesc':       return master.varDesc || master.variationDesc || pd.variationDescription || '';
+    case 'roadName':      return pd.roadName || master.roadName || '';
+    case 'roadNumber':    return pd.roadNumber || master.roadNumber || '';
     case 'condition':     return pd.condition || '';
     case 'allOriginal':   return pd.allOriginal || '';
     case 'hasBox':        return pd.hasBox || '';
@@ -775,7 +1260,12 @@ function _rbCellVal(key, pd, master) {
     case 'hasPhoto':      return pd.photoItem ? 'Yes' : 'No';
     case 'groupId':       return pd.groupId || '';
     case 'isError':       return pd.isError || '';
-    default: return '';
+    case 'subType':       return pd.subType || master.subType || '';
+    default:
+      // Every other column is a plain value on the personal row: Your Grade,
+      // Bought From, Date Added, Your Description and the user's own fields
+      // (RR_USER_FIELDS).
+      return (pd[key] != null) ? String(pd[key]) : '';
   }
 }
 
@@ -784,64 +1274,49 @@ function _rbCellHTML(key, val) {
     if (['priceItem','userEstWorth'].includes(key)) return '—';
     return '<span class="text-dim">—</span>';
   }
+  const sym = (typeof _currencySymbol === 'function') ? _currencySymbol() : '$';
   switch(key) {
-    case 'itemNum':      return `<span class="item-num">${val}</span>`;
-    case 'itemType':     return `<span class="tag">${val}</span>`;
+    case 'itemNum':      return `<span class="item-num">${rrEsc(val)}</span>`;
+    case 'itemType':     return `<span class="tag">${rrEsc(val)}</span>`;
     case 'priceItem':
-    case 'userEstWorth': return `<span style="font-family:var(--font-mono);color:var(--accent2)">$${parseFloat(val).toLocaleString()}</span>`;
+    case 'userEstWorth': { const n = parseFloat(String(val).replace(/[^0-9.\-]/g, '')); return isNaN(n) ? rrEsc(val) : `<span style="font-family:var(--font-mono);color:var(--accent2)">${sym}${n.toLocaleString()}</span>`; }
     case 'hasPhoto':     return val==='Yes' ? '<span style="color:var(--t-green)">✓</span>' : '<span class="text-dim">—</span>';
-    default:             return val;
+    default:             return rrEsc(val);
   }
 }
 
+// The rows of a saved report, filtered and in order. Each is the row from
+// _rbAllRows ({ pd, master, … }).
 function _rbGetItems(def) {
-  const f = def.filters || {};
-  let items = Object.values(state.personalData).filter(pd => {
-    if (!pd.owned) return false;
-    const condVal = pd.condition?.toString().trim(), priceVal = pd.priceItem?.toString().trim();
-    const noC = !condVal||condVal===''||condVal==='N/A', noP = !priceVal||priceVal===''||priceVal==='N/A';
-    return !(pd.hasBox==='Yes' && noC && noP);
-  }).map(pd => ({
-    pd,
-    master: findMaster(pd.itemNum, pd.variation, pd) || {}
-  }));
-
-  // Apply filters
-  items = items.filter(({pd,master}) => {
-    if (f.itemType?.length && !f.itemType.includes(master.itemType||'')) return false;
-    if (f.hasBox && f.hasBox!=='Either' && pd.hasBox!==f.hasBox) return false;
-    if (f.allOriginal && f.allOriginal!=='Either' && pd.allOriginal!==f.allOriginal) return false;
-    if (f.hasPhoto && f.hasPhoto!=='Either') { const h=!!pd.photoItem; if(f.hasPhoto==='Yes'&&!h) return false; if(f.hasPhoto==='No'&&h) return false; }
-    if (f.quickEntry && f.quickEntry!=='Include') { const q=!!pd.quickEntry; if(f.quickEntry==='Exclude'&&q) return false; if(f.quickEntry==='Only'&&!q) return false; }
-    const rng = (fMin,fMax,getVal,numeric=true) => {
-      if (!fMin&&!fMax) return true;
-      const v = numeric ? parseFloat(getVal()) : getVal();
-      if (fMin!==''&&fMin!==undefined) { const mn=parseFloat(fMin); if(isNaN(v)||v<mn) return false; }
-      if (fMax!==''&&fMax!==undefined) { const mx=parseFloat(fMax); if(isNaN(v)||v>mx) return false; }
-      return true;
-    };
-    if (!rng(f.condMin,  f.condMax,  ()=>parseInt(pd.condition))) return false;
-    if (!rng(f.yearMin,  f.yearMax,  ()=>parseInt(pd.yearMade||master.yearProd))) return false;
-    if (!rng(f.worthMin, f.worthMax, ()=>parseFloat(pd.userEstWorth))) return false;
-    if (!rng(f.paidMin,  f.paidMax,  ()=>parseFloat(pd.priceComplete||pd.priceItem))) return false;
-    if (f.location?.trim() && !(pd.location||'').toLowerCase().includes(f.location.toLowerCase())) return false;
-    return true;
-  });
-
-  // Apply sort
-  const sorts = (def.sort||[]).filter(s=>s.field);
-  const numKeys = new Set(['condition','priceItem','userEstWorth','yearMade','boxCond']);
+  // A report saved by an older release runs exactly as it always did (its raw
+  // Type words); it is moved to the Type chips only when opened to edit.
+  const f = (def && def.filters) || {};
+  let items = _rbAllRows().filter(r => _rbRowPasses(r, f, null));
+  const sorts = ((def && def.sort)||[]).filter(s=>s.field);
   if (sorts.length) {
     items.sort((a,b) => {
       for (const s of sorts) {
-        const va=_rbCellVal(s.field,a.pd,a.master), vb=_rbCellVal(s.field,b.pd,b.master);
-        const cmp = numKeys.has(s.field) ? (parseFloat(va)||0)-(parseFloat(vb)||0) : va.localeCompare(vb,undefined,{numeric:true});
+        const va=_rbCellVal(s.field,a.pd,a.master,a), vb=_rbCellVal(s.field,b.pd,b.master,b);
+        const kind = _rbSortKind(s.field);
+        let cmp;
+        if (kind === 'num') cmp = (parseFloat(String(va).replace(/[^0-9.\-]/g,''))||0)-(parseFloat(String(vb).replace(/[^0-9.\-]/g,''))||0);
+        else if (kind === 'year') cmp = (_rbYearOf(va)||0)-(_rbYearOf(vb)||0);
+        else if (kind === 'date') cmp = ((Date.parse(va)||0)-(Date.parse(vb)||0));
+        else cmp = String(va).localeCompare(String(vb),undefined,{numeric:true});
         if (cmp!==0) return s.dir==='desc'?-cmp:cmp;
       }
       return 0;
     });
   }
   return items;
+}
+// The columns a saved report shows, in its order, with today's labels.
+function _rbReportCols(def) {
+  const cols = _rbColumns(null, def);
+  const known = {}; cols.forEach(c => { known[c.key] = c; });
+  const order = (def.colOrder||REPORT_COLS.map(c=>c.key)).filter(k=>def.colEnabled?.[k] && known[k]);
+  Object.keys(def.colEnabled || {}).forEach(k => { if (def.colEnabled[k] && known[k] && order.indexOf(k) < 0) order.push(k); });
+  return order.map(k => known[k]);
 }
 
 function buildCustomReport(def) {
@@ -851,43 +1326,40 @@ function buildCustomReport(def) {
   const _insHdr = document.getElementById('ins-report-hdr');
   if (_insHdr) _insHdr.style.display='none';
 
-  const cols = (def.colOrder||REPORT_COLS.map(c=>c.key))
-    .filter(k=>def.colEnabled?.[k])
-    .map(k=>REPORT_COLS.find(c=>c.key===k)).filter(Boolean);
+  const cols = _rbReportCols(def);
 
   if (!cols.length) { tbody.innerHTML=`<tr><td class="ui-empty">No columns selected — click Edit to configure</td></tr>`; return; }
 
-  thead.innerHTML = '<tr>' + cols.map(c=>`<th>${c.label}</th>`).join('') + '</tr>';
+  thead.innerHTML = '<tr>' + cols.map(c=>`<th>${rrEsc(c.label)}</th>`).join('') + '</tr>';
   const items = _rbGetItems(def);
   if (!items.length) {
     tbody.innerHTML=`<tr><td colspan="${cols.length}" class="ui-empty">No items match these filters</td></tr>`; return;
   }
 
-  tbody.innerHTML = items.map(({pd,master}) =>
-    '<tr>'+cols.map(c=>`<td>${_rbCellHTML(c.key,_rbCellVal(c.key,pd,master))}</td>`).join('')+'</tr>'
+  tbody.innerHTML = items.map(r =>
+    '<tr>'+cols.map(c=>`<td>${_rbCellHTML(c.key,_rbCellVal(c.key,r.pd,r.master,r))}</td>`).join('')+'</tr>'
   ).join('');
 
   // Totals row for money columns
   const moneyCols = cols.filter(c=>['priceItem','userEstWorth'].includes(c.key));
   if (moneyCols.length) {
-    const totals = Object.fromEntries(moneyCols.map(c=>[c.key, items.reduce((s,{pd,master})=>s+(parseFloat(_rbCellVal(c.key,pd,master))||0),0)]));
+    const sym = (typeof _currencySymbol === 'function') ? _currencySymbol() : '$';
+    const totals = Object.fromEntries(moneyCols.map(c=>[c.key, items.reduce((s,r)=>s+(parseFloat(String(_rbCellVal(c.key,r.pd,r.master,r)).replace(/[^0-9.\-]/g,''))||0),0)]));
     tbody.innerHTML += '<tr style="border-top:2px solid var(--border);font-weight:700">'
-      + cols.map(c=>{
-          if (c.key==='itemNum') return `<td style="color:var(--text-dim);font-size:0.78rem">${items.length.toLocaleString()} items</td>`;
-          if (totals[c.key]!==undefined) return `<td style="font-family:var(--font-mono);color:var(--accent2)">$${Math.round(totals[c.key]).toLocaleString()}</td>`;
+      + cols.map((c, i)=>{
+          if (i===0 && totals[c.key]===undefined) return `<td style="color:var(--text-dim);font-size:0.78rem">${items.length.toLocaleString()} items</td>`;
+          if (totals[c.key]!==undefined) return `<td style="font-family:var(--font-mono);color:var(--accent2)">${sym}${Math.round(totals[c.key]).toLocaleString()}</td>`;
           return '<td></td>';
         }).join('') + '</tr>';
   }
 }
 
 function exportCustomReport(def) {
-  const cols = (def.colOrder||REPORT_COLS.map(c=>c.key))
-    .filter(k=>def.colEnabled?.[k])
-    .map(k=>REPORT_COLS.find(c=>c.key===k)).filter(Boolean);
+  const cols = _rbReportCols(def);
   const items = _rbGetItems(def);
   const esc = v => `"${(v||'').toString().replace(/"/g,'""')}"`;
   const header = cols.map(c=>esc(c.label)).join(',');
-  const rows = items.map(({pd,master})=>cols.map(c=>esc(_rbCellVal(c.key,pd,master))).join(','));
+  const rows = items.map(r=>cols.map(c=>esc(_rbCellVal(c.key,r.pd,r.master,r))).join(','));
   const csv = header + '\n' + rows.join('\n');
   const safeName = (def.name||'report').replace(/[^a-z0-9]/gi,'-').toLowerCase();
   const blob = new Blob([csv],{type:'text/csv'});

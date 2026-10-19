@@ -1499,13 +1499,6 @@
   .rb-tabs { display:flex;border-bottom:1px solid var(--border); }
   .rb-tab { flex:1;padding:0.55rem 0.5rem;border:none;border-bottom:2px solid transparent;background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.84rem;font-weight:600;cursor:pointer;transition:all 0.15s; }
   .rb-tab.active { color:var(--accent2);border-bottom-color:var(--accent2); }
-  .rb-col-item { display:flex;align-items:center;gap:0.6rem;padding:0.48rem 0.6rem;border-radius:8px;border:1px solid var(--border);margin-bottom:0.32rem;background:var(--surface2);transition:background 0.1s,border-color 0.1s; }
-  .rb-col-item.drag-over { border-color:var(--accent2);background:rgba(180,140,60,0.1); }
-  .rb-col-item.dragging { opacity:0.35; }
-  .rb-drag-handle { color:var(--text-dim);font-size:1rem;cursor:grab;user-select:none;flex-shrink:0;padding:0 2px;line-height:1; }
-  .rb-drag-handle:active { cursor:grabbing; }
-  .rb-col-item input[type=checkbox] { accent-color:var(--accent2);width:15px;height:15px;cursor:pointer;flex-shrink:0; }
-  .rb-col-item label { font-size:0.85rem;color:var(--text);cursor:pointer;flex:1;user-select:none; }
   .rb-filter-row { margin-bottom:1rem; }
   .rb-filter-label { font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.09em;color:var(--text-dim);margin-bottom:0.35rem; }
   .rb-filter-chips { display:flex;flex-wrap:wrap;gap:0.3rem; }
@@ -1517,6 +1510,38 @@
   .rb-sort-dir { padding:0.42rem 0.65rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);font-size:0.8rem;cursor:pointer;font-family:var(--font-body);white-space:nowrap;flex-shrink:0; }
   .rb-sort-dir.asc  { border-color:#2ecc71;color:var(--t-green); }
   .rb-sort-dir.desc { border-color:var(--accent);color:var(--t-accent); }
+  /* v0.9.1985: the rebuilt setup — grouped columns (two to a row on a computer),
+     chips with counts, the live "N items match". */
+  @media (min-width: 760px) {
+    .rb-overlay { align-items:center; }
+    .rb-sheet.rb-sheet-wide { max-width:860px;border-radius:16px; }
+  }
+  .rb-hint { font-size:0.78rem;color:var(--text-dim);margin-bottom:0.75rem; }
+  .rb-warn { font-size:0.8rem;color:var(--t-accent); }
+  .rb-colgrid { display:grid;grid-template-columns:1fr;gap:0.7rem; }
+  @media (min-width: 640px) { .rb-colgrid { grid-template-columns:1fr 1fr; } }
+  .rb-colgroup { border:1px solid var(--border);border-radius:10px;padding:0.55rem 0.65rem 0.45rem;background:var(--surface2); }
+  .rb-colgroup-title { font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.09em;color:var(--text-dim);margin-bottom:0.35rem; }
+  .rb-colpick { display:flex;align-items:center;gap:0.5rem;padding:0.3rem 0.35rem;border-radius:6px;cursor:pointer;font-size:0.86rem;color:var(--text-mid);user-select:none; }
+  .rb-colpick:hover { background:rgba(180,140,60,0.08); }
+  .rb-colpick.on { color:var(--text);font-weight:600; }
+  .rb-colpick input[type=checkbox] { accent-color:var(--accent2);width:16px;height:16px;cursor:pointer;flex-shrink:0;margin:0; }
+  .rb-colorder { margin-top:0.85rem;font-size:0.78rem;color:var(--text-dim);line-height:1.9; }
+  .rb-colorder-lbl { font-weight:700;margin-right:0.2rem; }
+  .rb-colorder-chip { display:inline-block;padding:0.05rem 0.5rem;margin:0 0.2rem 0.2rem 0;border-radius:999px;border:1px solid var(--border);background:var(--surface);color:var(--text-mid); }
+  .rb-chip-n { font-size:0.7rem;color:var(--text-dim);font-weight:400;margin-left:0.15rem; }
+  .rb-chip.selected .rb-chip-n { color:var(--accent2); }
+  .rb-clear { background:none;border:none;color:var(--accent2);font-size:0.68rem;text-transform:none;letter-spacing:0;cursor:pointer;padding:0 0.3rem;text-decoration:underline; }
+  .rb-match, .rb-match-foot { font-size:0.85rem;font-weight:700;color:var(--accent2); }
+  .rb-match { margin-bottom:0.85rem; }
+  .rb-match.none, .rb-match-foot.none { color:var(--t-accent); }
+  .rb-match-foot { flex:1;min-width:0; }
+  .rb-filter-grid { display:grid;grid-template-columns:1fr;column-gap:1.2rem;border-top:1px solid var(--border);padding-top:0.9rem; }
+  @media (min-width: 640px) { .rb-filter-grid { grid-template-columns:1fr 1fr; } }
+  .rb-filter-grid > *, .rb-colgrid > * { min-width:0; }
+  .rb-to { color:var(--text-dim);font-size:0.85rem; }
+  .rb-text { width:100%;padding:0.4rem 0.6rem;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;box-sizing:border-box; }
+  @media (max-width: 520px) { .rb-match-foot { display:none; } }
 
   /* ── Preferences Page ──────────────────────────────────────── */
   .pref-page { max-width: 680px; }
