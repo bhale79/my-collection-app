@@ -58,7 +58,20 @@ const VAULT = {
   KEY_NF_SIG:   'lv_vault_nf_sig',    // v0.9.639: fingerprint of not-in-master items
 
   // How often to re-submit data (milliseconds) — default 7 days
+  // v0.9.1992: now only the SAFETY NET — a send happens whenever what would
+  // be sent has changed (the watcher below); this re-sends an unchanged
+  // collection once a week so the Vault never ages out a quiet collector.
   SUBMIT_INTERVAL_MS: 7 * 24 * 60 * 60 * 1000,
+  // v0.9.1992 ([stated] Brad: "can you check to see if the community
+  // submissions is working … or if they sale an item, its details and its
+  // sales price" → the plan → "yes"): SEND ON CHANGE. Every WATCH_MS the
+  // watcher compares a fingerprint of exactly what is sent (owned items +
+  // the Sold list) with the last one the relay accepted; a difference is a
+  // send — whichever screen made the change, including ones added later. At
+  // most one send per SEND_MIN_GAP_MS.
+  KEY_SENT_SIG: 'lv_vault_sent_sig',
+  WATCH_MS: 20 * 1000,
+  SEND_MIN_GAP_MS: 60 * 1000,
 
   // ── v0.9.1894 (security review #2 + #3): WHO-ARE-YOU, ONE LIST ─────────
   // Every relay call is in exactly ONE of these two lists, and vaultPost
@@ -147,7 +160,7 @@ window.rrVaultTokenChanged = async function (oldToken, newToken) {
   try {
     if (!oldToken || !newToken || oldToken === newToken) return;
     try { await vaultPost({ action: 'delete_token', token: oldToken }); } catch (e) {}
-    try { localStorage.removeItem(VAULT.KEY_LAST_SUB); localStorage.removeItem(VAULT.KEY_NF_SIG); } catch (e) {}
+    try { localStorage.removeItem(VAULT.KEY_LAST_SUB); localStorage.removeItem(VAULT.KEY_NF_SIG); if (VAULT.KEY_SENT_SIG) localStorage.removeItem(VAULT.KEY_SENT_SIG); } catch (e) {}
     try { if (typeof rrAiQuotaRefresh === 'function') rrAiQuotaRefresh(); } catch (e) {}
   } catch (e) {}
 };
@@ -418,6 +431,7 @@ function vaultDismissOptIn() {
 async function vaultConfirmOptOut() {
   vaultSetOptIn(false);
   localStorage.removeItem(VAULT.KEY_LAST_SUB);
+  localStorage.removeItem(VAULT.KEY_SENT_SIG);   // v0.9.1992: opting back in sends at once
 
   // Delete data from central sheet
   const token = vaultGetToken();
@@ -438,25 +452,123 @@ async function vaultConfirmOptOut() {
 
 // ============================================================
 //  DATA SUBMISSION
-//  Runs in the background after login if opted in.
-//  Only re-submits if SUBMIT_INTERVAL_MS has passed.
-//  Pulls from the app's existing personalData.
+//  v0.9.1992: what is sent = every owned item with a condition (as before)
+//  PLUS every sale on the Sold list (kind 'sold': item, variation,
+//  condition, sale price, date sold, maker — relay v4.7 keeps them). It is
+//  sent whenever that has changed (the watcher, vaultWatchStart) and once a
+//  week regardless (SUBMIT_INTERVAL_MS). Each send replaces this ticket's
+//  rows, so a sale taken back (Returned) leaves with the next send.
 // ============================================================
+
+// Is this number in the catalog? v0.9.640/646 rules, ONE copy: MPC items are
+// stored without the 6- prefix, a -BOX row is its item's box, and powered /
+// dummy / B-unit suffixes go through baseItemNum.
+function _vaultInMaster(itemNum, masterSet, canFlag) {
+  if (!canFlag) return true;
+  const nUp = String(itemNum || '').toUpperCase();
+  const _forms = [nUp];
+  const _noBox = nUp.replace(/-BOX$/, '');
+  if (_noBox !== nUp) _forms.push(_noBox);
+  try {
+    if (typeof baseItemNum === 'function') {
+      const _b = String(baseItemNum(_noBox) || '').toUpperCase();
+      if (_b && _forms.indexOf(_b) < 0) _forms.push(_b);
+    }
+  } catch (e) {}
+  const _all = [];
+  _forms.forEach(function (f) { _all.push(f, f.replace(/^6-/, ''), '6-' + f); });
+  return _all.some(function (f) { return masterSet.has(f); });
+}
+
+// A sale's date as YYYY-MM-DD. The Sold sheet answers a Sheets serial
+// (46309) for a date typed there; rrDateTs (app.js) is the ONE reader that
+// knows that. Blank / unreadable → ''.
+function _vaultIsoDate(v) {
+  const s = String(v == null ? '' : v).trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  if (m) return m[1] + '-' + m[2] + '-' + m[3];
+  const t = (typeof rrDateTs === 'function') ? rrDateTs(v) : Date.parse(s);
+  if (!t || !isFinite(t)) return '';
+  const d = new Date(t);
+  return isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
+}
+
+// A part sold from the Workbench is not a catalog item — rrIsPartSale
+// (config.js, RR_PART_SALE_NOTE) is the one test.
+function _vaultIsPartSale(sd) {
+  return rrIsPartSale(sd);
+}
+
+// The fingerprint of exactly what would be sent — read from memory only (no
+// catalog walk), so the watcher can afford it every WATCH_MS.
+function _vaultSig() {
+  const parts = [];
+  try {
+    const pd = (typeof state !== 'undefined' && state.personalData) || {};
+    Object.keys(pd).forEach(function (k) {
+      const p = pd[k]; if (!p) return;
+      parts.push('o|' + [p.itemNum, p.variation, p.condition, p.userEstWorth || p.estWorth || '', p.groupId || '', p.manufacturer || ''].join('|'));
+    });
+    const sd = (typeof state !== 'undefined' && state.soldData) || {};
+    Object.keys(sd).forEach(function (k) {
+      const x = sd[k]; if (!x || x._returnBusy) return;
+      parts.push('s|' + [x.itemNum, x.variation, x.condition, x.salePrice, x.dateSold, x.manufacturer || '', _vaultIsPartSale(x) ? 'p' : ''].join('|'));
+    });
+  } catch (e) { return 'x' + Date.now(); }
+  parts.sort();
+  let h = 2166136261;                                   // FNV-1a, 32-bit
+  const str = parts.join('\n');
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+  return parts.length + ':' + h.toString(36);
+}
+
+// Is a send due? Something changed since the relay last said yes, or a week
+// passed. Never sooner than SEND_MIN_GAP_MS after the last try.
+let _vaultSending = false;      // guard: never two sends at once
+let _vaultLastTry = 0;
+function _vaultDue(sig) {
+  if (Date.now() - _vaultLastTry < VAULT.SEND_MIN_GAP_MS) return false;
+  if (sig !== (localStorage.getItem(VAULT.KEY_SENT_SIG) || '')) return true;
+  const lastSub = parseInt(localStorage.getItem(VAULT.KEY_LAST_SUB) || '0');
+  return Date.now() - lastSub >= VAULT.SUBMIT_INTERVAL_MS;
+}
 
 async function vaultSubmitData() {
   if (!vaultIsOptedIn()) return;
+  if (_vaultSending) return;
+  const sig = _vaultSig();
+  if (!_vaultDue(sig)) return;
+  _vaultSending = true;
+  _vaultLastTry = Date.now();
+  try {
+    const built = await _vaultItemsToSend();
+    if (!built.items.length) return;
+    const token = vaultGetToken();
+    const result = await vaultPost({ action: 'submit', token, items: built.items });
+    if (result && result.status === 200) {
+      localStorage.setItem(VAULT.KEY_LAST_SUB, Date.now().toString());
+      localStorage.setItem(VAULT.KEY_NF_SIG, built.nfSig);
+      localStorage.setItem(VAULT.KEY_SENT_SIG, sig);
+      console.log('[Vault] Submitted', result.rows_written, 'rows (' + built.sales + ' sales' + (built.flagged ? ', ' + built.flagged + ' not in master' : '') + ')');
+    }
+  } finally {
+    _vaultSending = false;
+  }
+}
 
+// THE builder: what one send carries. Owned items exactly as before
+// (v0.9.639 in_master flag, v0.9.646 grouped companions), then the sales.
+async function _vaultItemsToSend() {
   // v0.9.639: union of every era's master item numbers, so each submitted row
   // can carry an in_master flag (catalog "not found" review — Brad 2026-07-02).
   const masterSet = await _vaultMasterSet();
-  // v0.9.1136: was `masterSet.size >= 500`. The intent was right — don't flag
+  // v0.9.1136: was a 500-row threshold. The intent was right — don't flag
   // items as "not in our catalog" when the catalog simply hasn't loaded — but
   // item COUNT is the wrong proxy for "did it load". The newer era tabs are
   // genuinely small (Other O Brands is 158 rows, Marx 224), so a collector
   // working only in one of those sat permanently under the threshold: every
-  // item was marked already-in-catalog, nothing was ever submitted, and the
-  // app still said "Thanks! You're all set". The question is whether the
-  // catalog loaded, so that is what is asked now.
+  // item was marked already-in-catalog and nothing was ever submitted. The
+  // question is whether the catalog loaded, so that is what is asked now.
   const canFlag = masterSet.loaded === true;
 
   // v0.9.646: grouped pairs (engine+tender, AA/AB units) share ONE price that
@@ -472,52 +584,34 @@ async function vaultSubmitData() {
   }
   const items = [];
   const flagged = [];
+  let sales = 0;
+  const makerOf = function (x) {
+    // Session 135: maker for brand-segmented market data; legacy rows fall
+    // back to the era's maker, then Lionel.
+    return x.manufacturer
+      || (x.era && typeof ERAS !== 'undefined' && ERAS[x.era] && ERAS[x.era].manufacturer)
+      || 'Lionel';
+  };
   if (typeof state !== 'undefined' && state.personalData) {
     for (const [key, pd] of Object.entries(state.personalData)) {
-      // v0.9.639 fix: newer personalData keys are inventoryIds (not
-      // itemNum|variation|row), so parsing the key sent the WRONG item number
-      // for those rows. Use the row's own fields, key parts only as fallback.
+      // v0.9.639 fix: keys are inventoryIds now — use the row's own fields.
       const parts = key.split('|');
       const itemNum = String(pd.itemNum || parts[0] || '').trim();
       if (!itemNum) continue;
       const variation = String(pd.variation !== undefined && pd.variation !== null ? pd.variation : (parts[1] || ''));
-      // v0.9.640: MPC items are stored WITHOUT the 6- prefix ("9806") while a
-      // label may read "6-9806" — check all three forms so we don't false-flag.
-      // v0.9.646: also normalize like the app does — strip powered/dummy
-      // suffixes via baseItemNum (204-P → 204) and -BOX rows (the box of a
-      // cataloged item is not a missing item). Brad's first real submission
-      // false-flagged 20 Alco P/D units + 6 -BOX rows into catalog review.
-      const nUp = itemNum.toUpperCase();
-      const _forms = [nUp];
-      const _noBox = nUp.replace(/-BOX$/, '');
-      if (_noBox !== nUp) _forms.push(_noBox);
-      try {
-        if (typeof baseItemNum === 'function') {
-          const _b = String(baseItemNum(_noBox) || '').toUpperCase();
-          if (_b && _forms.indexOf(_b) < 0) _forms.push(_b);
-        }
-      } catch (e) {}
-      const _all = [];
-      _forms.forEach(function (f) { _all.push(f, f.replace(/^6-/, ''), '6-' + f); });
-      const inMaster = canFlag ? _all.some(function (f) { return masterSet.has(f); }) : true;
+      const inMaster = _vaultInMaster(itemNum, masterSet, canFlag);
       // Market rows still need a condition; a not-in-master row goes anyway so
       // the catalog review can see it.
       if (!pd.condition && inMaster) continue;
-      // Session 135: include manufacturer so the Vault backend can optionally
-      // segment market data by brand (Lionel vs Atlas vs MTH). Falls back to
-      // ERAS[pd.era].manufacturer for items where the column is blank (legacy
-      // data), and finally to 'Lionel' as a safe default.
-      var _mfr = pd.manufacturer
-        || (pd.era && typeof ERAS !== 'undefined' && ERAS[pd.era] && ERAS[pd.era].manufacturer)
-        || 'Lionel';
       const item = {
         item_num:     itemNum,
         variation:    variation,
         condition:    pd.condition    || '',
         est_worth:    parseFloat(pd.userEstWorth || pd.estWorth || pd.est_worth || 0),
-        sold_price:   parseFloat(pd.soldPrice || pd.sold_price || 0),
-        manufacturer: _mfr,
+        sold_price:   0,
+        manufacturer: makerOf(pd),
         in_master:    inMaster,
+        kind:         'owned',
       };
       if (!inMaster) {
         item.description = String(pd.description || pd.masterDescription || pd.customName || '').substring(0, 140);
@@ -525,9 +619,7 @@ async function vaultSubmitData() {
         item.source      = 'app';
         flagged.push(itemNum.toUpperCase());
       }
-      // v0.9.646: a $0 companion in a group (tender/dummy) is priced ON the
-      // lead row — say so in the source column instead of looking like a
-      // missing mandatory value (Brad's 2025/$125 + 2466WX/$0 case).
+      // v0.9.646: a $0 companion in a group is priced ON the lead row.
       if (pd.groupId && groupLead[pd.groupId] && item.est_worth <= 0
           && groupLead[pd.groupId].itemNum && groupLead[pd.groupId].itemNum !== itemNum) {
         item.source = 'grouped with ' + groupLead[pd.groupId].itemNum;
@@ -535,27 +627,48 @@ async function vaultSubmitData() {
       items.push(item);
     }
   }
-
-  if (!items.length) return;
-
-  // Throttle — once per interval, EXCEPT when the set of not-found items has
-  // changed (e.g. the user just saved an unknown item): submit right away so
-  // the catalog review sees it within minutes, not days.
-  flagged.sort();
-  const nfSig = flagged.join(',');
-  const sigChanged = nfSig !== (localStorage.getItem(VAULT.KEY_NF_SIG) || '');
-  const lastSub = parseInt(localStorage.getItem(VAULT.KEY_LAST_SUB) || '0');
-  if (!sigChanged && Date.now() - lastSub < VAULT.SUBMIT_INTERVAL_MS) return;
-
-  const token = vaultGetToken();
-  const result = await vaultPost({ action: 'submit', token, items });
-
-  if (result && result.status === 200) {
-    localStorage.setItem(VAULT.KEY_LAST_SUB, Date.now().toString());
-    localStorage.setItem(VAULT.KEY_NF_SIG, nfSig);
-    console.log('[Vault] Submitted', result.rows_written, 'items' + (flagged.length ? ' (' + flagged.length + ' not in master)' : ''));
+  // v0.9.1992: the SALES. A sale goes when it has a price above 0, a
+  // condition and an item in the catalog (the relay drops anything else);
+  // a part sold from the Workbench is not an item. Who bought it, where,
+  // and the notes never leave the device.
+  if (typeof state !== 'undefined' && state.soldData) {
+    for (const sd of Object.values(state.soldData)) {
+      if (!sd || sd._returnBusy || _vaultIsPartSale(sd)) continue;
+      const itemNum = String(sd.itemNum || '').trim();
+      const price = parseFloat(String(sd.salePrice == null ? '' : sd.salePrice).replace(/[$,\s]/g, '')) || 0;
+      if (!itemNum || !(price > 0) || !sd.condition) continue;
+      if (!_vaultInMaster(itemNum, masterSet, canFlag)) continue;
+      items.push({
+        item_num:     itemNum,
+        variation:    String(sd.variation == null ? '' : sd.variation),
+        condition:    String(sd.condition),
+        est_worth:    0,
+        sold_price:   price,
+        manufacturer: makerOf(sd),
+        in_master:    true,
+        kind:         'sold',
+        date_sold:    _vaultIsoDate(sd.dateSold),
+      });
+      sales++;
+    }
   }
+  flagged.sort();
+  return { items: items, nfSig: flagged.join(','), flagged: flagged.length, sales: sales };
 }
+
+// v0.9.1992: THE WATCHER — one timer, started once at sign-in (vaultInit).
+// Every WATCH_MS it asks vaultSubmitData, which sends only when the
+// fingerprint changed (or a week passed). This is what makes a sale, an
+// edit, a move from the Want list or an import reach the Market without any
+// screen having to remember to ask.
+let _vaultWatchTimer = null;
+function vaultWatchStart() {
+  if (_vaultWatchTimer) return;
+  _vaultWatchTimer = setInterval(function () {
+    try { vaultSubmitData().catch(function (e) { console.warn('[Vault] watch send failed:', e && e.message); }); } catch (e) {}
+  }, VAULT.WATCH_MS);
+}
+if (typeof window !== 'undefined') { window.vaultWatchStart = vaultWatchStart; window._vaultItemsToSend = _vaultItemsToSend; window._vaultSig = _vaultSig; }
 
 // v0.9.639: build the union of all master catalogs (current era in memory +
 // every other era's IDB cache) as an UPPERCASED Set of item numbers.
@@ -652,8 +765,8 @@ async function vaultRenderMarketCard(itemNum, variation, containerEl) {
     return;
   }
 
-  // Render market values by condition
-  body.innerHTML = _vaultCardData(data.market, contributorCount);
+  // Render market values by condition (+ v0.9.1992: sale prices, relay v4.7)
+  body.innerHTML = _vaultCardData(data.market || {}, contributorCount, data.sold || {});
 }
 
 
@@ -708,9 +821,11 @@ function _vaultEsc(s) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-function _vaultCardData(market, totalContributors) {
+function _vaultCardData(market, totalContributors, sold) {
+  sold = sold || {};
   const conditions = Object.keys(market).sort();
-  if (!conditions.length) return _vaultCardNoData(null);
+  const soldConds = Object.keys(sold).sort();
+  if (!conditions.length && !soldConds.length) return _vaultCardNoData(null);
 
   let rows = '';
   for (const cond of conditions) {
@@ -724,9 +839,26 @@ function _vaultCardData(market, totalContributors) {
       </div>`;
   }
 
+  // v0.9.1992: what collectors actually SOLD it for, by condition — its own
+  // block, never mixed into the estimated-worth rows above.
+  let soldRows = '';
+  for (const cond of soldConds) {
+    const d = sold[cond];
+    soldRows += `
+      <div class="vault-market-row">
+        <span class="vault-market-cond">${_vaultEsc(cond)}</span>
+        <span class="vault-market-range">$${Number(d.low).toLocaleString()} – $${Number(d.high).toLocaleString()}</span>
+        <span class="vault-market-avg">avg $${Number(d.avg).toLocaleString()}</span>
+        <span class="vault-market-pts">${Number(d.count)} ${Number(d.count) === 1 ? 'sale' : 'sales'}</span>
+      </div>`;
+  }
+  const soldHtml = soldRows ? `
+    <div style="font-size:0.78rem;font-weight:600;color:var(--text-mid);margin:12px 0 4px">Sold prices</div>
+    <div class="vault-market-rows">${soldRows}</div>` : '';
+
   // Rarity — use total data points across all conditions as proxy
   const totalReports = conditions.reduce((sum, c) => sum + market[c].count, 0);
-  const rarityLabel  = vaultGetRarityLabel(totalReports, totalContributors);
+  const rarityLabel  = totalReports ? vaultGetRarityLabel(totalReports, totalContributors) : null;   // v0.9.1992: sales alone say nothing about rarity
   const rarityColor  = rarityLabel ? (VAULT.RARITY_COLORS[rarityLabel] || 'var(--text-mid)') : null;
 
   const rarityHtml = rarityLabel ? `
@@ -738,10 +870,12 @@ function _vaultCardData(market, totalContributors) {
     </div>` : '';
 
   return `
-    <div class="vault-market-rows">${rows}</div>
+    ${rows ? `<div style="font-size:0.78rem;font-weight:600;color:var(--text-mid);margin:0 0 4px">Estimated worth</div>
+    <div class="vault-market-rows">${rows}</div>` : ''}
+    ${soldHtml}
     ${rarityHtml}
     <div style="font-size:0.74rem;color:var(--text-dim);margin-top:10px">
-      Based on ${totalReports} contributor reports. Outliers removed.
+      Based on ${totalReports} contributor reports${soldConds.length ? ' and ' + soldConds.reduce((n, c) => n + Number(sold[c].count || 0), 0) + ' recorded sales' : ''}. Outliers removed.
     </div>`;
 }
 
@@ -963,6 +1097,10 @@ async function vaultInit() {
     // Small delay so app data is fully loaded first
     setTimeout(() => vaultSubmitData(), 3000);
   }
+  // v0.9.1992: the watcher runs whatever the opt-in says now — opting in
+  // later (Preferences, the Market page) needs no restart; every tick asks
+  // vaultIsOptedIn first.
+  vaultWatchStart();
 }
 
 

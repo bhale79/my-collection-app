@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1991';
+const APP_VERSION = 'v0.9.1992';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -142,6 +142,14 @@ if (typeof window !== 'undefined') {
 // faint to read (2.2:1); 0.72 still says "not on yet" and reads.
 const RR_PREF_DIM_OPACITY = '0.72';
 if (typeof window !== 'undefined') window.RR_PREF_DIM_OPACITY = RR_PREF_DIM_OPACITY;
+
+// v0.9.1992: how a PART sold from the Workbench is told from a train on the
+// Sold list — its notes start with these words (maintenance.js writes them).
+// The Collector's Market send asks rrIsPartSale; app-pages.js and
+// maintenance.js still spell the words themselves (3 places, to fold in here).
+const RR_PART_SALE_NOTE = 'Part from Parts Bin';
+function rrIsPartSale(sd) { return String((sd && sd.notes) || '').indexOf(RR_PART_SALE_NOTE) === 0; }
+if (typeof window !== 'undefined') { window.RR_PART_SALE_NOTE = RR_PART_SALE_NOTE; window.rrIsPartSale = rrIsPartSale; }
 
 // ── PRICE WORDING — ONE place (Brad 2026-10-06: "75 plus tax") ─────────────
 // Every user-facing mention of the price reads these. The checkout links
