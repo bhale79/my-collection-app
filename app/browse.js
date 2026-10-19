@@ -338,14 +338,15 @@ function _collSwitchIsOn(sw) {
     return typeof rrFieldEnabled === 'function' ? rrFieldEnabled(sw.field) : localStorage.getItem(sw.pref) === 'true';
   } catch (e) { return false; }
 }
-// Returns true when a switch was turned on by this call.
-function _collSwitchOn(id) {
+// Returns true when a switch was turned on by this call. `quiet` (v0.9.1988):
+// no message — the one-time repair below says its own.
+function _collSwitchOn(id, quiet) {
   var sw = _collColSwitch(id);
   if (!sw || _collSwitchIsOn(sw)) return false;
   if (sw.location) {
     if (typeof _prefSet === 'function') _prefSet(sw.pref, 'true'); else { try { localStorage.setItem(sw.pref, 'true'); } catch (e) {} }
     if (typeof _onPrefChange === 'function') _onPrefChange('location', true);
-    if (typeof showToast === 'function') showToast('Track Storage Location is on — new items will ask where they live', 3500);
+    if (!quiet && typeof showToast === 'function') showToast('Track Storage Location is on — new items will ask where they live', 3500);
     return true;
   }
   // v0.9.1865: a field that needs another switch (Location Detail needs Track
@@ -354,7 +355,7 @@ function _collSwitchOn(id) {
   var _parentWasOff = !!(sw.field.requires && typeof _prefGet === 'function' && _prefGet(sw.field.requires.pref, 'false') !== 'true');
   if (typeof _ufToggle === 'function') _ufToggle(sw.field.key, true, { quiet: true });
   else { try { localStorage.setItem(sw.pref, 'true'); } catch (e) {} }
-  if (typeof showToast === 'function') {
+  if (!quiet && typeof showToast === 'function') {
     var _nm = (typeof rrFieldLabel === 'function') ? rrFieldLabel(sw.field) : sw.field.label;
     showToast(_parentWasOff
       ? _nm + ' and ' + sw.field.requires.label + ' are on in Preferences — new items will ask for both'
@@ -362,6 +363,57 @@ function _collSwitchOn(id) {
   }
   return true;
 }
+// ── v0.9.1988: ONE-TIME REPAIR of columns made before the fix above ──────
+// Before v0.9.1988 "+ Custom column" → an existing field (Sub-collection,
+// Sub Type, Shipper, Location) put the column on My Collection and filled it,
+// but never turned its switch on — Brad's Sub-collection "Mint Cars" was on
+// the table and nowhere else. Once per account (RR_COLSW_REPAIR_KEY, through
+// _prefSet so it follows the account), after the account's settings have
+// arrived: a column ON the table, holding a value on at least one owned item,
+// whose switch is off, gets its switch turned on — exactly what adding it
+// would have done. A column with no values is left alone (that is not the
+// footprint of the old path, and the person may have switched it off).
+var RR_COLSW_REPAIR_KEY = 'lv_colsw_repair_1988';
+function rrCollRepairColumnSwitches() {
+  var done = '';
+  try { done = (typeof _prefGet === 'function') ? _prefGet(RR_COLSW_REPAIR_KEY, '') : localStorage.getItem(RR_COLSW_REPAIR_KEY); } catch (e) {}
+  if (done === 'done') return [];
+  var fixed = [];
+  try {
+    var owned = Object.values((typeof state !== 'undefined' && state.personalData) || {}).filter(function (p) { return p && p.owned; });
+    var vis = rrTableVisible('collection');
+    // a place is two columns: Location first, so Location Detail can follow it
+    vis = vis.slice().sort(function (a, b) { return (a === 'location' ? -1 : 0) - (b === 'location' ? -1 : 0); });
+    vis.forEach(function (id) {
+      var sw = _collColSwitch(id);
+      if (!sw || _collSwitchIsOn(sw)) return;
+      var key = sw.location ? 'location' : sw.field.key;
+      var used = owned.some(function (p) { return String(p[key] == null ? '' : p[key]).trim() !== ''; });
+      if (!used) return;
+      if (_collSwitchOn(id, true)) fixed.push(_collColLabel(id));
+    });
+  } catch (e) { console.warn('[columns] repair:', e); return fixed; }
+  try { if (typeof _prefSet === 'function') _prefSet(RR_COLSW_REPAIR_KEY, 'done'); else localStorage.setItem(RR_COLSW_REPAIR_KEY, 'done'); } catch (e) {}
+  if (fixed.length && typeof showToast === 'function') {
+    showToast(fixed.join(', ') + (fixed.length === 1 ? ' is' : ' are') + ' now on your item pages and asked when you add an item', 5000);
+  }
+  return fixed;
+}
+// Started by buildApp: waits for the account's settings (the layout and the
+// switches live there) and for the collection, then runs once.
+var _rrColRepairStarted = false;
+function rrCollRepairSoon() {
+  if (_rrColRepairStarted) return;
+  _rrColRepairStarted = true;
+  var tries = 0;
+  var t = setInterval(function () {
+    tries++;
+    var ready = (window._rrPrefsSyncDone === true || tries > 60)
+      && typeof state !== 'undefined' && state.personalData && Object.keys(state.personalData).length > 0;
+    if (ready || tries > 120) { clearInterval(t); if (ready) rrCollRepairColumnSwitches(); }
+  }, 500);
+}
+if (typeof window !== 'undefined') { window.rrCollRepairColumnSwitches = rrCollRepairColumnSwitches; window.rrCollRepairSoon = rrCollRepairSoon; }
 // The columns actually rendered, in order. Default = today's layout, so a
 // user who never opens the picker sees exactly what they saw before.
 // ── v0.9.1585 (Brad: "you have to hit edit on the my collection page

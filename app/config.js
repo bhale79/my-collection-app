@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1987';
+const APP_VERSION = 'v0.9.1988';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -2756,6 +2756,18 @@ window.rrDatalistFor = function (id, values) {
 
 window.rrEnabledUserFields = function () {
   return (window.RR_USER_FIELDS || []).filter(window.rrFieldEnabled);
+};
+// v0.9.1988 (Brad: "i went to delete it, and its not on the detail page"):
+// the fields ONE ITEM shows — every switched-on field, PLUS any field that
+// holds a value on this item even while its switch is off. A value you
+// entered is never hidden and never impossible to change. The detail page
+// and the Update Info panel both read this; the Add steps (a new item has no
+// values yet) keep rrEnabledUserFields.
+window.rrUserFieldsForItem = function (pd) {
+  return (window.RR_USER_FIELDS || []).filter(function (f) {
+    if (window.rrFieldEnabled(f)) return true;
+    return !!(pd && pd[f.key] != null && String(pd[f.key]).trim() !== '');
+  });
 };
 
 window.MANUAL_MANUFACTURERS = {

@@ -303,14 +303,18 @@ function rrTagNext() {
   // Show the column being filled, so the value already on a row is visible
   // while ticking — Brad: "let the user see if an item has a pre existing
   // sub collection text."
+  // v0.9.1988 (Brad: Sub-collection made here was "not on the detail page …
+  // it did not add that column to the add item steps"): the column joins the
+  // table through THE door every added column uses — rrTableAdd, whose onAdd
+  // (_collSwitchOn, browse.js) turns the field's Preferences switch on, so the
+  // detail page, Edit fields, Update Info and the Add steps all know it. This
+  // used to write the table layout directly and skipped the switch.
   try {
-    if (typeof _collVisibleCols === 'function' && typeof _collSaveCols === 'function') {
-      var vis = _collVisibleCols().filter(function (c) { return (window._COLL_LOCKED || []).indexOf(c) < 0; });
-      var want = [key];
-      if (_rrTag.pair) want.push(_rrTag.pair);      // a place is two columns
-      want.forEach(function (k) { if (vis.indexOf(k) < 0) vis.push(k); });
-      _collSaveCols(vis);
-    }
+    var want = [key];
+    if (_rrTag.pair) want.push(_rrTag.pair);      // a place is two columns
+    want.forEach(function (k) {
+      if (typeof rrTableAdd === 'function') rrTableAdd('collection', k);
+    });
   } catch (e) {}
 
   if (typeof showPage === 'function') showPage('browse');

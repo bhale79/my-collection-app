@@ -1369,7 +1369,8 @@ function showItemDetailPage(idx, copyInvId, opts) {
     // v0.9.1514 (Phase 2): every enabled user field, in one loop, from the
     // single RR_USER_FIELDS definition. Blank values are dropped by the
     // .filter(d => d.val) below, so a user who enables nothing sees nothing.
-    ...((typeof rrEnabledUserFields === 'function' ? rrEnabledUserFields() : []).map(function (f) {
+    // v0.9.1988: + any field holding a value on THIS item, switch or no switch.
+    ...((typeof rrUserFieldsForItem === 'function' ? rrUserFieldsForItem(pd) : (typeof rrEnabledUserFields === 'function' ? rrEnabledUserFields() : [])).map(function (f) {
       return { id: 'uf_' + f.key,   // v0.9.1571: the KEY is stable; the label is Brad's to rename
                label: (typeof rrFieldLabel === 'function' ? rrFieldLabel(f) : f.label),
                val: (pd && pd[f.key]) ? String(pd[f.key]).replace(/</g, '&lt;') : null };
@@ -2200,6 +2201,21 @@ function _rrDetailFieldCfg() {
     return (Array.isArray(arr) && arr.length) ? arr : null;
   } catch (e) { return null; }
 }
+// v0.9.1988: a field switched ON joins a saved Details choice — at the moment
+// it is switched on, once (prefs.js _ufToggle calls this). Without it, a
+// person who had ever saved "Edit fields" never saw a newly turned-on column
+// on the card until he went and ticked it. No saved choice = every filled
+// field shows already, so there is nothing to add.
+function rrDetailFieldsJoin(id) {
+  try {
+    var cfg = _rrDetailFieldCfg();
+    if (!cfg || cfg.indexOf(id) >= 0) return false;
+    cfg.push(id);
+    localStorage.setItem(_RR_DETAIL_FIELDS_PREF, JSON.stringify(cfg));
+    return true;
+  } catch (e) { return false; }
+}
+if (typeof window !== 'undefined') window.rrDetailFieldsJoin = rrDetailFieldsJoin;
 function _rrDetailFieldsPicker() {
   var defs = window._rrDetailFieldDefs || [];
   if (!defs.length) return;
@@ -3913,7 +3929,9 @@ function showItemPanel(idx, pdKey, mode) {
     // v0.9.1514 (Phase 2, Brad's parity rule): the SAME fields the detail
     // page shows are editable here — driven by the same config, so the two
     // can never drift apart.
-    ...((typeof rrEnabledUserFields === 'function' ? rrEnabledUserFields() : []).map(function (f) {
+    // v0.9.1988: the same list the detail page shows (rrUserFieldsForItem) —
+    // a value on this item can always be changed or cleared here.
+    ...((typeof rrUserFieldsForItem === 'function' ? rrUserFieldsForItem(pd) : (typeof rrEnabledUserFields === 'function' ? rrEnabledUserFields() : [])).map(function (f) {
       return { label: (typeof rrFieldLabel === 'function' ? rrFieldLabel(f) : f.label),
                key: f.key, val: pd[f.key] || '—', type: 'text',
                // v0.9.1531b: Location Detail offers what is inside THIS item's

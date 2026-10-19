@@ -1091,6 +1091,12 @@ function _openUserFieldsModal() {
 function _ufToggle(key, on, opts) {
   var f = (window.RR_USER_FIELDS || []).filter(function (x) { return x.key === key; })[0];
   if (!f) return;
+  // v0.9.1988: switched on = on the item's Details card too, even when the
+  // person once saved his own "Edit fields" choice (app-collection.js).
+  if (on && typeof rrDetailFieldsJoin === 'function') {
+    rrDetailFieldsJoin('uf_' + f.key);
+    if (f.requires && f.requires.toggle === 'location') rrDetailFieldsJoin('location');
+  }
   if (f.prefToggle) {
     // v0.9.1863: a field whose switch is a row of its own in Preferences →
     // Collection (Sub Type's "Track Sub Types", toggle #ptog-<prefToggle>) is

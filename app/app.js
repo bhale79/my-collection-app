@@ -3511,6 +3511,9 @@ if (typeof window !== 'undefined') {
 
 function buildApp() {
   showApp();
+  // v0.9.1988: a column on My Collection whose switch was never turned on gets
+  // it, once per account (browse.js rrCollRepairColumnSwitches).
+  try { if (typeof rrCollRepairSoon === 'function') rrCollRepairSoon(); } catch (e) {}
   populateFilters();
   buildDashboard();
   _applyDisclaimerPref();
