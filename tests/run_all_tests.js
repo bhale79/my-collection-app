@@ -186,6 +186,17 @@ ok('each re-argued pin says why (v1660) so nobody "fixes" it back', (fb.match(/v
 const fbRun = spawnSync(process.execPath, [path.join(__dirname, 'filter_bar_tests.js')], { encoding: 'utf8' });
 ok('filter_bar_tests.js is green', fbRun.status === 0, ((fbRun.stdout || '').trim().split('\n').pop() || '').slice(0, 80));
 
+section('--fast: the release gate (2026-10-19)');
+ok('a suite that opens a real browser is known by its own source (report_builder_1985_tests uses playwright)',
+   runner.usesBrowser('report_builder_1985_tests.js') === true, '');
+ok('…and one that does not is not (syntax-check.js)', runner.usesBrowser('syntax-check.js') === false, '');
+ok('a jsdom whole-page suite counts too (photo-inbox-tests, 80+ s)', runner.usesBrowser('photo-inbox-tests.js') === true, '');
+const fastOut = spawnSync(process.execPath, [path.join(__dirname, 'run-all.js'), '--fast', '--only', 'report_builder_1985'], { encoding: 'utf8' });
+ok('--fast leaves a browser suite for the overnight run (0 run, 1 left)',
+   /run-all — 0 suites/.test(fastOut.stdout || '') && /left for the overnight run \(whole-page suites, --fast\): 1/.test(fastOut.stdout || ''), (fastOut.stdout || '').slice(0, 300));
+const fastSyn = spawnSync(process.execPath, [path.join(__dirname, 'run-all.js'), '--fast', '--only', 'syntax-check'], { encoding: 'utf8' });
+ok('--fast still runs a suite that needs no browser (syntax-check)', /run-all — 1 suite/.test(fastSyn.stdout || '') && fastSyn.status === 0, (fastSyn.stdout || '').slice(0, 300));
+
 section('README tells the next session');
 const readme = rd('tests/README.md');
 ok('the README opens with how to run everything', /^# The test battery\n\n## Run everything/.test(readme), '');

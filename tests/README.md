@@ -10,6 +10,17 @@
     node tests/run-all.js --only inbox   just the suites whose file name contains "inbox"
     node tests/run-all.js --list      show which tier every file is in
 
+## Before a release: the fast gate (2026-10-19)
+
+    node tests/run-all.js --fast --with report_builder,custom_columns
+
+Brad: "its still too slow, its really holding me up". Before shipping, run the
+quick tier WITHOUT the suites that open a real browser (about a minute), plus
+`--with` the browser suites for the screen the release touched and its own new
+test. Everything else — the full run and the `--browser` tier — runs EVERY
+NIGHT as a scheduled task that alerts Brad on red. A suite counts as "browser"
+when its own source loads a whole page (playwright or jsdom); nothing to keep in step.
+
 `tests/run-all.js` FINDS the suites by file name — `*_tests.js` and
 `*-tests.js` are the quick tier, `guide-*.js` / `photo-viewer.js` /
 `sw-nav-cache.js` the browser tier, and the audits (below) are never run by

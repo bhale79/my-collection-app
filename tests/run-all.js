@@ -17,6 +17,21 @@
 //   node tests/run-all.js --list       show the tiers and stop
 //   node tests/run-all.js --serial     one at a time (the quick tier runs 4 abreast;
 //                                      the browser tier is always one at a time)
+//   node tests/run-all.js --fast       THE RELEASE GATE (2026-10-19): the quick tier
+//                                      WITHOUT the suites that open a real browser
+//                                      (~170 suites, about a minute). Add the
+//                                      browser suites for the screen you touched:
+//   node tests/run-all.js --fast --with report_builder,custom_columns
+//                                      (--with takes name pieces, comma-separated)
+//   The full run (no --fast) and the --browser tier run EVERY NIGHT as a
+//   scheduled task — see rules_testing "the overnight run".
+//
+// Brad, 2026-10-19: "its still too slow, its really holding me up" → "yes" to:
+// before a release only the fast tier + the new test + the touched screen's
+// browser suites; everything else overnight, with a phone/email alert on red.
+// A suite is "browser" for --fast when its own source loads a whole page —
+// playwright (real Chromium) or jsdom (photo-inbox-tests' 3,900 pins, 80+ s) —
+// read from the file, so there is no list to keep in step.
 //
 // Tiers (by file name — the only rule to remember):
 //   quick    *_tests.js and *-tests.js, plus the named checks in QUICK_EXTRA
@@ -68,6 +83,11 @@ function classify(name) {
   return 'unclassified';
 }
 
+// Does a suite load a whole page (real Chromium or jsdom)? Read from the suite
+// itself (2026-10-19).
+function usesBrowser(name) {
+  try { return /playwright|jsdom/.test(fs.readFileSync(path.join(TESTS, name), 'utf8')); } catch (e) { return false; }
+}
 function discover() {
   const tiers = { quick: [], browser: [], audit: [], unclassified: [] };
   fs.readdirSync(TESTS).sort().forEach(name => {
@@ -144,9 +164,23 @@ async function main() {
   if (want.quick) items = items.concat(tiers.quick.map(name => ({ name, tier: 'quick' })));
   if (want.browser) items = items.concat(tiers.browser.map(name => ({ name, tier: 'browser' })));
   if (only) items = items.filter(i => i.name.includes(only));
+  // --fast: leave out the quick-tier suites that open a real browser, except
+  // the ones --with names (the screen this release touched).
+  const fast = argv.includes('--fast');
+  const withAt = argv.indexOf('--with');
+  const withs = withAt >= 0 ? String(argv[withAt + 1] || '').split(',').map(s => s.trim()).filter(Boolean) : [];
+  let leftForNight = [];
+  if (fast) {
+    const keep = [];
+    items.forEach(i => {
+      if (i.tier === 'quick' && usesBrowser(i.name) && !withs.some(w => i.name.includes(w))) leftForNight.push(i.name);
+      else keep.push(i);
+    });
+    items = keep;
+  }
 
   console.log('run-all — ' + items.length + ' suite' + (items.length === 1 ? '' : 's') +
-              ' (' + (want.quick ? 'quick' : '') + (want.quick && want.browser ? ' + ' : '') + (want.browser ? 'browser' : '') + (only ? ', only "' + only + '"' : '') +
+              ' (' + (want.quick ? (fast ? 'fast' : 'quick') : '') + (want.quick && want.browser ? ' + ' : '') + (want.browser ? 'browser' : '') + (only ? ', only "' + only + '"' : '') + (withs.length ? ', with ' + withs.join(',') : '') +
               '), quick ' + width + ' at a time, browser one at a time\n');
   const t0 = Date.now();
   const quickItems = items.filter(i => i.tier === 'quick');
@@ -161,6 +195,7 @@ async function main() {
               (skips.length ? ', ' + skips.length + ' with skipped pins' : '') + ' — ' + wall + 's wall');
   if (red.length) console.log('RED: ' + red.map(r => r.name).join(', '));
   skips.forEach(r => console.log('skipped in ' + r.name + ': ' + r.verdict.replace(/^.*?(\d+ SKIPPED)/, '$1').slice(0, 160)));
+  if (fast && leftForNight.length) console.log('left for the overnight run (whole-page suites, --fast): ' + leftForNight.length);
   if (!want.browser && tiers.browser.length && !only) {
     console.log('not run (browser tier — `node tests/run-all.js --browser`): ' + tiers.browser.join(', '));
   }
@@ -172,5 +207,5 @@ async function main() {
   process.exit(red.length || tiers.unclassified.length ? 1 : 0);
 }
 
-module.exports = { classify, discover, QUICK_EXTRA, BROWSER, AUDITS };
+module.exports = { classify, discover, usesBrowser, QUICK_EXTRA, BROWSER, AUDITS };
 if (require.main === module) main();
