@@ -207,7 +207,11 @@ window._hubSnapshot = function () {
     const NONGUIDE = [
       { label: 'Scanning and photo ID',       fn: 'showAiUsageCard' },   // v0.9.1893: the welcome card is gone
       { label: 'How to undo a mistake',       fn: '_uiShowVersionHistoryHelp' },
-      { label: 'Reset tips',                  fn: 'resetContextualHints' }
+      { label: 'Reset tips',                  fn: 'resetContextualHints' },
+      // v0.9.1987: the two Suggestions rows. Grading used to be slipped in by
+      // help-guides.js after the hub drew; openHelpHub draws it now.
+      { label: 'Photographing a large collection', fn: '_rrGuidePhotos' },
+      { label: 'Condition grading (the C-scale)',  fn: 'rrgOpen' }
     ];
     for (const t of NONGUIDE) {
       const r = await page.evaluate(async (t) => {
@@ -273,7 +277,8 @@ window._hubSnapshot = function () {
     const fromHub = await page.evaluate(async () => {
       window._hubClear(); openHelpHub();
       await new Promise(res => setTimeout(res, 500));
-      await window._hubPress('Add an item');
+      // v0.9.1987: the tour is the only guide left.
+      await window._hubPress('Take the tour');
       await new Promise(res => setTimeout(res, 1600));
       const hubGone = !document.getElementById('help-hub-modal');
       const tour = !!document.getElementById('gt-callout');
@@ -314,7 +319,16 @@ window._hubSnapshot = function () {
         const top = document.elementFromPoint(Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2));
         return !!(top && (top === b || b.contains(top)));
       })();
-      await window._hubPress('Record a sale');
+      // v0.9.1987: the tour is the only guide, so the second one started from
+      // the hub is the tour again — it must REPLACE the running one, not stack.
+      try { _gtEnd(); } catch (e) {}
+      startGuide('tour');
+      await new Promise(res => setTimeout(res, 1400));
+      try { document.getElementById('gt-next').click(); } catch (e) {}   // move off card 1, so a restart is visible
+      await new Promise(res => setTimeout(res, 700));
+      openHelpHub();
+      await new Promise(res => setTimeout(res, 500));
+      await window._hubPress('Take the tour');
       await new Promise(res => setTimeout(res, 1800));
       const out = {
         hubOnTop,
@@ -332,8 +346,131 @@ window._hubSnapshot = function () {
        twice.hubOnTop, JSON.stringify(twice));
     ok('starting a second guide from it leaves exactly one tour running',
        twice.blockers === 1 && twice.callouts === 1 && twice.holes === 1, JSON.stringify(twice));
-    ok('…and it is the SECOND guide, the one that was asked for',
-       /Find the item/i.test(twice.card), JSON.stringify(twice.card).slice(0, 120));
+    ok('…and it is the one that was asked for, from its first card',
+       /go through your dashboard/i.test(twice.card), JSON.stringify(twice.card).slice(0, 120));
+
+    // ── 8. THE VIDEOS (v0.9.1987) ───────────────────────────────────────────
+    // Brad: "we need to add our new videos with audio" and a mute button,
+    // "the user can just turn the sound down but a mute button might be nice".
+    // A row per ready video; the player opens ON TOP of the Help Center; Sound
+    // and Captions are two buttons whose choice is remembered (lv_help_video_*
+    // through _prefSet, so it follows the account).
+    const vid = await page.evaluate(async () => {
+      const cfg = window.TUTORIAL_GIFS;
+      [cfg.prefMuted, cfg.prefCaptions].forEach(k => { localStorage.removeItem(k); localStorage.removeItem(k + '__at'); });
+      window._hubClear(); openHelpHub();
+      await new Promise(res => setTimeout(res, 400));
+      const ready = rrReadyDemos();
+      const d0 = ready[0], d1 = ready[1] || ready[0];
+      const press = await window._hubPress(d0.title);
+      await new Promise(res => setTimeout(res, 500));
+      const pl = document.getElementById('rr-video-player');
+      const out = { press, player: !!pl, hubUnder: !!document.getElementById('help-hub-modal') };
+      if (!pl) return out;
+      const v = pl.querySelector('video'), src = pl.querySelector('source'), tr = pl.querySelector('track');
+      const x = pl.querySelector('.rr-vp-x');
+      const xr = x.getBoundingClientRect();
+      const top = document.elementFromPoint(Math.round(xr.left + xr.width / 2), Math.round(xr.top + xr.height / 2));
+      out.onTop = !!(top && (top === x || x.contains(top)));
+      out.src = src && src.getAttribute('src'); out.vtt = tr && tr.getAttribute('src'); out.poster = v.getAttribute('poster');
+      out.want = d0.file;
+      const bS = pl.querySelector('[data-vp="sound"]'), bC = pl.querySelector('[data-vp="cc"]');
+      out.start = { muted: v.muted, cc: tr.track.mode, sound: bS.innerText, ccTxt: bC.innerText };
+      bS.click(); await new Promise(res => setTimeout(res, 200));
+      bC.click(); await new Promise(res => setTimeout(res, 200));
+      out.after = { muted: v.muted, cc: tr.track.mode, sound: bS.innerText, ccTxt: bC.innerText,
+                    kMuted: localStorage.getItem(cfg.prefMuted), kCc: localStorage.getItem(cfg.prefCaptions),
+                    stamped: !!localStorage.getItem(cfg.prefMuted + '__at') };
+      // A browser that cannot decode the video says so in words (the test
+      // Chromium has no H.264, so this is exercised for real here).
+      await new Promise(res => setTimeout(res, 1200));
+      out.canMp4 = v.canPlayType('video/mp4; codecs="avc1.640028, mp4a.40.2"');
+      out.errShown = !!pl.querySelector('.rr-vp-err');
+      x.click(); await new Promise(res => setTimeout(res, 300));
+      out.closedByX = !document.getElementById('rr-video-player');
+      out.hubStill = !!document.getElementById('help-hub-modal');
+      // Reopen another: both choices come back.
+      rrPlayVideo(d1.id); await new Promise(res => setTimeout(res, 400));
+      const pl2 = document.getElementById('rr-video-player');
+      out.again = pl2 ? { muted: pl2.querySelector('video').muted, cc: pl2.querySelector('track').track.mode,
+                          one: document.querySelectorAll('#rr-video-player').length } : null;
+      // The video's OWN mute (its controls) is remembered the same way.
+      if (pl2) { pl2.querySelector('video').muted = false; await new Promise(res => setTimeout(res, 250)); }
+      out.nativeUnmute = { k: localStorage.getItem(cfg.prefMuted), txt: pl2 ? pl2.querySelector('[data-vp="sound"]').innerText : '' };
+      // Escape closes it too; the Help Center stays.
+      pl2 && pl2.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      await new Promise(res => setTimeout(res, 300));
+      out.closedByEsc = !document.getElementById('rr-video-player');
+      // The device Back button closes the player, not the Help Center.
+      rrPlayVideo(d0.id); await new Promise(res => setTimeout(res, 400));
+      history.back(); await new Promise(res => setTimeout(res, 700));
+      out.closedByBack = !document.getElementById('rr-video-player');
+      out.hubAfterBack = !!document.getElementById('help-hub-modal');
+      // An id that is not a ready video opens nothing.
+      rrPlayVideo('no-such-video'); await new Promise(res => setTimeout(res, 200));
+      out.bogus = !!document.getElementById('rr-video-player');
+      [cfg.prefMuted, cfg.prefCaptions].forEach(k => { localStorage.removeItem(k); localStorage.removeItem(k + '__at'); });
+      window._hubClear();
+      return out;
+    });
+    ok('BRAD\'S ASK: pressing a video row opens its player', vid.player && vid.press && !vid.press.covered, JSON.stringify(vid));
+    ok('…on top of the Help Center, which stays open underneath', vid.onTop && vid.hubUnder, JSON.stringify(vid));
+    ok('…playing that video, with its captions and its still',
+       vid.src === './videos/' + vid.want + '.mp4' && vid.vtt === './videos/' + vid.want + '.vtt' && vid.poster === './videos/' + vid.want + '.jpg',
+       JSON.stringify([vid.src, vid.vtt, vid.poster]));
+    ok('…starting with sound on and captions off, and saying so',
+       vid.start && vid.start.muted === false && vid.start.cc !== 'showing' && /Sound is on/.test(vid.start.sound) && /Captions are off/.test(vid.start.ccTxt),
+       JSON.stringify(vid.start));
+    ok('the Sound button mutes, and the Captions button shows captions',
+       vid.after && vid.after.muted === true && vid.after.cc === 'showing' && /Sound is off/.test(vid.after.sound) && /Captions are on/.test(vid.after.ccTxt),
+       JSON.stringify(vid.after));
+    ok('…and both choices are saved through _prefSet (stamped, so they follow the account)',
+       vid.after && vid.after.kMuted === '1' && vid.after.kCc === '1' && vid.after.stamped, JSON.stringify(vid.after));
+    ok('…and the next video opens with them remembered, one player only',
+       vid.again && vid.again.muted === true && vid.again.cc === 'showing' && vid.again.one === 1, JSON.stringify(vid.again));
+    ok('…and unmuting with the video\'s own controls is remembered and shown on the button',
+       vid.nativeUnmute && vid.nativeUnmute.k === '0' && /Sound is on/.test(vid.nativeUnmute.txt), JSON.stringify(vid.nativeUnmute));
+    ok('the × closes the player and leaves the Help Center', vid.closedByX && vid.hubStill, JSON.stringify(vid));
+    ok('…and Escape closes it too', vid.closedByEsc, JSON.stringify(vid));
+    ok('…and the device Back button closes the player, not the Help Center', vid.closedByBack && vid.hubAfterBack, JSON.stringify(vid));
+    ok('a name that is not a ready video opens nothing', vid.bogus === false, JSON.stringify(vid));
+    ok('a browser that cannot play the video says so in words',
+       vid.canMp4 !== '' || vid.errShown, JSON.stringify({ canMp4: vid.canMp4, errShown: vid.errShown }));
+
+    // ── 9. THE PLAYER ON A PHONE, UPRIGHT AND SIDEWAYS ──────────────────────
+    // Full screen on a phone; the × and both buttons on screen and big enough
+    // for a thumb; sideways, the picture keeps most of the height.
+    for (const vp of [{ w: 390, h: 844, name: 'phone upright' }, { w: 844, h: 390, name: 'phone sideways' }]) {
+      await page.setViewportSize({ width: vp.w, height: vp.h });
+      await page.waitForTimeout(300);
+      const ph = await page.evaluate(async () => {
+        window._hubClear();
+        rrPlayVideo(rrReadyDemos()[0].id);
+        await new Promise(res => setTimeout(res, 500));
+        const pl = document.getElementById('rr-video-player');
+        if (!pl) return { none: true };
+        const W = innerWidth, H = innerHeight;
+        const r = el => { const b = el.getBoundingClientRect(); return { l: b.left, t: b.top, r: b.right, b: b.bottom, w: b.width, h: b.height }; };
+        const box = r(pl.querySelector('.rr-vp-box')), vid = r(pl.querySelector('video')),
+              x = r(pl.querySelector('.rr-vp-x')),
+              btns = Array.from(pl.querySelectorAll('.rr-vp-btn')).map(r);
+        const inside = q => q.l >= -1 && q.t >= -1 && q.r <= W + 1 && q.b <= H + 1;
+        const out = { W, H, box, vid, x, btns,
+          fullWidth: box.w >= W - 1,
+          xOk: inside(x) && x.h >= 36,
+          btnsOk: btns.length === 2 && btns.every(b => inside(b) && b.h >= 40),
+          scrollX: document.documentElement.scrollWidth > W };
+        pl.querySelector('.rr-vp-x').click();
+        await new Promise(res => setTimeout(res, 200));
+        return out;
+      });
+      ok('[' + vp.name + '] the player fills the screen width', !ph.none && ph.fullWidth, JSON.stringify(ph.box));
+      ok('[' + vp.name + '] its × is on screen and thumb-sized', ph.xOk, JSON.stringify(ph.x));
+      ok('[' + vp.name + '] Sound and Captions are both on screen and thumb-sized', ph.btnsOk, JSON.stringify(ph.btns));
+      ok('[' + vp.name + '] the picture gets at least half the screen\'s height',
+         ph.vid && ph.vid.h >= ph.H * 0.5 - 1 || (ph.vid && ph.vid.w >= ph.W - 1), JSON.stringify(ph.vid));
+    }
+    await page.setViewportSize({ width: 1844, height: 914 });
 
     ok('exercising the whole Help Centre raises no page errors',
        errs.length === 0, errs.slice(0, 3).join(' | '));

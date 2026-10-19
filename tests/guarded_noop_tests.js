@@ -91,7 +91,11 @@ ok('tutorial.css no longer styles the overlay, the panel or its bubble',
    !/#tut-overlay|#tut-panel|#tut-bubble|\.tut-hidden|\.tut-spotlight|\.tut-bubble-|\.tut-btn-/.test(codeOf(tcss)), '');
 ok('…and it kept the Help widget and the guided tour card',
    /#tut-help-widget \{/.test(tcss) && /#gt-callout/.test(tcss), '');
-ok('the file lost roughly the 168 lines that block occupied', tcss.split('\n').length < 200, String(tcss.split('\n').length) + ' lines');
+// v0.9.1987: the help video player's styles were added at the END of the file
+// under their own heading; the count is of everything above that heading, which
+// is what this check has always measured.
+const tcssOld = tcss.indexOf('v0.9.1987 — THE HELP VIDEO PLAYER') > 0 ? tcss.slice(0, tcss.indexOf('v0.9.1987 — THE HELP VIDEO PLAYER')) : tcss;
+ok('the file lost roughly the 168 lines that block occupied', tcssOld.split('\n').length < 200, String(tcssOld.split('\n').length) + ' lines');
 ok('the print stylesheet stopped hiding an element that can no longer exist',
    !/#tut-overlay/.test(rd('app.css')) && /#gmail-help-overlay, #onboarding-map-overlay/.test(rd('app.css')), '');
 

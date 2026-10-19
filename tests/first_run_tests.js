@@ -210,7 +210,7 @@ function T(n, cond, detail) { console.log((cond ? 'PASS' : 'FAIL') + '  ' + n + 
     state.user = { email: 'guide.starter@gmail.com', name: 'G' };
     showAiUsageCard(false);
     const before = !!document.getElementById('rr-ai-usage-card');
-    startGuide('add-item'); await new Promise(r => setTimeout(r, 900));
+    startGuide('tour'); await new Promise(r => setTimeout(r, 900));   // v0.9.1987: the tour is the only guide
     const after = !!document.getElementById('rr-ai-usage-card');
     const seen = localStorage.getItem('lv_ai_usage_seen') === rrAccountFingerprint('guide.starter@gmail.com');
     try { _gtEnd(); } catch (e) {}

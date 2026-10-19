@@ -7722,9 +7722,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // the GUIDES map and calls startGuide(); tutStart is no longer the entry
     // point. Name the requirement: every guide in the map is reachable from
     // Help, and the dashboard tour still has its named wrapper.
-    ok('Help can still start every guide by hand',
-       /startGuide\('" \+ gid \+ "'\);/.test(tut) &&
-       /'add-item': \{/.test(tut) && /function startDashboardTour\(\)/.test(tut));
+    // v0.9.1987 (Brad: "the tour is the only one we need to keep"): the tour
+    // is the one guide left, and Help starts it from its own row.
+    ok('Help can still start the tour by hand',
+       /startGuide\('tour'\);/.test(tut) && /GUIDES\.tour/.test(tut) &&
+       /function startDashboardTour\(\)/.test(tut));
 
     // 2) Vanished sheet tabs get pruned instead of probed forever.
     ok('the tab sync prunes tabs that are no longer in the sheet',
@@ -10901,14 +10903,20 @@ META_WRITES.length = 0; TOASTS.length = 0;
        !/Last Synced|Sync Now|Clear Local Cache/.test(prefs));
 
     section('199e. The demos: one reader, and it counts only what exists');
+    // v0.9.1987: the six empty GIF slots became the narrated video library.
+    // The rule is unchanged — ONE reader decides what exists — and it now
+    // counts a video `file`. The two behaviour checks run the REAL reader
+    // lifted out of the file, not a copy of it typed into this test.
+    const tut199 = rd('app/tutorial.js');
     ok('there is ONE reader for "which demos exist"',
        /function rrReadyDemos\(\)/.test(gifs) && /window\.rrReadyDemos = rrReadyDemos/.test(gifs));
-    ok('it counts a gifUrl, not a placeholder',
-       /return \(cfg\.demos \|\| \[\]\)\.filter\(function \(d\) \{ return d && d\.gifUrl; \}\)/.test(gifs));
-    ok('the Help menu draws only ready demos',
-       /rrReadyDemos\(\)\.forEach\(function\(d\)/.test(gifs));
+    ok('it counts a video file, not a placeholder',
+       /return \(cfg\.demos \|\| \[\]\)\.filter\(function \(d\) \{ return d && d\.file; \}\)/.test(gifs));
+    ok('the Help Center draws only ready videos (rrVideoGroups -> rrReadyDemos)',
+       /var ready = rrReadyDemos\(\)/.test(gifs.slice(gifs.indexOf('function rrVideoGroups'))) &&
+       /rrVideoGroups\(\)/.test(tut199.slice(tut199.indexOf('function _helpHubVideosHtml'))));
     ok('...and skips the whole section when none are ready',
-       /if \(!rrReadyDemos\(\)\.length\) return true;/.test(gifs));
+       /if \(!groups\.length\) return '';/.test(tut199));
     // v0.9.1893: the first-run card screen that offered "Watch how-to demos"
     // is gone (Brad: "more clutter than help"); onboarding.js has no demo
     // button at all now, so it cannot offer a demo that does not exist.
@@ -10917,20 +10925,15 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('nobody counts cfg.demos directly any more',
        !/\(cfg\.demos \|\| \[\]\)\.(forEach|map)/.test(strip(gifs) + strip(onb)) &&
        !/TUTORIAL_GIFS\.demos \|\| \[\]\)\.length/.test(strip(onb)));
-    ok('with today’s empty config, nothing is promised',
-       (function () {
-         const g = { demos: [{ id: 'a', title: 'A' }, { id: 'b', title: 'B', gifUrl: '' }] };
-         const f = new Function('window', 'return (function(){ var cfg = window.TUTORIAL_GIFS || {};' +
-           ' return (cfg.demos || []).filter(function (d) { return d && d.gifUrl; }); })()');
-         return f({ TUTORIAL_GIFS: g }).length === 0;
-       })());
-    ok('...and one recorded demo brings the section back on its own',
-       (function () {
-         const g = { demos: [{ id: 'a', title: 'A' }, { id: 'b', title: 'B', gifUrl: 'x.gif' }] };
-         const f = new Function('window', 'return (function(){ var cfg = window.TUTORIAL_GIFS || {};' +
-           ' return (cfg.demos || []).filter(function (d) { return d && d.gifUrl; }); })()');
-         return f({ TUTORIAL_GIFS: g }).length === 1;
-       })());
+    const realReady = (function () {
+      const a = gifs.indexOf('function rrReadyDemos()');
+      const b = gifs.indexOf('\n}', a) + 2;
+      return new Function('window', gifs.slice(a, b) + '\nreturn rrReadyDemos();');
+    })();
+    ok('with no file on any entry, nothing is promised',
+       realReady({ TUTORIAL_GIFS: { demos: [{ id: 'a', title: 'A' }, { id: 'b', title: 'B', file: '' }] } }).length === 0);
+    ok('...and one recorded video brings the section back on its own',
+       realReady({ TUTORIAL_GIFS: { demos: [{ id: 'a', title: 'A' }, { id: 'b', title: 'B', file: 'x' }] } }).length === 1);
 
     section('199f. The public pages');
     ok('the landing page no longer says Under Construction',
@@ -18566,51 +18569,21 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // the GUIDES map now and calls startGuide(), so this went red for a
       // rename, not a regression. Name the requirement — the guide exists and
       // Help can start it — and it survives the next rename too.
-      ok('269 the one surviving guide is the reachable one',
-         /'remove-item': \{/.test(tu69) &&
-         /startGuide\('" \+ gid \+ "'\);/.test(tu69));
-      const rm0 = tu69.indexOf("'remove-item': {");
-      const rm = tu69.slice(rm0, tu69.indexOf("'want-to-collection'", rm0));
-      const rmCopy = rm.replace(/\/\/[^\n]*/g, '');   // drop the reasoning comments
-      ok('269 it names the real button', /Remove from Collection<\/strong>/.test(rmCopy));
-      // v0.9.1375 — the positive half pinned one phrasing ("top</strong>"). The
-      // REQUIREMENT is that it never sends anyone to the bottom of the screen
-      // or tells them to scroll; the copy now says "just under the item's
-      // name", which satisfies that and failed the old spelling.
-      ok('269 …at the real end of the screen',
-         !/bottom of the panel/.test(rmCopy) && !/scroll down/.test(rmCopy) &&
-         !/bottom of the screen/.test(rmCopy));
-      ok('269 …and no longer sends phone users after the ✕ that was deliberately deleted',
-         !/✕/.test(rmCopy) && !/\\u2715/.test(rmCopy));
-      // The ✕ really is gone from the rows — if it ever comes back, this test
-      // should be reconsidered rather than silently disagreed with.
+      // v0.9.1987 (Brad: "the tour is the only one we need to keep"): the
+      // per-page guides whose copy these checks read (remove-item, add-want)
+      // are gone — narrated videos replaced them. A guide that does not exist
+      // cannot send anyone to a button that does not exist either; what is
+      // pinned now is that they STAY gone, and the tour is the one guide left.
+      ok('269 the per-page guides are gone, and the tour is the one guide left',
+         !/'remove-item': \{/.test(tu69) && !/'add-want': \{/.test(tu69) &&
+         /'tour': \{/.test(tu69) && /startGuide\('tour'\);/.test(tu69));
       ok('269 …which is still true of the rows themselves',
          /remove button is GONE from phone rows/.test(rd69('browse.js')));
       const tuCopy = tu69.replace(/\/\/[^\n]*/g, '');
       ok('269 no guide still says "My Collection List" (the sidebar says "My Collection")',
          !/My Collection List/.test(tuCopy));
-      // v0.9.1375 — this was red for TWO reasons at once, which is why it
-      // needed reading rather than deleting. (1) A real regression: the step's
-      // copy had been reduced to the sidebar label only, while the phone's
-      // bottom bar still says "Want List" — fixed in the app. (2) It also
-      // pinned the QUOTE STYLE around the names, and the copy now emphasises
-      // them with <strong> instead. Scope to the guide, require both names
-      // against both places, and let the markup be markup.
-      {
-        const _aw0 = tuCopy.indexOf("'add-want': {");
-        const _aw = _aw0 > -1 ? tuCopy.slice(_aw0, tuCopy.indexOf("'list-for-sale': {", _aw0)) : '';
-        ok('269 the want-list step names the CONCEPT, not one device\'s label',
-           _aw.length > 0 &&
-           /Want \/ Upgrade/.test(_aw) && /in the sidebar/.test(_aw) &&
-           /Want List/.test(_aw) && /bottom bar/.test(_aw),
-           _aw ? 'the step names only one of the two labels' : 'add-want guide not found');
-      }
-      // v0.9.1375 — required the literal word "report" after the name. The
-      // requirement is that BOTH sides call it the same thing; the guide's
-      // sentence structure is not the subject.
-      ok('269 the report is called what the report library calls it',
-         /Want \/ Upgrade \/ Parts<\/strong>/.test(tuCopy) &&
-         /name: 'Want \/ Upgrade \/ Parts'/.test(rd69('report-library.js')));
+      // v0.9.1987: the want-list and report-name checks read the add-want and
+      // reports guides, which are gone (see above).
 
       // ── (4) the _ids cache: RUN it, don't just read it ──
       const i0 = pi69.indexOf('var _idsRaw = null, _idsObj = null;');
@@ -19438,8 +19411,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // ── one name per thing, and the name on the button wins ──
       // v0.9.1375 — pinned <b>, and the guide copy standardised on <strong>.
       // The requirement is the NAME, not the tag it is wrapped in.
-      ok('272 the coach mark names the button that actually exists',
-         /Photo ID<\/(b|strong)>/.test(tut) && !/Identify by Photo<\/(b|strong)>/.test(tut));
+      // v0.9.1987: the coach mark lived in the add-item guide, which is gone;
+      // the half that still means something — the old name never comes back.
+      ok('272 no help copy names the old "Identify by Photo" button',
+         !/Identify by Photo<\/(b|strong)>/.test(tut));
       ok('272 the screen-reader label matches the visible text',
          /aria-label="Photo ID">/.test(wiz) && !/aria-label="Identify by photo">/.test(wiz));
       ok('272 the identify modal is named like every other spend button',
@@ -20968,54 +20943,24 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // as v0.9.1372's ranking read off prose. Ask the wizard what it KNOWS.
     // ═══════════════════════════════════════════════════════════
     section('289. The guide notices that you picked something');
+    // v0.9.1987 (Brad: "the tour is the only one we need to keep"): the
+    // add-item guide these conditions served is gone, and its helpers
+    // (_gtMatchAccepted, _gtMatchPicked, _gtGroupingAnswered,
+    // _gtVariationAnswered, _gtWizardOpen) went with it. What is pinned now is
+    // that nothing is left calling them — a half-removed guide would throw
+    // the moment a step asked.
     (function () {
-      const p89 = require('path'), vm89 = require('vm');
+      const p89 = require('path');
       const tut89 = fs.readFileSync(p89.join(__dirname, '..', 'app', 'tutorial.js'), 'utf8');
-      const a89 = tut89.indexOf('function _gtMatchAccepted() {');
-      const b89 = tut89.indexOf('const GUIDES = {');
-      ok('289 the condition is a named, reachable function, not a buried closure',
-         a89 > 0 && b89 > a89);
-      // v0.9.1377 — was /awaitUser: _gtMatchAccepted,/. Walking the live guide
-      // showed that condition is too EAGER for "Pick the one you have": the app
-      // resolves a catalogue row while you are still typing, so the gate was
-      // already open on arrival and the step could never follow the pick. It
-      // now uses _gtMatchPicked. The requirement is that the step's gate is a
-      // NAMED, reachable function rather than a buried closure — not which one
-      // it is this month.
-      ok('289 the add-item step uses a named condition, not a buried closure',
-         /awaitUser: _gtMatch(Accepted|Picked),/.test(tut89));
-      ok('289 …and the pick step uses the PICK-aware one, not the eager one',
-         /function _gtMatchPicked\(\)/.test(tut89) &&
-         /awaitUser: _gtMatchPicked,/.test(tut89) &&
-         /getElementById\('wiz-suggestions'\)[\s\S]{0,160}return false;/.test(tut89),
-         'the pick step must stay closed while the match list is still up');
-      ok('289 …and no longer decides by reading the header text',
-         !/return !!\(h && !\/Step 1 of\/i\.test\(h\.innerText \|\| ''\)\);/.test(tut89));
-
-      function run(st) {
-        const sb = { console: { warn: function () {} }, window: {}, document: {
-          querySelector: () => st.header ? ({ innerText: st.header }) : null,
-          getElementById: (id) => (st.grouping && id === 'wiz-grouping-btns')
-            ? ({ offsetParent: {}, querySelector: () => ({}) }) : null } };
-        if (st.wizard !== undefined) sb.wizard = st.wizard;
-        vm89.createContext(sb);
-        vm89.runInContext(tut89.slice(a89, b89) + '\n;this.f = _gtMatchAccepted;', sb);
-        return sb.f();
-      }
-
-      ok('289 BRAD\'S BUG: a picked match counts, even though the header still says Step 1',
-         run({ header: 'Collection · Step 1 of 6 Item Number', grouping: true,
-               wizard: { matchedItem: { itemNum: '773' }, data: { itemNum: '773' } } }) === true);
-      ok('289 nothing picked yet still waits (the guide must not run ahead)',
-         run({ header: 'Collection · Step 1 of 6 Item Number', grouping: false,
-               wizard: { matchedItem: null, data: {} } }) === false);
-      ok('289 an item with no grouping step, where the wizard advances itself, still counts',
-         run({ header: 'Collection · Step 2 of 6 Which variation is it?', grouping: false,
-               wizard: { matchedItem: null, data: {} } }) === true);
-      ok('289 the visible grouping row alone is enough when the wizard object is out of reach',
-         run({ header: 'Collection · Step 1 of 6', grouping: true }) === true);
-      ok('289 it answers false rather than throwing when there is no wizard at all',
-         run({ header: '', grouping: false }) === false);
+      const code89 = tut89.replace(/\/\/[^\n]*/g, '');
+      const names = ['_gtMatchAccepted', '_gtMatchPicked', '_gtGroupingAnswered', '_gtVariationAnswered', '_gtWizardOpen'];
+      const left = names.filter(n => new RegExp('\\b' + n + '\\b').test(code89));
+      ok('289 the add-item guide\'s wait conditions are gone, and nothing still calls them',
+         left.length === 0, left.join(', '));
+      // Proves the check can fail: a planted call is found.
+      const planted = code89 + '\nvar x = { awaitUser: _gtMatchPicked };';
+      ok('289 PLANTED: a leftover call to one of them is caught',
+         names.some(n => new RegExp('\\b' + n + '\\b').test(planted)));
     })();
 
     // ═══════════════════════════════════════════════════════════
@@ -21037,7 +20982,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const copy = []
         .concat([...tut90.matchAll(/body:\s*'((?:[^'\\]|\\.)*)'/g)].map(m => m[1]))
         .concat([...tut90.matchAll(/awaitMsg:\s*'((?:[^'\\]|\\.)*)'/g)].map(m => m[1]));
-      ok('290 the guide copy was found and read', copy.length > 20, String(copy.length));
+      // v0.9.1987: the tour is the only guide now (its cards are ~14 of these).
+      ok('290 the guide copy was found and read', copy.length >= 10, String(copy.length));
 
       // A catalogue-shaped number within reach of a possessive phrase.
       const POSSESSIVE = /(you own|you have|yours|your item|your \w+ is)/i;
@@ -21056,9 +21002,14 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
       // The example numbers that ARE allowed must stay introduced as examples,
       // or this check would pass by the copy simply losing its examples.
-      ok('290 …while the deliberate example is still there, still an example',
-         /try <strong>773<\/strong>/.test(tut90),
-         'the add-item guide should still offer 773 as something to type');
+      // v0.9.1987: the "try 773" example lived in the add-item guide, which is
+      // gone. The check above still has to be able to fail, so plant one.
+      ok('290 PLANTED: a number attached to "you own" is caught',
+         (function () {
+           const plain = 'this is what decides which 773 you own';
+           const m = /\b\d{3,5}(-\d{1,4})?\b/.exec(plain);
+           return !!m && POSSESSIVE.test(plain.slice(Math.max(0, m.index - 45), m.index + 50));
+         })());
     })();
 
 

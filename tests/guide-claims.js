@@ -171,7 +171,10 @@ const norm = s => String(s || '').replace(/[…–—]/g, ' ')
     // change is that the COPY still makes plenty of claims and that we look at
     // every one that a user could actually reach.
     ok('the copy actually makes checkable claims, and we checked the live ones',
-       claims.length >= 5 && (claims.length + skippedTotal) >= 8,
+       // v0.9.1987: the tour is the only guide left (the ten per-page guides
+       // gave way to videos), and its cards name few buttons — 2 live, 1
+       // skipped on this screen when it went in. Still never zero.
+       claims.length >= 2 && (claims.length + skippedTotal) >= 3,
        claims.length + ' live, ' + skippedTotal + ' in steps the engine skips on this screen');
 
     const missing = claims.filter(c => !c.hit && !EXPECT_ABSENT[c.phrase]);

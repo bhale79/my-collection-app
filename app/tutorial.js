@@ -16,6 +16,10 @@
 //   3. the guided tour — dims the page, spotlights ONE REAL control at
 //      a time, Back / Next / Exit.
 //
+// v0.9.1987 (Brad): the tour is now the ONLY guide. The per-page guides
+// were replaced by narrated screen-recorded videos (real screens, real
+// voice — not the old fake-screen demos), listed in tutorial-gifs-config.js.
+//
 // Everything is now (3). Each guide OPENS ITS OWN PAGE first, then
 // walks the real controls on it. The dashboard tour is no longer a
 // special case; it is simply the first guide in the list.
@@ -35,115 +39,16 @@
 // here resolves in the live app.
 // ═══════════════════════════════════════════════════════════════
 
-function _gNav(fn) { return '.nav-item[onclick*="' + fn + '"]'; }
-
-// ── v0.9.1373 (Brad: "i picked what i had, the screen advanced but the help
-// menu didn't know i did it") ──────────────────────────────────────────────
-// The add-item guide waited for the wizard's HEADER to stop reading "Step 1
-// of". But picking a match does not advance the wizard's step — it fills the
-// number, shows the green "Found" banner and reveals the grouping row, all
-// still on Step 1 of 6. So the guide sat there telling him to tap a match he
-// had already tapped.
-//
-// It waited on a RENDERING of the state (a line of text in a header) instead
-// of the state itself. Today's other bug was the same shape: a rank read off
-// prose stopped working the moment the prose changed. Ask the wizard what it
-// knows, not what it is currently displaying.
-//
-// Named, exported and tested, rather than an anonymous closure inside a guide
-// step where nothing could reach it.
-function _gtMatchAccepted() {
-  try {
-    // 1. The fact: the wizard has resolved a catalogue row.
-    var w = (typeof wizard !== 'undefined' && wizard) ? wizard : null;
-    if (w && w.matchedItem) return true;
-    if (w && w.data && w.data._partialMatches && w.data._partialMatches.length === 0 &&
-        w.data.itemNum && String(w.data.itemNum).trim()) return true;
-    // 2. Or the wizard has moved on by itself (items with no grouping step).
-    var h = document.querySelector('#wizard-modal .modal-header, #wizard-modal h2');
-    if (h && !/Step 1 of/i.test(h.innerText || '')) return true;
-    // 3. Or the grouping row it only reveals AFTER a match is accepted is up.
-    var g = document.getElementById('wiz-grouping-btns');
-    if (g && g.offsetParent !== null && g.querySelector('button')) return true;
-  } catch (e) {}
-  return false;
-}
-if (typeof window !== 'undefined') window._gtMatchAccepted = _gtMatchAccepted;
-
-// v0.9.1397 — "did the user answer the grouping question?" The wizard replaces
-// the item-number screen with the variation screen, so the row we were pointing
-// at going away IS the answer. Checked that way round rather than by reading a
-// choice out of the wizard, because the row is the thing the step is about.
-function _gtGroupingAnswered() {
-  try {
-    var v = document.getElementById('var-cards');
-    if (v && v.offsetParent !== null) return true;          // the variation screen is up
-    var g = document.getElementById('wiz-grouping-btns');
-    if (g && g.offsetParent === null) return true;          // the row has gone
-  } catch (e) {}
-  return false;
-}
-// And one later: the variation screen going away means a variation was chosen.
-function _gtVariationAnswered() {
-  try {
-    var v = document.getElementById('var-cards');
-    if (v && v.offsetParent === null) return true;
-  } catch (e) {}
-  return false;
-}
-// v0.9.1398 — "did pressing that button do what the card said it would?"
-// Brad drove the add-item guide himself: he pressed Add to My Collection, the
-// wizard opened, and the guide sat on "Step 1 of 9 — Start here" with its ring
-// still on the button behind the modal. The FIRST instruction in the guide had
-// no awaitUser, so it could not notice being obeyed.
-//
-// An audit of all 61 steps found 19 that tell you to do something and have no
-// way to see you did it. Not all 19 should gate — a step that merely SUGGESTS
-// something optional would trap you if it waited. These are the ones where the
-// named action moves the app to another screen, which is exactly when a guide
-// that does not follow becomes wrong rather than merely quiet.
-function _gtWizardOpen() {
-  try {
-    var m = document.querySelector('#wizard-modal.open');
-    return !!(m && m.getBoundingClientRect().width > 40);
-  } catch (e) {}
-  return false;
-}
-if (typeof window !== 'undefined') {
-  window._gtGroupingAnswered = _gtGroupingAnswered;
-  window._gtVariationAnswered = _gtVariationAnswered;
-  window._gtWizardOpen = _gtWizardOpen;
-}
-
-// ── v0.9.1377 (found by WALKING the live guide, not by reading it) ────────
-// _gtMatchAccepted answers "has a catalogue row been resolved?" — and the app
-// resolves one WHILE YOU ARE STILL TYPING. That is right for the type-the-
-// number step and wrong for "Pick the one you have": by the time that step
-// renders, its gate is already open, so no poll is armed, so the guide can
-// never follow the pick. Brad reported this twice. v0.9.1373 fixed the half
-// that nags and left the half that sits still.
-//
-// This asks the narrower question that step actually cares about. While the
-// match list is still on screen you have not picked yet — full stop. That
-// keeps the gate CLOSED on arrival, which is the thing that arms the
-// auto-advance.
-function _gtMatchPicked() {
-  try {
-    var s = document.getElementById('wiz-suggestions');
-    if (s && s.offsetParent !== null && (s.innerText || '').trim().length) return false;
-    return _gtMatchAccepted();
-  } catch (e) {}
-  return false;
-}
-if (typeof window !== 'undefined') window._gtMatchPicked = _gtMatchPicked;
+// v0.9.1987: the helpers that let the per-page guides notice what you did
+// (_gtMatchAccepted, _gtMatchPicked, _gtGroupingAnswered, _gtVariationAnswered,
+// _gtWizardOpen) and _gNav went with those guides. The tour never used them.
 
 // ══ v0.9.1869 — the tour's own helpers ══════════════════════════════════════
 // The page tabs the tour lights with its second ring (see _gtRing2). Desktop
 // sidebar item first, phone bottom-bar item second; the engine takes the first
 // one that is on screen and skips the ring when neither is. Written out in
-// full rather than through _gNav() on purpose: photo-inbox-tests §289 lifts
-// everything from _gtMatchAccepted to GUIDES into a bare sandbox, where a call
-// made at load time has nothing to call.
+// full on purpose: tests lift this file's top (from _TOUR_TAB to GUIDES) into
+// a bare sandbox, where a call made at load time has nothing to call.
 var _TOUR_TAB = {
   dashboard:  '.nav-item[onclick*="showPage(\'dashboard\'"], #mnav-dashboard',
   collection: '.nav-item[onclick*="filterOwned"], #mnav-collection',
@@ -364,7 +269,7 @@ const GUIDES = {
         body: 'Found a mistake in the catalog, or have a suggestion? <strong>Contact</strong> opens this box, and <strong>Send an Email</strong> starts a message to us in your own mail app.' },
       { before: function () { _tourClose(); try { if (typeof openHelpHub === 'function') openHelpHub({ underGuide: true }); } catch (e) {} return 400; },
         selector: '#help-hub-panel', tab: _TOUR_TAB.help, title: 'Need Help?',
-        body: '<strong>Need Help?</strong> opens the Help Center. Every page you just saw has its own guide here — adding an item, the Photo Inbox, selling, reports — and each one opens the real screens and points at the real buttons, like this tour. The tips further down cover undoing a mistake and using more than one device.' },
+        body: '<strong>Need Help?</strong> opens the Help Center. Short videos show the everyday jobs step by step — adding an item, sharing your for-sale list — with sound you can turn off and captions you can turn on. You can take this tour again from here, and the tips further down cover undoing a mistake and using more than one device.' },
       { before: function () { _tourClose(); try { if (typeof errReportOpen === 'function') errReportOpen(); } catch (e) {} return 400; },
         selector: '#err-report-modal [data-err-panel]', tab: _TOUR_TAB.report, title: 'Report a problem',
         body: 'If something goes wrong, <strong>Report a problem</strong> opens this box. Three plain questions — what you were doing, what you saw, what you think went wrong — and the app gathers the technical details itself; what you typed is never recorded. <strong>Send</strong> delivers it straight to us, no email app needed.' },
@@ -379,388 +284,12 @@ const GUIDES = {
         title: 'That’s the tour',
         body: 'You’re back on the Dashboard. The quickest first step: <strong>Add to My Collection</strong> with an item number you know. Everything else can wait until you need it.' }
     ]
-  },
-
-  'add-item': {
-    icon: '📦', label: 'Add an item', desc: 'From the Add button to a saved item',
-    open: function () { showPage('dashboard'); },
-    steps: [
-      { selector: '#dash-add-collection, .dash-mobile-actions', title: 'Start here',
-        awaitLabel: 'Next \u2192',
-        awaitMsg: 'Press <strong>Add to My Collection</strong> and I\'ll come with you.',
-        awaitUser: function () { return _gtWizardOpen(); },
-        body: 'Press <strong>Add to My Collection</strong>. Let\'s open it and walk the real screens together.' },
-      // v0.9.1361 — this used to describe the variation and condition steps
-      // while the wizard sat on step 1 with an empty box, because a guide
-      // cannot advance the wizard for you: its state object is let-bound and a
-      // synthetic pick does not satisfy wizardNext(). So the guide WAITS. You
-      // type, you pick, and Next unlocks when the wizard has actually moved on.
-      { before: function () { if (typeof openWizard === 'function') openWizard('collection'); return 900; },
-        selector: '#wiz-input', title: 'Type the item number',
-        watch: true, needs: function () { return _gtWizardOpen(); },
-        awaitLabel: 'Next \u2192',
-        awaitMsg: 'Please enter an item number first — try <strong>773</strong> — then tap the match you want from the list.',
-        awaitUser: function () {
-          var el = document.getElementById('wiz-input');
-          return !!(el && String(el.value).trim().length >= 2);
-        },
-        body: 'Type a number — try <strong>773</strong> — and the catalog searches as you type. A list of matches appears underneath: <strong>tap the one you mean</strong>. I\'ll wait here until you have typed something.' },
-      { selector: '#wiz-photoid-block, #wizard-idphoto-btn', optional: true,
-        watch: true, needs: function () { return _gtWizardOpen(); },
-        title: 'Or let a photo do it',
-        body: 'Don\'t know the number? <strong>Photo ID</strong> on this screen reads it off a picture instead.' },
-      // v0.9.1365 (Brad): this step had NO selector, so the card centred itself
-      // — straight on top of the match list the user needs to read. Pointing it
-      // at #wiz-suggestions (450x290, 8% of the viewport) both highlights the
-      // right thing and lets the anti-overlap pass keep the card clear of it.
-      //
-      // "View ↗" is a real anchor with target="_blank" to the reference page —
-      // for 773 it opens cornucopiaoftoytrains.com/steamers-no-746-no-773.
-      // Verified in the live wizard, not assumed.
-      { selector: '#wiz-suggestions', optional: true,
-        watch: true, needs: function () { return _gtWizardOpen(); },
-        title: 'Pick the one you have',
-        awaitLabel: 'Next \u2192',
-        awaitMsg: 'Tap one of the matches in the list to pick your item — I\'ll carry on as soon as you do.',
-        awaitUser: _gtMatchPicked,
-        body: 'These are the matches for what you typed. <strong>Tap the one you have</strong> and I\'ll move on with you.<br><br>Not sure which is yours? <strong>View ↗</strong> on any row opens that item\'s reference page in a new tab so you can look at it first.' },
-      // v0.9.1366 (Brad, verified by driving the live wizard) — after a match is
-      // picked the wizard shows a grouping row it never used to mention:
-      // "Engine Only / Engine + Tender" for steam, "A Powered / A Dummy / AA /
-      // AB / ABA" for F-3 and Alco diesels. Built by getGroupingOptions (app.js)
-      // into #wiz-grouping-btns. The row is hidden for items with no partner and
-      // for box-only, so this step is optional.
-      // v0.9.1397 (Brad, with a screenshot): "didn't advance here". The wizard
-      // had moved on to "Step 2 of 8 — Which variation is it?" while the card
-      // still read "Step 5 of 9 — Just the engine, or the pair?", ringing a
-      // block of variation text that happened to be where the grouping row
-      // used to sit. This step had NO awaitUser at all, so it had no way to
-      // notice the question had been answered — the same shape as his earlier
-      // "i picked what i had, the screen advanced but the help menu didn't
-      // know i did it", one step further along.
-      { selector: '#wiz-grouping-btns', optional: true,
-        watch: true, needs: function () { return _gtWizardOpen(); },
-        awaitLabel: 'Next \u2192',
-        awaitMsg: 'Pick <strong>Engine Only</strong> or <strong>Engine + Tender</strong> and I\'ll carry on with you.',
-        awaitUser: function () { return _gtGroupingAnswered(); },
-        title: 'Just the engine, or the pair?',
-        body: 'For an engine, the wizard asks how you are entering it. <strong>Engine Only</strong> logs the locomotive on its own; <strong>Engine + Tender</strong> logs the pair together as one set. Diesels ask the same question as <strong>A Powered</strong>, <strong>A Dummy</strong>, or a full <strong>AA / AB / ABA</strong> set. Pick whichever matches what is on your shelf.' },
-      // The variation screen is step 2 of 6, titled "Which variation is it?".
-      // Cards live in #var-cards; the two shortcut buttons above them got ids in
-      // v0.9.1366 (#wiz-var-help, #wiz-var-nospec) because they had none at all,
-      // so no guide could point at them. Every card also carries its own
-      // View ↗ anchor to the reference page. All confirmed in the live wizard.
-      // Same again one step later: once a variation is chosen the wizard moves
-      // to condition and photos, and without a gate the card would sit on a
-      // screen that is no longer there.
-      { selector: '#var-cards', optional: true,
-        watch: true, needs: function () { return _gtWizardOpen(); },
-        awaitLabel: 'Next \u2192',
-        awaitMsg: 'Tap the variation that matches yours — or <strong>No specific variation / not sure</strong> — and I\'ll follow.',
-        awaitUser: function () { return _gtVariationAnswered(); },
-        title: 'Pick the variation you have',
-        body: 'These are the known variations of your item, each with its description from the reference catalog. <strong>Pick the one you have</strong> — this is what decides <em>which</em> one you own. Highlighted words show how each one differs from the first.' },
-      { selector: '#wiz-var-shortcuts', optional: true,
-        watch: true, needs: function () { return _gtWizardOpen(); },
-        title: 'Two ways out if you are unsure',
-        body: 'Not sure which is yours? <strong>View ↗</strong> on any card opens that variation\'s reference page in a new tab so you can compare it against the real thing. <strong>Help me pick my variation</strong> asks you a few yes-or-no questions and narrows it down for you. And if you still cannot tell, <strong>No specific variation / not sure</strong> logs the item without one — you can set it later.' },
-      { title: 'Then condition and the rest',
-        watch: true, needs: function () { return _gtWizardOpen(); },
-        body: 'After the variation comes condition on a <strong>1 to 10</strong> scale, what you paid, and photos. The one thing it insists on is an <strong>Est. Worth</strong> on the Purchase &amp; Value screen — everything else can be left blank and filled in later.' },   // v0.9.1920 (Brad, camera list #12): Est. Worth IS required (wizard.js _wizardNextCore)
-      { before: function () { try { if (typeof _doCloseWizard === 'function') _doCloseWizard(); } catch (e) {} return 500; },
-        selector: _gNav('filterOwned'), title: 'Where it lands',
-        body: 'The last screen lists everything you entered — <strong>tap any line to edit it</strong> — and <strong>Save</strong> writes it straight to your Google Sheet. It appears here, in My Collection. If the wizard was still open I have closed it — this guide saved nothing.' }
-    ]
-  },
-
-  'photo-inbox': {
-    icon: '📥', label: 'Photo Inbox: get photos in and file them', desc: 'Shoot a shelf now, sort it out later',
-    open: function () { if (typeof _pinGo === 'function') _pinGo(null); },
-    steps: [
-      { title: 'Shoot now, type later',
-        body: 'The Photo Inbox holds photos until you file them, so you can photograph a whole cabinet in one go and do the work another day.' },
-      { selector: '#pin-add-photos', title: 'Getting photos in',
-        body: '<strong>Add photos…</strong> offers <strong>From This Computer</strong> or <strong>From Google Photos</strong>. On a computer you can also drag photos straight onto the page. On a phone, <strong>Take with Phone</strong> opens the camera.' },
-      { title: 'Say what you are shooting — once',
-        body: 'Before the first photo you are asked what you are about to photograph. Set the maker, scale and era once and every photo in that session carries it. That stamp is what lets the reader search the right catalog instead of all of them.' },
-      // v0.9.1380 (found by the headless walk, which is the point of building
-      // it) — both of these describe controls that DO NOT EXIST on an empty
-      // Photo Inbox: there are no tiles, and _pinRenderFilter hides the whole
-      // filter when it has no groups to offer. Every new beta tester opens
-      // this guide with an empty inbox, so the two steps most likely to be
-      // read by a newcomer were the two describing things they cannot see.
-      // Optional now, so v0.9.1378's skip carries them past it in silence.
-      { selector: '#pin-grid > .pin-tile:first-child', optional: true, title: 'One tile is one item',
-        body: 'A tile is an <em>item</em>, not a photo — a stack of several shots shows a count. The strip along the bottom gives the era, what the reader found, and the date. The <strong>✂</strong> crops and rotates, and cropping to one item is the biggest thing you can do to get a right answer.' },
-      { selector: '#pin-filter-select', optional: true, title: 'Finding things in a big inbox',
-        body: 'Filter by how it read, by maker and era, or by group kind — everything <strong>Not touched yet</strong>, say. The filters combine, and <strong>Show all</strong> clears them.' },
-      { selector: '#pin-refresh-btn', title: 'Refresh',
-        body: 'Re-reads the folder from Google Drive. Use it if a load only half-worked, or to pull in photos you just shot on your phone while this page was open.' },
-      { title: 'Filing an item',
-        body: 'Click a tile, check the number, then <strong>Add to my Collection</strong> — or <strong>Add to Sales List</strong> if it is going straight up for sale. Photos stay in the inbox until the wizard actually saves, so cancelling loses nothing. <strong>Discard</strong> sends photos to your Drive trash, recoverable for about 30 days.' }
-    ]
-  },
-
-  'photo-inbox-reading': {
-    icon: '🔍', label: 'Photo Inbox: reading item numbers', desc: 'What it reads, and what to do when it cannot',
-    open: function () { if (typeof _pinGo === 'function') _pinGo(null); },
-    steps: [
-      { selector: '#pin-identify-btn', optional: true, title: 'Start here',
-        body: 'This reads printed numbers and barcodes across the whole inbox. Run it as often as you like.' },
-      { title: 'What a reading looks like',
-        body: 'On a tile, a blue <strong>2328</strong> means the number was found in the catalog. <strong>best guess</strong> in orange means treat it with suspicion. <strong>could not read</strong> means it tried and found nothing. Check any of them against the item in your hand — this is a helper, not an oracle.' },
-      { autoRead: true, selector: '#pin-idall-btn', optional: true, title: 'When free is not enough',
-        body: 'A closer read costs <strong>one photo ID per item</strong> from a daily allowance that refreshes overnight. This button does the whole backlog and tells you the cost before it starts.' },
-      { autoRead: true, title: 'Same read, three doors',
-        body: 'Ticking photos and pressing <strong>Read these</strong> does just those. On a single review card, <strong>Read this photo (1 photo ID)</strong> does one. Same read, same price — and the price is on the button before you press it.' },
-      { autoRead: true, title: 'Crop first — it is worth a photo ID',
-        body: 'The paid read always shows the crop screen first. Frame the item, or better the number itself, then <strong>Read this</strong>. A tight crop is the difference between a right answer and a wasted read.' },
-      { title: 'Google Photo ID',
-        body: 'On a review card, <strong>Google Photo ID</strong> sends the picture to Google Lens. Copy Google\'s answer, come back, paste it in the gold box, and the app reads it for you.' },
-      { autoRead: true, selector: _gNav('buildPrefsPage'), title: 'Turning paid reads off',
-        body: 'In <strong>Preferences → Photo ID</strong>, untick <strong>Use my daily photo ID reads</strong> and nothing is ever spent. The free readers keep working; when they cannot tell, you are asked to type the number.' }
-    ]
-  },
-
-  'photo-inbox-groups': {
-    icon: '🗂️', label: 'Photo Inbox: several photos, one item', desc: 'Engine + tender, A units, sets and boxes',
-    open: function () { if (typeof _pinGo === 'function') _pinGo(null); },
-    steps: [
-      { selector: '#pin-group-btn', title: 'Why group photos',
-        body: 'Four shots of the same boxcar should become one item, not four. Press <strong>Group photos</strong>, tap the photos in the grid, and they collect in a panel.' },
-      // v0.9.1394 (walked in Brad's browser) — this was `optional` with a
-      // selector, and the panel it points at only exists once you are ALREADY
-      // grouping. So on every ordinary walk of this guide the engine skipped
-      // it, and the one step whose own first words are "This one catches
-      // people out" was the one nobody ever saw. Narration now, like the four
-      // steps that follow it, so it always shows. It cannot be made REQUIRED
-      // with the selector: a required miss is a real fault and would rightly
-      // fail guide-walk every time the panel is closed.
-      { title: 'Apply is what saves it',
-        body: 'This one catches people out. <strong>Apply</strong> saves the grouping — <strong>✓ Finished</strong> only closes the mode. Tick, then Apply, then Finished.' },
-      { title: 'Engines, A units and sets',
-        body: 'Choose the kind: <strong>Engine + tender</strong>, <strong>AA — two A units</strong>, <strong>AB — A and B</strong>, <strong>ABA — A, B, A</strong>, <strong>Train set</strong>, or <strong>Item + its box</strong>. An AA, AB or ABA saves as separate items that stay linked.' },
-      { title: 'The "together" shot',
-        body: 'A picture of everything at once gets the role <strong>Both together</strong>, <strong>All three together</strong> or <strong>The whole set</strong>. It becomes the tile\'s cover and is never read for a number, because it has several.' },
-      { title: 'Adding a whole set at once',
-        body: 'Once two or more pieces have been read, the review card offers <strong>Add the whole set</strong> — the wizard opens with every number already entered.' },
-      { title: 'Splitting and tagging',
-        body: 'The <strong>⊟</strong> on a stack splits it back into separate photos; nothing is deleted. <strong>Tag maker/era/scale/type</strong> stamps photos without joining them — and tagging <strong>Paper</strong>, <strong>Catalog</strong> or <strong>Other</strong> keeps them out of the paid batch, since there is rarely a number on a drawing.' }
-    ]
-  },
-
-  'add-want': {
-    icon: '⭐', label: 'Add a want-list item', desc: 'Track what you are hunting for',
-    open: function () { showPage('upgrade'); if (typeof buildUpgradePage === 'function') buildUpgradePage(); },
-    steps: [
-      // v0.9.1353: the old version of this guide told people to tap
-      // "Add Want Item" — a button that exists nowhere in the app, and never
-      // did. It also called this page "Want List" in the sidebar when the
-      // sidebar says "Want / Upgrade".
-      { selector: _gNav('buildUpgradePage'), title: 'Where your want list lives',
-        // v0.9.1375 — the two names were reduced to one at some point between
-        // v1340 and v1365, and §269 has been red ever since. It is not a stale
-        // test: the phone's bottom bar still reads "Want List" (index.html) while
-        // the sidebar reads "Want / Upgrade", so naming only the sidebar sends
-        // every phone user hunting for a label their screen does not have. That
-        // is the exact complaint the step was rewritten for in the first place.
-        body: 'One page for things you are hunting and things you want a better copy of. It is <strong>Want / Upgrade</strong> in the sidebar and <strong>Want List</strong> in the bottom bar on a phone — same page, two names.' },
-      { selector: '#page-upgrade .qa-add-btn', title: 'Adding one',
-        body: 'Press <strong>+ ADD</strong>, then type the item number. The catalog finds it as you type and you pick the variation you are after.' },
-      { title: 'Set a target price',
-        body: 'Optional, but useful — what you are willing to pay. It shows on the row so you can judge a deal quickly at a show.' },
-      { selector: '.row-add-collection, #detail-add-collection', optional: true, title: 'When you find one',
-        needs: function () {
-          var el = document.querySelector('.row-add-collection, #detail-add-collection');
-          return !!(el && el.offsetParent !== null);
-        },
-        body: 'Press <strong>+ Collection</strong> on the row. The Add wizard opens with the number and variation already filled in, and the item leaves your want list automatically when you save.<br><br>Still hunting? Each row also has <strong>eBay</strong> and <strong>Search</strong> buttons that look for that exact item online — a quick way to check what one is going for.' }
-    ]
-  },
-
-  'list-for-sale': {
-    icon: '🏷️', label: 'List an item for sale', desc: 'Put something up and track the asking price',
-    open: function () { showPage('browse'); if (typeof filterOwned === 'function') filterOwned(); },
-    steps: [
-      { selector: _gNav('filterOwned'), title: 'Start in your collection',
-        body: 'Find the item you want to sell — search by number, road name or description.' },
-      // v0.9.1364 — MEASURED: this guide opens page-browse (the collection
-      // LIST) and then names a button that only exists on the item-detail
-      // page. Same failure Brad caught in add-item; the audit missed it
-      // because the label exists somewhere in the app and the step had no
-      // selector to fail on. The guide now WAITS for you to open an item.
-      { title: 'Open the item first',
-        awaitLabel: 'Next \u2192',
-        awaitMsg: 'Please tap one of your items in the list first — that opens its own page, which is where these buttons live.',
-        // v0.9.1400 — AND DO NOT TRAP SOMEONE WHO HAS NOTHING TO OPEN.
-        // Found by running the guides against an empty collection. This gate
-        // waits for you to open an item, and a brand-new user has no items to
-        // open, so three guides dead-ended on this card: Back worked, Cancel
-        // worked, forward was impossible. Brad's rule is that any combination
-        // must let you cancel out, back up, OR move forward, and one of those
-        // three was missing for every new user. With an empty list the gate
-        // opens on its own and the optional steps behind it retire themselves,
-        // so the guide still explains where the buttons will be.
-        awaitUser: function () {
-          var p = document.querySelector('.page.active');
-          if (p && p.id === 'page-itemdetail') return true;
-          return !document.querySelector('[onclick*="showItemDetailPage"]');
-        },
-        body: 'Tap any item in the list to open its own page. Everything after this happens there. I\'ll wait.' },
-      { selector: '#detail-list-sale', optional: true,
-        title: 'List it',
-        body: 'Press <strong>List for Sale</strong> in the toolbar at the top of the item. You are asked for your asking price and any notes for a buyer.<br><br>Not sure what to ask? The <strong>View on …</strong> link near the top opens this item\'s reference page online, so you can check the going value first.' },
-      { selector: _gNav('buildForSalePage'), title: 'Your For Sale list',
-        body: 'It appears here, with your asking price beside the catalog value. From a row you can share it, edit it, or take it back off sale.' },
-      { selector: '.row-mark-sold', optional: true,
-        needs: function () {
-          var el = document.querySelector('.row-mark-sold');
-          return !!(el && el.offsetParent !== null);
-        },
-        title: 'When it sells',
-        body: 'Press <strong>Mark as Sold</strong> and enter the final price. It moves into <strong>Sold Items</strong> and your dashboard totals update on their own.' }
-    ]
-  },
-
-  'want-to-collection': {
-    icon: '✅', label: 'Move a want item to your collection', desc: 'You found one — now log it',
-    open: function () { showPage('upgrade'); if (typeof buildUpgradePage === 'function') buildUpgradePage(); },
-    steps: [
-      { selector: _gNav('buildUpgradePage'), title: 'Open Want / Upgrade',
-        body: 'Everything you are looking for is here, with the catalog value beside each one.' },
-      // v0.9.1398 — found by DRIVING this guide rather than reading it. Press
-      // the green + Collection and the wizard opens on "Condition & Details"
-      // with the number already in; the guide stayed on this card, ringing a
-      // row now behind the modal. The next two cards are the ones that explain
-      // that very screen ("The wizard opens pre-filled", "Save, and it moves
-      // itself"), so the guide had the right words and no way to know it was
-      // time to say them. Same shape as add-item #1.
-      //
-      // The gate opens on its own when there is nothing to press. This step is
-      // `optional`, and an optional step with an awaitUser is no longer skipped
-      // when its element is missing — so on an EMPTY want list, without this,
-      // the card would sit there waiting for a button that does not exist.
-      { selector: '.row-add-collection, #detail-add-collection', optional: true, title: 'Find the one you bought',
-        // An empty want list has no row to press. The gate below opens on its
-        // own in that case so nobody is trapped; this retires the card
-        // altogether, so nobody is told about a button that is not there.
-        needs: function () {
-          var el = document.querySelector('.row-add-collection, #detail-add-collection');
-          return !!(el && el.offsetParent !== null);
-        },
-        awaitLabel: 'Next →',
-        awaitMsg: 'Press <strong>+ Collection</strong> on the row you bought and I\'ll come with you.',
-        awaitUser: function () {
-          var el = document.querySelector('.row-add-collection, #detail-add-collection');
-          if (!el || el.offsetParent === null) return true;
-          return _gtWizardOpen();
-        },
-        body: 'Every row has a <strong>+ Collection</strong> button at the right-hand end. The <strong>eBay</strong> and <strong>Search</strong> buttons beside it look for that exact item online, if you are still shopping for it.' },
-      { title: 'The wizard opens pre-filled',
-        watch: true, needs: function () { return _gtWizardOpen(); },
-        body: 'Item number and variation are already in. You only add condition, what you paid, and anything else you want to record.' },
-      { title: 'Save, and it moves itself',
-        body: 'On <strong>Save</strong> the item joins your collection and drops off the want list. No tidying up afterwards.' }
-    ]
-  },
-
-  'mark-sold': {
-    icon: '💰', label: 'Record a sale', desc: 'Log what you sold and for how much',
-    open: function () { showPage('browse'); if (typeof filterOwned === 'function') filterOwned(); },
-    steps: [
-      { selector: _gNav('filterOwned'), title: 'Find the item',
-        body: 'Open <strong>My Collection</strong> and find the item you have sold.' },
-      // v0.9.1364 — MEASURED: this guide opens page-browse (the collection
-      // LIST) and then names a button that only exists on the item-detail
-      // page. Same failure Brad caught in add-item; the audit missed it
-      // because the label exists somewhere in the app and the step had no
-      // selector to fail on. The guide now WAITS for you to open an item.
-      { title: 'Open the item first',
-        awaitLabel: 'Next \u2192',
-        awaitMsg: 'Please tap one of your items in the list first — that opens its own page, which is where these buttons live.',
-        // v0.9.1400 — AND DO NOT TRAP SOMEONE WHO HAS NOTHING TO OPEN.
-        // Found by running the guides against an empty collection. This gate
-        // waits for you to open an item, and a brand-new user has no items to
-        // open, so three guides dead-ended on this card: Back worked, Cancel
-        // worked, forward was impossible. Brad's rule is that any combination
-        // must let you cancel out, back up, OR move forward, and one of those
-        // three was missing for every new user. With an empty list the gate
-        // opens on its own and the optional steps behind it retire themselves,
-        // so the guide still explains where the buttons will be.
-        awaitUser: function () {
-          var p = document.querySelector('.page.active');
-          if (p && p.id === 'page-itemdetail') return true;
-          return !document.querySelector('[onclick*="showItemDetailPage"]');
-        },
-        body: 'Tap any item in the list to open its own page. Everything after this happens there. I\'ll wait.' },
-      { selector: '#detail-record-sale', optional: true,
-        title: 'Record the sale',
-        body: 'Press <strong>Record Sale</strong> in the row of buttons under the item\'s name. Enter what it sold for — that is the only thing required — and, if you like, the date and a note. If the item was on your For Sale list, it just asks for the final price and uses today\'s date.' },   // v0.9.1920 (camera list #12): there is no buyer field
-      { selector: _gNav("showPage('sold'"), title: 'Where it goes',
-        body: 'The item moves out of your active collection into <strong>Sold Items</strong>, and your totals update automatically. Nothing is deleted — the record and its photos stay.' }
-    ]
-  },
-
-  'remove-item': {
-    icon: '🗑️', label: 'Remove or delete an item', desc: 'Take something out of your collection',
-    open: function () { showPage('browse'); if (typeof filterOwned === 'function') filterOwned(); },
-    steps: [
-      { selector: _gNav('filterOwned'), title: 'Find it first',
-        body: 'Open <strong>My Collection</strong> and search by item number, road name or description.' },
-      // v0.9.1364 — MEASURED: this guide opens page-browse (the collection
-      // LIST) and then names a button that only exists on the item-detail
-      // page. Same failure Brad caught in add-item; the audit missed it
-      // because the label exists somewhere in the app and the step had no
-      // selector to fail on. The guide now WAITS for you to open an item.
-      { title: 'Open the item first',
-        awaitLabel: 'Next \u2192',
-        awaitMsg: 'Please tap one of your items in the list first — that opens its own page, which is where these buttons live.',
-        // v0.9.1400 — AND DO NOT TRAP SOMEONE WHO HAS NOTHING TO OPEN.
-        // Found by running the guides against an empty collection. This gate
-        // waits for you to open an item, and a brand-new user has no items to
-        // open, so three guides dead-ended on this card: Back worked, Cancel
-        // worked, forward was impossible. Brad's rule is that any combination
-        // must let you cancel out, back up, OR move forward, and one of those
-        // three was missing for every new user. With an empty list the gate
-        // opens on its own and the optional steps behind it retire themselves,
-        // so the guide still explains where the buttons will be.
-        awaitUser: function () {
-          var p = document.querySelector('.page.active');
-          if (p && p.id === 'page-itemdetail') return true;
-          return !document.querySelector('[onclick*="showItemDetailPage"]');
-        },
-        body: 'Tap any item in the list to open its own page. Everything after this happens there. I\'ll wait.' },
-      { selector: '#detail-remove-item', optional: true,
-        title: 'The toolbar is at the top',
-        body: 'The row of action buttons sits just under the item\'s name. Press <strong>Remove from Collection</strong> — the last button in that row. Removing lives here rather than on the list rows, because a button that small was too easy to hit by accident.' },
-      { title: 'You are asked first',
-        body: 'Nothing goes without a confirmation. Your Google Sheet row is cleared rather than destroyed, and the photos stay in your Drive.' },
-      { title: 'Grouped items',
-        body: 'If it is linked to others — an engine and its tender — you are asked whether to remove just this piece or the whole group. <strong>The group option removes every linked item at once</strong>, so read that one twice.' }
-    ]
-  },
-
-  'reports': {
-    icon: '📊', label: 'Generate a report', desc: 'Insurance, want lists, contacts, or build your own',
-    open: function () { showPage('reports'); if (typeof renderReportLibrary === 'function') renderReportLibrary(); },
-    steps: [
-      // v0.9.1353: the old version described TWO reports and a single Print
-      // button. It predated the reports rewrite by a long way.
-      // v0.9.1359: the repmenu-* rows measure 0x0 — they live inside a
-      // collapsed menu and are never on screen when the guide arrives. Every
-      // step now points at something a user can actually SEE on this page.
-      { selector: _gNav('showPage(\'reports\'') , title: 'Where reports live',
-        body: 'Everything printable is on this one page.' },
-      { title: 'The four built-in reports',
-        body: '<strong>Insurance</strong> lists every item with its estimated worth, for scheduling cover. <strong>Collection</strong> is the whole inventory. <strong>Want / Upgrade / Parts</strong> is the one to print for a show. <strong>Contacts</strong> is your buyers and sellers. Each has its own row below.' },
-      { selector: '#rep-preview-insurance', title: 'Look before you print',
-        body: '<strong>Preview</strong> shows you the report on screen first. <strong>Update</strong> refreshes it from your current data — worth doing if you have added items since you last ran it.' },
-      { selector: '#rep-export-insurance', title: 'Getting it out',
-        body: '<strong>Export</strong> gives you <strong>PDF</strong>, <strong>Google Doc</strong> or <strong>CSV</strong>. CSV is the one to pick if you want the numbers in a spreadsheet. <strong>Print</strong> beside it goes straight to paper.' },
-      { selector: '#rep-build-btn', title: 'Or build your own',
-        body: '<strong>Build a Report</strong> lets you choose exactly which columns you want and which items to include, instead of taking a fixed layout. <strong>Past Reports</strong> keeps the ones you have already run.' }
-    ]
   }
+
+  // v0.9.1987 (Brad: "the tour is the only one we need to keep"): the ten
+  // per-page guides (add an item, the Photo Inbox x3, want list, for sale,
+  // want to collection, mark sold, remove, reports) are gone; narrated videos
+  // took their place (tutorial-gifs-config.js). The engine below is unchanged.
 
 };
 if (typeof window !== 'undefined') window.GUIDES = GUIDES;
@@ -976,12 +505,13 @@ function openHelpHub(opts) {
     +   '<button type="button" onclick="' + X + '" style="background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;line-height:1;padding:0 0.25rem">×</button>'
     + '</div>'
     + '<div style="padding:0.4rem 1.25rem 1.25rem;max-height:74vh;overflow-y:auto">'
-    +   hdr('Guided walkthroughs')
-    +   '<div style="font-size:0.75rem;color:var(--text-dim);margin:-0.2rem 0 0.6rem">Each one opens the right page and points at the real buttons.</div>'
-    +   Object.keys(GUIDES).map(function (gid) {
-          var g = GUIDES[gid];
-          return row(X + "startGuide('" + gid + "');", g.icon, g.label, g.desc);
-        }).join('')
+    // v0.9.1987 (Brad): the tour is the one guided walkthrough left; the ten
+    // per-page guides gave way to narrated videos, drawn from the ONE list in
+    // tutorial-gifs-config.js (rrVideoGroups). A video opens its player ON TOP
+    // of this panel, so closing it lands back here — no X + in its row.
+    +   hdr('Guided tour')
+    +   (GUIDES.tour ? row(X + "startGuide('tour');", GUIDES.tour.icon, GUIDES.tour.label, GUIDES.tour.desc) : '')
+    +   _helpHubVideosHtml(row, hdr)
     +   hdr('Getting Started')
     // v0.9.1893: the welcome card is gone; its row now reopens the scanning /
     // photo ID explainer that the first Add an Item shows once.
@@ -992,6 +522,9 @@ function openHelpHub(opts) {
     +   row(X + "if(typeof resetContextualHints==='function'){resetContextualHints();if(typeof showToast==='function')showToast('Tips re-enabled. Visit a list page to see them.');}", '💡', 'Reset tips', 'Show the one-time hint bubbles again')
     +   hdr('Suggestions')
     +   row(X + "if(typeof _rrGuidePhotos==='function')_rrGuidePhotos();", '📷', 'Photographing a large collection', 'A working method for getting a whole wall or cabinet into your roster')
+    // v0.9.1987: drawn here, not slipped in afterwards by help-guides.js (it
+    // used to wrap openHelpHub and poll for the Photographing row to sit next to).
+    +   row(X + "if(typeof rrgOpen==='function')rrgOpen('grading');", '🏷️', 'Condition grading (the C-scale)', 'C-1 to C-10 explained, and how it lines up with our 1\u201310')
     +   hdr('More')
     +   row("window.location.href='mailto:" + fb + "?subject=The Rail Roster Feedback';", '✉️', 'Send feedback', 'Report a bug or suggest a feature')
     + '</div>'
@@ -1000,6 +533,28 @@ function openHelpHub(opts) {
   document.body.appendChild(modal);
 }
 window.openHelpHub = openHelpHub;
+
+// v0.9.1987 — the Help Center's Videos block. Every ready video, in its group,
+// from rrVideoGroups() (tutorial-gifs-config.js) — the one list. No video
+// recorded yet → no heading at all.
+function _helpHubVideosHtml(row, hdr) {
+  var groups = (typeof rrVideoGroups === 'function') ? rrVideoGroups() : [];
+  if (!groups.length) return '';
+  var cfg = window.TUTORIAL_GIFS || {};
+  var esc = function (t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+  var sub = function (t) { return '<div style="font-size:0.8rem;font-weight:700;color:var(--text);margin:0.55rem 0 0.35rem">' + esc(t) + '</div>'; };
+  var h = hdr(esc(cfg.sectionTitle || 'Videos'));
+  if (cfg.sectionNote) h += '<div style="font-size:0.75rem;color:var(--text-dim);margin:-0.2rem 0 0.4rem">' + esc(cfg.sectionNote) + '</div>';
+  groups.forEach(function (g) {
+    if (groups.length > 1) h += sub(g.title);
+    g.demos.forEach(function (d) {
+      var desc = esc(d.description || '') + (d.length ? (d.description ? ' \u00B7 ' : '') + esc(d.length) : '');
+      h += row("if(typeof rrPlayVideo==='function')rrPlayVideo('" + String(d.id).replace(/[^a-z0-9-]/gi, '') + "');", '\u25B6\uFE0F', esc(d.title), desc);
+    });
+  });
+  return h;
+}
+window._helpHubVideosHtml = _helpHubVideosHtml;
 
 // ══ v0.9.1813 (release walk-through, S11) — USING MORE THAN ONE DEVICE ═══════
 // The app keeps no server copy: every device reads and writes the same Google
@@ -1093,7 +648,7 @@ function _rrGuidePhotos() {
     +     '<li>Hit ' + chip('Start Shooting', 'primary') + ' and take <b>one clear photo of the side of each item</b>. Same distance, centered, in focus.</li>'
     +     '<li>Sit down with a laptop, crop them, and add them.</li>'
     +   '</ol>'
-    +   '<div style="font-size:0.86rem;margin-top:0.5rem"><b>One photo per item, you can do 50–75 items in half an hour.</b> You can always add more photos to any item later.</div>'
+    +   '<div style="font-size:0.86rem;margin-top:0.5rem"><b>One photo per item, you can do 50–75 items in an hour.</b> You can always add more photos to any item later.</div>'
     + '</div>'
 
     + h2('1', 'Decide what kind of photos you’re taking')

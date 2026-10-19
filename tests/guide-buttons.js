@@ -279,70 +279,14 @@ window._btnWalkTo = async function (gid, want) {
        backBad.length === 0,
        backBad.slice(0, 6).map(b => b.guide + ' ' + b.why).join(' | '));
 
-    // ══ PASS C — THE WIZARD'S OWN BACK ══════════════════════════════════════
-    // "i hit back and got this." The wizard's Back on its first screen closes
-    // the wizard outright. If the guide is standing on a step that describes a
-    // wizard screen, that step is now about nothing.
-    const wizBack = await page.evaluate(async () => {
-      const reached = await window._btnWalkTo('add-item', 3);
-      const before = { card: window._drvCard(), where: window._drvWhere() };
-      // PRESS THE WIZARD'S OWN BACK UNTIL THE WIZARD IS GONE. One press is not
-      // the journey Brad described — from Condition & Details, Back steps back
-      // a screen and the wizard is still open, so the check passed without
-      // ever testing anything. A drill with the watchdog disabled proved that:
-      // green, on a bug I could see with my own eyes. Keep pressing, the way
-      // someone backing out of a wizard does, until it actually closes.
-      let presses = 0, usedRealButton = false;
-      for (let z = 0; z < 8 && window._drvWizard(); z++) {
-        const bb = document.getElementById('wizard-back-btn');
-        if (!bb || bb.offsetParent === null) break;
-        usedRealButton = true;
-        bb.click(); presses++;
-        await new Promise(r => setTimeout(r, 700));
-      }
-      if (window._drvWizard()) { try { _doCloseWizard(); } catch (e) {} }
-      await new Promise(r => setTimeout(r, 1600));
-      const after = { card: window._drvCard(), where: window._drvWhere() };
-      const stranded = window._drvStranded('add-item');
-      const applies = window._drvApplies('add-item');
-      const wizardGone = !window._drvWizard();
-      await window._drvReset();
-      return { reached, before, after, stranded, applies, wizardGone, usedRealButton, presses };
-    });
-    ok('walked the add-item guide into the wizard', wizBack.reached >= 2, JSON.stringify(wizBack.before));
-    ok('the wizard\'s own Back really did close it', wizBack.wizardGone,
-       JSON.stringify({ presses: wizBack.presses, usedRealButton: wizBack.usedRealButton }));
-    ok('BRAD\'S BUG: backing out of the wizard does not leave the guide describing it',
-       !wizBack.stranded && !!(wizBack.applies && wizBack.applies.needsOk),
-       JSON.stringify({ after: wizBack.after, applies: wizBack.applies, stranded: wizBack.stranded }));
-
-    // ══ PASS D — 773, THEN ENTER ════════════════════════════════════════════
-    const seven = await page.evaluate(async () => {
-      const reached = await window._btnWalkTo('add-item', 2);
-      const el = document.getElementById('wiz-input');
-      if (!el) return { reached, noInput: true };
-      const before = window._drvCard();
-      el.focus(); el.value = '';
-      '773'.split('').forEach(ch => {
-        el.value += ch;
-        el.dispatchEvent(new InputEvent('input', { bubbles: true, data: ch, inputType: 'insertText' }));
-      });
-      await new Promise(r => setTimeout(r, 900));
-      const err0 = [];
-      el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, bubbles: true }));
-      el.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', keyCode: 13, bubbles: true }));
-      await new Promise(r => setTimeout(r, 1800));
-      const after = window._drvCard();
-      const out = { reached, before, after, where: window._drvWhere(),
-                    stranded: window._drvStranded('add-item'),
-                    cardStillThere: !!after, err0 };
-      await window._drvReset();
-      return out;
-    });
-    ok('the add-item guide reaches the type-a-number step', seven.reached === 2, JSON.stringify(seven).slice(0, 200));
-    ok('BRAD\'S COMBINATION: typing 773 and pressing Enter leaves a live guide',
-       !!seven.cardStillThere && !seven.stranded,
-       JSON.stringify({ after: seven.after, where: seven.where, stranded: seven.stranded }));
+    // ══ PASSES C AND D — RETIRED v0.9.1987 ══════════════════════════════════
+    // They walked the Add-item guide into the wizard and pressed the wizard's
+    // own Back, then typed 773 and Enter, to prove the guide never stranded a
+    // card describing a wizard screen that had gone. Brad: "the tour is the
+    // only one we need to keep" — no guide walks the wizard any more, so the
+    // journey they tested cannot happen. Passes A and B above still press
+    // Cancel and Back on every card of every guide (the tour).
+    const wizBack = null, seven = null;
 
     ok('pressing Cancel, Back and Enter everywhere raises no page errors',
        errs.length === 0, errs.slice(0, 3).join(' | '));

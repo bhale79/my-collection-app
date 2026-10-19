@@ -86,7 +86,7 @@ window._kbCard = function () {
        await page.evaluate(() => typeof GUIDES !== 'undefined' && Object.keys(GUIDES).length > 0));
 
     // ── 1. ESCAPE LEAVES ────────────────────────────────────────────────────
-    await page.evaluate(async () => { await window._drvReset(); startGuide('reports'); });
+    await page.evaluate(async () => { await window._drvReset(); startGuide('tour');   /* v0.9.1987: the tour is the only guide */ });
     await page.waitForTimeout(1600);
     const before = await page.evaluate(() => !!document.getElementById('gt-callout'));
     await page.keyboard.press('Escape');
@@ -104,7 +104,7 @@ window._kbCard = function () {
     await page.evaluate(async () => {
       await window._drvReset();
       document.body.focus();
-      startGuide('reports');
+      startGuide('tour');   /* v0.9.1987: the tour is the only guide */
     });
     await page.waitForTimeout(1700);
     const focused = await page.evaluate(() => window._kbWhere());
@@ -139,7 +139,15 @@ window._kbCard = function () {
     // get there, or it is a trap with no way forward.
     await page.evaluate(async () => {
       await window._drvReset();
-      startGuide('add-item');           // step 1 waits for the wizard to open
+      // v0.9.1987: the Add-item guide is gone; the engine still supports a
+      // step that waits, so its first step is rebuilt here exactly as it was.
+      showPage('dashboard');
+      await new Promise(r => setTimeout(r, 300));
+      window._kbWaitSteps = [{ selector: '#dash-add-collection, .dash-mobile-actions', title: 'Start here',
+        awaitLabel: 'Next \u2192', awaitMsg: 'Press <strong>Add to My Collection</strong> and I\'ll come with you.',
+        awaitUser: function () { return !!document.querySelector('#wizard-modal.open'); },
+        body: 'Press <strong>Add to My Collection</strong>. Let\'s open it and walk the real screens together.' }];
+      _guidedTour(window._kbWaitSteps);
     });
     await page.waitForTimeout(1800);
     const waitWalk = [];
@@ -149,7 +157,7 @@ window._kbCard = function () {
       waitWalk.push(await page.evaluate(() => window._kbWhere()));
     }
     const waitingGate = await page.evaluate(() => {
-      const st = GUIDES['add-item'].steps[0];
+      const st = window._kbWaitSteps[0];
       return typeof st.awaitUser === 'function';
     });
     ok('the step used for this check really is one that waits', waitingGate);
@@ -157,7 +165,7 @@ window._kbCard = function () {
        waitWalk.some(w => /^page:/.test(w)), waitWalk.join(' → '));
 
     // ── 5. THE CARD ANNOUNCES ITSELF ────────────────────────────────────────
-    await page.evaluate(async () => { await window._drvReset(); startGuide('reports'); });
+    await page.evaluate(async () => { await window._drvReset(); startGuide('tour');   /* v0.9.1987: the tour is the only guide */ });
     await page.waitForTimeout(1600);
     const aria = await page.evaluate(() => window._kbCard());
     ok('the card has a role, so it is not read as anonymous text',

@@ -233,7 +233,8 @@ function openerScan(files) {
   T('F5 the Quick Capture toast no longer says "at the desk"', !/file them at the desk/.test(pin));
   T('F6 the Add flow\'s photo screen is titled for adding', /📷 Identify Your Item from a Photo/.test(bc) && !/What Item Do You Want to Research\?/.test(bc));
   T('F7 the Collection Value placeholder no longer says "per user"', !/>per user</.test(html) && /<div class="stat-sub">estimated worth<\/div>/.test(html));
-  T('F8 the tour says Est. Worth is required, not "every field is optional"', !/Every field after the item number is optional/.test(tut) && /Est\. Worth<\/strong> on the Purchase &amp; Value screen/.test(tut));
+  // v0.9.1987: the add-item guide that carried the Est. Worth line is gone (the tour is the only guide); the half that still applies is that the wrong claim never comes back.
+  T('F8 no guide says "every field is optional"', !/Every field after the item number is optional/.test(tut));
   T('F9 the tour names no buyer field on a sale', !/the buyer or notes/.test(tut));
   T('F10 the tour explains a blue number, not "2328?"', !/<strong>2328\?<\/strong>/.test(tut));
   T('F11 the Photo Inbox instructions + empty box switch to phone words', /window\.IS_MOBILE_UA \? 'Use <b>Add photos<\/b> to take pictures/.test(pin) && /window\.IS_MOBILE_UA \? 'Tap <b>Add photos<\/b>/.test(pin) && /window\.IS_MOBILE_UA \? 'Tap' : 'Click'/.test(pin));

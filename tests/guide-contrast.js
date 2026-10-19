@@ -222,7 +222,7 @@ const AA_NORMAL = 4.5, AA_LARGE = 3.0, RING_MIN = 3.0, CARD_VS_PAGE_MIN = 1.15;
         try { if (typeof applyTheme === 'function') applyTheme(theme); } catch (e) {}
         await new Promise(res => setTimeout(res, 600));
         try { _gtEnd(); } catch (e) {}
-        startGuide('reports');
+        startGuide('tour');   // v0.9.1987: the tour is the only guide (was 'reports')
         await new Promise(res => setTimeout(res, 1600));
         const nx = document.getElementById('gt-next');
         if (nx) nx.click();                       // step 2, which has more text
@@ -275,7 +275,7 @@ const AA_NORMAL = 4.5, AA_LARGE = 3.0, RING_MIN = 3.0, CARD_VS_PAGE_MIN = 1.15;
     const rm = await rmPage.evaluate(async () => {
       const asked = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       try { _gtEnd(); } catch (e) {}
-      startGuide('reports');
+      startGuide('tour');   // v0.9.1987: the tour is the only guide (was 'reports')
       await new Promise(r => setTimeout(r, 1600));
       const hole = document.getElementById('gt-hole');
       const card = document.getElementById('gt-callout');
@@ -300,7 +300,7 @@ const AA_NORMAL = 4.5, AA_LARGE = 3.0, RING_MIN = 3.0, CARD_VS_PAGE_MIN = 1.15;
     // from one control to the next.
     const normal = await page.evaluate(async () => {
       try { _gtEnd(); } catch (e) {}
-      startGuide('reports');
+      startGuide('tour');   // v0.9.1987: the tour is the only guide (was 'reports')
       await new Promise(r => setTimeout(r, 1500));
       const t = id => { const el = document.getElementById(id); return el ? getComputedStyle(el).transition : '(absent)'; };
       const out = { asked: window.matchMedia('(prefers-reduced-motion: reduce)').matches,

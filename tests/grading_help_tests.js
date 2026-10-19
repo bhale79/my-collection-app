@@ -65,12 +65,26 @@ const helpZ = /z-index:(\d+)/.exec(src.slice(src.indexOf('position:fixed;left:0;
 ok('the guide renders above the open wizard', helpZ && parseInt(helpZ[1], 10) >= 100000, helpZ ? helpZ[1] : '?');
 
 // ── v0.9.1551: findable, not merely present ────────────────────────────
-ok('grading has its own row in the Help Center', /id = 'rrg-hub-grading'/.test(src));
-ok('...titled so it can be recognised', /Condition grading \(the C-scale\)/.test(src));
-ok('...with a subtitle that says what is inside', /C-1 to C-10 explained/.test(src));
-ok('...and it closes the hub before opening, like the guides row does',
-   /rrg-hub-grading[\s\S]{0,700}hub\.remove\(\)[\s\S]{0,200}rrgOpen\('grading'\)/.test(src));
-ok('...added only once', /if \(!document\.getElementById\('rrg-hub-grading'\)\)/.test(src));
+// v0.9.1987: the row is drawn by openHelpHub itself (tutorial.js), under
+// Suggestions next to Photographing — Brad: "leave the other 2 under
+// suggestions". It used to be slipped in afterwards by help-guides.js.
+const tut = fs.readFileSync(path.join(__dirname, '..', 'app', 'tutorial.js'), 'utf8');
+const hub = tut.slice(tut.indexOf('function openHelpHub('), tut.indexOf('window.openHelpHub = openHelpHub;'));
+const sugg = hub.slice(hub.indexOf("hdr('Suggestions')"), hub.indexOf("hdr('More')"));
+ok('grading has its own row in the Help Center, under Suggestions',
+   sugg.length > 0 && /rrgOpen\('grading'\)/.test(sugg));
+ok('...titled so it can be recognised', /Condition grading \(the C-scale\)/.test(sugg));
+ok('...with a subtitle that says what is inside', /C-1 to C-10 explained/.test(sugg));
+ok('...and it closes the hub before opening, like every other row',
+   /row\(X \+ "if\(typeof rrgOpen==='function'\)rrgOpen\('grading'\);"/.test(sugg));
+ok('...listed exactly once', (hub.match(/rrgOpen\('grading'\)/g) || []).length === 1);
+ok('help-guides.js no longer reaches into the Help Center (no wrapper, no polling)',
+   !/openHelpHub/.test(src.replace(/\/\/[^\n]*/g, '')) && !/setInterval/.test(src));
+ok('the Step-by-step guides index is gone (Brad: "get rid of the step by step guides")',
+   !/rrgIndex|Step-by-step guides/.test(src.replace(/\/\/[^\n]*/g, '')) && !/Step-by-step/.test(hub));
+ok('...and grading is the only guide left in it',
+   (src.match(/^    [a-zA-Z]+: \{$/gm) || []).join(',') === '    grading: {',
+   (src.match(/^    [a-zA-Z]+: \{$/gm) || []).join(','));
 
 console.log('');
 console.log(fail === 0 ? 'ALL GRADING-HELP TESTS GREEN (' + pass + ')' : fail + ' FAILING of ' + (pass + fail));

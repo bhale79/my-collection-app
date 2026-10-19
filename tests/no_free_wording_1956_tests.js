@@ -205,7 +205,8 @@ const cropScreen = pg => pg.evaluate(async () => {
         }));
         return { n: Object.keys(window.GUIDES || {}).length, bad: out };
       });
-      T('R every guided-tour step a person without Auto Read sees: no "free" (' + tours.n + ' tours)', tours.n > 5 && tours.bad.length === 0, tours.bad);
+      // v0.9.1987: the tour is the only guide now (was 11).
+      T('R every guided-tour step a person without Auto Read sees: no "free" (' + tours.n + ' tours)', tours.n >= 1 && tours.bad.length === 0, tours.bad);
       T('R page errors', errs.length === 0, errs);
       await pg.close();
     }

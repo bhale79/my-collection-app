@@ -4,7 +4,7 @@
 // fetches fresh copies in the background for next load.
 // NEVER caches Google API, OAuth, or Sheets calls.
 
-const CACHE_NAME = 'mca-v1996';
+const CACHE_NAME = 'mca-v1997';
 
 // ── v0.9.1214: the version stamp has to survive as far as the cache ──
 // Brad, on v1213: "im reset twice and it still looks the same." He was
@@ -280,6 +280,12 @@ self.addEventListener('fetch', event => {
   // of them is intercepted. Change the tag in one file and the other is
   // not left to be noticed later.
   if (url.includes('rr_selfcheck=1')) return;
+
+  // v0.9.1987: the Help Center's videos (app/videos/) are never cached. They
+  // are large (5–18 MB each), a phone may never watch one, and the browser
+  // asks for them in pieces (Range requests, answered 206) which Cache Storage
+  // refuses to store anyway. The browser streams them straight from the site.
+  if (url.includes('/videos/')) return;
 
   // Only GET requests can be cached; let anything else pass through.
   if (event.request.method !== 'GET') return;

@@ -474,9 +474,9 @@ window._coverProbe = async function (step) {
 
     // Named, so the specific screen he reported can never regress quietly back
     // into the general count above.
-    const grouping = all.find(s => s.guide === 'add-item' && s.selector === '#wiz-grouping-btns');
-    ok('…and the add-item grouping step is one of the steps that was measured',
-       !!grouping, 'no add-item step targets #wiz-grouping-btns');
+    // v0.9.1987: RETIRED — the add-item guide (whose grouping step this named)
+    // is gone; the tour is the only guide and never opens the wizard. The
+    // general check above still measures every card of every guide.
     // The one place this is allowed is the one place it is impossible: a phone
     // at an ENLARGED text size. There the wizard's rows leave no gap taller
     // than ~110px anywhere on the screen, and the smallest card that still has

@@ -14,7 +14,7 @@
 //                             move forward.
 //   · app/help-photo-id.js    the panel explaining what a photo ID costs,
 //                             rendered inside the Photo Inbox.
-//   · app/tutorial-gifs-config.js  the onboarding demos.
+//   · app/tutorial-gifs-config.js  the help videos (v0.9.1987; was the onboarding demos).
 //
 // AND THE NUMBERS THE COPY PROMISES. The guided-tour copy makes factual claims
 // that are not about buttons and that no gate has ever checked: a 1-to-10
@@ -52,8 +52,12 @@ const bodies = (tut.match(/body:\s*'(?:\\.|[^'])*'/g) || []).join('\n');
 
 function claims(re) { return re.test(bodies); }
 
-// "condition on a 1 to 10 scale"
-const condSaid = claims(/1 to 10/);
+// "condition on a 1 to 10 scale" — v0.9.1987: the per-page guides that also
+// promised one photo ID per item, the Drive trash and a cleared sheet row are
+// gone (narrated videos replaced them), so those three claims went with them.
+// The 1-to-10 promise lives on in the grading guide and its Help Center row.
+const gradingSrc = fs.readFileSync(path.join(APP, 'help-guides.js'), 'utf8');
+const condSaid = /our 1\u201310|our 1–10/.test(gradingSrc + tut);
 const condSliders = ['wizard.js', 'browse.js', 'app-collection.js']
   .map(f => { try { return fs.readFileSync(path.join(APP, f), 'utf8'); } catch (e) { return ''; } })
   .join('\n');
@@ -61,31 +65,6 @@ const condRange = /min="1"\s+max="10"/.test(condSliders);
 ok('the copy still promises a 1-to-10 condition scale', condSaid, 'if this went away, drop the check below too');
 ok('BRAD\'S CLAIM: and the condition control really is 1 to 10',
    !condSaid || condRange, 'no min="1" max="10" range input found');
-
-// "one photo ID per item" / "Read this photo (1 photo ID)"
-const idSaid = claims(/one photo ID per item/);
-const inbox = fs.readFileSync(path.join(APP, 'photo-inbox.js'), 'utf8');
-const idPriced = /1 photo ID/.test(inbox);
-ok('the copy still prices a close read at one photo ID', idSaid);
-ok('BRAD\'S CLAIM: and the button the user presses says the same price',
-   !idSaid || idPriced, 'photo-inbox.js never mentions "1 photo ID"');
-
-// "Discard sends photos to your Drive trash, recoverable for about 30 days"
-const trashSaid = claims(/Drive trash/);
-const collection = fs.readFileSync(path.join(APP, 'app-collection.js'), 'utf8');
-const trashesNotDeletes = /trashed:\s*true/.test(collection) &&
-                          !/driveRequest\('DELETE'/.test(collection);
-ok('the copy still says photos go to the Drive trash', trashSaid);
-ok('BRAD\'S CLAIM: and the code trashes them rather than destroying them',
-   !trashSaid || trashesNotDeletes,
-   'expected a PATCH trashed:true and no DELETE in app-collection.js');
-
-// "Your Google Sheet row is cleared rather than destroyed"
-const clearSaid = claims(/cleared rather than destroyed/);
-const clearsRow = /clearRow|batchClear|values\/[^']*:clear|CLEAR/i.test(collection);
-ok('the copy still says the sheet row is cleared, not destroyed', clearSaid);
-ok('BRAD\'S CLAIM: and removal clears the row rather than deleting it',
-   !clearSaid || clearsRow, 'no row-clearing call found in app-collection.js');
 
 // ── PART TWO: the three untested help surfaces, in a real browser ──────────
 (async () => {
@@ -191,67 +170,48 @@ ok('BRAD\'S CLAIM: and removal clears the row rather than deleting it',
       ok('…and no image in it is missing its source', pid.brokenImg === 0, JSON.stringify(pid));
     }
 
-    // ── THE ONBOARDING DEMOS ────────────────────────────────────────────────
+    // ── THE HELP VIDEOS (v0.9.1987 — was the six empty GIF slots) ───────────
     const gifs = await page.evaluate(() => {
       const g = window.TUTORIAL_GIFS || {};
       const demos = g.demos || [];
       return { count: demos.length,
-               unnamed: demos.filter(d => !d.title && !d.label && !d.id).length,
-               placeholders: demos.filter(d => !d.gifUrl).length };
+               unnamed: demos.filter(d => !d.title).length,
+               placeholders: demos.filter(d => !d.file).length };
     });
-    ok('the onboarding demo list is configured', gifs.count > 0, JSON.stringify(gifs));
-    ok('…and every demo in it has something to call itself',
-       gifs.unnamed === 0, JSON.stringify(gifs));
-    // Placeholders are a KNOWN state (onboarding.js says so outright), not a
-    // defect — this records how many, so the number is visible rather than
-    // discovered later by a user pressing one.
-    console.log('     ' + gifs.placeholders + ' of ' + gifs.count +
-                ' onboarding demos have no gif yet (a known placeholder state)');
+    ok('the help video list is configured', gifs.count > 0, JSON.stringify(gifs));
+    ok('…and every video in it has a title', gifs.unnamed === 0, JSON.stringify(gifs));
+    console.log('     ' + gifs.placeholders + ' of ' + gifs.count + ' listed videos have no file yet');
 
     // ── A DOOR MUST NOT BE OFFERED INTO AN EMPTY ROOM ──────────────────────
-    // With every demo still a placeholder, "Watch how-to demos" would open a
-    // box containing a heading, nothing at all, and a line saying you can also
-    // find these in the Help menu — where there are none either. That is the
-    // same shape as the tour card describing stat cards a new user does not
-    // have. The app already gets this right in two places, and this is the
-    // assertion that keeps it right: the onboarding link and the Help-menu
-    // section both check rrReadyDemos() before offering anything.
+    // The Help Center draws a Videos heading only when rrReadyDemos() has
+    // something, and every row under it is a video with a file. Two halves,
+    // each able to fail on its own: emptied, the heading must go; filled, the
+    // rows must match the ready list exactly.
     const doors = await page.evaluate(async () => {
-      const ready = (typeof rrReadyDemos === 'function') ? rrReadyDemos().length : -1;
-      // The onboarding screen that carries the demos link.
-      let linkShown = null;
-      try {
-        if (typeof showFeatureMap === 'function') {
-          showFeatureMap();
-          await new Promise(r => setTimeout(r, 700));
-          linkShown = /Watch how-to demos/.test(document.body.innerText || '');
-          // v0.9.1893: there is no "Skip tour" any more — take the overlay
-          // down directly (this check only reads what it offered).
-          var _ov = document.getElementById('onboarding-map-overlay'); if (_ov) _ov.remove();
-          await new Promise(r => setTimeout(r, 300));
-        }
-      } catch (e) {}
-      // The Help menu section.
-      const section = !!document.getElementById('tut-gifs-section');
-      // Every demo rrReadyDemos() hands back is badged "Ready" and rendered as
-      // a launcher. One without a gifUrl is a button that does nothing.
-      let readyWithoutGif = 0;
-      try {
-        readyWithoutGif = (typeof rrReadyDemos === 'function' ? rrReadyDemos() : [])
-          .filter(d => !d || !d.gifUrl).length;
-      } catch (e) {}
-      return { ready, linkShown, section, readyWithoutGif };
+      const read = () => {
+        const m = document.getElementById('help-hub-modal');
+        const txt = m ? (m.innerText || '') : '';
+        const rows = m ? Array.from(m.querySelectorAll('button[onclick*="rrPlayVideo("]'))
+          .map(b => (b.getAttribute('onclick').match(/rrPlayVideo\('([^']+)'\)/) || [])[1]) : [];
+        if (m) m.remove();
+        return { heading: /\bVIDEOS\b|\bVideos\b/.test(txt), rows };
+      };
+      const ready = rrReadyDemos().map(d => d.id);
+      openHelpHub(); await new Promise(r => setTimeout(r, 300));
+      const full = read();
+      const keep = window.TUTORIAL_GIFS.demos;
+      window.TUTORIAL_GIFS.demos = keep.map(d => Object.assign({}, d, { file: '' }));
+      openHelpHub(); await new Promise(r => setTimeout(r, 300));
+      const empty = read();
+      window.TUTORIAL_GIFS.demos = keep;
+      return { ready, full, empty };
     });
-    // The first version of this assertion short-circuited to true whenever any
-    // demo was ready, which made it vacuous the moment a drill marked them all
-    // ready — green on the very defect it was written to catch. Two halves
-    // now, and each can fail on its own.
-    ok('BRAD\'S SHAPE: no "watch the demos" door is offered while there are none',
-       doors.ready > 0 || (doors.linkShown !== true && doors.section === false),
+    ok('BRAD\'S SHAPE: with no video ready, the Help Center offers no Videos heading and no rows',
+       !doors.empty.heading && doors.empty.rows.length === 0, JSON.stringify(doors.empty));
+    ok('…and with videos ready, it lists exactly the ready ones, each once',
+       doors.full.heading && doors.full.rows.length === doors.ready.length &&
+       doors.ready.every(id => doors.full.rows.filter(r => r === id).length === 1),
        JSON.stringify(doors));
-    ok('…and nothing is ever listed as Ready to watch without a video behind it',
-       doors.readyWithoutGif === 0,
-       JSON.stringify(doors) + '  — rrReadyDemos() is what decides the Ready badge');
 
     ok('exercising every help surface raises no page errors',
        errs.length === 0, errs.slice(0, 3).join(' | '));

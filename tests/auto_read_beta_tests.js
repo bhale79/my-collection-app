@@ -14,7 +14,7 @@
 //   R2  the refusal reads as "the free reader could not tell" (caller's words)
 //   R3  the first-run card: no allowance without it, the allowance with it
 //   R4  the Photo ID help page: only the free buttons without it
-//   R5  the Photo Inbox guide: the four paid steps only with it
+//   R5  the tour (the one guide since v0.9.1987): no paid read without it
 //   R6  Preferences: the daily-reads switch only with it
 //   R7  the scanner's crop screen: the Auto Read button only with it
 // Source scans, each proving it can fail on a planted offender:
@@ -71,7 +71,8 @@ function s3(src) {
     seen++;
     if (PAID_WORDS.test(text) && !m[1]) bad.push(m[3]);
   }
-  if (seen < 50) bad.push('only ' + seen + ' steps scanned');
+  // v0.9.1987: the tour is the only guide now (14 cards with plain-text bodies).
+  if (seen < 12) bad.push('only ' + seen + ' steps scanned');
   return bad;
 }
 function s4(src) {
@@ -95,7 +96,10 @@ T('S2 every Photo Inbox paid door is guarded', s2(PIN).length === 0, s2(PIN));
 const s3now = s3(TUT);
 T('S3 every guide step about a paid read is marked autoRead', s3now.length === 0, s3now);
 {
-  const planted = TUT.replace("{ autoRead: true, title: 'Same read, three doors',", "{ title: 'Same read, three doors',");
+  // v0.9.1987: the Photo Inbox guide that held the real paid steps is gone
+  // (the tour is the only guide), so plant a paid step into the tour.
+  const at = TUT.indexOf("      { title: 'Let’s go through your dashboard',");
+  const planted = at < 0 ? TUT : TUT.slice(0, at) + "      { title: 'Same read, three doors', body: 'Press <strong>Read this photo</strong> to spend one photo ID.' },\n" + TUT.slice(at);
   T('S3 PLANTED: an unmarked paid step is caught', planted !== TUT && s3(planted).indexOf('Same read, three doors') >= 0, s3(planted));
 }
 T('S4 every scanner close look asks _bcArOn() first', s4(BC).length === 0, s4(BC));
@@ -149,7 +153,8 @@ async function boot(browser, on) {
         out.card = card ? card.textContent : '';
         if (card) card.remove();
         out.help = (document.createElement('div').innerHTML = rrPhotoIdHelpHtml(), (() => { const d = document.createElement('div'); d.innerHTML = rrPhotoIdHelpHtml(); return d.textContent; })());
-        out.steps = _gtStepsFor(GUIDES['photo-inbox-reading']).map(s => s.title);
+        // v0.9.1987: the Photo Inbox guide is gone; the tour is the one guide left.
+        out.steps = _gtStepsFor(GUIDES.tour).map(s => s.title); out.allSteps = GUIDES.tour.steps.length;
         try { buildPrefsPage(); } catch (e) { out.prefsErr = e.message; }
         await new Promise(r => setTimeout(r, 300));
         out.prefSwitch = !!document.getElementById('pref-ai-opt');
@@ -165,13 +170,13 @@ async function boot(browser, on) {
         // v0.9.1956 (Brad: "get rid of the free terminology as that had to do with the autoreader")
         T('R3 ' + who + ': the first-run card says how the app reads — no "free", no allowance', /How the app reads barcodes, labels and photos/.test(r.card) && !/\bfree\b/i.test(r.card) && !/allowance|Need more/i.test(r.card), r.card.slice(0, 400));
         T('R4 ' + who + ': the help page offers only free buttons', !/(?<!Google )photo ID|Read this photo|Preferences › Photo ID/i.test(r.help) && /Google Photo ID/.test(r.help), (r.help.match(/.{40}((?<!Google )photo ID|Read this photo).{40}/i) || [])[0]);   // v0.9.1960: Google's button is "Google Photo ID" (Brad) — free, not a paid photo ID
-        T('R5 ' + who + ': the Photo Inbox guide has its 3 free steps', r.steps.length === 3 && !r.steps.some(t => /(?<!Google )photo ID|three doors|paid/i.test(t)), r.steps);   // v0.9.1960: "Google Photo ID" is Google's free search
+        T('R5 ' + who + ': the tour names no paid read', r.steps.length > 10 && !r.steps.some(t => /(?<!Google )photo ID|three doors|paid/i.test(t)), r.steps);   // v0.9.1960: "Google Photo ID" is Google's free search
         T('R6 ' + who + ': Preferences has no daily-reads switch', r.prefPage && !r.prefSwitch, r);
       } else {
         T('R1 ' + who + ': aiSpendBlocked lets the read through', r.on === true && r.blocked === null, r.blocked);
         T('R3 ' + who + ': the first-run card explains the daily allowance', /daily allowance/.test(r.card), r.card.slice(0, 300));
         T('R4 ' + who + ': the help page includes Read this photo', /Read this photo/.test(r.help) && /About photo IDs/.test(r.help), '');
-        T('R5 ' + who + ': the Photo Inbox guide has all 7 steps', r.steps.length === 7, r.steps);
+        T('R5 ' + who + ': the tour shows every one of its cards', r.steps.length === r.allSteps, r.steps);
         T('R6 ' + who + ': Preferences has the daily-reads switch', r.prefSwitch, r);
       }
       // R7: the scanner's crop screen, opened on a real picture

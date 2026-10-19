@@ -222,11 +222,9 @@ const { SEED, RESOLVE, SHAPE } = require('./lib/guide-fixture');
     // demanding them there would be demanding the impossible. The step that
     // used to check they exist still checks it, on the shape where it means
     // something.
-    const DEAD_ONCE = SHAPE === 'default'
-      ? { 'list-for-sale': '#detail-list-sale',
-          'mark-sold': '#detail-record-sale',
-          'remove-item': '#detail-remove-item' }
-      : {};
+    // v0.9.1987: those three guides (list-for-sale, mark-sold, remove-item)
+    // are gone — the tour is the only guide — so there is nothing left to name.
+    const DEAD_ONCE = {};
     const broken = [];
     for (const gid of Object.keys(DEAD_ONCE)) {
       const g = report.find(r => r.guide === gid);

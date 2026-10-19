@@ -159,7 +159,15 @@ function planted(name, from, to) {
   // The Add-item guide's first card WAITS for the user: still compact, still parked in a corner
   ({ pg, errs } = await openApp(browser, { w: 1844, h: 914, withData: true }));
   const working = await pg.evaluate(async () => {
-    startGuide('add-item');
+    // v0.9.1987: the Add-item guide is gone (the tour is the only guide), but
+    // the engine still supports a step that WAITS. Its first card, rebuilt
+    // here exactly as it was, keeps that half of the engine honest.
+    showPage('dashboard');
+    await new Promise(r => setTimeout(r, 300));
+    _guidedTour([{ selector: '#dash-add-collection, .dash-mobile-actions', title: 'Start here',
+      awaitLabel: 'Next \u2192', awaitMsg: 'Press <strong>Add to My Collection</strong> and I\'ll come with you.',
+      awaitUser: function () { return false; },
+      body: 'Press <strong>Add to My Collection</strong>. Let\'s open it and walk the real screens together.' }]);
     await new Promise(r => setTimeout(r, 1400));
     const co = document.getElementById('gt-callout'); if (!co) return null;
     const b = co.getBoundingClientRect();
@@ -167,7 +175,7 @@ function planted(name, from, to) {
   });
   await pg.evaluate(() => { try { _gtEnd(); } catch (e) {} });
   await pg.close();
-  T('D1  the Add-item guide\'s "Start here" card (it waits for you) is a WORKING card: compact width (under 360px), compact type, parked in a corner — exactly as before', working && working.mode === 'working' && working.w <= 360 && near(working.bodyPx, 13.44, 0.6) && /bottom|top|dodged/.test(working.corner), working);
+  T('D1  a waiting "Start here" card (the old Add-item guide\'s first) (it waits for you) is a WORKING card: compact width (under 360px), compact type, parked in a corner — exactly as before', working && working.mode === 'working' && working.w <= 360 && near(working.bodyPx, 13.44, 0.6) && /bottom|top|dodged/.test(working.corner), working);
 
   console.log('\n== E · source and errors ==');
   T('E1  the two boxes the tour rings that had no box of their own exist: #tools-all (tools.js) and #db-board (dispatch-board.js)',

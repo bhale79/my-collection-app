@@ -113,7 +113,7 @@ window._ifReset = async function () {
       if (typeof openWizard === 'function') openWizard('collection');
       await new Promise(r => setTimeout(r, 900));
       const wizardWasOpen = !!document.querySelector('#wizard-modal.open');
-      startGuide('add-item');
+      startGuide('tour');   // v0.9.1987: the tour is the only guide
       await new Promise(r => setTimeout(r, 2200));
       const s = window._ifState();
       await window._ifReset();
@@ -156,7 +156,7 @@ window._ifReset = async function () {
     // must be a no-op, not an error, and must not leave anything behind.
     const doubleCancel = await page.evaluate(async () => {
       await window._ifReset();
-      startGuide('reports');
+      startGuide('tour');   // v0.9.1987: the tour is the only guide
       await new Promise(r => setTimeout(r, 1500));
       const c1 = document.getElementById('gt-cancel');
       if (c1) c1.click();
@@ -179,9 +179,9 @@ window._ifReset = async function () {
     // the way in for exactly this reason; this is the assertion that says so.
     const restart = await page.evaluate(async () => {
       await window._ifReset();
-      startGuide('photo-inbox');
+      startGuide('tour');   // v0.9.1987: the tour is the only guide
       await new Promise(r => setTimeout(r, 1200));
-      startGuide('photo-inbox');
+      startGuide('tour');   // v0.9.1987: the tour is the only guide
       await new Promise(r => setTimeout(r, 1800));
       const s = window._ifState();
       await window._ifReset();
@@ -199,7 +199,7 @@ window._ifReset = async function () {
     // listener for this, and this is what checks it did its job.
     await page.evaluate(async () => {
       await window._ifReset();
-      startGuide('add-item');
+      startGuide('tour');   // v0.9.1987: the tour is the only guide
       await new Promise(r => setTimeout(r, 1600));
     });
     await page.setViewportSize({ width: 900, height: 620 });
@@ -226,14 +226,14 @@ window._ifReset = async function () {
     // hanging over a screen it was not written for.
     const deviceBack = await page.evaluate(async () => {
       await window._ifReset();
-      startGuide('reports');
+      startGuide('tour');   // v0.9.1987: the tour is the only guide
       await new Promise(r => setTimeout(r, 1600));
       const before = window._drvWhere();
       history.back();
       await new Promise(r => setTimeout(r, 2600));
       const s = window._ifState();
       const after = window._drvWhere();
-      const stranded = s.callouts ? window._drvStranded('reports') : null;
+      const stranded = s.callouts ? window._drvStranded('tour') : null;
       await window._ifReset();
       return { before, after, stranded, ...s };
     });
