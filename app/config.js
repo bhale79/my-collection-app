@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1989';
+const APP_VERSION = 'v0.9.1990';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -135,6 +135,13 @@ if (typeof window !== 'undefined') {
   window.RR_INVITE_GATE_ON = RR_INVITE_GATE_ON;
   window.rrInviteGateOn = rrInviteGateOn;
 }
+
+// v0.9.1990 — how faint a Preferences row looks while the setting it needs is
+// off (Track Storage Location → Location Detail). ONE value, used by the page
+// as drawn AND when the switch is thrown. 0.5 made the row's own note too
+// faint to read (2.2:1); 0.72 still says "not on yet" and reads.
+const RR_PREF_DIM_OPACITY = '0.72';
+if (typeof window !== 'undefined') window.RR_PREF_DIM_OPACITY = RR_PREF_DIM_OPACITY;
 
 // ── PRICE WORDING — ONE place (Brad 2026-10-06: "75 plus tax") ─────────────
 // Every user-facing mention of the price reads these. The checkout links

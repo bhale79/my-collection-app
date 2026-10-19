@@ -75,7 +75,7 @@ const SNAP = () => {
   const f = RR_USER_FIELDS.filter(x => x.key === 'locationDetail')[0];
   return {
     loc: loc ? { checked: loc.checked, disabled: loc.disabled } : null,
-    det: det ? { checked: det.checked, disabled: det.disabled, dim: row ? row.style.opacity === '0.5' : null } : null,
+    det: det ? { checked: det.checked, disabled: det.disabled, dim: row ? row.style.opacity === String(RR_PREF_DIM_OPACITY) : null /* v0.9.1990: the one dim value (config.js); 0.5 was too faint */ } : null,
     stored: { location: localStorage.getItem('lv_location_enabled'), detail: localStorage.getItem('lv_locdetail_enabled') },
     stamped: { location: !!localStorage.getItem('lv_location_enabled__at'), detail: !!localStorage.getItem('lv_locdetail_enabled__at') },
     look: !!localStorage.getItem('rr_look_stamp'),

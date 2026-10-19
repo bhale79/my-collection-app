@@ -374,8 +374,10 @@ async function uiBackupList() {
       '<div style="display:flex;flex-direction:column;gap:0.5rem">' +
         files.map(function(f) {
           return '<div style="display:flex;align-items:center;gap:0.75rem;' +
-            'padding:0.65rem 0.75rem;background:var(--surface-alt,#f7f7f7);' +
-            'border-radius:8px;border:1px solid var(--border,#e5e5e5)">' +
+            // v0.9.1990: --surface-alt was never defined — the rows fell back to
+            // near-white under cream text. The card colour every theme defines.
+            'padding:0.65rem 0.75rem;background:var(--surface2);' +
+            'border-radius:8px;border:1px solid var(--border)">' +
             '<div style="flex:1;min-width:0">' +
               '<div style="font-weight:600;font-size:0.9rem;word-break:break-word">' +
                 (f.name || 'Unnamed backup') + '</div>' +

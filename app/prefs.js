@@ -359,7 +359,7 @@ function buildPrefsPage() {
            switch lives here, greyed out until Track Storage Location is on,
            and goes off with it. One Storage Locations → Manage below serves
            both levels (a place, and the totes/shelves inside it). -->
-      <div class="pref-row" id="pref-row-locdetail" style="${_locOn ? '' : 'opacity:0.5'}">
+      <div class="pref-row" id="pref-row-locdetail" style="${_locOn ? '' : 'opacity:' + RR_PREF_DIM_OPACITY}">
         <div class="pref-row-label"><strong>Track Location Detail</strong><span>The spot inside that place — Tote 12, Rack 1 Shelf 3. Needs Track Storage Location on. You’ll be asked for it right after the location as you add items; it shows on the item page, in the edit screen and as a column.</span></div>
         ${toggle('locdetail', 'lv_locdetail_enabled', 'false', { disabled: !_locOn, checked: _locDetOn })}
       </div>
@@ -772,7 +772,7 @@ function _onPrefChange(id, val) {
       var _cb = document.getElementById('ptog-' + f.prefToggle);
       if (_cb) { _cb.disabled = !val; _cb.checked = !!val && _prefGet(f.pref, 'false') === 'true'; }
       var _row = document.getElementById('pref-row-' + f.prefToggle);
-      if (_row) _row.style.opacity = val ? '' : '0.5';
+      if (_row) _row.style.opacity = val ? '' : RR_PREF_DIM_OPACITY;   // v0.9.1990: one value (config.js)
     });
   } catch (e) {}
   if (id === 'disclaimer') {
@@ -1516,7 +1516,11 @@ function _uiShowVersionHistoryHelp() {
           '<li style="margin-bottom:0.4rem">A panel opens on the right showing every change, grouped by day. Click any version to preview it.</li>' +
           '<li style="margin-bottom:0.4rem">Found the version you want? Click <strong>Restore this version</strong> at the top.</li>' +
         '</ol>' +
-        '<div style="background:var(--surface-alt,#f4f4f4);border-left:3px solid var(--accent,#4a7);' +
+        // v0.9.1990 (Brad: "why is the tip text in this horrible yellow that you can't
+        // see. this should be in the orange"): --surface-alt was never defined, so the
+        // box fell back to near-white under the pop-up's cream text (1.1:1). The card
+        // colour every theme defines, and the words in the orange.
+        '<div style="background:var(--surface2);border-left:3px solid var(--accent);color:var(--t-accent);' +
           'padding:0.7rem 0.9rem;border-radius:6px;margin:1rem 0">' +
           '<strong style="display:block;margin-bottom:0.25rem">Tip</strong>' +
           'Version history is fine-grained (every change tracked). For bigger rollbacks — like restoring your collection ' +
