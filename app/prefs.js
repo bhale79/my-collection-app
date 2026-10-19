@@ -70,6 +70,8 @@ if (typeof window !== 'undefined') window._prefsOpenPhotosFolder = _prefsOpenPho
 function _prefsSubRowHtml() {
   try {
     var s = window._subState;
+    var rec = (typeof rrRecordingMode === 'function' && rrRecordingMode() && typeof rrRecordingRenewsIso === 'function');
+    if (rec) s = { sub: 'active', paidThrough: rrRecordingRenewsIso(), portalLink: (s && s.portalLink) || '' };   // v0.9.1991: a paying member, signed up RR_RECORDING_MEMBER_MONTHS ago
     if (!s || !s.sub) return '';
     var esc = function (v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
     var d = function (iso) { return iso ? (typeof _formatDateLong === 'function' ? _formatDateLong(iso) : iso) : ''; };   // v0.9.1893: money dates in words

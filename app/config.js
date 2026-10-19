@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1990';
+const APP_VERSION = 'v0.9.1991';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -1329,6 +1329,28 @@ const RR_LINK_WINDOW_MAX_MS = 180000;
 function rrRecordingMode() {
   try { return localStorage.getItem(RR_RECORDING_MODE_KEY) === '1'; } catch (e) { return false; }
 }
+
+// v0.9.1991 (Brad 2026-10-19: "don't mention the trial date, just when it would
+// end for someone that lets say signed up 3 months ago"). While recording mode
+// is on, Preferences → My Subscription shows what a PAYING member sees, as if
+// they signed up this many months ago — so a help video never shows Brad's own
+// Beta tester line. ONE value; the date moves with the calendar on its own.
+const RR_RECORDING_MEMBER_MONTHS = 3;
+if (typeof window !== 'undefined') window.RR_RECORDING_MEMBER_MONTHS = RR_RECORDING_MEMBER_MONTHS;
+
+// The renewal date that member would see: signed up RR_RECORDING_MEMBER_MONTHS
+// ago, renews one year after signing up. Local calendar date, YYYY-MM-DD; a day
+// the target month lacks (the 31st) falls back to that month's last day.
+function rrRecordingRenewsIso(now) {
+  var t = (now instanceof Date) ? now : new Date();
+  var y = t.getFullYear(), m = t.getMonth() + 12 - RR_RECORDING_MEMBER_MONTHS, d = t.getDate();
+  y += Math.floor(m / 12); m = ((m % 12) + 12) % 12;
+  var last = new Date(y, m + 1, 0).getDate();
+  if (d > last) d = last;
+  var p2 = function (n) { return (n < 10 ? '0' : '') + n; };
+  return y + '-' + p2(m + 1) + '-' + p2(d);
+}
+if (typeof window !== 'undefined') window.rrRecordingRenewsIso = rrRecordingRenewsIso;
 
 function rrSetRecordingMode(on) {
   try { localStorage.setItem(RR_RECORDING_MODE_KEY, on ? '1' : '0'); return true; }
