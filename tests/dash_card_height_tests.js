@@ -13,7 +13,7 @@
 const fs = require('fs');
 const path = require('path');
 const APP = f => fs.readFileSync(path.join(__dirname, '..', 'app', f), 'utf8');
-const CSS = APP('app.css'), DASH = APP('dashboard.js'), INBOX = APP('photo-inbox.js');
+const CSS = APP('app.css'), DASH = APP('dashboard.js'), INBOX = require('./lib/pin-source').pinSource();
 let pass = 0, fail = 0;
 function ok(name, cond, detail) {
   if (cond) { pass++; console.log('  PASS  ' + name); }

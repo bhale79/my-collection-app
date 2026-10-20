@@ -9,8 +9,10 @@
 // ═══════════════════════════════════════════════════════════════════════
 const fs = require('fs');
 const path = require('path');
-const target = process.env.TARGET || path.join(__dirname, '..', 'app', 'photo-inbox.js');
-const src = fs.readFileSync(target, 'utf8');
+// TARGET = another copy of the Photo Inbox to test; unset = the Photo Inbox
+// as the app loads it (tests/lib/pin-source.js — every piece, in order).
+const target = process.env.TARGET || '';
+const src = target ? fs.readFileSync(target, 'utf8') : require('./lib/pin-source').pinSource();
 
 function grabFrom(sig, isFn) {
   const i = src.indexOf(sig);

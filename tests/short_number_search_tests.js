@@ -151,7 +151,7 @@ function attachChecks(src) {
 }
 
 (async function () {
-  const PI = read('photo-inbox.js');
+  const PI = require('./lib/pin-source').pinSource();
   {
     const r = await researchChecks(BC);
     T('B1 Research "4 trolley": the No. 4 Trolley comes FIRST, though 60 trolleys load before it', r.four_first, 'first = ' + r.first);

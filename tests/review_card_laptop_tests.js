@@ -64,7 +64,7 @@ const APP = path.join(__dirname, '..', 'app');
 let pass = 0, fail = 0;
 function T(n, cond, detail) { console.log((cond ? 'PASS' : 'FAIL') + '  ' + n + (cond ? '' : '  -> ' + JSON.stringify(detail).slice(0, 900))); cond ? pass++ : fail++; }
 
-const SRC = fs.readFileSync(path.join(APP, 'photo-inbox.js'), 'utf8');
+const SRC = require('./lib/pin-source').pinSource();
 function hooked(s) {   // expose the inbox's group list, as photo-inbox-tests does
   const cut = s.lastIndexOf('})();');
   return s.slice(0, cut) + '\n;window.__PG={set groups(v){_groups=v;}};\n' + s.slice(cut);
@@ -95,7 +95,7 @@ async function open(browser, o) {
   await pg.route('**', r => {
     const u = r.request().url();
     if (!u.startsWith('file://')) return r.abort();
-    if (u.split('?')[0].endsWith('/app/photo-inbox.js')) return r.fulfill({ body, contentType: 'application/javascript' });
+    if (require('./lib/pin-source').pinFulfill(r, u, body)) return;
     return r.continue();
   });
   await pg.goto('file://' + path.join(APP, 'index.html'), { waitUntil: 'domcontentloaded' });

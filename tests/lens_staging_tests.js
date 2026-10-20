@@ -25,7 +25,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 const DRV = fs.readFileSync(path.join(__dirname, '..', 'app', 'drive.js'), 'utf8');
-const PI = fs.readFileSync(path.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+const PI = require('./lib/pin-source').pinSource();
 const WZ = fs.readFileSync(path.join(__dirname, '..', 'app', 'wizard-photos.js'), 'utf8');
 
 let pass = 0, fail = 0;

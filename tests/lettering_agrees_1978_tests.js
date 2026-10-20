@@ -28,7 +28,7 @@ let chromium;
 try { chromium = require('playwright').chromium; }
 catch (e) { console.log('FAILED  —  lettering_agrees_1978_tests needs playwright and it is not installed.'); process.exit(1); }
 const APPDIR = path.join(__dirname, '..', 'app');
-const SRC = fs.readFileSync(path.join(APPDIR, 'photo-inbox.js'), 'utf8');
+const SRC = require('./lib/pin-source').pinSource();
 let pass = 0, fail = 0;
 function T(n, cond, detail) { console.log((cond ? 'PASS' : 'FAIL') + '  ' + n + (cond ? '' : '  -> ' + JSON.stringify(detail).slice(0, 600))); cond ? pass++ : fail++; }
 function planted(src, from, to, what) {
@@ -84,7 +84,7 @@ const named = (num, desc, extra) => Object.assign({ row: { itemNum: num, descrip
     await pg.route('**', rt => {
       const u = rt.request().url();
       if (!u.startsWith('file://')) return rt.abort();
-      if (src && u.split('?')[0].endsWith('/app/photo-inbox.js')) return rt.fulfill({ body: src, contentType: 'application/javascript' });
+      if (src && require('./lib/pin-source').pinFulfill(rt, u, src)) return;
       return rt.continue();
     });
     await pg.goto('file://' + path.join(APPDIR, 'index.html'), { waitUntil: 'domcontentloaded' });

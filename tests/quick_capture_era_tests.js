@@ -37,7 +37,7 @@ function ok(name, cond, detail) {
 }
 function section(t) { console.log('\n== ' + t + ' =='); }
 
-const SRC = fs.readFileSync(path.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+const SRC = require('./lib/pin-source').pinSource();
 
 // ── the real _qcUpload, lifted out and RUN ──────────────────────
 const f0 = SRC.indexOf('async function _qcUpload(file, name, rec)');

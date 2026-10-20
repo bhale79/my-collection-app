@@ -983,7 +983,7 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
     // as the other two layers get.
     // ══════════════════════════════════════════════════════════════════
     {
-      const pinSrc = fs.readFileSync(path.join(APP, 'photo-inbox.js'), 'utf8');
+      const pinSrc = require('./lib/pin-source').pinSource();
       const ha = pinSrc.indexOf('function _pinOpaqueTint(el, rgbCsv, pct) {');
       const helper = ha >= 0 ? pinSrc.slice(ha, pinSrc.indexOf('\n  }', ha) + 4) : '';
       ok('js repaint: _pinOpaqueTint exists in the shipped source', helper.length > 50);
@@ -1157,7 +1157,7 @@ _pinOpaqueTint(document.getElementById('jt-active'), '41,128,185', 18);
     // visible under them?
     // ══════════════════════════════════════════════════════════════════
     {
-      const pinSrc = fs.readFileSync(path.join(APP, 'photo-inbox.js'), 'utf8');
+      const pinSrc = require('./lib/pin-source').pinSource();
       const x0 = pinSrc.indexOf('  var _exclView = { fid: null, nums: [] };');
       const x1 = pinSrc.indexOf("  var _rvAiMfr = '';");
       ok('excluded: the real section builder was found', x0 > 0 && x1 > x0);
@@ -1425,7 +1425,7 @@ showCandidatePicker(${CANDS}, { itemNum: '6464-500' });
     // select, the per-photo role selects and all three buttons.
     // ══════════════════════════════════════════════════════════════════
     {
-      const pinSrc = fs.readFileSync(path.join(APP, 'photo-inbox.js'), 'utf8');
+      const pinSrc = require('./lib/pin-source').pinSource();
       const s0 = pinSrc.indexOf('  var _grpPanelKind = ');
       const s1 = pinSrc.indexOf('  window._pinConfirmUngroup');
       ok('panel: the real source slice was found', s0 > 0 && s1 > s0);
@@ -2080,7 +2080,7 @@ window.__pageReady = runSharedPhotos();
     //
     //   So: same convention as the rest of the file, and the stylesheet is
     //   asserted to have taken hold before any number is trusted.
-      const pinSrc = fs.readFileSync(path.join(APP, 'photo-inbox.js'), 'utf8');
+      const pinSrc = require('./lib/pin-source').pinSource();
       const h0 = pinSrc.indexOf("      '<div id=\"pin-chrome\"");
       const h1 = pinSrc.indexOf("      '<input type=\"file\" id=\"pin-file-input\"");
       ok('sticky: the real page markup was found in source', h0 > 0 && h1 > h0);
@@ -2181,7 +2181,7 @@ window.__pageReady = runSharedPhotos();
     // v0.9.1342 — the instructions fold, and the filter is ONE control.
     // ══════════════════════════════════════════════════════════════════
     {
-      const pinSrc = fs.readFileSync(path.join(APP, 'photo-inbox.js'), 'utf8');
+      const pinSrc = require('./lib/pin-source').pinSource();
       const h0 = pinSrc.indexOf("      '<div id=\"pin-chrome\"");
       const h1 = pinSrc.indexOf("      '<input type=\"file\" id=\"pin-file-input\"");
       const markupExpr = pinSrc.slice(h0, h1).trim().replace(/\+$/, '');

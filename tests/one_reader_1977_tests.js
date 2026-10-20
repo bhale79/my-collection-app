@@ -38,6 +38,8 @@ catch (e) { console.log('FAILED  —  one_reader_1977_tests needs acorn and it i
 const APPDIR = path.join(__dirname, '..', 'app');
 const FILES = {};
 fs.readdirSync(APPDIR).filter(f => f.endsWith('.js')).forEach(f => { FILES[f] = fs.readFileSync(path.join(APPDIR, f), 'utf8'); });
+// The Photo Inbox is one feature in pieces (tests/lib/pin-source.js): it is scanned — and planted — as ONE 'photo-inbox.js'.
+(function () { const m = require('./lib/pin-source').pinMerge(FILES); Object.keys(FILES).forEach(k => { if (!(k in m)) delete FILES[k]; }); Object.assign(FILES, m); })();
 let pass = 0, fail = 0;
 function T(n, cond, detail) { console.log((cond ? 'PASS' : 'FAIL') + '  ' + n + (cond ? '' : '  -> ' + JSON.stringify(detail).slice(0, 700))); cond ? pass++ : fail++; }
 function planted(src, from, to, what) {
@@ -170,6 +172,7 @@ function withFile(f, src) { const o = Object.assign({}, FILES); o[f] = src; retu
     await pg.route('**', rt => {
       const u = rt.request().url(), base = u.split('?')[0];
       if (!u.startsWith('file://')) return rt.abort();
+      if (o.src && o.src['photo-inbox.js'] && require('./lib/pin-source').pinFulfill(rt, u, o.src['photo-inbox.js'])) return;
       const f = Object.keys(o.src || {}).find(k => base.endsWith('/app/' + k));
       if (f) return rt.fulfill({ body: o.src[f], contentType: 'application/javascript' });
       return rt.continue();

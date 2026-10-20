@@ -51,7 +51,7 @@ function hooks(extra) {
   };
   const out = {};
   Object.keys(H).forEach(f => {
-    let src = (extra && extra[f]) || rd(f);
+    let src = (extra && extra[f]) || require('./lib/pin-source').pinRead(f, rd);   // the Photo Inbox = every piece
     if (src.indexOf(H[f][0]) < 0) throw new Error('hook anchor missing in ' + f + ': ' + H[f][0]);
     out[f] = src.replace(H[f][0], H[f][1]);
   });
@@ -67,6 +67,7 @@ async function open(browser, planted, viewport) {
     const u = r.request().url();
     if (!u.startsWith('file://')) return r.abort();
     const clean = u.split('?')[0];
+    if (served['photo-inbox.js'] && require('./lib/pin-source').pinFulfill(r, u, served['photo-inbox.js'])) return;
     const name = Object.keys(served).find(k => clean.endsWith('/' + k));
     if (name) return r.fulfill({ body: served[name], contentType: name.endsWith('.css') ? 'text/css' : 'application/javascript' });
     return r.continue();

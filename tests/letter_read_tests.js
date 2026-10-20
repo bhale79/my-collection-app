@@ -16,7 +16,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm');
-const SRC = fs.readFileSync(path.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+const SRC = require('./lib/pin-source').pinSource();
 const APP = fs.readFileSync(path.join(__dirname, '..', 'app', 'app.js'), 'utf8');
 let pass = 0, fail = 0;
 function ok(name, cond, detail) {

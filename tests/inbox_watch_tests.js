@@ -33,7 +33,7 @@ function ok(name, cond, extra) {
   else { fail++; console.log('  FAIL  ' + name + (extra ? '  -> ' + extra : '')); }
 }
 function section(t) { console.log('\n== ' + t + ' =='); }
-const PI = fs.readFileSync(path.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+const PI = require('./lib/pin-source').pinSource();
 
 // ── 1. The shape of the thing, in the source ─────────────────────────────
 section('Source pins — the rules are written where they run');

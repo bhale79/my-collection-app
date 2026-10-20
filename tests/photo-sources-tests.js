@@ -31,7 +31,7 @@ function drilled(name, fixed, broken) {
 }
 function section(t) { console.log('\n== ' + t + ' =='); }
 
-const INBOX = fs.readFileSync(APP('photo-inbox.js'), 'utf8');
+const INBOX = require('./lib/pin-source').pinSource();
 const DRIVE = fs.readFileSync(APP('drive.js'), 'utf8');
 
 // ══ 1. The camera roll has a door on a phone ═══════════════════════════════

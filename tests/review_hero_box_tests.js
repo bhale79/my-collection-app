@@ -22,7 +22,7 @@ catch (e) { console.log('FAILED  —  review_hero_box_tests needs playwright and
 let pass = 0, fail = 0;
 function T(n, cond, detail) { console.log((cond ? 'PASS' : 'FAIL') + '  ' + n + (cond ? '' : '  -> ' + JSON.stringify(detail))); cond ? pass++ : fail++; }
 
-const PI = fs.readFileSync(path.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+const PI = require('./lib/pin-source').pinSource();
 function fnBody(sig) {
   const i = PI.indexOf(sig); if (i < 0) return '';
   let d = 0;

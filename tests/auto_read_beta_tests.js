@@ -29,7 +29,7 @@ try { chromium = require('playwright').chromium; }
 catch (e) { console.log('FAILED  —  auto_read_beta_tests needs playwright and it is not installed.'); process.exit(1); }
 const APP = path.join(__dirname, '..', 'app');
 const read = f => fs.readFileSync(path.join(APP, f), 'utf8');
-const AI = read('ai-id.js'), PIN = read('photo-inbox.js'), TUT = read('tutorial.js'), BC = read('barcode.js');
+const AI = read('ai-id.js'), PIN = require('./lib/pin-source').pinSource(), TUT = read('tutorial.js'), BC = read('barcode.js');
 let pass = 0, fail = 0;
 function T(n, cond, detail) { console.log((cond ? 'PASS' : 'FAIL') + '  ' + n + (cond ? '' : '  -> ' + String(JSON.stringify(detail)).slice(0, 900))); cond ? pass++ : fail++; }
 

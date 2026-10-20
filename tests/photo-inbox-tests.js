@@ -1,7 +1,7 @@
 // Headless checks for v0.9.1057 inbox work.
 // Loads photo-inbox.js inside a stubbed browser and drives the real functions.
 const fs = require('fs');
-const SRC = require('path').join(__dirname, '..', 'app', 'photo-inbox.js');
+// The Photo Inbox is read ONLY through tests/lib/pin-source.js (every piece, in load order).
 
 // v0.9.1256: ONE READER for "where does the app live". Two reads below used to
 // spell an absolute /root/repo/... path while every other read in this file
@@ -226,7 +226,7 @@ global.state = { personalData: {} };
 // capture Drive metadata writes
 global.META_WRITES = [];
 
-let src = fs.readFileSync(SRC, 'utf8');
+let src = require('./lib/pin-source').pinSource();
 // stub the one network call the tag path makes
 src = src.replace(
   /async function _pinMetaSet\(fileId, patch\) \{/,
@@ -467,7 +467,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
   section('13. v0.9.1058 — metadata actually round-trips');
   // Drive returns only requested fields. Prove appProperties is now requested.
-  const srcTxt = require('fs').readFileSync(SRC, 'utf8');
+  const srcTxt = require('./lib/pin-source').pinSource();
   // v0.9.1326: assert the FIELD is requested, not the exact field list. This
   // pinned the whole string, so adding thumbnailLink (which saved 500 separate
   // Drive calls on a 500-photo inbox) read as removing appProperties. What
@@ -510,7 +510,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
 
   section('15. Nothing automatic ever spends a token');
-  const body = require('fs').readFileSync(SRC, 'utf8');
+  const body = require('./lib/pin-source').pinSource();
   // Exact function body by brace matching, so the check cannot bleed into the
   // next function and report a neighbour's call as this one's.
   function fnBody(sig) {
@@ -599,7 +599,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   window.__setConfirm(realConfirm);
 
   section('17. Apply sits beside Finished');
-  const body2 = require('fs').readFileSync(SRC, 'utf8');
+  const body2 = require('./lib/pin-source').pinSource();
   const ai = body2.indexOf('id="pin-apply-btn"');
   const fi = body2.indexOf('id="pin-finish-btn"');
   ok('apply button exists in the toolbar', ai > 0);
@@ -656,13 +656,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('ungrouped photos are unaffected', window.__ReadFid(G_PLAIN) === 'p1a');
   ok('no _meta at all does not throw', window.__ReadFiles(G_PLAIN).length === 2);
 
-  const body3 = require('fs').readFileSync(SRC, 'utf8');
+  const body3 = require('./lib/pin-source').pinSource();
   ok('no read path still hardcodes files[0]',
      !/var todo = _groups\.filter\(function \(g\) \{ return !ids\[g\.files\[0\]\.id\]/.test(body3));
 
 
   section('19. Cancel from an inbox add returns to the inbox');
-  const body4 = require('fs').readFileSync(SRC, 'utf8');
+  const body4 = require('./lib/pin-source').pinSource();
   ok('an inbox add states its return page outright',
      /else wizard\.data\._returnPage = 'photo-inbox';/.test(body4));
   ok('For Sale still keeps its own destination',
@@ -721,7 +721,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('an unstamped group produces none',
      window.__PreferOf({ key: 'g', files: [{ id: 'a' }] }) === null);
 
-  const body5 = require('fs').readFileSync(SRC, 'utf8');
+  const body5 = require('./lib/pin-source').pinSource();
   // v0.9.1101: the auto pass escalates, so it reads twice — both with the hint.
   // v0.9.1297: the crop-time and recrop blob readers are GONE (reads run on
   // demand), so _freeReadOne is the ONE free entry — both its resolutions
@@ -734,7 +734,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
 
   section('22. The audit survives a reload');
-  const inbox = require('fs').readFileSync(SRC, 'utf8');
+  const inbox = require('./lib/pin-source').pinSource();
 
   const html = require('fs').readFileSync(APP_FILE('index.html'), 'utf8');
   ok('the busy guard knows about the audit overlay', /pin-audit-ov/.test(html));
@@ -781,7 +781,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('repair never invents a number the catalog rejects',
      !q || q.matched === false, JSON.stringify(q));
 
-  const b6 = require('fs').readFileSync(SRC, 'utf8');
+  const b6 = require('./lib/pin-source').pinSource();
   ok('block mode is now the shipping default', /tessedit_pageseg_mode: '6',/.test(b6));
   ok('the free reader got the winning preprocessing', /_stretchCanvas\(c\)/.test(b6));
 
@@ -817,20 +817,20 @@ META_WRITES.length = 0; TOASTS.length = 0;
   const lk = window.__Lookup('58', '', { era: 'pw', manufacturer: 'Lionel' });
   ok('the review card lookup carries the hint through', /snowplow/.test(lk.desc || ''), lk.desc);
 
-  const b7 = require('fs').readFileSync(SRC, 'utf8');
+  const b7 = require('./lib/pin-source').pinSource();
   ok('the lookup defaults to the open photo\'s era', /if \(prefer === undefined\) prefer = _rvPrefer\(\);/.test(b7));
   ok('the add path carries it into the wizard', /_prefer: _pinPreferOf\(gs\[0\]\)/.test(b7));
 
 
   section('25. Failure copy does not blame the photographer');
-  const c1 = require('fs').readFileSync(SRC, 'utf8');
+  const c1 = require('./lib/pin-source').pinSource();
   ok('the crop-tighter scolding is gone', !/crop tight to the label/.test(c1));
   ok('the app owns the failure instead', /free reader could not pick out a number/.test(c1));
   ok('and points at what actually works next', /Read this photo/.test(c1));
 
 
   section('26. A guess no longer dresses itself up as an answer');
-  const g1 = require('fs').readFileSync(SRC, 'utf8');
+  const g1 = require('./lib/pin-source').pinSource();
   ok('a confirmed read still pre-fills the box',
      /if \(s0\.guess\) sugGuess = String\(s0\.num\); else sug = String\(s0\.num\);/.test(g1));
   ok('a guess is offered as a chip instead', /Best guess from the photo:/.test(g1) && /use this/.test(g1));
@@ -892,7 +892,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('and confirmed once there is context for it', z && z.num === '25000' && z.matched === true);
 
   section('30. Several passes, best answer, early exit');
-  const p1 = require('fs').readFileSync(SRC, 'utf8');
+  const p1 = require('./lib/pin-source').pinSource();
   ok('three passes are defined', /_FREE_PASSES = \[/.test(p1) &&
      (p1.match(/mode: '(sharp|invert)'/g) || []).length >= 3);
   ok('tiling goes first \u2014 it won the audit', /\{ mode: 'sharp',  tiles: 3/.test(p1));
@@ -931,7 +931,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('with NO stamp the old tiebreak still picks the first', d && d.num === '1111');
   ok('and the reasoning says the filter never ran', d && d.dbg && d.dbg.era === '');
 
-  const q1 = require('fs').readFileSync(SRC, 'utf8');
+  const q1 = require('./lib/pin-source').pinSource();
   ok('the card shows whether the photo was stamped', /no era filter applied/.test(q1));
   ok('and what was considered', /Numbers considered:/.test(q1));
 
@@ -993,7 +993,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('and carries no number', e1 && e1.num === '');
   ok('it records that the photo was stamped', e1.dbg.era === 'pw');
 
-  const f1 = require('fs').readFileSync(SRC, 'utf8');
+  const f1 = require('./lib/pin-source').pinSource();
   ok('a blank read is stored on the tried-map, not as a suggestion',
      /f\[fid\] = \{ t: 1, raw:/.test(f1));
   // v0.9.1340: this named the exact line the v0.9.956 filter was written on,
@@ -1037,7 +1037,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
 
   section('36. Re-scan clears and re-reads the right photo');
-  const rs = require('fs').readFileSync(SRC, 'utf8');
+  const rs = require('./lib/pin-source').pinSource();
   // v0.9.1150: this sliced a fixed 2,200 characters from the top of the
   // function, so ANY addition to _pinRescan silently pushed later code out of
   // the window and failed four assertions that were still perfectly true —
@@ -1063,7 +1063,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
 
   section('37. The token button cannot be mistaken for a balance');
-  const tb = require('fs').readFileSync(SRC, 'utf8');
+  const tb = require('./lib/pin-source').pinSource();
   // Session 85: the v1490s "Identify my items" redesign reworded all three
   // surfaces — the free read says (free), the paid selection prices itself
   // on the button (v1351 rule kept), and the daily pill says "left today"
@@ -1105,7 +1105,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('a five-digit number is fine for a maker that uses them', lv && lv.num === '25000');
 
   section('39. A failed read retries when the reader improves');
-  const v1 = require('fs').readFileSync(SRC, 'utf8');
+  const v1 = require('./lib/pin-source').pinSource();
   ok('there is a reader version', /var READER_VER = '\d+';/.test(v1));
   ok('reads are stamped with it', /rv: READER_VER/.test(v1));
   ok('the automatic pass retries anything older', /rec\.rv !== READER_VER/.test(v1));
@@ -1204,7 +1204,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   d1 = window.__DescMatch('', { era:'pw' });
   ok('empty text is safe', !d1);
 
-  const dd = require('fs').readFileSync(SRC, 'utf8');
+  const dd = require('./lib/pin-source').pinSource();
   ok('it only runs when the numbers failed', /if \(!best \|\| !best\.matched\) \{/.test(dd));
   ok('and never claims certainty', /matched: false, viaDesc: true/.test(dd));
   ok('the card names what it matched on', /Matched by what is written on it/.test(dd));
@@ -1224,7 +1224,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   let dl = window.__DescMatch(LACK, { era:'pw' });
   ok('the road name finds the Train Master', dl && dl.row.itemNum === '2321', JSON.stringify(dl && dl.row));
 
-  const src2 = require('fs').readFileSync(SRC, 'utf8');
+  const src2 = require('./lib/pin-source').pinSource();
   ok('the description is consulted on EVERY read now',
      !/if \(!best \|\| !best\.matched\) \{\s*\n\s*try \{\s*\n\s*var dm/.test(src2));
   ok('a tail agreement is treated as corroboration', /var tailAgrees =/.test(src2));
@@ -1313,7 +1313,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('the maker vouching for it is enough', nz && nz.num === '50' && nz.matched === true);
 
   section('51. A local threshold for reflective bodies');
-  const lt = require('fs').readFileSync(SRC, 'utf8');
+  const lt = require('./lib/pin-source').pinSource();
   ok('there is a local-threshold mode', /mode === 'local'/.test(lt));
   ok('it uses an integral image rather than a per-pixel scan', /var integral = new Float64Array/.test(lt));
   // v0.9.1081 promoted this to the best-channel variant, which is a strict
@@ -1334,7 +1334,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   let two = window.__DescMatch('WESTERN ATLANTIC MAIL', { era:'pw' });
   ok('two distinct words do', two && two.row.itemNum === '1866', JSON.stringify(two && two.row));
 
-  const dw = require('fs').readFileSync(SRC, 'utf8');
+  const dw = require('./lib/pin-source').pinSource();
   // v0.9.1085 added a third argument so the paid reader's answer shows too.
   ok('the description card shows its own reasoning too', /_pinWhyHtml\(s\.raw, s\.dbg, s\)/.test(dw));
   ok('rows are deduped within one word', /var seenRow = \{\};/.test(dw));
@@ -1361,7 +1361,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
 
   section('54. The colour channel that actually shows the lettering');
-  const ch = require('fs').readFileSync(SRC, 'utf8');
+  const ch = require('./lib/pin-source').pinSource();
   ok('there is a best-channel pass', /mode === 'chan'/.test(ch));
   ok('it measures each channel rather than assuming one', /bestSd/.test(ch) && /sumSq/.test(ch));
   ok('it samples rather than scanning every pixel', /step = Math\.max\(4/.test(ch));
@@ -1374,7 +1374,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
 
   section('55. Every band gets the same treatment as the whole frame');
-  const am = require('fs').readFileSync(SRC, 'utf8');
+  const am = require('./lib/pin-source').pinSource();
   ok('processing is one shared function', (am.match(/function _applyMode/g) || []).length === 1);
   ok('the whole frame uses it', /return _applyMode\(c, mode\);/.test(am));
   ok('and so does each band', /try \{ return _applyMode\(c, mode\); \}/.test(am));
@@ -1385,7 +1385,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
 
   section('56. The paid reader is told which era it is looking at');
-  const aiSrc = require('fs').readFileSync(SRC, 'utf8');
+  const aiSrc = require('./lib/pin-source').pinSource();
   const aiid = require('fs').readFileSync(APP_FILE('ai-id.js'), 'utf8');
   ok('hints are built from the photo stamp', /function _pinAiHints\(group, extra\)/.test(aiSrc));
   ok('no paid call site passes empty hints any more',
@@ -1454,7 +1454,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
 
   section('59. The paid reader records what it said');
-  const pr = require('fs').readFileSync(SRC, 'utf8');
+  const pr = require('./lib/pin-source').pinSource();
   ok('the batch stores the AI answer', /aiRaw: String\(ai\.text \|\| ''\)/.test(pr));
   ok('the single read stores it too', /aiRaw: _aiRaw, aiSku: _aiSku,/.test(pr));
   ok('it is capped so one answer cannot fill storage', /slice\(0, 900\)/.test(pr));
@@ -1486,7 +1486,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('the number is stored', stored.num === '6175', JSON.stringify(stored.num));
   ok('the paid answer is stored with it', /6-39457/.test(stored.aiRaw || ''), JSON.stringify(stored.aiRaw));
 
-  const am2 = require('fs').readFileSync(SRC, 'utf8');
+  const am2 = require('./lib/pin-source').pinSource();
   ok('the text is a parameter, not a borrowed name',
      /function _pinApplyMeta\(meta, gs, aiText\)/.test(am2));
   ok('no caller forgets to pass it',
@@ -1498,7 +1498,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
 
   section('61. Reconciliation reaches every paid path, once');
-  const w1 = require('fs').readFileSync(SRC, 'utf8');
+  const w1 = require('./lib/pin-source').pinSource();
   ok('the stacked triplicate is gone', !/could not reconcile the read/.test(w1));
   ok('reconcile lives inside _pinApplyMeta',
      /function _pinApplyMeta[\s\S]{0,1400}_pinReconcileAiNum\(meta, aiText/.test(w1));
@@ -1600,7 +1600,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   mf = window.__NumFromText('3 -5464475 0 20 - 748200 8- -', { era:'pw', manufacturer:'Lionel' });
   ok('the seven-digit misread is still repaired', mf && mf.num === '6464-475', JSON.stringify(mf && mf.num));
 
-  const rv = require('fs').readFileSync(SRC, 'utf8');
+  const rv = require('./lib/pin-source').pinSource();
   ok('the reader version moved past the looser logic, so stale reads retry',
      (function () { const m = rv.match(/var READER_VER = '(\d+)';/); return m && parseInt(m[1], 10) >= 1088; })());
 
@@ -1678,7 +1678,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   const SINGLEG = { key: 's1', files: [{ id: 'only' }] };
   ok('a plain single is unchanged', window.__FilesToRead(SINGLEG).length === 1);
 
-  const mm1 = require('fs').readFileSync(SRC, 'utf8');
+  const mm1 = require('./lib/pin-source').pinSource();
   ok('the auto pass works per FILE now', /todo\.push\(\{ g: g, fid: fid \}\)/.test(mm1));
   ok('the paid batch never sends a set as angles of one item',
      /_pinFilesToRead\(g\)\.length > 1 \? _flA\.slice\(0, 1\)/.test(mm1));
@@ -1703,7 +1703,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
 
   section('67. Read buttons mean the photo on screen');
-  const os = require('fs').readFileSync(SRC, 'utf8');
+  const os = require('./lib/pin-source').pinSource();
   ok('there is one helper for the on-screen photo', /function _pinOnScreenFid\(\)/.test(os));
   ok('re-scan reads it', /var fid = _pinOnScreenFid\(\) \|\| _rvGroups\[0\]\.files\[0\]\.id;/.test(os));
   ok('re-scan returns to it afterwards',
@@ -1762,7 +1762,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     return r && r.row.itemNum === '55';
   })());
 
-  const eg = require('fs').readFileSync(SRC, 'utf8');
+  const eg = require('./lib/pin-source').pinSource();
   ok('a number found only at the frame edge is demoted', /edgeOnly = true/.test(eg) &&
      /_midDigits\.indexOf\(_digits\) < 0/.test(eg));
   ok('unless the maker named it', /!\(rAll\.dbg && rAll\.dbg\.viaMaker\)/.test(eg));
@@ -1855,7 +1855,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('an item row quoting it still settles it', qs2 && qs2.row.itemNum === '6-39457',
      JSON.stringify(qs2 && qs2.row));
 
-  const sd = require('fs').readFileSync(SRC, 'utf8');
+  const sd = require('./lib/pin-source').pinSource();
   ok('free reads persist the disagreement',
      // v0.9.1131 gave the re-read path the full record too (4 writers then);
      // v0.9.1297 removed the crop-time and recrop writers with the machinery
@@ -1869,7 +1869,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
      (sd.match(/_pinIsSetRow\(row\)\) return/g) || []).length === 3);
 
   section('74. The white-stamp pass — light numbers on a coloured body');
-  const ws = require('fs').readFileSync(SRC, 'utf8');
+  const ws = require('./lib/pin-source').pinSource();
   // Order is the safety property: it must be the LAST pass, so a photo that any
   // earlier pass confirms never reaches it, and it can only add reads.
   const passesBlk = ws.slice(ws.indexOf('var _FREE_PASSES'), ws.indexOf('];', ws.indexOf('var _FREE_PASSES')));
@@ -1889,7 +1889,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
      /r = _numberFromText\(t, prefer\);/.test(ws) && /r\.dbg\.stampPass = true/.test(ws));
 
   section('75. A short confirm cannot silence the later passes');
-  const el = require('fs').readFileSync(SRC, 'utf8');
+  const el = require('./lib/pin-source').pinSource();
   ok('the early exit demands four digits or the maker\'s name',
      /String\(best\.num\)\.replace\(\/\\D\/g, ''\)\.length >= 4\s*\n\s*\|\| \(best\.dbg && best\.dbg\.viaMaker\)/.test(el));
   ok('a longer in-era confirm turns into a pick, not a fact',
@@ -1945,7 +1945,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   let tv2 = window.__NumFromText(TVR, { era:'prewar' });
   ok('a stamped photo is unaffected', tv2 && tv2.num === '250', JSON.stringify(tv2 && tv2.num));
 
-  const nj = require('fs').readFileSync(SRC, 'utf8');
+  const nj = require('./lib/pin-source').pinSource();
   ok('the demotion is explained to the user', /Assembled from split digits with no maker\/era tag/.test(nj));
   ok('era-less uploads announce themselves', /no maker\/era tag yet, so reads will be unfiltered/.test(nj));
 
@@ -1973,7 +1973,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
      !gn2 || !gn2.num, JSON.stringify(gn2 && gn2.num));
 
   section('79. The stamp pass reads two ways');
-  const tw = require('fs').readFileSync(SRC, 'utf8');
+  const tw = require('./lib/pin-source').pinSource();
   ok('sheet first in sparse mode', /tessedit_pageseg_mode: '11'/.test(tw));
   ok('then fine cells one at a time', /function _stampCells/.test(tw) && /_stampCells\(bmp, dim\)/.test(tw));
   ok('cells only when the sheet confirmed nothing', /if \(!\(r && r\.matched && r\.num\)\) \{\s*\n\s*var _cells/.test(tw));
@@ -2007,7 +2007,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('the Ballast Tamper card finally says 54', pa && pa.num === '54', JSON.stringify(pa && pa.num));
   ok('and does not say its name twice', pa && pa.descOf === 'Ballast Tamper', JSON.stringify(pa && pa.descOf));
 
-  const pl = require('fs').readFileSync(SRC, 'utf8');
+  const pl = require('./lib/pin-source').pinSource();
   ok('every pass contributes to the pooled text', /textAll \+= \(textAll \? '\\n' : ''\) \+ t;/.test(pl));
   ok('the pooled text gets the final word when nothing confirmed', /rPool = _numberFromText\(textAll, prefer\)/.test(pl));
   ok('and the arbitration reads the pooled words', /_pinDescArbitrate\(best, textAll \|\| text, prefer\)/.test(pl));
@@ -2056,7 +2056,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
      window.__ColorClash(['red'], [{ description:'Flatcar with boat' }]) === '');
   ok('a photo with no read colors never vetoes', window.__ColorClash(null, TOWER) === '');
 
-  const cv = require('fs').readFileSync(SRC, 'utf8');
+  const cv = require('./lib/pin-source').pinSource();
   ok('the veto only ever demotes', /if \(out\.matched\) out\.matched = false;/.test(cv));
   ok('the card explains a color veto', /Colors disagree: /.test(cv));
   ok('the auto pass escalates to full size', /_freeReadBlob\(bytes, 1600, pref\)/.test(cv)
@@ -2071,7 +2071,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   bc = window.__ColorClash(['red'], [{ description:'RED body', bodyColor:'yellow, black' }]);
   ok('and fires a veto prose would have cleared', /red/.test(bc) && /yellow/.test(bc), bc);
   // prose fallback reads the variation TEXT field
-  const bsrc = require('fs').readFileSync(SRC, 'utf8');
+  const bsrc = require('./lib/pin-source').pinSource();
   ok('prose fallback uses varDesc, not the variation number', /rw && rw\.varDesc/.test(bsrc));
   const adata = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'app-data.js'), 'utf8');
   // v0.9.1133: this used to assert `bodyColor: r[21]` — the fixed position that
@@ -2099,7 +2099,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   // a single candidate is untouched by the new rule
   let fp2 = window.__NumFromText('LIONEL 1043 TRANSFORMER WITH PLENTY OF CONTEXT', { era:'pw', manufacturer:'Lionel' });
   ok('a lone candidate still reads as before', fp2 && fp2.num === '1043');
-  const fsrc = require('fs').readFileSync(SRC, 'utf8');
+  const fsrc = require('./lib/pin-source').pinSource();
   ok('the card explains the frequency pick', /kept the one read most often/.test(fsrc));
 
   section('85. A number READ beats numbers GLUED');
@@ -2137,14 +2137,14 @@ META_WRITES.length = 0; TOASTS.length = 0;
      ol2 && ol2.num === '6-26024' && ol2.matched === true, JSON.stringify(ol2 && ol2.num));
 
   section('86. The reading line tells you when it will finish');
-  const et = require('fs').readFileSync(SRC, 'utf8');
+  const et = require('./lib/pin-source').pinSource();
   ok('an ETA joins the status after a few photos', /about ' \+ _minLeft \+ ' min left/.test(et));
   ok('with a finish clock time', /done around ' \+ _hh \+ ':' \+ _mm/.test(et));
   ok('recomputed from live pace, not guessed once', /_per = \(Date\.now\(\) - _arT0\) \/ i/.test(et));
   ok('quiet until the pace is knowable', /if \(i >= 3\)/.test(et));
 
   section('87. The sill strips — a thin line of text read as a line');
-  const sst = require('fs').readFileSync(SRC, 'utf8');
+  const sst = require('./lib/pin-source').pinSource();
   ok('thin sliding bands join the stamp cells', /var bandH = Math\.max\(8, Math\.floor\(BH \/ 4\)\)/.test(sst));
   ok('half-overlapping so a sill straddling a cut is whole somewhere', /var step = Math\.max\(4, Math\.floor\(bandH \/ 2\)\)/.test(sst));
   ok('blown up hard for tiny sill stamps', /Math\.min\(8, Math\.floor\(3200 \/ sw\)/.test(sst));
@@ -2206,7 +2206,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('queued pairs drain at map load', /_bcPairDrain\(\); \} catch \(e4\)/.test(cs));
 
   section('93. A photo group can add the WHOLE set');
-  const sw = require('fs').readFileSync(SRC, 'utf8');
+  const sw = require('./lib/pin-source').pinSource();
   // Session 85: v1562 folded "Add the whole set" into the ONE Add button —
   // a set-shaped group routes it to _pinAddSetFromGroup outright.
   ok('the review card offers the whole set when two or more members are read',
@@ -2234,7 +2234,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('the step title no longer asks HOW', !/How would you like to add ' \+ label/.test(wzs));
 
   section('95. Set members carry their own photos and their own decade');
-  const pv = require('fs').readFileSync(SRC, 'utf8');
+  const pv = require('./lib/pin-source').pinSource();
   // v0.9.1122: one id per number became a LIST per number, so a set holding
   // the same car twice gives each slot its own picture.
   ok('the group hands each member number its own photo id',
@@ -2276,7 +2276,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   global.window._mbAllGet = () => [B2338[0]];
   m8 = window.__BestMaster('2338', '', null);
   ok('a promo row still wins when it is the only row there is', /Nabisco/.test(m8.description));
-  const dm1 = require('fs').readFileSync(SRC, 'utf8');
+  const dm1 = require('./lib/pin-source').pinSource();
   ok('word boundaries keep Boxcar and friends out of the demotion',
      /\\b\(promo\|promotional\|paper\|boxes\|catalog\|catalogs\|display\|displays\|instruction\|instructions\)\\b/.test(dm1));
 
@@ -2285,7 +2285,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   // 2444/2445/2446 and BOTH MPC-era 1053 sets instead of the postwar
   // transformer — number+blank-variation lookalikes across tabs and eras.
   const brw = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'browse.js'), 'utf8');
-  const pin8 = require('fs').readFileSync(SRC, 'utf8');
+  const pin8 = require('./lib/pin-source').pinSource();
   ok('the demotion rule is shared, not duplicated',
      /window\.rrDemotedRow = _pinDemotedRow/.test(pin8) && /window\.rrDemotedRow === 'function'/.test(brw));
   ok('adoption scores the saved era first',
@@ -2317,7 +2317,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
      /window\._rrToggleSetFold = function \(gid\)/.test(brw) && /_rrToggleSetFold\('\$\{String\(item\.groupId\)/.test(brw));
 
   section('96. The whole-set add clears its photo group after the save');
-  const pv6 = require('fs').readFileSync(SRC, 'utf8');
+  const pv6 = require('./lib/pin-source').pinSource();
   // v0.9.1122: the note is written at click time but PARKED in staging —
   // see section 100 for why it may not be armed until the member saves.
   ok('the set add writes one pending note per member',
@@ -2336,7 +2336,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   section('100. A set may hold the same car twice, and photos wait for a real save');
   const wzz = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'wizard.js'), 'utf8');
   const wsz = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'wizard-save.js'), 'utf8');
-  const pnz = require('fs').readFileSync(SRC, 'utf8');
+  const pnz = require('./lib/pin-source').pinSource();
   const bwz = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'browse.js'), 'utf8');
 
   // — duplicates —
@@ -2404,7 +2404,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
      /if \(item\._setFold\) return;                       \/\/ folded set header/.test(bwt));
 
   section('102. Audit fixes — Lens return trip, and set members reach memory');
-  const auP = require('fs').readFileSync(SRC, 'utf8');
+  const auP = require('./lib/pin-source').pinSource();
   const auW = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'wizard-save.js'), 'utf8');
   // The Lens watcher referenced `ai`, a local belonging to its three sibling
   // callers — every successful Google return trip threw and was swallowed.
@@ -2542,7 +2542,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
      /result\.failed\.push\(\{ item: p\.item, error:/.test(dv5));
 
   section('106. Audit quick wins — crop-skip setting, single-add cancel');
-  const a6src = require('fs').readFileSync(SRC, 'utf8');
+  const a6src = require('./lib/pin-source').pinSource();
   const a6prefs = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'prefs.js'), 'utf8');
   const a6wsave = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'wizard-save.js'), 'utf8');
   // #12 — the setting that nothing could ever set. Its v0.9.1130 fix gave it
@@ -2573,7 +2573,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
      /parseInt\(b\.inventoryId\) \|\| 0\) - \(parseInt\(a\.inventoryId\)/.test(a6src));
 
   section('107. The inbox sees past 200 photos, and re-reads survive');
-  const a7 = require('fs').readFileSync(SRC, 'utf8');
+  const a7 = require('./lib/pin-source').pinSource();
   // v0.9.1326: same reason as §13 — this is a test about PAGINATION, so it
   // should assert nextPageToken is asked for and consumed, not pin the
   // unrelated field list beside it.
@@ -2596,7 +2596,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
      !/\[fid\] = 1; _freeTriedSave\(/.test(a7));
 
   section('108. Split apart works on phone-captured stacks (audit #6)');
-  const a8 = require('fs').readFileSync(SRC, 'utf8');
+  const a8 = require('./lib/pin-source').pinSource();
   ok('ungroup writes a deliberate marker, not an empty value',
      /\{ grp: '-', kind: 'single', role: '' \}/.test(a8) &&
      !/\{ grp: '', kind: 'single', role: '' \}/.test(a8));
@@ -2754,7 +2754,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   section('112. Beta blockers (v0.9.1135)');
   const P = require('path');
   const rd = f => fs.readFileSync(P.join(__dirname, '..', f), 'utf8');
-  const pi = rd('app/photo-inbox.js');
+  const pi = require('./lib/pin-source').pinSource();
 
   // 1.8 — the GDPR deletion address must not be the mailbox that does not exist
   ['index.html', 'privacy/index.html', 'terms/index.html'].forEach(function (f) {
@@ -2836,7 +2836,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   (function () {
     const P2 = require('path');
     const rd2 = f => fs.readFileSync(P2.join(__dirname, '..', f), 'utf8');
-    const pi2 = rd2('app/photo-inbox.js');
+    const pi2 = require('./lib/pin-source').pinSource();
     const vj  = rd2('app/vault.js');
     const bc  = rd2('app/barcode.js');
 
@@ -2976,7 +2976,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
                         'migration-ui.js','tutorial.js','app-setup.js','tutorial-gifs-config.js',
                         'wizard-utils.js'];
     let uses = 0;
-    inScope.forEach(function (f) { uses += (rd3(f).match(/rr-card/g) || []).length; });
+    inScope.forEach(function (f) { uses += (require('./lib/pin-source').pinRead(f, rd3).match(/rr-card/g) || []).length; });
     ok('the standard covers the add and research pop-ups (35+ call sites)',
        uses >= 35, 'uses=' + uses);
     let strays = [];
@@ -3261,7 +3261,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     const strip = s => s.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
     const sh  = rd('app/share.js'),   shc = strip(sh);
     const ap  = rd('app/app-pages.js');
-    const pi  = rd('app/photo-inbox.js');
+    const pi  = require('./lib/pin-source').pinSource();
     const tu  = rd('app/tutorial.js');
     const am  = rd('app/app-misc.js'), amc = strip(am);
     const idx = rd('app/index.html'),  root = rd('index.html');
@@ -3352,7 +3352,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     const rd = f => fs.readFileSync(pB.join(__dirname, '..', f), 'utf8');
     const strip = s => s.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
     const auth = rd('app/app-auth.js'), setup = rd('app/app-setup.js');
-    const pin = rd('app/photo-inbox.js'), pages = rd('app/app-pages.js');
+    const pin = require('./lib/pin-source').pinSource(), pages = rd('app/app-pages.js');
 
     // ── BLOCKER 1: sign-out must release the sheet, not just the login ──
     (function () {
@@ -3465,7 +3465,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     const pF = require('path');
     const rd = f => fs.readFileSync(pF.join(__dirname, '..', f), 'utf8');
     const cfg = rd('app/config.js'), aid = rd('app/ai-id.js');
-    const pin = rd('app/photo-inbox.js'), bc = rd('app/barcode.js');
+    const pin = require('./lib/pin-source').pinSource(), bc = rd('app/barcode.js');
     const wp = rd('app/wizard-photos.js');
 
     // ── the shared resolver ──
@@ -4007,7 +4007,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     const pH = require('path');
     const rd = f => fs.readFileSync(pH.join(__dirname, '..', f), 'utf8');
     const appS = rd('app/app.js'), cfgS = rd('app/config.js');
-    const brwS = rd('app/browse.js'), pinS = rd('app/photo-inbox.js');
+    const brwS = rd('app/browse.js'), pinS = require('./lib/pin-source').pinSource();
     const slice = (src, from, to) => {
       const a = src.indexOf(from);
       const b = src.indexOf(to, a + 1);
@@ -4624,7 +4624,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   (function () {
     const pM = require('path');
     const rd = f => fs.readFileSync(pM.join(__dirname, '..', f), 'utf8');
-    const aid = rd('app/ai-id.js'), pin = rd('app/photo-inbox.js'), pf = rd('app/prefs.js');
+    const aid = rd('app/ai-id.js'), pin = require('./lib/pin-source').pinSource(), pf = rd('app/prefs.js');
     const sliceTo = (src, from, to) => {
       const a = src.indexOf(from), b = src.indexOf(to, a + 1);
       if (a < 0 || b < 0) throw new Error('§134 marker moved: ' + from);
@@ -4796,7 +4796,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // pass the evidence to the card.
     (function () {
       const pN2 = require('path');
-      const src = fs.readFileSync(pN2.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const src = require('./lib/pin-source').pinSource();
       const consumers = src.match(/if \(_rc0\.viaDesc\)|if \(_rcB\.viaDesc\)|if \(rc\.viaDesc\)/g) || [];
       ok('all three reconciler consumers branch on a word match',
          consumers.length === 3, 'found ' + consumers.length + ': ' + consumers.join(' '));
@@ -4909,10 +4909,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
     // The index is keyed on the era SET, or two different filters share one.
     ok('the description index is cached per era-set, not per single era',
-       /_descIdxKey === eraKey/.test(rd('app/photo-inbox.js')) &&
-       /var eraKey = eras\.join\('\|'\)/.test(rd('app/photo-inbox.js')));
+       /_descIdxKey === eraKey/.test(require('./lib/pin-source').pinSource()) &&
+       /var eraKey = eras\.join\('\|'\)/.test(require('./lib/pin-source').pinSource()));
     ok('and the stored-read repair no longer skips a multi-era filter',
-       /if \(!_prefEras\(prefer\)\.length\) return;/.test(rd('app/photo-inbox.js')));
+       /if \(!_prefEras\(prefer\)\.length\) return;/.test(require('./lib/pin-source').pinSource()));
   })();
 
   section('137. The two gaps found while verifying v0.9.1165 (v0.9.1166)');
@@ -4921,7 +4921,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   //   (2) "2900 - Lockon" offered confidently for a photo of a steam locomotive
   (function () {
     const pP = require('path');
-    const src = fs.readFileSync(pP.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+    const src = require('./lib/pin-source').pinSource();
 
     // ---- (1) the repair pass walks EVERY photo ----
     ok('the stored-read repair walks every photo in every group, not just the lead',
@@ -5095,7 +5095,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
     // And the disclosure has to name what it filtered to, since "no era filter
     // applied" while the user sat on Lionel / O / Modern is what hid this for days.
-    const src = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+    const src = require('./lib/pin-source').pinSource();
     ok('the read carries every era it filtered to, for the disclosure to name',
        /eras: _prefEras\(prefer\), cand: \[\]/.test(src));
     ok('...and the card lists them rather than claiming no filter was applied',
@@ -5109,7 +5109,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   // Three of Brad's five inbox requests, plus the thing his screenshots exposed.
   (function () {
     const pQ = require('path');
-    const src = fs.readFileSync(pQ.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+    const src = require('./lib/pin-source').pinSource();
     const code = src.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
 
     // ── (11) a number GLUED out of fragments, in text with no letters ──
@@ -5181,7 +5181,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
         // Plus the source shape, to catch a rewrite that keeps the behaviour but
         // loses the last-ditch half.
-        const srcH = fs.readFileSync(pQ.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+        const srcH = require('./lib/pin-source').pinSource();
         ok('the last-ditch offer is withheld on a letterless photo',
            /if \(_noLetters\) \{ dbg\.noLetters = String\(uniq\[0\]\); return \{ num: '', matched: false, dbg: dbg \}; \}/.test(srcH));
         // Brad's REAL Great Northern text — letterless, 58 read three times — is
@@ -5310,7 +5310,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   // pasted."
   (function () {
     const pR = require('path');
-    const src = fs.readFileSync(pR.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+    const src = require('./lib/pin-source').pinSource();
     const code = src.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
 
     ok('the waiting banner now carries a real textarea',
@@ -5356,7 +5356,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   // wrong item.
   (function () {
     const pS = require('path');
-    const src = fs.readFileSync(pS.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+    const src = require('./lib/pin-source').pinSource();
     const setMain = (function () {
       const a = src.indexOf('window._pinRvSetMain = function (fid)');
       const b = src.indexOf('\n  };', a);
@@ -5383,7 +5383,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   // in v0.9.1155, so you can see you are done rather than being moved on silently.
   (function () {
     const pT = require('path');
-    const src = fs.readFileSync(pT.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+    const src = require('./lib/pin-source').pinSource();
     const code = src.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
 
     ok('a multi-photo group exposes its members as the sequence',
@@ -5425,7 +5425,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   // plain lines with the detail on tap.
   (function () {
     const pU = require('path');
-    const src = fs.readFileSync(pU.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+    const src = require('./lib/pin-source').pinSource();
     const code = src.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
 
     // THE requirement Brad set: one text source, or the live line and the
@@ -5489,7 +5489,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   // nearest 5 minutes."
   (function () {
     const pV = require('path');
-    const src = fs.readFileSync(pV.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+    const src = require('./lib/pin-source').pinSource();
     const code = src.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
     const eta = new Function(
       src.slice(src.indexOf('function _pinEtaText(done, total, startMs)'),
@@ -5893,7 +5893,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   // someone being helpful, so it is the one pinned hardest here.
   (function () {
     const pZ = require('path');
-    const src = fs.readFileSync(pZ.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+    const src = require('./lib/pin-source').pinSource();
 
     // ── THE constraint: an untouched install offers no vendors ──────────────
     localStorage.removeItem('rr_vendors');
@@ -6078,7 +6078,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('...and a ticked contact with no website is told why nothing happened',
        /add their website to search it/.test(ct));
 
-    const pin = fs.readFileSync(pC.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8')
+    const pin = require('./lib/pin-source').pinSource()
       .split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
     ok('the picker asks contacts for their preferred vendors',
        /window\._ctPreferredVendors\(\)\.forEach/.test(pin));
@@ -6103,7 +6103,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   // the app cannot reach it. The old wording asserted the opposite.
   (function () {
     const pD = require('path');
-    const src = fs.readFileSync(pD.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+    const src = require('./lib/pin-source').pinSource();
     const a = src.indexOf('function _pinVerifyShow(el, vr)');
     const b = src.indexOf('\n  function _pinVerifyReident', a) >= 0
       ? src.indexOf('\n  function _pinVerifyReident', a)
@@ -6223,7 +6223,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
        !/#[0-9a-f]{3,8}\b/i.test(html) && !/rgba?\(\s*\d/.test(html) && /var\(--/.test(html));
 
     // ── the wiring in photo-inbox.js ────────────────────────────────────────
-    const pin = fs.readFileSync(pH.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+    const pin = require('./lib/pin-source').pinSource();
     const pinCode = pin.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
     ok('the button sits under the 2x2 grid, right where Brad pointed',
        /_tokLine\(\) : ''\) \+[\s\S]{0,700}How best to use these features/.test(pinCode));
@@ -6433,7 +6433,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
        r3.opened.length === 1 && /tbm=shop/.test(r3.opened[0]));
 
     // The "Any site" note no longer claims a photo search it does not front.
-    const pin = fs.readFileSync(pG.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+    const pin = require('./lib/pin-source').pinSource();
     ok('the picker\'s Any-site wording fits a text search now',
        pin.indexOf("note: 'Search the whole web'") >= 0 &&
        pin.indexOf("note: 'Search by the photo") < 0);
@@ -6774,7 +6774,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   // fix turns them red.
   (function () {
     const pR = require('path');
-    const pinSrc = fs.readFileSync(pR.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+    const pinSrc = require('./lib/pin-source').pinSource();
 
     // Bound the slice by real markers, never a character count.
     const sIdx = pinSrc.indexOf('var _rowKnown = pd.row');
@@ -7198,7 +7198,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('the want partner path (app-collection) records its real row',
        /_wuPartnerApRow = \(await sheetsAppend/.test(files[1].src) && /row: _wuPartnerApRow,/.test(files[1].src));
     // The downstream guards treat 0 exactly like unknown — falsy short-circuits.
-    const pin2 = fs.readFileSync(pR.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+    const pin2 = require('./lib/pin-source').pinSource();
     ok('the photo-link flush guard rejects 0 and 99999 alike',
        /var _rowKnown = pd\.row && Number\(pd\.row\) !== 99999;/.test(pin2));
     ok('the repair pass rejects them alike too',
@@ -7336,7 +7336,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   // a failed write re-queues. These slice and drive the REAL function.
   (function () {
     const pR = require('path');
-    const pinS = fs.readFileSync(pR.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+    const pinS = require('./lib/pin-source').pinSource();
     ok('the backfill runs on every dashboard build, beside the photo repair',
        /_repairMissingPhotoLinks\(\); _backfillMasterKeys\(\);/.test(pinS));
     const bIdx = pinS.indexOf('var _mkDone = {};');
@@ -7584,7 +7584,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
     // The bust is wired at every photo-set-changing site.
     const wired = ['photo-inbox.js', 'wizard-save.js', 'app-collection.js', 'drive.js'].map(function (f) {
-      return { f: f, hit: /rrThumbBust\(/.test(fs.readFileSync(pR.join(__dirname, '..', 'app', f), 'utf8')) };
+      return { f: f, hit: /rrThumbBust\(/.test(require('./lib/pin-source').pinRead(f, g => fs.readFileSync(pR.join(__dirname, '..', 'app', g), 'utf8'))) };
     });
     ok('the bust is wired in the flush, the wizard save, the refresh path and the batch link fix',
        wired.every(function (w) { return w.hit; }), JSON.stringify(wired));
@@ -7725,7 +7725,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     const pR = require('path');
     const rd = f => fs.readFileSync(pR.join(__dirname, '..', 'app', f), 'utf8');
     const tut = rd('tutorial.js'), stp = rd('app-setup.js'), bw8 = rd('browse.js'),
-          pin8 = rd('photo-inbox.js'), pdl8 = rd('wizard-pdlookup.js');
+          pin8 = require('./lib/pin-source').pinSource(), pdl8 = rd('wizard-pdlookup.js');
 
     // 1) The interactive tour no longer auto-launches (it ate the first click).
     const alIdx = tut.indexOf('function tutCheckAutoLaunch');
@@ -9640,7 +9640,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   section('187. "See it here." on a duplicate you already own (v0.9.1235)');
   (function () {
     const pathJ = require('path');
-    const pin = fs.readFileSync(pathJ.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+    const pin = require('./lib/pin-source').pinSource();
 
     // Brad: "have a clickable text at the end of that sentence that says,
     // 'See it here.'"
@@ -9710,7 +9710,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   (function () {
     const pathJ = require('path');
     const rd = f => fs.readFileSync(pathJ.join(__dirname, '..', 'app', f), 'utf8');
-    const vault = rd('vault.js'), pin = rd('photo-inbox.js'), sell = rd('sell.js');
+    const vault = rd('vault.js'), pin = require('./lib/pin-source').pinSource(), sell = rd('sell.js');
     const wz = rd('wizard.js'), app = rd('app.js');
 
     // ── 1. Two buttons on the Market page did nothing at all ────────────
@@ -10854,7 +10854,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   (function () {
     const fs199 = require('fs'), p199 = require('path');
     const rd = f => fs199.readFileSync(p199.join(__dirname, '..', f), 'utf8');
-    const cfg = rd('app/config.js'), pin = rd('app/photo-inbox.js');
+    const cfg = rd('app/config.js'), pin = require('./lib/pin-source').pinSource();
     const gifs = rd('app/tutorial-gifs-config.js'), onb = rd('app/onboarding.js');
     const idx = rd('app/index.html'), root = rd('index.html');
     const prefs = rd('app/prefs.js'), appjs = rd('app/app.js');
@@ -10889,7 +10889,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       .map(q => q.slice(1, -1))
       .filter(q => q.length > 3 && !PLUMBING.test(q) && !/^\[[A-Z]/.test(q));
     ['app/photo-inbox.js', 'app/help-photo-id.js', 'app/wizard-photos.js'].forEach(function (f) {
-      const bad = visibleStrings(rd(f)).filter(q => /\btokens?\b|\bcredits?\b/i.test(q));
+      const bad = visibleStrings(require('./lib/pin-source').pinRead(f, rd)).filter(q => /\btokens?\b|\bcredits?\b/i.test(q));
       ok(f + ' says photo ID, never token or credit', bad.length === 0,
          bad.length ? bad[0].slice(0, 80) : '');
     });
@@ -10976,7 +10976,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     const RAW = /(showToast|appAlert)\([^;]*\b(e|err|eS|eU|eU2|error)\s*(&&|\.)\s*(\w+\s*&&\s*)?\w*\.?message/;
     ['app/app-collection.js', 'app/app-pages.js', 'app/backup.js', 'app/contacts.js',
      'app/photo-inbox.js', 'app/prefs.js', 'app/wizard.js', 'app/wizard-photos.js'].forEach(function (f) {
-      const lines = strip(rd(f)).split('\n')
+      const lines = strip(require('./lib/pin-source').pinRead(f, rd)).split('\n')
         .filter(l => /showToast|appAlert/.test(l) && /\.message/.test(l) && !/rrSaveError/.test(l));
       ok(f + ' routes every save error through rrSaveError', lines.length === 0,
          lines.length ? lines[0].trim().slice(0, 90) : '');
@@ -11280,7 +11280,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     const rd = f => fs202.readFileSync(p202.join(__dirname, '..', f), 'utf8');
     const pages = rd('app/app-pages.js'), pdl = rd('app/wizard-pdlookup.js');
     const drv = rd('app/drive.js'), ws = rd('app/wizard-save.js');
-    const pin = rd('app/photo-inbox.js'), brw = rd('app/browse.js');
+    const pin = require('./lib/pin-source').pinSource(), brw = rd('app/browse.js');
     const strip = t => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
     section('202. Finding 1 — a missing listing is not a sale');
@@ -11523,7 +11523,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   (function () {
     const fs204 = require('fs'), p204 = require('path');
     const rd = f => fs204.readFileSync(p204.join(__dirname, '..', f), 'utf8');
-    const pin = rd('app/photo-inbox.js'), data = rd('app/app-data.js'), coll = rd('app/app-collection.js');
+    const pin = require('./lib/pin-source').pinSource(), data = rd('app/app-data.js'), coll = rd('app/app-collection.js');
     const strip = t => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
     // What the USER can read: quoted strings — after removing comments AND
     // console.* calls FROM THE SOURCE. Order matters: strip the calls first,
@@ -11537,7 +11537,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
        !/console\.cloud\.google\.com/.test(userText(pin)), 'found one');
     ok('…and the whole app is clean of it, not just this file',
        ['app/photo-inbox.js', 'app/app-pages.js', 'app/prefs.js', 'app/app-collection.js']
-         .every(f => !/console\.cloud\.google\.com/.test(userText(rd(f)))));
+         .every(f => !/console\.cloud\.google\.com/.test(userText(require('./lib/pin-source').pinRead(f, rd)))));
     ok('the link that remains is for Brad, in a console warning',
        /console\.warn\('\[GPhotos\] picker session refused/.test(pin) &&
        /enable the Google Photos Picker API for the project/.test(pin));
@@ -14892,7 +14892,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     await (async function () {
       const p25 = require('path');
       const rd25 = f => fs.readFileSync(p25.join(__dirname, '..', 'app', f), 'utf8');
-      const pin = rd25('photo-inbox.js');
+      const pin = require('./lib/pin-source').pinSource();
 
       // R15 — each loop's per-item catch, by its named catch variable.
       [['a failed inbox listing page keeps what already loaded', 'catch (ePage)'],
@@ -14979,7 +14979,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     (function () {
       const p26 = require('path');
       const rd26 = f => fs.readFileSync(p26.join(__dirname, '..', 'app', f), 'utf8');
-      const prefs = rd26('prefs.js'), pin26 = rd26('photo-inbox.js');
+      const prefs = rd26('prefs.js'), pin26 = require('./lib/pin-source').pinSource();
       ok('226 the Refresh Styling button is wired to the function',
          /onclick="_rebuildDashboardTab\(\)"/.test(prefs));
       ok('226 …and the function it names still exists',
@@ -15015,7 +15015,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     section('227. A rejection is visible, and never louder than the car');
     (function () {
       const p27 = require('path');
-      const pin27 = fs.readFileSync(p27.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const pin27 = require('./lib/pin-source').pinSource();
 
       // ── lift the real scorer with a mini catalog ─────────────────────
       const a27 = pin27.indexOf('  function _numberFromText(text, prefer) {');
@@ -15102,7 +15102,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     (function () {
       const p28 = require('path');
       const rd28 = f => fs.readFileSync(p28.join(__dirname, '..', 'app', f), 'utf8');
-      const pin28 = rd28('photo-inbox.js'), wiz28 = rd28('wizard.js'), sv28 = rd28('wizard-save.js');
+      const pin28 = require('./lib/pin-source').pinSource(), wiz28 = rd28('wizard.js'), sv28 = rd28('wizard-save.js');
 
       ok('228 an inbox-born add says so, and remembers its staged-note key',
          /wizard\.data\._fromInbox = true;\s*\n\s*wizard\.data\._pinStagedNum = num;/.test(pin28));
@@ -15181,7 +15181,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     section('229. Train set is named, and paper has a seat at the table');
     (function () {
       const p29 = require('path');
-      const pin29 = fs.readFileSync(p29.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const pin29 = require('./lib/pin-source').pinSource();
 
       // Lift the REAL kind catalog and read it as data.
       const a29 = pin29.indexOf('var _PIN_KINDS = [');
@@ -15361,7 +15361,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     section('232. JS button tints are opaque — the third painter');
     (function () {
       const p32 = require('path');
-      const pin32 = fs.readFileSync(p32.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const pin32 = require('./lib/pin-source').pinSource();
       const code32 = pin32.replace(/\/\/[^\n]*/g, '');
       ok('232 the helper paints fallback-first, mix-second',
          /el\.style\.background = 'var\(--bg-card\)';\s*\n\s*el\.style\.background = 'color-mix\(in srgb, rgb\(' \+ rgbCsv \+ '\) ' \+ pct \+ '%, var\(--bg-card\)\)';/.test(pin32));
@@ -15413,7 +15413,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     section('233. Review-card photos drag into order; the first is MAIN VIEW');
     await (async function () {
       const p33 = require('path');
-      const pin33 = fs.readFileSync(p33.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const pin33 = require('./lib/pin-source').pinSource();
 
       // ── the pure sort, lifted and RUN ─────────────────────────────────
       {
@@ -15576,7 +15576,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
         // raw row write left in a remove flow — see §238's KNOWN38, now empty.
         const wrapped = ['app-collection.js', 'app-pages.js', 'browse.js', 'photo-inbox.js', 'wizard-save.js', 'contacts.js']
           .reduce((n, f) => {
-            const s = fs.readFileSync(p34.join(__dirname, '..', 'app', f), 'utf8');
+            const s = require('./lib/pin-source').pinRead(f, g => fs.readFileSync(p34.join(__dirname, '..', 'app', g), 'utf8'));
             return n + (s.match(/rrVerifiedRowUpdate\(/g) || []).length
                      + (s.match(/rrRemoveRowConfirmed\(/g) || []).length;
           }, 0);
@@ -16805,7 +16805,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     section('242. Excluded numbers on the card — one checkbox, one mark');
     (function () {
       const p42 = require('path');
-      const pin42 = fs.readFileSync(p42.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const pin42 = require('./lib/pin-source').pinSource();
 
       // ── lift the section builder and the toggle, and RUN them ─────────
       const a42 = pin42.indexOf('  var _exclView = { fid: null, nums: [] };');
@@ -17042,7 +17042,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     section('246. Set pieces: car types in the dropdown, details chain up');
     (function () {
       const p46 = require('path');
-      const pin46 = fs.readFileSync(p46.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const pin46 = require('./lib/pin-source').pinSource();
 
       // ── the kind table: car types present, back-compat kept ───────────
       const k0 = pin46.indexOf('var _PIN_KINDS = [');
@@ -17121,7 +17121,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     section('247. Floating group panel, Type tag, reads on demand');
     await (async function () {
       const p47 = require('path');
-      const pin47 = fs.readFileSync(p47.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const pin47 = require('./lib/pin-source').pinSource();
 
       // ── the Type tag round-trips and reaches BOTH readers ─────────────
       ok('247 the Type rides in the photo metadata like era and role',
@@ -17623,7 +17623,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ];
       let wired = 0;
       sites.forEach(function (s) {
-        const src = fs.readFileSync(p54.join(__dirname, '..', 'app', s[0]), 'utf8');
+        const src = require('./lib/pin-source').pinRead(s[0], g => fs.readFileSync(p54.join(__dirname, '..', 'app', g), 'utf8'));
         if (s[1].test(src)) wired++;
       });
       ok('254 all seven call sites pass the row words', wired === 7, wired + ' of 7');
@@ -17676,7 +17676,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('255 a solid run, one digit repaired, still beats an unrelated 3-digit read',
          fp3 && fp3.num === '6464-475', JSON.stringify(fp3 && { num: fp3.num, oneOff: fp3.dbg && fp3.dbg.oneOff }));
       // ── source wiring: the repair inherits its run's trustworthiness ──
-      const pin55 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const pin55 = require('./lib/pin-source').pinSource();
       ok('255 the one-off repair carries its run\'s solid/glued source',
          /jHit = hit; _jSrc = _runSrc\[d\] \|\| '';/.test(pin55));
       ok('255 the win rule: glued needs fragment-of, solid keeps longer-wins',
@@ -17723,7 +17723,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       T6.filter({ status: '', era: '', kind: '' });
       T6.rvKey = '';
       // ── wiring: snapshot once per opening, released on close ──
-      const pin56 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const pin56 = require('./lib/pin-source').pinSource();
       ok('256 opening a card snapshots ONCE (stepping keeps the same snapshot)',
          /if \(key && !_rvOrderKeys\) \{\s*\n\s*_rvOrderKeys = _pinVisibleGroups\(\)\.map\(function \(g\) \{ return g\.key; \}\);/.test(pin56));
       ok('256 closing the card releases the snapshot',
@@ -18492,7 +18492,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ];
       let wired = 0;
       sites.forEach(function (s) {
-        const src = fs.readFileSync(p67.join(__dirname, '..', 'app', s[0]), 'utf8');
+        const src = require('./lib/pin-source').pinRead(s[0], g => fs.readFileSync(p67.join(__dirname, '..', 'app', g), 'utf8'));
         if (s[1].test(src)) wired++;
       });
       ok('267 all eight call sites pass the variation', wired === 8, wired + ' of 8');
@@ -18564,7 +18564,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     (function () {
       const p69 = require('path');
       const rd69 = f => fs.readFileSync(p69.join(__dirname, '..', 'app', f), 'utf8');
-      const pi69 = rd69('photo-inbox.js'), dr69 = rd69('drive.js'), tu69 = rd69('tutorial.js');
+      const pi69 = require('./lib/pin-source').pinSource(), dr69 = rd69('drive.js'), tu69 = rd69('tutorial.js');
 
       // ── (1) the FREE read is cancellable ──
       ok('269 the free auto-read hands _status its cancel function',
@@ -18703,7 +18703,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const p70 = require('path');
       const rd70 = f => fs.readFileSync(p70.join(__dirname, '..', 'app', f), 'utf8');
       const code70 = t => t.replace(/\/\/[^\n]*/g, m => ' '.repeat(m.length));
-      const pi = code70(rd70('photo-inbox.js')), ap = code70(rd70('app.js'));
+      const pi = code70(require('./lib/pin-source').pinSource()), ap = code70(rd70('app.js'));
       const as = code70(rd70('app-setup.js')), ws = code70(rd70('wizard-save.js'));
       const bc = code70(rd70('barcode.js')), rp = code70(rd70('reports.js'));
       const wq = code70(rd70('wizard-quickentry.js')), wz = code70(rd70('wizard.js'));
@@ -18752,7 +18752,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // bare assignments. Cooper's report is why: seven scattered writers with
       // no record of who raised the flag is what made a wedged inbox
       // undiagnosable from the outside.
-      const piTight = rd70('photo-inbox.js').replace(/\/\/[^\n]*/g, '');
+      const piTight = require('./lib/pin-source').pinSource().replace(/\/\/[^\n]*/g, '');
       const busySet = (piTight.match(/_setBusy\(true/g) || []).length;
       const busyFin = (piTight.match(/finally \{[\s\S]{0,160}?_setBusy\(false\)/g) || []).length;
       ok('270 every _busy writer in the inbox releases in a finally',
@@ -18771,7 +18771,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('270 …and no release sits outside a finally',
          busyFin >= busySet && busySet === 10, busySet + ' writers');
       ok('270 …including the tagging pass specifically',
-         /\} finally \{\s*\n\s*\/\/[^\n]*\n(\s*\/\/[^\n]*\n)*\s*_setBusy\(false\);\s*\n\s*_status\(''\);\s*\n\s*\}/.test(rd70('photo-inbox.js')));
+         /\} finally \{\s*\n\s*\/\/[^\n]*\n(\s*\/\/[^\n]*\n)*\s*_setBusy\(false\);\s*\n\s*_status\(''\);\s*\n\s*\}/.test(require('./lib/pin-source').pinSource()));
       // v0.9.1418: and every raise NAMES its job, because the blocked-button
       // message shows that name to the collector. An unnamed raise degrades
       // the message back to "the last batch", which is what meant nothing.
@@ -18879,7 +18879,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // The reason, in this file's own words — if that comment ever goes, the
       // rule behind this test should be re-argued rather than quietly dropped.
       ok('270 …for the reason this file already documented',
-         /would freeze the extension bridge/.test(rd70('photo-inbox.js')));
+         /would freeze the extension bridge/.test(require('./lib/pin-source').pinSource()));
 
       // ── refusing to guess beats guessing wrong ──
       ok('270 an unknown field name throws instead of silently returning column A',
@@ -19206,7 +19206,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const p71 = require('path');
       const rd71 = f => fs.readFileSync(p71.join(__dirname, '..', 'app', f), 'utf8');
       const pdl = rd71('wizard-pdlookup.js'), brw = rd71('browse.js');
-      const pin = rd71('photo-inbox.js'), adt = rd71('app-data.js'), ast = rd71('app-setup.js');
+      const pin = require('./lib/pin-source').pinSource(), adt = rd71('app-data.js'), ast = rd71('app-setup.js');
 
       // ── 1. the index is consulted once per turn, and still self-invalidates ──
       const h0 = pdl.indexOf('function _pdLookupKey');
@@ -19557,7 +19557,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // Specifically re-check the two cancel handlers this project has had
       // unreachable before. Both are passed as REFERENCES, so a call-shaped
       // check would miss them — assert the wiring, not a call.
-      const pi73 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const pi73 = require('./lib/pin-source').pinSource();
       // The call spans lines and contains its own parens, so [^)]* could never
       // reach the second argument — assert the handoff itself.
       ok('273 the free-read cancel is reachable from the status line',
@@ -19891,7 +19891,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     (function () {
       const p80 = require('path');
       const vm80 = require('vm');
-      const pi = fs.readFileSync(p80.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const pi = require('./lib/pin-source').pinSource();
 
       // ── Behavioural: run the REAL predicate over the REAL type list.
       const i0 = pi.indexOf('var _PIN_NO_BATCH_READ =');
@@ -20046,7 +20046,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     (function () {
       const p81 = require('path');
       const vm81 = require('vm');
-      const pi = fs.readFileSync(p81.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const pi = require('./lib/pin-source').pinSource();
       const wh = fs.readFileSync(p81.join(__dirname, '..', 'app', 'wizard-handlers.js'), 'utf8');
       const aj = fs.readFileSync(p81.join(__dirname, '..', 'app', 'app.js'), 'utf8');
 
@@ -20175,7 +20175,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     (function () {
       const p82 = require('path');
       const vm82 = require('vm');
-      const pi = fs.readFileSync(p82.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const pi = require('./lib/pin-source').pinSource();
 
       // ── The four labels exist, on the Train set kind only.
       const kindsSrc = (pi.match(/var _PIN_KINDS = \[[\s\S]*?\n  \];/) || [''])[0];
@@ -20659,7 +20659,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     section('286. Two copies of one number keep their own photos');
     (function () {
       const p86 = require('path');
-      const src86 = fs.readFileSync(p86.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const src86 = require('./lib/pin-source').pinSource();
       const a0 = src86.indexOf('  function _pendList(v) {');
       const a1 = src86.indexOf('window.rrPinSetPhotoSaved = function (itemNum) {');
       const b1 = src86.indexOf('// When an item is actually saved, file any pending inbox photos', a1);
@@ -20771,7 +20771,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     section('287. A number the catalogue only knows with a dash');
     (function () {
       const p87 = require('path');
-      const src87 = fs.readFileSync(p87.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const src87 = require('./lib/pin-source').pinSource();
       const a87 = src87.indexOf('  function _pinDashedKin(num) {');
       // v0.9.1734: marker made signature-agnostic. It used to spell out
       // '(num, aiMfr, prefer)', so adding the srcText argument turned this
@@ -20871,7 +20871,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const p88 = require('path');
       const rd88 = f => fs.readFileSync(p88.join(__dirname, '..', 'app', f), 'utf8');
       const app88 = rd88('app.js'), wiz88 = rd88('wizard.js');
-      const dash88 = rd88('dashboard.js'), col88 = rd88('app-collection.js'), pin88 = rd88('photo-inbox.js');
+      const dash88 = rd88('dashboard.js'), col88 = rd88('app-collection.js'), pin88 = require('./lib/pin-source').pinSource();
 
       // ── ONE finder, not two ──
       ok('288 the family finder is defined exactly once, in app.js',
@@ -21084,7 +21084,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     (function () {
       const p91 = require('path');
       const APP91 = p91.join(__dirname, '..', 'app');
-      const pin91 = fs.readFileSync(p91.join(APP91, 'photo-inbox.js'), 'utf8');
+      const pin91 = require('./lib/pin-source').pinSource();
       const wiz91 = fs.readFileSync(p91.join(APP91, 'wizard.js'), 'utf8');
 
       // v0.9.1423 (Brad): the dedicated "No item number" button was folded
@@ -21375,7 +21375,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     section('294. No abandoned scratch notes');
     (function () {
       const p94 = require('path');
-      const pin94 = fs.readFileSync(p94.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const pin94 = require('./lib/pin-source').pinSource();
       const fn94 = (pin94.match(/window\._pinAddNoNumber = function[\s\S]*?\n  \};/) || [''])[0];
       ok('294 the numberless path was found', fn94.length > 200, String(fn94.length));
       ok('294 THE LEAK: starting a numberless add sweeps abandoned scratch notes',
@@ -21862,7 +21862,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
          SCROLLS.length === 1 && SCROLLS[0].block === 'start', JSON.stringify(SCROLLS));
 
       // desktop keeps the always-visible explainer — pinned in the source
-      const pi300 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const pi300 = require('./lib/pin-source').pinSource();
       const seg300 = pi300.slice(pi300.indexOf('function _pinGrpPanelRender'), pi300.indexOf('window._pinConfirmUngroup'));
       ok('300 desktop still shows the full explainer without a toggle',
          /: '<div style="font-family:var\(--font-head\);font-size:0\.95rem;font-weight:700;margin-bottom:0\.15rem">Group photos<\/div>'\s*\+ '<div style="font-size:0\.74rem;[^"]*">' \+ _grpHelpFull/.test(seg300), '');
@@ -21935,7 +21935,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('302 …inside the same phone-only media gate as the slim toolbar',
          /@media \(max-width: 699px\)[\s\S]*#page-photo-inbox\.pin-grp-slim #pin-grid/.test(css302), '');
       ok('302 the grid\'s own inline minimum is untouched (normal browsing keeps big tiles)',
-         /minmax\(150px,1fr\)/.test(fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8')), '');
+         /minmax\(150px,1fr\)/.test(require('./lib/pin-source').pinSource()), '');
     })();
 
     // ═══════════════════════════════════════════════════════════
@@ -22142,7 +22142,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
          (await window.__StageAll()).length === 0 && VER.some(v => v.indexOf('!S70=') > 0), JSON.stringify(VER));
 
       // the surfaces: strip thumbs review, wizard hook, cancel hygiene
-      const pi306 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const pi306 = require('./lib/pin-source').pinSource();
       ok('306 strip thumbs open the review card', /onclick="_stageReview\(/.test(pi306), '');
       ok('306 …which offers attach-to-owned and add-as-new',
          /_stagePickItem\(/.test(pi306) && /_stageAddAsItem\(/.test(pi306), '');
@@ -22200,7 +22200,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
          (await window._rrThumbCache.get('nope')) === null, '');
 
       // source pins: the wiring that cannot be driven headless
-      const pi7 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const pi7 = require('./lib/pin-source').pinSource();
       ok('307 refresh saves ONLY a listing Drive confirmed complete',
          /if \(_pinListComplete\) \{ try \{ _inboxCacheSave\(files\); \} catch/.test(pi7), '');
       const offBranch = pi7.slice(pi7.indexOf('if (_pinOffline()) {', pi7.indexOf('window._pinRefresh')), pi7.indexOf("_status('Loading inbox…')"));
@@ -22234,7 +22234,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // ═══════════════════════════════════════════════════════════
     section('308. Photos filed offline move the minute the connection returns');
     (function () {
-      const pi8 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const pi8 = require('./lib/pin-source').pinSource();
       ok('308 reconnect kicks the pending-note flusher (after the row drain)',
          /setTimeout\(function \(\) \{ try \{ _flushPending\(\); \} catch \(e\) \{\} \}, 4000\)/.test(pi8), '');
       ok('308 …and the flusher is reachable by the append-drain chain',
@@ -22346,7 +22346,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // ═══════════════════════════════════════════════════════════
     section('311. Add from the inbox offline: no Drive work up front, the wizard still opens');
     (function () {
-      const pi11 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const pi11 = require('./lib/pin-source').pinSource();
       const seg = pi11.slice(pi11.indexOf('window._pinReviewAdd = async function'),
                              pi11.indexOf('function _pinSetMemberMap'));
       ok('311 the offline test is taken ONCE, before any Drive call', /var _offAdd = _pinOffline\(\);/.test(seg), '');
@@ -22474,7 +22474,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // ═══════════════════════════════════════════════════════════
     section('313. A photo claimed by an add wears it, and re-adding asks first');
     (function () {
-      const pi13 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const pi13 = require('./lib/pin-source').pinSource();
       const mapSeg = pi13.slice(pi13.indexOf('function _pinNoteFileMap'), pi13.indexOf('function _render'));
       ok('313 the claim map reads both note stores (staged + armed)',
          /\[SETSTAGE_KEY, PENDING_KEY\]\.forEach/.test(mapSeg) && /_pendList/.test(mapSeg), '');
@@ -22685,7 +22685,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
          typeof window._rrFinishSignIn === 'function'
          && /rrOutboxRetry\(\{ force: true \}\)/.test(obSrc)
          && /_pinStageDrainNow/.test(obSrc.slice(obSrc.indexOf('_rrFinishSignIn'))), '');
-      const pi16 = fs.readFileSync(p16.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const pi16 = require('./lib/pin-source').pinSource();
       ok('316 the photo drain reports through the same pill',
          /rrSyncPill\('Uploading photo ' \+ \(ok \+ fail \+ 1\) \+ ' of '/.test(pi16)
          && /Photos saved \\u2014 ' \+ ok \+ ' of ' \+ ok/.test(pi16), '');
@@ -22767,7 +22767,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // ═══════════════════════════════════════════════════════════
     section('319. One-item default, movable panel, install always reachable');
     (function () {
-      const pi19 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const pi19 = require('./lib/pin-source').pinSource();
       ok('319 the group panel defaults to One item, not ABA',
          /var _grpPanelKind = 'single';/.test(pi19) && !/var _grpPanelKind = 'aba';/.test(pi19), '');
       ok('319 the desktop panel is draggable by its title, spot remembered per session',
@@ -22799,7 +22799,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // ═══════════════════════════════════════════════════════════
     section('320. Review-card view slots: assign, swap, clear — the wizard deals by them');
     await (async function () {
-      const pi20 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const pi20 = require('./lib/pin-source').pinSource();
       ok('320 the eight slots Brad named exist, in shooting-friendly order',
          /'TV',\s*label: 'Top'/.test(pi20) && /'RSV',\s*label: 'Right Side'/.test(pi20)
          && /'EXTRA',\s*label: 'Detail 1'/.test(pi20) && /'EXTRA2',\s*label: 'Detail 2'/.test(pi20), '');
@@ -22902,7 +22902,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // ═══════════════════════════════════════════════════════════
     section('322. A pair group sorts per piece; crossing rows re-files the photo');
     await (async function () {
-      const pi22 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const pi22 = require('./lib/pin-source').pinSource();
       ok('322 pair kinds section; single, paper and SET stay flat',
          /kindId === 'single' \|\| kindId === 'paper' \|\| kindId === 'set'\) return null;/.test(pi22), '');
       ok('322 …with a Both-together slot rendered once after the pieces',
@@ -22947,7 +22947,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // ═══════════════════════════════════════════════════════════
     section('323. A filled slot can be dragged to another slot — mouse and touch');
     (function () {
-      const pi23 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const pi23 = require('./lib/pin-source').pinSource();
       ok('323 a FILLED slot is a drag source carrying its fid on text/plain',
          /data-slotfid=/.test(pi23)
          && /ondragstart="event\.dataTransfer\.setData/.test(pi23)
@@ -23091,7 +23091,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // ═══════════════════════════════════════════════════════════
     section('326. A saved stamp is true everywhere at once');
     await (async function () {
-      const pi26 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const pi26 = require('./lib/pin-source').pinSource();
       ok('326 the REAL _pinMetaSet lands the truth locally after Drive accepts',
          /_pinMetaMergeLocal\(fileId, props\)/.test(pi26)
          && pi26.indexOf('_pinMetaMergeLocal(fileId, props)') > pi26.indexOf("driveRequest('PATCH', '/files/' + fileId"), '');
@@ -23144,7 +23144,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     section('327. No piece\u2019s note is dropped; the link repair yields to the filing');
     (function () {
       const ws27 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'wizard-save.js'), 'utf8');
-      const pi27 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const pi27 = require('./lib/pin-source').pinSource();
       ok('327 BRAD\'S NOTE: the tender\u2019s modifications text lands on the tender\u2019s row',
          /tenderNotOriginalDesc/.test(ws27)
          && /Modifications: ' \+ mods/.test(ws27.slice(ws27.indexOf('const tenderNote'))), '');
@@ -23239,7 +23239,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     (function () {
       const dr30 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'drive.js'), 'utf8');
       const pc30 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-crop.js'), 'utf8');
-      const pi30 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const pi30 = require('./lib/pin-source').pinSource();
       const ac30 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'app-collection.js'), 'utf8');
       const heal = dr30.slice(dr30.indexOf('rrPhotoBytesChanged'), dr30.indexOf('rrPhotoBytesChanged') + 1400);
       ok('330 the healer exists and touches every cache: blob, link memo, retry guard, bank, force-fresh',
@@ -23400,7 +23400,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
          d && d.dbg && !d.dbg.assembledNotRead, JSON.stringify(d && d.dbg && d.dbg.assembledNotRead));
 
       // \u2500\u2500 the source of the change, pinned against a quiet revert \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-      const pin333 = require('fs').readFileSync(SRC, 'utf8');
+      const pin333 = require('./lib/pin-source').pinSource();
       ok('333 the demotion keys on _jSrc (READ) and the dash, not on the era alone',
          /_joinIsBare && !_joinWasRead/.test(pin333)
          && /_joinWasRead = \(_jSrc === 'solid'\)/.test(pin333)
@@ -23490,7 +23490,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
          pp && pp.matched === true, JSON.stringify(pp && { num: pp.num, matched: pp.matched }));
 
       // \u2500\u2500 the source rules, pinned \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-      const pin334 = require('fs').readFileSync(SRC, 'utf8');
+      const pin334 = require('./lib/pin-source').pinSource();
       ok('334 the chokepoint rejects paper rows alongside set rows',
          /!_isSetRow\(r\) && !_isPaperRow\(r\)/.test(pin334));
       ok('334 "is this a real item row" is NOT re-answered \u2014 it calls _pinDemotedRow',
@@ -23594,7 +23594,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /_vMultiRoad/.test(wsrc) && /_vRoads\.size > 1/.test(wsrc));
 
       // ── part 3: the pick panel shows every identity ────────────────────
-      const psrc = fs.readFileSync(SRC, 'utf8');
+      const psrc = require('./lib/pin-source').pinSource();
       const panel = psrc.slice(psrc.indexOf('var baseRows = _pinKinRowsFor(n)'),
                                psrc.indexOf('var head = baseRows.length'));
       ok('335 the panel no longer renders only the first row',
@@ -23630,13 +23630,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
            return !!g && g.row.roadName === 'Lionel Savings Bank' && g.row._tab === 'Lionel PW - Items';
          })(), JSON.stringify((function(){ const g = pick(ROWS.concat([BOXROW]), CAR); return g && { road:g.row.roadName, tab:g.row._tab }; })()));
       ok('335 it is _pinDemotedRow that keeps boxes out, not a new rule here',
-         /_pinDemotedRow\(r\)\) return;/.test(fs.readFileSync(SRC, 'utf8')));
+         /_pinDemotedRow\(r\)\) return;/.test(require('./lib/pin-source').pinSource()));
 
       // ══ v0.9.1735: the panel LINES actually pick ═════════════════════════
       // Brad: "it says pick the one you have and you cant pick it to add it."
       // Every line called _pinPickNum with the SAME number, so clicking one
       // retyped a number the box already held and nothing moved.
-      const p35 = fs.readFileSync(SRC, 'utf8');
+      const p35 = require('./lib/pin-source').pinSource();
       ok('335 a base line calls the identity picker, not the number-only one',
          /_pinPickRow\(\\'/.test(p35) && /line\(n, r\.description \|\| r\.roadName \|\| '', r\.refLink \|\| '', true, r\.roadName \|\| ''\)/.test(p35));
       ok('335 a picked identity beats the OCR words and load order outright',
@@ -23753,7 +23753,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
         ok('336 rrSaveError turns drive 403 into the sharing line',
            /shared with this account/i.test(window.rrSaveError(new Error('drive 403 domainPolicy: x'), 'the photo')));
       }
-      const p36 = require('fs').readFileSync(SRC, 'utf8');
+      const p36 = require('./lib/pin-source').pinSource();
       ok('336 the crop toast has three honest branches, not one',
          /rate limit\/i\.test\(_m\)/.test(p36) && /drive 403\/i\.test\(_m\)/.test(p36)
          && /Google Drive is asking us to slow down/.test(p36));
@@ -23830,7 +23830,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('337 phone: plain rr-card', /class="rr-card"/.test(q) && !/rr-card-flex/.test(q));
 
       // ── the decision is one line, derived from _wide, at 1200 ────────────
-      const p37 = require('fs').readFileSync(SRC, 'utf8');
+      const p37 = require('./lib/pin-source').pinSource();
       ok('337 _wide2 is derived from _wide (a phone can never be "wide2")',
          /var _wide2 = _wide && \(window\.innerWidth \|\| 0\) >= 1200;/.test(p37));
       ok('337 the hero cap is chosen on the ONE _heroWide line (the 3-occurrence pin above still holds)',

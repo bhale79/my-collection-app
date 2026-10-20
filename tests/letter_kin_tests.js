@@ -30,7 +30,7 @@ const fs = require('fs'), path = require('path'), vm = require('vm');
 const APPD = path.join(__dirname, '..', 'app');
 const AJ = fs.readFileSync(path.join(APPD, 'app.js'), 'utf8');
 const AD = fs.readFileSync(path.join(APPD, 'app-data.js'), 'utf8');
-const PI = fs.readFileSync(path.join(APPD, 'photo-inbox.js'), 'utf8');
+const PI = require('./lib/pin-source').pinSource();
 let pass = 0, fail = 0;
 function ok(name, cond, detail) {
   if (cond) { pass++; console.log('  PASS  ' + name); }

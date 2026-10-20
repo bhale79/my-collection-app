@@ -225,7 +225,7 @@ function openerScan(files) {
 
 (async () => {
   // ── F: words (source) ──────────────────────────────────────────────────
-  const pin = rd('photo-inbox.js'), help = rd('help-photo-id.js'), dash = rd('dashboard.js'), bc = rd('barcode.js'), tut = rd('tutorial.js'), html = rd('index.html');
+  const pin = require('./lib/pin-source').pinSource(), help = rd('help-photo-id.js'), dash = rd('dashboard.js'), bc = rd('barcode.js'), tut = rd('tutorial.js'), html = rd('index.html');
   T('F1 a sure Photo Inbox read shows no "?" (the tile line)', !/String\(sug\.num\)\.replace\(\/<\/g, '&lt;'\) \+ '\?<\/span>/.test(pin) && /\+ ' · best guess<\/span>/.test(pin));
   T('F2 no "already tried, and it was free" in the help panel', !/already tried/.test(help) && /Start with Identify my items/.test(help) && !/Start with the free read/.test(help));   // v0.9.1956: no "free" without Auto Read
   T('F3 the paid-batch message makes no "already tried every photo" claim', !/free reader already tried every photo/.test(pin));

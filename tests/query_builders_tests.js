@@ -56,7 +56,7 @@ const q = url => decodeURIComponent(String(url).split(/[?&](?:q|_nkw)=/)[1].spli
 
 const appjs = APP('app.js'), pages = APP('app-pages.js'), research = APP('research.js');
 const wizard = APP('wizard.js'), maint = APP('maintenance.js'), browse = APP('browse.js');
-const inbox = APP('photo-inbox.js'), coll = APP('app-collection.js');
+const inbox = require('./lib/pin-source').pinSource(), coll = APP('app-collection.js');
 
 // ── the rows ────────────────────────────────────────────────────────────────
 const AF   = { _tab: 'Lionel Modern S - Items', _era: 'mod_s', itemNum: '9504',  roadName: 'Erie', description: 'Combination car', manufacturer: 'Lionel', yearProd: '1988', variation: '' };
@@ -335,7 +335,7 @@ ok('the American Flyer catalog link (the v1768 branch) still says American Flyer
 ok('_pinVendorSearchURL — a builder nothing called — is gone from photo-inbox.js',
    !/_pinVendorSearchURL/.test(inbox.replace(/^\s*\/\/.*$/gm, '')));
 ok('no query anywhere carries the era word "modern era" any more',
-   ['research.js', 'wizard.js', 'browse.js', 'app-pages.js', 'maintenance.js', 'photo-inbox.js', 'app.js'].every(f => !/'modern era'/.test(APP(f))));
+   ['research.js', 'wizard.js', 'browse.js', 'app-pages.js', 'maintenance.js', 'photo-inbox.js', 'app.js'].every(f => !/'modern era'/.test(require('./lib/pin-source').pinRead(f, APP))));
 
 // ── H · planted offenders: every check above can go red ────────────────────
 section('H · planted offenders — each old habit put back must fail its check');

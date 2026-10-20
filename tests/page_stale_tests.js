@@ -81,7 +81,7 @@ ok('…and BEFORE any of its own builder calls, so no path can show old data fir
 ok('showPage is the ONLY place a .page is activated (the audit that makes rule 2 provable)',
    (app.match(/\.classList\.add\('active'\)/g) || []).filter(function () { return true; }).length >= 1
    && (app.match(/page-' \+ name\)\.classList\.add\('active'\)/g) || []).length === 1
-   && !/getElementById\('page-[a-z-]+'\)\.classList\.add\('active'\)/.test(app + br + rd('app-pages.js') + rd('app-collection.js') + rd('photo-inbox.js') + rd('wizard.js') + rd('back-stack.js') + rd('detail-nav.js')), '');
+   && !/getElementById\('page-[a-z-]+'\)\.classList\.add\('active'\)/.test(app + br + rd('app-pages.js') + rd('app-collection.js') + require('./lib/pin-source').pinSource() + rd('wizard.js') + rd('back-stack.js') + rd('detail-nav.js')), '');
 ok('the device back button goes through showPage', /function _rrGoBackTo\(name\) \{[\s\S]{0,300}?showPage\(name, mnav \|\| null\);/.test(app), '');
 ok('the boot splash watchdog does not complain about a page nobody can see',
    /if \(typeof rrPageOnScreen === 'function' && !rrPageOnScreen\(\['page-browse'\]\)\) return;/.test(app), '');

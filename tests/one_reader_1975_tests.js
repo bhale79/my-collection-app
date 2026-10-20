@@ -31,7 +31,7 @@ let chromium;
 try { chromium = require('playwright').chromium; }
 catch (e) { console.log('FAILED  —  one_reader_1975_tests needs playwright and it is not installed.'); process.exit(1); }
 const APPDIR = path.join(__dirname, '..', 'app');
-const SRC = fs.readFileSync(path.join(APPDIR, 'photo-inbox.js'), 'utf8');
+const SRC = require('./lib/pin-source').pinSource();
 const APPJS = fs.readFileSync(path.join(APPDIR, 'app.js'), 'utf8');
 const AD = fs.readFileSync(path.join(APPDIR, 'app-data.js'), 'utf8');
 const BC = fs.readFileSync(path.join(APPDIR, 'barcode.js'), 'utf8');

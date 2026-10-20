@@ -192,6 +192,8 @@ const tick = () => new Promise(r => setImmediate(r));
   section('C · ONE door to Google Photos');
   const FILES = {};
   fs.readdirSync(APP).filter(f => f.endsWith('.js')).forEach(f => { FILES[f] = src(f); });
+  // The Photo Inbox is one feature in pieces (tests/lib/pin-source.js): scanned as ONE 'photo-inbox.js'.
+  (function () { const m = require('./lib/pin-source').pinMerge(FILES); Object.keys(FILES).forEach(k => { if (!(k in m)) delete FILES[k]; }); Object.assign(FILES, m); })();
   function scan(files) {
     const out = { sessions: [], bypass: [] };
     Object.keys(files).forEach(function (f) {

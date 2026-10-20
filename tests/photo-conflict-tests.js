@@ -23,7 +23,7 @@ const fs   = require('fs');
 const path = require('path');
 
 const APP = n => path.join(__dirname, '..', 'app', n);
-const INBOX = fs.readFileSync(APP('photo-inbox.js'), 'utf8');
+const INBOX = require('./lib/pin-source').pinSource();
 
 let pass = 0, fail = 0;
 function ok(name, cond, extra) {

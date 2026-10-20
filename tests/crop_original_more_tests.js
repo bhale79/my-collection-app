@@ -18,7 +18,7 @@ let pass = 0, fail = 0;
 function T(n, cond, detail) { console.log((cond ? 'PASS' : 'FAIL') + '  ' + n + (cond ? '' : '  -> ' + JSON.stringify(detail))); cond ? pass++ : fail++; }
 const near = (a, b, tol) => Math.abs(a - b) <= (tol == null ? 2 : tol);
 const read = f => fs.readFileSync(path.join(APP, f), 'utf8');
-const PC = read('photo-crop.js'), DRV = read('drive.js'), PI = read('photo-inbox.js'), AC = read('app-collection.js');
+const PC = read('photo-crop.js'), DRV = read('drive.js'), PI = require('./lib/pin-source').pinSource(), AC = read('app-collection.js');
 const code = s => s.replace(/^\s*\/\/[^\n]*$/gm, '');   // comment LINES carry history, not behaviour (a URL's // must survive)
 
 // A function's body, by brace matching from its header.
@@ -82,6 +82,8 @@ const RULES = {
   noAI: pc => !/\bAI\b/.test(code(pc)),
 };
 const FILES = {}; fs.readdirSync(APP).filter(f => /\.js$/.test(f)).forEach(f => { FILES[f] = read(f); });
+// The Photo Inbox is one feature in pieces (tests/lib/pin-source.js): scanned — and planted — as ONE 'photo-inbox.js'.
+(function () { const m = require('./lib/pin-source').pinMerge(FILES); Object.keys(FILES).forEach(k => { if (!(k in m)) delete FILES[k]; }); Object.assign(FILES, m); })();
 
 console.log('== S · the rules, in the source ==');
 T('S1  exactly one function in the app sends picture bytes over an existing Drive file (photo-crop.js)', RULES.onePhotoWriter(FILES) === true, RULES.onePhotoWriter(FILES));

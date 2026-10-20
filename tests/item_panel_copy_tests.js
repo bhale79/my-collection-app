@@ -35,7 +35,7 @@ async function boot(browser, planted) {
     const u = r.request().url();
     if (!u.startsWith('file://')) return r.abort();
     const bare = u.split('?')[0];
-    if (planted && planted.inbox && bare.endsWith('/app/photo-inbox.js')) return r.fulfill({ body: planted.inbox, contentType: 'application/javascript' });
+    if (planted && planted.inbox && require('./lib/pin-source').pinFulfill(r, u, planted.inbox)) return;
     if (planted && planted.panel && bare.endsWith('/app/app-collection.js')) return r.fulfill({ body: planted.panel, contentType: 'application/javascript' });
     return r.continue();
   });

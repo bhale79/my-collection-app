@@ -187,7 +187,7 @@ SWEPT.forEach(id => ok('#' + id + ' is looked up nowhere', lookedUp(id).length =
 ok('…and none of them is born anywhere (so nothing that read them could ever have run)',
    SWEPT.every(id => !audit.bornAnywhere(births, id)), SWEPT.filter(id => audit.bornAnywhere(births, id)).join(', '));
 ok('the live twins were NOT caught: #pin-identify-btn (inbox) and #nav-sheet-link-p (Preferences) still exist',
-   /id="pin-identify-btn"/.test(rd('photo-inbox.js')) && /id="nav-sheet-link-p"/.test(rd('prefs.js')), '');
+   /id="pin-identify-btn"/.test(require('./lib/pin-source').pinSource()) && /id="nav-sheet-link-p"/.test(rd('prefs.js')), '');
 
 section('D3 — the legacy Want renderer is gone; the merged page carries its rules');
 const pages = rd('app-pages.js');
@@ -239,7 +239,7 @@ ok('wizardAdvance still guards on a disabled Next and then advances',
    /async function wizardAdvance\(\) \{\s*\n\s*const _nextBtn[^\n]*\n\s*if \(_nextBtn && _nextBtn\.disabled\) return;\s*\n\s*await _wizardNextCore\(\);/.test(rd('wizard.js')), '');
 ok('_pvToggleMasterBox still records the choice and restyles the Yes/No buttons',
    /function _pvToggleMasterBox\(val\) \{\s*\n\s*wizard\.data\.hasMasterBox = val;\s*\n\s*document\.querySelectorAll/.test(rd('wizard-handlers.js')), '');
-ok('the screenshot reader still releases its busy state in finally', /finally \{\s*\n\s*if \(typeof _shotBusy === 'function'\) _shotBusy\(\);/.test(rd('photo-inbox.js')), '');
+ok('the screenshot reader still releases its busy state in finally', /finally \{\s*\n\s*if \(typeof _shotBusy === 'function'\) _shotBusy\(\);/.test(require('./lib/pin-source').pinSource()), '');
 ok('the dashboard still zeroes the nav badges that exist (nav-owned first)', /\[\['nav-owned', 0\], \['nav-wishlist-count', 0\],/.test(rd('dashboard.js')), '');
 ok('_dismissDisclaimer still syncs the REAL Preferences toggle (#ptog-disclaimer is born as ptog-${id})',
    /getElementById\('ptog-disclaimer'\)/.test(pages) && /id="ptog-\$\{id\}"/.test(rd('prefs.js')), '');

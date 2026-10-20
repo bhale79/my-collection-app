@@ -39,6 +39,7 @@ async function run(browser, planted) {
     const u = r.request().url();
     if (!u.startsWith('file://')) return r.abort();
     const clean = u.split('?')[0];   // index.html loads every script as name.js?v=NNNN
+    if (planted && planted['photo-inbox.js'] && require('./lib/pin-source').pinFulfill(r, u, planted['photo-inbox.js'])) return;
     const name = Object.keys(planted || {}).find(k => clean.endsWith('/' + k));
     if (name) return r.fulfill({ body: planted[name], contentType: 'application/javascript' });
     return r.continue();
@@ -166,7 +167,7 @@ function judge(o) {
   T('C2  a CHANGED list redraws the card (new key, new tiles, new first photo)', o.changed.tiles === 3 && o.changed.redrawn && o.changed.first === 'p9' && o.changed.key !== o.before.inboxKey0, o.changed);
 
   console.log('\n== D · the source ==');
-  const dr = SRC('drive.js'), da = SRC('dashboard.js'), pi = SRC('photo-inbox.js');
+  const dr = SRC('drive.js'), da = SRC('dashboard.js'), pi = require('./lib/pin-source').pinSource();
   T('D1  loadDriveThumb reports a known picture (true) and skips the queue for it', /if \(_rrThumbKnown\(fileId, imgEl, containerEl, thumbLink\)\) return true;/.test(dr) && /return false;\n\}\n\/\/ The part of _loadDriveThumbSmall that needs no waiting/.test(dr));
   T('D2  the known-picture path decides in the same order as the queued one (offline, blob, force-fresh, link)', /_rrThumbKnown[\s\S]*?_offlineMode[\s\S]*?_blobCache\[fileId\][\s\S]*?_rrForceFreshBytes[\s\S]*?_thumbLinkCache/.test(dr));
   T('D3  every dashboard picture skips its fade when the picture was known (one helper)', (da.match(/_dashShowNow\(/g) || []).length >= 5 && /function _dashShowNow\(img\)/.test(da));

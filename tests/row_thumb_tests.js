@@ -16,7 +16,7 @@ const fs = require('fs');
 const path = require('path');
 const APP = f => fs.readFileSync(path.join(__dirname, '..', 'app', f), 'utf8');
 const CSS = APP('app.css'), BROWSE = APP('browse.js'), STOCK = APP('stock-photos.js');
-const DASH = APP('dashboard.js'), INBOX = APP('photo-inbox.js');
+const DASH = APP('dashboard.js'), INBOX = require('./lib/pin-source').pinSource();
 // code only — a comment that SAYS "object-fit:cover" is history, not behaviour
 const code = src => src.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
 let pass = 0, fail = 0;

@@ -62,7 +62,7 @@ ok('rrIsSignInError exists, is exported, and knows the backup\'s wording ("Sign 
 const saveErrBody = wo.slice(wo.indexOf('function rrSaveError('), wo.indexOf('window.rrSaveError = rrSaveError;'));
 ok('rrSaveError uses it (one rule, not a second regex of its own)', /if \(rrIsSignInError\(raw\)\) \{/.test(saveErrBody) && !/Not signed in\|Token required/.test(saveErrBody), '');
 ok('the photo-folder link asks it', /rrIsSignInError\(e\)\)\s*\n?\s*\? 'You\\u2019re signed out \\u2014 sign in to open your photo folder'/.test(rd('prefs.js')), '');
-const pin = rd('photo-inbox.js');
+const pin = require('./lib/pin-source').pinSource();
 ok('the inbox refresh asks it', /rrIsSignInError\(e\)\)\s*\n?\s*\? 'You\\u2019re signed out \\u2014 sign in to load the inbox\.'/.test(pin), '');
 ok('…and lets "Loading inbox…" be seen for ~400ms before a fast failure replaces it, unless a newer refresh started',
    /var _rfWait = Math\.max\(0, 400 - \(Date\.now\(\) - _rfStart\)\);/.test(pin) && /if \(window\._pinRefreshSeq === _rfSeq\) _status\(_rfMsg\);/.test(pin), '');

@@ -20,7 +20,7 @@ const fs_ = require('fs');
 const path = require('path');
 
 const DASH  = fs_.readFileSync(path.join(__dirname, '..', 'app', 'dashboard.js'), 'utf8');
-const INBOX = fs_.readFileSync(path.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+const INBOX = require('./lib/pin-source').pinSource();
 
 let pass = 0, fail = 0;
 function ok(name, cond, detail) {

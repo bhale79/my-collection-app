@@ -23,7 +23,7 @@ function ok(name, cond, extra) {
   if (cond) { pass++; console.log('  PASS  ' + name); }
   else { fail++; console.log('  FAIL  ' + name + (extra ? '  -> ' + extra : '')); }
 }
-const pi = fs.readFileSync(path.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+const pi = require('./lib/pin-source').pinSource();
 function body(sig, endAt) {
   const i = pi.indexOf(sig);
   if (i < 0) return '';

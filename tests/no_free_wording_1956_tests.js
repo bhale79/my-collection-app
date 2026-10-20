@@ -120,7 +120,7 @@ function userFiles() {
   ['index.html', 'privacy/index.html', 'terms/index.html'].forEach(p => { if (fs.existsSync(path.join(ROOT, p))) out[p] = fs.readFileSync(path.join(ROOT, p), 'utf8'); });
   fs.readdirSync(ROOT).filter(n => /^preview-/.test(n) && fs.existsSync(path.join(ROOT, n, 'index.html')))
     .forEach(n => { out[n + '/index.html'] = fs.readFileSync(path.join(ROOT, n, 'index.html'), 'utf8'); });
-  return out;
+  return require('./lib/pin-source').pinMerge(out, 'app/');   // the Photo Inbox pieces as ONE 'app/photo-inbox.js'
 }
 
 async function boot(browser, files, ar) {

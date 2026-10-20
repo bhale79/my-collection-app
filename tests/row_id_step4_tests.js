@@ -23,10 +23,10 @@ let pass = 0, fail = 0;
 function T(n, cond, detail) { console.log((cond ? 'PASS' : 'FAIL') + '  ' + n + (cond ? '' : '  -> ' + JSON.stringify(detail))); cond ? pass++ : fail++; }
 
 function plantedInbox() {
-  let s = fs.readFileSync(path.join(APP, 'photo-inbox.js'), 'utf8');
+  let s = require('./lib/pin-source').pinSource();
   const re = /\n        if \(!ok\) \{ console\.warn\('\[RowId\] row ' \+ t\.p\.row \+ ' is not ' \+ wantNum \+ ' any more — skipped this pass'\); return; \}\n/;
   const out = s.replace(re, '\n');
-  if (out === s) throw new Error('planted photo-inbox.js: the identity check moved; update this test');
+  if (out === s) throw new Error('planted Photo Inbox: the identity check moved; update this test');
   return out;
 }
 function plantedPanel() {
@@ -43,7 +43,7 @@ async function boot(browser, planted) {
     const u = r.request().url();
     if (!u.startsWith('file://')) return r.abort();
     const bare = u.split('?')[0];
-    if (planted && planted.inbox && bare.endsWith('/app/photo-inbox.js')) return r.fulfill({ body: planted.inbox, contentType: 'application/javascript' });
+    if (planted && planted.inbox && require('./lib/pin-source').pinFulfill(r, u, planted.inbox)) return;
     if (planted && planted.panel && bare.endsWith('/app/app-collection.js')) return r.fulfill({ body: planted.panel, contentType: 'application/javascript' });
     return r.continue();
   });
