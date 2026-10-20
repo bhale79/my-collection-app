@@ -109,7 +109,7 @@ ok('an items-layout row is unchanged: Item Number, Item Type, Road Name, Descrip
 section('Source pins — the dropdown, the commit, the maker label');
 const commit = grab(ym, 'window._ymCommit = async function ()');
 ok('the Edit dropdown still lists _ymMasterTabs() (one source of truth, no hard-coded options)', /_ymMasterTabs\(\)\.map/.test(ym) && !/<option value="Lionel PW - Sets"/.test(ym));
-ok('the commit resolves each tab\'s shape and number column, and compares the field that fills it', /_ymTabShape\(t2\)/.test(commit) && /_ymNumberCol\(heads, shape2\)/.test(commit) && /existing\[String\(dd\[numCol\.field\] \|\| ''\)\.trim\(\)\]/.test(commit));
+ok('the commit resolves each tab\'s shape and number column, and compares the field that fills it', /_ymTabShape\(t2\)/.test(commit) && /_ymNumberCol\(heads, shape2\)/.test(commit) && /var k = _ymCommitKey\(dd\[numCol\.field\]\);/.test(commit) && /if \(existing\[k\]\) heldDup\.push\(dd\);/.test(commit));   /* v0.9.2004: through the ONE key helper, which the in-batch check shares (commit_batch_dedupe_2004_tests) */
 ok('a tab with no number column stops the commit before any write', /if \(numIdx < 0\) throw new Error\('could not find the ' \+ numCol\.header \+ ' column on ' \+ t2/.test(commit));
 ok('the Image URL column is only ever added to an items-layout tab', /var _hasImg = !plan\[t4\]\.shape && /.test(commit));
 // v0.9.1880: the row building moved into _ymRowsFor (so the Row ID minting can be run in a test) —

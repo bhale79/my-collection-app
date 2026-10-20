@@ -1435,6 +1435,9 @@
       });
     });
   }
+  // v0.9.2004: THE one key a catalog number is compared on at Commit — for
+  // the master's existing rows and for rows inside the batch alike.
+  function _ymCommitKey(v) { return String(v == null ? '' : v).trim(); }
   window._ymCommit = async function () {
     if (!_isOwner() || !_ymData) return;
     var b = null;
@@ -1467,7 +1470,7 @@
     window._ymCommitBusy = true;
     try {
       // read each target tab's headers + existing numbers; dedupe HOLDS
-      var tabs = Object.keys(byTab), plan = {}, heldDup = [];
+      var tabs = Object.keys(byTab), plan = {}, heldDup = [], heldTwice = [];
       for (var ti = 0; ti < tabs.length; ti++) {
         var t2 = tabs[ti];
         var gotRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + MID + '/values/' + encodeURIComponent("'" + t2 + "'!A1:" + MASTER_READ_LAST_COL), { headers: H });   // v0.9.1683: was A1:V — MTH tabs run to W, and Image URL lands after that
@@ -1479,12 +1482,21 @@
         var numCol = _ymNumberCol(heads, shape2), numIdx = numCol.idx;
         if (numIdx < 0) throw new Error('could not find the ' + numCol.header + ' column on ' + t2 + ' \u2014 commit stopped before any write');
         var existing = {};
-        vals.slice(1).forEach(function (r) { var n = String((r[numIdx] || '')).trim(); if (n) existing[n] = 1; });
+        vals.slice(1).forEach(function (r) { var n = _ymCommitKey(r[numIdx]); if (n) existing[n] = 1; });
         // v0.9.1628: the first cut counted the HEADER on this side only —
         // one short every time, a false alarm AFTER the rows had landed.
         var fresh = [], rowsBefore = vals.slice(1).filter(function (r) { return String((r[numIdx] || '')).trim(); }).length;
+        // v0.9.2004: the dedupe also looks INSIDE the batch. Brad's 903
+        // re-check found 309 rows approved twice (same tab, same number) —
+        // the master check alone would have appended both copies. The first
+        // copy goes; a later one is HELD and said, keyed exactly like the
+        // master check (one key helper, _ymCommitKey) so the two can't differ.
+        var seenHere = {};
         byTab[t2].forEach(function (dd) {
-          if (existing[String(dd[numCol.field] || '').trim()]) heldDup.push(dd); else fresh.push(dd);   // v0.9.1754: compared on the field that fills that column
+          var k = _ymCommitKey(dd[numCol.field]);   // v0.9.1754: compared on the field that fills that column
+          if (existing[k]) heldDup.push(dd);
+          else if (seenHere[k]) heldTwice.push(dd);
+          else { seenHere[k] = 1; fresh.push(dd); }
         });
         plan[t2] = { heads: heads, fresh: fresh, rowsBefore: rowsBefore, allVals: vals, shape: shape2 };
       }
@@ -1501,6 +1513,7 @@
       }
       var lines = 'Append ' + totFresh + ' row' + (totFresh === 1 ? '' : 's') + ' — ' + perTab.join(', ') + '.'
         + (heldDup.length ? ' ' + heldDup.length + ' held \u2014 number already in master.' : '')
+        + (heldTwice.length ? ' ' + heldTwice.length + ' held \u2014 same item twice in this batch.' : '')
         + (heldNoTab.length ? ' ' + heldNoTab.length + ' held \u2014 no tab picked.' : '')
         + (heldNoNum.length ? ' ' + heldNoNum.length + ' held \u2014 no item number.' : '')
         + ' Dated backups of both tabs are written first.';
