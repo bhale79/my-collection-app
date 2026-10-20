@@ -39,8 +39,9 @@ const OWNED = {
   m1: { inventoryId: '201', itemNum: '10-2210', owned: true, era: 'Manual', manufacturer: 'MTH', itemType: 'Trolley' },
   m2: { inventoryId: '202', itemNum: '30-9107', owned: true, era: 'Manual', manufacturer: 'MTH', itemType: 'Diesel' },
   m3: { inventoryId: '203', itemNum: '279-4844', owned: true, era: 'Manual', manufacturer: 'Menards', itemType: 'Accessory' },
-  m4: { inventoryId: '204', itemNum: 'RMT-92499-402', owned: true, era: 'Manual', manufacturer: 'RMT', itemType: 'Boxcar' },
+  m4: { inventoryId: '305', itemNum: 'RMT-92499-402', owned: true, era: 'Manual', manufacturer: 'RMT', itemType: 'Boxcar' },
   m5: { inventoryId: '205', itemNum: 'ZZ-1', owned: true, era: 'Manual', manufacturer: 'Menards', itemType: 'Boxcar' },
+  b1: { inventoryId: '148', itemNum: '6-36814-BOX', owned: true, era: '', manufacturer: 'Lionel', itemType: 'Box' },
   d1: { inventoryId: '136', itemNum: '84631', owned: true, era: 'mpc', itemType: 'Diesel Locomotive' },
   p1: { inventoryId: '26', itemNum: '6037', owned: true, era: 'pw', itemType: 'Caboose' },
   e1: { inventoryId: '133', itemNum: 'OTH-1966-133', owned: true, era: 'Manual', itemType: 'Other', manufacturer: 'Lionel' },
@@ -51,6 +52,7 @@ const MASTER = [
   { itemNum: '10-2210', _era: 'mth_tinplate' },
   { itemNum: '30-9107', _era: 'mth_o' },
   { itemNum: '279-4844', _era: 'menards' },
+  { itemNum: '6-36814', _era: 'mpc' },
   { itemNum: '1998', _era: 'shelper' }, { itemNum: '1998', _era: 'marx' }, { itemNum: '1998', _era: 'marx' },
   { itemNum: '58081', _era: 'marklin_1' },
   { itemNum: '1439', _era: 'marx' },
@@ -101,6 +103,10 @@ function bootB(opts) {
     f['unknown'] = D.add('unknown', 'PHOTOS'); sub(f['unknown'], '26'); sub(f['unknown'], '132'); D.add('unknown PAPER-FRONT.jpg', f['unknown'], 'image/jpeg');
     f['1966'] = D.add('Lionel · Other · "Add Up Your 1966 Lionel Profits"', 'PHOTOS'); sub(f['1966'], '133'); sub(f['1966'], '135');
     f['10-2210'] = D.add('10-2210', 'PHOTOS'); sub(f['10-2210'], '201');
+    // Measured on Brad's Drive: older saves named the inside folder one BELOW
+    // the row's inventory id (RMT-92499-402 is 305, its photos sit in "304").
+    f['RMT'] = D.add('RMT-92499-402', 'PHOTOS'); sub(f['RMT'], '304');
+    f['BOX'] = D.add('6-36814-BOX', 'PHOTOS'); sub(f['BOX'], '148');
     f['1436'] = D.add('1436', 'PHOTOS');
     f['1439'] = D.add('1439', 'PHOTOS');
     f['1998'] = D.add('1998', 'PHOTOS');
@@ -118,6 +124,8 @@ function bootB(opts) {
     ok('T4 "unknown" holds a postwar item AND a deleted one → Other Items (mixed)', plan['unknown'] === 'Other Items (mixed)', plan['unknown']);
     ok('T5 the 1966 folder holds two different items that live in different places → Other Items (mixed)', plan['Lionel · Other'] === 'Other Items (mixed)', plan['Lionel · Other']);
     ok('T6 a manual entry\'s folder follows its row\'s maker (10-2210 → MTH Tinplate)', plan['10-2210'] === 'MTH Tinplate (contents)', plan['10-2210']);
+    ok('T6b an owned item\'s folder whose inside number is one off still goes home (RMT-92499-402 → RMT O)', plan['RMT-92499-402'] === 'RMT O (contents)', plan['RMT-92499-402']);
+    ok('T6c a box row with no era of its own files with its item (6-36814-BOX → Lionel MPC/Modern)', plan['6-36814-BOX'] === 'Lionel MPC/Modern (contents)', plan['6-36814-BOX']);
     ok('T7 a folder holding only a loose photo is still placed by its name (DWG-290)', plan['DWG-290'] === 'Paper › Drawings (number)', plan['DWG-290']);
     ok('T8 empty folders are listed, never planned (1436, 1439, 1998)',
        JSON.stringify(dry.empty.slice().sort()) === JSON.stringify(['1436', '1439', '1998']) && !('1439' in plan) && !('1998' in plan), JSON.stringify(dry.empty));
@@ -127,8 +135,8 @@ function bootB(opts) {
     const r = await B.run('driveTidyPhotoFolders({})');
     const topNow = W.D.childrenOf('PHOTOS').map(x => x.name).sort();
     ok('T10 the real run leaves only main folders plus the three empty ones at the top',
-       JSON.stringify(topNow) === JSON.stringify(['1436', '1439', '1998', 'Lionel MPC/Modern', 'MTH Tinplate', 'Other Items', 'Paper']), JSON.stringify(topNow));
-    ok('T11 nothing failed, nothing skipped, the run is complete', r.failed.length === 0 && r.skipped.length === 0 && r.listComplete === true && r.moved === 7,
+       JSON.stringify(topNow) === JSON.stringify(['1436', '1439', '1998', 'Lionel MPC/Modern', 'MTH Tinplate', 'Other Items', 'Paper', 'RMT O']), JSON.stringify(topNow));
+    ok('T11 nothing failed, nothing skipped, the run is complete', r.failed.length === 0 && r.skipped.length === 0 && r.listComplete === true && r.moved === 9,
        JSON.stringify({ moved: r.moved, failed: r.failed, skipped: r.skipped }));
     const inside = id => W.D.files.find(x => x.id === id).parents[0];
     ok('T12 310-141 kept its id and now sits in Lionel MPC/Modern', inside(W.f['310-141']) === W.D.byName('Lionel MPC/Modern')[0].id);
@@ -155,7 +163,7 @@ function bootB(opts) {
     return DRV.replace(oldText, newText);
   }
   {
-    const src = planted("  const mk = _rrPhotoMakerEra(pd.manufacturer, pd.itemNum);\n", "  const mk = '';\n");
+    const src = planted("  const mk = _rrPhotoMakerEra(pd.manufacturer, core || num);\n", "  const mk = '';\n");
     const B = bootB({ driveSrc: src });
     ok('P1 without the maker step 10-2210 falls to Other Items (M1 catches it)', B.run("_rrPhotoHome('10-2210','').path[0]") === 'Other Items');
   }
@@ -171,6 +179,14 @@ function bootB(opts) {
     const dry = await B.run('driveTidyPhotoFolders({ dryRun: true })');
     const p = dry.plan.find(x => x.name === '58081');
     ok('P3 judged by name, "58081" goes to Märklin (T2 catches it)', p && p.to === 'Marklin Gauge 1', JSON.stringify(p));
+  }
+  {
+    const src = planted('      if (nameHome) known.push(nameHome);\n', '');
+    const W = world();
+    const B = bootB({ driveSrc: src, drive: W.D });
+    const dry = await B.run('driveTidyPhotoFolders({ dryRun: true })');
+    const p = dry.plan.find(x => x.name === 'RMT-92499-402');
+    ok('P5 without trusting the owned name, RMT-92499-402 is called orphaned (T6b catches it)', p && p.why === 'orphaned', JSON.stringify(p));
   }
   {
     const src = planted('    if (!inside.length) { empty.push(f.name); continue; }\n', '');

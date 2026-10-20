@@ -564,7 +564,15 @@ function _rrPhotoHomeOfRow(pd) {
   if (era && era !== 'all' && era !== 'Manual' && ERAS[era] && ERAS[era].label) return { path: [ERAS[era].label], why: 'era' };
   const sec = _rrPhotoSectionPath(ephSectionOfType(pd.itemType), pd.subType);
   if (sec) return { path: sec, why: 'owned' };
-  const mk = _rrPhotoMakerEra(pd.manufacturer, pd.itemNum);
+  // A box / master box / sheet row files with the item it belongs to
+  // (Brad's 6-36814-BOX row carries no era of its own).
+  const num = String(pd.itemNum || '').trim();
+  const core = num.replace(RR_PHOTO_HOME.PART_SUFFIX, '');
+  if (core && core !== num) {
+    const ce = driveEraFolderNameFor(core, '');
+    if (ce) return { path: [ce], why: 'era' };
+  }
+  const mk = _rrPhotoMakerEra(pd.manufacturer, core || num);
   if (mk) return { path: [mk], why: 'maker' };
   return null;
 }
@@ -849,12 +857,25 @@ async function driveTidyPhotoFolders(opts) {
     const subs = inside.filter(function (x) { return x.mimeType === 'application/vnd.google-apps.folder'; });
     let home;
     if (subs.length) {
+      // The folder's NAME, when it is the number of an item the collector
+      // owns, says whose photos these are even if the inventory folders
+      // inside do not match a current row — measured on Brad's Drive: older
+      // saves named the inside folder one below the row's inventory id
+      // (lantern 307 → "306", 30-9107 159 → "158"). An inside folder that
+      // DOES match a current row living somewhere else still makes it mixed.
+      const nameRow = Object.values((window.state || {}).personalData || {}).find(function (p) {
+        return p && p.owned && String(p.itemNum) === f.name;
+      });
+      const nameHome = nameRow ? _rrPhotoHomeOfRow(nameRow) : null;
       const homes = subs.map(function (x) { return byInv[x.name] ? (_rrPhotoHomeOfRow(byInv[x.name]) || { path: [RR_PHOTO_HOME.OTHER], why: 'fallback' }) : null; });
       const known = homes.filter(Boolean);
+      if (nameHome) known.push(nameHome);
       const keys = {};
       known.forEach(function (h) { keys[h.path.join(_RR_HOME_SEP)] = h; });
       if (!known.length) home = { path: [RR_PHOTO_HOME.OTHER], why: 'orphaned' };
-      else if (known.length === subs.length && Object.keys(keys).length === 1) home = { path: known[0].path, why: 'contents' };
+      else if (Object.keys(keys).length !== 1) home = { path: [RR_PHOTO_HOME.OTHER], why: 'mixed' };
+      else if (nameHome) home = { path: nameHome.path, why: 'contents' };
+      else if (known.length === subs.length) home = { path: known[0].path, why: 'contents' };
       else home = { path: [RR_PHOTO_HOME.OTHER], why: 'mixed' };
     } else {
       home = _rrPhotoHome(f.name, '');
