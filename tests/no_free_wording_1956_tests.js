@@ -54,6 +54,7 @@ const KEPT = [
   { f: 'terms/index.html', has: "Free trial:", why: 'subscription trial' },
   { f: 'terms/index.html', has: "free period we've communicated", why: 'beta pricing' },
   { f: 'terms/index.html', has: "it may replace the free trial with a different offer", why: 'subscription trial (specials)' },
+  { f: 'privacy/index.html', has: "whether a Google ad led to a free trial", why: 'subscription trial (the Google Ads note, site 1e0d630a)' },
   { f: 'preview-1051ec16/index.html', has: "Free While in Beta", why: 'beta pricing' },
   { f: 'app/onboarding-config.js', has: "you can create one for free", why: "Google's free Gmail account" },
   { f: 'app/onboarding-config.js', has: "Takes about 5 minutes. Completely free.", why: "Google's free Gmail account" },
