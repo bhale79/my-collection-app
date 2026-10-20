@@ -255,6 +255,26 @@ if (typeof window !== 'undefined') {
 }
 setTimeout(_pwaMenuInit, 3000);
 
+// ── v0.9.2001 (launch walk-through: "Install is offered twice") ──────────
+// Setup's step 3 ("Put it on this device") and the pop-up below did not know
+// about each other, so a new collector answered the install question in setup
+// and was asked again on the dashboard — over the tour card and over the first
+// Add step. ONE record of the answer, written ONLY here, read by the pop-up:
+//   'installed' → never ask again;  'later' → quiet for RR_INSTALL_OFFER_SLEEP_DAYS.
+var RR_INSTALL_OFFER_SLEEP_DAYS = 30;
+function rrInstallOfferAnswer(kind) {
+  try { localStorage.setItem('lv_install_offer_ts', kind === 'installed' ? '-1' : String(Date.now())); } catch (e) {}
+}
+// The pop-up never lands on something the person is reading or doing: the
+// setup screens, a tour card, or any open box (the Add/edit wizard, a dialog).
+function _pwaOfferBlocked() {
+  try {
+    return !!(document.getElementById('onboarding-map-overlay') || document.getElementById('gt-callout') ||
+              document.querySelector('#wizard-modal.open, .modal.open'));
+  } catch (e) { return false; }
+}
+if (typeof window !== 'undefined') { window.rrInstallOfferAnswer = rrInstallOfferAnswer; window._pwaOfferBlocked = _pwaOfferBlocked; }
+
 // ── v0.9.1615 (Brad): the first-visit install offer on the WEB ───────────
 // "when a user first logs on to the website app, have a small pop up that
 // says 'install on this device' button, also include a cancel button."
@@ -267,7 +287,7 @@ function _pwaOfferInit() {
     var dis = 0;
     try { dis = parseInt(localStorage.getItem('lv_install_offer_ts') || '0', 10); } catch (e) {}
     if (dis === -1) return;                                  // installed via the offer — done forever
-    if (dis && (Date.now() - dis) < 30 * 24 * 3600 * 1000) return;   // Not now = 30-day sleep
+    if (dis && (Date.now() - dis) < RR_INSTALL_OFFER_SLEEP_DAYS * 24 * 3600 * 1000) return;   // Not now = 30-day sleep
     // v0.9.1811 (Brad: "the Install box can pop up over the sign-in screen
     // and cover the Enter button"): this used to wait for #main-content —
     // which is in the static HTML from the first byte, so the wait was over
@@ -276,30 +296,34 @@ function _pwaOfferInit() {
     // (added by sign-in, removed by sign-out); keep looking until it is.
     var appEl = document.getElementById('app');
     if (!appEl || !appEl.classList.contains('active')) { setTimeout(_pwaOfferInit, 4000); return; }
+    if (_pwaOfferBlocked()) { setTimeout(_pwaOfferInit, 4000); return; }   // v0.9.2001: wait its turn
     if (document.getElementById('pwa-install-offer')) return;
     var b = document.createElement('div');
     b.id = 'pwa-install-offer';
-    b.style.cssText = 'position:fixed;bottom:5.5rem;left:50%;transform:translateX(-50%);z-index:9995;'
+    // v0.9.2001: was left:50% + translateX(-50%) — a fixed box placed that way may
+    // only grow to HALF the screen, so on a phone it squeezed and its Cancel
+    // stuck out past the right edge. Centred by margins at a set width instead.
+    b.style.cssText = 'position:fixed;bottom:5.5rem;left:0;right:0;margin:0 auto;z-index:9995;box-sizing:border-box;'
       + 'background:var(--surface);color:var(--text);border:1.5px solid var(--accent);border-radius:14px;'
-      + 'padding:0.8rem 1rem;max-width:min(92vw,420px);box-shadow:0 8px 28px var(--scrim);'
+      + 'padding:0.8rem 1rem;width:min(92vw,420px);box-shadow:0 8px 28px var(--scrim);'
       + 'font-family:var(--font-body);display:flex;align-items:center;gap:0.9rem;flex-wrap:wrap';
     b.innerHTML =
       '<div style="flex:1;min-width:12rem">'
       + '<div style="font-weight:700;font-size:0.9rem">Install The Rail Roster on this device?</div>'
       + '<div style="font-size:0.76rem;color:var(--text-dim)">Its own window, faster starts, works offline.</div>'
       + '</div>'
-      + '<div style="display:flex;gap:0.5rem;flex-shrink:0">'
+      + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap">'
       + '<button id="pwa-offer-go" style="padding:0.5rem 1rem;border-radius:9px;border:none;background:var(--accent);color:var(--on-accent);font-family:var(--font-head);font-weight:700;font-size:0.78rem;letter-spacing:0.04em;text-transform:uppercase;cursor:pointer">Install on this device</button>'
       + '<button id="pwa-offer-no" style="padding:0.5rem 0.9rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-weight:600;font-size:0.8rem;cursor:pointer">Cancel</button>'
       + '</div>';
     document.body.appendChild(b);
     document.getElementById('pwa-offer-go').onclick = function () {
-      try { localStorage.setItem('lv_install_offer_ts', '-1'); } catch (e) {}
+      rrInstallOfferAnswer('installed');
       b.remove();
       _pwaInstall();
     };
     document.getElementById('pwa-offer-no').onclick = function () {
-      try { localStorage.setItem('lv_install_offer_ts', String(Date.now())); } catch (e) {}
+      rrInstallOfferAnswer('later');
       b.remove();
     };
   } catch (e) {}
@@ -430,4 +454,6 @@ window.addEventListener('online', _hideOfflineBanner);
 if (!navigator.onLine) _showOfflineBanner();
 
 // Trigger iOS install hint after a short delay (so app has rendered)
-setTimeout(_showIOSInstallHint, 2500);
+// v0.9.2001: no automatic iPhone banner any more — it was a THIRD install offer
+// (setup step 3 + the pop-up already ask). The pop-up's Install shows these same
+// iPhone steps through _pwaInstall → _showIOSInstallHint.

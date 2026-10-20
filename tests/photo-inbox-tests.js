@@ -22783,7 +22783,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /Install The Rail Roster on this device\?/.test(am19)
          && /pwa-offer-go/.test(am19) && /pwa-offer-no/.test(am19), '');
       ok('319 …that never nags: Not-now sleeps 30 days, Install ends it, standalone never sees it',
-         /30 \* 24 \* 3600 \* 1000/.test(am19) && /'-1'/.test(am19)
+         // v0.9.2001: the 30 days is ONE setting, RR_INSTALL_OFFER_SLEEP_DAYS, and the sleep uses it
+         /var RR_INSTALL_OFFER_SLEEP_DAYS = 30;/.test(am19) && /RR_INSTALL_OFFER_SLEEP_DAYS \* 24 \* 3600 \* 1000/.test(am19) && /'-1'/.test(am19)
          && /_pwaIsInstalled\(\)\) return;/.test(am19.slice(am19.indexOf('_pwaOfferInit'))), '');
     })();
 

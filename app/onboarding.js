@@ -38,6 +38,7 @@
 
   function showFeatureMap() {
     _screen = 1;
+    _installTapped = false;
     _removeOverlay();
     _mountOverlay();
     _renderScreen();
@@ -90,8 +91,14 @@
     _pushBack();
   }
 
+  var _installTapped = false;   // v0.9.2001: Install now was pressed on screen 3
   function onboardNext() {
     if (_screen === SCREEN_COLLECT) _savePrefsFromForm();   // save whatever was ticked
+    // v0.9.2001: leaving the install screen IS the answer to "install?" — the
+    // dashboard pop-up must not ask it again (app-misc.js rrInstallOfferAnswer).
+    if (_screen === SCREEN_INSTALL && _installOffered() && !_installTapped) {
+      try { if (typeof window.rrInstallOfferAnswer === 'function') window.rrInstallOfferAnswer('later'); } catch (e) {}
+    }
     _screen = _screen + 1;
     if (_screen > _totalScreens()) { _complete(); return; }
     _renderScreen();
@@ -663,6 +670,8 @@
   // swap the button row to a single Continue the collector taps when they're
   // done with whatever the browser put on screen.
   function onboardInstallNow() {
+    _installTapped = true;
+    try { if (typeof window.rrInstallOfferAnswer === 'function') window.rrInstallOfferAnswer('installed'); } catch (e) {}
     try { if (typeof window._pwaInstall === 'function') window._pwaInstall(); } catch (e) {}
     var row = document.getElementById('onboard-install-actions');
     if (!row) return;
