@@ -2477,7 +2477,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
      /addParents=' \+ destId \+\s*\n?\s*'&removeParents=' \+ driveCache\.photosId/.test(dv) &&
      /the folder id is unchanged/.test(dv));
   ok('main folders are destinations, never things to move',
-     /if \(mainNames\[f\.name\]\) return;/.test(dv));
+     /if \(mainNames\[f\.name\]\) continue;/.test(dv));
   ok('an item no step can place goes to Other Items, never left loose',
      /return \{ path: \[H\.OTHER\], why: 'fallback' \};/.test(dv));
   ok('it pages through every folder, not just the first 200',
@@ -12019,9 +12019,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
     const MIG_END = '// The tidy-up on its own:';
     // Page 1 arrives and promises a page 2. Page 2 is refused.
+    // v0.9.1996: the tidy-up then looks INSIDE each folder it read (one more
+    // page per folder) — here a loose photo, so it is placed by its name.
     const migPartial = await runsWith('driveTidyPhotoFolders', MIG_END, [
       { files: [{ id: 'f1', name: '2328' }], nextPageToken: 'p2' },
       { refuse: true },
+      { files: [{ id: 'p1', name: '2328 FV.jpg', mimeType: 'image/jpeg' }] },
     ])({ dryRun: true });
     ok('the era migration TELLS the caller it never saw page two',
        migPartial.listComplete === false,
@@ -12039,6 +12042,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
     const migWhole = await runsWith('driveTidyPhotoFolders', MIG_END, [
       { files: [{ id: 'f1', name: '2328' }], nextPageToken: 'p2' },
       { files: [{ id: 'f2', name: '2343' }] },
+      { files: [{ id: 'p1', name: '2328 FV.jpg', mimeType: 'image/jpeg' }] },
+      { files: [{ id: 'p2', name: '2343 FV.jpg', mimeType: 'image/jpeg' }] },
     ])({ dryRun: true });
     ok('a listing that DID finish is not reported as partial',
        migWhole.listComplete === true && !migWhole.warning,

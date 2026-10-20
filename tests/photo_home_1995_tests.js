@@ -34,10 +34,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const vm = require('vm');
-const ROOT = path.join(__dirname, '..');
-const CFG = fs.readFileSync(path.join(ROOT, 'app', 'config.js'), 'utf8');
-const DRV = fs.readFileSync(path.join(ROOT, 'app', 'drive.js'), 'utf8');
+const { makeDrive, boot, DRV, ROOT } = require('./lib/photo-home-lib.js');
 
 let pass = 0, fail = 0;
 function ok(name, cond, detail) {
@@ -45,91 +42,6 @@ function ok(name, cond, detail) {
   else { fail++; console.log('  FAIL  ' + name + (detail ? '  -> ' + detail : '')); }
 }
 function section(t) { console.log('\n== ' + t + ' =='); }
-
-// ── a stand-in Drive that keeps folders, their parents, and every call ──────
-function makeDrive() {
-  let seq = 0;
-  const files = [];
-  const log = [];
-  function add(name, parent) {
-    const f = { id: 'F' + (++seq), name: name, parents: [parent], trashed: false };
-    files.push(f);
-    return f.id;
-  }
-  function query(q) {
-    const nm = q.match(/name='((?:\\.|[^'\\])*)'/);
-    const name = nm ? nm[1].replace(/\\(.)/g, '$1') : null;
-    const parents = [];
-    const re = /'([^']+)' in parents/g;
-    let m;
-    while ((m = re.exec(q)) !== null) parents.push(m[1]);
-    return files.filter(function (f) {
-      if (f.trashed) return false;
-      if (name !== null && f.name !== name) return false;
-      if (parents.length && !parents.some(function (p) { return f.parents.indexOf(p) !== -1; })) return false;
-      return true;
-    }).map(function (f) { return { id: f.id, name: f.name, parents: f.parents.slice() }; });
-  }
-  async function request(method, url, body) {
-    log.push({ method: method, url: url });
-    if (method === 'GET' && url.indexOf('/files?q=') === 0) {
-      const q = decodeURIComponent(url.slice(9).split('&')[0]);
-      return { files: query(q) };
-    }
-    if (method === 'POST' && url.indexOf('/files') === 0) {
-      return { id: add(body.name, body.parents[0]) };
-    }
-    const mv = /^\/files\/([^?]+)\?addParents=([^&]+)&removeParents=([^&]+)/.exec(url);
-    if (method === 'PATCH' && mv) {
-      const f = files.find(function (x) { return x.id === mv[1]; });
-      f.parents = f.parents.filter(function (p) { return p !== mv[3]; }).concat([mv[2]]);
-      return { id: f.id };
-    }
-    throw new Error('stand-in Drive: unhandled ' + method + ' ' + url);
-  }
-  return {
-    files: files, add: add, log: log, request: request,
-    childrenOf: function (pid) { return files.filter(function (f) { return f.parents.indexOf(pid) !== -1; }); },
-    byName: function (n) { return files.filter(function (f) { return f.name === n; }); },
-    writes: function () { return log.filter(function (c) { return c.method !== 'GET'; }).length; },
-  };
-}
-
-// ── the REAL config.js + drive.js in one sandbox, Drive swapped for the stand-in
-// Stubs, each named: findMaster (the catalog — only its `_era` is read here),
-// baseItemNum (the -P/-D/-T/-C strip), driveEnsureSetup (no sign-in).
-function boot(opts) {
-  opts = opts || {};
-  const drv = opts.driveSrc || DRV;
-  const store = {};
-  const ctx = {
-    console: { log() {}, warn() {}, error() {} },
-    localStorage: { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; } },
-    document: { addEventListener() {}, querySelector() { return null; }, querySelectorAll() { return []; }, getElementById() { return null; },
-                createElement() { return { style: {}, setAttribute() {}, appendChild() {}, classList: { add() {}, remove() {} } }; },
-                documentElement: { style: { setProperty() {} }, classList: { add() {}, remove() {}, toggle() {} } },
-                head: { appendChild() {} }, body: { appendChild() {} } },
-    navigator: { userAgent: 'node' },
-    location: { href: 'https://therailroster.com/app/', search: '', hostname: 'therailroster.com' },
-    addEventListener() {}, removeEventListener() {},
-    setTimeout, clearTimeout, setInterval, clearInterval,
-    accessToken: 'stand-in-token',   // drive.js's find-only lookup checks a pass is held
-  };
-  ctx.window = ctx; ctx.self = ctx;
-  vm.createContext(ctx);
-  vm.runInContext(CFG, ctx, { filename: 'config.js' });
-  vm.runInContext(drv, ctx, { filename: 'drive.js' });
-  const D = opts.drive || makeDrive();
-  const PHOTOS = opts.photosId || 'PHOTOS';
-  ctx.driveRequest = D.request;
-  ctx.driveEnsureSetup = async function () {};
-  ctx.findMaster = function (n) { return (opts.catalog || {})[n] || null; };
-  ctx.baseItemNum = function (n) { return String(n).replace(/-?[PDTC]$/, ''); };
-  ctx.state = { personalData: opts.owned || {}, setData: opts.sets || [] };
-  vm.runInContext('driveCache.photosId = ' + JSON.stringify(PHOTOS) + '; driveCache.itemFolders = {};', ctx);
-  return { ctx: ctx, D: D, PHOTOS: PHOTOS,
-           run: function (expr) { return vm.runInContext(expr, ctx); } };
-}
 
 // Brad's real kinds of row (numbers from his Drive, 2026-10-19).
 const OWNED = {
@@ -234,7 +146,9 @@ const CATALOG = { '2328': { _era: 'pw' }, '10-2210': { _era: 'mth_tinplate' } };
     const filed = D.add('2328', eraPW);                      // already filed
     const ids = {};
     ['DWG-1957-386', 'DWG-290', '6-36814-BOX', '1436', '1439', 'I. C. RR Lantern', 'unknown', '2328-dup']
-      .forEach(n => { ids[n] = D.add(n === '2328-dup' ? '2328' : n, 'PHOTOS'); });
+      .forEach(n => { ids[n] = D.add(n === '2328-dup' ? '2328' : n, 'PHOTOS'); D.add(n + ' FV.jpg', ids[n], 'image/jpeg'); });
+    // v0.9.1996: each loose folder holds a loose photo, so it is placed by its
+    // NAME (folders holding inventory folders, and empty ones, are photo_home_1996's).
     return { D: D, eraPW: eraPW, parts: parts, manuals: manuals, filed: filed, ids: ids };
   }
   {

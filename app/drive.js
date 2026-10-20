@@ -499,6 +499,14 @@ function driveEraFolderNameFor(itemNum, eraHint) {
   } catch (e) {}
   // Then the catalog.
   try {
+    // v0.9.1996: a number nobody owns that the catalog lists under more than
+    // one era is a guess, not an answer (Brad's empty "1998" folder came out
+    // as S-Helper; Marx uses the same number five times). Leave it unknown.
+    const eraSeen = {};
+    (((window.state || {}).masterData) || []).forEach(function (r) {
+      if (r && r._era && String(r.itemNum) === n) eraSeen[r._era] = 1;
+    });
+    if (Object.keys(eraSeen).length > 1) return '';
     if (typeof findMaster === 'function') {
       const m = findMaster(n);
       if (m && m._era) { const l = lab(m._era); if (l) return l; }
@@ -530,6 +538,36 @@ function _rrPhotoSectionPath(sectionId, paperType) {
   }
   return _rrPhotoPaperPath(sub);
 }
+// v0.9.1996 — the home a COLLECTION ROW's photos belong in: its era when it
+// has one, else its section (paper by type, catalog, memorabilia), else its
+// own maker's folder (a manual entry: 10-2210 saved as MTH → MTH Tinplate,
+// found by number AND maker in the catalog). null when none of those answer.
+function _rrPhotoMakerEra(maker, num) {
+  const mk = String(maker || '').trim().toLowerCase();
+  if (!mk) return '';
+  const eras = Object.keys(ERAS).filter(function (k) {
+    return k !== 'all' && ERAS[k] && ERAS[k].label && String(ERAS[k].manufacturer || '').trim().toLowerCase() === mk;
+  });
+  if (!eras.length) return '';
+  const n = String(num || '').trim(), hit = {};
+  (((window.state || {}).masterData) || []).forEach(function (r) {
+    if (r && String(r.itemNum) === n && eras.indexOf(r._era) !== -1) hit[r._era] = 1;
+  });
+  const h = Object.keys(hit);
+  if (h.length === 1) return ERAS[h[0]].label;
+  if (!h.length && eras.length === 1) return ERAS[eras[0]].label;   // the maker has one folder
+  return '';
+}
+function _rrPhotoHomeOfRow(pd) {
+  if (!pd) return null;
+  const era = String(pd.era || '');
+  if (era && era !== 'all' && era !== 'Manual' && ERAS[era] && ERAS[era].label) return { path: [ERAS[era].label], why: 'era' };
+  const sec = _rrPhotoSectionPath(ephSectionOfType(pd.itemType), pd.subType);
+  if (sec) return { path: sec, why: 'owned' };
+  const mk = _rrPhotoMakerEra(pd.manufacturer, pd.itemNum);
+  if (mk) return { path: [mk], why: 'maker' };
+  return null;
+}
 function _rrPhotoHome(itemNum, eraHint) {
   const H = RR_PHOTO_HOME;
   const n = String(itemNum || '').trim();
@@ -544,8 +582,8 @@ function _rrPhotoHome(itemNum, eraHint) {
     const own = pds.find(function (p) { return p && p.owned && String(p.itemNum) === n; })
              || pds.find(function (p) { return p && p.owned && String(p.itemNum) === core; });
     if (own) {
-      const sec = _rrPhotoSectionPath(ephSectionOfType(own.itemType), own.subType);
-      if (sec) return { path: sec, why: 'owned' };
+      const h = _rrPhotoHomeOfRow(own);
+      if (h) return h;
     }
   } catch (e) {}
   // 3. A set number — the Sets tab is one era's.
@@ -784,18 +822,53 @@ async function driveTidyPhotoFolders(opts) {
   mainNames[RR_PHOTO_HOME.OTHER] = 1;
   RR_PHOTO_HOME.FEATURE.forEach(function (nm) { mainNames[nm] = 1; });
 
-  const plan = [];
-  kids.forEach(function (f) {
-    if (mainNames[f.name]) return;                       // a main folder itself
-    const home = _rrPhotoHome(f.name, '');
+  // v0.9.1996 (Brad: "yes" to deciding by what is inside): a folder's
+  // inventory-number folders say whose photos these are — the inventory id is
+  // the identity, the folder's NAME can be stale ("310-141" held the photos of
+  // his 84631). All of them one item's home → that home; photos of items no
+  // longer in the collection, or of items that live in different places →
+  // Other Items, and the list says why. A folder with nothing in it is never
+  // moved — it is listed for the collector to decide. Only a folder holding
+  // loose photos alone is placed by its name.
+  const byInv = {};
+  try {
+    Object.values((window.state || {}).personalData || {}).forEach(function (p) {
+      if (p && p.inventoryId) byInv[String(p.inventoryId)] = p;
+    });
+  } catch (e) {}
+  const plan = [], empty = [], unread = [];
+  for (let i = 0; i < kids.length; i++) {
+    const f = kids[i];
+    if (mainNames[f.name]) continue;                     // a main folder itself
+    let inside;
+    try {
+      const qc = encodeURIComponent("'" + f.id + "' in parents and trashed=false");
+      inside = (await driveRequest('GET', '/files?q=' + qc + '&fields=files(id,name,mimeType)&pageSize=200')).files || [];
+    } catch (e) { unread.push(f.name); continue; }        // never guess at what could not be read
+    if (!inside.length) { empty.push(f.name); continue; }
+    const subs = inside.filter(function (x) { return x.mimeType === 'application/vnd.google-apps.folder'; });
+    let home;
+    if (subs.length) {
+      const homes = subs.map(function (x) { return byInv[x.name] ? (_rrPhotoHomeOfRow(byInv[x.name]) || { path: [RR_PHOTO_HOME.OTHER], why: 'fallback' }) : null; });
+      const known = homes.filter(Boolean);
+      const keys = {};
+      known.forEach(function (h) { keys[h.path.join(_RR_HOME_SEP)] = h; });
+      if (!known.length) home = { path: [RR_PHOTO_HOME.OTHER], why: 'orphaned' };
+      else if (known.length === subs.length && Object.keys(keys).length === 1) home = { path: known[0].path, why: 'contents' };
+      else home = { path: [RR_PHOTO_HOME.OTHER], why: 'mixed' };
+    } else {
+      home = _rrPhotoHome(f.name, '');
+    }
     plan.push({ id: f.id, name: f.name, path: home.path, to: home.path.join(_RR_HOME_SEP), why: home.why });
-  });
+  }
 
   const result = { total: kids.length, planned: plan.length,
                    plan: plan.map(function (p) { return { name: p.name, to: p.to, why: p.why }; }),
+                   empty: empty, unread: unread,
                    moved: 0, skipped: [], failed: [], dryRun: dryRun, byHome: {},
-                   listComplete: listComplete };
+                   listComplete: listComplete && !unread.length };
   if (!listComplete) result.warning = 'Drive stopped listing folders partway — this run covers only what was read. Re-run it; moves already made are not repeated.';
+  else if (unread.length) result.warning = 'Drive would not show what is inside ' + unread.length + ' folder(s); they were left where they are. Re-run it.';
   plan.forEach(function (p) { result.byHome[p.to] = (result.byHome[p.to] || 0) + 1; });
   if (dryRun) return result;
 
