@@ -920,7 +920,7 @@ async function driveTidyPhotoFolders(opts) {
 
 // The tidy-up on its own: once per collection per TIDY_EVERY_HOURS, a while
 // after start-up so the collection (which names paper and keepsakes) has
-// loaded. Off until RR_PHOTO_HOME.AUTO_TIDY is switched on. Never throws.
+// loaded. Only while RR_PHOTO_HOME.AUTO_TIDY is on (on since v0.9.1998). Never throws.
 let _rrPhotoTidyTimer = null;
 function rrPhotoTidySoon() {
   try {

@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1997';
+const APP_VERSION = 'v0.9.1998';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -2643,9 +2643,10 @@ const RR_PHOTO_HOME = {
   // The Sets tab is Lionel Postwar's (ERA_TABS.pw.sets).
   SET_ERA: 'pw',
   // The tidy-up that moves loose top-level folders into their main folder.
-  // v0.9.1995 ships it OFF: Brad approves the move list for his own Drive
-  // first, then it is switched on for everyone.
-  AUTO_TIDY: false,
+  // v0.9.1995 shipped it OFF until Brad approved the move list for his own
+  // Drive (32 moved 2026-10-20); v0.9.1998 switches it on for everyone
+  // (Brad: "yes").
+  AUTO_TIDY: true,
   TIDY_FIRST_DELAY_MS: 90000,     // after start-up, so the collection has loaded
   TIDY_EVERY_HOURS: 24,           // at most once a day per collection
 };
