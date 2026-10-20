@@ -4,7 +4,7 @@
 // fetches fresh copies in the background for next load.
 // NEVER caches Google API, OAuth, or Sheets calls.
 
-const CACHE_NAME = 'mca-v2020';
+const CACHE_NAME = 'mca-v2021';
 
 // ── v0.9.1214: the version stamp has to survive as far as the cache ──
 // Brad, on v1213: "im reset twice and it still looks the same." He was
@@ -123,6 +123,7 @@ const SHELL_FILES = [
   './photo-inbox-reader.js',   // split step 3: the Photo Inbox's on-device number reader
   './photo-inbox-review.js',   // split step 4: the Photo Inbox's review card
   './photo-inbox-tools.js',    // split step 5: the Photo Inbox's tools
+  './photo-inbox-grid.js',     // split step 6: the Photo Inbox's grid
   // v0.9.1211: three files that were being fetched from the network on every
   // cold start because nothing checked this list against index.html. §178
   // does now — a script tag without a precache line is an app that opens

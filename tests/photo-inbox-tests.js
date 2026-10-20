@@ -243,9 +243,8 @@ const HOOK = '\n;window.__T = { get groups(){return PIN._groups;}, set groups(v)
      + ' get orderKeys(){return PIN._rvOrderKeys;}, set orderKeys(v){PIN._rvOrderKeys=v;},'
      + ' get rvGroups(){return PIN._rvGroups;}, set rvGroups(v){PIN._rvGroups=v;},'
      + ' setHome:function(e){_pinSetHomeEra(e);}, renderBar:function(){_pinRenderBar();},'
-     + ' renderTagBar:function(){_pinRenderTagBar();}, selInfo:function(){_selInfo();},'
      + ' filter:function(f){ Object.assign(window._pinFilterState(), f); } };'
-     + '\n;window.__MetaOf=_pinMetaOf;window.__UnreadTodo=_pinUnreadTodo;window.__GroupApply=_pinGroupApply;'
+     + '\n;window.__MetaOf=_pinMetaOf;window.__UnreadTodo=_pinUnreadTodo;'
      + '\n;window.__NumFromText=_numberFromText;window.__PreferOf=_pinPreferOf;'
      + '\n;window.__PinBytes=_pinBytes;window.__PinTokenLapsed=_pinTokenLapsed;'
      + '\n;window.__BestMaster=_pinBestMaster;window.__Lookup=_pinLookup;'
@@ -253,7 +252,6 @@ const HOOK = '\n;window.__T = { get groups(){return PIN._groups;}, set groups(v)
      + '\n;window.__Reconcile=_pinReconcileAiNum;'
      + '\n;window.__RepairStored=_pinReconcileStored;'
      + '\n;window.__QuoteMatch=_pinQuoteMatch;window.__FilesToRead=_pinFilesToRead;'
-     + '\n;window.__setConfirm=function(fn){_pinConfirm=fn;};window.__Confirm=_pinConfirm;'
      + '\n;window.__ReadFiles=_pinReadFiles;window.__ReadFid=_pinReadFid;'
      + '\n;window.__IsSetRow=_pinIsSetRow;'
      + '\n;window.__ReconcileStored=_pinReconcileStored;'
@@ -276,6 +274,9 @@ src = require('./lib/pin-source').pinHook(src, HOOK_READER, 'photo-inbox-reader.
 src = require('./lib/pin-source').pinHook(src, '\n;window.__T.navHtml=function(d){return _pinRvNavHtml(d);};window.__T.posHtml=function(){return _pinRvPosHtml();};', 'photo-inbox-review.js');
 // …and the tools' (split step 5):
 src = require('./lib/pin-source').pinHook(src, '\n;window.__ApplyMeta=_pinApplyMeta;', 'photo-inbox-tools.js');
+// …and the grid's (split step 6): tag bar, selection info, group apply, and the confirm the harness swaps
+src = require('./lib/pin-source').pinHook(src, '\n;window.__T.renderTagBar=function(){_pinRenderTagBar();};window.__T.selInfo=function(){_selInfo();};'
+  + 'window.__GroupApply=_pinGroupApply;window.__setConfirm=function(fn){_pinConfirm=fn;PINF._pinConfirm=fn;};window.__Confirm=_pinConfirm;', 'photo-inbox-grid.js');   // PINF too: the other pieces call it through the hand-over
 eval(src);
 
 const T = window.__T;
@@ -11019,9 +11020,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // v1682 77→78 (stock-photos.js — stock photos by link, owner + beta).
       // v1802 79→80 (atlas-diagrams-config.js — Atlas diagrams + matcher).
       // v1864 80→81 (table-columns.js — the ONE column editor).
-      // v2007 82→83, v2009 83→84, v2010 84→85 (photo-inbox-reader/-review/-tools.js — the split).
-      ok('every ?v= mark in app/index.html matches it — all 85, none stale',
-         stamps.length === 85 && stamps.every(t => t === '?v=' + build),
+      // v2007 82→83, v2009 83→84, v2010 84→85, v2011 85→86 (the Photo Inbox pieces — the split).
+      ok('every ?v= mark in app/index.html matches it — all 86, none stale',
+         stamps.length === 86 && stamps.every(t => t === '?v=' + build),
          stamps.length + ' stamps; strays: ' + stamps.filter(t => t !== '?v=' + build).slice(0, 3).join(','));
       ok('the service worker cache name moved too (build + 10, the fixed offset)',
          new RegExp("const CACHE_NAME = 'mca-v" + (build + 10) + "';").test(rd('app/sw.js')),
