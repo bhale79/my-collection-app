@@ -255,14 +255,6 @@ const HOOK = '\n;window.__T = { get groups(){return PIN._groups;}, set groups(v)
      + '\n;window.__ReadFiles=_pinReadFiles;window.__ReadFid=_pinReadFid;'
      + '\n;window.__IsSetRow=_pinIsSetRow;'
      + '\n;window.__ReconcileStored=_pinReconcileStored;'
-     + '\n;window.__Upload=_upload;'
-     + '\n;window.__StageAll=typeof _stageAll==="function"?_stageAll:null;'
-     + '\n;window.__StageDrain=typeof _stageDrain==="function"?_stageDrain:null;'
-     + '\n;window.__StageStrip=typeof _stageRenderStrip==="function"?_stageRenderStrip:null;'
-     + '\n;window.__StageBootPoll=typeof _stageBootPoll!=="undefined"?_stageBootPoll:null;'
-     + '\n;window.__StagePairSet=typeof _stagePairSet==="function"?_stagePairSet:null;'
-     + '\n;window.__InboxCacheSave=typeof _inboxCacheSave==="function"?_inboxCacheSave:null;'
-     + '\n;window.__InboxCacheLoad=typeof _inboxCacheLoad==="function"?_inboxCacheLoad:null;'
      + '\n;window.__BuildGroups=typeof _pinBuildGroups==="function"?_pinBuildGroups:null;';
 // …and the doors to what lives in the reader piece (split step 3) go inside IT:
 const HOOK_READER = '\n;window.__ColorWords=_pinColorWords;window.__ColorClash=_pinColorClash;'
@@ -278,6 +270,15 @@ src = require('./lib/pin-source').pinHook(src, '\n;window.__T.renderTagBar=funct
   + 'window.__GroupApply=_pinGroupApply;window.__setConfirm=function(fn){_pinConfirm=fn;PINF._pinConfirm=fn;};window.__Confirm=_pinConfirm;', 'photo-inbox-grid.js');   // PINF too: the other pieces call it through the hand-over
 // …and Quick Capture's (split step 7): its upload lives in the identify piece now
 src = require('./lib/pin-source').pinHook(src, '\n;window.__QcUpload=typeof _qcUpload==="function"?_qcUpload:null;', 'photo-inbox-identify.js');
+// …and the offline piece's (split step 8): upload, staging, the inbox cache
+src = require('./lib/pin-source').pinHook(src, '\n;window.__Upload=_upload;'
+  + '\n;window.__StageAll=typeof _stageAll==="function"?_stageAll:null;'
+  + '\n;window.__StageDrain=typeof _stageDrain==="function"?_stageDrain:null;'
+  + '\n;window.__StageStrip=typeof _stageRenderStrip==="function"?_stageRenderStrip:null;'
+  + '\n;window.__StageBootPoll=typeof _stageBootPoll!=="undefined"?_stageBootPoll:null;'
+  + '\n;window.__StagePairSet=typeof _stagePairSet==="function"?_stagePairSet:null;'
+  + '\n;window.__InboxCacheSave=typeof _inboxCacheSave==="function"?_inboxCacheSave:null;'
+  + '\n;window.__InboxCacheLoad=typeof _inboxCacheLoad==="function"?_inboxCacheLoad:null;', 'photo-inbox-offline.js');
 eval(src);
 
 const T = window.__T;
@@ -11021,9 +11022,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // v1682 77→78 (stock-photos.js — stock photos by link, owner + beta).
       // v1802 79→80 (atlas-diagrams-config.js — Atlas diagrams + matcher).
       // v1864 80→81 (table-columns.js — the ONE column editor).
-      // v2007 82→83, v2009 83→84, v2010 84→85, v2011 85→86, v2012 86→87 (the Photo Inbox pieces — the split).
-      ok('every ?v= mark in app/index.html matches it — all 87, none stale',
-         stamps.length === 87 && stamps.every(t => t === '?v=' + build),
+      // v2007 82→83, v2009 83→84, v2010 84→85, v2011 85→86, v2012 86→87, v2013 87→88 (the Photo Inbox pieces — the split).
+      ok('every ?v= mark in app/index.html matches it — all 88, none stale',
+         stamps.length === 88 && stamps.every(t => t === '?v=' + build),
          stamps.length + ' stamps; strays: ' + stamps.filter(t => t !== '?v=' + build).slice(0, 3).join(','));
       ok('the service worker cache name moved too (build + 10, the fixed offset)',
          new RegExp("const CACHE_NAME = 'mca-v" + (build + 10) + "';").test(rd('app/sw.js')),
