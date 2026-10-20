@@ -184,8 +184,11 @@ if (drivePreFix === DRIVE) {
   // ══ 3. The inbox tells the truth when it is busy ════════════════════════
   section('photo-inbox.js — the busy guard has a way out');
 
-  const painter = INBOX.slice(INBOX.indexOf('function _pinGPStatus()'),
-                              INBOX.indexOf('function _pinBusyBounce()'));
+  // The painter ends where its own function ends (split step 7, 2026-10-20:
+  // the bounce stayed in photo-inbox.js and the painter moved to
+  // photo-inbox-identify.js, so the bounce no longer follows it).
+  const painterAt = INBOX.indexOf('function _pinGPStatus()');
+  const painter = painterAt < 0 ? '' : INBOX.slice(painterAt, INBOX.indexOf('\n  }\n', painterAt) + 4);
   const bounce  = INBOX.slice(INBOX.indexOf('function _pinBusyBounce()'),
                               INBOX.indexOf('function _pinBusyBounce()') + 500);
 

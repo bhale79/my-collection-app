@@ -259,7 +259,6 @@ const HOOK = '\n;window.__T = { get groups(){return PIN._groups;}, set groups(v)
      + '\n;window.__StageAll=typeof _stageAll==="function"?_stageAll:null;'
      + '\n;window.__StageDrain=typeof _stageDrain==="function"?_stageDrain:null;'
      + '\n;window.__StageStrip=typeof _stageRenderStrip==="function"?_stageRenderStrip:null;'
-     + '\n;window.__QcUpload=typeof _qcUpload==="function"?_qcUpload:null;'
      + '\n;window.__StageBootPoll=typeof _stageBootPoll!=="undefined"?_stageBootPoll:null;'
      + '\n;window.__StagePairSet=typeof _stagePairSet==="function"?_stagePairSet:null;'
      + '\n;window.__InboxCacheSave=typeof _inboxCacheSave==="function"?_inboxCacheSave:null;'
@@ -277,6 +276,8 @@ src = require('./lib/pin-source').pinHook(src, '\n;window.__ApplyMeta=_pinApplyM
 // …and the grid's (split step 6): tag bar, selection info, group apply, and the confirm the harness swaps
 src = require('./lib/pin-source').pinHook(src, '\n;window.__T.renderTagBar=function(){_pinRenderTagBar();};window.__T.selInfo=function(){_selInfo();};'
   + 'window.__GroupApply=_pinGroupApply;window.__setConfirm=function(fn){_pinConfirm=fn;PINF._pinConfirm=fn;};window.__Confirm=_pinConfirm;', 'photo-inbox-grid.js');   // PINF too: the other pieces call it through the hand-over
+// …and Quick Capture's (split step 7): its upload lives in the identify piece now
+src = require('./lib/pin-source').pinHook(src, '\n;window.__QcUpload=typeof _qcUpload==="function"?_qcUpload:null;', 'photo-inbox-identify.js');
 eval(src);
 
 const T = window.__T;
@@ -1396,7 +1397,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('no paid call site passes empty hints any more',
      !/aiIdentifyImage2\(\[?[a-z]+\]?, \{\}\)/.test(aiSrc), 'found a bare {} hint');
   ok('the batch keeps the verify note as well as the era',
-     /_pinAiHints\(g,\s*\n?\s*\(typeof _vfNote/.test(aiSrc));
+     /_pinAiHints\(g,\s*\n?\s*\(typeof PIN\._vfNote/.test(aiSrc));   // split step 7: the note lives on PIN
   ok('the single-photo read is hinted', /_pinAiHints\(PIN\._rvGroups && PIN\._rvGroups\[0\]\)/.test(aiSrc));
   ok('the shared question can name a period', /opts\.eraLabel/.test(aiid));
   ok('and it names the trap explicitly', /Celebration Series/.test(aiid));
@@ -11020,9 +11021,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // v1682 77→78 (stock-photos.js — stock photos by link, owner + beta).
       // v1802 79→80 (atlas-diagrams-config.js — Atlas diagrams + matcher).
       // v1864 80→81 (table-columns.js — the ONE column editor).
-      // v2007 82→83, v2009 83→84, v2010 84→85, v2011 85→86 (the Photo Inbox pieces — the split).
-      ok('every ?v= mark in app/index.html matches it — all 86, none stale',
-         stamps.length === 86 && stamps.every(t => t === '?v=' + build),
+      // v2007 82→83, v2009 83→84, v2010 84→85, v2011 85→86, v2012 86→87 (the Photo Inbox pieces — the split).
+      ok('every ?v= mark in app/index.html matches it — all 87, none stale',
+         stamps.length === 87 && stamps.every(t => t === '?v=' + build),
          stamps.length + ' stamps; strays: ' + stamps.filter(t => t !== '?v=' + build).slice(0, 3).join(','));
       ok('the service worker cache name moved too (build + 10, the fixed offset)',
          new RegExp("const CACHE_NAME = 'mca-v" + (build + 10) + "';").test(rd('app/sw.js')),
