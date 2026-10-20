@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Welcome aboard — The Rail Roster</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/app/favicon-32.png">
+<!--
+  THE AFTER-CHECKOUT PAGE   (site release 2026-10-20)
+
+  Stripe sends a new member here after checkout:
+    https://therailroster.com/welcome/?checkout=done&session_id={CHECKOUT_SESSION_ID}
+  This page tells Google Ads that a free trial started (once per checkout), then
+  moves the member straight on to /app/?checkout=done — exactly where Stripe sent
+  them before this page existed, so the app's "Setting up your subscription…"
+  wait works as it always has.
+
+  Google's ad tag lives here and on the home page ONLY — never inside the app.
+  Its numbers live in /site/ads-tag.js and nowhere else.
+  If Google's script is blocked or slow, the member still moves on after
+  RR_WELCOME_WAIT_MS. Tests: tests/ads_tag_tests.js.
+-->
+<style>
+  :root { --navy:#0b111e; --cream:#f3ead6; --orange:#e8650a; }
+  html, body { margin:0; height:100%; background:var(--navy); color:var(--cream);
+    font-family: "Merriweather Sans", Arial, sans-serif; }
+  main { min-height:100%; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; text-align:center; padding:0 16px; box-sizing:border-box; }
+  img { width:96px; height:auto; margin-bottom:1rem; }
+  h1 { font-family: Oswald, Arial, sans-serif; font-size:2rem; margin:0 0 0.5rem; }
+  p { font-size:1.15rem; margin:0.4rem 0; }
+  a { color:var(--orange); }
+</style>
+<script src="/site/ads-tag.js"></script>
+</head>
+<body>
+<main>
+  <img src="/app/img/conductor-header.png" alt="">
+  <h1>Welcome aboard!</h1>
+  <p>Opening The Rail Roster…</p>
+  <p><a id="welcome-go" href="/app/?checkout=done">If nothing happens, tap here.</a></p>
+</main>
+<script>
+(function () {
+  var RR_WELCOME_WAIT_MS = 2000;             // the longest anyone waits on this page
+  var q = new URLSearchParams(location.search);
+  var paid = q.get('checkout') === 'done';
+  var next = paid ? '/app/?checkout=done' : '/app/';
+  var gone = false;
+  function moveOn() { if (gone) return; gone = true; location.replace(next); }
+  if (!paid) { moveOn(); return; }           // not back from Stripe: nothing to count
+  try { document.getElementById('welcome-go').href = next; } catch (e) {}
+  var sid = q.get('session_id') || '';
+  var key = 'rr_trial_counted_' + sid;
+  var already = false;
+  try { already = !!sessionStorage.getItem(key); sessionStorage.setItem(key, '1'); } catch (e) {}
+  if (!already && window.gtag && window.RR_ADS) {
+    window.gtag('event', 'conversion', {
+      send_to: window.RR_ADS.id + '/' + window.RR_ADS.signupLabel,
+      transaction_id: sid,                   // Google also drops a repeat of the same checkout
+      event_callback: moveOn
+    });
+  } else {
+    moveOn();
+    return;
+  }
+  setTimeout(moveOn, RR_WELCOME_WAIT_MS);
+})();
+</script>
+</body>
+</html>

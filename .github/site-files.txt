@@ -12,6 +12,8 @@ publish: site
 publish: terms
 publish: privacy
 publish: preview-1051ec16
+# After Stripe checkout: counts a free trial for Google Ads, then opens the app
+publish: welcome
 # The app
 publish: app
 # The old root service worker — unregisters itself on browsers that installed
