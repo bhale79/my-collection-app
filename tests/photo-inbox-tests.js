@@ -10952,13 +10952,21 @@ META_WRITES.length = 0; TOASTS.length = 0;
        realReady({ TUTORIAL_GIFS: { demos: [{ id: 'a', title: 'A' }, { id: 'b', title: 'B', file: 'x' }] } }).length === 1);
 
     section('199f. The public pages');
-    ok('the landing page no longer says Under Construction',
-       !/Under Construction/.test(root) && /<div class="stripe">Now in private beta<\/div>/.test(root));
+    // Launch 2026-10-19: the home page is the sales page (was "Now in private beta").
+    ok('the landing page no longer says Under Construction or private beta',
+       !/Under Construction/.test(root) && !/private beta/i.test(root));
     ok('...and the paragraph under it is not still in the future tense',
        !/coming down the tracks|Something special is coming/.test(root));
     ok('...it says what the app does, in the present',
-       /one roster for the whole collection/.test(root) &&
-       /Track what you own/.test(root));
+       /Your collection, your way\./.test(root) &&
+       /Add your trains from a catalog/.test(root));
+    {
+      const hidden = h => /<meta name="robots" content="[^"]*noindex/i.test(h);
+      const pages = [root].concat(['terms/index.html', 'privacy/index.html'].map(p => fs.readFileSync(require('path').join(__dirname, '..', p), 'utf8')));
+      ok('launch: home, Terms and Privacy are open to search engines (no noindex)', pages.every(h => !hidden(h)));
+      ok('launch PLANTED: a noindex line put back on the home page is caught',
+         hidden(root.replace('<head>', '<head>\n<meta name="robots" content="noindex,nofollow">')));
+    }
     ok('Terms and Privacy carry a real date',
        ['terms/index.html', 'privacy/index.html'].every(f =>
          /Effective date: August 1, 2026/.test(rd(f)) &&
@@ -20416,7 +20424,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
     section('284. The preview page makes only claims the app can keep');
     (function () {
       const p84 = require('path');
-      const pv = fs.readFileSync(p84.join(__dirname, '..', 'preview-1051ec16', 'index.html'), 'utf8');
+      // Launch (2026-10-19): the sales page moved from /preview-1051ec16/ to the home page;
+      // the preview address is now a forwarding stub. The rules follow the page.
+      const pv = fs.readFileSync(p84.join(__dirname, '..', 'index.html'), 'utf8');
 
       ok('284 the stale 60,000 figure is gone everywhere (160,000 contains "60,000" — anchor on a non-digit)', !/(^|[^\d,])60,000/.test(pv) && !/135,000/.test(pv) && !/130,000/.test(pv));
       // v0.9.1823 (S13 + N2): the page is static and cannot read config.js, so

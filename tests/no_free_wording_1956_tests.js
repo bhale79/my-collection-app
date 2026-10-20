@@ -164,7 +164,7 @@ const cropScreen = pg => pg.evaluate(async () => {
   planted['app/photo-inbox.js'] = files['app/photo-inbox.js'].replace("(_pinAr() ? ' (free)' : '')", "' (free)'");
   T('S PLANTED: the Inbox button\'s "(free)" back without the Auto Read gate is caught', planted['app/photo-inbox.js'] !== files['app/photo-inbox.js'] && sweep(planted).some(b => /Identify my items/.test(b)), sweep(planted));
   const plantedSales = Object.assign({}, files);
-  plantedSales['preview-1051ec16/index.html'] = files['preview-1051ec16/index.html'] + '\n<p>Photo ID is free on every phone.</p>\n';
+  plantedSales['index.html'] = files['index.html'] + '\n<p>Photo ID is free on every phone.</p>\n';   // the sales page is the home page since launch
   T('S PLANTED: a "free" on the sales page that is NOT the trial is still caught', sweep(plantedSales).some(b => /Photo ID is free on every phone/.test(b)), sweep(plantedSales));
   T('S the sales page\'s trial lines pass by meaning (no sentence list to keep in step)', salesPageOk('preview-1051ec16/index.html', 'Try it free for 3 weeks before you buy!') && salesPageOk('index.html', 'Start your free trial') && !salesPageOk('app/vault.js', 'Start your free trial'));
   T('S the website pages were read too (home, privacy, terms)', ['index.html', 'privacy/index.html', 'terms/index.html'].every(p => p in files), Object.keys(files).filter(k => !/^app\//.test(k)));

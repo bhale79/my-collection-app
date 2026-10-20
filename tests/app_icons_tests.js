@@ -190,7 +190,7 @@ function judge(S) {
 
   // E. the landing page
   add('R1', 'the landing page\'s tab icon is the same coin (app/favicon-32.png), and the file exists',
-      /<link rel="icon" type="image\/png" sizes="32x32" href="app\/favicon-32\.png">/.test(S.root) && !!S.files['favicon-32.png']);
+      /<link rel="icon" type="image\/png" sizes="32x32" href="\/?app\/favicon-32\.png">/.test(S.root) && !!S.files['favicon-32.png']);
 
   // F. the generator — the icons can be made again, from one master, with the manifest's colour
   const masterHdr = tryDecode(S.master);
