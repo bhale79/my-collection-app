@@ -989,7 +989,13 @@ async function _saveManualEntry() {
   // slot so it displays + reloads with no extra wiring.
   const _composedName = _composeItemName({ manufacturer: manufacturer, roadName: roadName, itemType: itemType, roadNumber: roadNumber, description: description, customName: customName });
   const displayId = itemNum || _composedName;
-  const invId = nextInventoryId();
+  // v0.9.2001: the photo step already took this item's inventory number when
+  // the first photo was uploaded (wizard-photos.js, d._photoInventoryId) and
+  // filed the pictures under it. Taking a fresh number here saved the row one
+  // HIGHER than its photos — measured on Brad's Drive: the I. C. RR Lantern is
+  // 307 with its photos in "306"; RMT-92499-402, 30-9107, Pittman and 6-24177
+  // the same. Same order as the catalog save (_engineInvId below).
+  const invId = String(d._existingInventoryId || d._photoInventoryId || nextInventoryId());
 
   // Photos: the manualPhotos drivePhotos step uploads LIVE and stores links on
   // d.manualPhotos — read those first (v0.9.694: they were being thrown away;
