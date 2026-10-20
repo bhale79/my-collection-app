@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1998';
+const APP_VERSION = 'v0.9.1999';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -121,13 +121,14 @@ if (typeof window !== 'undefined') {
 }
 
 // ── THE INVITE SCREEN — ONE switch (v0.9.1892, launch build) ─────────────
-// true  = new visitors type the beta code before they can sign in (today)
+// true  = new visitors type the beta code before they can sign in (before launch)
 // false = no invite screen: a new visitor goes straight to "Continue with
 //         Google", and the backend's answer decides the rest (welcome screen
 //         → 3-week trial checkout, or the lock screen for a lapsed account).
-// LAUNCH DAY (Fri 2026-10-16) flips this to false in the same release that
-// turns the sales page on. Read it through rrInviteGateOn(), never directly.
-const RR_INVITE_GATE_ON = true;
+// LAUNCHED 2026-10-19 (v0.9.1999, Brad): switched to false right after the sales
+// page went to the home page (site commit 9f38bb36). Read it through
+// rrInviteGateOn(), never directly.
+const RR_INVITE_GATE_ON = false;
 function rrInviteGateOn() {
   try { return typeof RR_INVITE_GATE_ON === 'undefined' ? false : !!RR_INVITE_GATE_ON; } catch (e) { return false; }
 }

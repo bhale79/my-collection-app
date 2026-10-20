@@ -176,7 +176,7 @@ ok('PLANTED: a Gmail help button on the sign-in screen is caught', gmailOnSignIn
 ok('…the guide itself is kept for the website (GMAIL_HELP create steps still in onboarding-config.js)',
    /id:\s*'create'/.test(onb) && /accounts\.google\.com\/signup/.test(onb));
 ok('…the "Why Google sign-in?" reassurance stays', /Why Google sign-in\?/.test(setup));
-ok('config.js holds ONE invite-screen switch, ON until launch day', /const RR_INVITE_GATE_ON = true;/.test(cfg) && /function rrInviteGateOn\(\)/.test(cfg));
+ok('config.js holds ONE invite-screen switch, OFF since launch (2026-10-19)', /const RR_INVITE_GATE_ON = false;/.test(cfg) && /function rrInviteGateOn\(\)/.test(cfg));
 ok('_rrShowFirstScreen goes straight to sign-in when the switch is off',
    /if \(_isBetaVerified\(\) \|\| \(typeof rrInviteGateOn === 'function' && !rrInviteGateOn\(\)\)\)/.test(auth));
 { // run the real decision with the switch off and on
