@@ -46,23 +46,37 @@ Run the fixture pins with `node tests/import_core_tests.js <path>` or
 
 ## Headless tests for the Photo Inbox
 
-371 checks covering the free reader, the paid-read reconciliation, grouping,
-tagging, the era filter, the "tag settles it" bridge, and the review card's
-read targets. Built across Sessions 180–181 — nearly every check encodes a
-real failure Brad photographed, verbatim.
+`node tests/photo-inbox-tests.js` — about 4,000 checks covering the reader,
+the paid-read reconciliation, grouping, tagging, the era filter, the "tag
+settles it" bridge and the review card. Nearly every check encodes a real
+failure Brad photographed. The harness stubs the browser (DOM, localStorage,
+Tesseract) and runs the REAL Photo Inbox code inside the stub.
 
-Run with:
+### The Photo Inbox is several files — read it ONLY through tests/lib/pin-source.js (2026-10-20)
 
-    node tests/photo-inbox-tests.js
+Since the split (PLAN_2026-10-20_PHOTO_INBOX_SPLIT.md) the Photo Inbox is
+`app/photo-inbox.js` plus its pieces `app/photo-inbox-*.js` (first:
+`photo-inbox-reader.js`, the on-device number reader). A test that opened
+`app/photo-inbox.js` by name would quietly stop seeing code that moved, so:
 
-The harness stubs the browser (DOM, localStorage, Tesseract) and loads
-app/photo-inbox.js inside the stub, so it drives the REAL functions.
-It reads the app source from /root/repo/app/photo-inbox.js — adjust the
-SRC constant at the top if the repo lives elsewhere.
+- `pinSource()` — the whole Photo Inbox, every piece joined in load order
+  (the pieces are read from index.html, never typed into a test)
+- `pinRead(name, readFn)` — for a list of app files; `'photo-inbox.js'`
+  means the whole Photo Inbox
+- `pinMerge(files)` — a file map with the pieces folded into one entry
+- `pinHook(src, code, piece)` — a test-only door, put inside the piece that
+  defines what it opens
+- `pinFulfill(route, url, text)` — a browser test serving its own planted
+  copy: the whole text on the first piece, an empty script on the rest
 
-These are not served by the app (nothing references this folder from
-index.html or sw.js) — they exist so the next session, or the next person,
-does not have to rediscover the failure modes one wall photo at a time.
+The rules that hold it together, each with planted offenders:
+`pin_source_tests.js` (no test opens a Photo Inbox file itself; the pieces
+load together; sw.js keeps every piece), `pin_state_tests.js` (the shared
+values live on ONE object, PIN), `pin_handover_tests.js` (a function one
+piece calls in another is handed over on PINF, and nothing else crosses).
+
+These tests are not served by the app — the site publishes only what
+`.github/site-files.txt` marks `publish:`.
 
 ## The audits (Session 94)
 
