@@ -1,0 +1,10 @@
+# The Rail Roster — what search engines may read.
+# The public pages are listed in the sitemap. The app (/app/) tells search
+# engines itself not to list it (its own noindex tag), so it is not blocked here —
+# a blocked page can't be read, and then its noindex can't be seen.
+User-agent: *
+Allow: /
+Disallow: /tests/
+Disallow: /tools/
+
+Sitemap: https://therailroster.com/sitemap.xml
