@@ -40,24 +40,26 @@ function wrapperBody(src) {
 // What a piece defines at its top, takes (stand-ins) and hands over.
 function shape(src) {
   const { ast, wrappers, body } = wrapperBody(src);
-  const defines = new Set(), takes = {}, gives = [];
-  body.forEach(t => {
-    if (t.type === 'FunctionDeclaration') defines.add(t.id.name);
+  const defines = new Set(), takes = {}, valueTakes = {}, gives = [], fnDefs = new Set(), varAt = {};
+  body.forEach((t, i) => {
+    if (t.type === 'FunctionDeclaration') { defines.add(t.id.name); fnDefs.add(t.id.name); }
     else if (t.type === 'VariableDeclaration') t.declarations.forEach(d => {
       if (d.id.type !== 'Identifier') return;
       const init = d.init;
       const isTake = init && init.type === 'CallExpression' && init.callee.type === 'MemberExpression'
         && init.callee.object.name === 'PINF' && init.callee.property.name === 'from';
+      const isValueTake = init && init.type === 'MemberExpression' && !init.computed && init.object.name === 'PINF';
       if (isTake) takes[d.id.name] = init.arguments[0] && init.arguments[0].value;
-      else defines.add(d.id.name);
+      else if (isValueTake) valueTakes[d.id.name] = init.property.name;
+      else { defines.add(d.id.name); varAt[d.id.name] = i; }
     });
     else if (t.type === 'ExpressionStatement' && t.expression.type === 'CallExpression'
       && t.expression.callee.type === 'MemberExpression' && t.expression.callee.object.name === 'Object'
       && t.expression.callee.property.name === 'assign' && t.expression.arguments[0] && t.expression.arguments[0].name === 'PINF') {
-      t.expression.arguments[1].properties.forEach(p => gives.push({ key: p.key.name, value: p.value.name }));
+      t.expression.arguments[1].properties.forEach(p => gives.push({ key: p.key.name, value: p.value.name, at: i }));
     }
   });
-  return { ast, wrappers, defines, takes, gives };
+  return { ast, wrappers, defines, takes, valueTakes, gives, fnDefs, varAt };
 }
 function innerNames(fn) {
   const out = new Set();
@@ -72,7 +74,7 @@ function strays(pieces) {
   const S = {}; Object.keys(pieces).forEach(n => { S[n] = shape(pieces[n]); });
   const out = [];
   Object.keys(pieces).forEach(n => {
-    const own = new Set([...S[n].defines, ...Object.keys(S[n].takes)]);
+    const own = new Set([...S[n].defines, ...Object.keys(S[n].takes), ...Object.keys(S[n].valueTakes)]);
     const others = new Set(); Object.keys(S).forEach(m => { if (m !== n) S[m].defines.forEach(x => others.add(x)); });
     (function w(node, sh, p, k) {
       if (!node || typeof node.type !== 'string') return;
@@ -91,7 +93,7 @@ function strays(pieces) {
 function rules(pieces) {
   const names = Object.keys(pieces), S = {};
   names.forEach(n => { S[n] = shape(pieces[n]); });
-  const r = { oneWrapper: [], made: 0, takenOk: [], takes: [], gives: [], dead: [], mismatch: [], both: [] };
+  const r = { oneWrapper: [], made: 0, takenOk: [], takes: [], gives: [], dead: [], mismatch: [], both: [], values: [], valueBad: [] };
   names.forEach((n, i) => {
     if (S[n].wrappers !== 1) r.oneWrapper.push(n);
     r.made += (pieces[n].match(/var PINF = window\._pinFns = \{\};/g) || []).length;
@@ -103,9 +105,21 @@ function rules(pieces) {
       const givers = names.filter(m => S[m].gives.some(g => g.key === t) && S[m].defines.has(t));
       if (givers.length !== 1) r.gives.push(n + ':' + t + ' handed over by ' + givers.length);
     });
+    // A VALUE (a fixed setting) is taken as it loads, so it must come from a
+    // piece that loaded EARLIER, handed over AFTER that piece set it.
+    Object.keys(S[n].valueTakes).forEach(t => {
+      r.values.push(n + ':' + t);
+      if (S[n].valueTakes[t] !== t) r.mismatch.push(n + ':' + t + ' takes PINF.' + S[n].valueTakes[t]);
+      if (S[n].defines.has(t)) r.both.push(n + ':' + t);
+      const givers = names.filter(m => S[m].gives.some(g => g.key === t) && S[m].varAt[t] !== undefined);
+      if (givers.length !== 1) { r.valueBad.push(n + ':' + t + ' handed over (as a set value) by ' + givers.length); return; }
+      const m = givers[0], g = S[m].gives.find(x => x.key === t);
+      if (names.indexOf(m) >= i) r.valueBad.push(n + ':' + t + ' comes from ' + m + ', which loads AFTER it');
+      if (g.at <= S[m].varAt[t]) r.valueBad.push(m + ' hands over ' + t + ' BEFORE setting it');
+    });
     S[n].gives.forEach(g => {
       if (g.key !== g.value) r.mismatch.push(n + ' gives ' + g.key + ': ' + g.value);
-      if (!names.some(m => m !== n && Object.prototype.hasOwnProperty.call(S[m].takes, g.key))) r.dead.push(n + ' gives ' + g.key + ' — nobody takes it');
+      if (!names.some(m => m !== n && (Object.prototype.hasOwnProperty.call(S[m].takes, g.key) || Object.prototype.hasOwnProperty.call(S[m].valueTakes, g.key)))) r.dead.push(n + ' gives ' + g.key + ' — nobody takes it');
     });
   });
   return r;
@@ -120,6 +134,26 @@ T('H1 …the first piece makes PINF once, every other piece takes it', R.made ==
 T('H2 every name taken is handed over by exactly one piece that defines it', R.takes.length > 0 && R.gives.length === 0, { takes: R.takes.length, bad: R.gives });
 T('H3 nothing is handed over that no piece takes', R.dead.length === 0, R.dead);
 T('H4 every stand-in names itself, and no piece both takes and defines a name', R.mismatch.length === 0 && R.both.length === 0, { mismatch: R.mismatch, both: R.both });
+T('H6 every fixed setting taken comes from an EARLIER piece, handed over after it is set', R.valueBad.length === 0, { values: R.values, bad: R.valueBad });
+function valueWrites(pieces) {
+  const S = {}; Object.keys(pieces).forEach(n => { S[n] = shape(pieces[n]); });
+  const vals = new Set([].concat(...Object.keys(S).map(n => Object.keys(S[n].valueTakes))));
+  const out = [];
+  Object.keys(pieces).forEach(n => {
+    (function w(node, p, k) {
+      if (!node || typeof node.type !== 'string') return;
+      const target = node.type === 'AssignmentExpression' ? node.left : node.type === 'UpdateExpression' ? node.argument : null;
+      if (target) {
+        let base = target; while (base.type === 'MemberExpression') base = base.object;
+        if (base.type === 'Identifier' && vals.has(base.name)) out.push(n + ': ' + base.name + ' @' + node.loc.start.line);
+      }
+      for (const kk in node) { if (kk === 'loc') continue; const v = node[kk]; if (Array.isArray(v)) v.forEach(c => w(c, node, kk)); else if (v && typeof v.type === 'string') w(v, node, kk); }
+    })(S[n].ast, null, null);
+  });
+  return out;
+}
+const vw = valueWrites(P);
+T('H7 a fixed setting handed over is never changed afterwards (each piece holds a copy)', vw.length === 0, vw);
 const st = strays(P);
 T('H5 no piece uses what another piece defines without taking it', st.length === 0, st.slice(0, 10));
 
@@ -141,6 +175,17 @@ if (takeLine[0]) {
   T('P3 PLANTED: a hand-over nobody takes is caught', rules(p3).dead.some(d => /_loadTesseract/.test(d)), rules(p3).dead);
 }
 
+const vgive = P[names[0]].match(/\n  Object\.assign\(PINF, \{ (SETSTAGE_KEY|_PIN_SHEET_OV|READER_VER)[^\n]*\}\);/);
+if (vgive) {
+  const early = Object.assign({}, P);
+  early[names[0]] = P[names[0]].replace(vgive[0], '').replace("  var PINF = window._pinFns = {};", "  var PINF = window._pinFns = {};" + vgive[0]);
+  T('P4 PLANTED: fixed settings handed over before they are set are caught', rules(early).valueBad.some(b => /BEFORE setting it/.test(b)), rules(early).valueBad.slice(0, 3));
+  const later = Object.assign({}, P); const taker = names.find(n => /\n  var (\w+) = PINF\.\1;/.test(P[n]));
+  const vn = P[taker].match(/\n  var (\w+) = PINF\.\1;/)[1];
+  later[taker] = P[taker].replace('})();', '  ' + vn + ' = 1;\n})();');
+  T('P5 PLANTED: a piece changing its copy of ' + vn + ' is caught', valueWrites(later).some(w => w.indexOf(vn) !== -1), valueWrites(later));
+}
+
 // ── R · the real app in Chromium ───────────────────────────────────────────
 (async () => {
   let chromium;
@@ -156,9 +201,14 @@ if (takeLine[0]) {
   await pg.goto('file://' + path.join(APP, 'index.html'), { waitUntil: 'domcontentloaded' });
   await pg.waitForTimeout(1200);
   T('R1 every piece loads', names.every(n => loaded.indexOf(n) !== -1), loaded);
-  const allGiven = [].concat(...names.map(n => shape(P[n]).gives.map(g => g.key)));
-  const onPage = await pg.evaluate(keys => keys.map(k => k + ':' + typeof (window._pinFns || {})[k]), allGiven);
-  T('R2 every handed-over name is a function on window._pinFns', onPage.every(s => /:function$/.test(s)) && onPage.length === allGiven.length, onPage);
+  const givenFns = [].concat(...names.map(n => { const sh = shape(P[n]); return sh.gives.filter(g => sh.fnDefs.has(g.key)).map(g => g.key); }));
+  const givenVals = [].concat(...names.map(n => { const sh = shape(P[n]); return sh.gives.filter(g => !sh.fnDefs.has(g.key)).map(g => g.key); }));
+  const onPage = await pg.evaluate(([fns, vals]) => ({
+    fns: fns.map(k => k + ':' + typeof (window._pinFns || {})[k]),
+    vals: vals.map(k => k + ':' + typeof (window._pinFns || {})[k]),
+  }), [givenFns, givenVals]);
+  T('R2 every handed-over function is a function on window._pinFns', onPage.fns.length === givenFns.length && onPage.fns.every(s => /:function$/.test(s)), onPage.fns.filter(s => !/:function$/.test(s)));
+  T('R2 …and every handed-over fixed setting is there, set', onPage.vals.every(s => !/:undefined$/.test(s)), onPage.vals);
   const cross = await pg.evaluate(() => {
     const F = window._pinFns;
     // the reader's number finder, through the hand-over (main file → reader)

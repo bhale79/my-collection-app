@@ -251,7 +251,7 @@ const HOOK = '\n;window.__T = { get groups(){return PIN._groups;}, set groups(v)
      + '\n;window.__BestMaster=_pinBestMaster;window.__Lookup=_pinLookup;'
      + '\n;window.__DescMatch=_pinDescMatch;'
      + '\n;window.__Reconcile=_pinReconcileAiNum;'
-     + '\n;window.__ApplyMeta=_pinApplyMeta;window.__RepairStored=_pinReconcileStored;'
+     + '\n;window.__RepairStored=_pinReconcileStored;'
      + '\n;window.__QuoteMatch=_pinQuoteMatch;window.__FilesToRead=_pinFilesToRead;'
      + '\n;window.__setConfirm=function(fn){_pinConfirm=fn;};window.__Confirm=_pinConfirm;'
      + '\n;window.__ReadFiles=_pinReadFiles;window.__ReadFid=_pinReadFid;'
@@ -274,6 +274,8 @@ src = require('./lib/pin-source').pinHook(src, HOOK);   // inside the first piec
 src = require('./lib/pin-source').pinHook(src, HOOK_READER, 'photo-inbox-reader.js');
 // …and the review card's (split step 4) — the arrows' and counter's HTML, added onto window.__T:
 src = require('./lib/pin-source').pinHook(src, '\n;window.__T.navHtml=function(d){return _pinRvNavHtml(d);};window.__T.posHtml=function(){return _pinRvPosHtml();};', 'photo-inbox-review.js');
+// …and the tools' (split step 5):
+src = require('./lib/pin-source').pinHook(src, '\n;window.__ApplyMeta=_pinApplyMeta;', 'photo-inbox-tools.js');
 eval(src);
 
 const T = window.__T;
@@ -11017,9 +11019,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // v1682 77→78 (stock-photos.js — stock photos by link, owner + beta).
       // v1802 79→80 (atlas-diagrams-config.js — Atlas diagrams + matcher).
       // v1864 80→81 (table-columns.js — the ONE column editor).
-      // v2007 82→83, v2009 83→84 (photo-inbox-reader/-review.js — the split).
-      ok('every ?v= mark in app/index.html matches it — all 84, none stale',
-         stamps.length === 84 && stamps.every(t => t === '?v=' + build),
+      // v2007 82→83, v2009 83→84, v2010 84→85 (photo-inbox-reader/-review/-tools.js — the split).
+      ok('every ?v= mark in app/index.html matches it — all 85, none stale',
+         stamps.length === 85 && stamps.every(t => t === '?v=' + build),
          stamps.length + ' stamps; strays: ' + stamps.filter(t => t !== '?v=' + build).slice(0, 3).join(','));
       ok('the service worker cache name moved too (build + 10, the fixed offset)',
          new RegExp("const CACHE_NAME = 'mca-v" + (build + 10) + "';").test(rd('app/sw.js')),
@@ -23153,7 +23155,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
          && /Modifications: ' \+ mods/.test(ws27.slice(ws27.indexOf('const tenderNote'))), '');
       ok('327 …and the B-unit screens\u2019 texts land on THEIR rows too',
          /unit2NotOriginalDesc/.test(ws27) && /unit3NotOriginalDesc/.test(ws27), '');
-      const rp = pi27.slice(pi27.indexOf('async function _repairMissingPhotoLinks'), pi27.indexOf('_backfillMasterKeys'));
+      const _rp0 = pi27.indexOf('async function _repairMissingPhotoLinks');   // split step 5: the end marker is searched AFTER the start (a stand-in names it earlier)
+      const rp = pi27.slice(_rp0, pi27.indexOf('_backfillMasterKeys', _rp0));
       ok('327 a row with a QUEUED filing note is the flush\u2019s business — the repair skips it',
          /_pendNums/.test(rp) && /hasOwnProperty/.test(rp), '');
       ok('327 when the copy has its own inventory-id subfolder, THAT is the link written',

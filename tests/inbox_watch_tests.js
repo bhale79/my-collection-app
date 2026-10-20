@@ -47,7 +47,7 @@ ok('RULE 3: it is never started on a phone or tablet',
 ok('…and the hold check refuses a phone too, in case a tick is ever called by hand',
    /if \(window\.IS_MOBILE_UA\) return 'phone';/.test(PI), '');
 ok('it is started at module load, so it needs no page hook to remember',
-   /try \{ _pinWatchStart\(\); \} catch \(e\) \{\}\n\}\)\(\);\s*$/.test(require('./lib/pin-source').pinPieces()['photo-inbox.js']), '');   // the last line of the first piece
+   /try \{ _pinWatchStart\(\); \} catch \(e\) \{\}\n(?:\n  \/\/[^\n]*)*(?:\n  Object\.assign\(PINF, \{[^\n]*\}\);)?\n\}\)\(\);\s*$/.test(require('./lib/pin-source').pinPieces()['photo-inbox.js']), '');   // the first piece's last statement (only the value hand-over may follow — split step 5)
 
 ok('the look asks Drive for ids and modifiedTime ONLY — no names, no thumbnail links',
    /files\(id,modifiedTime\)&pageSize=1000/.test(PI) && !/files\(id,modifiedTime,/.test(PI), '');
