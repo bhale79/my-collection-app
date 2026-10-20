@@ -438,6 +438,7 @@ async function driveEnsureSetup() {
 // A refused scan is not an empty Drive. It raises now, and nothing is cached,
 // so the next call tries again instead of being answered from a failure.
 let _driveEraFolderCache = null;
+const _RR_HOME_SEP = ' \u203a ';   // "Paper › Drawings" — the path of a main folder, as a key and as words
 async function _driveEraFolders(force) {
   if (_driveEraFolderCache && !force) return _driveEraFolderCache;
   const out = {};
@@ -450,7 +451,17 @@ async function _driveEraFolders(force) {
       if (ERAS[k] && ERAS[k].label && k !== 'all') labels[ERAS[k].label] = k;
     });
   } catch (e) {}   // ERAS missing is a load-order problem, not a Drive failure — an unlabelled scan is still a real answer
+  // v0.9.1995: Paper and Other Items are main folders too, and each folder
+  // inside Paper (Drawings, Catalogs…) is a home. Keys are the folder PATH
+  // joined with _RR_HOME_SEP — an era label can hold a "/" (Lionel MPC/Modern).
+  labels[RR_PHOTO_HOME.PAPER] = 'paper';
+  labels[RR_PHOTO_HOME.OTHER] = 'other';
   (res.files || []).forEach(function (f) { if (labels[f.name]) out[f.name] = f.id; });
+  if (out[RR_PHOTO_HOME.PAPER]) {
+    const q2 = encodeURIComponent("mimeType='application/vnd.google-apps.folder' and '" + out[RR_PHOTO_HOME.PAPER] + "' in parents and trashed=false");
+    const res2 = await driveRequest('GET', '/files?q=' + q2 + '&fields=files(id,name)&pageSize=200');
+    (res2.files || []).forEach(function (f) { out[RR_PHOTO_HOME.PAPER + _RR_HOME_SEP + f.name] = f.id; });
+  }
   return (_driveEraFolderCache = out);
 }
 
@@ -494,6 +505,87 @@ function driveEraFolderNameFor(itemNum, eraHint) {
     }
   } catch (e) {}
   return '';
+}
+
+// ══ v0.9.1995 — EVERY ITEM FOLDER GOES INSIDE A MAIN FOLDER ════════════════
+// Brad: "all items need to be in a main folder". Until now an item whose era
+// could not be worked out was created at the top of "My Collection Photos" —
+// 36 of his folders sat there: 18 drawings, boxes ("6-36814-BOX"), set
+// numbers, keepsakes. `_rrPhotoHome` is THE answer to "which main folder?"
+// and it never answers "the top level": era folder → (box / sheet ending
+// stripped) → what the owned row says it is (paper by its type, catalog,
+// memorabilia) → a set number → the number's own shape (DWG-…) → Other Items.
+// `why` says which step answered; only 'fallback' is a guess. The names and
+// mappings live in RR_PHOTO_HOME (config.js).
+function _rrPhotoPaperPath(sub) {
+  return [RR_PHOTO_HOME.PAPER, sub || RR_PHOTO_HOME.OTHER_PAPER];
+}
+function _rrPhotoSectionPath(sectionId, paperType) {
+  if (!sectionId || !Object.prototype.hasOwnProperty.call(RR_PHOTO_HOME.SECTION, sectionId)) return null;
+  const sub = RR_PHOTO_HOME.SECTION[sectionId];
+  if (sub === null) return [RR_PHOTO_HOME.OTHER];
+  if (sub === '*') {
+    const t = String(paperType || '').split(' — ')[0].trim();
+    return _rrPhotoPaperPath(RR_PHOTO_HOME.PAPER_TYPE[t] || '');
+  }
+  return _rrPhotoPaperPath(sub);
+}
+function _rrPhotoHome(itemNum, eraHint) {
+  const H = RR_PHOTO_HOME;
+  const n = String(itemNum || '').trim();
+  const core = n.replace(H.PART_SUFFIX, '');
+  // 1. A catalog era — the item's own, then the item a box / sheet belongs to.
+  let era = driveEraFolderNameFor(n, eraHint);
+  if (!era && core && core !== n) era = driveEraFolderNameFor(core, '');
+  if (era) return { path: [era], why: 'era' };
+  // 2. What the collector owns says what it is.
+  try {
+    const pds = Object.values((window.state || {}).personalData || {});
+    const own = pds.find(function (p) { return p && p.owned && String(p.itemNum) === n; })
+             || pds.find(function (p) { return p && p.owned && String(p.itemNum) === core; });
+    if (own) {
+      const sec = _rrPhotoSectionPath(ephSectionOfType(own.itemType), own.subType);
+      if (sec) return { path: sec, why: 'owned' };
+    }
+  } catch (e) {}
+  // 3. A set number — the Sets tab is one era's.
+  try {
+    const sets = (window.state || {}).setData || [];
+    if (core && sets.some(function (st) { return st && String(st.setNum || '').trim() === core; })) {
+      const lab = ERAS[H.SET_ERA] && ERAS[H.SET_ERA].label;
+      if (lab) return { path: [lab], why: 'set' };
+    }
+  } catch (e) {}
+  // 4. The number's own shape: DWG-1957-386 is a drawing, 8157-PAP paper.
+  const code = (core.match(/^([A-Z]{2,3})-/) || [])[1];
+  if (code && Object.prototype.hasOwnProperty.call(H.PAPER_CODE, code)) {
+    return { path: _rrPhotoPaperPath(H.PAPER_CODE[code]), why: 'number' };
+  }
+  for (let i = 0; i < H.SECTION_NUMBER.length; i++) {
+    if (H.SECTION_NUMBER[i].re.test(core)) {
+      return { path: _rrPhotoSectionPath(H.SECTION_NUMBER[i].section, ''), why: 'number' };
+    }
+  }
+  // 5. Never the top level.
+  return { path: [H.OTHER], why: 'fallback' };
+}
+function rrPhotoHomeFor(itemNum, eraHint) { return _rrPhotoHome(itemNum, eraHint).path.slice(); }
+
+// The main folder (and the folder inside it) an item's folder goes into,
+// found or made, by PATH. Refuses an empty path: there is no "top level".
+async function _driveEnsureHomePath(path) {
+  if (!Array.isArray(path) || !path.length) throw new Error('A photo folder must go inside a main folder');
+  const homes = await _driveEraFolders();
+  let parent = driveCache.photosId, key = '';
+  for (let i = 0; i < path.length; i++) {
+    key = key ? key + _RR_HOME_SEP + path[i] : path[i];
+    if (!homes[key]) {
+      homes[key] = await driveFindOrCreateFolder(path[i], parent);   // asks Drive live first, so no copy
+      _driveEraFolderCache = homes;
+    }
+    parent = homes[key];
+  }
+  return parent;
 }
 
 // Find an item's folder wherever it currently lives — root or any era folder.
@@ -578,25 +670,12 @@ async function driveEnsureItemFolder(itemNum, eraHint) {
   // of them, checked) already handle that: the photo upload reports a failure
   // the user can retry, instead of quietly filing into a second home.
   let folderId = await _driveItemFolderAnywhere(key);
-  // 2. Otherwise create it under its era, or at the top level if unknown.
+  // 2. Otherwise create it inside its main folder — never at the top level.
+  //    v0.9.1995: the old catch here dropped a folder at the top level when
+  //    its era folder could not be made. Now a failure raises like step 1's,
+  //    and every caller already reports a retryable failure.
   if (!folderId) {
-    let parentId = driveCache.photosId;
-    try {
-      const eraName = driveEraFolderNameFor(key, eraHint);
-      if (eraName) {
-        const eras = await _driveEraFolders();
-        if (!eras[eraName]) {
-          eras[eraName] = await driveFindOrCreateFolder(eraName, driveCache.photosId);
-          _driveEraFolderCache = eras;
-        }
-        parentId = eras[eraName];
-      }
-      // This catch stays, and is NOT the one R6 was about. Reaching here means
-      // step 1 already ran successfully and established that no folder for this
-      // item exists anywhere — so a failure to work out or create the ERA
-      // folder costs tidiness (the folder lands at the top level, where every
-      // folder used to live) and cannot produce a second home for the photos.
-    } catch (e) { console.warn('[Drive] era folder:', e && e.message); }   // fall back to the root
+    const parentId = await _driveEnsureHomePath(rrPhotoHomeFor(key, eraHint));
     folderId = await driveFindOrCreateFolder(key, parentId);
   }
   driveCache.itemFolders[key] = folderId;
@@ -650,16 +729,22 @@ async function rrPhotoFolderFor(pd, itemNumOverride) {
 }
 if (typeof window !== 'undefined') window.rrPhotoFolderFor = rrPhotoFolderFor;
 
-// ── v0.9.1125 — one-time migration of the existing flat item folders ───────
-// Moves each top-level item folder under its era's folder. Safe because:
+// ── v0.9.1995 — THE TIDY-UP: every loose folder into its main folder ───────
+// Was the v0.9.1125 one-time era migration, which LEFT any folder whose era it
+// could not tell at the top level and ran once by hand. Now every loose folder
+// goes to the main folder `_rrPhotoHome` names (Other Items when nothing else
+// places it), and it runs on its own (rrPhotoTidySoon) once switched on.
+// Safe because:
 //   · a folder KEEPS ITS ID when it moves, so every photoItem link in the
 //     sheet still resolves — nothing to rewrite, nothing to break;
-//   · the finder above already looks in both places, so a half-finished run
-//     leaves the app working exactly as well as a finished one;
-//   · an item whose era cannot be determined is LEFT ALONE, not guessed at;
+//   · the finder looks in the top level AND every main folder, so a
+//     half-finished run leaves the app working exactly as well as a finished one;
+//   · a folder whose destination already holds one of the same name is LEFT
+//     ALONE and reported — moving it would split that item's photos in two;
+//   · main folders and the app's own feature folders are never moved;
 //   · re-running it is a no-op for anything already moved.
 // dryRun:true reports the plan and touches nothing.
-async function driveMigrateItemFoldersToEras(opts) {
+async function driveTidyPhotoFolders(opts) {
   opts = opts || {};
   const dryRun = !!opts.dryRun;
   const onProgress = typeof opts.onProgress === 'function' ? opts.onProgress : function () {};
@@ -668,14 +753,10 @@ async function driveMigrateItemFoldersToEras(opts) {
 
   // Every folder sitting at the top level right now.
   // v0.9.1261 (audit 2026-08-02, finding 2): this listing decides what gets
-  // migrated, so a page that fails to arrive is not a detail — it is a set of
-  // folders that will silently never be moved. Before driveRequest raised, a
-  // 4xx on page 2 left res.files undefined and res.nextPageToken undefined, so
-  // the loop simply ended and the run reported a tidy, complete-looking
-  // success over half the data. It now records that the listing is incomplete
-  // and says so in the result, the same way _pinRefresh does with
-  // _pinListComplete. A partial run is still safe to do — every move is
-  // idempotent and ids never change — but the caller deserves to know.
+  // moved, so a page that fails to arrive is not a detail — it is a set of
+  // folders that will silently never be moved. It records that the listing
+  // is incomplete and says so in the result. A partial run is still safe to
+  // do — every move is idempotent and ids never change.
   const kids = [];
   let pageToken = '', listComplete = true, guard = 0;
   do {
@@ -692,51 +773,80 @@ async function driveMigrateItemFoldersToEras(opts) {
     if (++guard > 40) { listComplete = false; break; }   // never spin forever
   } while (pageToken);
 
-  // Anything already named after an era is a destination, not a thing to move.
-  const eraLabels = {};
+  // Main folders are destinations, and feature folders stay where they are.
+  const mainNames = {};
   try {
     Object.keys(ERAS).forEach(function (k) {
-      if (ERAS[k] && ERAS[k].label && k !== 'all') eraLabels[ERAS[k].label] = k;
+      if (ERAS[k] && ERAS[k].label && k !== 'all') mainNames[ERAS[k].label] = 1;
     });
   } catch (e) {}
+  mainNames[RR_PHOTO_HOME.PAPER] = 1;
+  mainNames[RR_PHOTO_HOME.OTHER] = 1;
+  RR_PHOTO_HOME.FEATURE.forEach(function (nm) { mainNames[nm] = 1; });
 
-  const plan = [], skipped = [];
+  const plan = [];
   kids.forEach(function (f) {
-    if (eraLabels[f.name]) return;                       // an era folder itself
-    const era = driveEraFolderNameFor(f.name, '');
-    if (!era) { skipped.push({ name: f.name, why: 'era unknown — left at the top level' }); return; }
-    plan.push({ id: f.id, name: f.name, era: era });
+    if (mainNames[f.name]) return;                       // a main folder itself
+    const home = _rrPhotoHome(f.name, '');
+    plan.push({ id: f.id, name: f.name, path: home.path, to: home.path.join(_RR_HOME_SEP), why: home.why });
   });
 
-  const result = { total: kids.length, planned: plan.length, skipped: skipped,
-                   moved: 0, failed: [], dryRun: dryRun, byEra: {},
+  const result = { total: kids.length, planned: plan.length,
+                   plan: plan.map(function (p) { return { name: p.name, to: p.to, why: p.why }; }),
+                   moved: 0, skipped: [], failed: [], dryRun: dryRun, byHome: {},
                    listComplete: listComplete };
   if (!listComplete) result.warning = 'Drive stopped listing folders partway — this run covers only what was read. Re-run it; moves already made are not repeated.';
-  plan.forEach(function (p) { result.byEra[p.era] = (result.byEra[p.era] || 0) + 1; });
+  plan.forEach(function (p) { result.byHome[p.to] = (result.byHome[p.to] || 0) + 1; });
   if (dryRun) return result;
 
-  const eras = await _driveEraFolders(true);
   for (let i = 0; i < plan.length; i++) {
     const p = plan[i];
     try {
-      if (!eras[p.era]) {
-        eras[p.era] = await driveFindOrCreateFolder(p.era, driveCache.photosId);
-        _driveEraFolderCache = eras;
+      const destId = await _driveEnsureHomePath(p.path);
+      const qn = encodeURIComponent("name='" + p.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "' and mimeType='application/vnd.google-apps.folder' and '" + destId + "' in parents and trashed=false");
+      const there = await driveRequest('GET', '/files?q=' + qn + '&fields=files(id)&spaces=drive');
+      if ((there.files || []).some(function (x) { return x.id !== p.id; })) {
+        result.skipped.push({ name: p.name, to: p.to, why: 'a folder with this name is already there — left for you to look at' });
+        continue;
       }
       // addParents/removeParents is a MOVE — the folder id is unchanged, so
       // every stored link keeps working.
-      await driveRequest('PATCH', '/files/' + p.id + '?addParents=' + eras[p.era] +
+      await driveRequest('PATCH', '/files/' + p.id + '?addParents=' + destId +
                                   '&removeParents=' + driveCache.photosId + '&fields=id');
       driveCache.itemFolders[p.name] = p.id;
       result.moved++;
     } catch (e) {
-      result.failed.push({ name: p.name, era: p.era, error: (e && e.message) || String(e) });
+      result.failed.push({ name: p.name, to: p.to, error: (e && e.message) || String(e) });
     }
     onProgress(i + 1, plan.length, p.name);
   }
   _driveEraFolderCache = null;                            // rescan next time
   return result;
 }
+
+// The tidy-up on its own: once per collection per TIDY_EVERY_HOURS, a while
+// after start-up so the collection (which names paper and keepsakes) has
+// loaded. Off until RR_PHOTO_HOME.AUTO_TIDY is switched on. Never throws.
+let _rrPhotoTidyTimer = null;
+function rrPhotoTidySoon() {
+  try {
+    if (!RR_PHOTO_HOME.AUTO_TIDY || _rrPhotoTidyTimer) return;
+    _rrPhotoTidyTimer = setTimeout(async function () {
+      try {
+        const sheet = (window.state || {}).personalSheetId || '';
+        if (!sheet || typeof accessToken === 'undefined' || !accessToken) return;
+        const key = 'lv_photo_tidy_at:' + sheet;
+        let last = 0;
+        try { last = Number(localStorage.getItem(key)) || 0; } catch (e) {}
+        if (Date.now() - last < RR_PHOTO_HOME.TIDY_EVERY_HOURS * 3600000) return;
+        const r = await driveTidyPhotoFolders({});
+        if (r.listComplete && !r.failed.length) { try { localStorage.setItem(key, String(Date.now())); } catch (e) {} }
+        if (r.moved || r.skipped.length || r.failed.length) console.log('[Drive] photo tidy-up:', r.moved, 'moved,', r.skipped.length, 'left,', r.failed.length, 'failed');
+      } catch (e) { console.warn('[Drive] photo tidy-up:', e && e.message); }
+    }, RR_PHOTO_HOME.TIDY_FIRST_DELAY_MS);
+  } catch (e) {}
+}
+
 // v0.9.1126 — corrective pass. The migration only ever looks at TOP-LEVEL
 // folders, so once something is filed it stays put even if the era rule later
 // improves. This re-checks every item folder ALREADY inside an era folder and
@@ -747,7 +857,8 @@ async function driveRefileItemFolders(opts) {
   const dryRun = !!opts.dryRun;
   await driveEnsureSetup();
   const eras = await _driveEraFolders(true);
-  const names = Object.keys(eras);
+  // The Paper main folder holds only type folders, never items — skip it.
+  const names = Object.keys(eras).filter(function (k) { return k !== RR_PHOTO_HOME.PAPER; });
   const wrong = [];
   // v0.9.1261 (audit 2026-08-02, finding 2): same reasoning as the migration
   // above, with one addition — this loop runs once PER ERA, so a raised error
@@ -768,7 +879,10 @@ async function driveRefileItemFolders(opts) {
         listComplete = false; incomplete.push(eraName); break;
       }
       (res.files || []).forEach(function (f) {
-        const should = driveEraFolderNameFor(f.name, '');
+        // v0.9.1995: a home is a PATH ("Paper › Drawings"); a fallback answer
+        // is a guess and never moves a folder that is already filed.
+        const home = _rrPhotoHome(f.name, '');
+        const should = home.why === 'fallback' ? '' : home.path.join(_RR_HOME_SEP);
         if (should && should !== eraName) wrong.push({ id: f.id, name: f.name, from: eraName, to: should });
       });
       pageToken = (res && res.nextPageToken) || '';
@@ -782,7 +896,7 @@ async function driveRefileItemFolders(opts) {
   for (let j = 0; j < wrong.length; j++) {
     const w = wrong[j];
     try {
-      if (!eras[w.to]) { eras[w.to] = await driveFindOrCreateFolder(w.to, driveCache.photosId); _driveEraFolderCache = eras; }
+      if (!eras[w.to]) eras[w.to] = await _driveEnsureHomePath(w.to.split(_RR_HOME_SEP));
       await driveRequest('PATCH', '/files/' + w.id + '?addParents=' + eras[w.to] +
                                   '&removeParents=' + eras[w.from] + '&fields=id');
       result.moved++;
@@ -793,7 +907,10 @@ async function driveRefileItemFolders(opts) {
 }
 
 if (typeof window !== 'undefined') {
-  window.driveMigrateItemFoldersToEras = driveMigrateItemFoldersToEras;
+  window.driveMigrateItemFoldersToEras = driveTidyPhotoFolders;   // the old name, kept for the console
+  window.driveTidyPhotoFolders = driveTidyPhotoFolders;
+  window.rrPhotoTidySoon = rrPhotoTidySoon;
+  window.rrPhotoHomeFor = rrPhotoHomeFor;
   window.driveRefileItemFolders = driveRefileItemFolders;
   window.driveEraFolderNameFor = driveEraFolderNameFor;
 }

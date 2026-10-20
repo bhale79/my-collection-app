@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1994';
+const APP_VERSION = 'v0.9.1995';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -2589,6 +2589,67 @@ function ephCanonType(itemType) {
   return id ? ephTab(id).type : itemType;
 }
 if (typeof window !== 'undefined') { window.EPHEMERA_TABS = EPHEMERA_TABS; window.ephTab = ephTab; window.ephSectionOfType = ephSectionOfType; window.ephCanonType = ephCanonType; }
+// ═══════════════════════════════════════════════════════════════
+// WHERE AN ITEM'S PHOTO FOLDER LIVES — the ONE definition (v0.9.1995)
+// Brad, 2026-10-19, looking at "My Collection Photos" with eighteen drawing
+// folders loose beside the era folders: "why does the dwgs all have
+// individual folders, those all should be under paper and then a sub folder
+// dwgs" → "all items need to be in a main folder" → "yes" to Paper → Drawings
+// and Other Items.
+//
+// Under "My Collection Photos" only MAIN folders sit at the top: the era
+// folders (each ERAS label), PAPER, OTHER, and the app's own FEATURE folders.
+// Every item folder goes inside one of them. drive.js `_rrPhotoHome` is the
+// one decider and it never answers "the top level" — when nothing else
+// places an item, the answer is OTHER. Change a name or a mapping HERE only.
+const RR_PHOTO_HOME = {
+  PAPER: 'Paper',
+  OTHER: 'Other Items',
+  OTHER_PAPER: 'Other Paper',
+  // The app's own folders that sit at the top on purpose (Workbench part
+  // photos, My Manuals). The tidy-up leaves them where they are.
+  FEATURE: ['Parts', 'Manuals'],
+  // A paper row's Sub Type — its paper type, before any " — " — names its
+  // Paper folder. The types are the Add wizard's paper types.
+  PAPER_TYPE: {
+    'Catalog': 'Catalogs', 'Operating Manual': 'Operating Manuals',
+    'Dealer Promo Kit': 'Dealer Promo Kits', 'Magazine': 'Magazines',
+    'Dealer Paper': 'Dealer Paper', 'Dealer Display Poster': 'Posters',
+    'Reference Book': 'Reference Books', 'Promotional Item': 'Promotional Items',
+    'Instruction Sheet': 'Instruction Sheets', 'Blueprint / Drawing': 'Drawings',
+  },
+  // The number the app makes for a paper item (generatePaperItemNum in
+  // wizard-save.js: DWG-1957-386, CAT-1957-001) starts with its type's code.
+  // Used when no owned row says what the item is.
+  PAPER_CODE: {
+    CAT: 'Catalogs', OPM: 'Operating Manuals', DPK: 'Dealer Promo Kits',
+    MAG: 'Magazines', DPP: 'Dealer Paper', POS: 'Posters', REF: 'Reference Books',
+    PRO: 'Promotional Items', IS: 'Instruction Sheets', DWG: 'Drawings',
+    OTH: 'Other Paper', PAP: 'Other Paper',
+  },
+  // My Collection sections (EPHEMERA_TABS ids, via ephSectionOfType): a word
+  // is that Paper folder, '*' = by the row's paper type, null = OTHER.
+  SECTION: { catalogs: 'Catalogs', paper: '*', mockups: null, other: null },
+  // Older section numbers (generateEphemeraItemNum): 80yy- catalogs,
+  // 81yy-PAP paper, 82yy-/83yy- mock-ups and memorabilia.
+  SECTION_NUMBER: [
+    { re: /^80\d\d-[A-Z]+$/, section: 'catalogs' },
+    { re: /^81\d\d-[A-Z]+$/, section: 'paper' },
+    { re: /^8[23]\d\d-[A-Z]+$/, section: 'other' },
+  ],
+  // Endings the app adds to an item's number for its box, master box and
+  // sheet folders — 6-36814-BOX files with 6-36814.
+  PART_SUFFIX: /-(BOX|MBOX|IS)$/i,
+  // The Sets tab is Lionel Postwar's (ERA_TABS.pw.sets).
+  SET_ERA: 'pw',
+  // The tidy-up that moves loose top-level folders into their main folder.
+  // v0.9.1995 ships it OFF: Brad approves the move list for his own Drive
+  // first, then it is switched on for everyone.
+  AUTO_TIDY: false,
+  TIDY_FIRST_DELAY_MS: 90000,     // after start-up, so the collection has loaded
+  TIDY_EVERY_HOURS: 24,           // at most once a day per collection
+};
+if (typeof window !== 'undefined') window.RR_PHOTO_HOME = RR_PHOTO_HOME;
 // ═══════════════════════════════════════════════════════════════
 // FEATURE TABS — the ONE registry (v0.9.1861)
 // Brad, 2026-10-02, a "Deleted Rowss" chip in My Collection listing two

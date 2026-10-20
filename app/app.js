@@ -3544,6 +3544,8 @@ function buildApp() {
   // v0.9.1988: a column on My Collection whose switch was never turned on gets
   // it, once per account (browse.js rrCollRepairColumnSwitches).
   try { if (typeof rrCollRepairSoon === 'function') rrCollRepairSoon(); } catch (e) {}
+  // v0.9.1995: loose photo folders into their main folder (RR_PHOTO_HOME.AUTO_TIDY).
+  try { if (typeof rrPhotoTidySoon === 'function') rrPhotoTidySoon(); } catch (e) {}
   populateFilters();
   buildDashboard();
   _applyDisclaimerPref();

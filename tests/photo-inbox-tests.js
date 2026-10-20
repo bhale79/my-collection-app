@@ -12,6 +12,15 @@ const SRC = require('path').join(__dirname, '..', 'app', 'photo-inbox.js');
 const APP_FILE = function (name) {
   return require('path').join(__dirname, '..', 'app', name);
 };
+// v0.9.1995 — the REAL RR_PHOTO_HOME (config.js), for the sandboxes that run
+// drive.js's photo-folder code. Lifted from its definition, never re-typed.
+function liftPhotoHome() {
+  const cfg = fs.readFileSync(APP_FILE('config.js'), 'utf8');
+  const at = cfg.indexOf('const RR_PHOTO_HOME = {');
+  const end = cfg.indexOf('\n};\n', at);
+  if (at < 0 || end < 0) throw new Error('RR_PHOTO_HOME not found in config.js');
+  return new Function(cfg.slice(at, end + 3).replace('const RR_PHOTO_HOME', 'var RR_PHOTO_HOME') + '\nreturn RR_PHOTO_HOME;')();
+}
 
 // v0.9.1783: ONE BUILDER for the external-link rule, for exactly the reason
 // APP_FILE exists above. Five sections each lifted _itemExternalLinkURL out of
@@ -2437,8 +2446,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
      dv.indexOf('_driveItemFolderAnywhere(key)') < dv.indexOf('folderId = await driveFindOrCreateFolder(key, parentId)'));
   ok('the find-only lookup searches everywhere too',
      /const id = await _driveItemFolderAnywhere\(name\)/.test(dv));
-  ok('an unknown era leaves the folder at the top level, never guessed',
-     /let parentId = driveCache\.photosId;/.test(dv) && /if \(eraName\) \{/.test(dv));
+  // v0.9.1995 (Brad: "all items need to be in a main folder"): the old pin
+  // here said an unknown era leaves the folder at the top level. That was the
+  // rule; Brad replaced it. The behaviour is proved in photo_home_1995_tests.
+  ok('a folder is always made inside a main folder, never at the top level',
+     /const parentId = await _driveEnsureHomePath\(rrPhotoHomeFor\(key, eraHint\)\)/.test(dv) &&
+     !/let parentId = driveCache\.photosId;/.test(dv));
   ok('a manual entry has no catalog era and is left alone',
      /if \(String\(own\.era\) === 'Manual'\) return '';/.test(dv));
   // v0.9.1126: the AA/ABA base-number bridge. Brad's 204/205/210…520 folders
@@ -2457,13 +2470,16 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('ONE level — the era label, not era+maker+scale',
      /driveEraFolderNameFor/.test(dv) && !/eraName \+ '\/' \+ .*manufacturer/.test(dv));
   // Migration
-  ok('the migration MOVES folders, so ids and every stored link survive',
-     /addParents=' \+ eras\[p\.era\] \+\s*\n?\s*'&removeParents=/.test(dv) &&
+  // v0.9.1995: the one-time era migration became the tidy-up
+  // (driveTidyPhotoFolders). Same moves, same paging; a folder no step can
+  // place now goes to Other Items instead of staying loose.
+  ok('the tidy-up MOVES folders, so ids and every stored link survive',
+     /addParents=' \+ destId \+\s*\n?\s*'&removeParents=' \+ driveCache\.photosId/.test(dv) &&
      /the folder id is unchanged/.test(dv));
-  ok('era folders are destinations, never things to move',
-     /if \(eraLabels\[f\.name\]\) return;/.test(dv));
-  ok('items with no determinable era are skipped, not guessed',
-     /skipped\.push\(\{ name: f\.name, why: 'era unknown/.test(dv));
+  ok('main folders are destinations, never things to move',
+     /if \(mainNames\[f\.name\]\) return;/.test(dv));
+  ok('an item no step can place goes to Other Items, never left loose',
+     /return \{ path: \[H\.OTHER\], why: 'fallback' \};/.test(dv));
   ok('it pages through every folder, not just the first 200',
      /while \(pageToken\)/.test(dv));
   ok('a dry run touches nothing',
@@ -11975,6 +11991,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // Text about a value is not the value. These run the real functions
     // against a Drive that fails on page two, and read the answer.
     const ERAS_STUB = { pw: { label: 'Lionel Postwar' }, mod: { label: 'Modern' }, all: { label: 'All' } };
+    const RR_PHOTO_HOME_LIFTED = liftPhotoHome();
     function runsWith(fnName, endMarker, pages) {
       const src = drive.slice(drive.indexOf('async function ' + fnName), drive.indexOf(endMarker));
       let n = 0;
@@ -11984,19 +12001,25 @@ META_WRITES.length = 0; TOASTS.length = 0;
         if (p.refuse) { const e = new Error('Drive request failed (403)'); e.status = 403; throw e; }
         return p;
       };
+      // v0.9.1995: the tidy-up and the refile ask _rrPhotoHome (stubbed to
+      // answer the era) and read the REAL RR_PHOTO_HOME lifted from config.js.
       return new Function('driveEnsureSetup', 'driveCache', 'driveRequest', 'ERAS',
                           'driveEraFolderNameFor', '_driveEraFolders', 'driveFindOrCreateFolder', 'console',
+                          '_rrPhotoHome', '_driveEnsureHomePath', 'RR_PHOTO_HOME', '_RR_HOME_SEP',
         src + 'return ' + fnName + ';'
       )(async function () {}, { photosId: 'PHOTOS', itemFolders: {} }, stubReq, ERAS_STUB,
         function () { return 'Lionel Postwar'; },
         async function () { return { 'Lionel Postwar': 'ERA_PW' }; },
         async function () { return 'NEW'; },
-        { warn() {}, error() {}, log() {} });
+        { warn() {}, error() {}, log() {} },
+        function () { return { path: ['Lionel Postwar'], why: 'era' }; },
+        async function () { return 'ERA_PW'; },
+        RR_PHOTO_HOME_LIFTED, ' \u203a ');
     }
 
-    const MIG_END = 'async function driveRefileItemFolders';
+    const MIG_END = '// The tidy-up on its own:';
     // Page 1 arrives and promises a page 2. Page 2 is refused.
-    const migPartial = await runsWith('driveMigrateItemFoldersToEras', MIG_END, [
+    const migPartial = await runsWith('driveTidyPhotoFolders', MIG_END, [
       { files: [{ id: 'f1', name: '2328' }], nextPageToken: 'p2' },
       { refuse: true },
     ])({ dryRun: true });
@@ -12013,7 +12036,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
        ' — a partial run is safe; abandoning the whole thing would not be');
 
     // Both pages arrive. The flag must be able to say YES too, or it says nothing.
-    const migWhole = await runsWith('driveMigrateItemFoldersToEras', MIG_END, [
+    const migWhole = await runsWith('driveTidyPhotoFolders', MIG_END, [
       { files: [{ id: 'f1', name: '2328' }], nextPageToken: 'p2' },
       { files: [{ id: 'f2', name: '2343' }] },
     ])({ dryRun: true });
@@ -12329,6 +12352,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const api = new Function(
         'driveCache', 'driveRequest', 'driveEnsureSetup', 'driveFindOrCreateFolder',
         'ERAS', 'window', 'console', 'baseItemNum', 'findMaster',
+        'RR_PHOTO_HOME', 'ephSectionOfType',
         cut + '\n; return { ensure: driveEnsureItemFolder, eras: _driveEraFolders };'
       )({ photosId: 'PHOTOS', itemFolders: {} },
         async function (method, endpoint) { asked.push(endpoint); return script(method, endpoint); },
@@ -12338,7 +12362,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
         { state: { personalData: {} } },
         { warn: function () {}, error: function () {}, log: function () {} },
         function (n) { return n; },
-        function () { return null; });
+        function () { return null; },
+        liftPhotoHome(),
+        function () { return ''; });   // stub: no owned paper rows in this rig
       return { api: api, created: created, asked: asked };
     }
 
@@ -12390,8 +12416,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // assertion above would still pass and the app would never file a photo.
     const dNew = driveRig(function () { return { files: [] }; });
     const dNewId = await dNew.api.ensure('9999');
-    ok('a search that really finds nothing still creates exactly one folder',
-       dNewId === 'NEW_9999' && dNew.created.length === 1,
+    // v0.9.1995: an item nothing can place goes inside Other Items, so the
+    // count is one ITEM folder plus its main folder — never a loose one.
+    ok('a search that really finds nothing still creates exactly one item folder, inside a main folder',
+       dNewId === 'NEW_9999' && dNew.created.length === 2 &&
+       dNew.created.filter(function (c) { return c.name === '9999'; }).length === 1 &&
+       dNew.created[0].name === 'Other Items' && dNew.created[0].parentId === 'PHOTOS' &&
+       dNew.created[1].parentId === 'NEW_Other Items',
        'got ' + dNewId + ', created ' + JSON.stringify(dNew.created));
 
     // ═══════════════════════════════════════════════════════════════════
@@ -13070,6 +13101,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
         const api = new Function(
           'driveCache', 'driveRequest', 'driveEnsureSetup', 'driveFindOrCreateFolder',
           'ERAS', 'window', 'console', 'baseItemNum', 'findMaster',
+          'RR_PHOTO_HOME', 'ephSectionOfType',
           cut8 + '\n; return { move: driveMoveToSold, cache: driveCache };'
         )({ photosId: 'PHOTOS', soldPhotosId: 'SOLD', itemFolders: {} },
           async function (method, endpoint, body) {
@@ -13105,7 +13137,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
           { state: { personalData: {} } },
           { warn: function () {}, error: function () {}, log: function () {} },
           function (n) { return n; },
-          function () { return null; });
+          function () { return null; },
+          liftPhotoHome(),                                  // v0.9.1995: the real one
+          function () { return ''; });                      // stub: no owned paper rows here
         return { api: api, calls: calls, created: created,
                  moves: function () { return calls.filter(c => c.k === 'move').map(c => moveOf(c.ep)); },
                  trashed: function () { return calls.filter(c => c.k === 'patch' && c.body && c.body.trashed === true)
@@ -14368,6 +14402,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
           window: { state: { personalData: opts.personalData || {} } },
           findMaster: opts.findMaster || function () { return null; },
           baseItemNum: function (n) { return String(n).replace(/-[PDTC]$/, ''); },
+          RR_PHOTO_HOME: liftPhotoHome(),                 // the real one, from config.js
+          ephSectionOfType: function () { return ''; },   // stub: no owned paper rows here
           console: { warn: function () {}, error: function () {}, log: function () {} }
         };
         const names = Object.keys(g);
