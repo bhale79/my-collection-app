@@ -2,10 +2,10 @@
   "_read_me": "The sales page's one settings file (Brad 2026-10-17). News, the show switch, videos and collector quotes live HERE and nowhere else. Dates are YYYY-MM-DD, East Coast time. A news item shows from its 'from' date to its 'until' date (both optional); 'ribbon' puts a short line in the bar across the top while it is current. Prices and the item count are NOT here: the page reads them from app/config.js (RR_PRICE_TEXT, RR_SHOW_PRICE_TEXT, BRAND_CATALOG_COUNT). show.ad is the York ad beside the logo: it shows from its 'from' to its 'until' date with town / where / days from here and both prices from config.js. The show dates must match the show dates in the backend's config tab (the app's welcome screen switches on those).",
   "show": {
     "name": "York Train Fair",
-    "from": "2026-10-22",
+    "from": "2026-10-19",
     "until": "2026-10-25",
     "ad": {
-      "from": "2026-10-22",
+      "from": "2026-10-19",
       "until": "2026-10-25",
       "town": "York",
       "where": "Orange Hall",
