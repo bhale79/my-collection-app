@@ -671,8 +671,12 @@ var _tokenIsInitial = true;
 function _rrPullAccountPrefs() {
   try {
     if (typeof window.rrPrefsSync !== 'function') return;
+    var nameBefore = '';
+    try { nameBefore = (typeof rrGreetName === 'function') ? rrGreetName() : ''; } catch (e) {}
     window.rrPrefsSync().then(function (touched) {
       if (!touched) return;
+      // v0.9.1994: a name typed on another device also renames the user's sheet.
+      try { if (typeof rrGreetName === 'function' && rrGreetName() !== nameBefore && typeof rrSheetNameRefresh === 'function') rrSheetNameRefresh(); } catch (e) {}
       try { if (typeof applyTheme === 'function') applyTheme(); } catch (e) {}
       try { if (typeof _applyCompactMode === 'function') _applyCompactMode(); } catch (e) {}
       // v0.9.1920: a name typed on another device arrives here — repaint it.

@@ -19,10 +19,35 @@ const SCOPE_SHEETS_FULL = 'https://www.googleapis.com/auth/spreadsheets';
 const API_KEY = 'AIzaSyAnCPzgokfatjm0cFJhERG_EOvFpAuQM8c'; // v0.9.995: public-master-catalog read key (Sheets API only, referrer-locked to therailroster.com)
 // v0.9.917: dead GEMINI_KEY removed — photo ID goes through the vault relay
 // (ai-id.js); the key lives server-side and never ships to the client.
-// Sheet name is dynamic — built from user's first name at sign-in
+// Sheet name is dynamic — built from what the app calls this person.
+// v0.9.1994 (Brad, the support@ sheet read "The Rail Roster - The's
+// Collection"): this used Google's first word directly and skipped
+// rrGreetName, so the name typed in Preferences never reached the sheet.
+// The "<name>'s Collection" wording lives in ONE place, rrCollectionTitle,
+// for both the file's title and the Dashboard tab (sheet-builder.js).
+const RR_SHEET_TITLE_PREFIX = 'The Rail Roster - ';
+function rrCollectionTitle() {
+  return rrGreetName() + "'s Collection";
+}
 function _getPersonalSheetName() {
-  const firstName = (state.user?.name || '').split(' ')[0] || 'My';
-  return `The Rail Roster - ${firstName}'s Collection`;
+  return RR_SHEET_TITLE_PREFIX + rrCollectionTitle();
+}
+// The app's own wording for a file title, whatever name it carried. A title
+// the user typed themselves never matches, so it is never renamed.
+function rrIsAppSheetTitle(name) {
+  var n = String(name || '');
+  return n.indexOf(RR_SHEET_TITLE_PREFIX) === 0 && /'s Collection$/.test(n);
+}
+// Wait (at most maxMs) for the account's settings to have had their first say,
+// so a fresh device does not write Google's name over the name typed elsewhere.
+function rrAfterPrefsSync(maxMs) {
+  return new Promise(function (res) {
+    var t0 = Date.now();
+    (function tick() {
+      if (window._rrPrefsSyncDone === true || Date.now() - t0 >= (maxMs || 10000)) return res();
+      setTimeout(tick, 250);
+    })();
+  });
 }
 
 async function _maybeRenamePersonalSheet() {
@@ -33,8 +58,13 @@ async function _maybeRenamePersonalSheet() {
       headers: { Authorization: 'Bearer ' + accessToken }
     }).then(r => r.json());
     if (!meta || !meta.name) return;
-    if (!meta.name.includes('Boxcar')) return; // already renamed or never had old name
+    // v0.9.1994: also when the title is still the app's own wording but with a
+    // different name (Google's first word, or a name changed in Preferences).
+    // A title the user typed themselves is left alone.
+    if (!meta.name.includes('Boxcar') && !rrIsAppSheetTitle(meta.name)) return;
+    await rrAfterPrefsSync(10000);
     const newName = _getPersonalSheetName();
+    if (meta.name === newName) return;
     console.log('[Rename] Sheet:', meta.name, '→', newName);
     await fetch('https://www.googleapis.com/drive/v3/files/' + state.personalSheetId + '?fields=id', {
       method: 'PATCH',
@@ -3908,11 +3938,29 @@ function rrUserName() {
   try { mine = String(_prefGet(typeof RR_DISPLAY_NAME_KEY !== 'undefined' ? RR_DISPLAY_NAME_KEY : 'lv_display_name', '') || '').trim(); } catch (e) {}
   return mine || ((state && state.user && state.user.name) || '');
 }
+// v0.9.1994: a Google account named like a business ("The Rail Roster",
+// "The Smith Family") has no first NAME — its first word is an article. Those
+// words never stand for the person; the app says "Collector" instead.
+const RR_NOT_A_FIRST_NAME = ['the', 'a', 'an'];
 function rrGreetName() {
   var mine = '';
   try { mine = String(_prefGet(typeof RR_DISPLAY_NAME_KEY !== 'undefined' ? RR_DISPLAY_NAME_KEY : 'lv_display_name', '') || '').trim(); } catch (e) {}
   if (mine) return mine;
-  return String((state && state.user && state.user.name) || '').trim().split(/\s+/)[0] || 'Collector';
+  var first = String((state && state.user && state.user.name) || '').trim().split(/\s+/)[0] || '';
+  if (!first || RR_NOT_A_FIRST_NAME.indexOf(first.toLowerCase()) !== -1) return 'Collector';
+  return first;
+}
+// v0.9.1994: the name on the user's sheet (Dashboard tab + file title) follows
+// a name change — typed in Preferences, or arriving from another device.
+var _rrSheetNameTimer = null;
+function rrSheetNameRefresh() {
+  if (_rrSheetNameTimer) clearTimeout(_rrSheetNameTimer);
+  _rrSheetNameTimer = setTimeout(function () {
+    _rrSheetNameTimer = null;
+    if (!state || !state.personalSheetId) return;
+    try { if (typeof _writeDashboardContent === 'function') _writeDashboardContent(state.personalSheetId).catch(function (e) { console.warn('[Dashboard] name refresh:', e); }); } catch (e) {}
+    try { _maybeRenamePersonalSheet().catch(function () {}); } catch (e) {}
+  }, 2000);
 }
 function _prefSeed(key, val) {
   localStorage.setItem(key, val);

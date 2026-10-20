@@ -241,6 +241,7 @@ function _prefsSetDisplayName(v) {
     _prefSet(RR_DISPLAY_NAME_KEY, String(v || '').trim().slice(0, 40));
     if (typeof updateUserUI === 'function') updateUserUI();
     if (typeof rrPaintGreeting === 'function') rrPaintGreeting();
+    if (typeof rrSheetNameRefresh === 'function') rrSheetNameRefresh();   // v0.9.1994: the sheet's name follows
     if (typeof showToast === 'function') showToast(String(v || '').trim() ? '\u2713 Name saved' : '\u2713 Using your Google name');
   } catch (e) { if (typeof showToast === 'function') showToast('Could not save your name.', 3500, true); }
 }

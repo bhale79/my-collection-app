@@ -682,8 +682,12 @@ function _sheetCardModel(card, state) {
 async function _writeDashboardContent(sheetId) {
   if (!sheetId) return;
 
-  var userName = (state.user && state.user.name) ? state.user.name : 'Collector';
-  var firstName = userName.split(' ')[0];
+  // v0.9.1994: the "<name>'s Collection" line is app.js rrCollectionTitle —
+  // the name typed in Preferences, else Google's first name, else "Collector"
+  // (it read "The's Collection" for the support@ account, "The Rail Roster").
+  // Waits for the account's settings first so a fresh device uses the right name.
+  try { if (typeof rrAfterPrefsSync === 'function') await rrAfterPrefsSync(10000); } catch (e) {}
+  var collTitle = (typeof rrCollectionTitle === 'function') ? rrCollectionTitle() : "Collector's Collection";
   var now = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
   // Resolve all tab ids (rich-text title + nav buttons jump to a tab's gid).
@@ -702,7 +706,7 @@ async function _writeDashboardContent(sheetId) {
   // and the Quick Tab Buttons block on the RIGHT (cols F-I).
   await sheetsSetupUpdate(sheetId, 'Dashboard!A1:I3', [
     [`=IMAGE("${CONDUCTOR_HEADER_URL}",4,80,65)`, '', '', '', '', 'QUICK TAB BUTTONS', '', '', ''],
-    ['', `${firstName}'s Collection`, '', '', '', _btn('My Collection', '📋  My Collection'), '', _btn('Want-Upgrade List', '🔎  Want / Upgrade'), ''],
+    ['', collTitle, '', '', '', _btn('My Collection', '📋  My Collection'), '', _btn('Want-Upgrade List', '🔎  Want / Upgrade'), ''],
     ['', `Last app sync: ${now}`, '', '', '', _btn('For Sale', '🏷️  For Sale'), '', _btn('Sold', '✅  Sold'), '']
   ]);
 

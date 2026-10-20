@@ -282,9 +282,11 @@ function openerScan(files) {
     r = await runDE(browser, null);
     T('D1 a want with no variation shows no variation description', r.out.blank === '', r.out.blank);
     T('D2 a want WITH a variation still shows its own description', r.out.picked === 'silver body, yellow feather', r.out.picked);
-    T('E1 no name typed: the greeting uses the Google first word ("The")', /Good (Morning|Afternoon|Evening), The$/.test(r.out.g0.trim()), r.out.g0);
+    // v0.9.1994 (Brad: "it says The's, should be Collector"): an article is
+    // not a first name — the "The Rail Roster" account is greeted as Collector.
+    T('E1 no name typed: Google name "The Rail Roster" → the greeting says Collector, not "The"', /Good (Morning|Afternoon|Evening), Collector$/.test(r.out.g0.trim()), r.out.g0);
     T('E2 "Brad" typed: the greeting and the account button say Brad', /, Brad$/.test(r.out.g1.trim()) && r.out.chip1 === 'Brad' && r.out.user1 === 'Brad', r.out);
-    T('E3 cleared: back to the Google name', /, The$/.test(r.out.g2.trim()) && r.out.user2 === 'The Rail Roster', r.out);
+    T('E3 cleared: back to the Google name (greeting Collector, whole name "The Rail Roster")', /, Collector$/.test(r.out.g2.trim()) && r.out.user2 === 'The Rail Roster', r.out);
     T('E4 a typed name is shown as text, never as page code', r.out.esc, r.out);
     T('F13 on a phone the help panel says press-and-hold, no Ctrl+', !/Ctrl\+/.test(r.out.phoneHelp) && /press and hold/.test(r.out.phoneHelp), '');
     T('F14 on a desktop the help panel keeps Ctrl+A / Ctrl+C / Ctrl+V', /Ctrl\+A/.test(r.out.deskHelp) && /Ctrl\+V/.test(r.out.deskHelp), '');
