@@ -22,6 +22,12 @@
 //                    prefix + 'photo-inbox.js' = pinSource(). A scan that
 //                    works file by file — or plants into 'photo-inbox.js' —
 //                    then sees the whole feature exactly once.
+//   pinHook(src, code, piece)  a test-only door: `code` is put just inside
+//                    the end of a piece's wrapper (the FIRST piece unless
+//                    named) in `src` — the joined Photo Inbox, planted or not
+//                    — where that piece's own names can be seen. Before the
+//                    split this was "the last })();"; with pieces, a door
+//                    goes into the piece that defines what it opens.
 //   pinPieceOf(url)  which piece a request URL asks for (null = not one)
 //   pinFulfill(route, url, text)  a browser test serving its own (planted)
 //                    copy of the Photo Inbox: the FIRST piece's request gets
@@ -83,6 +89,21 @@ function pinMerge(files, prefix) {
   return out;
 }
 
+function pinHook(src, code, piece) {
+  const names = pinPieceNames();
+  const want = piece || names[0];
+  const k = names.indexOf(want);
+  if (k < 0) throw new Error('pin-source: pinHook — no Photo Inbox piece named ' + want);
+  const P = pinPieces();
+  const headOf = n => P[n].split('\n').slice(0, 3).join('\n');
+  const findOnce = (h, n) => { const at = src.indexOf(h); if (at < 0 || src.indexOf(h, at + 1) >= 0) throw new Error('pin-source: pinHook could not find where ' + n + ' starts'); return at; };
+  const start = k === 0 ? 0 : findOnce(headOf(want), want);
+  const end = k + 1 < names.length ? findOnce(headOf(names[k + 1]), names[k + 1]) : src.length;
+  const cut = src.lastIndexOf('})();', end);
+  if (cut < start) throw new Error('pin-source: pinHook found no wrapper end in ' + want);
+  return src.slice(0, cut) + code + '\n' + src.slice(cut);
+}
+
 function pinPieceOf(url) {
   const bare = String(url || '').split('?')[0];
   const names = pinPieceNames();
@@ -99,4 +120,4 @@ function pinFulfill(route, url, text) {
   return true;
 }
 
-module.exports = { pinPieceNames, pinPieces, pinSource, pinRead, pinMerge, pinPieceOf, pinFulfill, APP_DIR };
+module.exports = { pinPieceNames, pinPieces, pinSource, pinRead, pinMerge, pinHook, pinPieceOf, pinFulfill, APP_DIR };

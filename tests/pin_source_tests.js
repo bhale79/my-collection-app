@@ -52,22 +52,32 @@ T('H8 pinFulfill serves the whole planted copy on the first piece', h1 === true 
 let r2 = fakeRoute();
 T('H9 pinFulfill leaves any other file alone', PIN.pinFulfill(r2, 'file:///x/app/drive.js?v=1', 'PLANTED') === false && r2.got === null, r2.got);
 T('H10 pinPieceOf names the piece a URL asks for', PIN.pinPieceOf('file:///x/app/photo-inbox.js?v=9') === 'photo-inbox.js' && PIN.pinPieceOf('file:///x/app/drive.js') === null, '');
+const hooked = PIN.pinHook(joined, '/*HOOK-HERE*/');
+const hookAt = hooked.indexOf('/*HOOK-HERE*/');
+const secondAt = names.length > 1 ? hooked.indexOf(pieces[names[1]].split('\n').slice(0, 3).join('\n')) : hooked.length;
+T('H11 pinHook puts a test door inside the FIRST piece\'s wrapper (before the next piece starts, just before its last })();)',
+  hookAt > 0 && hookAt < secondAt && hooked.slice(hookAt, secondAt).replace('/*HOOK-HERE*/', '').trim().startsWith('})();'), { hookAt, secondAt });
 
 // ── X · a simulated split ──────────────────────────────────────────────────
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'pin-split-'));
-const real = fs.readFileSync(path.join(APP, 'photo-inbox.js'), 'utf8');
-const cut = real.indexOf('\n  // ══ v0.9.1077 — identify by what the car SAYS');   // a section boundary inside the wrapper
+// Cut the FIRST piece in two at a section banner near its middle, so the
+// simulation keeps working however much has already moved out of it.
+const real = fs.readFileSync(path.join(APP, names[0]), 'utf8');
+const banners = [...real.matchAll(/\n  \/\/ ══ /g)].map(m => m.index);
+const cut = banners.length ? banners.reduce((b, i) => Math.abs(i - real.length / 2) < Math.abs(b - real.length / 2) ? i : b, banners[0]) : -1;
 const partA = real.slice(0, cut), partB = real.slice(cut + 1);
+const movedFn = (partB.match(/\n  (?:async )?function (\w+)\(/) || [])[1];
 const html = fs.readFileSync(path.join(APP, 'index.html'), 'utf8');
 const tagRe = /(<script src="\.\/photo-inbox\.js\?v=\d+"><\/script>[^\n]*)/;
-const htmlSplit = html.replace(tagRe, '$1\n<script src="./photo-inbox-reader.js?v=1"></script>');
+const htmlSplit = html.replace(tagRe, '$1\n<script src="./photo-inbox-sim.js?v=1"></script>');
 fs.writeFileSync(path.join(TMP, 'index.html'), htmlSplit);
-fs.writeFileSync(path.join(TMP, 'photo-inbox.js'), partA);
-fs.writeFileSync(path.join(TMP, 'photo-inbox-reader.js'), partB);
-T('X0 the simulation is set up (the cut point exists, the second tag went in)', cut > 0 && htmlSplit !== html, { cut });
-T('X1 split in two, the helper finds both pieces in load order', JSON.stringify(PIN.pinPieceNames(TMP)) === JSON.stringify(['photo-inbox.js', 'photo-inbox-reader.js']), PIN.pinPieceNames(TMP));
-T('X2 …and the joined source is the original, word for word', PIN.pinSource(TMP) === real, PIN.pinSource(TMP).length + ' vs ' + real.length);
-T('X3 …so a test looking for code that moved still finds it', /function _pinDescArbitrate\(/.test(PIN.pinSource(TMP)) && !/function _pinDescArbitrate\(/.test(partA) && /function _pinDescArbitrate\(/.test(partB), '');
+fs.writeFileSync(path.join(TMP, names[0]), partA);
+fs.writeFileSync(path.join(TMP, 'photo-inbox-sim.js'), partB);
+names.slice(1).forEach(n => fs.writeFileSync(path.join(TMP, n), pieces[n]));   // the real later pieces, as they are
+T('X0 the simulation is set up (a cut point in the first piece, the extra tag went in)', cut > 0 && !!movedFn && htmlSplit !== html, { cut, movedFn });
+T('X1 cut once more, the helper finds every piece in load order', JSON.stringify(PIN.pinPieceNames(TMP)) === JSON.stringify([names[0], 'photo-inbox-sim.js'].concat(names.slice(1))), PIN.pinPieceNames(TMP));
+T('X2 …and the joined source is the Photo Inbox as it is today, word for word', PIN.pinSource(TMP) === joined, PIN.pinSource(TMP).length + ' vs ' + joined.length);
+T('X3 …so a test looking for code that moved still finds it (' + movedFn + ')', new RegExp('function ' + movedFn + '\\(').test(PIN.pinSource(TMP)) && !new RegExp('function ' + movedFn + '\\(').test(partA), '');
 
 // ── R · the rule: no test opens a Photo Inbox file by name ─────────────────
 // a piece is photo-inbox.js or photo-inbox-<name>.js; photo-inbox-tests.js is a TEST, never a piece
@@ -120,7 +130,7 @@ plants.forEach(([line, what], i) => {
 T('P5 PLANTED: a commented-out mention is not an offender', scanTests({ 'c.js': "// const x = rd('photo-inbox.js');\n" }).length === 0, '');
 T('P6 PLANTED: pinRead(f, rd) on a list of names is allowed', scanTests({ 'ok.js': "const s = pinRead('photo-inbox.js', rd);\n" }).length === 0, '');
 T('P6b PLANTED: naming the Photo Inbox TEST file is not an offender', scanTests({ 'ok2.js': "const t = fs.readFileSync(path.join(__dirname, 'photo-inbox-tests.js'), 'utf8');\n" }).length === 0, '');
-const htmlApart = htmlSplit.replace('<script src="./photo-inbox-reader.js?v=1"></script>', '').replace('</body>', '<script src="./photo-inbox-reader.js?v=1"></script>\n</body>');
+const htmlApart = htmlSplit.replace('<script src="./photo-inbox-sim.js?v=1"></script>', '').replace('</body>', '<script src="./photo-inbox-sim.js?v=1"></script>\n</body>');
 T('P7 PLANTED: a piece loaded away from the others is caught', tagsTogether(htmlSplit) && !tagsTogether(htmlApart), '');
 let threw = false; try { PIN.pinPieceNames(fs.mkdtempSync(path.join(os.tmpdir(), 'pin-none-')) + '/../' + path.basename(TMP) + '/nope'); } catch (e) { threw = true; }
 const NOPE = fs.mkdtempSync(path.join(os.tmpdir(), 'pin-nope-'));

@@ -46,8 +46,7 @@ function T(n, cond, detail) { console.log((cond ? 'PASS' : 'FAIL') + '  ' + n + 
 
 const SRC = require('./lib/pin-source').pinSource();
 function hooked(s) {
-  const cut = s.lastIndexOf('})();');
-  return s.slice(0, cut) + '\n;window.__PG={set groups(v){PIN._groups=v;}, get groups(){return PIN._groups;}, readFid:function(g){return _pinReadFid(g);}};\n' + s.slice(cut);
+  return require('./lib/pin-source').pinHook(s, '\n;window.__PG={set groups(v){PIN._groups=v;}, get groups(){return PIN._groups;}, readFid:function(g){return _pinReadFid(g);}};\n');   // inside the first piece's wrapper
 }
 function planted(from, to, what) {
   if (SRC.indexOf(from) < 0) throw new Error('planted ' + what + ': the line moved; update this test');

@@ -254,10 +254,9 @@ const HOOK = '\n;window.__T = { get groups(){return PIN._groups;}, set groups(v)
      + '\n;window.__Reconcile=_pinReconcileAiNum;'
      + '\n;window.__ApplyMeta=_pinApplyMeta;window.__RepairStored=_pinReconcileStored;'
      + '\n;window.__QuoteMatch=_pinQuoteMatch;window.__FilesToRead=_pinFilesToRead;'
-     + '\n;window.__ColorWords=_pinColorWords;window.__ColorClash=_pinColorClash;'
      + '\n;window.__setConfirm=function(fn){_pinConfirm=fn;};window.__Confirm=_pinConfirm;'
      + '\n;window.__ReadFiles=_pinReadFiles;window.__ReadFid=_pinReadFid;'
-     + '\n;window.__DescArbitrate=_pinDescArbitrate;window.__IsSetRow=_pinIsSetRow;'
+     + '\n;window.__IsSetRow=_pinIsSetRow;'
      + '\n;window.__ReconcileStored=_pinReconcileStored;'
      + '\n;window.__Upload=_upload;'
      + '\n;window.__StageAll=typeof _stageAll==="function"?_stageAll:null;'
@@ -269,9 +268,11 @@ const HOOK = '\n;window.__T = { get groups(){return PIN._groups;}, set groups(v)
      + '\n;window.__InboxCacheSave=typeof _inboxCacheSave==="function"?_inboxCacheSave:null;'
      + '\n;window.__InboxCacheLoad=typeof _inboxCacheLoad==="function"?_inboxCacheLoad:null;'
      + '\n;window.__BuildGroups=typeof _pinBuildGroups==="function"?_pinBuildGroups:null;';
-const cut = src.lastIndexOf('})();');
-if (cut < 0) { console.log('could not find IIFE end'); process.exit(2); }
-src = src.slice(0, cut) + HOOK + '\n' + src.slice(cut);
+// …and the doors to what lives in the reader piece (split step 3) go inside IT:
+const HOOK_READER = '\n;window.__ColorWords=_pinColorWords;window.__ColorClash=_pinColorClash;'
+     + '\n;window.__DescArbitrate=_pinDescArbitrate;';
+src = require('./lib/pin-source').pinHook(src, HOOK);   // inside the first piece's wrapper, where its names are
+src = require('./lib/pin-source').pinHook(src, HOOK_READER, 'photo-inbox-reader.js');
 eval(src);
 
 const T = window.__T;
@@ -4075,7 +4076,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const periodSrc = noExports(slice(brwS, 'var _ERA_KEY_TO_PERIOD', 'function _phState'));
       const cfgBody   = noExports(slice(cfgS, 'var _RR_CHIP_SCALE_LABEL', '// ── Keys that hold browseable'));
       const prefSrc   = noExports(slice(pinS, 'function _pinPreferOf', 'async function _freeReadOne'));
-      const hintSrc   = noExports(slice(pinS, 'function _pinAiHints', '// v0.9.1092'));
+      const hintSrc   = noExports(slice(pinS, 'function _pinAiHints', '// ══ Image preparation for the free reader'));   // split step 3: _pinAiHints now ends the reader's first block
 
       let chips = { manufacturer: 'any', scale: 'any', era: 'any', section: 'items' };
       let era   = 'all';
@@ -11015,8 +11016,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // v1682 77→78 (stock-photos.js — stock photos by link, owner + beta).
       // v1802 79→80 (atlas-diagrams-config.js — Atlas diagrams + matcher).
       // v1864 80→81 (table-columns.js — the ONE column editor).
-      ok('every ?v= mark in app/index.html matches it — all 82, none stale',
-         stamps.length === 82 && stamps.every(t => t === '?v=' + build),
+      // v2007 82→83 (photo-inbox-reader.js — Photo Inbox split step 3).
+      ok('every ?v= mark in app/index.html matches it — all 83, none stale',
+         stamps.length === 83 && stamps.every(t => t === '?v=' + build),
          stamps.length + ' stamps; strays: ' + stamps.filter(t => t !== '?v=' + build).slice(0, 3).join(','));
       ok('the service worker cache name moved too (build + 10, the fixed offset)',
          new RegExp("const CACHE_NAME = 'mca-v" + (build + 10) + "';").test(rd('app/sw.js')),
@@ -15648,7 +15650,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       {
         const self = fs.readFileSync(p35.join(__dirname, 'photo-inbox-tests.js'), 'utf8');
         const h = self.indexOf("section('199h. The version trio moved together')");
-        const seg = self.slice(h, h + 1800);
+        const seg = self.slice(h, h + 2200);   // v2007: the section grew by its history line
         ok('235 §199h derives the trio — no hardcoded build number to hand-edit',
            h > 0 && !/\?v=\d{4}/.test(seg) && !/mca-v\d{4}/.test(seg) &&
            /parseInt\(_vm\[1\], 10\)/.test(seg) && /build \+ 10/.test(seg),
