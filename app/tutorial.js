@@ -1148,6 +1148,17 @@ function _gtStill() {
 }
 if (typeof window !== 'undefined') window._gtStill = _gtStill;
 
+// v0.9.2000 — ONE answer to "is the conductor standing beside the card?". He
+// stands down on a screen narrower than RR_TOUR_CONDUCTOR_MIN_W (a phone: no room
+// beside a card for him). Everything that keeps room for him asks this — the
+// launch walk-through found the centred cards (1 and 22) keeping his 72px on a
+// phone, where he is not, and running ~42px off the right edge.
+var RR_TOUR_CONDUCTOR_MIN_W = 480;
+function _gtConductorShown() { return (window.innerWidth || 0) >= RR_TOUR_CONDUCTOR_MIN_W; }
+// The left edge a centred card keeps clear: his 66px + a gap, or the plain
+// screen margin when he is not there.
+function _gtLeftFloor(cw) { return _gtConductorShown() ? 72 : 8; }
+
 function _guidedTour(steps) {
   if (!steps || !steps.length) return;
   _gtEnd();
@@ -1286,7 +1297,7 @@ function _guidedTour(steps) {
     // geometry; this catches the rest, including the case where the card is
     // re-measured mid-move. He is decoration — the ring and the words carry
     // the meaning — so he simply stands down at that size.
-    if (window.innerWidth < 480) { m.style.display = 'none'; return; }
+    if (!_gtConductorShown()) { m.style.display = 'none'; return; }
     try {
       var _cb;
       if (typeof cardLeft === 'number' && typeof cardWidth === 'number') {
@@ -1594,14 +1605,15 @@ function _guidedTour(steps) {
     // the conductor stands down, it may use the width he would have taken); a
     // working card, and any card inside an open box, keeps the compact size and
     // its shrink tiers.
-    var _vwRoom = window.innerWidth - ((_gtBig() && window.innerWidth < 480) ? 32 : 100);
+    var _vwRoom = window.innerWidth - ((_gtBig() && !_gtConductorShown()) ? 32 : 100);
     callout.style.maxWidth = Math.min(_gtBig() ? (_gtWidthCap || 600) : (_gtWidthCap || 340), _vwRoom) + 'px';
     if (!el) {
       hole.style.opacity = '0';
       hole2.style.opacity = '0';
       blocker.style.clipPath = 'none';   // v0.9.1383 — nothing to punch through
       var cw0 = callout.offsetWidth || 300, ch0 = callout.offsetHeight || 160;
-      var L = Math.max(72, (window.innerWidth - cw0) / 2);
+      var L = Math.max(_gtLeftFloor(cw0), (window.innerWidth - cw0) / 2);
+      L = Math.min(L, Math.max(8, window.innerWidth - cw0 - 8));   // never past the right edge
       var T = Math.max(8, (window.innerHeight - ch0) / 2);
       // v0.9.1365 (Brad: "you can[not] see the variations because the help box
       // is on top of it again"). A step with no target used to sit dead centre
