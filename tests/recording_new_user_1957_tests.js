@@ -120,7 +120,10 @@ const look = pg => pg.evaluate(async () => {
 
     // PLANTED: the Appearance veto removed → the editor offers logo cards again in recording mode
     const cfg = read('config.js');
-    const old = cfg.replace("  if (typeof rrRecordingMode === 'function' && rrRecordingMode()) return false;\n  // Master switch first", "  // Master switch first");
+    // v0.9.2008: rrAppearanceOn asks the features ring (rrFeatureOn, which has its own
+    // veto), so "the veto removed" = drop rrAppearanceOn's veto AND ask the owner list directly.
+    const old = cfg.replace("  if (typeof rrRecordingMode === 'function' && rrRecordingMode()) return false;\n  if (typeof APPEARANCE_ENABLED", "  if (typeof APPEARANCE_ENABLED")
+                   .replace("typeof rrFeatureOn === 'function' && rrFeatureOn(RR_APPEARANCE_FEATURE)", "rrIsRealOwner()");
     if (old === cfg) T('E PLANTED: could plant the old Appearance switch', false);
     else {
       const p = await boot(browser, true, { 'config.js': old });

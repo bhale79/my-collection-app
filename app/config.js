@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2007';
+const APP_VERSION = 'v0.9.2008';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -17,43 +17,34 @@ const APP_VERSION = 'v0.9.2007';
 // cards are deliberately outside the gate too; they are a user feature, not an
 // editor feature.
 //
-// One line back to true when the editor is user-ready.
+// v0.9.2008: leave this FALSE. Who gets the editor is decided by the Vault
+// `features` tab now (row "appearance"), not here — see rrAppearanceOn below.
+// True would force it on for everyone and override the sheet.
 const APPEARANCE_ENABLED = false;
-// ── v0.9.1441 (Brad): "turn on the logo and skin button for beta only" ──────
-// THE PLAN, so a later session doesn't have to guess at this flag:
-//   now      — beta testers get the editor (this flag true)
-//   at public launch — turn this OFF; nobody gets it
-//   later    — it comes back as a paid upgrade, gated on entitlement
-// So the door closes with one line here, and re-opens later as one more branch
-// in rrAppearanceOn() (an entitlement check beside the beta check), not a
-// rewrite. Two signals count as beta today, either one is enough: this browser
-// passed the beta gate (_isBetaVerified, app-auth.js), or the backend says
-// this account is on the beta plan (_subState.sub === 'beta', vault.js).
-const APPEARANCE_BETA_ONLY = true;
-// v0.9.1344: ONE reader, same shape as rrDiagnostics() below. Two places now
+// ── v0.9.2008 (Brad, 2026-10-20: "do the appearance in the features tab") ──
+// The Appearance editor AND logo cards are a FEATURE RING like Maintenance:
+// the Vault sheet's `features` tab, row  appearance | B  (B = every beta
+// tester, exactly who had it before). Moving it to everyone, or off, is one
+// cell in that tab — no release. Owners always see it (rrFeatureOn). This
+// replaced the v0.9.1441 built-in beta-only check (APPEARANCE_BETA_ONLY +
+// this browser's beta code), so the question has ONE answer in ONE place.
+const RR_APPEARANCE_FEATURE = 'appearance';
+// v0.9.1344: ONE reader, same shape as rrDiagnostics() below. Two places
 // ask this question — the Appearance page itself, and the dashboard's card
 // library, which must not offer logo cards a user cannot fill in while the
-// editor is hidden. A constant read inline in two files is a fact with two
-// answers waiting to happen.
+// editor is hidden. Never test Appearance any other way.
 function rrAppearanceOn() {
   // v0.9.1957 (Brad: "recording mode should only show what a new user would
   // be seeing"): a new member has no Appearance — so recording mode has none.
   if (typeof rrRecordingMode === 'function' && rrRecordingMode()) return false;
-  // Master switch first — true means on for everyone, beta or not.
   if (typeof APPEARANCE_ENABLED !== 'undefined' && APPEARANCE_ENABLED) return true;
-  if (typeof APPEARANCE_BETA_ONLY === 'undefined' || !APPEARANCE_BETA_ONLY) return false;
-  // v0.9.1441: beta only. Both signals are read at CALL time, never at load —
-  // config.js is the first script in index.html, so neither function exists yet
-  // when this file is parsed. Fails closed: no beta signal, no editor.
-  try {
-    if (typeof _isBetaVerified === 'function' && _isBetaVerified()) return true;
-    var _s = (typeof window !== 'undefined') && window._subState;
-    if (_s && _s.sub === 'beta') return true;
-  } catch (e) {}
-  return false;
+  // Read at CALL time — rrFeatureOn is defined further down this file.
+  // Fails closed: no answer, no editor.
+  try { return typeof rrFeatureOn === 'function' && rrFeatureOn(RR_APPEARANCE_FEATURE); } catch (e) { return false; }
 }
 if (typeof window !== 'undefined') {
   window.APPEARANCE_ENABLED = APPEARANCE_ENABLED;
+  window.RR_APPEARANCE_FEATURE = RR_APPEARANCE_FEATURE;
   window.rrAppearanceOn = rrAppearanceOn;
 }
 // ── FEATURE RINGS (v0.9.1891, launch build) ────────────────────────────────

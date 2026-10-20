@@ -264,7 +264,8 @@ const STUB = (findJs, downloadJs, uploadTime) => `
       _collVisibleCols();                                        // shipper + custom3 + custom4 are enabled → offered → remembered
       out.seen = { v: JSON.parse(localStorage.getItem('lv_coll_columns_seen_v1') || '[]').sort(), stamped: stamped('lv_coll_columns_seen_v1') };
       // the Appearance editor's Apply — colours, theme and the saved look
-      window._subState = { sub: 'beta' };
+      // v0.9.2008: Appearance is a feature ring now (Vault features tab, row appearance | B)
+      window._subState = { sub: 'beta', features: ['appearance'] };
       out.editorOn = rrAppearanceOn();
       window.openAppearance();
       await new Promise(res => setTimeout(res, 300));

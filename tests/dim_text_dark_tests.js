@@ -195,7 +195,7 @@ const SNAP = () => {
       const l = rrDeriveTextShades('#2a2015', '#f8e8c0', ['#fffdf6', '#f5eeda', '#ede2cc']);
       out.light = { dim: r2(rrContrast(l['--text-dim'], '#ede2cc')), mid: r2(rrContrast(l['--text-mid'], '#ede2cc')), dimLighterThanMid: rrLuminance(l['--text-dim']) > rrLuminance(l['--text-mid']) };
       // the editor for real: Preview a look built on Santa Fe's red — what the page wears must read
-      window._subState = { sub: 'beta' };
+      window._subState = { sub: 'beta', features: ['appearance'] };   // v0.9.2008: a feature ring now
       window.openAppearance(); await new Promise(r => setTimeout(r, 300));
       window._rrapRoleColor('--bg', '#1c0908'); window._rrapRoleColor('--surface', '#8c1c13');
       window._rrapPreview(); await new Promise(r => setTimeout(r, 120));
