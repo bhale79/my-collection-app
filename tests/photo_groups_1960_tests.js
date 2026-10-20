@@ -47,7 +47,7 @@ function T(n, cond, detail) { console.log((cond ? 'PASS' : 'FAIL') + '  ' + n + 
 const SRC = require('./lib/pin-source').pinSource();
 function hooked(s) {
   const cut = s.lastIndexOf('})();');
-  return s.slice(0, cut) + '\n;window.__PG={set groups(v){_groups=v;}, get groups(){return _groups;}, readFid:function(g){return _pinReadFid(g);}};\n' + s.slice(cut);
+  return s.slice(0, cut) + '\n;window.__PG={set groups(v){PIN._groups=v;}, get groups(){return PIN._groups;}, readFid:function(g){return _pinReadFid(g);}};\n' + s.slice(cut);
 }
 function planted(from, to, what) {
   if (SRC.indexOf(from) < 0) throw new Error('planted ' + what + ': the line moved; update this test');
@@ -229,7 +229,7 @@ const TYPED = { num: '8357', userTyped: 1 };
   await x.pg.evaluate(() => window._pinRvAssignView('f01', 'LSV')); await x.pg.waitForTimeout(600); m = await look(x.pg);
   T('X-S1 PLANTED: the old strip rule → the last photo vanishes (S1 would fail)', m.rail.length === 0, m.rail);
   await x.ctx.close();
-  x = await open(browser, { src: planted("    try { _rvStayOn = _pinOnScreenFid(); } catch (eS) {}   // v0.9.1960: no jump back to the first photo\n", "", 'no stay') });
+  x = await open(browser, { src: planted("    try { PIN._rvStayOn = _pinOnScreenFid(); } catch (eS) {}   // v0.9.1960: no jump back to the first photo\n", "", 'no stay') });
   await setMain(x.pg, 'f01'); await x.pg.evaluate(() => window._pinRvAssignView('f02', 'RSV')); await x.pg.waitForTimeout(600); m = await look(x.pg);
   T('X-S2 PLANTED: no stay-on → the card jumps away from photo 2 (S2 would fail)', m.main !== 'f01', m.main);
   await x.ctx.close();

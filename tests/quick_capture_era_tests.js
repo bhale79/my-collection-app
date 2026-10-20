@@ -128,9 +128,9 @@ section('The era reaches the record in the first place');
   // capture sheet's DOM and counters and is not worth lifting out whole.
   const shot = SRC.slice(SRC.indexOf('function _qcShot(file)'), SRC.indexOf('async function _qcUpload'));
   ok('the shot record carries an era', /era: _eStamp/.test(shot));
-  ok('it comes from the SAME source the bar displays', /_pinOneShot \|\| _pinHomeEra\(\)/.test(shot));
+  ok('it comes from the SAME source the bar displays', /PIN\._pinOneShot \|\| _pinHomeEra\(\)/.test(shot));
   ok('a one-shot era is SPENT by this shot and springs back',
-     /if \(_pinOneShot\) \{ _pinOneShot = null;/.test(shot));
+     /if \(PIN\._pinOneShot\) \{ PIN\._pinOneShot = null;/.test(shot));
   ok('spending it redraws the bar, so the screen stops claiming it is armed',
      /_pinRenderBar\(\)/.test(shot));
 }
@@ -144,7 +144,7 @@ ok('all three Quick Capture routes read rec.era',
 ok('the drop / camera-roll path is untouched — it was already right',
    /_pinMetaSet\(up\.id, \{ era: _thisEra, stat: 'stamped' \}\)/.test(SRC));
 ok('_stageFiles still computes its own era for drops',
-   /var thisEra = \(_pinOneShot && !spent\) \? _pinOneShot : _pinHomeEra\(\);/.test(SRC));
+   /var thisEra = \(PIN\._pinOneShot && !spent\) \? PIN\._pinOneShot : _pinHomeEra\(\);/.test(SRC));
 
 // ── v0.9.1725: the sheet SAYS what it is stamping ───────────────
 // The stamp was fixed in v0.9.1724. This is why a missing stamp survived a
@@ -177,7 +177,7 @@ section('The capture sheet says what it is tagging');
      /typeof window\._pinPickContext !== 'function'/.test(pick));
   ok('the pick becomes the session home era', /_pinSetHomeEra\(era\)/.test(pick));
   ok('an armed one-shot is dropped, so it cannot steal the very next photo',
-     /_pinOneShot = null/.test(pick));
+     /PIN\._pinOneShot = null/.test(pick));
   ok('the sheet redraws, so the row shows what he just chose', /_qcRender\(\)/.test(pick));
   ok('the picker opens ABOVE this sheet, not behind it — the whole point',
      /z-index:10050/.test(SRC) && /z-index:10000/.test(SRC));

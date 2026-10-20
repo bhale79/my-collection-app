@@ -139,8 +139,8 @@ section('C. The edges');
 
 section('D. The plumbing: the card hands the read\'s alternatives to the panel');
 {
-  ok('the review card passes the ONE record it resolved (_rvAiRec.alts), as a third argument',
-     /var _rdAlts = \(_rvAiRec && Array\.isArray\(_rvAiRec\.alts\)\) \? _rvAiRec\.alts : \[\];/.test(SRC) && /_pinKinPanelHtml\(lk\.num, lk\.master, _rdAlts\)/.test(SRC));
+  ok('the review card passes the ONE record it resolved (PIN._rvAiRec.alts), as a third argument',
+     /var _rdAlts = \(PIN\._rvAiRec && Array\.isArray\(PIN\._rvAiRec\.alts\)\) \? PIN\._rvAiRec\.alts : \[\];/.test(SRC) && /_pinKinPanelHtml\(lk\.num, lk\.master, _rdAlts\)/.test(SRC));
   ok('…and it is the only caller', (SRC.match(/_pinKinPanelHtml\(/g) || []).length === 2, String((SRC.match(/_pinKinPanelHtml\(/g) || []).length));   // the definition + the one caller
   ok('the lead lines and the rest are drawn by ONE line-maker', (grab(SRC, 'function _pinKinPanelHtml(num, matched, readAlts)').match(/var _kinLine = function \(k, fits\)/g) || []).length === 1);
   ok('…and that line-maker asks the shared row-picker (v1833), the same one the pick chips use', /var r0 = _pinCardRowFor\(k\);/.test(grab(SRC, 'function _pinKinPanelHtml(num, matched, readAlts)')));

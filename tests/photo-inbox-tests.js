@@ -233,15 +233,15 @@ src = src.replace(
   'async function _pinMetaSet(fileId, patch) { META_WRITES.push({ fileId: fileId, patch: patch }); return !global.__FAIL_META || fileId !== global.__FAIL_META; } async function _unused_pinMetaSet(fileId, patch) {'
 );
 // expose internals for the harness
-const HOOK = '\n;window.__T = { get groups(){return _groups;}, set groups(v){_groups=v;},'
-     + ' get sel(){return _sel;}, set sel(v){_sel=v;},'
-     + ' get selectMode(){return _selectMode;}, get purpose(){return _selPurpose;},'
-     + ' get session(){return _pinSession;}, set session(v){_pinSession=v;},'
-     + ' get sessionEra(){return _sessionEra;}, get oneShot(){return _pinOneShot;},'
-     + ' set oneShot(v){_pinOneShot=v;}, get tagEra(){return _tagEra;}, set tagEra(v){_tagEra=v;},'
-     + ' get rvKey(){return _rvKey;}, set rvKey(v){_rvKey=v;},'
-     + ' get orderKeys(){return _rvOrderKeys;}, set orderKeys(v){_rvOrderKeys=v;},'
-     + ' get rvGroups(){return _rvGroups;}, set rvGroups(v){_rvGroups=v;},'
+const HOOK = '\n;window.__T = { get groups(){return PIN._groups;}, set groups(v){PIN._groups=v;},'
+     + ' get sel(){return PIN._sel;}, set sel(v){PIN._sel=v;},'
+     + ' get selectMode(){return PIN._selectMode;}, get purpose(){return PIN._selPurpose;},'
+     + ' get session(){return PIN._pinSession;}, set session(v){PIN._pinSession=v;},'
+     + ' get sessionEra(){return PIN._sessionEra;}, get oneShot(){return PIN._pinOneShot;},'
+     + ' set oneShot(v){PIN._pinOneShot=v;}, get tagEra(){return PIN._tagEra;}, set tagEra(v){PIN._tagEra=v;},'
+     + ' get rvKey(){return PIN._rvKey;}, set rvKey(v){PIN._rvKey=v;},'
+     + ' get orderKeys(){return PIN._rvOrderKeys;}, set orderKeys(v){PIN._rvOrderKeys=v;},'
+     + ' get rvGroups(){return PIN._rvGroups;}, set rvGroups(v){PIN._rvGroups=v;},'
      + ' setHome:function(e){_pinSetHomeEra(e);}, renderBar:function(){_pinRenderBar();},'
      + ' renderTagBar:function(){_pinRenderTagBar();}, selInfo:function(){_selInfo();},'
      + ' navHtml:function(d){return _pinRvNavHtml(d);}, posHtml:function(){return _pinRvPosHtml();},'
@@ -658,7 +658,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
   const body3 = require('./lib/pin-source').pinSource();
   ok('no read path still hardcodes files[0]',
-     !/var todo = _groups\.filter\(function \(g\) \{ return !ids\[g\.files\[0\]\.id\]/.test(body3));
+     !/var todo = PIN\._groups\.filter\(function \(g\) \{ return !ids\[g\.files\[0\]\.id\]/.test(body3));
 
 
   section('19. Cancel from an inbox add returns to the inbox');
@@ -1003,7 +1003,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   // — still qualifies. Name the requirement, not the spelling.
   ok('so it still counts as unread for the paid batch',
      // v0.9.1960: through _pinRecFor (still the ids map — a group identified on any photo counts)
-     /_groups\.filter\(function \(g\) \{ return !_pinRecFor\(_pinReadFid\(g\)\)\.rec; \}\)/.test(f1));
+     /PIN\._groups\.filter\(function \(g\) \{ return !_pinRecFor\(_pinReadFid\(g\)\)\.rec; \}\)/.test(f1));
   ok('the empty state shows the same disclosure', /_pinFailInfo\(\)/.test(f1) && /_pinWhyHtml\(_fi\.raw/.test(f1));
   ok('the why-block is shared, not duplicated', (f1.match(/function _pinWhyHtml/g) || []).length === 1);
   ok('an empty answer never outranks a real one',
@@ -1057,7 +1057,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('it reads the photo on screen (v0.9.1092 supersedes the readable target)',
      /_pinOnScreenFid\(\)/.test(rsBody));
   ok('with a fallback if the group somehow has none',
-     /\|\| _rvGroups\[0\]\.files\[0\]\.id/.test(rsBody));
+     /\|\| PIN\._rvGroups\[0\]\.files\[0\]\.id/.test(rsBody));
   ok('and it stores the reasoning either way',
      /raw: r\.raw \|\| ''/.test(rsBody) && /raw: \(r && r\.raw\)/.test(rsBody));
 
@@ -1392,7 +1392,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
      !/aiIdentifyImage2\(\[?[a-z]+\]?, \{\}\)/.test(aiSrc), 'found a bare {} hint');
   ok('the batch keeps the verify note as well as the era',
      /_pinAiHints\(g,\s*\n?\s*\(typeof _vfNote/.test(aiSrc));
-  ok('the single-photo read is hinted', /_pinAiHints\(_rvGroups && _rvGroups\[0\]\)/.test(aiSrc));
+  ok('the single-photo read is hinted', /_pinAiHints\(PIN\._rvGroups && PIN\._rvGroups\[0\]\)/.test(aiSrc));
   ok('the shared question can name a period', /opts\.eraLabel/.test(aiid));
   ok('and it names the trap explicitly', /Celebration Series/.test(aiid));
   ok('it asks for the ORIGINAL, not the reissue', /ORIGINAL production piece/.test(aiid));
@@ -1565,7 +1565,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   // group's readable slot — an existing read must never be hidden by keying
   // on a photo that has not been read yet.
   ok('the card reads the on-screen slot with a readable-slot fallback',
-     /\(fid && ids0\[fid\]\)[\s\S]{0,120}_pinReadFid\(_rvGroups\[0\]\)/.test(w1));
+     /\(fid && ids0\[fid\]\)[\s\S]{0,120}_pinReadFid\(PIN\._rvGroups\[0\]\)/.test(w1));
 
 
   section('64. The repair cannot manufacture evidence');
@@ -1705,7 +1705,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   section('67. Read buttons mean the photo on screen');
   const os = require('./lib/pin-source').pinSource();
   ok('there is one helper for the on-screen photo', /function _pinOnScreenFid\(\)/.test(os));
-  ok('re-scan reads it', /var fid = _pinOnScreenFid\(\) \|\| _rvGroups\[0\]\.files\[0\]\.id;/.test(os));
+  ok('re-scan reads it', /var fid = _pinOnScreenFid\(\) \|\| PIN\._rvGroups\[0\]\.files\[0\]\.id;/.test(os));
   ok('re-scan returns to it afterwards',
      /window\._pinReview\(key\);\s*\n\s*\/\/ Come back to the photo[\s\S]{0,80}_pinRvSetMain\(fid\)/.test(os));
   ok('the paid read reads it', /var _curFid = _pinOnScreenFid\(\);/.test(os));
@@ -1903,7 +1903,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   // first, readable slot as fallback.
   ok('the chip and input read the same slot as the card',
      // v0.9.1960: the on-screen photo is _mainFid0 (the Right Side when nothing is chosen), through _pinRecFor
-     /var s0 = _pinRecFor\(_mainFid0\)\.rec\s*\n\s*\|\| _ids\(\)\[_pinReadFid\(_rvGroups\[0\]\)/.test(el));
+     /var s0 = _pinRecFor\(_mainFid0\)\.rec\s*\n\s*\|\| _ids\(\)\[_pinReadFid\(PIN\._rvGroups\[0\]\)/.test(el));
 
   section('76. Reconstructions need stronger paperwork');
   // Brad's 6175: raw text near-verbatim; 1523 is a SET row hiding in the
@@ -5371,7 +5371,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('...and so does the catalog panel beside it',
        /_pinReviewLookup\(_num\)/.test(setMain));
     ok('...and the maker hint, which decides which catalog row the panel picks',
-       /_rvAiMfr = _e\.mfr/.test(setMain));
+       /PIN\._rvAiMfr = _e\.mfr/.test(setMain));
     ok('a photo with no read of its own clears the box rather than inheriting one',
        /var _num = _e\.num \? String\(_e\.num\) : '';/.test(setMain));
   })();
@@ -5392,7 +5392,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('a SINGLE-photo group keeps stepping through the inbox as before',
        /g\.files\.length > 1/.test(code) && /_pinReviewStep', dir === 'prev' \? 'Previous photo'/.test(code));
     ok('a multi-select card still has no sequence at all',
-       /_rvGroups\.length !== 1\) return null/.test(code));
+       /PIN\._rvGroups\.length !== 1\) return null/.test(code));
 
     ok('the arrows call the member stepper when inside a group',
        /'_pinReviewStepMember',/.test(code));
@@ -15434,7 +15434,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('233 rrOrd is in both halves of the metadata map — write and read',
          /ord:'rrOrd'/.test(pin33) && /ord:\s+parseInt\(ap\.rrOrd, 10\) \|\| 0/.test(pin33));
       ok('233 every group is order-sorted where groups are built',
-         /_groups\.forEach\(function \(g\) \{ g\.files = _pinSortByOrd\(g\.files\); \}\);/.test(pin33));
+         /PIN\._groups\.forEach\(function \(g\) \{ g\.files = _pinSortByOrd\(g\.files\); \}\);/.test(pin33));
 
       // ── the card: three strips, all draggable, first thumb badged ────
       // v0.9.1705 RE-PIN: the three copies of the rail (phone strip, an unused
@@ -15454,7 +15454,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
          && /\(i === 0 && !_rsvTaken \? '<div style="position:absolute;top:0;left:0;background:var\(--accent\)/.test(_rail33),
          String((pin33.match(/\(i === 0 && !_rsvTaken \? '<div/g) || []).length));
       ok('233 the wiring refuses multi-item cards — order has no meaning across items',
-         /_rvGroups\.length !== 1\) return;/.test(pin33.slice(pin33.indexOf('function _pinWireRvDrag'), pin33.indexOf('window._pinSaveRvOrder'))));
+         /PIN\._rvGroups\.length !== 1\) return;/.test(pin33.slice(pin33.indexOf('function _pinWireRvDrag'), pin33.indexOf('window._pinSaveRvOrder'))));
 
       // ── the saver: every photo stamped, failures told, card redrawn ──
       {
@@ -15463,13 +15463,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
         // The drill proved the spelling-check version could be fooled (a
         // skip of photo 0 keeps both spellings present). Run the real saver.
         {
-          const sb = pin33.indexOf('};', pin33.indexOf('window._pinReview(_rvKey', sa)) + 2;
+          const sb = pin33.indexOf('};', pin33.indexOf('window._pinReview(PIN._rvKey', sa)) + 2;
           const stamped = [];
           const g33 = { key: 'K', files: [{ id: 'a', _meta: { ord: 0 } }, { id: 'b', _meta: { ord: 0 } }, { id: 'c', _meta: { ord: 0 } }] };
           const win33 = { _pinReview: () => {} };
-          new Function('window', '_rvGroups', '_rvKey', '_pinMetaSet', 'showToast',
+          new Function('window', 'PIN', '_pinMetaSet', 'showToast',
             pin33.slice(sa, sb))(
-              win33, [g33], 'K',
+              win33, { _rvGroups: [g33], _rvKey: 'K' },   // the Photo Inbox's shared state (split step 2)
               async (fid, patch) => { stamped.push(fid + ':' + patch.ord); return true; },
               () => {});
           await win33._pinSaveRvOrder(['b', 'a', 'c']);
@@ -15484,7 +15484,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
         ok('233 a partial save says how partial, and how to finish',
            /Saved the order for ' \+ ok \+ ' of ' \+ orderedFids\.length/.test(seg));
         ok('233 the card redraws so the badge follows the new first photo',
-           /window\._pinReview\(_rvKey \|\| \(g && g\.key\)\);/.test(seg));
+           /window\._pinReview\(PIN\._rvKey \|\| \(g && g\.key\)\);/.test(seg));
       }
     })();
 
@@ -16809,7 +16809,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
       // ── lift the section builder and the toggle, and RUN them ─────────
       const a42 = pin42.indexOf('  var _exclView = { fid: null, nums: [] };');
-      const b42 = pin42.indexOf("  var _rvAiMfr = '';");
+      const b42 = pin42.indexOf("  PIN._rvAiMfr = '';");
       ok('242 the card section and its toggle exist where the card is built', a42 > 0 && b42 > a42);
       const store = { f1: { rejected: ['3-3-25', '175-50'] } };
       const W = {};
@@ -17130,7 +17130,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // and the guard that matters is unchanged: type only lands when set.
       ok('247 tagging a type never blanks one by accident',
          /var _patch = \{\};/.test(pin47) &&
-         /if \(_tagType\) _patch\.type = _tagType;/.test(pin47));
+         /if \(PIN\._tagType\) _patch\.type = PIN\._tagType;/.test(pin47));
       ok('247 the paid reader gets the type as a hint',
          /if \(pref\.type\) h\.type = pref\.type;/.test(pin47) &&
          /pref\.label \|\| pref\.manufacturer \|\| pref\.scale \|\| pref\.type/.test(pin47));
@@ -17182,7 +17182,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /try \{ _pinGrpPanelClose\(\); \} catch \(eGP\) \{\}\n    _render\(\);/.test(pin47));
       ok('247 Apply goes through the ONE group writer and the panel STAYS',
          /await _pinGroupApply\(files2, _grpPanelKind/.test(pin47) &&
-         /_sel = \{\}; _grpPanelRoles = \[\];/.test(pin47));
+         /PIN\._sel = \{\}; _grpPanelRoles = \[\];/.test(pin47));
       ok('247 the detail guard blocks before anything is written',
          /if \(roles && roles\[0\] === 'detail'\) return \{ blocked: 'detail'/.test(pin47));
       // Runtime: the guard answers without touching Drive.
@@ -17725,9 +17725,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // ── wiring: snapshot once per opening, released on close ──
       const pin56 = require('./lib/pin-source').pinSource();
       ok('256 opening a card snapshots ONCE (stepping keeps the same snapshot)',
-         /if \(key && !_rvOrderKeys\) \{\s*\n\s*_rvOrderKeys = _pinVisibleGroups\(\)\.map\(function \(g\) \{ return g\.key; \}\);/.test(pin56));
+         /if \(key && !PIN\._rvOrderKeys\) \{\s*\n\s*PIN\._rvOrderKeys = _pinVisibleGroups\(\)\.map\(function \(g\) \{ return g\.key; \}\);/.test(pin56));
       ok('256 closing the card releases the snapshot',
-         /_rvOrderKeys = null;\s+\/\/ v0\.9\.1307/.test(pin56));
+         /PIN\._rvOrderKeys = null;\s+\/\/ v0\.9\.1307/.test(pin56));
     })();
 
     // ═══════════════════════════════════════════════════════════
@@ -18810,7 +18810,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // intact. Assert the RULE: each button's visibility is gated on
       // _selectMode AND a count, never on the count alone.
       {
-        const _arm = /\.style\.display = \(_selectMode && n(?: && _pinAr\(\))?\) \? '' : 'none';/g;   // v0.9.1927: Identify also needs Auto Read
+        const _arm = /\.style\.display = \(PIN\._selectMode && n(?: && _pinAr\(\))?\) \? '' : 'none';/g;   // v0.9.1927: Identify also needs Auto Read
         const _armed = (pi.match(_arm) || []).length;
         ok('270 Discard and Identify arm only in select mode, not on the count alone',
            _armed >= 2 && /if \(db\)/.test(pi) && /if \(ib\)/.test(pi),
@@ -18818,7 +18818,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       }
       // And the ticks really are select-mode-only, which is WHY that matters.
       ok('270 …because the tick circle is drawn only in select mode',
-         /var _circle = _selectMode\s*\n?\s*\?/.test(pi));
+         /var _circle = PIN\._selectMode\s*\n?\s*\?/.test(pi));
 
       // ── the guard that could never fire ──
       ok('270 the dead _qeSaving flag is gone from the code',
@@ -18854,9 +18854,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const up = pi.slice(up0, up0 + 3000);
       ok('270 the upload toast tests the era SNAPSHOT, not the cleared one-shot',
          /var _noEraUp = !_era;/.test(up) &&
-         !/_noEraUp = !\(\(_pinOneShot && !_spentOneShot\)/.test(up));
+         !/_noEraUp = !\(\(PIN\._pinOneShot && !_spentOneShot\)/.test(up));
       ok('270 …and the snapshot is still taken BEFORE the one-shot is cleared',
-         up.indexOf('var _era = _pinActiveEra();') < up.indexOf('_pinOneShot = null;'));
+         up.indexOf('var _era = _pinActiveEra();') < up.indexOf('PIN._pinOneShot = null;'));
 
       // ── the device Back button survives a second pass ──
       ok('270 the identify overlay re-arms its Back entry each pass',
@@ -19308,13 +19308,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('271 the listing asks for thumbnailLink',
          /files\([^)]*thumbnailLink[^)]*\)/.test(pin));
       ok('271 …stores it per file id',
-         /if \(f\.thumbnailLink\) _thumbLink\[f\.id\] = f\.thumbnailLink;/.test(pin));
+         /if \(f\.thumbnailLink\) PIN\._thumbLink\[f\.id\] = f\.thumbnailLink;/.test(pin));
       ok('271 …hands it to the tile loader instead of null',
-         /loadDriveThumb\(_fid, img, img\.parentElement, _thumbLink\[_fid\] \|\| null, 'hi'\)/.test(pin));
+         /loadDriveThumb\(_fid, img, img\.parentElement, PIN\._thumbLink\[_fid\] \|\| null, 'hi'\)/.test(pin));
       ok('271 …and a photo with no link still degrades to the old per-file fetch',
          /\?fields=thumbnailLink/.test(rd71('drive.js')));
       ok('271 …with the map reset per listing so it cannot grow forever',
-         /_thumbLink = \{\};\s*\n\s*files\.forEach/.test(pin));
+         /PIN\._thumbLink = \{\};\s*\n\s*files\.forEach/.test(pin));
 
       // ── 4. a silent failure is not a report ──
       ok('271 a full-quota cache write tells the user, once',

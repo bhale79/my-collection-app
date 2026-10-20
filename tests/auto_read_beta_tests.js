@@ -52,7 +52,7 @@ function s2(src) {
   });
   // the paid markup itself
   if (!/\(!_pinAr\(\) \? '' :\s*\n\s*'<button id="pin-rv-idtoken"/.test(src)) bad.push('pin-rv-idtoken markup');
-  if (!/ib\.style\.display = \(_selectMode && n && _pinAr\(\)\)/.test(src)) bad.push('pin-idsel-btn');
+  if (!/ib\.style\.display = \(PIN\._selectMode && n && _pinAr\(\)\)/.test(src)) bad.push('pin-idsel-btn');
   if (!/if \(!_pinAr\(\)\) return;\s*\/\/ v0\.9\.1927: the double-check/.test(src)) bad.push('double-check');
   return bad;
 }
@@ -90,7 +90,7 @@ T('S1 aiSpendBlocked asks rrAutoReadOn first', s1(AI));
 T('S1 PLANTED: without that line it is caught', !s1(AI.replace("  if (!rrAutoReadOn()) return { ok: false, reason: 'notbeta' };\n", '')));
 T('S2 every Photo Inbox paid door is guarded', s2(PIN).length === 0, s2(PIN));
 {
-  const planted = PIN.replace("    if (!_pinAr()) return;   // v0.9.1927: paid read — beta feature\n    var gs = _rvGroups;", '    var gs = _rvGroups;');
+  const planted = PIN.replace("    if (!_pinAr()) return;   // v0.9.1927: paid read — beta feature\n    var gs = PIN._rvGroups;", '    var gs = PIN._rvGroups;');
   T('S2 PLANTED: an unguarded "Read this photo" is caught', planted !== PIN && s2(planted).indexOf('_pinReviewIdentify') >= 0, s2(planted));
 }
 const s3now = s3(TUT);

@@ -1159,7 +1159,7 @@ _pinOpaqueTint(document.getElementById('jt-active'), '41,128,185', 18);
     {
       const pinSrc = require('./lib/pin-source').pinSource();
       const x0 = pinSrc.indexOf('  var _exclView = { fid: null, nums: [] };');
-      const x1 = pinSrc.indexOf("  var _rvAiMfr = '';");
+      const x1 = pinSrc.indexOf("  PIN._rvAiMfr = '';");
       ok('excluded: the real section builder was found', x0 > 0 && x1 > x0);
       const exStore = { f1: { rejected: ['3-3-25', '175-50', '6561'] } };
       const exW = {};
@@ -1447,9 +1447,9 @@ showCandidatePicker(${CANDS}, { itemNum: '6464-500' });
   function _pinKindLabel(k) { return k; }
   function _pinRefresh() {}
   function _render() {}
-  var _sel = { g1: 1 }, _selPurpose = 'group';
-  // honours _sel so Cancel's clear actually empties the panel (v0.9.1306)
-  function _selGroups() { return _sel.g1 ? [{ key: 'g1', files: [{ id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'd' }] }] : []; }
+  var PIN = { _sel: { g1: 1 }, _selPurpose: 'group' };   // the Photo Inbox's shared state (split step 2)
+  // honours PIN._sel so Cancel's clear actually empties the panel (v0.9.1306)
+  function _selGroups() { return PIN._sel.g1 ? [{ key: 'g1', files: [{ id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'd' }] }] : []; }
   window.__finished = 0;
   window._pinFinishMode = function () { window.__finished++; };
 </script>

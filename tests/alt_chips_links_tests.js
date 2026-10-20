@@ -54,7 +54,7 @@ function build(opts) {
   const sb = {
     console,
     window: { rrDemotedRow: r => !!(r && r._box) },
-    _rvAiRec: opts.rec === undefined ? null : opts.rec,
+    PIN: { _rvAiRec: opts.rec === undefined ? null : opts.rec },   // the Photo Inbox's shared state (split step 2)
     _pinKinRowsFor: n => ROWS.filter(r => r.itemNum === String(n).trim()),
     _prefEras: p => (p && p.era) ? [p.era] : [],
     _rvPrefer: () => ({ era: opts.era || 'pw' }),
@@ -154,7 +154,7 @@ section('E. "6464 — use this" only when there is nothing to pick between');
   ok('two choices → no guess chip (Brad\'s case)', build({ rec: GN }).list().length === 2);
   ok('one choice that IS the guess → the chip stays (the one way to take it)', build({ rec: { num: '6440', guess: 1, alts: ['6440'] } }).list().length === 1);
   ok('no alternatives → the chip stays', build({ rec: { num: '6440', guess: 1, alts: [] } }).list().length === 0);
-  ok('the record is the ONE the card resolved (_rvAiRec), not a second lookup', /try \{ s = _rvAiRec \|\| \{\}; \}/.test(grab(SRC, 'function _pinAltList()')) && !/_ids\(\)/.test(grab(SRC, 'function _pinAltList()')));
+  ok('the record is the ONE the card resolved (PIN._rvAiRec), not a second lookup', /try \{ s = PIN\._rvAiRec \|\| \{\}; \}/.test(grab(SRC, 'function _pinAltList()')) && !/_ids\(\)/.test(grab(SRC, 'function _pinAltList()')));
   ok('the "Best guess from the photo" chip itself is unchanged (the v1103 pins still hold)', /Best guess from the photo:/.test(SRC) && /use this<\/button>/.test(SRC));
 }
 

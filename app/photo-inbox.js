@@ -31,6 +31,18 @@
 
 (function () {
   'use strict';
+  // ══ Photo Inbox split, step 2 (2026-10-20) — THE shared state ═════════════
+  // The values that more than one part of the Photo Inbox CHANGES live on ONE
+  // object, PIN, so that once the file is in pieces
+  // (PLAN_2026-10-20_PHOTO_INBOX_SPLIT.md) every piece reads and writes the
+  // same value. Each is still first set where it always was ("PIN._sel = {}"
+  // and so on), with its comment. A value only ONE part changes stays a plain
+  // variable in that part.
+  //   _sel _sessionEra _pinSession _thumbLink _groups _pinHaveListing _pinWatchSig
+  //   _selPurpose _selectMode _tagEra _tagType _pinOneShot _rvOrderKeys _rvStayOn
+  //   _rvKey _rvGroups _rvAiMfr _rvAiRec _idAbort
+  // tests/pin_state_tests.js fails if one of these is used bare again.
+  var PIN = window._pinShared = {};
   // v0.9.1927 (Brad): "move the autoread button to beta testers only". Every
   // paid read in this file asks this ONE question (ai-id.js rrAutoReadOn — the
   // Vault features row 'auto_read'). The free reader is untouched.
@@ -56,26 +68,26 @@
   var SETSTAGE_KEY = 'rr_inbox_setstage'; // v0.9.1122: set-add notes NOT yet armed (see _pinAddSetFromGroup)
   var CROPPED_KEY = 'rr_inbox_cropped';   // v0.9.961: { fileId: 1 } cropped -> load real bytes, not Drive's stale preview
   var _fid = null, _fidChecked = false;
-  var _groups = [];          // [{ key, files:[{id,name,createdTime}] }]
-  var _pinHaveListing = false; // v0.9.1871: a listing (online, or the saved one offline) has come back this session — only then is an empty _groups a KNOWN-empty inbox
-  var _sel = {};             // groupKey -> true
-  var _thumbLink = {};       // v0.9.1326: fileId -> thumbnailLink, from the listing
-  var _selectMode = false;   // true while EITHER selection mode is running
+  PIN._groups = [];          // [{ key, files:[{id,name,createdTime}] }]
+  PIN._pinHaveListing = false; // v0.9.1871: a listing (online, or the saved one offline) has come back this session — only then is an empty _groups a KNOWN-empty inbox
+  PIN._sel = {};             // groupKey -> true
+  PIN._thumbLink = {};       // v0.9.1326: fileId -> thumbnailLink, from the listing
+  PIN._selectMode = false;   // true while EITHER selection mode is running
   // v0.9.1057 (Brad): "Select multiple" said nothing about what it was for, so
   // the two things people actually do — put photos together, and say what they
   // are — had no front door. Two named buttons now, one selection mechanic.
-  var _rvKey = '';           // group key the review card is open on ('' = multi-select)
-  var _rvStayOn = '';        // v0.9.1960: the photo the card stays on when it repaints itself (a slot drop, a discard)
+  PIN._rvKey = '';           // group key the review card is open on ('' = multi-select)
+  PIN._rvStayOn = '';        // v0.9.1960: the photo the card stays on when it repaints itself (a slot drop, a discard)
   // v0.9.1307 (Brad: "i selected a filter for not scanned, and there is no
   // next or previous arrows"): the arrows walked the LIVE filtered list, so
   // the moment a card was read it fell out of a not-read filter, its index
   // came back -1, and the arrows vanished — on exactly the workflow the
   // filter exists for. The walking order is now SNAPSHOTTED when the card
   // opens (group keys — stable identifiers) and released when it closes.
-  var _rvOrderKeys = null;
-  var _selPurpose = '';      // '' | 'group' | 'tag'  — what Apply does
-  var _tagEra = '';          // era picked in tag mode, written on Apply
-  var _tagType = '';         // v0.9.1297: item type picked in tag mode ('' = leave as-is)
+  PIN._rvOrderKeys = null;
+  PIN._selPurpose = '';      // '' | 'group' | 'tag'  — what Apply does
+  PIN._tagEra = '';          // era picked in tag mode, written on Apply
+  PIN._tagType = '';         // v0.9.1297: item type picked in tag mode ('' = leave as-is)
   // The Type choices the tag bar offers. 'Paper' and 'Catalog' matter most —
   // they stop a blueprint being searched as a locomotive.
   var _PIN_TYPES = ['Engine', 'Tender', 'Boxcar', 'Flatcar', 'Gondola', 'Tank Car', 'Hopper',
@@ -85,8 +97,8 @@
   // Brad only wants it while he is actually shooting. It appears when a session
   // starts, and Done ends it. Deliberately NOT persisted: a stale "Lionel
   // Postwar" left armed a week later is how forty cars get mis-stamped.
-  var _pinSession = false;
-  var _sessionEra = '';      // the session's home era (memory only)
+  PIN._pinSession = false;
+  PIN._sessionEra = '';      // the session's home era (memory only)
   var _busy = false;
 
   // ── v0.9.1418 (Cooper, on a desktop: "I clicked apply button, nothing
@@ -365,10 +377,10 @@
   // and the tour card asks whether this inbox is known (or, before the listing has
   // landed, counted at start-up) to be empty — the samples' cue.
   if (typeof window !== 'undefined') {
-    if (window.RR_SAMPLE_REDRAW) window.RR_SAMPLE_REDRAW['photo-inbox'] = function () { if (_pinHaveListing) _render(); };
+    if (window.RR_SAMPLE_REDRAW) window.RR_SAMPLE_REDRAW['photo-inbox'] = function () { if (PIN._pinHaveListing) _render(); };
     window._pinKnownEmpty = function () {
-      if (_groups.length) return false;
-      if (_pinHaveListing) return true;
+      if (PIN._groups.length) return false;
+      if (PIN._pinHaveListing) return true;
       try { return localStorage.getItem(COUNT_KEY) === '0'; } catch (e) { return false; }
     };
   }
@@ -470,7 +482,7 @@
     return rec.guess ? 1 : 2;
   }
   function _pinGroupOfFid(fid) {
-    var lists = [_rvGroups || [], _groups || []];
+    var lists = [PIN._rvGroups || [], PIN._groups || []];
     for (var l = 0; l < lists.length; l++) {
       for (var i = 0; i < lists[l].length; i++) {
         var g = lists[l][i];
@@ -704,15 +716,15 @@
     return true;
   }
   function _pinVisibleGroups() {
-    if (!_pinFilter.status && !_pinFilter.era && !_pinFilter.kind) return _groups;
-    return _groups.filter(_pinGroupPasses);
+    if (!_pinFilter.status && !_pinFilter.era && !_pinFilter.kind) return PIN._groups;
+    return PIN._groups.filter(_pinGroupPasses);
   }
   function _pinFilterActive() { return !!(_pinFilter.status || _pinFilter.era || _pinFilter.kind); }
 
   // Counts so a chip can say what is behind it before you tap.
   function _pinCounts() {
     var st = {}, era = {}, kind = {};
-    _groups.forEach(function (g) {
+    PIN._groups.forEach(function (g) {
       var f = _pinReadFile(g) || g.files[0], m = (f && f._meta) || {};
       var s2 = _pinStatusOf(f); st[s2] = (st[s2] || 0) + 1;
       if (m.era) era[m.era] = (era[m.era] || 0) + 1;
@@ -1023,7 +1035,7 @@
   }
 
   function _pinGrpPanelRender() {
-    if (_selPurpose !== 'group') { _pinGrpPanelClose(); return; }
+    if (PIN._selPurpose !== 'group') { _pinGrpPanelClose(); return; }
     var files = _pinGrpPanelFiles();
     var k = _pinKind(_grpPanelKind);
     _grpPanelRoles = _grpPanelRoles.slice(0, files.length);
@@ -1211,7 +1223,7 @@
       else showToast('Grouped ' + res.ok + ' of ' + res.total + ' — try the rest again', 5000, true);
       // The panel STAYS — clear the ticks and the roles so the next group
       // starts clean, and refresh the grid behind it.
-      _sel = {}; _grpPanelRoles = [];
+      PIN._sel = {}; _grpPanelRoles = [];
       _pinGrpPanelRender();
       _pinRefresh();
     };
@@ -1222,7 +1234,7 @@
     // the next group (and SAY so); nothing ticked → close, same as Done.
     if (cn) cn.onclick = function () {
       var _had = _pinGrpPanelFiles().length;
-      _sel = {}; _grpPanelRoles = [];
+      PIN._sel = {}; _grpPanelRoles = [];
       if (_had) {
         _render();
         _pinGrpPanelRender();
@@ -1238,7 +1250,7 @@
 
   window._pinConfirmUngroup = async function (key) {
     var g = null;
-    _groups.forEach(function (x) { if (x.key === key) g = x; });
+    PIN._groups.forEach(function (x) { if (x.key === key) g = x; });
     if (!g || g.files.length < 2) return;
     var ok = await _pinConfirm('Split this back into ' + g.files.length
       + ' separate photos? Nothing is deleted \u2014 they just stop being one item.', 'Split apart');
@@ -1266,7 +1278,7 @@
   // Releasing a photo must never quietly cancel the add that claimed it.
   window._pinReleaseClaim = async function (key) {
     var g = null;
-    _groups.forEach(function (x) { if (x.key === key) g = x; });
+    PIN._groups.forEach(function (x) { if (x.key === key) g = x; });
     if (!g || !g.files.length) return;
     var map = _pinNoteFileMap();
     var ids = g.files.map(function (f) { return f.id; }).filter(function (id) { return map[id]; });
@@ -1316,7 +1328,7 @@
   // Break a group back into loose photos.
   window._pinUngroup = async function (key) {
     var g = null;
-    _groups.forEach(function (x) { if (x.key === key) g = x; });
+    PIN._groups.forEach(function (x) { if (x.key === key) g = x; });
     if (!g || g.files.length < 2) return;
     // v0.9.1132: '-' not '' — see _pinMetaOf. An empty value is indistinguishable
     // from "never grouped", which is why this used to do nothing to a stack that
@@ -1350,16 +1362,16 @@
   // versions; devices from before the change may still hold the stale key,
   // so it is cleared once here rather than left forever.
   try { localStorage.removeItem('rr_capture_home_era'); } catch (eHK) {}
-  var _pinOneShot = null;          // era key armed for the next photo only
+  PIN._pinOneShot = null;          // era key armed for the next photo only
 
   // v0.9.1057: the home era used to live in localStorage and survive restarts.
   // Brad's call: it clears when the session is done. A setting that outlives the
   // shelf you were photographing is a trap, not a convenience — you come back
   // next week, shoot MTH, and it all lands as Lionel Postwar.
-  function _pinHomeEra() { return _sessionEra || ''; }
-  function _pinSetHomeEra(era) { _sessionEra = era || ''; }
+  function _pinHomeEra() { return PIN._sessionEra || ''; }
+  function _pinSetHomeEra(era) { PIN._sessionEra = era || ''; }
   // What the next photo will be stamped with.
-  function _pinActiveEra() { return _pinOneShot || _pinHomeEra(); }
+  function _pinActiveEra() { return PIN._pinOneShot || _pinHomeEra(); }
 
   function _pinEraLabel(era) {
     if (!era) return 'Not set';
@@ -1416,9 +1428,9 @@
     if (!el) return;
     // Only while a shooting session is running. Brad: "that bar should only show
     // up after you hit the add photos button."
-    if (!_pinSession) { el.style.display = 'none'; return; }
+    if (!PIN._pinSession) { el.style.display = 'none'; return; }
     var era = _pinActiveEra();
-    var armed = !!_pinOneShot;
+    var armed = !!PIN._pinOneShot;
     var known = !!era;
     el.style.cssText = 'display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.7rem;'
       + 'padding:0.55rem 0.75rem;border-radius:10px;border:2px solid '
@@ -1443,14 +1455,14 @@
 
   // Ends the shooting session: bar goes away, nothing stays armed.
   window._pinEndSession = function () {
-    _pinSession = false;
-    _pinOneShot = null;
-    _sessionEra = '';
+    PIN._pinSession = false;
+    PIN._pinOneShot = null;
+    PIN._sessionEra = '';
     var el = document.getElementById('pin-context-bar');
     if (el) el.style.display = 'none';
   };
 
-  window._pinClearOneShot = function () { _pinOneShot = null; _pinRenderBar(); };
+  window._pinClearOneShot = function () { PIN._pinOneShot = null; _pinRenderBar(); };
 
   // Three dropdowns that narrow each other: maker → scale → line.
   // opts (all optional) — when opts.onPick is given the sheet shows ONE confirm
@@ -1580,13 +1592,13 @@
         card.querySelector('#pin-ctx-once').onclick = function () {
           var e2 = chosen();
           if (!e2) { showToast('Pick the line first', 2200, true); return; }
-          _pinOneShot = e2; ov.remove(); _pinRenderBar();
+          PIN._pinOneShot = e2; ov.remove(); _pinRenderBar();
           showToast('Next photo only: ' + _pinEraLabel(e2), 3000);
         };
         card.querySelector('#pin-ctx-keep').onclick = function () {
           var e2 = chosen();
           if (!e2) { showToast('Pick the line first', 2200, true); return; }
-          _pinSetHomeEra(e2); _pinOneShot = null; ov.remove(); _pinRenderBar();
+          _pinSetHomeEra(e2); PIN._pinOneShot = null; ov.remove(); _pinRenderBar();
           showToast('Now shooting ' + _pinEraLabel(e2), 3000);
         };
       }
@@ -1731,7 +1743,7 @@
   // The local half of a stamp write. null deletes a key, exactly as Drive
   // does — the two copies cannot drift. Exposed for the test harness.
   function _pinMetaMergeLocal(fileId, props) {
-    (_groups || []).forEach(function (g) {
+    (PIN._groups || []).forEach(function (g) {
       (g.files || []).forEach(function (f) {
         if (!f || f.id !== fileId) return;
         f.appProperties = f.appProperties || {};
@@ -1785,7 +1797,7 @@
       // repaired. Silent, and invisible: the entry simply kept a stale number
       // forever while its group-mate got fixed. Found while verifying v0.9.1165.
       var _files = [];
-      _groups.forEach(function (g) {
+      PIN._groups.forEach(function (g) {
         (g.files || []).forEach(function (f) { if (f && f.id) _files.push({ g: g, fid: f.id }); });
       });
       _files.forEach(function (item) {
@@ -1946,9 +1958,9 @@
   // it); sets _groups and _thumbLink as the inline code always did.
   function _pinBuildGroups(files) {
     var map = {}, order = [];
-    _thumbLink = {};
+    PIN._thumbLink = {};
     files.forEach(function (f) {
-      if (f.thumbnailLink) _thumbLink[f.id] = f.thumbnailLink;
+      if (f.thumbnailLink) PIN._thumbLink[f.id] = f.thumbnailLink;
       // v0.9.1047: metadata first, filename as the fallback — so photos from
       // before today group exactly as they always did.
       f._meta = _pinMetaOf(f);
@@ -1956,9 +1968,9 @@
       if (!map[key]) { map[key] = { key: key, files: [], kind: f._meta.kind, era: f._meta.era }; order.push(key); }
       map[key].files.push(f);
     });
-    _groups = order.map(function (k) { return map[k]; });
+    PIN._groups = order.map(function (k) { return map[k]; });
     // v0.9.1283: a dragged order outranks the listing order, per group.
-    _groups.forEach(function (g) { g.files = _pinSortByOrd(g.files); });
+    PIN._groups.forEach(function (g) { g.files = _pinSortByOrd(g.files); });
     return map;
   }
 
@@ -1996,7 +2008,7 @@
         return;
       }
       _pinBuildGroups(_cached.files);
-      _pinHaveListing = true;   // v0.9.1871
+      PIN._pinHaveListing = true;   // v0.9.1871
       _render();
       var _when = '';
       try { _when = new Date(_cached.at).toLocaleString(); } catch (eW) {}
@@ -2053,7 +2065,7 @@
       // the fingerprint the inbox watcher compares Drive against. Only a
       // COMPLETE listing may be a baseline — a partial one would make every
       // photo past the cut look like a change on another device.
-      _pinWatchSig = _pinListComplete ? _pinWatchSigOf(files) : null;
+      PIN._pinWatchSig = _pinListComplete ? _pinWatchSigOf(files) : null;
       // Group by the g<id> tag; untagged files are their own group.
       var map = _pinBuildGroups(files);
       // v0.9.1326 (MEASURED): the listing now asks for thumbnailLink, which
@@ -2079,7 +2091,7 @@
       // PUSH runs in the background.
       try { _pinSyncReadState(files); } catch (eSY) { console.warn('[inbox] read-state sync failed', eSY && eSY.message); }
       // Drop selections that no longer exist
-      Object.keys(_sel).forEach(function (k) { if (!map[k]) delete _sel[k]; });
+      Object.keys(PIN._sel).forEach(function (k) { if (!map[k]) delete PIN._sel[k]; });
       // Prune stored reads for photos that left the inbox.
       // v0.9.1131 (audit #5, the damaging half): this ran against whatever the
       // listing happened to contain. Paired with the 200-file cap it deleted
@@ -2102,7 +2114,7 @@
           if (ch2) _freeTriedSave(ft);
         } catch (eFT) {}
       })();
-      _pinHaveListing = true;   // v0.9.1871: the inbox is now KNOWN — empty or not
+      PIN._pinHaveListing = true;   // v0.9.1871: the inbox is now KNOWN — empty or not
       _render();
       // v0.9.1275 (R15): a partial listing is drawn, but never passed off as
       // the whole inbox.
@@ -2159,7 +2171,7 @@
   var _WATCH_EVENT_GAP_MS = 5000;  // focus + visibility fire together; look once
   var _WATCH_RETRY_MS = 15000;     // one quick second look after a failed one
   var _pinWatchRetried = false;    // ONE quick retry per failure streak, never a 15s hammer
-  var _pinWatchSig = null;         // fingerprint the screen was built from; null = none yet
+  PIN._pinWatchSig = null;         // fingerprint the screen was built from; null = none yet
   var _pinWatchBusy = false;       // a look is in flight
   var _pinWatchTimer = null;
   var _pinWatchLastAt = 0;
@@ -2197,7 +2209,7 @@
       if (job) return job;
       if (_pinRefreshFlight) return 'refresh in flight';
       if (window._rrCropOpen) return 'crop screen';
-      if (_selectMode) return 'select mode';
+      if (PIN._selectMode) return 'select mode';
       if (window._pinInternalDrag) return 'drag';
       var open = ['pin-review-ov', 'pin-rv-slotpick', 'pin-ctx-sheet', 'pin-wf-sheet', 'pin-help-sheet', 'pin-grp-panel'];
       for (var i = 0; i < open.length; i++) if (document.getElementById(open[i])) return open[i];
@@ -2238,8 +2250,8 @@
       _pinWatchRetried = false;            // Drive answered: the quick-retry latch re-arms
       if (!files) return 'folder too big';
       var sig = _pinWatchSigOf(files);
-      if (_pinWatchSig === null) { _pinWatchSig = sig; return 'baseline'; }
-      if (sig === _pinWatchSig) return 'same';
+      if (PIN._pinWatchSig === null) { PIN._pinWatchSig = sig; return 'baseline'; }
+      if (sig === PIN._pinWatchSig) return 'same';
       // Drive moved on since the screen was drawn. Ask again before acting —
       // the user may have opened a card while Drive was answering. Held now
       // means the baseline stays unmatched, so the next idle tick reloads.
@@ -2250,7 +2262,7 @@
         await window._pinRefresh();        // takes the new baseline from its own complete listing
       } else {
         console.log('[inbox watch] inbox changed on another device (' + why + ') — updating the dashboard card');
-        _pinWatchSig = sig;
+        PIN._pinWatchSig = sig;
         _navBadge(files.length);
         try { _pinPanelFill(); } catch (eP) {}
       }
@@ -2358,7 +2370,7 @@
     // v0.9.1871 — the tour's three sample photos (config.js rrSampleRows): only on
     // an inbox KNOWN to be empty, and only in the DRAWN list. `total` below — the
     // menu badge, the remembered count, the Identify buttons — stays the collector's own.
-    var _pinSmp = (_pinHaveListing && !_groups.length && typeof rrSampleRows === 'function') ? rrSampleRows('inbox', 0) : [];
+    var _pinSmp = (PIN._pinHaveListing && !PIN._groups.length && typeof rrSampleRows === 'function') ? rrSampleRows('inbox', 0) : [];
     if (_pinSmp.length) _vis = _pinSmp;
     // v0.9.1609 (Brad: "can we not gray out the picture and push it to the
     // bottom of the list?"): claimed groups — photos an add in progress has
@@ -2372,9 +2384,9 @@
     });
     _vis = _visOpen9.concat(_visClaimed9);
     var total = 0;
-    _groups.forEach(function (g) { total += g.files.length; });
+    PIN._groups.forEach(function (g) { total += g.files.length; });
     grid.innerHTML = _vis.map(function (g) {
-      var isSel = !!_sel[g.key];
+      var isSel = !!PIN._sel[g.key];
       // v0.9.1050: a stack says WHAT it is, not just how many photos.
       var _gk = (g.files[0] && g.files[0]._meta && g.files[0]._meta.kind) || 'single';
       // v0.9.1176: an untagged stack whose photos read different numbers is not
@@ -2416,8 +2428,8 @@
       // discard); the corner circle is the multi-select toggle.
       // Default: clicking a tile opens Review. In Select-multiple mode, the tile
       // toggles selection (circles + crop appear/hide accordingly).
-      var _tileClick = _selectMode ? '_pinToggle' : '_pinReview';
-      var _circle = _selectMode
+      var _tileClick = PIN._selectMode ? '_pinToggle' : '_pinReview';
+      var _circle = PIN._selectMode
         ? '<div onclick="event.stopPropagation();_pinToggle(\'' + g.key + '\')" title="Select" style="position:absolute;top:6px;left:6px;width:22px;height:22px;border-radius:50%;border:2px solid ' + (isSel ? '#2980b9' : 'rgba(255,255,255,0.75)') + ';background:' + (isSel ? '#2980b9' : 'rgba(0,0,0,0.35)') + ';color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:700">' + (isSel ? '✓' : '') + '</div>'
         : '';
       // v0.9.1058 (Brad: "somehow we need to update the picture to show what it
@@ -2431,17 +2443,17 @@
       if (_m0.era) {
         when = '<span style="color:#7ec3ef;font-weight:700">' + rrEsc(_pinEraLabel(_m0.era)) + '</span> · ' + when;
       }
-      var _crop = _selectMode ? ''
+      var _crop = PIN._selectMode ? ''
         : '<div onclick="event.stopPropagation();_pinTileCrop(\'' + g.key + '\')" title="Crop / Rotate" style="position:absolute;right:6px;bottom:26px;width:24px;height:24px;border-radius:7px;background:rgba(0,0,0,0.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.8rem;cursor:pointer">✂</div>';
       // v0.9.1439 (Brad): "it would be nice to make a copy of a picture." The
       // real use is one photo showing two items — copy it, then crop each copy
       // to its own item. Deliberate, labelled, and undoable by discarding.
-      var _copy = (_selectMode || g.files.length > 1) ? ''
+      var _copy = (PIN._selectMode || g.files.length > 1) ? ''
         : '<div onclick="event.stopPropagation();_pinTileCopy(\'' + g.key + '\')" title="Make a copy of this photo" style="position:absolute;right:34px;bottom:26px;width:24px;height:24px;border-radius:7px;background:rgba(0,0,0,0.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.78rem;cursor:pointer">⧉</div>';
       // v0.9.1057: grouping had no undo. Photos could be put together and never
       // taken apart, so one wrong tick was permanent. Only on stacks, only out
       // of select mode.
-      var _ungroup = (_selectMode || g.files.length < 2) ? ''
+      var _ungroup = (PIN._selectMode || g.files.length < 2) ? ''
         : '<div onclick="event.stopPropagation();_pinConfirmUngroup(\'' + g.key + '\')" title="Split this group apart" style="position:absolute;left:6px;bottom:26px;width:24px;height:24px;border-radius:7px;background:rgba(0,0,0,0.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.9rem;cursor:pointer">⊟</div>';
       return '<div class="pin-tile" data-key="' + g.key + '"' + rrSampleAttrs(g) + ' onclick="' + _tileClick + '(\'' + g.key + '\')" style="position:relative;border-radius:10px;overflow:hidden;cursor:pointer;background:var(--surface2,#26262e);aspect-ratio:var(--rr-photo-tile-ratio);border:3px solid ' + (isSel ? '#2980b9' : 'transparent') + '">' +
         // v0.9.1871: a sample's picture is built into the app, not on Drive — src, and no data-fid for the Drive loader below
@@ -2457,8 +2469,8 @@
         '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);color:#ddd;font-size:0.6rem;padding:0.1rem 0.35rem">' + when + '</div>' +
         '</div>';
     }).join('');
-    empty.style.display = (_groups.length || _pinSmp.length) ? 'none' : 'block';   // v0.9.1871: three sample photos are not an empty inbox
-    if (_groups.length && !_vis.length) {
+    empty.style.display = (PIN._groups.length || _pinSmp.length) ? 'none' : 'block';   // v0.9.1871: three sample photos are not an empty inbox
+    if (PIN._groups.length && !_vis.length) {
       grid.innerHTML = '<div style="grid-column:1/-1;padding:1.5rem 0;text-align:center;color:var(--text-dim);font-size:0.88rem">'
         + 'No photos match that filter. <button onclick="_pinClearFilters()" style="background:none;border:none;color:var(--t-accent);text-decoration:underline;cursor:pointer;font-size:0.88rem">Show all</button></div>';
     }
@@ -2468,7 +2480,7 @@
     // GROUP and the count summed FILES. Both were true and neither matched what
     // he could count, so say both.
     if (cnt) {
-      var _items = _groups.length;
+      var _items = PIN._groups.length;
       var _shown = _vis.length;
       cnt.textContent = !total ? ''
         : (_pinFilterActive()
@@ -2482,7 +2494,7 @@
       // entry passes null and degrades to the old per-file fetch, so a photo
       // Drive declined to thumbnail still behaves exactly as before.
       var _fid = img.getAttribute('data-fid');
-      loadDriveThumb(_fid, img, img.parentElement, _thumbLink[_fid] || null, 'hi');
+      loadDriveThumb(_fid, img, img.parentElement, PIN._thumbLink[_fid] || null, 'hi');
     });
     _selInfo();
     try { _pinRenderBar(); } catch (eB) {}   // v0.9.1048; v0.9.1057 the bar decides its own visibility
@@ -2492,8 +2504,8 @@
     // v0.9.961 (Brad): keep the "cropped" marker set trimmed to files still in
     // the inbox (filed/discarded photos drop out), then republish to drive.js.
     try {
-      if (_groups.length) {   // only prune once photos have actually loaded
-        var live = {}; _groups.forEach(function (g) { g.files.forEach(function (f) { live[f.id] = 1; }); });
+      if (PIN._groups.length) {   // only prune once photos have actually loaded
+        var live = {}; PIN._groups.forEach(function (g) { g.files.forEach(function (f) { live[f.id] = 1; }); });
         var c = _cropped(), pruned = {}, changed = false;
         Object.keys(c).forEach(function (fid) { if (live[fid]) pruned[fid] = 1; else changed = true; });
         if (changed) _croppedSave(pruned); else window._rrForceFreshBytes = c;
@@ -2512,7 +2524,7 @@
     var b = document.getElementById('pin-idall-btn');
     if (!b) return;
     var ids = _ids();
-    var n = _groups.filter(function (g) { return !_pinRecFor(_pinReadFid(g)).rec; }).length;   // v0.9.1960: identified on any photo = identified
+    var n = PIN._groups.filter(function (g) { return !_pinRecFor(_pinReadFid(g)).rec; }).length;   // v0.9.1960: identified on any photo = identified
     // v0.9.1436 (Brad): "get rid of the paid ai reader button here. we will
     // keep it on the individual photo add page." The batch paid-read button is
     // retired from the toolbar (and from the phone's More menu, which only
@@ -2559,7 +2571,7 @@
   // inheriting a group would silently add a photo to an item you already filed.
   window._pinTileCopy = async function (key) {
     if (_busy) { _pinBusyBounce(); return; }
-    var g = _groups.filter(function (x) { return x.key === key; })[0];
+    var g = PIN._groups.filter(function (x) { return x.key === key; })[0];
     var src = g && g.files && g.files[0];
     if (!src) { showToast('Could not find that photo', 2600, true); return; }
     _setBusy(true, 'Copying a photo');
@@ -2595,7 +2607,7 @@
   };
 
   window._pinTileCrop = function (key) {
-    var g = _groups.filter(function (x) { return x.key === key; })[0];
+    var g = PIN._groups.filter(function (x) { return x.key === key; })[0];
     if (!g || !g.files.length) return;
     if (g.files.length === 1) return window._pinCropPhoto(g.files[0].id);
     window._pinReview(key);
@@ -2603,7 +2615,7 @@
   };
 
   window._pinToggle = function (key) {
-    if (_sel[key]) delete _sel[key]; else _sel[key] = true;
+    if (PIN._sel[key]) delete PIN._sel[key]; else PIN._sel[key] = true;
     _render();
   };
 
@@ -2614,9 +2626,9 @@
   // would have been an invisible edit, which is the worst kind.
   window._pinSelectAll = function () {
     var vis = _pinVisibleGroups();
-    var allSel = vis.length && vis.every(function (g) { return _sel[g.key]; });
-    _sel = {};
-    if (!allSel) vis.forEach(function (g) { _sel[g.key] = true; });
+    var allSel = vis.length && vis.every(function (g) { return PIN._sel[g.key]; });
+    PIN._sel = {};
+    if (!allSel) vis.forEach(function (g) { PIN._sel[g.key] = true; });
     _render();
   };
 
@@ -2624,12 +2636,12 @@
   // Select all, a running count, Finished — and differ only in what Apply does.
   // One thing to learn, two jobs.
   window._pinStartMode = function (purpose) {
-    if (_selPurpose === purpose) return window._pinFinishMode();
+    if (PIN._selPurpose === purpose) return window._pinFinishMode();
     // switching between the two modes is not "leaving", so no warning here
-    _selPurpose = purpose;
-    _selectMode = true;
-    _sel = {};
-    if (purpose === 'tag' && !_tagEra) _tagEra = _sessionEra || '';
+    PIN._selPurpose = purpose;
+    PIN._selectMode = true;
+    PIN._sel = {};
+    if (purpose === 'tag' && !PIN._tagEra) PIN._tagEra = PIN._sessionEra || '';
     _render();
     // v0.9.1297: group mode opens the floating panel immediately (empty, so
     // its blurb explains the flow); any other mode closes it.
@@ -2645,9 +2657,9 @@
   };
 
   function _pinCloseMode() {
-    _selPurpose = '';
-    _selectMode = false;
-    _sel = {};
+    PIN._selPurpose = '';
+    PIN._selectMode = false;
+    PIN._sel = {};
     try { _pinGrpPanelClose(); } catch (eGP) {}
     _render();
   }
@@ -2661,7 +2673,7 @@
     var n = 0;
     _selGroups().forEach(function (g) { n += g.files.length; });
     if (n > 0) {
-      var what = _selPurpose === 'tag'
+      var what = PIN._selPurpose === 'tag'
         ? 'tagged with a manufacturer, era and scale'
         : 'put into a group';
       var ok = await _pinConfirm(
@@ -2677,7 +2689,7 @@
 
   // Kept so nothing that still calls the old name breaks.
   window._pinToggleSelectMode = function () {
-    if (_selectMode) return window._pinFinishMode();
+    if (PIN._selectMode) return window._pinFinishMode();
     return window._pinStartMode('group');
   };
   window._pinCloseModeNow = _pinCloseMode;   // used by tests and by Apply
@@ -2686,7 +2698,7 @@
   function _pinRenderTagBar() {
     var el = document.getElementById('pin-tagbar');
     if (!el) return;
-    if (_selPurpose !== 'tag') {
+    if (PIN._selPurpose !== 'tag') {
       el.style.display = 'none';
       var ap0 = document.getElementById('pin-apply-btn');
       if (ap0) ap0.style.display = 'none';
@@ -2700,7 +2712,7 @@
         // v0.9.1432: only meaningful once an era is chosen. With _tagEra empty
         // this compared every photo's era against '' and announced "N of those
         // will be changed" on a bar that could not apply anything yet.
-        if (_tagEra && m && m.era && m.era !== _tagEra) changing++;
+        if (PIN._tagEra && m && m.era && m.era !== PIN._tagEra) changing++;
       });
     });
     el.style.cssText = 'display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.7rem;'
@@ -2714,7 +2726,7 @@
     // up. Type-only tagging now counts as ready too ("Engine" with no era),
     // and the button is NEVER disabled — an unready click walks the user to
     // what's missing instead of ignoring them.
-    var ready = n > 0 && (!!_tagEra || !!_tagType);
+    var ready = n > 0 && (!!PIN._tagEra || !!PIN._tagType);
     // v0.9.1060 (Brad: "the apply button needs to be to the left of the finished
     // button. its lost where its at."). Apply lives in the toolbar beside
     // Finished now — the two decisions that end this mode sit together.
@@ -2731,24 +2743,24 @@
     el.innerHTML =
       '<span style="font-size:0.68rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);font-weight:700">Tag as</span>'
       + '<button onclick="_pinPickTagEra()" style="flex:1;min-width:150px;text-align:left;padding:0.45rem 0.7rem;border-radius:8px;'
-        + 'border:1.5px solid ' + (_tagEra ? '#2980b9' : 'var(--border)') + ';background:' + (_tagEra ? '#f7f0dc' : 'var(--bg)') + ';'
-        + 'color:' + (_tagEra ? 'var(--t-link)' : 'var(--text-dim)') + ';font-family:var(--font-head);font-weight:700;font-size:0.9rem;cursor:pointer">'
-        + rrEsc(_pinEraLabel(_tagEra)) + ' \u25be</button>'
+        + 'border:1.5px solid ' + (PIN._tagEra ? '#2980b9' : 'var(--border)') + ';background:' + (PIN._tagEra ? '#f7f0dc' : 'var(--bg)') + ';'
+        + 'color:' + (PIN._tagEra ? 'var(--t-link)' : 'var(--text-dim)') + ';font-family:var(--font-head);font-weight:700;font-size:0.9rem;cursor:pointer">'
+        + rrEsc(_pinEraLabel(PIN._tagEra)) + ' \u25be</button>'
       // v0.9.1297 (Brad: "on the tag, lets add type to it as well. so i can
       // put paper, or boxcar or whatever"). '' = leave each photo's type
       // as-is, so tagging an era never silently blanks a type set earlier.
       + '<select id="pin-tag-type" style="min-width:130px;padding:0.45rem 0.55rem;border-radius:8px;'
-        + 'border:1.5px solid ' + (_tagType ? '#2980b9' : 'var(--border)') + ';background:var(--bg);'
-        + 'color:' + (_tagType ? 'var(--t-link)' : 'var(--text-dim)') + ';font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">'
+        + 'border:1.5px solid ' + (PIN._tagType ? '#2980b9' : 'var(--border)') + ';background:var(--bg);'
+        + 'color:' + (PIN._tagType ? 'var(--t-link)' : 'var(--text-dim)') + ';font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">'
         + '<option value="">Type: (leave as-is)</option>'
-        + _PIN_TYPES.map(function (t) { return '<option value="' + t + '"' + (t === _tagType ? ' selected' : '') + '>' + t + '</option>'; }).join('')
+        + _PIN_TYPES.map(function (t) { return '<option value="' + t + '"' + (t === PIN._tagType ? ' selected' : '') + '>' + t + '</option>'; }).join('')
       + '</select>'
       + (changing
           ? '<span style="font-size:0.74rem;color:#ffb454;font-weight:600;width:100%">'
             + changing + ' of those already ' + (changing === 1 ? 'has' : 'have') + ' a different era and will be changed</span>'
           : '');
     var _tt = document.getElementById('pin-tag-type');
-    if (_tt) _tt.onchange = function () { _tagType = this.value; };
+    if (_tt) _tt.onchange = function () { PIN._tagType = this.value; };
   }
 
   window._pinPickTagEra = function () {
@@ -2756,7 +2768,7 @@
       title: 'Tag these photos as\u2026',
       blurb: 'This gets saved with each ticked photo, so the app knows which catalog to look in.',
       okLabel: 'Use this',
-      onPick: function (era) { _tagEra = era; _pinRenderTagBar(); },
+      onPick: function (era) { PIN._tagEra = era; _pinRenderTagBar(); },
     });
   };
 
@@ -2771,9 +2783,9 @@
     if (!ids.length) { showToast('Tick some photos first', 2400, true); return; }
     // v0.9.1432: with nothing chosen, the click OPENS the era picker instead
     // of toasting about it — the click becomes the fix, not a dead end.
-    if (!_tagEra && !_tagType) { _pinPickTagEra(); return; }
+    if (!PIN._tagEra && !PIN._tagType) { _pinPickTagEra(); return; }
     _setBusy(true, 'Tagging photos');
-    var label = (_tagEra ? _pinEraLabel(_tagEra) : '') + (_tagEra && _tagType ? ' \u00b7 ' : '') + (_tagType || '');
+    var label = (PIN._tagEra ? _pinEraLabel(PIN._tagEra) : '') + (PIN._tagEra && PIN._tagType ? ' \u00b7 ' : '') + (PIN._tagType || '');
     _status('Tagging ' + ids.length + ' photo' + (ids.length > 1 ? 's' : '') + '\u2026');
     var ok = 0;
     try {
@@ -2787,8 +2799,8 @@
       // from era presence, so a type-only patch claiming 'stamped' would show
       // in the Tagged filter with no era behind it.
       var _patch = {};
-      if (_tagEra) { _patch.era = _tagEra; _patch.stat = 'stamped'; }
-      if (_tagType) _patch.type = _tagType;
+      if (PIN._tagEra) { _patch.era = PIN._tagEra; _patch.stat = 'stamped'; }
+      if (PIN._tagType) _patch.type = PIN._tagType;
       ok = await _pinMetaSetMany(ids, _patch, function (done) {
         _status('Tagging ' + done + ' of ' + ids.length + '\u2026');
       });
@@ -2807,7 +2819,7 @@
     // this app has been burned by before.
     if (ok === ids.length) showToast('Tagged ' + ok + ' photo' + (ok > 1 ? 's' : '') + ' as ' + label, 3200);
     else showToast('Tagged ' + ok + ' of ' + ids.length + ' \u2014 the rest did not save, try again', 4200, true);
-    _sel = {};                 // clear the ticks, STAY in tag mode for the next batch
+    PIN._sel = {};                 // clear the ticks, STAY in tag mode for the next batch
     await window._pinRefresh();
   };
 
@@ -2827,7 +2839,7 @@
     el.style.background = 'color-mix(in srgb, rgb(' + rgbCsv + ') ' + pct + '%, var(--bg-card))';
   }
 
-  function _selGroups() { return _groups.filter(function (g) { return _sel[g.key]; }); }
+  function _selGroups() { return PIN._groups.filter(function (g) { return PIN._sel[g.key]; }); }
 
   function _selInfo() {
     var gs = _selGroups(), n = 0;
@@ -2835,16 +2847,16 @@
     var info = document.getElementById('pin-selinfo');
     var ab = document.getElementById('pin-assign-btn'), db = document.getElementById('pin-discard-btn');
     var ib = document.getElementById('pin-idsel-btn');   // v0.9.897 (Brad): identify just the ticked photos
-    if (info) info.textContent = n ? (n + ' photo' + (n > 1 ? 's' : '') + ' selected') : (_selectMode ? 'Tap photos to select' : '');
+    if (info) info.textContent = n ? (n + ' photo' + (n > 1 ? 's' : '') + ' selected') : (PIN._selectMode ? 'Tap photos to select' : '');
     var sa = document.getElementById('pin-selall-btn');
     if (sa) {
-      sa.style.display = _selectMode ? '' : 'none';
+      sa.style.display = PIN._selectMode ? '' : 'none';
       var vis = _pinVisibleGroups();
-      var allSel = vis.length && vis.every(function (g) { return _sel[g.key]; });
+      var allSel = vis.length && vis.every(function (g) { return PIN._sel[g.key]; });
       sa.textContent = allSel ? 'Deselect all' : 'Select all';
     }
     // v0.9.1057: which actions show depends on WHY you are selecting.
-    var isGroup = _selPurpose === 'group', isTag = _selPurpose === 'tag';
+    var isGroup = PIN._selPurpose === 'group', isTag = PIN._selPurpose === 'tag';
     // v0.9.1594 (Brad, second phone screenshot: "when you select, the other
     // buttons become too much too"). While GROUPING on a phone the toolbar
     // slims to what grouping needs — Finished, Select all, the count, and
@@ -2854,7 +2866,7 @@
     // own display logic is untouched underneath.
     try {
       var _pgSlim = document.getElementById('page-photo-inbox');
-      if (_pgSlim && _pgSlim.classList) _pgSlim.classList.toggle('pin-grp-slim', isGroup && _selectMode);
+      if (_pgSlim && _pgSlim.classList) _pgSlim.classList.toggle('pin-grp-slim', isGroup && PIN._selectMode);
     } catch (eSl) {}
     if (ab) ab.style.display = (isGroup && gs.length > 1) ? '' : 'none';   // combine needs 2+ items
     // v0.9.1297: the "Group as…" toolbar button is gone — the floating panel
@@ -2869,9 +2881,9 @@
     // offered them against photos with no tick drawn anywhere. The root leak
     // is fixed (see _pinReviewDiscard), and this makes the class impossible:
     // no ticks visible, no destructive button.
-    if (db) db.style.display = (_selectMode && n) ? '' : 'none';
+    if (db) db.style.display = (PIN._selectMode && n) ? '' : 'none';
     if (ib) {
-      ib.style.display = (_selectMode && n && _pinAr()) ? '' : 'none';   // v0.9.1927: paid — beta feature
+      ib.style.display = (PIN._selectMode && n && _pinAr()) ? '' : 'none';   // v0.9.1927: paid — beta feature
       // v0.9.1351: say the COST on the button, not only in the confirm dialog.
       // This is the same purchase as "Read this photo (1 photo ID)" on the card
       // and the toolbar's "Read the N still unread" — one word, "Read", for all
@@ -2880,13 +2892,13 @@
                                  : 'Read these ' + n + ' · ' + n + ' photo IDs';
     }
     var fb = document.getElementById('pin-finish-btn');
-    if (fb) fb.style.display = _selectMode ? '' : 'none';
+    if (fb) fb.style.display = PIN._selectMode ? '' : 'none';
     [['pin-group-btn', isGroup], ['pin-tag-btn', isTag]].forEach(function (p) {
       var b = document.getElementById(p[0]);
       if (!b) return;
       _pinOpaqueTint(b, p[1] ? '41,128,185' : '139,142,148', p[1] ? 18 : 12);   // v0.9.1282: opaque, see _pinOpaqueTint
       b.style.borderColor = p[1] ? '#2980b9' : '#8b8e94';
-      b.style.display = (_selectMode && !p[1]) ? 'none' : '';
+      b.style.display = (PIN._selectMode && !p[1]) ? 'none' : '';
     });
     try { _pinRenderTagBar(); } catch (eT) {}
   }
@@ -3066,12 +3078,12 @@
       var f = files[i];
       var safe = ((f && f.name) || 'photo.jpg').replace(/[^\w.\- ]+/g, '').slice(-60);
       var name = 'INBOX ' + ts + ' g' + (ts + i) + ' ' + safe;
-      var thisEra = (_pinOneShot && !spent) ? _pinOneShot : _pinHomeEra();
-      if (i === 0 && _pinOneShot) spent = true;
+      var thisEra = (PIN._pinOneShot && !spent) ? PIN._pinOneShot : _pinHomeEra();
+      if (i === 0 && PIN._pinOneShot) spent = true;
       try { await _stageOne(f, name, thisEra, ''); n++; }
       catch (e) { console.warn('[Inbox] could not stage ' + safe + ':', e); }
     }
-    if (n && _pinOneShot) { _pinOneShot = null; try { _pinRenderBar(); } catch (e) {} }
+    if (n && PIN._pinOneShot) { PIN._pinOneShot = null; try { _pinRenderBar(); } catch (e) {} }
     return n;
   }
 
@@ -3377,16 +3389,16 @@
   window._pinAddSource = function () {
     // v0.9.1590: the door opens offline again — local files STAGE now.
     // Google Photos keeps its own refusal (the picker is the network).
-    if (!_pinSession) {
+    if (!PIN._pinSession) {
       return window._pinPickContext({
         title: 'What are you about to photograph?',
         blurb: 'Set it once and every photo in this session is stamped with it. You can switch mid-session, and Done ends it.',
         okLabel: 'Start shooting',
         cancelLabel: 'Skip \u2014 just add photos',
         onPick: function (era) {
-          _pinSession = true;
+          PIN._pinSession = true;
           _pinSetHomeEra(era);
-          _pinOneShot = null;
+          PIN._pinOneShot = null;
           _pinRenderBar();
           showToast('Now shooting ' + _pinEraLabel(era), 2600);
           _pinAddSourceSheet();
@@ -3495,15 +3507,15 @@
           console.warn('[Inbox] upload failed for ' + safe + ' — continuing:', eUp);
           continue;
         }
-        var _thisEra = (_pinOneShot && !_spentOneShot) ? _pinOneShot : _pinHomeEra();
-        if (i === 0 && _pinOneShot) _spentOneShot = true;
+        var _thisEra = (PIN._pinOneShot && !_spentOneShot) ? PIN._pinOneShot : _pinHomeEra();
+        if (i === 0 && PIN._pinOneShot) _spentOneShot = true;
         if (_thisEra && up && up.id) {
           // A stamp that fails to save must not fail the upload — the photo is
           // safely in the inbox either way, it just knows less.
           await _pinMetaSet(up.id, { era: _thisEra, stat: 'stamped' });
         }
       }
-      if (_pinOneShot) { _pinOneShot = null; _pinRenderBar(); }
+      if (PIN._pinOneShot) { PIN._pinOneShot = null; _pinRenderBar(); }
       _status('');
       if (_upFail) {
         showToast('Added ' + _upOk + ' of ' + files.length + ' photo' + (files.length > 1 ? 's' : '')
@@ -3534,7 +3546,7 @@
   // ── Review a photo group: research laid out → Add / Research /
   //    Discard (v0.9.888, Brad's flow). Also handles "Combine → one
   //    item…" for a multi-selection (all selected photos = one item).
-  var _rvGroups = [];
+  PIN._rvGroups = [];
 
   // v0.9.941 (Brad's Marx girder bridge): the number lookup must respect the
   // manufacturer the photo-read reported. '1303' exists under Atlas O, but the
@@ -3749,7 +3761,7 @@
   // neither simply gets no word evidence.
   function _rvReadText() {
     try {
-      var fid = (_rvGroups && _rvGroups.length) ? _pinReadFid(_rvGroups[0]) : '';
+      var fid = (PIN._rvGroups && PIN._rvGroups.length) ? _pinReadFid(PIN._rvGroups[0]) : '';
       if (!fid) return '';
       var rec = _ids()[fid];
       if (rec && typeof rec === 'object' && (rec.raw || rec.aiRaw)) return String(rec.raw || rec.aiRaw);
@@ -3759,7 +3771,7 @@
   }
   // The era stamped on the photo currently open in the review card.
   function _rvPrefer() {
-    try { return (_rvGroups && _rvGroups.length) ? _pinPreferOf(_rvGroups[0]) : null; }
+    try { return (PIN._rvGroups && PIN._rvGroups.length) ? _pinPreferOf(PIN._rvGroups[0]) : null; }
     catch (e) { return null; }
   }
 
@@ -3930,13 +3942,13 @@
     } catch (e2) {}
   };
 
-  var _rvAiMfr = '';
-  var _rvAiRec = null;   // v0.9.1419: the WHOLE read for the photo on screen, not just the maker
+  PIN._rvAiMfr = '';
+  PIN._rvAiRec = null;   // v0.9.1419: the WHOLE read for the photo on screen, not just the maker
   window._pinReviewLookup = function (val) {
     var box = document.getElementById('pin-rv-info');
     var addBtn = document.getElementById('pin-rv-add');
     if (!box) return;
-    var lk = _pinLookup(val, _rvAiMfr);
+    var lk = _pinLookup(val, PIN._rvAiMfr);
     // v0.9.963 (Brad): bigger, readable catalog details at the top of the card.
     var row = function (label, v) {
       return '<div style="display:flex;gap:0.6rem;font-size:0.95rem;line-height:1.55"><span style="width:92px;flex-shrink:0;color:var(--text-dim)">' + label + '</span><span style="color:var(--text);font-weight:600">' + (v || '—') + '</span></div>';
@@ -3963,16 +3975,16 @@
       // matches the photo as a tap, through the same _pinDescMatch the rescue
       // chain already trusts.
       try {
-        if (_rvAiRec) {
-          var _cfAi = { roadName: _rvAiRec.road, description: _rvAiRec.desc, subType: _rvAiRec.subType };
-          var _cf = _pinAiRowConflict(_cfAi, _rvAiRec.aiRaw || '', lk.master);
+        if (PIN._rvAiRec) {
+          var _cfAi = { roadName: PIN._rvAiRec.road, description: PIN._rvAiRec.desc, subType: PIN._rvAiRec.subType };
+          var _cf = _pinAiRowConflict(_cfAi, PIN._rvAiRec.aiRaw || '', lk.master);
           if (_cf) {
             html = '<div style="font-size:0.82rem;color:var(--t-gold);font-weight:700;line-height:1.5;margin-bottom:0.35rem">'
               + '⚠ This number may be wrong — ' + rrEsc(_cf) + '. Probably NOT the same thing.</div>' + html;
             var _dm = null;
-            try { _dm = _pinDescMatch(_rvAiRec.aiRaw || _rvAiRec.desc || '', _rvPrefer()); } catch (eDm) {}
+            try { _dm = _pinDescMatch(PIN._rvAiRec.aiRaw || PIN._rvAiRec.desc || '', _rvPrefer()); } catch (eDm) {}
             if (_dm && _dm.row && _dm.row.itemNum && String(_dm.row.itemNum) !== String(lk.num)
-                && !_pinAiRowConflict(_cfAi, _rvAiRec.aiRaw || '', _dm.row)) {
+                && !_pinAiRowConflict(_cfAi, PIN._rvAiRec.aiRaw || '', _dm.row)) {
               var _dmDesc = [_dm.row.roadName, _dm.row.description].filter(Boolean).join(' — ').slice(0, 80);
               html += '<div style="margin-top:0.5rem;display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">'
                 + '<span style="font-size:0.76rem;color:var(--text-dim)">This catalog entry DOES match the photo:</span>'
@@ -4018,7 +4030,7 @@
       // v0.9.1832: the read's alternatives ride along — for a family read
       // they are the relatives the words narrowed it to, and the panel lists
       // those first. _rvAiRec is the ONE record the card resolved (v1096).
-      var _rdAlts = (_rvAiRec && Array.isArray(_rvAiRec.alts)) ? _rvAiRec.alts : [];
+      var _rdAlts = (PIN._rvAiRec && Array.isArray(PIN._rvAiRec.alts)) ? PIN._rvAiRec.alts : [];
       var _kinHtml = _pinKinPanelHtml(lk.num, lk.master, _rdAlts);
       if (_kinHtml) html += _kinHtml;
     } catch (eKin) {}
@@ -4095,12 +4107,12 @@
   var _vfNote  = {};   // group key -> rejection note for the re-identify run
   function _pinVerifyRender(lk) {
     var box = document.getElementById('pin-rv-info');
-    if (!box || !_rvGroups || !_rvGroups.length || !lk) return;
+    if (!box || !PIN._rvGroups || !PIN._rvGroups.length || !lk) return;
     var link = (lk.master && (lk.master.refLink || '')) || '';
     if (!lk.num || !/^https?:\/\//i.test(link)) return;
     if (typeof aiVerifyPhoto !== 'function') return;
     if (!_pinAr()) return;   // v0.9.1927: the double-check is a paid read — beta feature
-    var fid0 = _rvGroups[0].files[0].id;
+    var fid0 = PIN._rvGroups[0].files[0].id;
     var key = fid0 + '|' + lk.num;
     var el = document.createElement('div');
     el.id = 'pin-rv-verify';
@@ -4130,16 +4142,16 @@
   }
   window._pinVerifyClick = function () {
     var num = (document.getElementById('pin-rv-num') || {}).value || '';
-    var lk = _pinLookup(num, _rvAiMfr);
+    var lk = _pinLookup(num, PIN._rvAiMfr);
     var el = document.getElementById('pin-rv-verify');
-    if (!el || !_rvGroups || !_rvGroups.length || !lk.master) return;
-    _pinVerifyRun(lk, _rvGroups[0].files[0].id + '|' + lk.num, el);
+    if (!el || !PIN._rvGroups || !PIN._rvGroups.length || !lk.master) return;
+    _pinVerifyRun(lk, PIN._rvGroups[0].files[0].id + '|' + lk.num, el);
   };
   async function _pinVerifyRun(lk, key, el) {
     el.innerHTML = '<div style="font-size:0.8rem;color:var(--text-dim)">📷 Checking your photo against the catalog listing…</div>';
     var vr;
     try {
-      var blob = await _pinBytes(_rvGroups[0].files[0].id);
+      var blob = await _pinBytes(PIN._rvGroups[0].files[0].id);
       // v0.9.1018: COTT links get the item's #anchor so the relay pulls THIS
       // item's photo off the multi-item page (was: page's first image).
       var _vrRef = lk.master.refLink;
@@ -4235,7 +4247,7 @@
     // running" — which is a lie once the job is wedged. Through the shared
     // bounce it can offer the way out instead.
     if (_busy) { _pinBusyBounce(); return; }
-    var g = _rvGroups && _rvGroups[0];
+    var g = PIN._rvGroups && PIN._rvGroups[0];
     if (!g) return;
     var num = String((document.getElementById('pin-rv-num') || {}).value || '').trim();
     var vr = _vfCache[g.files[0].id + '|' + num];
@@ -4305,20 +4317,20 @@
     // The snapshot keeps a card reachable even after acting on it changed
     // which filters it passes; keys that left the inbox entirely (filed,
     // discarded) are skipped, so the arrows keep walking what remains.
-    if (_rvOrderKeys) {
+    if (PIN._rvOrderKeys) {
       var by = {};
-      _groups.forEach(function (g) { by[g.key] = g; });
+      PIN._groups.forEach(function (g) { by[g.key] = g; });
       var out = [];
-      _rvOrderKeys.forEach(function (k) { if (by[k]) out.push(by[k]); });
+      PIN._rvOrderKeys.forEach(function (k) { if (by[k]) out.push(by[k]); });
       if (out.length) return out;
     }
     return _pinVisibleGroups();
   }
 
   function _pinRvIndex() {
-    if (!_rvKey) return -1;
+    if (!PIN._rvKey) return -1;
     var ord = _pinRvOrder();
-    for (var i = 0; i < ord.length; i++) if (ord[i].key === _rvKey) return i;
+    for (var i = 0; i < ord.length; i++) if (ord[i].key === PIN._rvKey) return i;
     return -1;
   }
 
@@ -4333,8 +4345,8 @@
   // through the inbox exactly as before.
   function _pinRvMembers() {
     try {
-      if (!_rvGroups || _rvGroups.length !== 1) return null;   // multi-select card
-      var g = _rvGroups[0];
+      if (!PIN._rvGroups || PIN._rvGroups.length !== 1) return null;   // multi-select card
+      var g = PIN._rvGroups[0];
       return (g && g.files && g.files.length > 1) ? g.files : null;
     } catch (e) { return null; }
   }
@@ -4465,7 +4477,7 @@
   // set, which is the answer Brad actually wanted from the card.
   function _pinRvTitle(n) {
     var base = n + ' photo' + (n > 1 ? 's' : '');
-    var g = (_rvGroups && _rvGroups.length === 1) ? _rvGroups[0] : null;
+    var g = (PIN._rvGroups && PIN._rvGroups.length === 1) ? PIN._rvGroups[0] : null;
     if (!g) return base;                       // multi-select card: no single identity
     if (!_pinIsMultiPiece(g)) return base + ' · one item';
     var nums = _pinGroupNums(g);
@@ -4491,7 +4503,7 @@
   window._pinCloseReview = function () {
     var ov = document.getElementById('pin-review-ov');
     if (ov) ov.remove();
-    _rvOrderKeys = null;         // v0.9.1307: next opening snapshots fresh
+    PIN._rvOrderKeys = null;         // v0.9.1307: next opening snapshots fresh
     // v0.9.1704: the card was the thing holding the inbox watcher still, so
     // whatever the phone did while it was open can show now.
     try { _pinWatchSoon('card closed', 400); } catch (eW) {}
@@ -4520,7 +4532,7 @@
   // there.
   function _pinWireRvDrag(root) {
     if (window.IS_MOBILE_UA) return;
-    if (!_rvGroups || _rvGroups.length !== 1) return;
+    if (!PIN._rvGroups || PIN._rvGroups.length !== 1) return;
     var wraps = Array.prototype.slice.call(root.querySelectorAll('[data-dragfid]'));
     if (wraps.length < 2) return;
     wraps.forEach(function (w) {
@@ -4539,7 +4551,7 @@
         var from = e.dataTransfer.getData('text/plain');
         var to = w.getAttribute('data-dragfid');
         if (!from || from === to) return;
-        var ids = _rvGroups[0].files.map(function (f) { return f.id; });
+        var ids = PIN._rvGroups[0].files.map(function (f) { return f.id; });
         var fi = ids.indexOf(from), ti = ids.indexOf(to);
         if (fi < 0 || ti < 0) return;
         ids.splice(ti, 0, ids.splice(fi, 1)[0]);
@@ -4549,7 +4561,7 @@
   }
 
   window._pinSaveRvOrder = async function (orderedFids) {
-    var g = _rvGroups && _rvGroups.length === 1 && _rvGroups[0];
+    var g = PIN._rvGroups && PIN._rvGroups.length === 1 && PIN._rvGroups[0];
     if (!g) return;
     var ok = 0, fail = 0;
     for (var i = 0; i < orderedFids.length; i++) {
@@ -4562,7 +4574,7 @@
     g.files.forEach(function (f, i) { if (f._meta) f._meta.ord = i + 1; });
     if (fail) showToast('Saved the order for ' + ok + ' of ' + orderedFids.length + ' photos — drag again to retry the rest', 4500, true);
     else showToast('✓ Order saved — the first photo is the main view', 2500);
-    try { window._pinReview(_rvKey || (g && g.key)); } catch (e) {}
+    try { window._pinReview(PIN._rvKey || (g && g.key)); } catch (e) {}
   };
 
   // v0.9.1325: `only` lets a caller name the groups OUTRIGHT instead of
@@ -4594,7 +4606,7 @@
   ];
   function _pinRvFiles() {
     var out = [];
-    (_rvGroups || []).forEach(function (g) { (g.files || []).forEach(function (f) { out.push(f); }); });
+    (PIN._rvGroups || []).forEach(function (g) { (g.files || []).forEach(function (f) { out.push(f); }); });
     return out;
   }
   function _pinRvViewOf(f) { return (f && f._meta && f._meta.view) || ''; }
@@ -4607,8 +4619,8 @@
   // bar: their roles are car types, and members split by number at add
   // time — per-type slot rows would be noise, not order.
   function _pinRvRoleSections() {
-    if (!_rvGroups || _rvGroups.length !== 1) return null;
-    var g = _rvGroups[0];
+    if (!PIN._rvGroups || PIN._rvGroups.length !== 1) return null;
+    var g = PIN._rvGroups[0];
     var kindId = g.kind || (g.files[0] && g.files[0]._meta && g.files[0]._meta.kind) || 'single';
     if (kindId === 'single' || kindId === 'paper' || kindId === 'set') return null;
     var k = _pinKind(kindId);
@@ -4799,7 +4811,7 @@
     document.body.appendChild(ov);
     try {
       ov.querySelectorAll('img[data-rvv]').forEach(function (img) {
-        loadDriveThumb(img.getAttribute('data-rvv'), img, img.parentElement, _thumbLink[img.getAttribute('data-rvv')] || null, 'hi');
+        loadDriveThumb(img.getAttribute('data-rvv'), img, img.parentElement, PIN._thumbLink[img.getAttribute('data-rvv')] || null, 'hi');
       });
     } catch (eT) {}
   };
@@ -4853,8 +4865,8 @@
     }
     if (!picked && holder) { holder._meta = holder._meta || {}; if (_tog) holder._meta.role = ''; else holder._meta.view = ''; }
     var pk = document.getElementById('pin-rv-slotpick'); if (pk) pk.remove();
-    try { _rvStayOn = _pinOnScreenFid(); } catch (eS) {}   // v0.9.1960: no jump back to the first photo
-    try { window._pinReview(_rvKey || '', _rvGroups); } catch (e) {}
+    try { PIN._rvStayOn = _pinOnScreenFid(); } catch (eS) {}   // v0.9.1960: no jump back to the first photo
+    try { window._pinReview(PIN._rvKey || '', PIN._rvGroups); } catch (e) {}
   };
 
   // ── v0.9.1960 — discard ONE leftover photo from the card ──
@@ -4875,15 +4887,15 @@
     }
     var onScreen = _pinOnScreenFid();
     var drop = function (list) { (list || []).forEach(function (g) { if (g && g.files) g.files = g.files.filter(function (f) { return f && f.id !== fid; }); }); };
-    drop(_rvGroups); drop(_groups);
+    drop(PIN._rvGroups); drop(PIN._groups);
     try { var mm = _ids(); if (mm[fid]) { delete mm[fid]; _idsSave(mm); } } catch (eI) {}
-    var left = 0; (_rvGroups || []).forEach(function (g) { left += (g.files || []).length; });
+    var left = 0; (PIN._rvGroups || []).forEach(function (g) { left += (g.files || []).length; });
     showToast('Discarded 1 photo', 2200);
     if (!left) {
       var ov = document.getElementById('pin-review-ov'); if (ov) ov.remove();
     } else {
-      _rvStayOn = onScreen !== fid ? onScreen : '';
-      try { window._pinReview(_rvKey || '', _rvGroups); } catch (eR) {}
+      PIN._rvStayOn = onScreen !== fid ? onScreen : '';
+      try { window._pinReview(PIN._rvKey || '', PIN._rvGroups); } catch (eR) {}
     }
     try { window._pinRefresh(); } catch (eF) {}
   };
@@ -4917,16 +4929,16 @@
     // opening is what stops "I have the Savings Bank one" from silently
     // following him onto the next car.
     try { _rvClearPick(); } catch (ePC) {}
-    _rvKey = key || '';          // v0.9.1057: which group the card is showing
-    _rvGroups = key ? _groups.filter(function (g) { return g.key === key; })
+    PIN._rvKey = key || '';          // v0.9.1057: which group the card is showing
+    PIN._rvGroups = key ? PIN._groups.filter(function (g) { return g.key === key; })
                     : (only && only.length ? only.slice() : _selGroups());
-    if (!_rvGroups.length) { showToast('Select photos first', 2500, true); return; }
+    if (!PIN._rvGroups.length) { showToast('Select photos first', 2500, true); return; }
     // v0.9.1307: snapshot the walking order ONCE per card-opening — stepping
     // re-enters here with a new key and must keep the same snapshot.
-    if (key && !_rvOrderKeys) {
-      _rvOrderKeys = _pinVisibleGroups().map(function (g) { return g.key; });
+    if (key && !PIN._rvOrderKeys) {
+      PIN._rvOrderKeys = _pinVisibleGroups().map(function (g) { return g.key; });
     }
-    var n = 0; _rvGroups.forEach(function (g) { n += g.files.length; });
+    var n = 0; PIN._rvGroups.forEach(function (g) { n += g.files.length; });
     // v0.9.1068 (Brad's 6817 flatcar). The free reader guessed "58", the catalog
     // double-check said in red that the photo does NOT match a rotary snow plow
     // — and the app still put 58 in the number box, resolved it into a full
@@ -4938,8 +4950,8 @@
     // CONFIRMED read pre-fills it now; a guess is offered as a chip to tap, and
     // nothing is entered, looked up or ready to save until the user says so.
     var sug = '', sugGuess = '';
-    _rvAiMfr = '';
-    _rvAiRec = null;
+    PIN._rvAiMfr = '';
+    PIN._rvAiRec = null;
     // v0.9.1960 (Brad: "the highlighted one should be the one sent to google or
     // gets read. if not selected, use right side" — and dropping the last photo
     // into its box made the card jump): the photo on screen is the one you were
@@ -4948,13 +4960,13 @@
     // use the photo on screen (_pinOnScreenFid), so this is the one rule.
     var _mainFid0 = (function () {
       var all = [];
-      _rvGroups.forEach(function (g) { g.files.forEach(function (f) { all.push(f.id); }); });
-      var stay = _rvStayOn; _rvStayOn = '';
+      PIN._rvGroups.forEach(function (g) { g.files.forEach(function (f) { all.push(f.id); }); });
+      var stay = PIN._rvStayOn; PIN._rvStayOn = '';
       if (stay && all.indexOf(stay) >= 0) return stay;
-      var lead = _pinReadFile(_rvGroups[0]);
+      var lead = _pinReadFile(PIN._rvGroups[0]);
       if (lead && ((lead._meta || {}).view === 'RSV')) return lead.id;
-      for (var gi = 0; gi < _rvGroups.length; gi++) {
-        var rs = _rvGroups[gi].files.filter(function (f) { return ((f && f._meta) || {}).view === 'RSV'; })[0];
+      for (var gi = 0; gi < PIN._rvGroups.length; gi++) {
+        var rs = PIN._rvGroups[gi].files.filter(function (f) { return ((f && f._meta) || {}).view === 'RSV'; })[0];
         if (rs) return rs.id;
       }
       return all[0];
@@ -4972,10 +4984,10 @@
       // v0.9.1960: the photo on screen (_mainFid0), through _pinRecFor — so a
       // one-item group opens with the number one of its photos was given.
       var s0 = _pinRecFor(_mainFid0).rec
-            || _ids()[_pinReadFid(_rvGroups[0]) || _rvGroups[0].files[0].id];
+            || _ids()[_pinReadFid(PIN._rvGroups[0]) || PIN._rvGroups[0].files[0].id];
       if (s0 && s0.num) { if (s0.guess) sugGuess = String(s0.num); else sug = String(s0.num); }
-      if (s0 && s0.mfr) _rvAiMfr = String(s0.mfr);
-      _rvAiRec = s0 || null;   // v0.9.1419: the conflict check reads the whole record
+      if (s0 && s0.mfr) PIN._rvAiMfr = String(s0.mfr);
+      PIN._rvAiRec = s0 || null;   // v0.9.1419: the conflict check reads the whole record
     } catch (eS) {}
     // v0.9.966 (Brad): the read found a description but no structured number
     // (e.g. "No. 260 … illuminated bumper" with an empty number field). Recover
@@ -4994,7 +5006,7 @@
     var opts = Object.keys(nums).sort().slice(0, 900).map(function (o) { return '<option value="' + String(o).replace(/"/g, '&quot;') + '">'; }).join('');
     var old = document.getElementById('pin-review-ov'); if (old) old.remove();
     var thumbs = [];
-    _rvGroups.forEach(function (g) { g.files.forEach(function (f) { thumbs.push(f.id); }); });
+    PIN._rvGroups.forEach(function (g) { g.files.forEach(function (f) { thumbs.push(f.id); }); });
     // v0.9.1617 (Brad): a photo placed in a view slot LEAVES the rail above
     // — it lives in its slot now, so it cannot be pasted twice and the rail
     // shrinks to what still needs sorting. (Double-placing was already
@@ -5002,7 +5014,7 @@
     // the rail should SAY so.) When everything is sorted, one thumb stays
     // so the card keeps its anchor and the MAIN VIEW badge means something.
     var _viewOfFid = {};
-    _rvGroups.forEach(function (g) { g.files.forEach(function (f) { if (f._meta && f._meta.view) _viewOfFid[f.id] = f._meta.view; }); });
+    PIN._rvGroups.forEach(function (g) { g.files.forEach(function (f) { if (f._meta && f._meta.view) _viewOfFid[f.id] = f._meta.view; }); });
     // v0.9.1960 (Brad: "you get to the last one, the screen flashes and the
     // last one disappears"): the strip used to hide itself when ONE photo was
     // left to sort, so that photo vanished. It now shows while ANY photo is
@@ -5079,7 +5091,7 @@
     var _setNums = [];
     try {
       var _idsA = _ids();
-      _pinFilesToRead(_rvGroups[0]).forEach(function (fS) {
+      _pinFilesToRead(PIN._rvGroups[0]).forEach(function (fS) {
         var sS = fS && _idsA[fS.id];
         var nS = (sS && sS.num) ? String(sS.num).trim() : '';
         if (nS && _setNums.indexOf(nS) < 0) _setNums.push(nS);
@@ -5115,7 +5127,7 @@
     // numbers match a real set still routes to the set flow — the one case
     // the old separate button was right.
     var _rvKind = 'single';
-    try { _rvKind = (_rvGroups[0] && ((_rvGroups[0].files[0] && _rvGroups[0].files[0]._meta && _rvGroups[0].files[0]._meta.kind) || _rvGroups[0].kind)) || 'single'; } catch (eRK) {}
+    try { _rvKind = (PIN._rvGroups[0] && ((PIN._rvGroups[0].files[0] && PIN._rvGroups[0].files[0]._meta && PIN._rvGroups[0].files[0]._meta.kind) || PIN._rvGroups[0].kind)) || 'single'; } catch (eRK) {}
     var _isGrp = (_rvKind !== 'single') || n > 1;
     var _routeSet = (_rvKind === 'set') || (_rvKind === 'single' && _setNums.length >= 2 && !!_setGuess);
     var _setBtn = _setLine;
@@ -5393,7 +5405,7 @@
   // The stored reasoning for a photo that came back empty.
   function _pinFailInfo() {
     try {
-      var fid = _rvGroups && _rvGroups.length ? _pinReadFid(_rvGroups[0]) : '';
+      var fid = PIN._rvGroups && PIN._rvGroups.length ? _pinReadFid(PIN._rvGroups[0]) : '';
       var f = _freeTried()[fid];
       return (f && typeof f === 'object') ? f : null;
     } catch (e) { return null; }
@@ -5691,7 +5703,7 @@
     try {
       var ids0 = _ids();
       s = rec || (fid && ids0[fid])
-        || ids0[_pinReadFid(_rvGroups[0]) || _rvGroups[0].files[0].id]
+        || ids0[_pinReadFid(PIN._rvGroups[0]) || PIN._rvGroups[0].files[0].id]
         || {};
     } catch (e) {}
     var bits = [s.mfr, s.road, s.desc, s.year ? '(' + s.year + ')' : ''].filter(Boolean).join(' ');
@@ -5801,7 +5813,7 @@
   // both read it. The record is _rvAiRec — the ONE the card resolved (v1096).
   function _pinAltList() {
     var s = {};
-    try { s = _rvAiRec || {}; } catch (eR) { s = {}; }
+    try { s = PIN._rvAiRec || {}; } catch (eR) { s = {}; }
     var alts = Array.isArray(s.alts) ? s.alts.slice(0) : [];
     if (!alts.length) return [];
     var primary = String(s.num || '');
@@ -6461,7 +6473,7 @@
   window._pinReviewLens = function () { return window._pinLensSearch(); };
 
   window._pinLensSearch = async function () {
-    var gs = _rvGroups;
+    var gs = PIN._rvGroups;
     if (!gs.length) return;
     if (!_qcToken()) { showToast('Please sign in first', 3000, true); return; }
     var tab = null;
@@ -6708,7 +6720,7 @@
 
   // Read a screenshot/snip blob: free OCR first, then a token read, then apply.
   async function _pinProcessShot(f) {
-    var gs = _rvGroups;
+    var gs = PIN._rvGroups;
     if (!gs || !gs.length) { showToast('Open a photo first', 2500, true); return; }
     if (!_qcToken()) { showToast('Please sign in first', 3000, true); return; }
     if (typeof aiIdentifyImage2 !== 'function' && typeof aiIdentifyImage !== 'function') { showToast('Identify service not loaded — refresh and try again', 3000, true); return; }
@@ -6734,7 +6746,7 @@
       } catch (eOcr) { console.warn('[Inbox] screenshot OCR (free pass) failed:', eOcr && eOcr.message); }
       if (!meta) {
         _shotBusy = _pinBtnBusy(btn, 'Reading\u2026');   // v0.9.1168
-        var _h0 = _pinAiHints(_rvGroups && _rvGroups[0]);
+        var _h0 = _pinAiHints(PIN._rvGroups && PIN._rvGroups[0]);
         var ai = (typeof aiIdentifyImage2 === 'function') ? await aiIdentifyImage2([f], _h0) : await aiIdentifyImage(f, _h0);
         if (!ai || !ai.ok) {
           // v0.9.1163: one shared message source (rrReadFailMessage in ai-id.js).
@@ -6764,7 +6776,7 @@
   // Read copied TEXT (e.g. Ctrl+A, Ctrl+C of the Google answer) — parse it and
   // apply. No token used; text parsing is free.
   function _pinProcessText(txt) {
-    var gs = _rvGroups;
+    var gs = PIN._rvGroups;
     if (!gs || !gs.length) return false;
     txt = String(txt || '').trim();
     if (!txt) return false;
@@ -6801,7 +6813,7 @@
   }
 
   window._pinReadShot = function () {
-    var gs = _rvGroups;
+    var gs = PIN._rvGroups;
     if (!gs || !gs.length) { showToast('Open a photo first', 2500, true); return; }
     if (!_qcToken()) { showToast('Please sign in first', 3000, true); return; }
     if (typeof aiIdentifyImage2 !== 'function' && typeof aiIdentifyImage !== 'function') { showToast('Identify service not loaded — refresh and try again', 3000, true); return; }
@@ -6860,7 +6872,7 @@
   // this goes straight to the paid read for the leftovers it couldn't place.
   window._pinReviewIdentify = async function () {
     if (!_pinAr()) return;   // v0.9.1927: paid read — beta feature
-    var gs = _rvGroups;
+    var gs = PIN._rvGroups;
     if (!gs || !gs.length) { showToast('Open a photo first', 2500, true); return; }
     if (!_qcToken()) { showToast('Please sign in first', 3000, true); return; }
     if (typeof aiIdentifyImage2 !== 'function' && typeof aiIdentifyImage !== 'function') { showToast('Identify service not loaded — refresh and try again', 3000, true); return; }
@@ -6896,7 +6908,7 @@
       blobs[0] = await new Promise(function (res) { _pinCropForRead(blobs[0], res); });
       _idBusy = _pinBtnBusy(btn, 'Reading\u2026');   // v0.9.1168: crop closed, the read is really running now
       _pinStepsReset(); _pinStep(RR_READ_STEPS.paid);   // v0.9.1173
-      var _h1 = _pinAiHints(_rvGroups && _rvGroups[0]);
+      var _h1 = _pinAiHints(PIN._rvGroups && PIN._rvGroups[0]);
       var ai = (typeof aiIdentifyImage2 === 'function') ? await aiIdentifyImage2(blobs, _h1) : await aiIdentifyImage(blobs[0], {});
       if (!ai || !ai.ok) {
         // v0.9.1163 — THE one Brad hit. His reads were switched off, so this
@@ -6939,7 +6951,7 @@
   // alone so typing/pasting a number still works.
   document.addEventListener('paste', function (e) {
     if (!document.getElementById('pin-review-ov')) return;      // only when the review card is open
-    if (!_rvGroups || !_rvGroups.length) return;
+    if (!PIN._rvGroups || !PIN._rvGroups.length) return;
     var cd = e.clipboardData; if (!cd) return;
     // A picture on the clipboard (a snip) — always read it.
     var items = cd.items || [];
@@ -7034,7 +7046,7 @@
     if (!num) { showToast('Type an item number to research', 2500, true); return; }
     // v0.9.970 (Brad): remember this item's group(s) so Close on the Research
     // Result card brings you back to THIS item's card, not the inbox grid.
-    var _keys = (_rvGroups || []).map(function (g) { return g.key; });
+    var _keys = (PIN._rvGroups || []).map(function (g) { return g.key; });
     var ov = document.getElementById('pin-review-ov'); if (ov) ov.remove();
     if (typeof window._researchLookupTyped === 'function') {
       window._researchLookupTyped(num, { onClose: function () {
@@ -7043,7 +7055,7 @@
         // staging them in _sel (see _pinReview's `only` note). Re-resolving
         // also means a group that left the inbox while Research was open
         // simply drops out instead of re-opening a card on a dead key.
-        var _back = _groups.filter(function (g) { return _keys.indexOf(g.key) >= 0; });
+        var _back = PIN._groups.filter(function (g) { return _keys.indexOf(g.key) >= 0; });
         if (!_back.length) return;
         try { window._pinReview(_back.length === 1 ? _back[0].key : null, _back); } catch (e) {}
       } });
@@ -7067,7 +7079,7 @@
   // braces in _selInfo, which now refuses to arm those two buttons outside
   // select mode no matter what is in _sel.
   window._pinReviewDiscard = function () {
-    var gs = _rvGroups;
+    var gs = PIN._rvGroups;
     if (!gs.length) return;
     var ov = document.getElementById('pin-review-ov'); if (ov) ov.remove();
     _pinDiscard(gs);
@@ -7098,7 +7110,7 @@
     // v0.9.1498 (task #28): an explicit attach target needs no typed number --
     // the picked copy already knows what it is.
     if (!num && !(mode === 'attach' && targetKey)) { showToast('Type or confirm the item number first', 2500, true); return; }
-    var gs = _rvGroups;
+    var gs = PIN._rvGroups;
     // v0.9.1418: same silent guard as Apply had. Filing to the collection is
     // the single most consequential button on this page to press twice and
     // hear nothing from.
@@ -7215,7 +7227,7 @@
           localStorage.setItem(SETSTAGE_KEY, JSON.stringify(_stgA));
           if (typeof rrPinSetPhotoSaved === 'function') rrPinSetPhotoSaved(_tgtNum);
         } catch (eSA) { console.warn('[Inbox] offline attach note:', eSA); }
-        _sel = {};
+        PIN._sel = {};
         _status('');
         _pinRefresh();
         showToast('You\u2019re offline \u2014 ' + fileList.length + ' photo' + (fileList.length > 1 ? 's' : '')
@@ -7245,7 +7257,7 @@
           try { await driveRequest('PATCH', '/files/' + file.id, { name: _tgtNum + ' ADD ' + (ts + moved) + '.' + ext }); } catch (eRn) {}
           _mvRecs.push({ id: file.id, name: _tgtNum + ' ADD ' + (ts + moved) + '.' + ext });
         }
-        _sel = {};
+        PIN._sel = {};
         _status('');
         var pd = _tgt || lk.ownedPd;   // v0.9.1498: the picked copy, exactly
         // v0.9.1252 (row-identity audit, finding 16): pd was captured before a
@@ -7287,7 +7299,7 @@
         // cancelled. DEFER moving the photos out of the inbox until the item
         // is actually saved (see _flushPending). Cancel = nothing moved and
         // the photos stay in the inbox. (Session 168, Brad — fixes vanishing photos)
-        _sel = {};
+        PIN._sel = {};
         _status('');
         // v0.9.1130 (audit #4) — this note used to go STRAIGHT into PENDING_KEY,
         // and _flushPending files a note the moment ANY owned row with that
@@ -7416,7 +7428,7 @@
   if (typeof window !== 'undefined') window._pinSetMemberMap = _pinSetMemberMap;
 
   window._pinAddSetFromGroup = function () {
-    var g = _rvGroups && _rvGroups[0];
+    var g = PIN._rvGroups && PIN._rvGroups[0];
     if (!g) return;
     var ids0 = _ids();
     // The walk sees the FULL ordered file list (not _pinFilesToRead, which
@@ -7568,7 +7580,7 @@
   };
   window._pinAttachOwnedPick = function () {
     if (_busy) { _pinBusyBounce(); return; }
-    if (!_rvGroups.length) return;
+    if (!PIN._rvGroups.length) return;
     var old = document.getElementById('pin-attach-ov'); if (old) old.remove();
     var ov = document.createElement('div');
     ov.id = 'pin-attach-ov';
@@ -7609,7 +7621,7 @@
   // call, screenshotted: "should be the picker i just uploaded".
   var NONUM_PREFIX = '__nonum__';
   window._pinAddNoNumber = function () {
-    var gs = _rvGroups;
+    var gs = PIN._rvGroups;
     // v0.9.1418: the third silent guard.
     if (_busy) { _pinBusyBounce(); return; }
     if (!gs.length) return;
@@ -7649,7 +7661,7 @@
     } catch (eS) { console.warn('[Inbox] could not stage the numberless add', eS && eS.message); }
 
     var ov = document.getElementById('pin-review-ov'); if (ov) ov.remove();
-    _sel = {};
+    PIN._sel = {};
     openWizard('collection');
     var tries = 0;
     var t = setInterval(function () {
@@ -7757,7 +7769,7 @@
             // v0.9.1433: each photo's view stamp rides along, so the wizard
             // files Right Side into Right Side instead of dealing by order.
             var _vm = {};
-            _groups.forEach(function (g) { g.files.forEach(function (f) {
+            PIN._groups.forEach(function (g) { g.files.forEach(function (f) {
               if (_pl.indexOf(f.id) >= 0) { var _v = _pinMetaOf(f).view; if (_v) _vm[f.id] = _v; }
             }); });
             if (Object.keys(_vm).length) wizard.data._addPhotoViews = _vm;
@@ -7768,7 +7780,7 @@
             // photos fell into the first step by queue order and the dummy
             // unit's picture became the powered unit's "Back" view.
             var _rm = {};
-            _groups.forEach(function (g) { g.files.forEach(function (f) {
+            PIN._groups.forEach(function (g) { g.files.forEach(function (f) {
               if (_pl.indexOf(f.id) >= 0) { var _r = _pinMetaOf(f).role; if (_r) _rm[f.id] = _r; }
             }); });
             if (Object.keys(_rm).length) wizard.data._addPhotoRoles = _rm;
@@ -8026,7 +8038,7 @@
       // scanned an EMPTY photo list, reported "blanking 0 Drive stamps",
       // and the stamps re-seeded everything again): refuse to run until
       // the photo list is actually loaded.
-      if (!_groups || !_groups.length) {
+      if (!PIN._groups || !PIN._groups.length) {
         console.log('[wipe] the photo list is not loaded yet — open the Photo Inbox page, wait for the grid to appear, THEN run _pinMaintWipeReads() again. Nothing was changed.');
         return;
       }
@@ -8039,7 +8051,7 @@
       });
       _idsSave(ids);
       var files = [];
-      (_groups || []).forEach(function (g) { (g.files || []).forEach(function (f) {
+      (PIN._groups || []).forEach(function (g) { (g.files || []).forEach(function (f) {
         try { var m = f && (f._meta || _pinMetaOf(f)); if (m && m.num) files.push(f.id); } catch (e) {}
       }); });
       console.log('[wipe] local reads cleared on ' + total + ' (wrong-marks kept on ' + kept + '); blanking ' + files.length + ' Drive stamps\u2026');
@@ -9062,8 +9074,8 @@
   // (pruned to what's still in the inbox so the set can't grow without bound).
   window._rrForceFreshBytes = _cropped();
 
-  var _idAbort = false;
-  window._pinIdentifyCancel = function () { _idAbort = true; };
+  PIN._idAbort = false;
+  window._pinIdentifyCancel = function () { PIN._idAbort = true; };
 
   // ══ v0.9.1738 — A DRIVE FAILURE NOW SAYS WHAT IT WAS ══════════════════════
   // Brad, twice on one afternoon: "Your sign-in expired — refresh the page,
@@ -11298,7 +11310,7 @@
       var fid = img && img.getAttribute('data-rvbig');
       if (fid) return fid;
     } catch (e) {}
-    try { return _pinReadFid(_rvGroups[0]); } catch (e2) { return ''; }
+    try { return _pinReadFid(PIN._rvGroups[0]); } catch (e2) { return ''; }
   }
 
   // The era stamped on a photo, in the shape findMaster's `prefer` wants.
@@ -11392,9 +11404,9 @@
   }
   // Find the loaded group that owns this file, so its era stamp can be used.
   function _preferForFid(fileId) {
-    for (var i = 0; i < _groups.length; i++) {
-      for (var j = 0; j < _groups[i].files.length; j++) {
-        if (_groups[i].files[j].id === fileId) return _pinPreferOf(_groups[i]);
+    for (var i = 0; i < PIN._groups.length; i++) {
+      for (var j = 0; j < PIN._groups[i].files.length; j++) {
+        if (PIN._groups[i].files[j].id === fileId) return _pinPreferOf(PIN._groups[i]);
       }
     }
     return null;
@@ -11431,7 +11443,7 @@
   // rejected — that rule (v0.9.1168) is Brad's and it stays — so un-marking
   // never re-offers the answer the user is looking at right now.
   window._pinRescan = async function () {
-    if (!_rvGroups || !_rvGroups.length) return;
+    if (!PIN._rvGroups || !PIN._rvGroups.length) return;
     // v0.9.1074: this read files[0] directly. Since v0.9.1061 every OTHER read
     // path picks the group's readable photo instead — skipping the "everything
     // together" shot, which has several numbers in it. On a grouped item that
@@ -11442,8 +11454,8 @@
     // photo rather than the one on screen — with per-member reads, tapping the
     // Summit car and hitting re-scan was silently re-reading the engine — and
     // then re-opened the card from scratch, which reset to the first photo.
-    var fid = _pinOnScreenFid() || _rvGroups[0].files[0].id;
-    var key = _rvGroups[0].key;
+    var fid = _pinOnScreenFid() || PIN._rvGroups[0].files[0].id;
+    var key = PIN._rvGroups[0].key;
     var btn = document.getElementById('pin-rv-rescan');
     // v0.9.1775 — stoppable. On stop the card goes back EXACTLY as it was,
     // which is Brad's call and a better reason than the one I offered: "it
@@ -11631,7 +11643,7 @@
     // "left out" note are the same fact seen from two sides, and this project
     // has been bitten six times by one fact computed in two places.
     var todo = [], skipped = [];
-    _groups.forEach(function (g) {
+    PIN._groups.forEach(function (g) {
       _pinFilesToRead(g).forEach(function (f) {
         var fid = f && f.id;
         if (!fid) return;
@@ -11661,14 +11673,14 @@
     // round it — in one line, only when there is something to say.
     var sn = document.getElementById('pin-skipnote');
     if (sn) {
-      if (nSkip && !_selectMode) {
+      if (nSkip && !PIN._selectMode) {
         sn.textContent = nSkip + ' photo' + (nSkip === 1 ? '' : 's') + ' tagged Paper, Catalog or Other '
           + (nSkip === 1 ? 'is' : 'are') + " not in the batch — there's rarely an item number on a drawing or a page. "
           + 'Tick one and press Identify to read it anyway.';
         sn.style.display = '';
       } else sn.style.display = 'none';
     }
-    if (n > 0 && !_selectMode) {
+    if (n > 0 && !PIN._selectMode) {
       b.textContent = 'Identify my items — read ' + n + (_pinAr() ? ' (free)' : '');   // v0.9.1956: "free" only beside Auto Read's daily limit
       b.style.display = '';
     } else {
@@ -11705,7 +11717,7 @@
   };
 
   async function _pinAutoRead() {
-    if (_autoReadBusy || !_groups.length) return;
+    if (_autoReadBusy || !PIN._groups.length) return;
     var todo = _pinUnreadTodo();
     if (!todo.length) return;
     _autoReadBusy = true; _autoReadAbort = false;
@@ -11806,7 +11818,7 @@
   // and switch which photo is featured when a strip thumb is clicked.
   window._pinRvLoadFull = async function (img, fid) {
     if (!img || !fid) return;
-    try { if (typeof loadDriveThumb === 'function') loadDriveThumb(fid, img, img.parentElement, _thumbLink[fid] || null, 'hi'); } catch (e) {}
+    try { if (typeof loadDriveThumb === 'function') loadDriveThumb(fid, img, img.parentElement, PIN._thumbLink[fid] || null, 'hi'); } catch (e) {}
     // v0.9.1705: ON A PHONE THE BIG PICTURE IS A SHARPER THUMBNAIL, NOT THE
     // ORIGINAL. The crop-flash recorder's one 1141ms frame was a 12MP camera
     // JPEG being decoded to fill a 360px-wide box. Drive serves its preview at
@@ -11817,7 +11829,7 @@
     if (window.IS_MOBILE_UA) {
       try {
         if (window._rrForceFreshBytes && window._rrForceFreshBytes[fid]) return;
-        var lk = _thumbLink[fid] || (typeof _thumbLinkCache !== 'undefined' ? _thumbLinkCache[fid] : '') || '';
+        var lk = PIN._thumbLink[fid] || (typeof _thumbLinkCache !== 'undefined' ? _thumbLinkCache[fid] : '') || '';
         if (!lk) return;
         var sharp = new Image();
         sharp.onload = function () { if (img.getAttribute('data-rvbig') === fid) img.src = sharp.src; };
@@ -11840,7 +11852,7 @@
   function _pinTagLineHtml(fid) {
     try {
       var f = null;
-      (_groups || []).some(function (g) {
+      (PIN._groups || []).some(function (g) {
         return (g.files || []).some(function (x) { if (x.id === fid) { f = x; return true; } return false; });
       });
       if (!f) return '';
@@ -11931,8 +11943,8 @@
       var _e = _pinRecFor(fid).rec || {};   // v0.9.1960: a one-item group keeps its number
       var _num = _e.num ? String(_e.num) : '';
       var _box = document.getElementById('pin-rv-num');
-      _rvAiMfr = _e.mfr || '';          // the maker hint belongs to this photo too
-      _rvAiRec = _e || null;            // v0.9.1419: so does the conflict check's record
+      PIN._rvAiMfr = _e.mfr || '';          // the maker hint belongs to this photo too
+      PIN._rvAiRec = _e || null;            // v0.9.1419: so does the conflict check's record
       if (_box) _box.value = _num;
       if (typeof window._pinReviewLookup === 'function') window._pinReviewLookup(_num);
     } catch (eSync) {}
@@ -12451,13 +12463,13 @@
     // v0.9.1340: the type gate matters MOST here — this button spends a real
     // photo ID per item. Paper / Catalog / Other are held back; ticking one and
     // pressing Identify still reads it.
-    var _allTodo = _groups.filter(function (g) { return !_pinRecFor(_pinReadFid(g)).rec; });   // v0.9.1960: a group identified on any photo is not read again
+    var _allTodo = PIN._groups.filter(function (g) { return !_pinRecFor(_pinReadFid(g)).rec; });   // v0.9.1960: a group identified on any photo is not read again
     var todo = _allTodo.filter(function (g) { return !_pinSkipBatchGroup(g); });
     var _held = _allTodo.length - todo.length;
     if (!todo.length) {
       showToast(_held
           ? _held + ' photo' + (_held === 1 ? ' is' : 's are') + ' tagged Paper, Catalog or Other, so ' + (_held === 1 ? 'it is' : 'they are') + " not read in a batch — tick one and press Identify to read it anyway"
-          : (_groups.length ? 'Every item already has a suggestion — tick photos and use Identify to re-run any of them' : 'Inbox is empty'),
+          : (PIN._groups.length ? 'Every item already has a suggestion — tick photos and use Identify to re-run any of them' : 'Inbox is empty'),
         _held ? 6000 : 3500);
       return;
     }
@@ -12513,13 +12525,13 @@
   };
 
   async function _pinIdentifyRun(todo, ids) {
-    _setBusy(true, 'Identifying items'); _idAbort = false;
+    _setBusy(true, 'Identifying items'); PIN._idAbort = false;
     var okN = 0, blankN = 0, failN = 0, guessN = 0;
     var remaining = null;   // v0.9.887 (Brad): reads-left-today tracker
     var _idStart = Date.now();   // v0.9.1174
     try {
       for (var i = 0; i < todo.length; i++) {
-        if (_idAbort) break;
+        if (PIN._idAbort) break;
         var st = document.getElementById('pin-status');
         if (st) {
           var _etaI = _pinEtaText(i, todo.length, _idStart);
@@ -12869,7 +12881,7 @@
           }
         }
       }
-      _sel = {};
+      PIN._sel = {};
       _status('');
       if (_dcFail) showToast('Discarded ' + _dcOk + ' of ' + n + ' photo' + (n > 1 ? 's' : '') + ' \u2014 ' + _dcFail + ' would not discard and are still in the inbox.', 5000, true);
       else showToast('Discarded ' + n + ' photo' + (n > 1 ? 's' : ''), 2500);
@@ -13240,7 +13252,7 @@
       current: _pinActiveEra(),
       onPick: function (era) {
         _pinSetHomeEra(era);
-        _pinOneShot = null;
+        PIN._pinOneShot = null;
         try { _pinRenderBar(); } catch (e) {}
         _qcRender();
       },
@@ -13367,8 +13379,8 @@
       // outright — there was just no tag for it to use.
       // Same one-shot rule as _upload: an armed one-shot is spent by THIS shot
       // and springs back, so one odd item cannot leak into the next forty.
-      var _eStamp = _pinOneShot || _pinHomeEra();
-      if (_pinOneShot) { _pinOneShot = null; try { _pinRenderBar(); } catch (eB) {} }
+      var _eStamp = PIN._pinOneShot || _pinHomeEra();
+      if (PIN._pinOneShot) { PIN._pinOneShot = null; try { _pinRenderBar(); } catch (eB) {} }
       var rec = { url: URL.createObjectURL(finalFile), name: name, driveId: null, group: _qc.group, view: _vStamp, era: _eStamp };
       if (_qc.view !== 'EXTRA2') _qc.used[_qc.view] = 1;
       _qc.view = _qcNextView();

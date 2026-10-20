@@ -46,7 +46,7 @@ function hooks(extra) {
   const H = {
     'research.js': ['function _showCard(res) {', 'window.__t_showCard = function (r) { return _showCard(r); };\n  function _showCard(res) {'],
     'barcode.js': ['function _bcConfirmCard(info) {', 'window.__t_bcConfirm = function (i) { return _bcConfirmCard(i); };\n  function _bcConfirmCard(info) {'],
-    'photo-inbox.js': ['var _rvAiRec = null;', 'var _rvAiRec = null; window.__t_setRec = function (r) { _rvAiRec = r; };'],
+    'photo-inbox.js': ['PIN._rvAiRec = null;', 'PIN._rvAiRec = null; window.__t_setRec = function (r) { PIN._rvAiRec = r; };'],
     'variation-picker.js': ['function _vpCardHtml(id, common) {', 'window.__t_vpCard = function (r) { VP = VP || {}; VP.byId = { x: r }; return _vpCardHtml(\'x\', null); };\n  function _vpCardHtml(id, common) {'],
   };
   const out = {};

@@ -67,7 +67,7 @@ function T(n, cond, detail) { console.log((cond ? 'PASS' : 'FAIL') + '  ' + n + 
 const SRC = require('./lib/pin-source').pinSource();
 function hooked(s) {   // expose the inbox's group list, as photo-inbox-tests does
   const cut = s.lastIndexOf('})();');
-  return s.slice(0, cut) + '\n;window.__PG={set groups(v){_groups=v;}};\n' + s.slice(cut);
+  return s.slice(0, cut) + '\n;window.__PG={set groups(v){PIN._groups=v;}};\n' + s.slice(cut);
 }
 function planted(from, to, what) {
   if (SRC.indexOf(from) < 0) throw new Error('planted ' + what + ': the line moved; update this test');

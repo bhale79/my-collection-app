@@ -132,27 +132,27 @@ section('Review card — the two halves are finally compared');
 const card = INBOX.slice(INBOX.indexOf('window._pinReviewLookup = function'),
                          INBOX.indexOf('window._pinReviewLookup = function') + 6000);
 drilled('the resolved-row branch runs the conflict check against the read',
-        /lk\.master\)[\s\S]{0,1600}_pinAiRowConflict\(_cfAi, _rvAiRec\.aiRaw \|\| '', lk\.master\)/.test(card),
+        /lk\.master\)[\s\S]{0,1600}_pinAiRowConflict\(_cfAi, PIN\._rvAiRec\.aiRaw \|\| '', lk\.master\)/.test(card),
         // pre-fix: the lk.master branch had no conflict check at all
         false);
 ok('a conflict paints a warning that says the number may be wrong',
    /This number may be wrong/.test(card));
 ok('the catalog is searched BY THE READER’S WORDS (Brad’s idea) for the offer',
-   /_pinDescMatch\(_rvAiRec\.aiRaw \|\| _rvAiRec\.desc \|\| '', _rvPrefer\(\)\)/.test(card));
+   /_pinDescMatch\(PIN\._rvAiRec\.aiRaw \|\| PIN\._rvAiRec\.desc \|\| '', _rvPrefer\(\)\)/.test(card));
 ok('the matching entry is offered as a tap through the normal pick path',
    /This catalog entry DOES match the photo/.test(card) && /_pinPickNum\(/.test(card));
 ok('an offered candidate must not itself conflict with the photo',
-   /!_pinAiRowConflict\(_cfAi, _rvAiRec\.aiRaw \|\| '', _dm\.row\)/.test(card));
+   /!_pinAiRowConflict\(_cfAi, PIN\._rvAiRec\.aiRaw \|\| '', _dm\.row\)/.test(card));
 ok('no match → honesty, pointing at the printed number',
    /Nothing in the catalog matches the photo/.test(card));
 
 // The record the card reads must follow the photo on screen.
 ok('the full read record is stashed when the card opens',
-   /_rvAiRec = s0 \|\| null;/.test(INBOX));
+   /PIN\._rvAiRec = s0 \|\| null;/.test(INBOX));
 ok('...and re-stashed when the review steps to another photo',
-   /_rvAiRec = _e \|\| null;/.test(INBOX));
+   /PIN\._rvAiRec = _e \|\| null;/.test(INBOX));
 ok('...and cleared with the maker hint when the card rebuilds',
-   /_rvAiMfr = '';\s*\n\s*_rvAiRec = null;/.test(INBOX));
+   /PIN\._rvAiMfr = '';\s*\n\s*PIN\._rvAiRec = null;/.test(INBOX));
 
 console.log('\n' + (fail ? 'FAILED' : 'OK') + '  ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

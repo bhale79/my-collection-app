@@ -194,9 +194,9 @@ section('Behaviour, executed');
       URL: { createObjectURL: () => 'blob:1' },
       Image: function () { const self = this; setTimeout(() => { calls.sharpSrc = self.src; self.onload && self.onload(); }, 0); },
     };
-    const fn = new Function('window', '_thumbLink', 'loadDriveThumb', '_qcToken', '_pinBytes', 'URL', 'Image',
+    const fn = new Function('window', 'PIN', 'loadDriveThumb', '_qcToken', '_pinBytes', 'URL', 'Image',
       load.replace('window._pinRvLoadFull = ', 'return ') + ';')(
-      ctx.window, ctx._thumbLink, ctx.loadDriveThumb, ctx._qcToken, ctx._pinBytes, ctx.URL, ctx.Image);
+      ctx.window, { _thumbLink: ctx._thumbLink }, ctx.loadDriveThumb, ctx._qcToken, ctx._pinBytes, ctx.URL, ctx.Image);
     return fn(img, 'f1').then(() => new Promise(r => setTimeout(r, 5))).then(() => ({ calls, img }));
   }
   Promise.all([runLoad(true), runLoad(false)]).then(([ph, dt]) => {

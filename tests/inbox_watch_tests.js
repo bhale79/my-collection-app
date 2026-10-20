@@ -54,7 +54,7 @@ ok('the look asks Drive for ids and modifiedTime ONLY — no names, no thumbnail
 ok('the refresh listing carries modifiedTime too, so it can be the baseline',
    /files\(id,name,createdTime,modifiedTime,appProperties,thumbnailLink\)/.test(PI), '');
 ok('RULE 1: only a COMPLETE listing becomes the baseline',
-   /_pinWatchSig = _pinListComplete \? _pinWatchSigOf\(files\) : null;/.test(PI), '');
+   /PIN\._pinWatchSig = _pinListComplete \? _pinWatchSigOf\(files\) : null;/.test(PI), '');
 ok('the fingerprint is order-independent (sorted), so a re-sorted listing is not a change',
    /\.sort\(\)\.join\('\|'\)/.test(PI), '');
 
@@ -66,7 +66,7 @@ const holdFn = PI.slice(PI.indexOf('function _pinWatchHold()'), PI.indexOf('asyn
 });
 ok('RULE 2: a change seen while held leaves the baseline UNMATCHED (deferred, never dropped)',
    /hold = _pinWatchHold\(\);\s*\n\s*if \(hold\) \{[^\n]*return 'held'; \}/.test(PI)
-   && PI.indexOf("return 'held'") < PI.indexOf('_pinWatchSig = sig;\n        _navBadge'), '');
+   && PI.indexOf("return 'held'") < PI.indexOf('PIN._pinWatchSig = sig;\n        _navBadge'), '');
 ok('RULE 4: the inbox page reloads through the ONE refresh door',
    /if \(screen === 'inbox'\) \{[\s\S]{0,200}?await window\._pinRefresh\(\);/.test(PI), '');
 ok('…and the dashboard path updates the badge and the card, nothing else',
@@ -97,10 +97,11 @@ function makeWatcher(init) {
     driveCalls: [], refreshes: 0, badge: null, panelFills: 0, timeouts: [], interval: 0, now: 1000000,
   }, init || {});
   const factory = new Function('ctx', `
-    var _busy = false, _busyWhat = '', _pinRefreshFlight = null, _selectMode = false;
+    var _busy = false, _busyWhat = '', _pinRefreshFlight = null;
+    var PIN = { _selectMode: false };   // the Photo Inbox's shared state (split step 2)
     var window = {
       IS_MOBILE_UA: ctx.mobile, _rrCropOpen: false, _pinInternalDrag: false,
-      _pinRefresh: async function () { ctx.refreshes++; _pinWatchSig = _pinWatchSigOf(ctx.listing); },
+      _pinRefresh: async function () { ctx.refreshes++; PIN._pinWatchSig = _pinWatchSigOf(ctx.listing); },
       addEventListener: function () {}
     };
     var document = {
@@ -130,8 +131,8 @@ function makeWatcher(init) {
     ${src}
     return {
       tick: _pinWatchTick, start: _pinWatchStart, soon: _pinWatchSoon, hold: _pinWatchHold,
-      window: window, sig: function () { return _pinWatchSig; },
-      set: function (k, v) { if (k === 'busy') _busy = v; else if (k === 'busyWhat') _busyWhat = v; else if (k === 'flight') _pinRefreshFlight = v; else if (k === 'select') _selectMode = v; }
+      window: window, sig: function () { return PIN._pinWatchSig; },
+      set: function (k, v) { if (k === 'busy') _busy = v; else if (k === 'busyWhat') _busyWhat = v; else if (k === 'flight') _pinRefreshFlight = v; else if (k === 'select') PIN._selectMode = v; }
     };
   `);
   return { api: factory(ctx), ctx: ctx };
