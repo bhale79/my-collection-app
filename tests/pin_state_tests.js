@@ -60,13 +60,29 @@ function sharedNames(src) {
   return names;
 }
 // Every bare use of a shared name (an Identifier that is not PIN.<name>).
+// The names a function declares for itself (parameters, its own var / let /
+// const / function / catch names) — a local that happens to share a shared
+// value's name (photo-inbox.js has `var _busy = _pinBtnBusy(...)`) is NOT a
+// bare use of the shared value.
+function localNames(fn) {
+  const out = new Set();
+  const pat = p => { if (!p) return; if (p.type === 'Identifier') out.add(p.name); else if (p.type === 'ObjectPattern') p.properties.forEach(q => pat(q.type === 'RestElement' ? q.argument : q.value)); else if (p.type === 'ArrayPattern') p.elements.forEach(pat); else if (p.type === 'AssignmentPattern') pat(p.left); else if (p.type === 'RestElement') pat(p.argument); };
+  (fn.params || []).forEach(pat);
+  (function w(n) { if (!n || typeof n.type !== 'string') return; if (n !== fn && /Function/.test(n.type)) return; if (n.type === 'VariableDeclarator') pat(n.id); if (n.type === 'FunctionDeclaration' && n !== fn) out.add(n.id.name); if (n.type === 'CatchClause' && n.param) pat(n.param); for (const k in n) { if (k === 'loc') continue; const v = n[k]; if (Array.isArray(v)) v.forEach(w); else if (v && typeof v.type === 'string') w(v); } })(fn.body);
+  return out;
+}
+// Every bare use of a shared name (an Identifier that is not PIN.<name> and
+// is not a function's own local of the same name).
 function bareUses(src, names) {
   const NS = new Set(names);
   const out = [];
   const { ast } = topStatements(src);
-  (function walk(n, parent, key) {
+  (function walk(n, parent, key, shadow) {
     if (!n || typeof n.type !== 'string') return;
-    if (n.type === 'Identifier' && NS.has(n.name)) {
+    let sh = shadow;
+    const wrapper = /Function/.test(n.type) && parent && parent.type === 'CallExpression' && key === 'callee';   // a piece's own wrapper
+    if (/Function/.test(n.type) && !wrapper) { sh = new Set(shadow); localNames(n).forEach(x => { if (NS.has(x)) sh.add(x); }); }
+    if (n.type === 'Identifier' && NS.has(n.name) && !sh.has(n.name)) {
       const asProp = parent && parent.type === 'MemberExpression' && key === 'property' && !parent.computed;
       const asKey = parent && parent.type === 'Property' && key === 'key' && !parent.computed && !parent.shorthand;
       if (!asProp && !asKey) out.push(n.name + ' @' + n.loc.start.line);
@@ -74,10 +90,10 @@ function bareUses(src, names) {
     for (const k of Object.keys(n)) {
       if (k === 'loc') continue;
       const v = n[k];
-      if (Array.isArray(v)) v.forEach(c => walk(c, n, k));
-      else if (v && typeof v.type === 'string') walk(v, n, k);
+      if (Array.isArray(v)) v.forEach(c => walk(c, n, k, sh));
+      else if (v && typeof v.type === 'string') walk(v, n, k, sh);
     }
-  })(ast, null, null);
+  })(ast, null, null, new Set());
   return out;
 }
 function pinMade(src) { return (src.match(/var PIN = window\._pinShared = \{\};/g) || []).length; }
@@ -114,6 +130,8 @@ const anchor = 'function _selGroups() {';
 T('P2 the plant anchor exists', SRC.indexOf(anchor) !== -1, anchor);
 const p2 = SRC.replace(anchor, anchor + ' _sel = {};');
 T('P2 PLANTED: one bare "_sel = {}" inside a function is caught', bareUses(p2, NAMES).length === 1, bareUses(p2, NAMES));
+const p2b = SRC.replace(anchor, anchor + ' var _busy = 1; _busy++;');
+T('P2b a function\'s OWN local named like a shared value is not a bare use', bareUses(p2b, NAMES).length === 0, bareUses(p2b, NAMES));
 const p3 = SRC.replace('var PIN = window._pinShared = {};', 'var PIN = window._pinShared = {};\n  var PIN = window._pinShared = {};');
 T('P3 PLANTED: a second PIN is caught', pinMade(p3) === 2, pinMade(p3));
 const p4 = SRC.replace("  PIN._rvAiMfr = '';", "  PIN._rvAiMfr = '';\n  PIN._rvAiMfr = 'x';");

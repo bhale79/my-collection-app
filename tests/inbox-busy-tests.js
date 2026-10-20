@@ -82,25 +82,25 @@ drilled('the scanner recognises a silent guard when it sees one',
 const applyFn = INBOX.slice(INBOX.indexOf('window._pinApplyTags = async function'),
                             INBOX.indexOf('window._pinApplyTags = async function') + 900);
 drilled("COOPER'S BUG: Apply tells you why it did nothing",
-        /if \(_busy\) \{ _pinBusyBounce\(\); return; \}/.test(applyFn),
-        /if \(_busy\) return;\n/.test(applyFn));
+        /if \(PIN\._busy\) \{ _pinBusyBounce\(\); return; \}/.test(applyFn),   // split step 4: the flag lives on PIN
+        /if \(PIN\._busy\) return;\n/.test(applyFn));
 
 // ══ 2. One owner for the flag ══════════════════════════════════════════════
 section('The flag has a single writer and a memory');
 
 ok('nothing assigns the shared flag directly any more',
-   !/(?<!var )_busy = (true|false);/.test(INBOX),
+   !/(?<!var )_busy = (true|false);/.test(INBOX.replace(/^  PIN\._busy = false;$/m, '')),   // the one first setting is the declaration
    (INBOX.match(/_busy = (true|false);/g) || []).join(' | '));
-ok('the declaration is still a plain flag', /^  var _busy = false;$/m.test(INBOX));
+ok('the declaration is still a plain flag (on the shared object since split step 4)', /^  PIN\._busy = false;$/m.test(INBOX));
 ok('every raise names its job for the collector to read',
    (INBOX.match(/_setBusy\(true, '[^']+'\)/g) || []).length >= 6,
    (INBOX.match(/_setBusy\(true[^)]*\)/g) || []).join(' | '));
 ok('the local _pinBtnBusy shadow was left alone',
    /var _busy = _pinBtnBusy\(/.test(INBOX));
 ok('_status is the progress heartbeat',
-   /if \(msg && _busy\) _busyProgressAt = Date\.now\(\);/.test(INBOX));
+   /if \(msg && PIN\._busy\) _busyProgressAt = Date\.now\(\);/.test(INBOX));
 ok('...stamped before the missing-element return, so a rebuilt page does not read as stalled',
-   INBOX.indexOf('if (msg && _busy) _busyProgressAt') <
+   INBOX.indexOf('if (msg && PIN._busy) _busyProgressAt') <
    INBOX.indexOf('if (!el) return;', INBOX.indexOf('function _status(msg, stopFn)')));
 
 // ══ 3. The stuck detector, run for real ════════════════════════════════════
@@ -112,16 +112,16 @@ const { api, ctx } = (() => {
                           INBOX.indexOf('  function _pinStuckStatus()'));
   const sandbox = { now: 1000000 };
   const api = new Function('ctx', `
-    var _busy = false;
+    var PIN = { _busy: false };   // the Photo Inbox's shared values (split step 4)
     var window = {}, location = { reload: function () {} };
     var Date = { now: function () { return ctx.now; } };
     ${src}
     return {
       setBusy: function (o, w) { _setBusy(o, w); },
       stuck: function () { return _busyStuck(); },
-      progress: function () { if (_busy) _busyProgressAt = Date.now(); },
+      progress: function () { if (PIN._busy) _busyProgressAt = Date.now(); },
       what: function () { return _busyWhat; },
-      busy: function () { return _busy; },
+      busy: function () { return PIN._busy; },
       threshold: _STUCK_MS,
     };
   `)(sandbox);

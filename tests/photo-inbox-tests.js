@@ -244,7 +244,6 @@ const HOOK = '\n;window.__T = { get groups(){return PIN._groups;}, set groups(v)
      + ' get rvGroups(){return PIN._rvGroups;}, set rvGroups(v){PIN._rvGroups=v;},'
      + ' setHome:function(e){_pinSetHomeEra(e);}, renderBar:function(){_pinRenderBar();},'
      + ' renderTagBar:function(){_pinRenderTagBar();}, selInfo:function(){_selInfo();},'
-     + ' navHtml:function(d){return _pinRvNavHtml(d);}, posHtml:function(){return _pinRvPosHtml();},'
      + ' filter:function(f){ Object.assign(window._pinFilterState(), f); } };'
      + '\n;window.__MetaOf=_pinMetaOf;window.__UnreadTodo=_pinUnreadTodo;window.__GroupApply=_pinGroupApply;'
      + '\n;window.__NumFromText=_numberFromText;window.__PreferOf=_pinPreferOf;'
@@ -273,6 +272,8 @@ const HOOK_READER = '\n;window.__ColorWords=_pinColorWords;window.__ColorClash=_
      + '\n;window.__DescArbitrate=_pinDescArbitrate;';
 src = require('./lib/pin-source').pinHook(src, HOOK);   // inside the first piece's wrapper, where its names are
 src = require('./lib/pin-source').pinHook(src, HOOK_READER, 'photo-inbox-reader.js');
+// …and the review card's (split step 4) — the arrows' and counter's HTML, added onto window.__T:
+src = require('./lib/pin-source').pinHook(src, '\n;window.__T.navHtml=function(d){return _pinRvNavHtml(d);};window.__T.posHtml=function(){return _pinRvPosHtml();};', 'photo-inbox-review.js');
 eval(src);
 
 const T = window.__T;
@@ -11016,9 +11017,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // v1682 77→78 (stock-photos.js — stock photos by link, owner + beta).
       // v1802 79→80 (atlas-diagrams-config.js — Atlas diagrams + matcher).
       // v1864 80→81 (table-columns.js — the ONE column editor).
-      // v2007 82→83 (photo-inbox-reader.js — Photo Inbox split step 3).
-      ok('every ?v= mark in app/index.html matches it — all 83, none stale',
-         stamps.length === 83 && stamps.every(t => t === '?v=' + build),
+      // v2007 82→83, v2009 83→84 (photo-inbox-reader/-review.js — the split).
+      ok('every ?v= mark in app/index.html matches it — all 84, none stale',
+         stamps.length === 84 && stamps.every(t => t === '?v=' + build),
          stamps.length + ' stamps; strays: ' + stamps.filter(t => t !== '?v=' + build).slice(0, 3).join(','));
       ok('the service worker cache name moved too (build + 10, the fixed offset)',
          new RegExp("const CACHE_NAME = 'mca-v" + (build + 10) + "';").test(rd('app/sw.js')),
@@ -23642,8 +23643,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('335 a base line calls the identity picker, not the number-only one',
          /_pinPickRow\(\\'/.test(p35) && /line\(n, r\.description \|\| r\.roadName \|\| '', r\.refLink \|\| '', true, r\.roadName \|\| ''\)/.test(p35));
       ok('335 a picked identity beats the OCR words and load order outright',
-         /if \(_rvPickedId && String\(_rvPickedId\.num\) === num\)/.test(p35)
-         && /_pinPickedRow\(num, _rvPickedId, prefer\)/.test(p35));
+         /if \(PIN\._rvPickedId && String\(PIN\._rvPickedId\.num\) === num\)/.test(p35)
+         && /_pinPickedRow\(num, PIN\._rvPickedId, prefer\)/.test(p35));
       ok('335 the picked row is matched on road + description, never position',
          /idk === want/.test(p35) && /String\(r\.roadName \|\| ''\)\.toUpperCase\(\) === String\(pick\.road\)\.toUpperCase\(\)/.test(p35));
       ok('335 a pick is scoped to the photo\u2019s eras',
@@ -23651,9 +23652,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('335 a pick cannot survive onto a DIFFERENT photo',
          /_rvClearPick\(\);/.test(p35) && /window\._pinReview = function \(key, only\) \{\s*\n\s*\/\/ v0\.9\.1735/.test(p35));
       ok('335 ...nor onto a different number on the same photo',
-         /String\(_rvPickedId\.num\) === String\(num\)/.test(p35));
+         /String\(PIN\._rvPickedId\.num\) === String\(num\)/.test(p35));
       ok('335 the pick rides into ALL THREE destinations (they share one path)',
-         /_aiS = Object\.assign\(\{\}, _aiS, \{ road: _rvPickedId\.road \}\)/.test(p35));
+         /_aiS = Object\.assign\(\{\}, _aiS, \{ road: PIN\._rvPickedId\.road \}\)/.test(p35));
       ok('335 plain _pinPickNum clears any previous pick',
          /window\._pinPickNum = function \(n\) \{\s*\n\s*_rvClearPick\(\);/.test(p35));
 

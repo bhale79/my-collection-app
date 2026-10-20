@@ -61,7 +61,7 @@ ok('…so a new capture sheet never zeroes a previous sheet’s flight',
    /_qcFlight is deliberately/.test(pi), '');
 
 // ── nothing is lost, so nothing needs warning about ───────────────────────
-const done = body('window._qcDone = async function ()', '\n  // ══ v0.9.1699');
+const done = body('window._qcDone = async function ()', '\n  // ── Batch Add');   // split step 4: end at the next section, not at the end of the (now joined) source
 ok('Done asks NOTHING — both dialogs are gone',
    !/appConfirm/.test(done), done.slice(0, 120));
 ok('…no early return can leave the sheet open',

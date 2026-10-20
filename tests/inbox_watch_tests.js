@@ -73,7 +73,7 @@ ok('…and the dashboard path updates the badge and the card, nothing else',
    /_navBadge\(files\.length\);\s*\n\s*try \{ _pinPanelFill\(\); \}/.test(PI), '');
 
 ok('the busy flag is READ into a reason, not used as a silent user-facing guard',
-   /var job = _busy \? \('busy: ' \+ \(_busyWhat \|\| 'a job'\)\) : '';/.test(holdFn), '');
+   /var job = PIN\._busy \? \('busy: ' \+ \(_busyWhat \|\| 'a job'\)\) : '';/.test(holdFn), '');   // split step 4: the flag lives on PIN
 
 ok('Refresh is single-flight: a second call rides the one in flight',
    /if \(_pinRefreshFlight\) return _pinRefreshFlight;/.test(PI)
@@ -97,8 +97,8 @@ function makeWatcher(init) {
     driveCalls: [], refreshes: 0, badge: null, panelFills: 0, timeouts: [], interval: 0, now: 1000000,
   }, init || {});
   const factory = new Function('ctx', `
-    var _busy = false, _busyWhat = '', _pinRefreshFlight = null;
-    var PIN = { _selectMode: false };   // the Photo Inbox's shared state (split step 2)
+    var _busyWhat = '', _pinRefreshFlight = null;
+    var PIN = { _selectMode: false, _busy: false };   // the Photo Inbox's shared state (split step 2)
     var window = {
       IS_MOBILE_UA: ctx.mobile, _rrCropOpen: false, _pinInternalDrag: false,
       _pinRefresh: async function () { ctx.refreshes++; PIN._pinWatchSig = _pinWatchSigOf(ctx.listing); },
@@ -132,7 +132,7 @@ function makeWatcher(init) {
     return {
       tick: _pinWatchTick, start: _pinWatchStart, soon: _pinWatchSoon, hold: _pinWatchHold,
       window: window, sig: function () { return PIN._pinWatchSig; },
-      set: function (k, v) { if (k === 'busy') _busy = v; else if (k === 'busyWhat') _busyWhat = v; else if (k === 'flight') _pinRefreshFlight = v; else if (k === 'select') PIN._selectMode = v; }
+      set: function (k, v) { if (k === 'busy') PIN._busy = v; else if (k === 'busyWhat') _busyWhat = v; else if (k === 'flight') _pinRefreshFlight = v; else if (k === 'select') PIN._selectMode = v; }
     };
   `);
   return { api: factory(ctx), ctx: ctx };
