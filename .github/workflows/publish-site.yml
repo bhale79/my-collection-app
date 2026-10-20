@@ -1,0 +1,54 @@
+# Publishes therailroster.com — ONLY the paths marked "publish:" in
+# .github/site-files.txt (tests, tools and notes stay off the site).
+# Runs on every push to main, the same moment the old whole-repo publish did.
+name: Publish website
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Gather the website's files (and nothing else)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir _site
+          while read -r p; do
+            [ -n "$p" ] || continue
+            if [ ! -e "$p" ]; then echo "::error::site-files.txt lists '$p' but it is not in the repo"; exit 1; fi
+            cp -a "$p" _site/
+          done < <(sed -n 's/^publish:[[:space:]]*//p' .github/site-files.txt)
+          for must in index.html app/index.html CNAME google540af0b13abd3cff.html; do
+            if [ ! -e "_site/$must" ]; then echo "::error::$must is missing from the site"; exit 1; fi
+          done
+          for never in tests tools README.md PROJECT_INSTRUCTIONS.md package.json; do
+            if [ -e "_site/$never" ]; then echo "::error::$never must not be on the site"; exit 1; fi
+          done
+          echo "Publishing $(find _site -type f | wc -l) files, $(du -sh _site | cut -f1)"
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,39 @@
+# WHAT GOES ON THE WEBSITE — the one list (2026-10-19)
+#
+# GitHub publishes therailroster.com from this repo. Only the paths marked
+# "publish:" are copied onto the site (by .github/workflows/publish-site.yml);
+# everything marked "private:" stays in the repo only. Every top-level file and
+# folder must be on this list exactly once — tests/site_files_tests.js fails
+# when a new one is added without deciding which it is.
+
+# The sales page and its pieces
+publish: index.html
+publish: site
+publish: terms
+publish: privacy
+publish: preview-1051ec16
+# The app
+publish: app
+# The old root service worker — unregisters itself on browsers that installed
+# the app before it moved to /app/ (keep until no one has the old install)
+publish: sw.js
+# Data records — read from the live site during master-list edits
+publish: harvests
+# Google: search listing + Search Console proof (never remove the proof file)
+publish: robots.txt
+publish: sitemap.xml
+publish: google540af0b13abd3cff.html
+# The custom domain name
+publish: CNAME
+
+# Working files — never on the website
+private: tests
+private: tools
+private: README.md
+private: PROJECT_INSTRUCTIONS.md
+private: LICENSE
+private: package.json
+private: package-lock.json
+private: .github
+private: .gitignore
+private: .nojekyll
