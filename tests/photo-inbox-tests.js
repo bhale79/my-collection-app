@@ -11015,12 +11015,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // v1682 77→78 (stock-photos.js — stock photos by link, owner + beta).
       // v1802 79→80 (atlas-diagrams-config.js — Atlas diagrams + matcher).
       // v1864 80→81 (table-columns.js — the ONE column editor).
-      ok('every ?v= mark in app/index.html matches it — all 81, none stale',
-         stamps.length === 81 && stamps.every(t => t === '?v=' + build),
+      ok('every ?v= mark in app/index.html matches it — all 82, none stale',
+         stamps.length === 82 && stamps.every(t => t === '?v=' + build),
          stamps.length + ' stamps; strays: ' + stamps.filter(t => t !== '?v=' + build).slice(0, 3).join(','));
       ok('the service worker cache name moved too (build + 10, the fixed offset)',
          new RegExp("const CACHE_NAME = 'mca-v" + (build + 10) + "';").test(rd('app/sw.js')),
          'expected mca-v' + (build + 10));
+      // (the ?v= count's history, continued: v2005 81→82 — service-manual.js, the Service Manual checklist)
     }
     // v0.9.1276 (R9): the ?v= count above cannot see a NEW local <script>
     // added with no stamp at all — 69 stamped plus one bare is still 69, and

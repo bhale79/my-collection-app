@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2004';
+const APP_VERSION = 'v0.9.2005';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -2618,6 +2618,7 @@ const RR_PHOTO_HOME = {
     'Dealer Paper': 'Dealer Paper', 'Dealer Display Poster': 'Posters',
     'Reference Book': 'Reference Books', 'Promotional Item': 'Promotional Items',
     'Instruction Sheet': 'Instruction Sheets', 'Blueprint / Drawing': 'Drawings',
+    'Service Manual': 'Service Manual',   // v0.9.2005 (the Service Manual checklist)
   },
   // The number the app makes for a paper item (generatePaperItemNum in
   // wizard-save.js: DWG-1957-386, CAT-1957-001) starts with its type's code.
@@ -2627,6 +2628,7 @@ const RR_PHOTO_HOME = {
     MAG: 'Magazines', DPP: 'Dealer Paper', POS: 'Posters', REF: 'Reference Books',
     PRO: 'Promotional Items', IS: 'Instruction Sheets', DWG: 'Drawings',
     OTH: 'Other Paper', PAP: 'Other Paper',
+    SM: 'Service Manual',                 // v0.9.2005: a service-manual page (SM-0204) — Paper › Service Manual
   },
   // My Collection sections (EPHEMERA_TABS ids, via ephSectionOfType): a word
   // is that Paper folder, '*' = by the row's paper type, null = OTHER.
@@ -2679,6 +2681,37 @@ function rrFeatureTab(name) {
   return name;
 }
 if (typeof window !== 'undefined') { window.RR_FEATURE_TABS = RR_FEATURE_TABS; window.rrFeatureTab = rrFeatureTab; }
+// ═══════════════════════════════════════════════════════════════
+// THE SERVICE MANUAL CHECKLIST — the ONE definition (v0.9.2005)
+// [stated] Brad, 2026-10-20: "i meant making the service manuals collectible"
+// → "tick the page checklist" → "yes their own tab" ("they may want to add
+// their picture to it") → "leave them off as they will soon be on the cott
+// site" (no scans). The master's service-manual tab (SERVICE_MANUAL_TAB —
+// one row per page per printing) becomes a checklist under Lionel Postwar in
+// the Master Catalog; a ticked page is a row on the collector's OWN tab
+// (service-manual.js registers that tab's name where it is born). Words,
+// colours and keys live HERE; service-manual.js and browse.js read them.
+const RR_SERVICE_MANUAL = {
+  SECTION: 'serviceManual',        // the Master Catalog section key (Section ▾)
+  BROWSE_TAB: 'sm',                // the browse panel key
+  PANEL: 'browse-sm-panel',        // its element in index.html (service_manual_2005_tests holds the two together)
+  PERIOD: 'postwar',               // the era period the section belongs to
+  LABEL: 'Service Manual',         // the section's name
+  TITLE: 'Lionel Postwar Service Manual',
+  MY_TITLE: 'My Service Manual Pages',
+  CHIP: { label: '📘 Service Manual', color: 'var(--t-sea)' },   // My Collection Show chip (a theme colour, no literal)
+  // The collector's tab: row 1 title, row 2 headings, rows from 3. A new
+  // column goes at the END (stability rule 7).
+  MY_TAB_TITLE: '📘 Service Manual',
+  MY_HEADERS: ['Sheet ID', 'Category', 'Section', 'Page', 'Date Printed', 'Condition', 'Notes', 'Photo Link', 'Covers Items', 'Date Added'],
+  PHOTO_VIEW: 'PG',                // the photo's view tag (page)
+  // Master columns, read BY HEADER NAME (lower-case, letters and digits only).
+  MASTER_HDR: { id: 'sheetid', cat: 'category', sec: 'section', pg: 'page', dt: 'dateprinted',
+                ty: 'pagetype', fb: 'frontback', rep: 'replaces', cov: 'coversitems', note: 'notes' },
+  CACHE_KEY: 'rr_smc_cache_v1',    // this device's copy of the master list (refreshed like the catalogs)
+  INTRO: 'Lionel’s postwar service manual, page by page — every printing has its own line. Tick the pages you own.',
+};
+if (typeof window !== 'undefined') window.RR_SERVICE_MANUAL = RR_SERVICE_MANUAL;
 // ── Saved storage locations, two levels (v0.9.1531b) ────────────
 // Brad: "manage the totes INSIDE each location, and the wizard should then
 // suggest only the details belonging to the location you chose."

@@ -182,6 +182,8 @@ if (typeof window !== 'undefined') { window._rrTypeHome = _rrTypeHome; window.rr
 // v0.9.985 (Brad): the Jump To bar is now a section FILTER — "Trains" shows
 // only train rows, "Catalogs" only catalogs, and so on ('all' = combined view).
 window._collSectionSet = function(key) {
+  // v0.9.2005: the Service Manual chip opens its own list, not a filter of this one.
+  if (typeof RR_SERVICE_MANUAL !== 'undefined' && key === RR_SERVICE_MANUAL.BROWSE_TAB && typeof rrSmOpenMine === 'function') { rrSmOpenMine(); return; }
   state._collSection = key;
   state._collSecBeforeSearch = null;   // v0.9.1878: a chip clicked during a search is where you stay
   // v0.9.1878: a chip that would hide what the Type pill names clears the pill
@@ -1224,6 +1226,10 @@ function _phSectionsFor(era) {
         if (!_PH_NON_TAB_SECTIONS[s]) seen[s] = 1;
       });
     });
+    // v0.9.2005: the Service Manual checklist is a section of its period
+    // (config.js RR_SERVICE_MANUAL) — not an ERA_TABS key, because it is not
+    // a catalog tab the loaders read.
+    if (typeof RR_SERVICE_MANUAL !== 'undefined' && RR_SERVICE_MANUAL.PERIOD === era) seen[RR_SERVICE_MANUAL.SECTION] = 1;
     return Object.keys(seen);
   }
   // 'any' or fallback: union across ALL real eras.
@@ -1234,6 +1240,7 @@ function _phSectionsFor(era) {
       if (!_PH_NON_TAB_SECTIONS[s]) seen2[s] = 1;
     });
   });
+  if (typeof RR_SERVICE_MANUAL !== 'undefined') seen2[RR_SERVICE_MANUAL.SECTION] = 1;   // v0.9.2005
   return Object.keys(seen2).length ? Object.keys(seen2) : ['items'];
 }
 
@@ -1258,6 +1265,13 @@ var _PH_TAB_TO_SECTION = {
   science: 'science', construction: 'construction', paper: 'paper',
   other: 'other', service: 'serviceTools', is: 'instrSheets',
 };
+// v0.9.2005: the Service Manual checklist's keys and words come from its one
+// definition (config.js RR_SERVICE_MANUAL), never typed here.
+if (typeof RR_SERVICE_MANUAL !== 'undefined') {
+  _PH_SECTION_TO_TAB[RR_SERVICE_MANUAL.SECTION] = RR_SERVICE_MANUAL.BROWSE_TAB;
+  _PH_TAB_TO_SECTION[RR_SERVICE_MANUAL.BROWSE_TAB] = RR_SERVICE_MANUAL.SECTION;
+  _PH_SECTION_LABELS[RR_SERVICE_MANUAL.SECTION] = RR_SERVICE_MANUAL.LABEL;
+}
 
 function _phLabelFor(level, id) {
   var WIC = (typeof window !== 'undefined' && window.WHAT_I_COLLECT) || {};
@@ -3021,6 +3035,7 @@ function renderBrowseTab(tab) {
   // PANELS below are the live half — those ids are real, in index.html — and
   // they are what actually switches the tab.
   const panels = { items:'browse-items-panel', sets:'browse-sets-panel', catalogs:'browse-catalogs-panel', science:'browse-science-panel', construction:'browse-construction-panel', paper:'browse-paper-panel', other:'browse-other-panel', service:'browse-service-panel', is:'browse-is-panel' };
+  if (typeof RR_SERVICE_MANUAL !== 'undefined') panels[RR_SERVICE_MANUAL.BROWSE_TAB] = RR_SERVICE_MANUAL.PANEL;   // v0.9.2005
   Object.entries(panels).forEach(([key, id]) => {
     const el = document.getElementById(id);
     if (el) el.style.display = key === state._browseTab ? '' : 'none';
@@ -3039,6 +3054,7 @@ function renderBrowseTab(tab) {
   const titleEl = document.getElementById('browse-title-text');
   const mTitles = { items:'Master Catalog', sets:'Set Master List', catalogs:'Catalog List', science:'Science Sets', construction:'Construction Sets', paper:'Paper Items', other:'Other Items', service:'Service Tools', is:'Instruction Sheet List' };
   const cTitles = { items:'My Collection', sets:'My Sets', catalogs:'My Catalogs & Paper Items' };
+  if (typeof RR_SERVICE_MANUAL !== 'undefined') { mTitles[RR_SERVICE_MANUAL.BROWSE_TAB] = RR_SERVICE_MANUAL.LABEL; cTitles[RR_SERVICE_MANUAL.BROWSE_TAB] = RR_SERVICE_MANUAL.MY_TITLE; }   // v0.9.2005
   if (titleEl) titleEl.textContent = (inCollection ? cTitles : mTitles)[state._browseTab] || 'Master Catalog';
 
   if (state._browseTab === 'items') renderBrowse();
@@ -3050,6 +3066,8 @@ function renderBrowseTab(tab) {
   else if (state._browseTab === 'paper') renderMasterSubTab('paper');
   else if (state._browseTab === 'other') renderMasterSubTab('other');
   else if (state._browseTab === 'service') renderMasterSubTab('service');
+  else if (typeof RR_SERVICE_MANUAL !== 'undefined' && state._browseTab === RR_SERVICE_MANUAL.BROWSE_TAB
+           && typeof renderServiceManualTab === 'function') renderServiceManualTab();   // v0.9.2005
   // Step 2: keep hierarchy chip row in sync when the old tab strip is used.
   if (typeof _renderHierarchyChips === 'function') _renderHierarchyChips();
 }
@@ -5050,6 +5068,15 @@ function _rrBrowseCore(_co) {
       // Trains (or under a chip), and the chip has to stay clickable from there.
       if (Object.keys(state.isData || {}).length && !_collAllSections.some(function(s) { return s.key === 'is'; })) {
         _collAllSections.push({ key: 'is', label: _RR_IS_CHIP.label, color: _RR_IS_CHIP.color });
+      }
+      // v0.9.2005: the Service Manual pages the collector ticked — their own
+      // list (service-manual.js), opened by the chip. The count is asked once
+      // per session; the chip appears when the answer is "at least one".
+      if (typeof RR_SERVICE_MANUAL !== 'undefined' && typeof rrSmOwnedCount === 'function') {
+        if (rrSmOwnedCount() > 0) _collAllSections.push({ key: RR_SERVICE_MANUAL.BROWSE_TAB, label: RR_SERVICE_MANUAL.CHIP.label, color: RR_SERVICE_MANUAL.CHIP.color });
+        else if (typeof rrSmWarmOwned === 'function') rrSmWarmOwned(function () {
+          if (state.filters && state.filters.owned && state._browseTab === 'items' && typeof renderBrowse === 'function') renderBrowse();
+        });
       }
     } catch (eChip) {}
   }

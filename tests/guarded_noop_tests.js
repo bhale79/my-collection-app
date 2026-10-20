@@ -54,6 +54,13 @@ ok('renderBrowseTab still switches the PANELS, which is what actually changes th
 (function () {
   const mapSrc = (/const panels = \{([^}]*)\}/.exec(brw) || ['', ''])[1];
   const named = (mapSrc.match(/'browse-[a-z]+-panel'/g) || []).map(x => x.replace(/'/g, ''));
+  // v0.9.2005: a panel the controller adds from its config definition counts
+  // as named — the Service Manual checklist (panels[RR_SERVICE_MANUAL.BROWSE_TAB]
+  // = RR_SERVICE_MANUAL.PANEL), its id read from config.js.
+  if (/panels\[RR_SERVICE_MANUAL\.BROWSE_TAB\] = RR_SERVICE_MANUAL\.PANEL;/.test(brw)) {
+    const _smPanel = (rd('config.js').match(/PANEL: '(browse-[a-z]+-panel)'/) || [])[1];
+    if (_smPanel) named.push(_smPanel);
+  }
   const built = (rd('index.html').match(/id="browse-[a-z]+-panel"/g) || []).map(x => x.slice(4, -1));
   ok('…and those panel ids are real (every panel the controller names is built, and nothing is built that it does not name)',
      named.length > 0 && named.every(id => built.includes(id)) && built.every(id => named.includes(id)),
