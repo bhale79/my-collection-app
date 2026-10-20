@@ -107,6 +107,9 @@ try {
   .hero h1 em { font-style: normal; color: var(--orange); }
   .hero .lead { font-size: 1.12rem; color: #e6d6b4; margin: 1.1rem 0 1.4rem; max-width: 34em; font-weight: 300; }
   .hero .lead b { color: var(--cream); font-weight: 700; }
+  /* 2026-10-19: another "Rail Roster" app is iPhone/Mac only — say plainly that this one runs everywhere */
+  .hero .works-on { margin: -.6rem 0 1.3rem; font-size: .98rem; color: #e6d6b4; }
+  .hero .works-on b { color: var(--cream); font-weight: 700; }
   .price-line { font-family: var(--head); font-size: 1.25rem; letter-spacing: .03em; margin-bottom: 1.2rem; }
   .price-line b { color: var(--orange); }
   .ctas { display: flex; gap: .75rem; flex-wrap: wrap; }
@@ -369,6 +372,7 @@ try {
     .hero.has-ad .art .logo { width: 115px; }               /* a smaller logo while the ad shows, so the headline starts sooner */
     .hero .art .logo { width: 170px; }
     .hero .lead { margin-left: auto; margin-right: auto; }
+    .hero .works-on { margin-left: auto; margin-right: auto; }
     .ctas { justify-content: center; }
     .yours .three { grid-template-columns: 1fr; }
     section { padding: 3rem 0; }
@@ -410,6 +414,7 @@ try {
       <div class="kicker">Built for the collector, by a collector</div>
       <h1>Catalog your train collection, <em>today!</em></h1>
       <p class="lead"><b>Your collection, your way.</b> Add your trains from a catalog of <b data-cfg="count">160,000+</b> items on your phone or computer, identify the mystery pieces from a photo, and always know what you have, where it is, and what it’s worth.</p>
+      <p class="works-on">Works on <b>Android, iPhone, Windows and Mac</b> — right in your web browser, no app store needed.</p>
       <div class="price-line not-show"><b data-cfg="price"></b> <span class="pl-trial">— try it free for 3 weeks</span></div>
       <div class="price-line only-show">Show special: <b data-cfg="showprice"></b>, then <span data-cfg="price"></span></div>
       <div class="ctas">
