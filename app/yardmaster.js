@@ -208,7 +208,24 @@
       }
       return { idx: -1, field: 'num', header: shape.numberHeaders.join(' / ') };
     }
-    return { idx: hs.indexOf('Item Number'), field: 'num', header: 'Item Number' };
+    // v0.9.2004→2014: an items tab's number column is found by MEANING, through
+    // app-data.js's ONE alias list — the Atlas tabs head it 'Item #' (Brad's
+    // Commit 231 stopped there on 2026-10-20, before any write).
+    for (var j = 0; j < hs.length; j++) if (_ymHeaderField(hs[j]) === 'itemNum') return { idx: j, field: 'num', header: hs[j] };
+    return { idx: -1, field: 'num', header: 'Item Number' };
+  }
+  // v0.9.2014: which master FIELD a column header names. The master spells the
+  // same column several ways across tabs (Item Number / Item #, Description /
+  // Item Description, Variation / Variation #, Sub Type / Sub-Type…), and the
+  // app already reads every tab through ONE list: MASTER_COL_SPEC + _normHdr
+  // (app-data.js). The Office writes through that same list — never a second
+  // one of its own. No list loaded = no field (the commit then stops; it never guesses).
+  function _ymHeaderField(h) {
+    if (typeof MASTER_COL_SPEC === 'undefined' || typeof _normHdr !== 'function') return null;
+    var k = _normHdr(h);
+    if (!k) return null;
+    for (var i = 0; i < MASTER_COL_SPEC.length; i++) if (MASTER_COL_SPEC[i][2].indexOf(k) >= 0) return MASTER_COL_SPEC[i][0];
+    return null;
   }
 
   // v0.9.1713: "2026-09-10:2;2026-09-11:1" → opens in the last N days (today
@@ -1398,23 +1415,24 @@
       if (f === 'notesWithTrail') return (dd.notes ? String(dd.notes) + ' \u2014 ' : '') + trail;
       return dd[f] || '';
     }
-    switch (String(h)) {
-      case 'Item Number': return dd.num;
-      case 'Item Type': return dd.type;
-      case 'Road Name': return dd.road;
-      case 'Description': return dd.desc;
-      case 'Gauge': return dd.gauge;
-      case 'Year Produced': return dd.years;
-      case 'Variation': return dd.variation;
-      case 'Reference Link': return dd.link;
-      case 'MSRP': return dd.msrp;
-      case 'Image URL': return dd.imageUrl || '';   // v0.9.1683
-      // v0.9.1685: book rows — the master spells these two ways across tabs
-      case 'Variation Description': case 'Variation Details': return dd.varDesc || '';
-      case 'Sub Type': case 'Sub-Type': return dd.subType || '';
-      case 'Notes': return dd.notes || '';
-      case 'Category': return dd.category || '';
-      case 'Source': return trail;
+    // v0.9.2014: the header is read by MEANING (_ymHeaderField → MASTER_COL_SPEC),
+    // so 'Item #' / 'Item Description' / 'Variation #' fill like their twins.
+    switch (_ymHeaderField(h)) {
+      case 'itemNum': return dd.num;
+      case 'itemType': return dd.type;
+      case 'roadName': return dd.road;
+      case 'description': return dd.desc;
+      case 'gauge': return dd.gauge;
+      case 'yearProd': return dd.years;
+      case 'variation': return dd.variation;
+      case 'refLink': return dd.link;
+      case 'msrp': return dd.msrp;
+      case 'imageUrl': return dd.imageUrl || '';   // v0.9.1683
+      case 'varDesc': return dd.varDesc || '';     // v0.9.1685: book rows
+      case 'subType': return dd.subType || '';
+      case 'notes': return dd.notes || '';
+      case 'category': return dd.category || '';
+      case 'source': return trail;
       default: return '';
     }
   }

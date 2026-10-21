@@ -27,6 +27,7 @@ const src = f => fs.readFileSync(path.join(APP, f), 'utf8');
 let pass = 0, fail = 0;
 function T(n, cond, detail) { console.log((cond ? 'PASS' : 'FAIL') + '  ' + n + (cond ? '' : '  -> ' + (detail === undefined ? '' : JSON.stringify(detail)))); cond ? pass++ : fail++; }
 function section(t) { console.log('\n== ' + t + ' =='); }
+const MCS = require('./lib/master-col-spec.js');   // v0.9.2014
 function grab(text, head) {
   const i = text.indexOf(head);
   if (i < 0) throw new Error('missing ' + head);
@@ -134,7 +135,8 @@ T('D13 PLANTED: without it the boxcar collector is handed the motor car — D2 c
 // ── E · the Office ─────────────────────────────────────────────────────────
 section('E · the Office mints a Row ID for every row it files');
 function liftOffice(ymText, mintFn) {
-  return new Function('rrNewRowId', grab(ymText, 'function _ymMasterCell(') + '\n' + grab(ymText, 'function _ymRowsFor(') + '\nreturn _ymRowsFor;')(mintFn);
+  // v0.9.2014: the cell builder reads headers through the app's ONE column list (tests/lib/master-col-spec.js)
+  return new Function('rrNewRowId', 'MASTER_COL_SPEC', '_normHdr', grab(ymText, 'function _ymHeaderField(') + '\n' + grab(ymText, 'function _ymMasterCell(') + '\n' + grab(ymText, 'function _ymRowsFor(') + '\nreturn _ymRowsFor;')(mintFn, MCS.MASTER_COL_SPEC, MCS._normHdr);
 }
 const rowsFor = liftOffice(ym, D.mint);
 const heads = ['Item Number', 'Item Type', 'Description', 'Source', 'Row ID'];
@@ -154,7 +156,7 @@ T('E4 a Sets / Catalogs tab (a shape) gets no Row ID', liftOffice(ym, D.mint)(sh
 const oldRowsFor = ym.indexOf('function _ymRowsFor(') > 0
   ? grab(ym, 'function _ymRowsFor(').replace(/if \(rid && String\(h\) === 'Row ID'\) return rid;/, '')
   : '';
-const outOld = new Function('rrNewRowId', grab(ym, 'function _ymMasterCell(') + '\n' + oldRowsFor + '\nreturn _ymRowsFor;')(D.mint)(plan, '2026-10-05');
+const outOld = new Function('rrNewRowId', 'MASTER_COL_SPEC', '_normHdr', grab(ym, 'function _ymHeaderField(') + '\n' + grab(ym, 'function _ymMasterCell(') + '\n' + oldRowsFor + '\nreturn _ymRowsFor;')(D.mint, MCS.MASTER_COL_SPEC, MCS._normHdr)(plan, '2026-10-05');
 T('E5 PLANTED: a builder that skips the Row ID leaves the column blank — E1 catches it', oldRowsFor && outOld.every(r => r[4] === ''));
 
 // ── F · the master-list check ──────────────────────────────────────────────

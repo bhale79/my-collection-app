@@ -166,7 +166,7 @@ ok('1627 backups land BEFORE any master write — and a failed backup ABORTS',
    && cm27.indexOf('upload/drive/v3/files') < cm27.indexOf('sheetsAppend(MID')
    && /backup failed/i.test(cm27));
 ok('1627 master rows are built BY HEADER NAME, never by fixed index',
-   /_ymMasterCell/.test(cm27) && /'Item Number'/.test(cm27) && /'Year Produced'/.test(cm27)
+   /_ymMasterCell/.test(cm27) && /switch \(_ymHeaderField\(h\)\)/.test(cm27) && /case 'itemNum'/.test(cm27) && /case 'yearProd'/.test(cm27)   /* v0.9.2014: by header MEANING through the app's ONE column list (commit_batch_dedupe_2004_tests runs it on an Atlas tab) */
    && /heads\.map\(function \(h\)/.test(cm27));
 ok('1627 a number already in master is HELD — append-only, nothing deleted or overwritten',
    /held/i.test(cm27) && !/deleteRange|deleteDimension|clear\(/.test(cm27) && /sheetsAppend\(MID/.test(cm27));

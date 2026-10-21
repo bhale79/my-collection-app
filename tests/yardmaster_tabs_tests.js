@@ -62,9 +62,10 @@ const FIX = {
     ghost: { items: 'Not a real era' },
   },
 };
-const lifted = new Function('REAL_ERA_IDS', 'ERA_TABS', 'MASTER_TAB_SHAPES',
-  grab(ym, 'function _ymMasterTabs()') + '\n' + grab(ym, 'function _ymTabShape(') + '\n' + grab(ym, 'function _ymNumberCol(') + '\n' + grab(ym, 'function _ymMasterCell(')
-  + '\nreturn { tabs: _ymMasterTabs, shape: _ymTabShape, numCol: _ymNumberCol, cell: _ymMasterCell };')(FIX.REAL_ERA_IDS, FIX.ERA_TABS, SHAPES);
+const MCS = require('./lib/master-col-spec.js');   // v0.9.2014: the app's ONE column list, from app-data.js
+const lifted = new Function('REAL_ERA_IDS', 'ERA_TABS', 'MASTER_TAB_SHAPES', 'MASTER_COL_SPEC', '_normHdr',
+  grab(ym, 'function _ymMasterTabs()') + '\n' + grab(ym, 'function _ymTabShape(') + '\n' + grab(ym, 'function _ymNumberCol(') + '\n' + grab(ym, 'function _ymHeaderField(') + '\n' + grab(ym, 'function _ymMasterCell(')
+  + '\nreturn { tabs: _ymMasterTabs, shape: _ymTabShape, numCol: _ymNumberCol, cell: _ymMasterCell };')(FIX.REAL_ERA_IDS, FIX.ERA_TABS, SHAPES, MCS.MASTER_COL_SPEC, MCS._normHdr);
 
 const tabs = lifted.tabs();
 ok('the list: items tab first for each era, then that era\'s other allowed tabs',

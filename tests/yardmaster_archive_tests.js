@@ -169,6 +169,8 @@ function boot(v, opts) {
     REAL_ERA_IDS: ['marx', 'pw', 'mpc'], ERA_TABS: { marx: { items: 'Marx O' }, pw: { items: 'Lionel PW - Items' }, mpc: { items: 'Lionel MPC-Modern' } },
     ERAS: { marx: { manufacturer: 'Marx' }, pw: { manufacturer: 'Lionel' }, mpc: { manufacturer: 'Lionel' } },
     MASTER_SHEET_ID: 'master',
+    // v0.9.2014: the app's ONE master column list (app-data.js) — the Office reads headers through it
+    MASTER_COL_SPEC: require('./lib/master-col-spec.js').MASTER_COL_SPEC, _normHdr: require('./lib/master-col-spec.js')._normHdr,
     // v0.9.1760: yardmaster.js now escapes handler arguments through app.js's
     // shared rrJsArg (JS string first, then the HTML attribute). app.js is not
     // loaded in this sandbox, so the fake room supplies the same two helpers.

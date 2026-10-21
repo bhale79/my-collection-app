@@ -26,10 +26,11 @@ function ok(name, cond, detail) {
 
 const SRC = fs.readFileSync(path.join(__dirname, '..', 'app', 'yardmaster.js'), 'utf8');
 const CFG = fs.readFileSync(path.join(__dirname, '..', 'app', 'config.js'), 'utf8');
+const MCS = require('./lib/master-col-spec.js');
 const LAST_COL = (CFG.match(/const MASTER_READ_LAST_COL = '([A-Z]+)'/) || [])[1];
 
 // ── the in-memory Vault + master ───────────────────────────────
-function makeVault() {
+function makeVault(atlas) {
   const DH = ['batch_id', 'delta_id', 'action', 'proposed_tab', 'item_num', 'item_type', 'road_name', 'description', 'gauge', 'variation', 'years', 'ref_link', 'msrp', 'source', 'flag', 'status', 'decided', 'image_url', 'var_desc', 'sub_type', 'notes', 'category'];
   const BH = ['batch_id', 'source', 'created', 'label', 'status', 'total', 'note'];
   const deltas = [DH.slice()];
@@ -49,11 +50,21 @@ function makeVault() {
   deltas.push(row('N12', 'Lionel PW - Items', 'approved'));           // ← same number, OTHER tab: NOT a duplicate
   deltas.push(row('N13', 'Marx O', 'rejected'));                      // ← rejected: never considered
   deltas.push(row('N13', 'Marx O', 'approved'));
+  if (atlas) {   // v0.9.2014: the Atlas tabs head their columns 'Item #' / 'Item Description' (Brad's Commit 231 stopped here)
+    deltas.length = 1; n = 0;
+    deltas.push(row('3002231', 'Atlas O', 'approved', 'China Shipping container'));   // already on the tab → HELD
+    deltas.push(row('0528-1', 'Atlas O', 'approved', 'NP plug door boxcar #98513'));
+    deltas.push(row('0528-1', 'Atlas O', 'approved', 'NP plug door boxcar again'));  // same item twice → HELD
+    deltas.push(row('45618', 'Lionel MPC-Modern', 'edited', 'Motel'));               // 'Variation #' tab
+    deltas[4][9] = '2';
+  }
   const batches = [BH.slice(), ['X', 'test', '2026-10-20', 'Batch X', 'pending', String(n), '']];
   const marx = [['Item Number', 'Item Type', 'Description'], ['N1', 'Boxcar', 'one'], ['N2', 'Boxcar', 'two']];
   const pw = [['Item Number', 'Item Type', 'Description'], ['2343', 'Diesel', 'F3']];
+  const atlasO = [['Item #', 'Item Type', 'Road Name', 'Item Description', 'Variation', 'Source', 'Row ID'], ['3002231', 'Accessory', 'China Shipping', 'container', '', 'Atlas Archive', 'AAAAAAAAAA']];
+  const mpc = [['Item Number', 'Item Type', 'Sub-Type', 'Road Name', 'Description', 'Variation #', 'Variation Details', 'Source'], ['6-12345', 'Boxcar', '', '', 'x', '', '', '']];
   return { tabs: { crawl_batches: batches, crawl_deltas: deltas, submissions: [['token']], barcode_pairs: [['upc']], chores: [['a']], usage: [['a']],
-                   'Marx O': marx, 'Lionel PW - Items': pw }, log: [], drive: [] };
+                   'Marx O': marx, 'Lionel PW - Items': pw, 'Atlas O': atlasO, 'Lionel MPC-Modern': mpc }, log: [], drive: [] };
 }
 
 function colIdx(letter) { let x = 0; for (const ch of letter) x = x * 26 + (ch.charCodeAt(0) - 64); return x - 1; }
@@ -106,10 +117,13 @@ function boot(v, src) {
     showToast: (msg) => toasts.push(String(msg)),
     appConfirm: async (msg) => { asks.push(String(msg)); return true; },
     document: { getElementById: (id) => (id === 'page-yardmaster' ? page : null), querySelector: () => null, createElement: () => ({}) },
-    REAL_ERA_IDS: ['marx', 'pw'], ERA_TABS: { marx: { items: 'Marx O' }, pw: { items: 'Lionel PW - Items' } },
-    ERAS: { marx: { manufacturer: 'Marx' }, pw: { manufacturer: 'Lionel' } },
+    REAL_ERA_IDS: ['marx', 'pw', 'atlas', 'mpc'], ERA_TABS: { marx: { items: 'Marx O' }, pw: { items: 'Lionel PW - Items' }, atlas: { items: 'Atlas O' }, mpc: { items: 'Lionel MPC-Modern' } },
+    ERAS: { marx: { manufacturer: 'Marx' }, pw: { manufacturer: 'Lionel' }, atlas: { manufacturer: 'Atlas' }, mpc: { manufacturer: 'Lionel' } },
+    rrNewRowId: () => 'NEWID' + String(Math.random()).slice(2, 7),
     MASTER_SHEET_ID: 'master',
     MASTER_READ_LAST_COL: LAST_COL,
+    // v0.9.2014: the app's ONE master column list (app-data.js), as the live page has it
+    MASTER_COL_SPEC: MCS.MASTER_COL_SPEC, _normHdr: MCS._normHdr,
     rrEsc: (x) => String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'),
     rrRegisterPage: () => {},
     // the guarded append (sheets.js) — writes straight into the fake master
@@ -124,8 +138,8 @@ function boot(v, src) {
 }
 const tick = (ms) => new Promise(r => setTimeout(r, ms || 30));
 
-async function runCommit(src) {
-  const v = makeVault(); const ctx = boot(v, src);
+async function runCommit(src, atlas) {
+  const v = makeVault(atlas); const ctx = boot(v, src);
   ctx.sandbox.ymBuildPage(true);
   for (let i = 0; i < 60 && !/Catalog review queue/.test(ctx.page.innerHTML); i++) await tick();
   ctx.sandbox._ymBatchOpen('X', false);
@@ -169,6 +183,33 @@ const count = (arr, x) => arr.filter(y => y === x).length;
   ok('planted: the batch key line exists to swap', off2src !== SRC);
   const off2 = await runCommit(off2src);
   ok('planted offender (batch key not trimmed like the master key) → " N10 " slips through and the suite sees it', off2.ctx.appended.length !== 5, JSON.stringify(off2.ctx.appended));
+
+  // ═══ 4. v0.9.2014 — Atlas tabs ('Item #', 'Item Description') and 'Variation #' ═══
+  // Brad pressed Commit 231 on 2026-10-20: "could not find the Item Number column on
+  // Atlas O — commit stopped before any write". The Office now reads every header
+  // through the app's ONE column list (MASTER_COL_SPEC, app-data.js).
+  const a = await runCommit(SRC, true);
+  const aAsk = a.ctx.asks[0] || '';
+  ok('Atlas: Commit no longer stops — it asked once', a.ctx.asks.length === 1, JSON.stringify(a.ctx.toasts));
+  const atl = a.v.tabs['Atlas O'], landed = atl.filter(r => r[0] === '0528-1');
+  ok('Atlas: 0528-1 landed once, its number under "Item #"', landed.length === 1, JSON.stringify(atl));
+  ok('Atlas: the description went under "Item Description"', landed[0] && landed[0][3] === 'NP plug door boxcar #98513', JSON.stringify(landed[0]));
+  ok('Atlas: Item Type and Source filled; a Row ID minted', landed[0] && landed[0][1] === 'Boxcar' && /approved/.test(landed[0][5]) && /^NEWID/.test(landed[0][6]), JSON.stringify(landed[0]));
+  ok('Atlas: 3002231 (already on the tab under "Item #") was HELD, not added again', atl.filter(r => r[0] === '3002231').length === 1);
+  ok('Atlas: the confirm box holds 1 already-in-master and 1 twice-in-batch', /1 held \u2014 number already in master\./.test(aAsk) && /1 held \u2014 same item twice in this batch\./.test(aAsk), aAsk);
+  const mrow = a.v.tabs['Lionel MPC-Modern'].find(r => r[0] === '45618') || [];
+  ok('MPC-Modern: the variation went under "Variation #" (was left blank before)', mrow[5] === '2' && mrow[4] === 'Motel', JSON.stringify(mrow));
+  // planted: the old fixed-name lookup for the number column
+  const oldNum = "for (var j = 0; j < hs.length; j++) if (_ymHeaderField(hs[j]) === 'itemNum') return { idx: j, field: 'num', header: hs[j] };";
+  ok('planted: the number-column line exists to swap', SRC.split(oldNum).length === 2);
+  const offA = await runCommit(SRC.replace(oldNum, "return { idx: hs.indexOf('Item Number'), field: 'num', header: 'Item Number' };"), true);
+  ok('planted offender (Commit\'s own "Item Number" list) → it stops on Atlas O again, and the suite sees it', offA.ctx.asks.length === 0 && /could not find the Item Number column on Atlas O/.test(offA.ctx.toasts.join(' ')), JSON.stringify(offA.ctx.toasts));
+  // planted: the cell builder going back to exact header names
+  const offB = await runCommit(SRC.replace('switch (_ymHeaderField(h)) {', "switch ({ 'Item Number': 'itemNum', 'Item #': 'itemNum', 'Item Type': 'itemType', 'Description': 'description', 'Variation': 'variation', 'Source': 'source' }[String(h)]) {"), true);
+  const offRow = offB.v.tabs['Atlas O'].find(r => r[0] === '0528-1') || [];
+  ok('planted offender (exact header names in the cell builder) → the Atlas description lands blank, and the suite sees it', offRow[3] === '' || offRow[3] === undefined, JSON.stringify(offRow));
+  // the list comes from app-data.js, never a copy in yardmaster.js
+  ok('yardmaster.js holds no column-alias list of its own', !/case 'Item Number'|case 'Description'|case 'Item Description'|'itemdescription'|'itemnumber'/.test(SRC) && /MASTER_COL_SPEC\[i\]\[2\]\.indexOf\(k\)/.test(SRC));
 
   console.log('\n' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
