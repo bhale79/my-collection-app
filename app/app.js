@@ -1452,31 +1452,87 @@ function rrAccountFingerprint(email) {
 }
 if (typeof window !== 'undefined') window.rrAccountFingerprint = rrAccountFingerprint;
 
+// ── v0.9.2015: A LIST OF ACCOUNTS PER DEVICE, NOT ONE SLOT ──────────────
+// [stated] Brad, 2026-10-23: "everytime i sign off and log back on it treats
+// me as i am new and ask me to sign up for community and all the new user pop
+// ups reset". The finished-setup marker (and the scanning card's) held ONE
+// fingerprint, so a device used by two accounts (his own and the support@
+// demo) forgot one every time the other finished: switching = the whole setup
+// again. The marker is now a list of fingerprints (newest last, at most
+// RR_ACCOUNT_LIST_MAX). A value from before — one bare fingerprint, or the old
+// device-wide '1' — still reads: the fingerprint as a one-entry list, '1' as
+// nobody. Each marker ALSO lives in the account's own settings (_prefSet), so
+// it follows the person to a new phone or the booth laptop.
+var RR_ACCOUNT_LIST_MAX = 20;
+function rrAccountListRead(key) {
+  try {
+    var v = localStorage.getItem(key);
+    if (!v || v === '1') return [];
+    if (v.charAt(0) === '[') {
+      var a = JSON.parse(v);
+      return Array.isArray(a) ? a.filter(function (x) { return typeof x === 'string' && x; }) : [];
+    }
+    return [v];
+  } catch (e) { return []; }
+}
+function rrAccountListHas(key, fp) {
+  return !!fp && rrAccountListRead(key).indexOf(fp) >= 0;
+}
+function rrAccountListAdd(key, fp) {
+  try {
+    var list = rrAccountListRead(key);
+    if (!fp) {
+      // No account known (the legacy fallback): '1' as before, but never over
+      // a list that already names accounts.
+      if (!list.length) localStorage.setItem(key, '1');
+      return;
+    }
+    list = list.filter(function (x) { return x !== fp; });
+    list.push(fp);
+    if (list.length > RR_ACCOUNT_LIST_MAX) list = list.slice(list.length - RR_ACCOUNT_LIST_MAX);
+    localStorage.setItem(key, JSON.stringify(list));
+  } catch (e) {}
+}
+if (typeof window !== 'undefined') {
+  window.rrAccountListRead = rrAccountListRead;
+  window.rrAccountListHas = rrAccountListHas;
+  window.rrAccountListAdd = rrAccountListAdd;
+}
+
 // The two questions the welcome sequence asks, in ONE place so they cannot
 // drift: the gate that reads it and the finish that writes it are otherwise
 // in different files (app-setup.js and onboarding.js).
-var RR_ONBOARDED_KEY = 'lv_onboarded';
+var RR_ONBOARDED_KEY = 'lv_onboarded';          // per device: the list of accounts that finished setup
+var RR_SETUP_DONE_PREF = 'lv_setup_done';         // per account (its settings file): '1' = finished setup
 function rrMarkOnboardingSeen() {
   try {
     var fp = rrAccountFingerprint((window.state && state.user && state.user.email) || '');
-    // No account yet (the legacy fallback can fire before sign-in): fall back
-    // to '1', which every account then treats as "not mine" and re-shows. A
-    // tour shown once too often is a nuisance; skipping one for the wrong
-    // person leaves them with no idea what the app does.
-    localStorage.setItem(RR_ONBOARDED_KEY, fp || '1');
+    // No account yet (the legacy fallback can fire before sign-in): '1', which
+    // every account then treats as "not mine" and re-shows. A tour shown once
+    // too often is a nuisance; skipping one for the wrong person leaves them
+    // with no idea what the app does.
+    rrAccountListAdd(RR_ONBOARDED_KEY, fp);
+    if (fp && typeof _prefSet === 'function') _prefSet(RR_SETUP_DONE_PREF, '1');   // v0.9.2015: follows the account
   } catch (e) {}
 }
 function rrOnboardingSeenByCurrentAccount() {
   try {
-    var seen = localStorage.getItem(RR_ONBOARDED_KEY);
-    if (!seen) return false;
     var fp = rrAccountFingerprint((window.state && state.user && state.user.email) || '');
     if (!fp) return false;                 // cannot tell yet -> ask, don't guess
-    return seen === fp;
+    var onDevice = rrAccountListHas(RR_ONBOARDED_KEY, fp);
+    // v0.9.2015: the account's own settings say so (a new device, once the
+    // settings have arrived — showOnboarding waits for them). Settings belong
+    // to the signed-in account only: sign-out clears them, so another
+    // person's answer can never be read here.
+    var onAccount = typeof _prefGet === 'function' && _prefGet(RR_SETUP_DONE_PREF, '') === '1';
+    if (onDevice && !onAccount && typeof _prefSet === 'function') _prefSet(RR_SETUP_DONE_PREF, '1');   // teach the account what this device knew
+    if (onAccount && !onDevice) rrAccountListAdd(RR_ONBOARDED_KEY, fp);                                 // and this device what the account knew
+    return onDevice || onAccount;
   } catch (e) { return false; }
 }
 if (typeof window !== 'undefined') {
   window.RR_ONBOARDED_KEY = RR_ONBOARDED_KEY;
+  window.RR_SETUP_DONE_PREF = RR_SETUP_DONE_PREF;
   window.rrMarkOnboardingSeen = rrMarkOnboardingSeen;
   window.rrOnboardingSeenByCurrentAccount = rrOnboardingSeenByCurrentAccount;
 }

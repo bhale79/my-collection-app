@@ -60,6 +60,14 @@ function T(n, cond, detail) { console.log((cond ? 'PASS' : 'FAIL') + '  ' + n + 
     localStorage.removeItem('lv_onboarded');
     localStorage.removeItem('lv_ai_usage_seen');
     window._pwaIsInstalled = function () { return false; };   // the install step is offered
+    // v0.9.2015: setup also waits for the account's settings; here they have
+    // arrived (empty — a brand-new account). __newAccount = a sign-out between
+    // people: the account's own settings (what rrClearAccountStorage clears) go.
+    window._rrPrefsSyncDone = true;
+    window.__newAccount = function (email, name) {
+      ['lv_setup_done', 'lv_scan_card_seen'].forEach(function (k) { localStorage.removeItem(k); localStorage.removeItem(k + '__at'); });
+      state.user = { email: email, name: name };
+    };
   });
 
   const ov = () => pg.evaluate(() => {
@@ -170,7 +178,7 @@ function T(n, cond, detail) { console.log((cond ? 'PASS' : 'FAIL') + '  ' + n + 
 
   // fail-open: no answer at all → setup still starts
   await pg.evaluate(() => {
-    state.user = { email: 'offline.person@gmail.com', name: 'Off Line' };
+    __newAccount('offline.person@gmail.com', 'Off Line');
     window._subState = null;
     showOnboarding();
   });
@@ -184,7 +192,7 @@ function T(n, cond, detail) { console.log((cond ? 'PASS' : 'FAIL') + '  ' + n + 
   // ── E. first Add an Item → the scanning / photo ID card, once per account ─
   console.log('\n== E · first Add an Item ==');
   const card = () => pg.evaluate(() => { const c = document.getElementById('rr-ai-usage-card'); return c ? (c.innerText || '').replace(/\s+/g, ' ') : null; });
-  await pg.evaluate(() => { state.user = { email: 'adder@gmail.com', name: 'Adder' }; localStorage.removeItem('lv_ai_usage_seen'); rrMaybeShowAddHelp(); });
+  await pg.evaluate(() => { __newAccount('adder@gmail.com', 'Adder'); localStorage.removeItem('lv_ai_usage_seen'); rrMaybeShowAddHelp(); });
   await pg.waitForTimeout(600);
   const c1 = await card();
   // v0.9.1927: Auto Read (the daily allowance) is a beta feature — this new
@@ -196,23 +204,23 @@ function T(n, cond, detail) { console.log((cond ? 'PASS' : 'FAIL') + '  ' + n + 
   await pg.evaluate(() => rrMaybeShowAddHelp());
   await pg.waitForTimeout(600);
   T('E3  …once: the second Add an Item does not show it', (await card()) === null);
-  await pg.evaluate(() => { state.user = { email: 'someone.else@gmail.com', name: 'Else' }; rrMaybeShowAddHelp(); });
+  await pg.evaluate(() => { __newAccount('someone.else@gmail.com', 'Else'); rrMaybeShowAddHelp(); });
   await pg.waitForTimeout(600);
   T('E4  a different account on the same browser still gets it once', (await card()) !== null);
   await pg.evaluate(() => { const c = document.getElementById('rr-ai-usage-card'); if (c) c.remove();
-    state.user = { email: 'walker@gmail.com', name: 'W' };
+    __newAccount('walker@gmail.com', 'W');
     const g = document.createElement('div'); g.id = 'gt-callout'; document.body.appendChild(g); rrMaybeShowAddHelp(); });
   await pg.waitForTimeout(600);
   T('E5  it stays out of the way of a running guided walkthrough', (await card()) === null);
   await pg.evaluate(() => { const g = document.getElementById('gt-callout'); if (g) g.remove(); });
   T('E6  openWizard is what calls it', /rrMaybeShowAddHelp\(\)/.test(strip(rd('wizard.js'))));
   const e9 = await pg.evaluate(async () => {
-    state.user = { email: 'guide.starter@gmail.com', name: 'G' };
+    __newAccount('guide.starter@gmail.com', 'G');
     showAiUsageCard(false);
     const before = !!document.getElementById('rr-ai-usage-card');
     startGuide('tour'); await new Promise(r => setTimeout(r, 900));   // v0.9.1987: the tour is the only guide
     const after = !!document.getElementById('rr-ai-usage-card');
-    const seen = localStorage.getItem('lv_ai_usage_seen') === rrAccountFingerprint('guide.starter@gmail.com');
+    const seen = _aiUsageSeenByThisAccount();   // v0.9.2015: device list + account settings
     try { _gtEnd(); } catch (e) {}
     try { if (typeof closeWizard === 'function') closeWizard(); } catch (e) {}
     return { before, after, seen };

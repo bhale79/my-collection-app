@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2014';
+const APP_VERSION = 'v0.9.2015';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -801,6 +801,12 @@ if (typeof window !== 'undefined') { window.rrIsRowId = rrIsRowId; window.rrNewR
 //   • every "you have already seen this" flag — a new person at this
 //     browser should get the tour.
 // ═══════════════════════════════════════════════════════════════
+// v0.9.2015: how long first-run setup waits for a signed-in account's own
+// settings to arrive before deciding it is new (they say whether it already
+// finished setup on another device). A failed or offline pull ends the wait.
+const RR_SETUP_PREFS_WAIT_MS = 8000;
+if (typeof window !== 'undefined') window.RR_SETUP_PREFS_WAIT_MS = RR_SETUP_PREFS_WAIT_MS;
+
 const SIGNOUT_KEEP_KEYS = [
   // Appearance and accessibility — this browser's look, not anyone's data.
   'lv_theme',

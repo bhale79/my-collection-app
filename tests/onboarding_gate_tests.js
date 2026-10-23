@@ -62,19 +62,28 @@ console.log('\n== v1793: the welcome sequence is gated per ACCOUNT ==');
     }
     return '';
   }
-  function harness(storedValue, email) {
+  // v0.9.2015: the device keeps a LIST of accounts (rrAccountList*), and the
+  // account's own settings carry lv_setup_done — both lifted here for real.
+  // `prefs` stands in for the account's settings (what _prefGet/_prefSet use).
+  function harness(storedValue, email, prefs) {
     const store = {}; if (storedValue !== null) store.lv_onboarded = storedValue;
+    prefs = prefs || {};
     const win = { state: { user: email ? { email: email } : null } };
     const ls = { getItem: k => (k in store ? store[k] : null),
                  setItem: (k, v) => { store[k] = String(v); } };
-    const api = new Function('window', 'state', 'localStorage',
-      "var RR_ONBOARDED_KEY = 'lv_onboarded';\n"
+    const api = new Function('window', 'state', 'localStorage', '_prefGet', '_prefSet',
+      "var RR_ONBOARDED_KEY = 'lv_onboarded';\nvar RR_SETUP_DONE_PREF = 'lv_setup_done';\nvar RR_ACCOUNT_LIST_MAX = 20;\n"
       + lift(APP, 'rrAccountFingerprint') + '\n'
+      + lift(APP, 'rrAccountListRead') + '\n'
+      + lift(APP, 'rrAccountListHas') + '\n'
+      + lift(APP, 'rrAccountListAdd') + '\n'
       + lift(APP, 'rrMarkOnboardingSeen') + '\n'
       + lift(APP, 'rrOnboardingSeenByCurrentAccount') + '\n'
       + 'return { fp: rrAccountFingerprint, mark: rrMarkOnboardingSeen, seen: rrOnboardingSeenByCurrentAccount };'
-    )(win, win.state, ls);
-    return { api, store };
+    )(win, win.state, ls,
+      (k, d) => (k in prefs ? prefs[k] : d),
+      (k, v) => { prefs[k] = String(v); });
+    return { api, store, prefs };
   }
 
   const BRAD = 'bhale@ipd-llc.com', FRIEND = 'someone.else@gmail.com';
@@ -99,6 +108,22 @@ console.log('\n== v1793: the welcome sequence is gated per ACCOUNT ==');
 
   h = harness('1', BRAD);
   ok('the OLD device-wide "1" is not mistaken for any account', h.api.seen() === false);
+
+  // v0.9.2015 — [stated] Brad, 2026-10-23: "everytime i sign off and log back
+  // on it treats me as i am new". One slot per device held support@, so Brad
+  // was asked again; finishing then pushed support@ out.
+  h = harness(null, BRAD); h.api.mark();
+  ok('v2015 finishing also tells the ACCOUNT (follows it to other devices)', h.prefs.lv_setup_done === '1', JSON.stringify(h.prefs));
+  const DEMO = 'support@therailroster.com';
+  let h2 = harness(h.store.lv_onboarded, DEMO); h2.api.mark();
+  let h3 = harness(h2.store.lv_onboarded, BRAD);
+  ok('v2015 Brad, then support@ on the same device → Brad is still remembered (THE BUG)', h3.api.seen() === true, h2.store.lv_onboarded);
+  ok('v2015 …and support@ too', harness(h2.store.lv_onboarded, DEMO).api.seen() === true);
+  h = harness(null, BRAD, { lv_setup_done: '1' });
+  ok('v2015 a new device, the account\'s settings say done → no setup, and the device learns it',
+     h.api.seen() === true && (h.store.lv_onboarded || '').indexOf(h.api.fp(BRAD)) >= 0, h.store.lv_onboarded);
+  h = harness(harness(null, BRAD).api.fp(BRAD), BRAD);
+  ok('v2015 the single fingerprint devices hold today still counts', h.api.seen() === true);
 
   ok('two different addresses do not collide',
      harness(null, BRAD).api.fp(BRAD) !== harness(null, FRIEND).api.fp(FRIEND));

@@ -47,20 +47,28 @@ const HINT_PREFIX = 'lv_hint_';
 // still gets it once. Help Center → "Scanning and photo ID" shows it again.
 const AI_USAGE_SEEN_KEY = 'lv_ai_usage_seen';
 
+// v0.9.2015: per ACCOUNT, not per device-slot — a list of accounts on this
+// device (rrAccountListHas, app.js) plus the account's own settings
+// (AI_USAGE_SEEN_PREF), the same two homes as the finished-setup marker.
+const AI_USAGE_SEEN_PREF = 'lv_scan_card_seen';
 function _aiUsageSeenByThisAccount() {
   try {
-    var v = localStorage.getItem(AI_USAGE_SEEN_KEY);
-    if (!v) return false;
     var em = (window.state && state.user && state.user.email) || '';
     var fp = (typeof rrAccountFingerprint === 'function') ? rrAccountFingerprint(em) : '';
-    return fp ? v === fp : v === '1';
+    if (!fp) return localStorage.getItem(AI_USAGE_SEEN_KEY) === '1';
+    var onDevice = rrAccountListHas(AI_USAGE_SEEN_KEY, fp);
+    var onAccount = typeof _prefGet === 'function' && _prefGet(AI_USAGE_SEEN_PREF, '') === '1';
+    if (onDevice && !onAccount && typeof _prefSet === 'function') _prefSet(AI_USAGE_SEEN_PREF, '1');
+    if (onAccount && !onDevice) rrAccountListAdd(AI_USAGE_SEEN_KEY, fp);
+    return onDevice || onAccount;
   } catch (e) { return false; }
 }
 function _aiUsageMarkSeen() {
   try {
     var em = (window.state && state.user && state.user.email) || '';
     var fp = (typeof rrAccountFingerprint === 'function') ? rrAccountFingerprint(em) : '';
-    localStorage.setItem(AI_USAGE_SEEN_KEY, fp || '1');
+    rrAccountListAdd(AI_USAGE_SEEN_KEY, fp);
+    if (fp && typeof _prefSet === 'function') _prefSet(AI_USAGE_SEEN_PREF, '1');
   } catch (e) {}
 }
 

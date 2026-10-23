@@ -340,8 +340,17 @@ function showOnboarding() {
   // every setup question before ever seeing the price. It now waits for the
   // subscription answer and only starts once the app is open to them.
   if (typeof showFeatureMap === 'function') {
+    // v0.9.2015 ([stated] Brad: "everytime i sign off and log back on it
+    // treats me as i am new"): on a device that has not seen this account
+    // finish, its own settings decide — so wait (at most RR_SETUP_PREFS_WAIT_MS,
+    // config.js) for them to arrive, alongside the subscription answer.
+    var prefsArrived = (typeof rrAfterPrefsSync === 'function')
+      ? rrAfterPrefsSync(typeof RR_SETUP_PREFS_WAIT_MS !== 'undefined' ? RR_SETUP_PREFS_WAIT_MS : 8000)
+      : Promise.resolve();
     _rrWhenAppIsOpenToThem(function () {
-      if (!rrOnboardingSeenByCurrentAccount() && !document.getElementById('onboarding-map-overlay')) showFeatureMap();
+      prefsArrived.then(function () {
+        if (!rrOnboardingSeenByCurrentAccount() && !document.getElementById('onboarding-map-overlay')) showFeatureMap();
+      });
     });
     return;
   }
