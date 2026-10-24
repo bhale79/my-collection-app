@@ -768,6 +768,20 @@ async function toolCreateSet(idx) {
 
 // ── COMPANION SUGGESTER ──────────────────────────────────────────────
 // ── DUPLICATE CHECKER ────────────────────────────────────────────
+// v0.9.2016: the Duplicate Checker's columns — ONE list for the header and
+// every copy (#, Inv #, Condition, Price Paid, Grouped?). The buttons are on
+// their own line, so they are not a column.
+var DUPE_COLS = '2rem 4rem 4.5rem 5rem minmax(0,1fr)';
+// v0.9.2016: is this owned copy already on the For Sale list? The list is
+// keyed by inventory number; an older row may sit under another key, so its
+// own inventoryId is checked too.
+function _dupeOnForSale(pd) {
+  var inv = String((pd && pd.inventoryId) || '').trim();
+  var fs = state.forSaleData || {};
+  if (!inv) return false;
+  if (fs[inv]) return true;
+  return Object.keys(fs).some(function (k) { var e = fs[k]; return e && String(e.inventoryId || '').trim() === inv; });
+}
 function runDuplicateChecker() {
   var out = document.getElementById('duplicate-checker-results');
   if (!out) return;
@@ -782,10 +796,14 @@ function runDuplicateChecker() {
   // v0.9.919: carry each copy's REAL personalData store key (inventoryId-based)
   // alongside it — the old code rebuilt an itemNum|variation|row key that no
   // longer matches the store, so "Add to For Sale List" opened an empty wizard.
-  var groups = {};
+  // v0.9.2016 ([stated] Brad: "the dulplicate finder should not include
+  // items in the sales list"): a copy already on the For Sale list is not
+  // counted — _dupeOnForSale, by the copy's inventory number.
+  var groups = {}, onSale = 0;
   Object.keys(state.personalData).forEach(function(storeKey) {
     var pd = state.personalData[storeKey];
     if (!pd || !pd.owned) return;
+    if (_dupeOnForSale(pd)) { onSale++; return; }
     var key = (pd.itemNum || '').trim().toUpperCase() + '|' + (pd.variation || '').trim().toUpperCase();
     if (!groups[key]) groups[key] = { itemNum: pd.itemNum, variation: pd.variation, copies: [] };
     groups[key].copies.push({ storeKey: storeKey, pd: pd });
@@ -794,8 +812,11 @@ function runDuplicateChecker() {
   // Keep only groups with 2+ copies
   var dupes = Object.values(groups).filter(function(g) { return g.copies.length > 1; });
 
+  var saleNote = onSale ? '<div class="rr-dupe-salenote" style="font-size:0.78rem;color:var(--text-dim);margin-top:0.5rem">' +
+    onSale + ' cop' + (onSale === 1 ? 'y' : 'ies') + ' on your For Sale list ' + (onSale === 1 ? 'isn\u2019t' : 'aren\u2019t') + ' counted.</div>' : '';
+
   if (!dupes.length) {
-    out.innerHTML = '<div style="padding:0.75rem;background:rgba(46,204,113,0.08);border:1px solid rgba(46,204,113,0.25);border-radius:8px;color:#4dc880;font-size:0.85rem">✓ No duplicates found — every item in your collection is unique!</div>';
+    out.innerHTML = '<div style="padding:0.75rem;background:rgba(46,204,113,0.08);border:1px solid rgba(46,204,113,0.25);border-radius:8px;color:#4dc880;font-size:0.85rem">✓ No duplicates found — every item in your collection is unique!</div>' + saleNote;
     return;
   }
 
@@ -807,7 +828,7 @@ function runDuplicateChecker() {
   });
 
   var html = '<div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:0.75rem">' +
-    dupes.length + ' item' + (dupes.length > 1 ? 's' : '') + ' with duplicates:</div>';
+    dupes.length + ' item' + (dupes.length > 1 ? 's' : '') + ' with duplicates:' + saleNote + '</div>';
 
   dupes.forEach(function(g) {
     var masterEntry = state.masterData && state.masterData.find(function(m) {
@@ -830,13 +851,18 @@ function runDuplicateChecker() {
     }) : -1;
 
     // Column header row
-    html += '<div style="display:grid;grid-template-columns:2rem 4rem 4.5rem 5rem 1fr auto;gap:0.4rem;padding:0.25rem 0.5rem;font-size:0.67rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--text-dim);border-bottom:1px solid var(--border);margin-top:0.25rem">' +
+    // v0.9.2016 ([stated] Brad: "add to sales list goes beyound the box"):
+    // the header and every copy share ONE column list, DUPE_COLS, and the
+    // buttons sit on their own line under each copy — a row of fixed columns
+    // plus two buttons that cannot shrink was wider than the half-width card.
+    // minmax(0,1fr) lets Grouped? use the room left and wrap only when there
+    // is none (a phone), never push past the card.
+    html += '<div class="rr-dupe-head" style="display:grid;grid-template-columns:' + DUPE_COLS + ';gap:0.4rem;padding:0.25rem 0.5rem;font-size:0.67rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--text-dim);border-bottom:1px solid var(--border);margin-top:0.25rem;width:100%;box-sizing:border-box">' +
       '<span>#</span>' +
       '<span>Inv #</span>' +
       '<span>Condition</span>' +
       '<span>Price Paid</span>' +
       '<span>Grouped?</span>' +
-      '<span></span>' +
     '</div>';
 
     g.copies.forEach(function(copy, i) {
@@ -887,17 +913,22 @@ function runDuplicateChecker() {
         if (_cm) { var _ci = state.masterData.indexOf(_cm); if (_ci >= 0) _cIdx = _ci; }
       } catch (eCi) {}
 
-      html += '<div style="display:grid;grid-template-columns:2rem 4rem 4.5rem 5rem 1fr auto;gap:0.4rem;align-items:center;padding:0.35rem 0.5rem;background:var(--surface);border-radius:7px;width:100%;box-sizing:border-box;cursor:pointer;margin-top:0.2rem" onclick="' + _dOpen + '" title="View this copy">' +
+      html += '<div class="rr-dupe-copy" style="padding:0.35rem 0.5rem;background:var(--surface);border-radius:7px;width:100%;box-sizing:border-box;cursor:pointer;margin-top:0.2rem" onclick="' + _dOpen + '" title="View this copy">' +
+        '<div style="display:grid;grid-template-columns:' + DUPE_COLS + ';gap:0.4rem;align-items:center">' +
         '<span style="font-size:0.75rem;color:var(--text-dim);font-weight:600">' + (i + 1) + '</span>' +
         '<span style="font-family:var(--font-mono);font-size:0.78rem;color:var(--text-mid)">' + invId + '</span>' +
         '<span style="font-size:0.8rem;font-weight:700;color:' + condColor + '">' + condStr + hasBox + isQE + '</span>' +
         '<span style="font-size:0.78rem;color:var(--text-mid)">' + price + '</span>' +
-        '<span style="font-size:0.75rem;color:var(--accent2);font-family:var(--font-mono)">' + groupedStr + '</span>' +
-        '<span style="display:flex;gap:0.35rem;flex-shrink:0">' +
+        '<span class="rr-dupe-grouped" style="font-size:0.75rem;color:var(--accent2);font-family:var(--font-mono);min-width:0;overflow-wrap:anywhere">' + groupedStr + '</span>' +
+        '</div>' +
+        '<span class="rr-dupe-acts" style="display:flex;flex-wrap:wrap;justify-content:flex-end;gap:0.35rem;margin-top:0.3rem">' +
         '<button onclick="event.stopPropagation();' + _dOpen + '" ' +
           'style="padding:0.2rem 0.5rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 10%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-weight:600;white-space:nowrap" ' +
           'title="Open this copy’s detail page">Details</button>' +
-        '<button onclick="event.stopPropagation();listForSaleFromCollection(' + _cIdx + ',&apos;' + pdKey + '&apos;)" ' +
+        // v0.9.2016 ([stated] Brad: "it should update the list and show that
+        // item is no longer there"): the same return flag as Details — the
+        // wizard closes back onto Collection Tools, which re-scans.
+        '<button onclick="event.stopPropagation();window._toolsRerun=&apos;dupes&apos;;listForSaleFromCollection(' + _cIdx + ',&apos;' + pdKey + '&apos;)" ' +
           'style="padding:0.2rem 0.5rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:var(--t-orange);font-family:var(--font-body);font-weight:600;white-space:nowrap" ' +
           'title="Add this copy to your For Sale list">🏷️ Add to For Sale List</button>' +
         '</span>' +

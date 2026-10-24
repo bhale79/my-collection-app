@@ -1816,27 +1816,50 @@ async function _removeFromCollectionDetail(idx, itemNum, variation) {
   var pd = pdKey ? state.personalData[pdKey] : null;
   var row = pd ? pd.row : null;
   if (typeof removeCollectionItem === 'function') {
-    await removeCollectionItem(itemNum, variation, row, pd ? pd.inventoryId : '');
-  }
-  // v0.9.839 (BUG-005, Brad's silent Remove): the state cleanup can land a
-  // tick AFTER the await resolves — checking once raced it and lost, so the
-  // page just sat there looking broken. Poll briefly; when the item is gone,
-  // toast + leave the page. (Still owned after 2s = user cancelled the
-  // confirm, or a multi-copy removal kept the item — stay put, no toast.)
-  var gone = false;
-  for (var _i = 0; _i < 10 && !gone; _i++) {
-    gone = !Object.values(state.personalData || {}).some(function(p) {
-      return p && p.owned && rrSameNum(p.itemNum, itemNum) && rrSameVar(p.variation, variation);   // v0.9.1204
-    });
-    if (!gone) await new Promise(function(r) { setTimeout(r, 200); });
-  }
-  if (gone) {
-    if (typeof showToast === 'function') showToast('\u2713 Removed from your collection');
-    if (typeof _detailBackToBrowse === 'function') _detailBackToBrowse();
-    else if (typeof showPage === 'function') showPage('browse');
-    try { if (typeof buildDashboard === 'function') buildDashboard(); } catch (e) {}
+    await removeCollectionItem(itemNum, variation, row, pd ? pd.inventoryId : '', rrRemoveLeaveNow());
   }
 }
+
+// v0.9.2016 ([stated] Brad: "when in a item detail page and you hit remove
+// from collection, it goes back to the same page and it looks like nothing is
+// happening ... we need for it to go back to the collection page as soon as
+// you hit delete and not stay on the items page"). The page used to wait for
+// the sheet, then asked "is ANY copy of this number still owned?" — with two
+// copies the answer stayed yes, so it never left. Now, the moment the person
+// confirms: the copy (or set) leaves the screen's memory and the app goes to
+// My Collection; the sheet finishes in the background; anything the sheet
+// refused comes back, with a message. ONE helper for every detail-page remove.
+function rrRemoveLeaveNow() {
+  var held = {};
+  return {
+    onConfirmed: function (keys) {
+      keys.forEach(function (k) { if (state.personalData[k]) { held[k] = state.personalData[k]; delete state.personalData[k]; } });
+      rrGoToCollectionAfterRemove();
+      if (typeof showToast === 'function') showToast('Removing from your collection…', 2500);
+    },
+    onFailed: function (keys) {
+      var back = 0;
+      keys.forEach(function (k) { if (held[k] && !state.personalData[k]) { state.personalData[k] = held[k]; back++; } });
+      if (!back) return;
+      try { if (typeof _cachePersonalData === 'function') _cachePersonalData(); } catch (e) {}
+      try { if (typeof renderBrowse === 'function') renderBrowse(); } catch (e) {}
+      try { if (typeof buildDashboard === 'function') buildDashboard(); } catch (e) {}
+      if (typeof showToast === 'function') showToast('Could not remove it from your sheet — it is still in your collection. Please try again.', 6000, true);
+    },
+  };
+}
+window.rrRemoveLeaveNow = rrRemoveLeaveNow;
+// Back to the collection list the person came from (its filters kept), or
+// to My Collection.
+function rrGoToCollectionAfterRemove() {
+  var ls = window._lastBrowseState;
+  if (ls && ls.owned && typeof _detailBackToBrowse === 'function') { _detailBackToBrowse(); return; }
+  delete window._lastBrowseState;
+  if (typeof goToMyCollection === 'function') goToMyCollection();
+  else { showPage('browse'); if (typeof filterOwned === 'function') filterOwned(); }
+  try { if (typeof buildDashboard === 'function') buildDashboard(); } catch (e) {}
+}
+window.rrGoToCollectionAfterRemove = rrGoToCollectionAfterRemove;
 
 // v0.9.837 (Brad): rotate/crop a photo from the item detail page. Fetches
 // the full-size image as an authorized blob (avoids canvas tainting), opens
@@ -2177,9 +2200,11 @@ window._grpRemoveMember = async function (idx, i) {
   var p = k ? state.personalData[k] : null;
   if (!p) return;
   var wasSelf = String(p.inventoryId || '') !== '' && String(p.inventoryId) === String(window._lastDetailCopyInv || '');
-  await removeCollectionItem(p.itemNum, p.variation || '', p.row || 0, p.inventoryId || '', { scope: 'piece' });
+  // v0.9.2016: the piece whose page is open → leave the moment it is confirmed
+  var _rmOpts = wasSelf ? Object.assign(rrRemoveLeaveNow(), { scope: 'piece' }) : { scope: 'piece' };
+  await removeCollectionItem(p.itemNum, p.variation || '', p.row || 0, p.inventoryId || '', _rmOpts);
+  if (wasSelf) return;                 // already back on the list (or put back, with a message)
   if (state.personalData[k]) return;   // cancelled or refused — nothing changed
-  if (wasSelf && typeof _detailBackToBrowse === 'function') { _detailBackToBrowse(); return; }
   if (typeof showItemDetailPage === 'function') showItemDetailPage(idx, window._lastDetailCopyInv);
 };
 
@@ -2997,6 +3022,19 @@ async function _breakUpGroupFromDetail(idx, itemNum, variation) {
 // with opts.scope === 'piece'. The secondary choice is Break Up Group
 // (Brad, S84: confirmed) — every piece stays, only the link goes.
 async function removeCollectionItem(itemNum, variation, row, invId, opts) {
+  // v0.9.2016 ([stated] Brad: "we need for it to go back to the collection
+  // page as soon as you hit delete"): two optional hooks. opts.onConfirmed(keys)
+  // runs the moment the person confirms — BEFORE the sheet is touched — with
+  // the store keys about to go, so a caller can leave the page and hide them
+  // at once. opts.onFailed(keys) runs for any of those the sheet refused, so
+  // the caller can put them back. Returns true when the copy (or set) went.
+  var _rmHooks = opts || {};
+  var _rmKeyOf = function (obj) {
+    for (var _k in state.personalData) if (state.personalData[_k] === obj) return _k;
+    return null;
+  };
+  var _rmConfirmed = function (keys) { try { if (typeof _rmHooks.onConfirmed === 'function') _rmHooks.onConfirmed(keys.filter(Boolean)); } catch (eH) { console.warn('[remove] onConfirmed', eH); } };
+  var _rmFailed = function (keys) { try { if (typeof _rmHooks.onFailed === 'function') _rmHooks.onFailed(keys.filter(Boolean)); } catch (eH) { console.warn('[remove] onFailed', eH); } };
   // Check if this item is part of a group with other members
   // Use inventory id (preferred) or row to disambiguate if multiple copies exist
   var pdKey = (invId && state.personalData[invId]) ? invId : findPDKeyByRow(itemNum, variation, row);
@@ -3084,11 +3122,15 @@ async function removeCollectionItem(itemNum, variation, row, invId, opts) {
     if (choice === 'all') {
       // Remove every item in the group — delete from bottom to top to avoid row shift issues
       var sortedSibs = groupSiblings.slice().sort(function(a, b) { return (b.row || 0) - (a.row || 0); });
+      var _sibKeys = new Map();   // v0.9.2016: each piece's store key, found BEFORE anything leaves memory
+      sortedSibs.forEach(function (sb) { _sibKeys.set(sb, _rmKeyOf(sb)); });
+      var _sibFailed = [];
+      _rmConfirmed(sortedSibs.map(function (sb) { return _sibKeys.get(sb); }));
       var fsRowsToDelete = [];
       var _sibsRemoved = 0;   // v0.9.1267 (R3): count what actually went, not what we tried
       var _ugStuck = 0;       // v0.9.1288 (R3-3): Want-Upgrade rows that refused to clear
       for (var sib of sortedSibs) {
-        var sibKey = sib.inventoryId || findPDKeyByRow(sib.itemNum, sib.variation, sib.row);
+        var sibKey = _sibKeys.get(sib) || sib.inventoryId || findPDKeyByRow(sib.itemNum, sib.variation, sib.row);
         if (sib.row && sib.row !== 99999) {
           try {
             // v0.9.1267 (R3): name the record we believe is on that row before
@@ -3099,9 +3141,9 @@ async function removeCollectionItem(itemNum, variation, row, invId, opts) {
             // For Sale / Upgrade listings. Skip the rest of this sibling.
             var _sibGone = await sheetsDeleteRow(state.personalSheetId, PERSONAL_TAB, sib.row,
                                                  { itemNum: sib.itemNum, inventoryId: sib.inventoryId || '' });
-            if (!_sibGone) continue;
+            if (!_sibGone) { _sibFailed.push(sibKey); continue; }
             _adjustRowsAfterDelete(state.personalData, sib.row, PERSONAL_TAB);
-          } catch(e) { console.warn('Remove group row error:', sib.itemNum, e); continue; }
+          } catch(e) { console.warn('Remove group row error:', sib.itemNum, e); _sibFailed.push(sibKey); continue; }
         }
         // Phase 3: prefer sibling's inventoryId for For Sale + Upgrade cleanup.
         var sibInv = sib.inventoryId || '';
@@ -3177,9 +3219,10 @@ async function removeCollectionItem(itemNum, variation, row, invId, opts) {
       // v0.9.1267 (R3): report what was actually removed. If a row had moved,
       // sheetsDeleteRow already told the user to refresh — don't follow that
       // with a checkmark claiming everything went.
+      if (_sibFailed.length) _rmFailed(_sibFailed);
       if (_sibsRemoved > 0) showToast('✓ Removed ' + _sibsRemoved + ' grouped item' + (_sibsRemoved === 1 ? '' : 's')
         + (_ugStuck > 0 ? ' — but ' + _ugStuck + ' is still on your Want-Upgrade list. Refresh and try again.' : ''));
-      return;
+      return _sibsRemoved > 0;
     }
     // else fall through to remove just this one item
   } else {
@@ -3188,6 +3231,7 @@ async function removeCollectionItem(itemNum, variation, row, invId, opts) {
   }
 
   // ── Remove single item ──
+  _rmConfirmed([pdKey]);
   var _delRow = thisPd ? thisPd.row : row;
   if (_delRow && _delRow !== 99999) {
     try {
@@ -3199,8 +3243,8 @@ async function removeCollectionItem(itemNum, variation, row, invId, opts) {
       // Refused: the row is not the record we meant, so it is still there and
       // nothing below it moved. The user has already been told to refresh.
       // Stop here rather than stripping the listings of an item we did not remove.
-      if (!_delGone) return;
-    } catch(e) { console.error('Remove row error:', e); showToast('Error removing item — please try again', 3000, true); return; }
+      if (!_delGone) { _rmFailed([pdKey]); return false; }
+    } catch(e) { console.error('Remove row error:', e); _rmFailed([pdKey]); showToast('Error removing item — please try again', 3000, true); return false; }
   }
   // Phase 3: also remove from For Sale + Upgrade if listed — look up by THIS
   // copy's inventoryId so we don't strip another copy's listing.
@@ -3243,6 +3287,7 @@ async function removeCollectionItem(itemNum, variation, row, invId, opts) {
   buildDashboard();
   showToast('✓ Removed from collection'
     + (_ugStuck1 ? ' — but it is still on your Want-Upgrade list. Refresh and try again.' : ''));
+  return true;
 }
 
 // v0.9.1251 (row-identity audit, finding 7): a row number is only meaningful

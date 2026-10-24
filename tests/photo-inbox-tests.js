@@ -12987,9 +12987,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
       // Refusals must not be treated as successes by the callers.
       ok('the group remove leaves a refused sibling alone entirely',
-         /_sibGone[\s\S]{0,200}if \(!_sibGone\) continue;/.test(coll7));
+         /_sibGone[\s\S]{0,200}if \(!_sibGone\) (continue;|\{ _sibFailed\.push\(sibKey\); continue; \})/.test(coll7));   // v0.9.2016: the refused piece is also handed back to the caller
       ok('the single remove stops rather than stripping listings it did not remove',
-         /_delGone[\s\S]{0,700}if \(!_delGone\) return;/.test(coll7));
+         /_delGone[\s\S]{0,700}if \(!_delGone\) (return;|\{ _rmFailed\(\[pdKey\]\); return false; \})/.test(coll7));   // v0.9.2016: …and put back on the screen
       ok('…and the For Sale row is only renumbered when one was really deleted',
          /if \(_fsGone\) _adjustRowsAfterDelete/.test(coll7) &&
          /if \(_fsEntGone\) _adjustRowsAfterDelete/.test(coll7));
