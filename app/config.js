@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2017';
+const APP_VERSION = 'v0.9.2018';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -2439,13 +2439,54 @@ window.rrPrefWrite = function (k, v) {
 // three doors), the import's write step and Preferences → Extra Columns all
 // come through here; it used to be written in four places. A blank name
 // un-names the slot ('' — see rrPrefWrite) and leaves its switch alone.
-window.rrFieldClaimCustom = function (key, label) {
+// v0.9.2018 ([stated] Brad, 2026-10-23): a name another column already has is
+// refused here — one door, so the doubled "Customer Name" heading cannot come
+// back by any route — and a newly named column joins the item page's saved
+// field list ("if i add a custom column, have it automatically show in the
+// item detail page"). opts.auto: the import naming columns from a sheet's
+// own headers, unattended — it keeps its old behaviour (no refusal, no toast).
+window.rrFieldClaimCustom = function (key, label, opts) {
+  opts = opts || {};
   var f = (window.RR_USER_FIELDS || []).filter(function (x) { return x.key === key; })[0];
   if (!f || !f.custom) return '';
   var v = String(label || '').trim();
+  if (v && !opts.auto) {
+    var taken = rrCustomNameTaken(v, key);
+    if (taken) {
+      if (!opts.quiet && typeof showToast === 'function') showToast('You already have a column called \u201c' + taken + '\u201d \u2014 pick another name', 4000, true);
+      return '';
+    }
+  }
+  var was = '';
+  try { was = String(rrPrefRead('lv_label_' + key) || '').trim(); } catch (e) {}
   rrPrefWrite('lv_label_' + key, v);
   if (v) rrPrefWrite(f.pref, 'true');
+  if (v && !was && typeof rrDetailFieldsJoin === 'function') { try { rrDetailFieldsJoin('uf_' + key); } catch (e) {} }
   return v;
+};
+// Is this name already a column? Another custom column's name, a fixed extra
+// field's name (Sub-collection, Shipper …), or a built-in My Collection column
+// (Item #, Description …). Case and outer spaces do not matter. Returns the
+// existing name as written, or ''.
+window.rrCustomNameTaken = function (name, exceptKey) {
+  var want = String(name || '').trim().toLowerCase();
+  if (!want) return '';
+  var hit = '';
+  try {
+    (window.RR_USER_FIELDS || []).forEach(function (f) {
+      if (hit || f.key === exceptKey) return;
+      var nm = f.custom ? String(rrPrefRead('lv_label_' + f.key) || '').trim() : String(f.label || '').trim();
+      if (nm && nm.toLowerCase() === want) hit = nm;
+    });
+    if (!hit && typeof rrTableCols === 'function') {
+      rrTableCols('collection').forEach(function (c) {
+        if (hit || c.userField || c.pdKey === exceptKey) return;
+        var nm = String(c.label || '').trim();
+        if (nm && nm.toLowerCase() === want) hit = nm;
+      });
+    }
+  } catch (e) {}
+  return hit;
 };
 // A user-named custom column's label lives in prefs; optional fields keep
 // their fixed label. ONE reader so every surface shows the same words.

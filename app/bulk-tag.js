@@ -283,7 +283,10 @@ function rrTagNext() {
       }
       return;
     }
-    rrTagClaimCustom(slot, newLabel);
+    if (!rrTagClaimCustom(slot, newLabel)) {   // v0.9.2018: a name another column has is refused (the message says so)
+      if (nn) { nn.style.borderColor = 'var(--accent)'; nn.focus(); }
+      return;
+    }
     key = slot;
   }
   if (!val) {

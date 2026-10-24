@@ -213,6 +213,28 @@ function rrTableColSpan(id) {
 }
 
 var _RR_TH_BTN = 'border:1px solid var(--border);background:var(--surface2);color:var(--text);border-radius:7px;padding:0.15rem 0.5rem;font-size:0.7rem;font-family:var(--font-body);cursor:pointer;margin-right:0.3rem';
+// v0.9.2018 ([stated] Brad: "on custom column header names, you should be
+// able to click them when you are in the edit screen to rename them"). A table
+// says which of its columns the person named (spec.renamable(col) → the field
+// key, '' for the rest); the rename goes through the ONE naming step
+// (rrFieldClaimCustom, config.js), same as Preferences.
+function rrTableRenamable(id, col) {
+  var t = rrTable(id);
+  try { return (typeof t.renamable === 'function') ? (t.renamable(col) || '') : ''; } catch (e) { return ''; }
+}
+function rrTableRename(id, col) {
+  var key = rrTableRenamable(id, col);
+  if (!key) return;
+  var cur = rrTableLabel(id, col);
+  appPrompt('Type the new name for this column.', cur, { title: 'Rename column', ok: 'Rename' }).then(function (v) {
+    v = String(v == null ? '' : v).trim();
+    if (!v || v === cur) return;
+    if (typeof rrFieldClaimCustom !== 'function' || !rrFieldClaimCustom(key, v)) return;   // a taken name: refused, with its message
+    if (typeof showToast === 'function') showToast('Column renamed to \u201c' + v + '\u201d', 2200);
+    rrTableRepaint(id);
+  });
+}
+if (typeof window !== 'undefined') { window.rrTableRenamable = rrTableRenamable; window.rrTableRename = rrTableRename; }
 function rrTableHeaderHtml(id) {
   var t = rrTable(id);
   var edit = rrTableEditOn(id);
@@ -236,7 +258,12 @@ function rrTableHeaderHtml(id) {
         'style="white-space:nowrap;' + (locked ? '' : 'cursor:grab;') + style + '">' +
         '<span style="display:inline-flex;align-items:center;gap:0.3rem">' +
         (locked ? '<span style="opacity:0.5">🔒</span>' : '<span style="opacity:0.55;cursor:grab">☰</span>') +
-        '<span>' + label + '</span>' +
+        (rrTableRenamable(id, col)
+          ? '<span class="rr-th-rename" role="button" tabindex="0" title="Click to rename this column" ' +
+              'onclick="event.stopPropagation();rrTableRename(\'' + id + '\',\'' + col + '\')" ' +
+              'onkeydown="if(event.key===\'Enter\'){event.stopPropagation();rrTableRename(\'' + id + '\',\'' + col + '\')}" ' +
+              'style="cursor:text;text-decoration:underline dotted;text-underline-offset:3px">' + label + '</span>'
+          : '<span>' + label + '</span>') +
         (locked ? '' : '<button type="button" title="Remove this column" onclick="event.stopPropagation();rrTableDrop(\'' + id + '\',\'' + col + '\')" ' +
           'style="border:none;background:none;color:var(--t-accent);font-size:0.95rem;line-height:1;cursor:pointer;padding:0 0.1rem">×</button>') +
         '</span></th>';

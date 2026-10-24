@@ -41,8 +41,12 @@ ok('a saved choice controls WHICH fields show and in what ORDER',
    /_rrDetailFieldCfg/.test(coll) && /_dfCfg\.filter/.test(coll));
 ok("a chosen field with nothing in it shows a dash — Brad's call, gaps stay visible",
    /d\.val \|\| '<span style="color:var\(--text-dim\)">(—|\\u2014)<\/span>'/.test(coll));
-ok('NO saved choice = exactly the old behavior (blanks hidden)',
-   /details = details\.filter\(d => d\.val\);/.test(coll));
+// v0.9.2018 ([stated] Brad: a new custom column should show on the item page
+// by itself): blanks stay hidden EXCEPT a column the person named, which shows
+// a dash until filled (custom_column_names_2018_tests proves it in Chromium).
+ok('NO saved choice = the old behavior (blanks hidden) — except a column he named',
+   /details = details\.filter\(function \(d\) \{ return d\.val \|\| _rrDetailNamedCustom\(d\.id\); \}\)/.test(coll)
+   && /function _rrDetailNamedCustom\(id\)[\s\S]{0,200}\^uf_\(custom\[1-5\]\)\$/.test(coll));
 ok('want-mode details are untouched (its own filter stays)',
    /\.filter\(function\(d\)\{ return d\.val; \}\);/.test(coll));
 

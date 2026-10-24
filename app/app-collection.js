@@ -1395,8 +1395,13 @@ function showItemDetailPage(idx, copyInvId, opts) {
       return { id: d.id, label: d.label, val: d.val || '<span style="color:var(--text-dim)">\u2014</span>' };
     });
   } else {
-    // No saved choice = exactly the old card: blanks hidden.
-    details = details.filter(d => d.val);
+    // No saved choice = exactly the old card: blanks hidden — except a column
+    // the person NAMED (v0.9.2018, [stated] Brad: "if i add a custom column,
+    // have it automatically show in the item detail page"): it shows with a
+    // dash until it is filled in, the same as a ticked field on a saved card.
+    details = details.filter(function (d) { return d.val || _rrDetailNamedCustom(d.id); }).map(function (d) {
+      return d.val ? d : { id: d.id, label: d.label, val: '<span style="color:var(--text-dim)">\u2014</span>' };
+    });
   }
   if (_wantMode) {
     var _wmPrice = _wantEntry ? (_wantEntry.expectedPrice || _wantEntry.maxPrice) : '';
@@ -2243,6 +2248,12 @@ function _rrDetailFieldCfg() {
 // person who had ever saved "Edit fields" never saw a newly turned-on column
 // on the card until he went and ticked it. No saved choice = every filled
 // field shows already, so there is nothing to add.
+// v0.9.2018: is this detail-card id a custom column the person has named?
+function _rrDetailNamedCustom(id) {
+  var m = /^uf_(custom[1-5])$/.exec(String(id || ''));
+  if (!m) return false;
+  try { return !!String((typeof rrPrefRead === 'function' ? rrPrefRead('lv_label_' + m[1]) : localStorage.getItem('lv_label_' + m[1])) || '').trim(); } catch (e) { return false; }
+}
 function rrDetailFieldsJoin(id) {
   try {
     var cfg = _rrDetailFieldCfg();

@@ -558,7 +558,7 @@ function _impStepMapping() {
         if (/^custom[1-5]$/.test(String(cur))) {
           if (!_impCustomNameOf(cur)) {
             // v0.9.1867: the ONE claim writer (config.js) — name + switch, through the account
-            try { var _auto = String(h).trim(); rrFieldClaimCustom(cur, _auto.charAt(0).toUpperCase() + _auto.slice(1)); } catch (eA) {}
+            try { var _auto = String(h).trim(); rrFieldClaimCustom(cur, _auto.charAt(0).toUpperCase() + _auto.slice(1), { auto: true }); } catch (eA) {}
           }
           var _curName = _impCustomNameOf(cur) || (h.charAt(0).toUpperCase() + h.slice(1));
           html += '<input class="imp-sel" style="max-width:9rem;margin-left:0.35rem" value="' +
@@ -602,7 +602,7 @@ function _impCustomNameOf(key) {
 function _impRenameCustom(key, val) {
   var v = String(val || '').trim();
   if (!v) return;
-  rrFieldClaimCustom(key, v);   // v0.9.1867: the ONE claim writer (config.js)
+  if (!rrFieldClaimCustom(key, v)) { _impRender(); return; }   // v0.9.1867: the ONE claim writer (v2018: a taken name is refused, with a message)
   showToast('Column renamed to “' + v + '”', 2200);
   _impRender();
 }
@@ -706,7 +706,7 @@ function _impSetMap(gi, headerNorm, field, sel) {
     }
     var raw = String(headerNorm || 'Column').trim();
     var nice = raw.charAt(0).toUpperCase() + raw.slice(1);
-    rrFieldClaimCustom(slot, nice);   // v0.9.1867: the ONE claim writer (config.js)
+    if (!rrFieldClaimCustom(slot, nice)) { if (sel) sel.value = ''; return; }   // v0.9.1867: the ONE claim writer (v2018: a taken name → pick that column instead)
     field = slot;
     showToast('New column “' + nice + '” created — you can rename it in Preferences', 3500);
     var g0 = _imp.groups[gi];
@@ -2338,7 +2338,7 @@ function _impAutoEnableFields(mappings) {
     out.fields.push(f.key);
     if (f.custom && !_impCustomNameOf(f.key)) {
       var h = String(used[f.key] || '').trim();
-      if (h) rrFieldClaimCustom(f.key, h.charAt(0).toUpperCase() + h.slice(1));   // v0.9.1867: the ONE claim writer
+      if (h) rrFieldClaimCustom(f.key, h.charAt(0).toUpperCase() + h.slice(1), { auto: true });   // v0.9.1867: the ONE claim writer (v2018: auto — the sheet's own header)
     }
   });
   if (used.location && typeof _prefGet === 'function' && _prefGet('lv_location_enabled', 'false') !== 'true') {

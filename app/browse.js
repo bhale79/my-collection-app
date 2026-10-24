@@ -718,6 +718,12 @@ function _collEditExtras() {
 rrTableDefine({
   id: 'collection',
   cols: _COLL_COLS,
+  // v0.9.2018: the custom columns the person named — click the heading in
+  // column edit to rename (table-columns.js rrTableRename).
+  renamable: function (col) {
+    var c = _COLL_EXTRA_COLS.filter(function (x) { return x.col === col; })[0];
+    return (c && c.userField && /^custom[1-5]$/.test(String(c.pdKey || ''))) ? c.pdKey : '';
+  },
   extras: _COLL_EXTRA_COLS,
   locked: _COLL_LOCKED,
   defaults: _COLL_COLS.map(function (c) { return c.col; }),

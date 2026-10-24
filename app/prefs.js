@@ -1135,7 +1135,12 @@ function _ufRename(key, val) {
   // v0.9.1867: the name follows the account too. A blanked name is written as
   // '' (a removal cannot travel; an empty value can — every reader treats it
   // as unnamed). The old code only ever removed it when look-sync was absent.
-  rrFieldClaimCustom(key, v);
+  if (v && !rrFieldClaimCustom(key, v)) {   // v0.9.2018: a taken name is refused — the box goes back to the old name
+    var _box = document.getElementById('uf-lbl-' + key);
+    if (_box) _box.value = (typeof rrPrefRead === 'function' ? rrPrefRead('lv_label_' + key) : '') || '';
+    return;
+  }
+  if (!v) rrFieldClaimCustom(key, v);
   var cb = document.getElementById('uf-on-' + key);
   if (cb && v) cb.checked = true;
 }

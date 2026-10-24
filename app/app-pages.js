@@ -1889,6 +1889,11 @@ rrTableDefine({
   cols: _FS_COLS,
   extras: _FS_EXTRA_COLS,
   locked: _FS_LOCKED,
+  // v0.9.2018: a named custom column's heading renames in column edit, as on My Collection
+  renamable: function (col) {
+    var c = _FS_EXTRA_COLS.filter(function (x) { return x.col === col; })[0];
+    return (c && c.userField && /^custom[1-5]$/.test(String(c.pdKey || ''))) ? c.pdKey : '';
+  },
   defaults: _FS_COLS.map(function (c) { return c.col; }),
   storageKey: _FS_COLS_PREF,
   theadSel: '#page-forsale .item-table thead tr',
