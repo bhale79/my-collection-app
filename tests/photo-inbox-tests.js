@@ -23074,8 +23074,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
          !/_rrReloadWhenIdle/.test(ix25) && /_rrOfferUpdate/.test(ix25) && /_rrShowUpdateBar\(/.test(ix25), '');
       ok('325 the busy check is published so every reload path shares ONE conscience',
          /window\._rrBusyNow = _rrBusy;/.test(ix25), '');
-      ok('325 the sign-in screen still reloads instantly — there is nothing to lose there',
-         /_swReloaded = true; window\.location\.reload\(\); return;/.test(ix25), '');
+      // v0.9.2019: still no card on the sign-in screen, but the update now goes
+      // through the HANDOVER (a plain reload never swapped the worker and looped
+      // once a second — tests/signin_update_loop_2019_tests.js runs it for real).
+      ok('325 the sign-in screen still updates at once — through the handover, never a plain reload',
+         /_swReloaded = true;[\s\S]{0,400}window\._rrActivateUpdate\(\);/.test(ix25)
+         && !/_swReloaded = true; window\.location\.reload\(\); return;/.test(ix25), '');
       ok('325 Update now keeps its promise: your PAGE comes back after the blink',
          /rr_resume_page/.test(cf25), '');
       ok('325 the v826 reconnect reload waits for quiet now — and says why',
