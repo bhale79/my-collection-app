@@ -4324,6 +4324,10 @@ function showPage(name, clickedEl) {
   } catch (e) {}
   if (name !== 'itemdetail') { try { delete window._detailReturn; } catch (e) {} }
   if (clickedEl) clickedEl.classList.add('active');
+  // v0.9.2017 ([stated] Brad: the share bar "just stays up at the bottom"):
+  // leaving the page a share selection belongs to ends it — BEFORE the new
+  // page is built, so it draws without checkboxes. share.js owns the rule.
+  try { if (typeof rrShareLeavePage === 'function') rrShareLeavePage(name); } catch (eSh) {}
   // v0.9.1847: fill the page in from THE ONE LIST (config.js RR_PAGE_BUILDERS)
   // — every route to a page comes through here, so every route fills it in.
   rrBuildPage(name);

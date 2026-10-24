@@ -29,15 +29,7 @@ function startShareMode(source) {
 }
 
 function cancelShareMode() {
-  var prevSource = _shareSource;
-  _shareMode   = false;
-  _shareSource = '';
-  _shareItems  = {};
-  window._shareDataMap = {};
-  var bar = document.getElementById('share-bottom-bar');
-  if (bar) bar.remove();
-  try { window._rrBrowseSig = null; window._rrCollPageSig = null; } catch (e) {}   // v0.9.1006
-
+  _shareEnd();
   // Rebuild whichever page is currently active
   var activePage = document.querySelector('.page.active');
   if (!activePage) return;
@@ -885,6 +877,35 @@ async function _uploadShareToDrive(pdfBlob) {
   return 'https://drive.google.com/file/d/' + fileId + '/view';
 }
 
+
+// ── v0.9.2017 — leaving the page ends the selection ──────────────
+// [stated] Brad, 2026-10-23: "when you click share, you can click back to
+// dashboard or click another page like sales list and it doesn't cancel the
+// share so it just stays up at the bottom" → "go". showPage (app.js) — the one
+// door every page change goes through — calls rrShareLeavePage(name). The
+// page a selection belongs to is ONE map, SHARE_HOME_PAGE. My Collection and
+// the Master Catalog are the same page ('browse'), so a collection selection
+// also ends when the list stops being My Collection (resetFilters → owned off).
+var SHARE_HOME_PAGE = { collection: 'browse', want: 'upgrade', upgrade: 'upgrade', forsale: 'forsale' };
+function _shareEnd() {
+  _shareMode   = false;
+  _shareSource = '';
+  _shareItems  = {};
+  window._shareDataMap = {};
+  var bar = document.getElementById('share-bottom-bar');
+  if (bar) bar.remove();
+  try { window._rrBrowseSig = null; window._rrCollPageSig = null; } catch (e) {}   // v0.9.1006
+}
+function rrShareLeavePage(name) {
+  if (!_shareMode) return;
+  if (name !== SHARE_HOME_PAGE[_shareSource]) { _shareEnd(); return; }   // the new page builds without it
+  if (_shareSource === 'collection') {
+    setTimeout(function () {
+      if (_shareMode && _shareSource === 'collection' && typeof state !== 'undefined' && state.filters && !state.filters.owned) cancelShareMode();
+    }, 0);
+  }
+}
+if (typeof window !== 'undefined') { window.rrShareLeavePage = rrShareLeavePage; }
 
 // ── Share ONE for-sale listing (v0.9.1022, Brad — phone card button) ────
 // Enters the existing for-sale share mode with just this item selected and
