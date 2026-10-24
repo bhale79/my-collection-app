@@ -7285,9 +7285,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // digits and are invisible to the [A-Za-z]+ capture above).
     // v1880: masterRowId (Master Row ID — the catalog row's permanent ID)
     // appended after stockPhotoLink (CATALOG_ROW_ID_PLAN Step 2).
+    // v2020: stickerCode (Sticker Code — Scan to Shelve) appended after masterRowId.
     ok('...appended at the END, never mid-schema',
        fields.slice(fields.indexOf('masterKey') + 1).join(',') ===
-         'eraPeriod,importBatch,yourGrade,yourDescription,locationDetail,shipper,subCollection,stockPhotoLink,masterRowId',
+         'eraPeriod,importBatch,yourGrade,yourDescription,locationDetail,shipper,subCollection,stockPhotoLink,masterRowId,stickerCode',
        fields.slice(fields.indexOf('masterKey') + 1).join(','));
 
     // The wizard passes the CONFIRMED match; buildPersonalRow has the fallback.
@@ -11023,8 +11024,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // v1802 79→80 (atlas-diagrams-config.js — Atlas diagrams + matcher).
       // v1864 80→81 (table-columns.js — the ONE column editor).
       // v2007 82→83, v2009 83→84, v2010 84→85, v2011 85→86, v2012 86→87, v2013 87→88 (the Photo Inbox pieces — the split).
-      ok('every ?v= mark in app/index.html matches it — all 88, none stale',
-         stamps.length === 88 && stamps.every(t => t === '?v=' + build),
+      // v2020 88→89 (scan-shelve.js — Scan to Shelve, owners only).
+      ok('every ?v= mark in app/index.html matches it — all 89, none stale',
+         stamps.length === 89 && stamps.every(t => t === '?v=' + build),
          stamps.length + ' stamps; strays: ' + stamps.filter(t => t !== '?v=' + build).slice(0, 3).join(','));
       ok('the service worker cache name moved too (build + 10, the fixed offset)',
          new RegExp("const CACHE_NAME = 'mca-v" + (build + 10) + "';").test(rd('app/sw.js')),

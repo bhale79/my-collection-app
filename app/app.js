@@ -158,6 +158,14 @@ const PERSONAL_SCHEMA = [
   // HIDE an item if Master Key changed shape, which is why this is its own
   // column. Appended at END (column rule).
   { field: 'masterRowId',          header: 'Master Row ID' },
+  // v0.9.2020 ([stated] Brad, 2026-10-23, for a customer with QR stickers on
+  // his shelves and items: "scan the item and then scan the shelve and it
+  // updates its location" → "yes"): the QR sticker stuck on THIS copy — a
+  // pack sticker's own text, or (Release 2) a code the app printed. Written
+  // only by scan-shelve.js (rrStickerSetItem / rrStickerClearItem). It belongs
+  // to the physical copy, so it is carried when the item number changes.
+  // Appended at END (column rule).
+  { field: 'stickerCode',          header: 'Sticker Code' },
 ];
 const PERSONAL_HEADERS = PERSONAL_SCHEMA.map(s => s.header);
 const PERSONAL_FIELD_INDEX = {};

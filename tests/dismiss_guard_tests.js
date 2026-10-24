@@ -240,7 +240,8 @@ ok('every guarded overlay offers Cancel / Done / Close / ✕', trapped.length ==
 // v0.9.1944: 48 — the Record sale box (rr-sale-dlg, app-pages.js rrSaleDetailsDialog).
 // v0.9.1962: 49 — the Past reports list (rep-past-ov, report-export.js _openPastReports).
 // v0.9.1966: 50 — "Generating your report" (rep-gen-ov, report-export.js _repProgOv).
-ok('50 guarded call sites, and ONE helper behind them', sites === 50, String(sites));
+// v0.9.2020: 52 — Scan to Shelve's camera screen (rr-shelve) and its question box (rr-shelve-ask, scan-shelve.js).
+ok('52 guarded call sites, and ONE helper behind them', sites === 52, String(sites));
 
 // nobody double-wires BackStack any more — the guard does it, once
 let dbl = 0;

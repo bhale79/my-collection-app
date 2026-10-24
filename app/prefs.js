@@ -1172,7 +1172,10 @@ function _addSavedLocation(){
 }
 function _deleteSavedLocation(i){
   var locs = _getSavedLocations(); if (i<0 || i>=locs.length) return;
-  locs.splice(i,1); _setSavedLocations(locs); _renderLocList();
+  var _gone = locs[i];
+  locs.splice(i,1); _setSavedLocations(locs);
+  if (_gone && typeof rrStickerForgetPlace === 'function') rrStickerForgetPlace(_gone.name, null);   // v0.9.2020: its stickers go with it
+  _renderLocList();
 }
 // ── v0.9.1531b: the level below a location ──────────────────────
 // A location's details live on the location itself, so removing a location
@@ -1194,8 +1197,11 @@ function _addLocDetail(i){
 function _deleteLocDetail(i, j){
   var locs = _getSavedLocations(); if (i<0 || i>=locs.length) return;
   if (!Array.isArray(locs[i].details)) return;
+  var _goneSpot = locs[i].details[j];
   locs[i].details.splice(j,1);
-  _setSavedLocations(locs); _locOpen[i] = true; _renderLocList();
+  _setSavedLocations(locs); _locOpen[i] = true;
+  if (_goneSpot && typeof rrStickerForgetPlace === 'function') rrStickerForgetPlace(locs[i].name, _goneSpot);   // v0.9.2020
+  _renderLocList();
 }
 var _locOpen = {};        // which locations are expanded in the modal
 function _toggleLocOpen(i){ _locOpen[i] = !_locOpen[i]; _renderLocList(); }
@@ -1253,6 +1259,7 @@ function _renderLocList(){
       // we need to modify that as well"). A place you have set up should be
       // able to claim items — this starts the fill-a-column flow with the
       // location already answered, so you go straight to ticking.
+      + (typeof rrShelvePlaceBtnHtml === 'function' ? rrShelvePlaceBtnHtml(loc.name, '') : '')   // v0.9.2020
       + '<button data-loc-fill="' + i + '" title="Put items in this location" style="background:none;border:1px solid var(--border);'
       +   'color:var(--text-mid);border-radius:7px;font-size:0.7rem;cursor:pointer;padding:0.15rem 0.5rem;margin-right:0.35rem">Put items here</button>'
       + '<button data-loc-del="' + i + '" title="Remove" style="background:none;border:none;color:var(--text-dim);font-size:1.2rem;cursor:pointer;line-height:1;padding:0 0.25rem">&times;</button>'
@@ -1264,7 +1271,7 @@ function _renderLocList(){
         + dets.map(function(d, j){
             return '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;padding:0.28rem 0.5rem;border:1px solid var(--border);border-radius:7px;margin-bottom:0.28rem;background:var(--bg)">'
               + '<span style="font-size:0.82rem;color:var(--text)">' + _locEsc(d) + '</span>'
-              + '<span><button data-locdet-fill="' + i + ':' + j + '" title="Put items in this spot" style="background:none;border:1px solid var(--border);'
+              + '<span>' + (typeof rrShelvePlaceBtnHtml === 'function' ? rrShelvePlaceBtnHtml(loc.name, d) : '') + '<button data-locdet-fill="' + i + ':' + j + '" title="Put items in this spot" style="background:none;border:1px solid var(--border);'
               +   'color:var(--text-mid);border-radius:7px;font-size:0.68rem;cursor:pointer;padding:0.1rem 0.45rem;margin-right:0.3rem">Put items here</button>'
               + '<button data-locdet-del="' + i + ':' + j + '" title="Remove" style="background:none;border:none;color:var(--text-dim);font-size:1.05rem;cursor:pointer;line-height:1;padding:0 0.2rem">&times;</button>'
               + '</span></div>';
@@ -1276,6 +1283,7 @@ function _renderLocList(){
     }
     return '<div style="border:1px solid var(--border);border-radius:8px;margin-bottom:0.35rem;background:var(--surface2)">' + head + body + '</div>';
   }).join('');
+  if (typeof rrShelveWirePlaceBtns === 'function') rrShelveWirePlaceBtns(el, _renderLocList);   // v0.9.2020
   el.querySelectorAll('[data-loc-del]').forEach(function(btn){
     btn.addEventListener('click', function(){ _deleteSavedLocation(parseInt(btn.getAttribute('data-loc-del'),10)); });
   });
@@ -1336,6 +1344,8 @@ function _openLocationsModal(opts){
     +   '<button id="loc-close" style="background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;line-height:1">&times;</button>'
     + '</div>'
     + '<div style="padding:1rem 1.25rem;overflow:auto;flex:1">'
+    // v0.9.2020: Scan to Shelve sits here ([stated] Brad: "have this feature listed in preferences under the location manager")
+    +   (typeof rrShelveTopHtml === 'function' ? rrShelveTopHtml() : '')
     +   '<div style="font-size:0.82rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.85rem">' + _locEsc(opts.spots ? RR_LOC_SPOTS.introSpots : RR_LOC_SPOTS.intro) + '</div>'
     +   '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center">'
     +     '<input id="loc-new-name" type="text" placeholder="e.g. Tote A" style="flex:1;min-width:140px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.55rem 0.7rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;box-sizing:border-box">'

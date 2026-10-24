@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2019';
+const APP_VERSION = 'v0.9.2020';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -2776,6 +2776,67 @@ var RR_LOC_SPOTS = {
   introSpots: 'The spots inside each place \u2014 Downstairs closet, Tote 2. Type one under its place and press Add. A place that isn\u2019t listed yet: add it at the top first.',
 };
 if (typeof window !== 'undefined') window.RR_LOC_SPOTS = RR_LOC_SPOTS;
+// ── v0.9.2020 — SCAN TO SHELVE ([stated] Brad, 2026-10-23: a customer "has qr
+// codes that he has on his shelves … he wants to scan the item and then scan
+// the shelve and it updates its location" → phone camera only → "have this
+// feature listed in preferences under the location manager" → "lets set this
+// up for support@ and also my account bhale@" → "yes"). ONE definition:
+// the feature switch (owners only until Brad opens it — rrFeatureOn), where
+// shelf stickers are kept (an ACCOUNT setting: {code: {loc, spot}}), and every
+// word the screens say. The code is scan-shelve.js.
+var RR_SHELVE = {
+  feature: 'scan_shelve',
+  placesKey: 'lv_sticker_places',
+  scanEveryMs: 300,        // how often the camera frame is read
+  sameCodeQuietMs: 2500,   // the same sticker held in view is one scan, not ten
+  words: {
+    button: 'Scan to Shelve',
+    buttonHelp: 'Stick a QR label on each shelf and each item. Scan an item, then its shelf \u2014 the location updates.',
+    title: 'Scan to Shelve',
+    aim: 'Point the camera at a sticker.',
+    noCamera: 'Open this on your phone to scan with the camera \u2014 or type a sticker code below.',
+    typeLabel: 'Sticker code',
+    typeGo: 'Use code',
+    keepShelf: 'Keep this shelf for the next items',
+    itemSlot: 'Item',
+    placeSlot: 'Shelf',
+    needPlace: 'Now scan its shelf.',
+    needItem: 'Now scan an item.',
+    saved: '\u2713 {item} \u2192 {place}',
+    undo: 'Undo',
+    undone: 'Put back where it was',
+    newTitle: 'New sticker',
+    newAsk: 'What is this sticker on?',
+    newItem: 'An item in my collection',
+    newPlace: 'A shelf or place',
+    newAdd: 'Add a new item',
+    pickItem: 'Which item is this sticker on?',
+    pickItemSearch: 'Search by number or name',
+    pickPlace: 'Which shelf or place is this sticker on?',
+    newPlaceLabel: 'Or a new place',
+    newPlaceName: 'Place (e.g. Garage)',
+    newPlaceSpot: 'Spot inside (optional, e.g. Shelf 4)',
+    usePlace: 'Use this place',
+    usedOnItem: 'This sticker is already on {item}. Move it to this item?',
+    usedOnPlace: 'This sticker is already on {place}. Use it for this instead?',
+    usedOnItemToPlace: 'This sticker is already on {item}. Use it for this place instead?',
+    moveOk: 'Move it',
+    cancel: 'Cancel',
+    pairedItem: '\u2713 Sticker paired with {item}',
+    pairedPlace: '\u2713 Sticker paired with {place}',
+    itemLine: 'Sticker',
+    itemPaired: 'Paired',
+    itemNone: 'No sticker',
+    pair: 'Pair a sticker',
+    remove: 'Remove sticker',
+    replace: 'Replace',
+    pairScan: 'Scan the sticker for {what}.',
+    placePaired: 'Sticker paired',
+    needLocation: 'Turn on Track Storage Location first (Preferences) \u2014 Scan to Shelve fills in Location.',
+    afterAdd: 'Which of the items you just added is the sticker on?',
+  },
+};
+if (typeof window !== 'undefined') window.RR_SHELVE = RR_SHELVE;
 window.rrSavedLocations = function () {
   try {
     var raw = (typeof _prefGet === 'function') ? _prefGet(RR_LOCATIONS_KEY, '[]') : localStorage.getItem(RR_LOCATIONS_KEY);

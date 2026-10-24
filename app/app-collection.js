@@ -1427,6 +1427,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
         <span style="font-size:0.85rem;color:var(--text);text-align:right">${d.val}</span>
       </div>`).join('')}
     </div>
+    ${(!_wantMode && pd && typeof rrShelveItemLineHtml === 'function') ? rrShelveItemLineHtml(pd, Object.keys(state.personalData || {}).filter(function (_k) { return state.personalData[_k] === pd; })[0] || '') : ''}
     ${_wantMode && _wantEntry ? `<div style="margin-top:0.6rem;text-align:right"><button onclick="_wantEditOpen()" style="padding:0.45rem 0.9rem;border-radius:8px;border:1.5px solid var(--accent2);background:none;color:var(--accent2);font-family:var(--font-body);font-size:0.8rem;font-weight:600;cursor:pointer">Edit want details</button></div>` : ''}`;
 
   // Matched / Set info

@@ -99,6 +99,9 @@ async function run(browser, planted) {
     const rowM = buildPersonalRow({ itemNum: 'SIGN-1', variation: '', era: 'Manual', manufacturer: 'Lionel', itemType: 'Accessory' });
     r.save = {
       lastField: PERSONAL_SCHEMA[PERSONAL_SCHEMA.length - 1].field, lastHeader: PERSONAL_HEADERS[PERSONAL_HEADERS.length - 1],
+      // v0.9.2020: Sticker Code was appended after Master Row ID (column rule) — what is AFTER it is that known set
+      afterRowId: PERSONAL_SCHEMA.slice(PERSONAL_SCHEMA.map(function (x) { return x.field; }).indexOf('masterRowId') + 1).map(function (x) { return x.field; }).join(','),
+      rowIdHeader: PERSONAL_HEADERS[PERSONAL_SCHEMA.map(function (x) { return x.field; }).indexOf('masterRowId')],
       idGiven: rowB[F.masterRowId], descFollowsId: rowB[F.masterDescription], keyGiven: rowB[F.masterKey],
       keyOnly: rowK[F.masterRowId], nothing: rowN[F.masterRowId], manual: rowM[F.masterRowId],
     };
@@ -130,7 +133,7 @@ async function run(browser, planted) {
   T('B1 Collection by Type: the motor car and the A unit are engines, the two boxcars freight',
     o.breakdown && o.breakdown.Engines === 2 && o.breakdown.Freight === 2 && o.breakdown.Other === 0, o.breakdown);
   console.log('\n== C · saving ==');
-  T('C1 the collection sheet\'s new column is the LAST one (column rule): Master Row ID', o.save.lastField === 'masterRowId' && o.save.lastHeader === 'Master Row ID', o.save);
+  T('C1 Master Row ID was appended at the END (column rule) — only later appends follow it (v2020: Sticker Code)', o.save.rowIdHeader === 'Master Row ID' && o.save.afterRowId === 'stickerCode' && o.save.lastField === 'stickerCode', o.save);
   T('C2 a save that knows the row writes its Row ID — and the catalog description follows the ID',
     o.save.idGiven === 'BBBBBBBBBB' && o.save.descFollowsId === 'Box Car (O gauge)' && o.save.keyGiven === 'prewar|800|', o.save);
   T('C3 a stored key with no ID records the row the app shows today (the first — the motor car)', o.save.keyOnly === 'MMMMMMMMMM', o.save);

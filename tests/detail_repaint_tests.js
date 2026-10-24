@@ -253,7 +253,8 @@ section('rule 3 — no repaint may go back to a remembered position');
   // Every mention with a paren is either the declaration or a call site.
   // Pinned exactly: a tenth repaint site should be a deliberate act, and it
   // arrives here to say so.
-  ok('exactly the nine known repaint sites call the helper', mentions - 1 === 9,
+  // v0.9.2020: ten — Scan to Shelve's sticker Pair/Remove on the item page (scan-shelve.js _shRedrawDetail).
+  ok('exactly the ten known repaint sites call the helper', mentions - 1 === 10,
      'found ' + (mentions - 1) + ' call sites');
 }
 
