@@ -1721,6 +1721,114 @@ function _accountMenuOutsideClick(e) {
   }
 }
 
+// ── Sign-in / sign-out in ANOTHER window (v0.9.2022) ──
+//
+// [stated] Brad 2026-10-24: "now this screen is stuck here" — the installed
+// app window sat on the sign-in screen after he had signed in through a
+// Chrome tab. Every Rail Roster window on a computer shares one saved
+// sign-in (lv_user / lv_token / lv_token_expiry), but a window only read it
+// once, when it opened, so a window that was already open never noticed.
+//
+// THE RULE: when the saved sign-in changes in another window, every open
+// window comes into line with it by RELOADING — the same start-up path a
+// freshly opened window takes, so there is no second copy of "how to show
+// the app" to drift. Three cases reload, nothing else does:
+//   1. this window shows the sign-in screen and another window signed in
+//      (a saved account AND a live pass);
+//   2. this window shows the app and another window signed OUT (no saved
+//      account — sign-out clears it and reloads that window the same way);
+//   3. this window shows the app and another window switched ACCOUNT (the
+//      saved email is not this window's).
+// A pass renewal for the same account changes nothing here. A window in the
+// middle of its OWN sign-in (sessionStorage lv_signing_in) is left alone —
+// its own sign-in finishes it. At most one reload per page, and never two
+// within 30 s in a tab (a change inside the 30 s is checked when they end).
+//
+// The browser's `storage` event fires only in the OTHER windows, never in
+// the one that wrote. A window that was asleep re-checks when it is shown
+// or focused, in case the event was missed.
+var RR_XWIN_KEYS = ['lv_user', 'lv_token', 'lv_token_expiry'];
+var _rrXWinReloading = false;
+var RR_XWIN_RELOAD_KEY = 'rr_xwin_reload_at';   // sessionStorage: last such reload in this tab
+var _rrXWinTimer = null;
+
+// What this window is showing and what the saved sign-in now says.
+function _rrXWinView() {
+  var v = { authUp: false, appUp: false, myEmail: '', storedEmail: '', passLive: false, ownSignIn: false };
+  try {
+    var appEl = document.getElementById('app');
+    var authEl = document.getElementById('auth-screen');
+    v.appUp = !!(appEl && appEl.classList && appEl.classList.contains('active'));
+    v.authUp = !!(authEl && authEl.style && authEl.style.display && authEl.style.display !== 'none');
+  } catch (e) {}
+  try { v.myEmail = String((state.user && state.user.email) || '').trim().toLowerCase(); } catch (e) {}
+  try {
+    var u = JSON.parse(localStorage.getItem('lv_user') || 'null');
+    v.storedEmail = String((u && u.email) || '').trim().toLowerCase();
+    var tok = localStorage.getItem('lv_token');
+    var exp = parseInt(localStorage.getItem('lv_token_expiry') || '0', 10);
+    v.passLive = !!tok && exp > Date.now();
+  } catch (e) {}
+  try { v.ownSignIn = sessionStorage.getItem('lv_signing_in') === '1'; } catch (e) {}
+  return v;
+}
+
+// The decision, kept apart from the page so the tests can drive it.
+// Returns '' (leave it) or the reason for a reload.
+function _rrXWinDecide(v) {
+  if (!v) return '';
+  if (v.authUp && !v.appUp) {
+    if (v.ownSignIn) return '';
+    return (v.storedEmail && v.passLive) ? 'signed in in another window' : '';
+  }
+  if (v.appUp && v.myEmail) {
+    if (!v.storedEmail) return 'signed out in another window';
+    if (v.storedEmail !== v.myEmail) return 'another account in another window';
+  }
+  return '';
+}
+
+function _rrXWinCheck() {
+  _rrXWinTimer = null;
+  if (_rrXWinReloading) return;
+  var why = _rrXWinDecide(_rrXWinView());
+  if (!why) return;
+  // Belt and braces: never more than one such reload per 30 s in a tab, so
+  // no combination of windows can bounce each other into a reload loop.
+  var now = Date.now(), last = 0;
+  try { last = parseInt(sessionStorage.getItem(RR_XWIN_RELOAD_KEY) || '0', 10) || 0; } catch (e) {}
+  if (now - last < 30000) {
+    // Not dropped — looked at again once the 30 s are up.
+    _rrAuthLog(why + ' — reloaded under 30 s ago, checking again shortly');
+    _rrXWinTimer = setTimeout(_rrXWinCheck, 30000 - (now - last) + 50);
+    return;
+  }
+  try { sessionStorage.setItem(RR_XWIN_RELOAD_KEY, String(now)); } catch (e) {}
+  _rrXWinReloading = true;
+  _rrAuthLog(why + ' — reloading to match');
+  try { location.reload(); } catch (e) {}
+}
+
+// Several keys change together on a sign-in; wait for the last one.
+function _rrXWinSoon() {
+  if (_rrXWinReloading || _rrXWinTimer) return;
+  _rrXWinTimer = setTimeout(_rrXWinCheck, 400);
+}
+
+(function _rrXWinListen() {
+  if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') return;
+  window.addEventListener('storage', function (e) {
+    // key === null: another window cleared the whole store.
+    if (!e || e.key === null || RR_XWIN_KEYS.indexOf(e.key) !== -1) _rrXWinSoon();
+  });
+  window.addEventListener('focus', _rrXWinSoon);
+  if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible') _rrXWinSoon();
+    });
+  }
+})();
+
 // ── 5. JWT util ──
 
 // ── UTILITIES ───────────────────────────────────────────────────
