@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2022';
+const APP_VERSION = 'v0.9.2023';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -2789,6 +2789,17 @@ var RR_SHELVE = {
   placesKey: 'lv_sticker_places',
   scanEveryMs: 300,        // how often the camera frame is read
   sameCodeQuietMs: 2500,   // the same sticker held in view is one scan, not ten
+  // v0.9.2023 (Release 2 — printed labels): the app's own codes say what they
+  // are. Item: RR1:I:<collection tag>:<inventory number> (the tag keeps a label
+  // printed for one collection from naming an item in another — inventory
+  // numbers repeat across sheets). Place: RR1:P:<place>:<spot>, each part
+  // percent-encoded. The QR maker is self-hosted (works offline at a show).
+  codePrefix: 'RR1',
+  qrLib: './vendor/qrcode-generator-2.0.4.js',
+  qrLevel: 'M',
+  // Avery 5160 / 8160 address labels — 30 per US Letter sheet, 1" x 2-5/8".
+  label: { pageW: 8.5, pageH: 11, cols: 3, rows: 10, w: 2.625, h: 1, left: 0.1875, top: 0.5, gapX: 0.125, gapY: 0, qr: 0.82, pad: 0.09 },
+  pdfName: 'Rail Roster labels.pdf',
   words: {
     button: 'Scan to Shelve',
     buttonHelp: 'Stick a QR label on each shelf and each item. Scan an item, then its shelf \u2014 the location updates.',
@@ -2834,6 +2845,24 @@ var RR_SHELVE = {
     placePaired: 'Sticker paired',
     needLocation: 'Turn on Track Storage Location first (Preferences) \u2014 Scan to Shelve fills in Location.',
     afterAdd: 'Which of the items you just added is the sticker on?',
+    printShelves: 'Print shelf labels',
+    printItems: 'Print item labels',
+    printLabel: 'Print label',
+    printTitleShelves: 'Print shelf labels',
+    printTitleItems: 'Print item labels',
+    printHelp: 'Prints on Avery 5160 address labels (30 per sheet, 1\u2033 \u00d7 2\u215d\u2033). Print at 100% \u2014 not \u201cfit to page\u201d.',
+    printSearch: 'Search by number or name',
+    printTickAll: 'Tick all shown',
+    printClear: 'Clear',
+    printCount: '{n} ticked',
+    printSkip: 'Labels already used on the sheet',
+    printGo: 'Make the label sheet (PDF)',
+    printNone: 'Tick at least one first.',
+    printMade: '\u2713 {n} labels ready \u2014 print at 100%',
+    printFailed: 'Could not make the label sheet \u2014 check your connection and try again.',
+    foreign: 'This label belongs to another collection \u2014 nothing changed.',
+    missing: 'No item #{inv} in your collection \u2014 nothing changed.',
+    printedLabel: 'That is a printed label \u2014 it already says what it is. Use a blank sticker to pair.',
   },
 };
 if (typeof window !== 'undefined') window.RR_SHELVE = RR_SHELVE;

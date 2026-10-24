@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// SCAN TO SHELVE — v0.9.2020 (owners only until Brad opens it)
+// SCAN TO SHELVE — v0.9.2020 (owners only until Brad opens it); printed labels v0.9.2023
 //
 // [stated] Brad, 2026-10-23, for a customer who "has qr codes that he has on
 // his shelves" and wants to "scan the item and then scan the shelve and it
@@ -66,9 +66,41 @@ function _shItemKeyByCode(code) {
   }
   return '';
 }
+// ── v0.9.2023: the app's own printed codes ─────────────────────────────────
+// A short tag of THIS collection's sheet, so a label printed for one collection
+// never names an item in another (inventory numbers repeat across sheets).
+function _shSheetTag() {
+  var id = String((state && state.personalSheetId) || ''), h = 2166136261;
+  for (var i = 0; i < id.length; i++) { h ^= id.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+  return ('000000' + h.toString(36)).slice(-6);
+}
+function rrStickerAppCodeItem(pd) {
+  return pd && pd.inventoryId ? RR_SHELVE.codePrefix + ':I:' + _shSheetTag() + ':' + encodeURIComponent(String(pd.inventoryId)) : '';
+}
+function rrStickerAppCodePlace(p) {
+  return p && p.loc ? RR_SHELVE.codePrefix + ':P:' + encodeURIComponent(String(p.loc).trim()) + ':' + encodeURIComponent(String(p.spot || '').trim()) : '';
+}
+function rrStickerParseApp(code) {
+  var c = rrStickerNorm(code), pre = RR_SHELVE.codePrefix + ':';
+  if (c.indexOf(pre) !== 0) return null;
+  var parts = c.slice(pre.length).split(':');
+  try {
+    if (parts[0] === 'I' && parts.length === 3) return { kind: 'item', tag: parts[1], inv: decodeURIComponent(parts[2]) };
+    if (parts[0] === 'P' && parts.length === 3) return { kind: 'place', loc: decodeURIComponent(parts[1]), spot: decodeURIComponent(parts[2]) };
+  } catch (e) {}
+  return null;
+}
 function rrStickerFind(code) {
   var c = rrStickerNorm(code);
   if (!c) return null;
+  var app = rrStickerParseApp(c);
+  if (app && app.kind === 'place' && app.loc) return { kind: 'place', place: { loc: app.loc, spot: app.spot || '' }, printed: true };
+  if (app && app.kind === 'item') {
+    if (app.tag !== _shSheetTag()) return { kind: 'foreign', printed: true };
+    var pdAll = state.personalData || {};
+    for (var ik in pdAll) { var ip = pdAll[ik]; if (ip && ip.owned && String(ip.inventoryId) === String(app.inv)) return { kind: 'item', key: ik, pd: ip, printed: true }; }
+    return { kind: 'missing', inv: app.inv, printed: true };
+  }
   var key = _shItemKeyByCode(c);
   if (key) return { kind: 'item', key: key, pd: state.personalData[key] };
   var pl = rrStickerPlaces()[c];
@@ -103,6 +135,7 @@ async function rrStickerSetItem(key, code) {
   var c = rrStickerNorm(code);
   var pd = state.personalData[key];
   if (!c || !pd) return false;
+  if (rrStickerParseApp(c)) { if (typeof showToast === 'function') showToast(_shW('printedLabel'), 4000, true); return false; }
   var f = rrStickerFind(c);
   if (f && f.kind === 'item' && f.key === key) return true;
   if (f && f.kind === 'item') {
@@ -131,6 +164,7 @@ async function rrStickerClearItem(key) {
 async function rrStickerSetPlace(code, place) {
   var c = rrStickerNorm(code);
   if (!c || !place || !String(place.loc || '').trim()) return false;
+  if (rrStickerParseApp(c)) { if (typeof showToast === 'function') showToast(_shW('printedLabel'), 4000, true); return false; }
   var p = { loc: String(place.loc).trim(), spot: String(place.spot || '').trim() };
   var f = rrStickerFind(c);
   if (f && f.kind === 'place' && _shSamePlace(f.place, p)) return true;
@@ -295,6 +329,8 @@ async function rrShelveCode(code, opts) {
   try {
     _shBuzz();
     var mode = _sh.mode;
+    // a printed label already says what it is — it is never paired to anything
+    if ((mode.kind === 'pairItem' || mode.kind === 'pairPlace') && rrStickerParseApp(c)) { _shStatus(_shW('printedLabel')); return false; }
     if (mode.kind === 'pairItem') {
       if (await rrStickerSetItem(mode.key, c)) {
         if (typeof showToast === 'function') showToast(_shW('pairedItem', { item: rrShelveItemName(state.personalData[mode.key]) }), 3000);
@@ -312,6 +348,8 @@ async function rrShelveCode(code, opts) {
       return false;
     }
     var f = rrStickerFind(c);
+    if (f && f.kind === 'foreign') { _shStatus(_shW('foreign')); return false; }
+    if (f && f.kind === 'missing') { _shStatus(_shW('missing', { inv: f.inv })); return false; }
     if (!f) {
       f = await _shAskNew(c);
       if (!f || !_sh) return false;
@@ -506,6 +544,7 @@ function rrShelveItemLineHtml(pd, key) {
       ? '<button onclick="rrShelvePairItem(\'' + k + '\')" style="' + btn + '">' + _shEsc(_shW('replace')) + '</button>' +
         '<button onclick="rrShelveRemoveItemSticker(\'' + k + '\')" style="' + btn + '">' + _shEsc(_shW('remove')) + '</button>'
       : '<button onclick="rrShelvePairItem(\'' + k + '\')" style="' + btn + '">' + _shEsc(_shW('pair')) + '</button>') +
+    '<button onclick="rrShelvePrintOpen(\'items\',[\'' + k + '\'])" style="' + btn + '">' + _shEsc(_shW('printLabel')) + '</button>' +
     '</div>';
 }
 function _shRedrawDetail() {
@@ -550,8 +589,183 @@ function rrShelveTopHtml() {
   if (!rrShelveOn()) return '';
   return '<div id="rr-shelve-top" style="margin-bottom:0.85rem;padding:0.7rem;border:1px solid var(--border);border-radius:10px;background:var(--surface2)">' +
     '<button onclick="rrShelveOpen()" class="pref-btn" style="font-weight:700">▣ ' + _shEsc(_shW('button')) + '</button>' +
+    '<span style="display:inline-flex;gap:0.35rem;flex-wrap:wrap;margin-left:0.35rem">' +
+      '<button onclick="rrShelvePrintOpen(\'places\')" class="pref-btn" style="font-size:0.8rem">' + _shEsc(_shW('printShelves')) + '</button>' +
+      '<button onclick="rrShelvePrintOpen(\'items\')" class="pref-btn" style="font-size:0.8rem">' + _shEsc(_shW('printItems')) + '</button>' +
+    '</span>' +
     '<div style="font-size:0.78rem;color:var(--text-dim);line-height:1.45;margin-top:0.4rem">' + _shEsc(_shW('buttonHelp')) + '</div>' +
     '</div>';
+}
+
+
+// ═══ v0.9.2023 — PRINTED LABELS (Release 2) ═══════════════════════════════
+// [stated] Brad: "we can have the ability to generate and print qr codes for
+// locations and item inventory ids or be able to use premade qr stickers
+// correct?" → "do release 2". The label sheet is a PDF (jsPDF, already on the
+// page) on Avery 5160 labels (config.js RR_SHELVE.label); the QR maker is
+// self-hosted (RR_SHELVE.qrLib). Each code says what it is — no pairing step.
+var _shQrLoading = null;
+function _shLoadQr() {
+  if (typeof window.qrcode === 'function') return Promise.resolve(window.qrcode);
+  if (_shQrLoading) return _shQrLoading;
+  _shQrLoading = new Promise(function (resolve, reject) {
+    var sc = document.createElement('script');
+    sc.src = RR_SHELVE.qrLib;
+    sc.onload = function () { typeof window.qrcode === 'function' ? resolve(window.qrcode) : reject(new Error('qr')); };
+    sc.onerror = function () { _shQrLoading = null; reject(new Error('qr')); };
+    document.head.appendChild(sc);
+  });
+  return _shQrLoading;
+}
+// Where label i lands on the sheets, in inches: skip = labels already used on
+// the first sheet. Pure — the tests read it.
+function rrShelveLabelSlots(count, skip, tpl) {
+  tpl = tpl || RR_SHELVE.label;
+  var per = tpl.cols * tpl.rows, out = [];
+  skip = Math.max(0, Math.min(per - 1, parseInt(skip, 10) || 0));
+  for (var i = 0; i < count; i++) {
+    var n = i + skip, page = Math.floor(n / per), at = n % per;
+    var row = Math.floor(at / tpl.cols), col = at % tpl.cols;
+    out.push({ page: page, x: tpl.left + col * (tpl.w + tpl.gapX), y: tpl.top + row * (tpl.h + tpl.gapY) });
+  }
+  return out;
+}
+// The labels for what was ticked: { code, title, lines[] }.
+function rrShelveLabelEntries(kind, list) {
+  if (kind === 'places') {
+    return (list || []).map(function (p) {
+      return { code: rrStickerAppCodePlace(p), title: p.loc, lines: p.spot ? [p.spot] : [] };
+    }).filter(function (e) { return e.code; });
+  }
+  return (list || []).map(function (k) {
+    var pd = state.personalData[k]; if (!pd) return null;
+    var num = String(pd.itemNum || '');
+    var name = rrShelveItemName(pd);
+    if (num && name.indexOf(num) === 0) name = name.slice(num.length).replace(/^[\s—–-]+/, '');
+    return { code: rrStickerAppCodeItem(pd), title: num, lines: [name, '#' + pd.inventoryId].filter(Boolean) };
+  }).filter(function (e) { return e && e.code; });
+}
+// One QR drawn as filled squares (runs of dark modules merged per row), with
+// a 2-module quiet zone, inside a size x size box at (x, y).
+function _shDrawQr(doc, qrLib, text, x, y, size) {
+  var qr = qrLib(0, RR_SHELVE.qrLevel); qr.addData(text); qr.make();
+  var n = qr.getModuleCount(), cell = size / (n + 4);
+  for (var r = 0; r < n; r++) {
+    var c = 0;
+    while (c < n) {
+      if (!qr.isDark(r, c)) { c++; continue; }
+      var c0 = c; while (c < n && qr.isDark(r, c)) c++;
+      doc.rect(x + (c0 + 2) * cell, y + (r + 2) * cell, (c - c0) * cell, cell, 'F');
+    }
+  }
+  return n;
+}
+async function rrShelveLabelsPdf(entries, skip) {
+  var J = window.jspdf && window.jspdf.jsPDF;
+  if (!J) throw new Error('jsPDF missing');
+  var qrLib = await _shLoadQr();
+  var tpl = RR_SHELVE.label;
+  var doc = new J({ unit: 'in', format: [tpl.pageW, tpl.pageH], orientation: 'portrait' });
+  var slots = rrShelveLabelSlots(entries.length, skip, tpl), page = 0;
+  doc.setTextColor(0); doc.setFillColor(0);
+  entries.forEach(function (e, i) {
+    var s = slots[i];
+    while (s.page > page) { doc.addPage(); page++; }
+    var qx = s.x + tpl.pad, qy = s.y + (tpl.h - tpl.qr) / 2;
+    _shDrawQr(doc, qrLib, e.code, qx, qy, tpl.qr);
+    var tx = qx + tpl.qr + 0.06, tw = s.x + tpl.w - tpl.pad - tx, ty = s.y + 0.27;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
+    doc.splitTextToSize(String(e.title || ''), tw).slice(0, 2).forEach(function (ln) { doc.text(ln, tx, ty); ty += 0.16; });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+    e.lines.forEach(function (l) {
+      doc.splitTextToSize(String(l), tw).slice(0, 2).forEach(function (ln) { if (ty < s.y + tpl.h - 0.06) { doc.text(ln, tx, ty); ty += 0.13; } });
+    });
+  });
+  return { doc: doc, slots: slots, pages: page + 1 };
+}
+function rrShelvePrintOpen(kind, preKeys) {
+  if (!rrShelveOn()) return;
+  var old = document.getElementById('rr-shelve-print'); if (old) old.remove();
+  var isPlaces = kind === 'places';
+  var rows = [];
+  if (isPlaces) {
+    ((typeof rrSavedLocations === 'function') ? rrSavedLocations() : []).forEach(function (l) {
+      rows.push({ id: 'p' + rows.length, place: { loc: l.name, spot: '' }, text: l.name });
+      (l.details || []).forEach(function (sp) { rows.push({ id: 'p' + rows.length, place: { loc: l.name, spot: sp }, text: rrShelvePlaceName({ loc: l.name, spot: sp }) }); });
+    });
+  } else {
+    _shOwnedKeys().forEach(function (k) {
+      var p = state.personalData[k];
+      if (!p || !p.inventoryId) return;
+      rows.push({ id: k, key: k, text: rrShelveItemName(p) + ' #' + p.inventoryId });
+    });
+  }
+  var ticked = {};
+  if (isPlaces) rows.forEach(function (r) { ticked[r.id] = true; });
+  (preKeys || []).forEach(function (k) { ticked[k] = true; });
+  var ov = document.createElement('div');
+  ov.id = 'rr-shelve-print';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:9760;background:var(--scrim);display:flex;align-items:center;justify-content:center;padding:1rem';
+  var inp = 'background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.45rem 0.6rem;color:var(--text);font-family:var(--font-body);font-size:0.88rem';
+  ov.innerHTML = '<div style="position:relative;background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:480px;width:100%;max-height:88vh;display:flex;flex-direction:column;color:var(--text);font-family:var(--font-body)">' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;padding:0.85rem 1rem;border-bottom:1px solid var(--border)">' +
+      '<strong style="font-size:1.02rem">' + _shEsc(_shW(isPlaces ? 'printTitleShelves' : 'printTitleItems')) + '</strong>' +
+      '<button id="rr-print-x" aria-label="Close" style="background:none;border:none;color:var(--text);font-size:1.5rem;line-height:1;cursor:pointer">&times;</button>' +
+    '</div>' +
+    '<div style="padding:0.8rem 1rem;overflow:auto;flex:1">' +
+      '<div style="font-size:0.78rem;color:var(--text-dim);line-height:1.45;margin-bottom:0.6rem">' + _shEsc(_shW('printHelp')) + '</div>' +
+      (isPlaces ? '' : '<input id="rr-print-q" type="text" placeholder="' + _shEsc(_shW('printSearch')) + '" style="width:100%;box-sizing:border-box;' + inp + '">') +
+      '<div style="display:flex;gap:0.4rem;align-items:center;margin:0.5rem 0">' +
+        '<button id="rr-print-all" class="pref-btn" style="font-size:0.78rem">' + _shEsc(_shW('printTickAll')) + '</button>' +
+        '<button id="rr-print-none" class="pref-btn" style="font-size:0.78rem">' + _shEsc(_shW('printClear')) + '</button>' +
+        '<span id="rr-print-count" style="font-size:0.82rem;color:var(--text-dim);margin-left:auto"></span>' +
+      '</div>' +
+      '<div id="rr-print-list"></div>' +
+    '</div>' +
+    '<div style="padding:0.75rem 1rem;border-top:1px solid var(--border);display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">' +
+      '<label style="font-size:0.8rem;color:var(--text-mid);display:flex;align-items:center;gap:0.35rem">' + _shEsc(_shW('printSkip')) +
+        ' <input id="rr-print-skip" type="number" min="0" max="' + (RR_SHELVE.label.cols * RR_SHELVE.label.rows - 1) + '" value="0" style="width:4rem;' + inp + '"></label>' +
+      '<button id="rr-print-go" class="pref-btn" style="margin-left:auto;font-weight:700">' + _shEsc(_shW('printGo')) + '</button>' +
+    '</div></div>';
+  document.body.appendChild(ov);
+  if (typeof rrDismissGuard === 'function') { try { rrDismissGuard(ov); } catch (e) {} }
+  var list = ov.querySelector('#rr-print-list'), q = ov.querySelector('#rr-print-q'), shown = [];
+  var count = function () { ov.querySelector('#rr-print-count').textContent = _shW('printCount', { n: Object.keys(ticked).filter(function (k) { return ticked[k]; }).length }); };
+  var draw = function () {
+    var qq = q ? String(q.value || '').trim().toLowerCase() : '';
+    shown = rows.filter(function (r) { return !qq || r.text.toLowerCase().indexOf(qq) >= 0; }).slice(0, 200);
+    list.innerHTML = shown.map(function (r) {
+      return '<label style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0.5rem;border:1px solid var(--border);border-radius:8px;margin-bottom:0.3rem;background:var(--surface2);cursor:pointer;font-size:0.86rem">' +
+        '<input type="checkbox" data-pr="' + _shEsc(r.id) + '"' + (ticked[r.id] ? ' checked' : '') + ' style="width:1.05rem;height:1.05rem;accent-color:var(--accent)">' + _shEsc(r.text) + '</label>';
+    }).join('');
+    list.querySelectorAll('[data-pr]').forEach(function (cb) {
+      cb.addEventListener('change', function () { ticked[cb.getAttribute('data-pr')] = cb.checked; count(); });
+    });
+    count();
+  };
+  if (q) q.addEventListener('input', draw);
+  ov.querySelector('#rr-print-all').addEventListener('click', function () { shown.forEach(function (r) { ticked[r.id] = true; }); draw(); });
+  ov.querySelector('#rr-print-none').addEventListener('click', function () { ticked = {}; draw(); });
+  ov.querySelector('#rr-print-x').addEventListener('click', function () { ov.remove(); });
+  var busy = false;
+  ov.querySelector('#rr-print-go').addEventListener('click', async function () {
+    if (busy) return;
+    var pick = rows.filter(function (r) { return ticked[r.id]; });
+    if (!pick.length) { if (typeof showToast === 'function') showToast(_shW('printNone'), 3000, true); return; }
+    var entries = isPlaces ? rrShelveLabelEntries('places', pick.map(function (r) { return r.place; }))
+                           : rrShelveLabelEntries('items', pick.map(function (r) { return r.key; }));
+    busy = true;
+    try {
+      var made = await rrShelveLabelsPdf(entries, ov.querySelector('#rr-print-skip').value);
+      made.doc.save(RR_SHELVE.pdfName);
+      if (typeof showToast === 'function') showToast(_shW('printMade', { n: entries.length }), 4000);
+    } catch (e) {
+      console.warn('[labels]', e);
+      if (typeof showToast === 'function') showToast(_shW('printFailed'), 5000, true);
+    }
+    busy = false;
+  });
+  draw();
 }
 
 if (typeof window !== 'undefined') {
@@ -563,5 +777,8 @@ if (typeof window !== 'undefined') {
     rrShelveUndo: rrShelveUndo, rrShelveItemName: rrShelveItemName, rrShelvePlaceName: rrShelvePlaceName,
     rrShelveItemLineHtml: rrShelveItemLineHtml, rrShelvePairItem: rrShelvePairItem, rrShelveRemoveItemSticker: rrShelveRemoveItemSticker,
     rrShelvePlaceBtnHtml: rrShelvePlaceBtnHtml, rrShelveWirePlaceBtns: rrShelveWirePlaceBtns, rrShelveTopHtml: rrShelveTopHtml,
+    rrStickerAppCodeItem: rrStickerAppCodeItem, rrStickerAppCodePlace: rrStickerAppCodePlace, rrStickerParseApp: rrStickerParseApp,
+    rrShelveLabelSlots: rrShelveLabelSlots, rrShelveLabelEntries: rrShelveLabelEntries, rrShelveLabelsPdf: rrShelveLabelsPdf,
+    rrShelvePrintOpen: rrShelvePrintOpen,
   });
 }
