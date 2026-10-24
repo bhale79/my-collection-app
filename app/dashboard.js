@@ -1028,9 +1028,8 @@ function buildDashboard() {
         // already keep. Names the Google Sheets export path explicitly, since
         // that is how most non-Excel users will get here.
         +   '<div style="flex:1 1 300px;min-width:260px;border:1px solid var(--border);border-radius:10px;padding:0.9rem 1rem">'
-        +     '<div style="font-weight:700;font-size:0.92rem;margin-bottom:0.3rem;color:var(--text)">Already have a list? '
-        +       (typeof rrBetaBadge === 'function' ? rrBetaBadge('style="font-size:0.62rem;background:var(--accent);color:var(--on-accent);border-radius:4px;padding:0.1rem 0.35rem;vertical-align:middle"') : '')
-        +     '</div>'
+        // v0.9.2024 (Brad): "take the beta tag off" — no BETA badge on Import.
+        +     '<div style="font-weight:700;font-size:0.92rem;margin-bottom:0.3rem;color:var(--text)">Already have a list?</div>'
         +     '<div style="font-size:0.82rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.75rem">Bring in a collection you already track in a spreadsheet \u2014 an Excel file (.xlsx) keeps your row colors and every tab. Keep a Google Sheet? File \u2192 Download \u2192 Microsoft Excel first. CSV works too. We check every column with you before anything is saved.</div>'
         +     '<button onclick="if(typeof rrImportOpen===\'function\')rrImportOpen()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Import a spreadsheet</button>'
         +   '</div>'

@@ -49,16 +49,42 @@ ok('no attributes falls back to the shared style', off().indexOf('font-size:0.6r
 ok('it is defensive about being called before config loads',
    /typeof rrRecordingMode === 'function'/.test(cfg.slice(cfg.indexOf('function rrBetaBadge'))));
 
-// ── every badge goes through the switch ─────────────────────────
+// ── no badge bypasses the switch ────────────────────────────────
 section('No badge bypasses the switch');
 const FILES = ['dashboard.js', 'import-ui.js', 'prefs.js'];
 FILES.forEach(f => {
   const s = rd(f);
-  ok(f + ' asks rrBetaBadge for its badge', /rrBetaBadge\(/.test(s));
   // a literal >BETA< in the markup is a badge that would survive recording mode
   const raw = (s.match(/>\s*BETA\s*</g) || []).length;
   ok(f + ' has no hand-rolled BETA span left', raw === 0, raw ? raw + ' found' : '');
 });
+
+// ── Import is for everyone: no BETA badge on any of its doors ───
+// v0.9.2024. Brad: "take the beta tag off" (Import is open to every user).
+// Its three doors were the only badges in the app. A badge put back on any
+// of them — through the switch or by hand — fails here.
+section('Import carries no BETA badge (v0.9.2024)');
+function importBadges(f, s) {
+  if (f === 'import-ui.js') return /rrBetaBadge\(|imp-beta|>\s*BETA\s*</.test(s);
+  // prefs.js / dashboard.js: look only at the Import row / the "Already have a list?" card
+  const at = f === 'prefs.js' ? s.indexOf('Import a Spreadsheet') : s.indexOf('Already have a list?');
+  if (at < 0) return null;
+  const near = s.slice(at, at + 400);
+  return /rrBetaBadge\(|>\s*BETA\s*</.test(near);
+}
+FILES.forEach(f => {
+  const r = importBadges(f, rd(f));
+  ok(f + ': the Import door is found and carries no BETA badge', r === false, r === null ? 'door text not found' : '');
+});
+// prove the check can fail — the v0.9.2023 markup, planted
+const planted = {
+  'import-ui.js': "'<div id=\"imp-title\">Import a Spreadsheet ' + (typeof rrBetaBadge === 'function' ? rrBetaBadge('class=\"imp-beta\"') : '') + '</div>'",
+  'prefs.js': "<strong>Import a Spreadsheet</strong> ${typeof rrBetaBadge === 'function' ? rrBetaBadge() : ''}<span>",
+  'dashboard.js': "'Already have a list? ' + (typeof rrBetaBadge === 'function' ? rrBetaBadge('style=\"x\"') : '')",
+};
+Object.keys(planted).forEach(f => ok('planted: the old ' + f + ' badge is caught', importBadges(f, planted[f]) === true));
+ok('planted: a hand-typed BETA span on the Import row is caught',
+   importBadges('prefs.js', '<strong>Import a Spreadsheet</strong> <span class="b">BETA</span>') === true);
 
 // ── the front door is left alone, on purpose ────────────────────
 section('The sign-in gate still says Beta');

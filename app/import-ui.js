@@ -97,8 +97,9 @@ function rrImportOpen() {
   // progress. A new version waits until this overlay closes.
   ov.setAttribute('data-rr-busy', 'import');
   ov.innerHTML = '<div id="imp-panel"><div id="imp-head">' +
-    '<div id="imp-title">Import a Spreadsheet ' +
-      (typeof rrBetaBadge === 'function' ? rrBetaBadge('class="imp-beta"') : '') + '</div>' +
+    // v0.9.2024 (Brad): "take the beta tag off" — Import is open to every
+    // user, so its title carries no BETA badge (recording_mode_beta_tests).
+    '<div id="imp-title">Import a Spreadsheet</div>' +
     '<button id="imp-close" onclick="rrImportClose()">✕</button></div>' +
     '<div id="imp-body"></div></div>';
   document.body.appendChild(ov);
@@ -121,7 +122,7 @@ function _impInjectCss() {
     '#imp-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9500;display:flex;align-items:center;justify-content:center;padding:1rem}' +
     '#imp-panel{background:var(--surface,#1c1c22);color:var(--text,#eee);border:1px solid var(--border,#333);border-radius:14px;width:min(680px,96vw);max-height:92vh;display:flex;flex-direction:column;overflow:hidden}' +
     '#imp-head{display:flex;justify-content:space-between;align-items:center;padding:0.8rem 1rem;border-bottom:1px solid var(--border,#333)}' +
-    '#imp-title{font-weight:700;font-size:1.05rem}.imp-beta{font-size:0.6rem;background:var(--accent,#c33);color:#fff;border-radius:4px;padding:0.1rem 0.35rem;vertical-align:middle;margin-left:0.4rem}' +
+    '#imp-title{font-weight:700;font-size:1.05rem}' +
     '#imp-close{background:none;border:none;color:var(--text-dim,#999);font-size:1.1rem;cursor:pointer;padding:0.2rem 0.5rem}' +
     '#imp-body{padding:1rem;overflow-y:auto}' +
     '.imp-drop{border:2px dashed var(--border,#555);border-radius:12px;padding:2rem 1rem;text-align:center;cursor:pointer;color:var(--text-mid,#bbb)}' +

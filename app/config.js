@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2023';
+const APP_VERSION = 'v0.9.2024';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -1371,6 +1371,10 @@ function rrSetRecordingMode(on) {
 // Every BETA badge in the app renders from HERE, which is the point: one
 // switch instead of three copies in three files drifting apart. Callers pass
 // their own attributes, so each badge still looks exactly as it did.
+//
+// v0.9.2024 (Brad: "take the beta tag off"): the three badges were all on
+// Import, and Import is open to every user, so all three are gone. Nothing
+// calls this today; it stays so the next beta feature's badge uses the switch.
 //
 // The sign-in gate is deliberately NOT included — Brad's call, 2026-09-12.
 // There the word is doing a real job rather than decorating: a stranger
