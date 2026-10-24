@@ -178,6 +178,9 @@ window.addEventListener('beforeinstallprompt', function (e) {
   window._pwaPrompt = e;
   var mi = document.getElementById('menu-install-app');
   if (mi && !_pwaIsInstalled()) mi.style.display = '';
+  // v0.9.2021: the pop-up waits for a real offer (see _pwaOfferInit); when one
+  // arrives late (Android), give the pop-up its chance now.
+  try { if (typeof _pwaOfferInit === 'function' && !document.getElementById('pwa-install-offer')) setTimeout(_pwaOfferInit, 1500); } catch (e2) {}
 });
 // v0.9.1422 (Brad: "went to my ipad and its not there"): ONE Apple-touch
 // test for every install path. Since iPadOS 13 Safari identifies itself as
@@ -223,7 +226,11 @@ function _pwaInstall() {
     _showIOSInstallHint();
     return;
   }
-  if (typeof showToast === 'function') showToast("Your browser didn't offer an install here — in Chrome use the \u22ee menu \u2192 Add to Home screen", 5000);
+  // v0.9.2021 ([stated] Brad 2026-10-23): this was a toast in PHONE words
+  // ("… Add to Home screen") shown on a computer where the app was already
+  // installed — Chrome never offers an install for an installed app. Now the
+  // step card, worded for this browser from RR_INSTALL_HELP (config.js).
+  _pwaInstallHelpCard();
 }
 // ── v0.9.1416 (Brad: "its missing on the desktop, its on the mobile") ──────
 // ROOT CAUSE of the missing desktop install button. _pwaMenuInit ran exactly
@@ -292,6 +299,13 @@ if (typeof window !== 'undefined') { window.rrInstallOfferAnswer = rrInstallOffe
 function _pwaOfferInit() {
   try {
     if (_pwaIsInstalled()) return;
+    // v0.9.2021 ([stated] Brad 2026-10-23, on his computer: the pop-up asked to
+    // install an app that was ALREADY installed, and Install then had nothing
+    // to give). Chrome/Edge hand over an install (beforeinstallprompt) only
+    // when the app is NOT installed — so no offer from the browser = no
+    // pop-up. iPhone/iPad never get that offer and are always installed by
+    // hand, so they still get the pop-up (its Install opens the steps card).
+    if (!window._pwaPrompt && !_isAppleTouch()) return;
     var dis = 0;
     try { dis = parseInt(localStorage.getItem('lv_install_offer_ts') || '0', 10); } catch (e) {}
     if (dis === -1) return;                                  // installed via the offer — done forever
@@ -348,49 +362,61 @@ function _showIOSInstallHint() {
   // sign-in card. Wait for #app.active; keep looking until it is.
   var appEl = document.getElementById('app');
   if (!appEl || !appEl.classList.contains('active')) { setTimeout(_showIOSInstallHint, 4000); return; }
-
-  const banner = document.createElement('div');
-  banner.id = 'ios-install-hint';
-  banner.style.cssText = [
-    'position:fixed',
-    'bottom:80px',
-    'left:50%',
-    'transform:translateX(-50%)',
-    'width:calc(100% - 2rem)',
-    'max-width:380px',
-    'background:#1c2544',
-    'border:1.5px solid var(--border)',
-    'border-radius:12px',
-    'padding:0.8rem 1rem',
-    'z-index:8000',
-    'box-shadow:0 4px 24px rgba(0,0,0,0.5)',
-    'display:flex',
-    'align-items:center',
-    'gap:0.75rem',
-    'animation:fadeIn 0.3s ease'
-  ].join(';');
-
-  banner.innerHTML = `
-    <div style="font-size:1.4rem;flex-shrink:0">📲</div>
-    <div style="flex:1;font-family:var(--font-body);font-size:0.8rem;color:var(--text);line-height:1.4">
-      <strong style="color:var(--gold)">Install The Rail Roster</strong><br>
-      Tap <strong>Share</strong> <span style="font-size:1rem">⎙</span> then <strong>Add to Home Screen</strong> for the best experience.
-    </div>
-    <button onclick="localStorage.setItem('lv_ios_hint_dismissed','1');document.getElementById('ios-install-hint').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.2rem;cursor:pointer;flex-shrink:0;padding:0;line-height:1">✕</button>
-  `;
-
-  document.body.appendChild(banner);
-
-  // Auto-dismiss after 12 seconds
-  setTimeout(() => {
-    const el = document.getElementById('ios-install-hint');
-    if (el) {
-      el.style.transition = 'opacity 0.5s ease';
-      el.style.opacity = '0';
-      setTimeout(() => el.remove(), 500);
-    }
-  }, 12000);
+  // v0.9.2021 ([stated] Brad 2026-10-23: "it wouldn't install on their iphone,
+  // it was a new user"). This was a small strip with Safari-only steps that
+  // vanished by itself after 12 s. Now the steps card: it stays until closed,
+  // and its steps fit the browser actually in use — Safari, Chrome, another
+  // browser, or an app's built-in browser that cannot install at all.
+  _pwaInstallHelpCard();
 }
+
+// v0.9.2021: THE install steps card — every "install by hand" path lands here
+// (iPhone/iPad, a computer or Android phone whose browser offered nothing).
+// Words come from RR_INSTALL_HELP (config.js), picked by rrInstallHelpKind().
+// It stays on screen until the person closes it — no timer.
+function _pwaInstallHelpCard(kind) {
+  try {
+    var H = (typeof RR_INSTALL_HELP !== 'undefined') ? RR_INSTALL_HELP : null;
+    if (!H) return;
+    kind = kind || ((typeof rrInstallHelpKind === 'function') ? rrInstallHelpKind() : 'desktop');
+    var c = H[kind] || H.desktop;
+    var old = document.getElementById('ios-install-hint');
+    if (old) old.remove();
+    var card = document.createElement('div');
+    card.id = 'ios-install-hint';           // the id the audits already know
+    card.setAttribute('role', 'dialog');
+    card.setAttribute('aria-label', c.title);
+    card.dataset.kind = kind;
+    card.style.cssText = 'position:fixed;bottom:5.5rem;left:0;right:0;margin:0 auto;z-index:9996;box-sizing:border-box;'
+      + 'width:min(92vw,440px);max-height:calc(100vh - 7rem);overflow:auto;background:var(--surface);color:var(--text);'
+      + 'border:1.5px solid var(--accent);border-radius:14px;padding:0.9rem 1rem;box-shadow:0 8px 28px var(--scrim);'
+      + 'font-family:var(--font-body)';
+    var steps = (c.steps || []).map(function (t, i) {
+      return '<div style="display:flex;gap:0.6rem;align-items:flex-start;padding:0.3rem 0">'
+        + '<span style="flex-shrink:0;width:1.4rem;height:1.4rem;border-radius:50%;background:var(--accent);color:var(--on-accent);'
+        + 'font-size:0.75rem;font-weight:700;display:flex;align-items:center;justify-content:center">' + (i + 1) + '</span>'
+        + '<span style="font-size:0.85rem;line-height:1.45">' + t + '</span></div>';
+    }).join('');
+    card.innerHTML =
+      '<div style="display:flex;align-items:flex-start;gap:0.6rem;margin-bottom:0.4rem">'
+      + '<div style="flex:1;font-weight:700;font-size:0.95rem">\ud83d\udcf2 ' + c.title + '</div>'
+      + '<button type="button" data-ih="x" aria-label="Close" style="background:none;border:none;color:var(--text-dim);font-size:1.2rem;cursor:pointer;padding:0;line-height:1">\u2715</button>'
+      + '</div>'
+      + (c.lead ? '<div style="font-size:0.82rem;color:var(--text-mid);line-height:1.5;margin-bottom:0.4rem">' + c.lead + '</div>' : '')
+      + steps
+      + (c.note ? '<div style="font-size:0.76rem;color:var(--text-dim);line-height:1.45;margin-top:0.4rem">' + c.note + '</div>' : '')
+      + '<div style="text-align:right;margin-top:0.6rem"><button type="button" data-ih="ok" style="padding:0.5rem 1.1rem;border-radius:9px;border:none;'
+      + 'background:var(--accent);color:var(--on-accent);font-family:var(--font-head);font-weight:700;font-size:0.78rem;letter-spacing:0.04em;'
+      + 'text-transform:uppercase;cursor:pointer">Got it</button></div>';
+    document.body.appendChild(card);
+    var close = function () { try { localStorage.setItem('lv_ios_hint_dismissed', '1'); } catch (e) {} card.remove(); };
+    card.querySelector('[data-ih="x"]').onclick = close;
+    card.querySelector('[data-ih="ok"]').onclick = close;
+  } catch (e) {
+    if (typeof showToast === 'function') showToast('Use your browser\u2019s menu to install The Rail Roster', 4000);
+  }
+}
+if (typeof window !== 'undefined') window._pwaInstallHelpCard = _pwaInstallHelpCard;
 
 // ── OFFLINE / ONLINE BANNER ─────────────────────────────────────
 function _showOfflineBanner() {

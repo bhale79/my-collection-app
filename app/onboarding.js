@@ -603,24 +603,20 @@
           'font-size:' + s.body + ';font-weight:700;cursor:pointer;min-height:' + s.btnH + '">' +
           'Install now' +
         '</button>';
-    } else if (isIOS) {
-      body = lead + _stepBox([
-        'Tap the <strong>Share</strong> button at the bottom of Safari (the square with an arrow going up).',
-        'Scroll down and tap <strong>Add to Home Screen</strong>.',
-        'Tap <strong>Add</strong> in the top corner. The conductor icon appears with your other apps.'
-      ], s);
-      laterLabel = 'Got it — continue';
-      primary = '';
     } else {
-      body = lead + _stepBox([
-        'Open your browser’s menu (the <strong>⋮</strong> or <strong>⋯</strong> button).',
-        'Choose <strong>Install</strong>, <strong>Add to Home screen</strong>, or <strong>Create shortcut</strong> — the wording varies by browser.'
-      ], s) +
-        '<p style="font-size:' + s.small + ';color:var(--text-dim);line-height:1.6;margin:0 0 1.2rem">' +
-          'If you don’t see one of those, this browser doesn’t support installing. Everything still ' +
-          'works normally in the tab.' +
-        '</p>';
-      laterLabel = 'Continue';
+      // v0.9.2021: the steps come from RR_INSTALL_HELP (config.js) — the same
+      // words the Install card prints — picked for THIS browser: Safari,
+      // Chrome or another iPhone browser, an app's built-in browser that
+      // cannot install, Android, or a computer (where "no offer" usually means
+      // it is already installed). One place for the words, never two.
+      var H = (typeof RR_INSTALL_HELP !== 'undefined') ? RR_INSTALL_HELP : null;
+      var kind = (typeof rrInstallHelpKind === 'function') ? rrInstallHelpKind() : (isIOS ? 'ios-safari' : 'desktop');
+      var help = (H && (H[kind] || H.desktop)) || { lead: '', steps: [] };
+      body = lead
+        + (help.lead ? '<p style="font-size:' + s.small + ';color:var(--text-mid);line-height:1.6;margin:0 0 0.6rem">' + help.lead + '</p>' : '')
+        + _stepBox(help.steps || [], s)
+        + (help.note ? '<p style="font-size:' + s.small + ';color:var(--text-dim);line-height:1.6;margin:0 0 1.2rem">' + help.note + '</p>' : '');
+      laterLabel = (kind.indexOf('ios') === 0) ? 'Got it \u2014 continue' : 'Continue';
       primary = '';
     }
 

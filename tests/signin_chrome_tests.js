@@ -91,7 +91,7 @@ function fnBody(src, name) {
 function cardWaits(src, name) {
   const b = code(fnBody(src, name));
   const gate = b.search(/getElementById\('app'\)[\s\S]{0,120}classList\.contains\('active'\)/);
-  const add = b.search(/document\.body\.appendChild\(/);
+  const add = b.search(/document\.body\.appendChild\(|_pwaInstallHelpCard\(/);   // v0.9.2021: the iPhone card is built in _pwaInstallHelpCard
   const retry = new RegExp('setTimeout\\(' + name + ',').test(b);
   return { found: !!b, gate: gate >= 0, before: gate >= 0 && add > gate, retry };
 }

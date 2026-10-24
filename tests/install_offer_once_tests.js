@@ -39,6 +39,8 @@ async function setupAnswer(browser, how, files) {
   const { pg } = await H.openApp(browser, { w: 1280, h: 800, files });
   const out = await pg.evaluate(async (how) => {
     try { localStorage.removeItem('lv_install_offer_ts'); } catch (e) {}
+    // v0.9.2021: the pop-up now shows only when the browser has offered an install
+    window._pwaPrompt = window._pwaPrompt || { prompt() {}, userChoice: Promise.resolve({}) };
     showFeatureMap();
     await new Promise(r => setTimeout(r, 300));
     // screens 1 and 2 → screen 3 ("Put it on this device")
@@ -64,6 +66,8 @@ async function waitsItsTurn(browser, files) {
   const { pg } = await H.openApp(browser, { w: 1280, h: 800, files });
   const r = await pg.evaluate(async () => {
     try { localStorage.removeItem('lv_install_offer_ts'); } catch (e) {}
+    // v0.9.2021: the pop-up now shows only when the browser has offered an install
+    window._pwaPrompt = window._pwaPrompt || { prompt() {}, userChoice: Promise.resolve({}) };
     const res = {};
     startGuide('tour');
     for (let k = 0; k < 30 && !document.getElementById('gt-callout'); k++) await new Promise(r => setTimeout(r, 100));
@@ -91,6 +95,8 @@ async function phoneFit(browser, w, files) {
   const { pg } = await H.openApp(browser, { w, h: 800, files });
   const r = await pg.evaluate(() => {
     try { localStorage.removeItem('lv_install_offer_ts'); } catch (e) {}
+    // v0.9.2021: the pop-up now shows only when the browser has offered an install
+    window._pwaPrompt = window._pwaPrompt || { prompt() {}, userChoice: Promise.resolve({}) };
     _pwaOfferInit();
     const b = document.getElementById('pwa-install-offer'); if (!b) return null;
     const R = el => { const x = el.getBoundingClientRect(); return [Math.round(x.left), Math.round(x.right)]; };

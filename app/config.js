@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2020';
+const APP_VERSION = 'v0.9.2021';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -3475,3 +3475,96 @@ const RR_ACCOUNT_CHECK = {
 // v0.9.1974: how many items' photos the share cards fetch from Drive at the
 // same time (sell.js shareAsCards). The thumbnail loader uses 6 as well.
 const RR_SHARE_PHOTOS_AT_ONCE = 6;
+
+// ── v0.9.2021: INSTALL HELP — the ONE place its words live ─────────────────
+// [stated] Brad 2026-10-23: on his computer Install said "Your browser didn't
+// offer an install here … Add to Home screen" (phone words, and the app was
+// ALREADY installed — Chrome's "Open in app" was showing); and "it also showed
+// up on a users phone earlier and it wouldn't install on their iphone, it was
+// a new user". An iPhone can never be installed to by a website — the person
+// has to use Share → Add to Home Screen, and the steps differ by browser; a
+// page opened inside Gmail / Facebook / a text-message preview cannot be
+// installed at all until it is opened in Safari.
+// rrInstallHelpKind() decides which steps fit THIS browser; the card in
+// app-misc.js and the setup screen in onboarding.js both print from here.
+const RR_INSTALL_HELP = {
+  'ios-safari': {
+    title: 'Put The Rail Roster on your home screen',
+    lead: 'iPhone and iPad apps from a website are added by hand — three taps in Safari:',
+    steps: [
+      'Tap the <strong>Share</strong> button (the square with an arrow pointing up) — at the bottom of Safari, or at the top on an iPad. If you don’t see it, tap <strong>⋯</strong> first, then <strong>Share</strong>.',
+      'Scroll down the list and tap <strong>Add to Home Screen</strong>.',
+      'Tap <strong>Add</strong>. The conductor icon appears with your other apps — open The Rail Roster from there from now on.'
+    ],
+    note: 'No Add to Home Screen in the list? This page may be open in a preview inside another app — tap the <strong>compass</strong> or <strong>Open in Safari</strong> button first, then try again.'
+  },
+  'ios-chrome': {
+    title: 'Put The Rail Roster on your home screen',
+    lead: 'In Chrome on an iPhone or iPad:',
+    steps: [
+      'Tap the <strong>Share</strong> button (the square with an arrow pointing up) at the right end of the address bar.',
+      'Scroll down if needed and tap <strong>Add to Home Screen</strong>.',
+      'Tap <strong>Add</strong>. The conductor icon appears with your other apps.'
+    ],
+    note: 'Don’t see Add to Home Screen? Open this page in Safari and tap Install again.'
+  },
+  'ios-other': {
+    title: 'Put The Rail Roster on your home screen',
+    lead: 'On an iPhone or iPad:',
+    steps: [
+      'Open this browser’s menu (<strong>☰</strong> or <strong>⋯</strong>) and tap <strong>Share</strong>.',
+      'Tap <strong>Add to Home Screen</strong>, then <strong>Add</strong>.'
+    ],
+    note: 'Don’t see Add to Home Screen? Open this page in Safari and tap Install again — Safari always has it.'
+  },
+  'ios-inapp': {
+    title: 'Open this page in Safari first',
+    lead: 'This page is open inside another app (like Gmail, Facebook, Instagram or a message preview). Those built-in browsers can’t install anything.',
+    steps: [
+      'Tap <strong>⋯</strong> or the <strong>Safari</strong> / compass button in a corner of this screen and choose <strong>Open in Safari</strong> (it may say <strong>Open in browser</strong>).',
+      'In Safari, sign in, then tap <strong>Install</strong> again — or tap Share, then <strong>Add to Home Screen</strong>.'
+    ],
+    note: 'No Open in Safari button? Open Safari yourself and go to <strong>therailroster.com/app</strong>.'
+  },
+  'android': {
+    title: 'Put The Rail Roster on your home screen',
+    lead: 'Your browser didn’t offer a one-tap install just now. Do it from its menu:',
+    steps: [
+      'Open the browser menu (<strong>⋮</strong>, top right).',
+      'Tap <strong>Add to Home screen</strong> or <strong>Install app</strong>, then <strong>Install</strong>.'
+    ],
+    note: 'If the menu says <strong>Open app</strong> instead, it is already installed — open The Rail Roster from your home screen.'
+  },
+  'desktop': {
+    title: 'The Rail Roster on this computer',
+    lead: 'Chrome isn’t offering an install here — usually because The Rail Roster is <strong>already installed</strong> on this computer. Look for <strong>Open in app</strong> at the right end of the address bar, or the conductor icon in your Start menu (Applications on a Mac).',
+    steps: [
+      'Not installed yet? Open Chrome’s menu (<strong>⋮</strong>, top right).',
+      'Choose <strong>Cast, save and share</strong> → <strong>Install page as app</strong> (in Microsoft Edge: <strong>Apps</strong> → <strong>Install this site as an app</strong>).',
+      'Click <strong>Install</strong>.'
+    ],
+    note: 'Safari on a Mac: <strong>File</strong> → <strong>Add to Dock</strong>. Firefox can’t install it — the app works fine in the tab.'
+  }
+};
+// Which steps fit this browser. Pure: give it the user agent, platform and
+// touch-point count (navigator's own values by default) so tests can ask it.
+function rrInstallHelpKind(ua, platform, touchPoints) {
+  ua = String(ua == null ? (typeof navigator !== 'undefined' ? navigator.userAgent : '') : ua);
+  platform = String(platform == null ? (typeof navigator !== 'undefined' ? navigator.platform : '') : platform);
+  if (touchPoints == null) touchPoints = (typeof navigator !== 'undefined' && navigator.maxTouchPoints) || 0;
+  // iPadOS reports itself as a Mac; a "Mac" with a touchscreen is an iPad.
+  var apple = /iphone|ipad|ipod/i.test(ua) || (platform === 'MacIntel' && touchPoints > 1);
+  if (apple) {
+    // The apps whose built-in browser cannot add to the home screen.
+    if (/FBAN|FBAV|FB_IAB|Instagram|LinkedInApp|Twitter|Snapchat|Pinterest|MicroMessenger|Line\/|GSA\/|; wv\)/i.test(ua)) return 'ios-inapp';
+    if (/CriOS/i.test(ua)) return 'ios-chrome';
+    if (/FxiOS|EdgiOS|OPiOS|OPT\//i.test(ua)) return 'ios-other';
+    // A real Safari always says "Safari/"; an embedded web view (Gmail's
+    // preview, a text-message link preview) usually does not.
+    if (!/Safari\//.test(ua)) return 'ios-inapp';
+    return 'ios-safari';
+  }
+  if (/Android/i.test(ua)) return 'android';
+  return 'desktop';
+}
+if (typeof window !== 'undefined') { window.RR_INSTALL_HELP = RR_INSTALL_HELP; window.rrInstallHelpKind = rrInstallHelpKind; }
