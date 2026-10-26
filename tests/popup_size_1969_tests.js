@@ -62,7 +62,8 @@ const step2 = (pg, allYes) => pg.evaluate(async (args) => {
   wizard.data.itemNum = row.itemNum; wizardNext(); await new Promise(r => setTimeout(r, 450));
   document.querySelectorAll('#ai-usage-card').forEach(e => e.remove());
   if (allYes) {
-    for (const label of ['HAS BOX', 'INSTR. SHEET', 'MASTER BOX', 'ERROR ITEM']) {
+    // v0.9.2026 renamed the carton question (RR_MASTER_CARTON, config.js) — read the name, never type it
+    for (const label of ['HAS BOX', 'INSTR. SHEET', String(typeof RR_MASTER_CARTON !== 'undefined' ? RR_MASTER_CARTON : 'MASTER BOX').toUpperCase(), 'ERROR ITEM']) {
       const sp = [...document.querySelectorAll('#wizard-body span')].find(s => s.textContent.trim().toUpperCase().indexOf(label) === 0);
       const yes = sp && [...sp.parentElement.querySelectorAll('button')].find(b => b.textContent.trim() === 'Yes');
       if (yes) { yes.click(); await new Promise(r => setTimeout(r, 200)); }

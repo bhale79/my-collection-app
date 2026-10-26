@@ -189,8 +189,11 @@ async function waitFor(pg, fn, ms) {
       T('B …with Photo ID and Google Lens', s.go && s.lens, s);
       T('B …and no file picker was asked for', (await pg.evaluate(() => window.__picks.length)) === 0);
       await pg.click('#bi-overlay [data-bi="lens"]');
-      await pg.waitForTimeout(600);
-      const lens = await pg.evaluate(() => window.__lens.slice());
+      // v0.9.2030: WAIT for the hand-over, never a fixed 600 ms — the photo prep
+      // (canvas → file) took longer than that under the nightly's load and the
+      // check read an empty list while the app was still handing the picture over.
+      let lens = [];
+      for (let i = 0; i < 40 && !lens.length; i++) { await pg.waitForTimeout(150); lens = await pg.evaluate(() => window.__lens.slice()); }
       T('B Google Lens gets that picture', lens.length === 1 && lens[0].size > 0 && /^image\//.test(lens[0].type || 'image/jpeg'), lens);
       // Photo ID through to the number
       await pg.click('#wiz-photoid-block');

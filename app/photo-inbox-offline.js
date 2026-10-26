@@ -54,7 +54,19 @@
   var _STAGE_DB = 'rr_photo_stage', _STAGE_STORE = 'photos';
   var _STAGE_LOCK = 'rr_stage_drain_lock';
   var _stageDraining = false;
+  var _stageWaitingSignin = false;   // v0.9.2030: the strip reads it
   var _stageUrls = [];
+  // v0.9.2030: every waiting record takes the same reason (a sign-in that
+  // never came back), so the strip can say it.
+  async function _stageMarkAll(why) {
+    var list = await _stageAll();
+    for (var i = 0; i < list.length; i++) {
+      var r = list[i];
+      if (r.lastErr === why) continue;
+      r.lastErr = why;
+      try { await _stagePut(r); } catch (e) {}
+    }
+  }
 
   // v0.9.1601: version 2 adds the inbox's OFFLINE MEMORY — the last-loaded
   // listing (ids, names, tags) and a thumbnail store — beside the staged
@@ -162,10 +174,36 @@
 
   // One staged record. era/view are stamped as Drive appProperties after the
   // upload lands, exactly as the live paths do.
+  // v0.9.2030: the photo is kept as plain BYTES (an ArrayBuffer), not as the
+  // File it arrived in. A File stored in IndexedDB can come back unreadable
+  // on an iPhone after the app is closed (a York customer's photo sat all
+  // night with a blank picture and never went up). Bytes always read back.
+  // Older records still hold `blob`; _stageFileOf reads either shape.
+  async function _stageBytesOf(file) {
+    try { if (file && typeof file.arrayBuffer === 'function') return await file.arrayBuffer(); } catch (e) {}
+    return null;
+  }
+  // The File a staged record holds — rebuilt from bytes (new records), or the
+  // stored File (older ones). Returns null when the bytes cannot be read.
+  function _stageFileOf(r) {
+    if (!r) return null;
+    var type = r.type || 'image/jpeg';
+    var fname = r.fname || (r.blob && r.blob.name) || 'photo.jpg';
+    try {
+      if (r.bytes && r.bytes.byteLength) return new File([r.bytes], fname, { type: type });
+    } catch (e) {}
+    try {
+      if (r.blob) return (r.blob.name ? r.blob : new File([r.blob], fname, { type: type }));
+    } catch (e2) { return r.blob || null; }
+    return null;
+  }
   async function _stageOne(file, name, era, view) {
+    var bytes = await _stageBytesOf(file);
     var rec = {
       id: 'stg' + Date.now() + '.' + Math.random().toString(36).slice(2, 8),
-      name: name, type: (file && file.type) || 'image/jpeg', blob: file,
+      name: name, type: (file && file.type) || 'image/jpeg',
+      bytes: bytes, fname: (file && file.name) || 'photo.jpg',
+      blob: bytes ? null : file,   // only when the bytes could not be read
       era: era || '', view: view || '', at: Date.now(), tries: 0, lastErr: '',
       // v0.9.1872: a shot cropped at capture carries its ORIGINAL and box
       // (photo-crop.js _cropFirst). They ride the staged record — IndexedDB
@@ -176,6 +214,16 @@
     };
     await _stagePut(rec);
     return rec.id;
+  }
+  // v0.9.2030: why a staged photo is still here, in the user's words
+  // (RR_STAGE_WORDS, config.js). '' when nothing is wrong yet.
+  function _stageReasonOf(r) {
+    var W = (typeof RR_STAGE_WORDS !== 'undefined') ? RR_STAGE_WORDS : {};
+    if (!r) return '';
+    if (r.unreadable) return W.unreadable || '';
+    if (r.lastErr === 'SESSION_EXPIRED' || r.lastErr === 'signed out') return W.signin || '';
+    if (r.lastErr) return String(W.failed || '{why}').replace('{why}', (typeof rrSaveError === 'function') ? rrSaveError(r.lastErr, 'the photo', { kept: false }) : r.lastErr);
+    return '';
   }
   function _stageReattach(r, f) {
     try { if (r && r.orig && f) { f._rrOriginal = r.orig; f._rrCropBox = r.box || null; } } catch (e) {}
@@ -249,7 +297,8 @@
     if (!r) { try { _stageRenderStrip(); } catch (e) {} return; }
     var old = document.getElementById('stage-review-ov'); if (old) old.remove();
     var u = '';
-    try { u = URL.createObjectURL(r.blob); if (u) _stageUrls.push(u); } catch (e) {}
+    try { var _rf = _stageFileOf(r); if (_rf) { u = URL.createObjectURL(_rf); if (u) _stageUrls.push(u); } else { r.unreadable = true; } } catch (e) { r.unreadable = true; }
+    var _why = _stageReasonOf(r);   // v0.9.2030
     var ov = document.createElement('div');
     ov.id = 'stage-review-ov';
     ov.style.cssText = 'position:fixed;inset:0;z-index:100060;background:rgba(0,0,0,0.9);display:flex;flex-direction:column;padding:max(0.8rem,env(safe-area-inset-top)) 0.9rem max(0.8rem,env(safe-area-inset-bottom))';
@@ -261,6 +310,7 @@
       + '<div style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center">'
       +   (u ? '<img src="' + u + '" style="max-width:100%;max-height:100%;border-radius:10px" alt="">' : '<div style="color:#888">Preview unavailable</div>')
       + '</div>'
+      + (_why ? '<div data-stage-why style="color:var(--warn);font-size:0.85rem;text-align:center;margin-top:0.6rem">' + rrEsc(_why) + '</div>' : '')
       + (r.itemNum
           ? '<div style="color:#eee;font-size:0.85rem;text-align:center;margin-top:0.6rem">Filing to <b>' + rrEsc(r.itemNum) + '</b> when you reconnect'
             + ' <button onclick="_stageUnpair(\'' + r.id + '\')" style="margin-left:0.6rem;padding:0.3rem 0.7rem;border-radius:8px;border:1px solid #666;background:#2a2a2a;color:#eee;font-size:0.78rem;cursor:pointer">Unpair</button></div>'
@@ -347,8 +397,8 @@
   // ── a paired record drains straight to its item ──────────────────
   async function _stageFileToItem(r) {
     if (!r.upLink) {
-      var f = r.blob;
-      try { if (!f.name) f = new File([r.blob], 'photo.jpg', { type: r.type || 'image/jpeg' }); } catch (eF) {}
+      var f = _stageFileOf(r);   // v0.9.2030: from the stored bytes
+      if (!f) { r.unreadable = true; throw new Error('UNREADABLE'); }
       _stageReattach(r, f);   // v0.9.1872: the original rides along
       var link = await driveUploadItemPhoto(f, r.itemNum, r.view || 'RSV', r.invId || undefined);
       if (!link) throw new Error('no link back from Drive');
@@ -377,7 +427,26 @@
   async function _stageDrain() {
     if (_stageDraining) return;
     if (_pinOffline()) return;
-    if (!_qcToken()) return;                    // wait for a signed-in token
+    // v0.9.2030: a sign-in that has run out is RENEWED and waited for, the way
+    // every sheet save does (rrWaitForPass) — the drain used to return at once
+    // with no token, so a phone whose quiet renewal needs a tap (iPhone) never
+    // uploaded and never said why. While it waits, the strip says so.
+    if (!_qcToken() || (typeof rrPassLapsed === 'function' && rrPassLapsed())) {
+      _stageWaitingSignin = true;
+      // The renewal is ASKED FOR before any await: on an iPhone Google's window
+      // opens only inside the tap that pressed Upload now.
+      var _wait = null;
+      try { _wait = (typeof rrWaitForPass === 'function') ? rrWaitForPass('photos') : null; } catch (e) {}
+      try { await _stageRenderStrip(); } catch (e) {}
+      var _got = false;
+      try { _got = _wait ? await _wait : false; } catch (e) {}
+      _stageWaitingSignin = false;
+      if (!_got || !_qcToken()) {
+        await _stageMarkAll('SESSION_EXPIRED');
+        try { await _stageRenderStrip(); } catch (e) {}
+        return;
+      }
+    }
     try {                                        // cross-tab: newest lock wins
       var lk = parseInt(localStorage.getItem(_STAGE_LOCK) || '0', 10);
       if (lk && (Date.now() - lk) < 60000) return;
@@ -401,7 +470,9 @@
             ok++; _filed++;
             continue;
           }
-          var up = await driveUploadFile(_stageReattach(r, r.blob), r.name, fid);   // v0.9.1872: the original rides along
+          var _uf = _stageFileOf(r);   // v0.9.2030: from the stored bytes
+          if (!_uf) { r.unreadable = true; throw new Error('UNREADABLE'); }
+          var up = await driveUploadFile(_stageReattach(r, _uf), r.name, fid);   // v0.9.1872: the original rides along
           if (!up || !up.id) throw new Error('no id back from Drive');
           var meta = {};
           if (r.era) { meta.era = r.era; meta.stat = 'stamped'; }
@@ -414,6 +485,8 @@
           fail++;
           r.tries = (r.tries || 0) + 1;
           r.lastErr = String((e && e.message) || e || '');
+          // v0.9.2030: Google refused the pass → the next drain renews it first
+          if (/\b40[13]\b/.test(r.lastErr) && typeof rrPassRefused === 'function') { try { rrPassRefused(); } catch (eR) {} r.lastErr = 'SESSION_EXPIRED'; }
           try { await _stagePut(r); } catch (e2) {}
           if (_pinOffline()) break;             // gone again — rest waits
         }
@@ -433,8 +506,26 @@
       showToast(fail + ' photo' + (fail > 1 ? 's' : '') + ' from this device could not upload yet \u2014 they are kept and will retry', 4200, true);
     }
   }
-  window._pinStageDrainNow = function () { _stageDrain(); };
+  window._pinStageDrainNow = function () {
+    // v0.9.2030: a press always answers — the drain used to return silently
+    // when the sign-in was missing, so the button looked dead.
+    if (_stageDraining) { try { showToast('Still uploading\u2026', 2000); } catch (e) {} return; }
+    _stageDrain();
+  };
 
+  // v0.9.2030: the strip's line, by what is wrong (RR_STAGE_WORDS, config.js):
+  // offline → waiting for the sign-in → a photo that cannot be read → the last
+  // failure's reason → plain "uploading…".
+  function _stageStripWords(list) {
+    var W = (typeof RR_STAGE_WORDS !== 'undefined') ? RR_STAGE_WORDS : {};
+    if (_pinOffline()) return W.offline || '';
+    if (_stageWaitingSignin) return W.waitingSignin || '';
+    var bad = null, failed = null;
+    (list || []).forEach(function (r) { if (r.unreadable && !bad) bad = r; else if (r.lastErr && !failed) failed = r; });
+    if (bad) return W.unreadable || '';
+    if (failed) return _stageReasonOf(failed);
+    return W.uploading || '';
+  }
   // ── the strip: staged photos are VISIBLE, with a waiting badge ───────
   async function _stageRenderStrip() {
     var host = document.getElementById('pin-staged');
@@ -446,14 +537,14 @@
     host.style.display = '';
     var thumbs = list.slice(0, 12).map(function (r) {
       var u = '';
-      try { u = URL.createObjectURL(r.blob); if (u) _stageUrls.push(u); } catch (e) {}
+      try { var _tf = _stageFileOf(r); if (_tf) { u = URL.createObjectURL(_tf); if (u) _stageUrls.push(u); } else if (!r.unreadable) { r.unreadable = true; } } catch (e) {}
       // v0.9.1600: tap a waiting photo to review it — attach it to an item,
       // add it as a new item, or remove it. Paired ones wear their item.
       return '<div onclick="_stageReview(\'' + r.id + '\')" style="position:relative;width:72px;height:72px;border-radius:8px;overflow:hidden;border:1.5px solid var(--border);flex:0 0 auto;background:var(--surface2);cursor:pointer">'
         + (u ? '<img src="' + u + '" class="rr-fit" style="width:100%;height:100%" alt="">' : '')
         + (r.itemNum
             ? '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.62);color:#fff;font-size:0.55rem;font-weight:700;text-align:center;padding:1px 2px;white-space:nowrap;overflow:hidden">→ ' + rrEsc(r.itemNum) + '</div>'
-            : '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.62);color:#fff;font-size:0.55rem;font-weight:700;text-align:center;padding:1px 2px">waiting</div>')
+            : '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.62);color:#fff;font-size:0.55rem;font-weight:700;text-align:center;padding:1px 2px">' + (r.unreadable ? 'can\u2019t read' : ((r.lastErr && r.lastErr !== 'SESSION_EXPIRED') ? 'failed' : 'waiting')) + '</div>')
         + '</div>';
     }).join('');
     var more = list.length > 12 ? '<span style="font-size:0.75rem;color:var(--text-dim);align-self:center">+' + (list.length - 12) + ' more</span>' : '';
@@ -461,9 +552,7 @@
       '<div style="border:1.5px solid var(--border);border-radius:12px;background:var(--bg-card);padding:0.7rem 0.8rem;margin-top:0.8rem">'
       + '<div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap">'
       +   '<span style="font-weight:700;font-size:0.85rem;color:var(--text)">\ud83d\udcf5 ' + list.length + ' photo' + (list.length > 1 ? 's' : '') + ' waiting to upload</span>'
-      +   '<span style="font-size:0.78rem;color:var(--text-dim)">' + (_pinOffline()
-            ? 'Saved on this device \u2014 they\u2019ll go up on their own when you\u2019re back online.'
-            : 'Saved on this device \u2014 uploading\u2026') + '</span>'
+      +   '<span data-stage-status style="font-size:0.78rem;color:var(--text-dim)">' + rrEsc(_stageStripWords(list)) + '</span>'
       +   (!_pinOffline() ? '<button onclick="_pinStageDrainNow()" style="padding:0.35rem 0.8rem;border-radius:8px;border:1.5px solid var(--border);background:var(--bg-card);color:var(--text-mid);font-family:var(--font-body);font-weight:700;font-size:0.78rem;cursor:pointer">Upload now</button>' : '')
       + '</div>'
       + '<div style="display:flex;gap:0.5rem;overflow-x:auto;margin-top:0.6rem;padding-bottom:0.2rem">' + thumbs + more + '</div></div>';

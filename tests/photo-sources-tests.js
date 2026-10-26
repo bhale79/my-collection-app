@@ -232,8 +232,10 @@ if (drivePreFix === DRIVE) {
   const BC = fs.readFileSync(APP('barcode.js'), 'utf8');
   // v0.9.1936: Photo ID now goes through rrGPhotosPickFiles, whose onStatus
   // repaints the shared waiting panel (drive.js) — idempotent by construction.
+  // v0.9.2026: the repaint is held while the panel is asking the user to open
+  // the tab themselves (panel.needTab) — still the same idempotent 'waiting' stage.
   ok('barcode.js still drives the shared helper (through rrGPhotosPickFiles)',
-     /rrGPhotosPickFiles\(\{/.test(BC) && /onStatus: function \(\) \{ panel\.stage\('waiting'\); \}/.test(DRIVE));
+     /rrGPhotosPickFiles\(\{/.test(BC) && /onStatus: function \(\) \{ (?:if \(!panel\.needTab\) )?panel\.stage\('waiting'\); \}/.test(DRIVE));
 
   console.log('\n' + (fail ? 'FAILED' : 'OK') + '  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);

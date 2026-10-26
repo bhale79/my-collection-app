@@ -393,12 +393,20 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
       if (h0 < 0) throw new Error('_wizCondHelp no longer found in wizard.js — update the harness extract');
       const hEnd = wzSrc.indexOf('\n}', h0) + 2;
       const hsrc = wzSrc.slice(h0, hEnd);
+      // v0.9.2027 grew two more build-time names: the carton question's label
+      // is RR_MASTER_CARTON (config.js — read the REAL words, the longest label
+      // on the step) and each question's label span carries rrTermAttrs(key)
+      // (a data attribute + a dotted underline; no box of its own, so a stand-in
+      // that returns the attribute shape measures the same).
+      const cfgSrc = fs.readFileSync(path.join(APP, 'config.js'), 'utf8');
+      const mcM = cfgSrc.match(/const RR_MASTER_CARTON\s*=\s*'([^']+)'/);
+      if (!mcM) throw new Error('RR_MASTER_CARTON no longer found in config.js — update the harness extract');
       const build = (two, data) => new Function('wizard', 'rrEsc', '_cd2up', '_isMobile',
         '_cdMaster', '_cdIsPaperLike', '_cdHideToggles', 'getMatchingTenders',
-        '_cdEraFacts', 'window', 'document',
+        '_cdEraFacts', 'window', 'document', 'RR_MASTER_CARTON', 'rrTermAttrs',
         '"use strict";' + hsrc + ';' + bsrc + '; return _buildCondCol;')(
           { data: data || {} }, x => String(x == null ? '' : x), two, false, null, false, false,
-          () => [], () => [], {}, {})({ id: 'main', label: '\u{1F682} No. 2343', prefix: '',
+          () => [], () => [], {}, {}, mcM[1], (k) => ' data-term="' + k + '" data-ctip="x"')({ id: 'main', label: '\u{1F682} No. 2343', prefix: '',
                               description: 'Santa Fe F3 A Unit' });
       // The worst case is not the empty step — it is the step with every
       // question answered the way that opens another field.

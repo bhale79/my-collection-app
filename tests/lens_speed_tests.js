@@ -83,6 +83,10 @@ function oneShrinker(drive) { return (strip(drive).match(/createImageBitmap\(/g)
   await pg.evaluate(() => {
     window.state = window.state || {};
     state.user = { email: 'stranger@example.com', name: 'Lens Test' };
+    // v0.9.2022: a window whose stored account differs from its own reloads on
+    // visibilitychange (_rrXWinDecide) — a real signed-in page has lv_user set,
+    // so the stand-in sets it too (X1 flips visibility on purpose).
+    try { localStorage.setItem('lv_user', JSON.stringify(state.user)); } catch (e) {}
     state.personalData = {};
     var au = document.getElementById('auth-screen'); if (au) au.style.display = 'none';
     document.getElementById('app').classList.add('active');

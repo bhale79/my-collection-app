@@ -162,6 +162,9 @@ async function panel(browser, planted, pick) {
     const put = window.__sheet.puts[0];
     const F = PERSONAL_FIELD_INDEX;
     r.putRange = put ? put.range : '';
+    // v0.9.2020 added Sticker Code at the END of the sheet (AZ) — the full-row
+    // write ends at the schema's LAST column, so ask the schema, never type a letter.
+    r.lastCol = (function () { var n = Math.max.apply(null, Object.keys(F).map(function (k) { return F[k]; })) + 1, l = ''; while (n > 0) { n--; l = String.fromCharCode(65 + (n % 26)) + l; n = Math.floor(n / 26); } return l; })();
     const v = put ? put.body.values[0] : [];
     r.written = put ? { id: v[F.masterRowId], key: v[F.masterKey], type: v[F.itemType], road: v[F.roadName], desc: v[F.masterDescription], varDesc: v[F.variationDescription], era: v[F.era], mfr: v[F.manufacturer], num: v[F.itemNum], variation: v[F.variation] } : null;
     r.record = { id: state.personalData.a.masterRowId || '', key: state.personalData.a.masterKey || '', staged: !!state.personalData.a._newEntry };
@@ -219,7 +222,7 @@ async function cancelCase(browser) {
   T('B4 a card shows the era, the variation, type · road · year, the full description and a see-it link', p.cardText.some(t => /Var C/.test(t) && /orange body/.test(t)) && p.cardText.some(t => /Lionel Lines/.test(t)) && p.cottLink, p.cardText);
   T('B5 picking the boxcar stages it (the field now names the boxcar; nothing written yet — and NOT on the live record: v0.9.1883 edits a copy)', /Boxcar/.test(p.staged) && p.stagedOnRecord === '', p.staged);
   T('B6 Save writes the full row with THAT entry\'s Row ID and key — identity-checked (one PUT to the item\'s own row)',
-    p.written && p.written.id === 'BBBBBBBBBB' && p.written.key === 'prewar|800|' && /!A3:AY3$/.test(p.putRange), p);
+    p.written && p.written.id === 'BBBBBBBBBB' && p.written.key === 'prewar|800|' && new RegExp('!A3:' + p.lastCol + '3$').test(p.putRange), p);
   T('B7 ...and the entry\'s type, road, descriptions, era and maker ride along; the number keeps its text-guard quote, the variation is the entry\'s',
     p.written && p.written.type === 'Boxcar' && p.written.road === 'Lionel Lines' && p.written.desc === 'Box Car (O gauge)' && p.written.era === 'prewar' && p.written.mfr === 'Lionel' && p.written.num === "'800" && p.written.variation === '', p.written);
   T('B8 the record carries the new ID, the staged pick is gone, the panel closed', p.record.id === 'BBBBBBBBBB' && !p.record.staged && p.closed, p.record);

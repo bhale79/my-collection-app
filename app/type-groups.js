@@ -92,7 +92,14 @@
   //      C44-9W, F3/F7, E6, S2, VO-1000, RS-11, Genset, Train Master…)
   //   4. only then the words that double as railroad names
   // Both hard signals at once ("Alco 2-8-2") decide nothing here.
-  var LOCO_STEAM_HARD = /\b(\d-\d-\d(?:-\d)?|steam|dampflok\w*|mikado|berkshire|consolidation|mogul|shay|climax|heisler|big boy|niagara|decapod|ten.?wheeler|camelback|mallet|dockside|docksider|royal hudson)\b/i;
+  // v0.9.2030 (a York customer: his new K4 "connects it as a diesel"): the
+  // catalog types 348 Lionel modern rows only "Locomotive", and these names
+  // decide them — a wheel arrangement with a two-digit axle count (2-10-0,
+  // 4-12-2), and the classes K4, M1, T1, AC-9/AC-12, Class A, J1/J3a, Y6b, a
+  // Porter, a tank engine. Measured 2026-10-26 against every loco row in the
+  // master: 89 Lionel modern rows move to Steam, nothing else in the catalog
+  // moves. (A master-list retype of those rows is the separate, later job.)
+  var LOCO_STEAM_HARD = /\b(\d-\d{1,2}-\d(?:-\d)?|steam|k-?4s?|m-?1[ab]?|t-?1|ac-?(?:9|12)|class a|porter|tank engine|best friend of charleston|j-?1a?|j-?3a|y-?6b|dampflok\w*|mikado|berkshire|consolidation|mogul|shay|climax|heisler|big boy|niagara|decapod|ten.?wheeler|camelback|mallet|dockside|docksider|royal hudson)\b/i;
   var LOCO_DIESEL_HARD = /\b(diesel|gp[- ]?\d+\w*|sd[- ]?\d+\w*|sdp[- ]?\d+\w*|et44\w*|es44\w*|es8|ac4400\w*|ac6000\w*|c44\w*|c40\w*|c30\w*|dash[- ]?[89]\w*|u\d{2}[bc]?|f[- ]?[379][a-c]?|fa[- ]?[12]|fb[- ]?[12]|fp[- ]?[79]|pa[- ]?[12]|pb[- ]?[12]|rs[- ]?\d+\w*|rsd[- ]?\d*|rsc[- ]?\d*|sw[- ]?\d+\w*|nw[- ]?2|mp15\w*|vo-?1000|ds-?4-?4\w*|h[- ]?\d{2}-?44|h24\w*|h16\w*|fm|train ?master|genset|gevo|bl2|b23\w*|b30\w*|b36\w*|b40\w*|c420|c424|c425|c628|c630|c636|dl109|emd|3gs21b|geep|e[- ]?[5-9](?=\s*(?:locomotive|diesel|a unit|b unit|unit))|s[- ]?[124](?=\s*(?:locomotive|diesel|switcher)))\b/i;
   // Words that name a steam class AND a railroad. Weakest evidence; last.
   var LOCO_STEAM_SOFT = /\b(hudson|pacific|atlantic|columbia|prairie|northern|texas|allegheny|challenger|switcher|no\.\s*\d+e|jenny|usra.*steam|standard gauge.*steam)\b/i;
@@ -132,7 +139,7 @@
     var _saysSteam = /\bsteam\b/.test(n), _saysDiesel = /\bdiesel\b/.test(n);
     if (_saysDiesel && !_saysSteam) return 'Diesel';
     if (_saysSteam && !_saysDiesel) return 'Steam';
-    if (/electric|gg-?1|ep[- ]?\d|asea/.test(n)) return 'Electric';
+    if (/electric|gg-?1|ep[- ]?\d|asea|rectifier/.test(n)) return 'Electric';   // v0.9.2030: a Rectifier is an electric (2 rows)
     // v0.9.1742: hard evidence first, in both directions — see the header.
     var _hard = locoKindFromWords(n);
     if (_hard) return _hard;

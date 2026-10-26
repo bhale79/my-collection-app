@@ -2235,6 +2235,21 @@ async function driveCleanupLensStaging(fileId) {
 // download picked items with rrGPhotosFile and finish with rrGPhotosEnd.
 // Returns { items, auth, sessionId } on success, { error, status? } otherwise
 // (error: 'scope' | 'session' | 'network' | 'poll' | 'list' | 'cancelled' | 'timeout').
+// v0.9.2030: the words for a refused picker session (RR_GPHOTOS_WAIT,
+// config.js), by Google's reason and status. '' = no special words.
+function rrGPhotosErrorWords(pick) {
+  var W = (typeof RR_GPHOTOS_WAIT !== 'undefined') ? RR_GPHOTOS_WAIT : {};
+  if (!pick || pick.error !== 'session') return '';
+  var email = (typeof state !== 'undefined' && state && state.user && state.user.email) || 'your Google account';
+  var reason = String(pick.reason || '').toUpperCase();
+  if (reason.indexOf('FAILED_PRECONDITION') >= 0 || (pick.status === 400 && !reason)) return String(W.errNotSetUp || '').replace('{email}', email);
+  // a bare 401/403 keeps its older words (errSetup — the Picker API itself); only
+  // Google saying the PASS lacks the permission gets the sign-out-and-back words
+  if (reason.indexOf('SCOPE_INSUFFICIENT') >= 0 || reason.indexOf('PERMISSION_DENIED') >= 0) return String(W.errRefused || '').replace('{email}', email);
+  if (pick.status === 429 || reason.indexOf('RESOURCE_EXHAUSTED') >= 0) return W.errBusy || '';
+  return '';
+}
+if (typeof window !== 'undefined') window.rrGPhotosErrorWords = rrGPhotosErrorWords;
 async function rrGPhotosPickSession(opts) {
   opts = opts || {};
   var onStatus = typeof opts.onStatus === 'function' ? opts.onStatus : function () {};
@@ -2263,7 +2278,15 @@ async function rrGPhotosPickSession(opts) {
   try {
     sRes = await fetch('https://photospicker.googleapis.com/v1/sessions', { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, auth), body: '{}' });
   } catch (e) { try { if (tab) tab.close(); } catch (e2) {} return { error: 'network' }; }
-  if (!sRes.ok) { try { if (tab) tab.close(); } catch (e) {} return { error: 'session', status: sRes.status }; }
+  if (!sRes.ok) {
+    try { if (tab) tab.close(); } catch (e) {}
+    // v0.9.2030: Google's own reason rides along (a York customer saw only
+    // "(400)"; Google's body said FAILED_PRECONDITION — the account had never
+    // set up Google Photos). rrGPhotosErrorWords turns it into words.
+    var _reason = '';
+    try { var _eb = await sRes.json(); _reason = String((_eb && _eb.error && (_eb.error.status || _eb.error.message)) || ''); } catch (eJ) {}
+    return { error: 'session', status: sRes.status, reason: _reason };
+  }
   var s = await sRes.json();
   // v0.9.1936 (Brad: "i then have to manually switch back to the app"):
   // Google's picker closes its own tab when the user presses Done if its
@@ -2458,6 +2481,8 @@ function rrGPhotosPickFiles(opts) {
 function rrGPhotosErrText(res) {
   var W = _rrGPW(), e = res && res.error;
   if (!e || e === 'cancelled') return '';
+  var _words = rrGPhotosErrorWords(res);   // v0.9.2030: Google's own reason first (the Add steps' route — the York customer's "(400)")
+  if (_words) return _words;
   if (e === 'session' && (res.status === 401 || res.status === 403)) return W.errSetup || '';
   if (W['err_' + e]) return W['err_' + e];
   return String(W.errOther || '').replace('{status}', res.status ? ' (' + res.status + ')' : '');

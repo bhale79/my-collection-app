@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2029';
+const APP_VERSION = 'v0.9.2030';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -3379,7 +3379,29 @@ const RR_GPHOTOS_WAIT = {
   err_none: 'No photo was picked',
   err_download: 'Could not fetch that photo from Google Photos \u2014 try again',
   errOther: 'Google Photos picker error{status} \u2014 try again',
+  // v0.9.2030 (a York customer, after the permission went through: "Google
+  // Photos Picker error (400)"): Google's own reason for refusing a picker
+  // session, in words. {email} = the signed-in Google account.
+  // FAILED_PRECONDITION is the one Google gives when that account has never
+  // set up Google Photos (or holds no photos there yet).
+  errNotSetUp: 'The Google account the app is using ({email}) hasn\u2019t been set up for Google Photos yet. Go to photos.google.com with that account and put your photos there, then try again \u2014 or use From This Computer.',
+  errRefused: 'Google refused the Google Photos permission for {email} \u2014 sign out, sign back in with that account, and say yes to the permission.',
+  errBusy: 'Google Photos is busy \u2014 wait a minute and try again.',
 };
+// v0.9.2030 — PHOTOS WAITING TO UPLOAD (a York customer: an iPhone photo sat
+// at "1 photo waiting to upload" all night with a blank picture). The strip's
+// words, by what is actually wrong. The upload used to say "uploading…" and
+// nothing else whatever the reason.
+const RR_STAGE_WORDS = {
+  offline: 'Saved on this device \u2014 they\u2019ll go up on their own when you\u2019re back online.',
+  uploading: 'Saved on this device \u2014 uploading\u2026',
+  signin: 'Waiting for your Google sign-in \u2014 tap Upload now, and say yes if Google asks.',
+  unreadable: 'This photo can\u2019t be read from the phone\u2019s storage any more \u2014 tap it, press Remove, and add the picture again.',
+  failed: 'Last try failed: {why} \u2014 tap Upload now to try again.',
+  waitingSignin: 'Waiting for your Google sign-in\u2026',
+  noSignin: 'Could not get your Google sign-in \u2014 sign out and back in, then press Upload now.',
+};
+if (typeof window !== 'undefined') window.RR_STAGE_WORDS = RR_STAGE_WORDS;
 // v0.9.1944 — RECORDING A SALE, AND TAKING ONE BACK (Brad, 2026-10-14):
 // "on record a sale, we track sold price, but we need to be able to track sold
 // to: ex Bob, sold at: ex York Trainshow, sold date:, and notes ex combined with

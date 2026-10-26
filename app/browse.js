@@ -4335,7 +4335,10 @@ function _rrBrowseCore(_co) {
         _pd: pd,   // v0.9.1820: the REAL record — _rrPdForRow hands this back, so no field can be "not on the list" again (v1392, v1425, and Group on a manual item)
         subType: pd.subType || '',
         description: _refItem ? _refItem.description : (pd.description || pd.notes || ''),   // v0.9.718: manual rows carry their own description
-        yearProd: pd.datePurchased || (_refItem ? _refItem.yearProd : ''),
+        // v0.9.2030 (a York customer's card read "Other · 46212"): the year
+        // slot is the YEAR MADE — a typed-in item's own, else its reference
+        // row's. It used to show the purchase DATE here, raw (a Sheets serial).
+        yearProd: String(pd.yearMade || '').trim() || (_refItem ? _refItem.yearProd : ''),
         marketVal: _refItem ? _refItem.marketVal : '',
         varDesc: _refItem ? _refItem.varDesc : '',
         refLink: _refItem ? _refItem.refLink : '',

@@ -322,7 +322,9 @@
       _gpWaiting = false; _gpPickerUri = '';
       if (pick.error) {
         _status('');
+        var _gpWords = (typeof rrGPhotosErrorWords === 'function') ? rrGPhotosErrorWords(pick) : '';   // v0.9.2030: Google's reason, in words
         if (pick.error === 'scope') showToast('Google Photos permission was not granted', 3500, true);
+        else if (_gpWords) showToast(_gpWords, 9000, true);
         else if (pick.error === 'session' && (pick.status === 403 || pick.status === 401)) _gpHelp(pick.status);
         else if (pick.error === 'timeout') showToast('Gave up waiting for the Google Photos picker after 10 minutes — try again', 4000, true);
         else if (pick.error !== 'cancelled') showToast('Google Photos picker error' + (pick.status ? ' (' + pick.status + ')' : '') + ' — try again', 3500, true);

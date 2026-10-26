@@ -232,6 +232,16 @@ function onboardWorld(opts) {
   win._pwaIsInstalled = function () { return !!opts.installed; };
   win._pwaPrompt = opts.canPrompt ? { prompt: function () {}, userChoice: Promise.resolve({}) } : null;
   win.localStorage.clear();
+  // v0.9.2021: the install step's words come from config.js (RR_INSTALL_HELP,
+  // picked by rrInstallHelpKind for this browser) — lift the REAL ones into the
+  // world, the way install_help_2021_tests does, so the step prints what the
+  // app prints. (The harness used to leave them out and the step came up empty.)
+  const cfg = fs.readFileSync(APP('config.js'), 'utf8');
+  const a0 = cfg.indexOf('const RR_INSTALL_HELP = {'), b0 = cfg.indexOf('window.rrInstallHelpKind = rrInstallHelpKind; }', a0);
+  if (a0 < 0 || b0 < 0) throw new Error('RR_INSTALL_HELP / rrInstallHelpKind no longer found in config.js — update the harness lift');
+  const lifted = new Function('navigator', (cfg.slice(a0, b0) + '}').replace(/if \(typeof window !== 'undefined'\) \{[^\n]*$/, '') + '\nreturn { H: RR_INSTALL_HELP, kind: rrInstallHelpKind };')(win.navigator);
+  win.RR_INSTALL_HELP = lifted.H;
+  win.rrInstallHelpKind = function () { return lifted.kind(win.navigator.userAgent, win.navigator.platform, 0); };
   win.eval(fs.readFileSync(APP('onboarding.js'), 'utf8'));
   return win;
 }
@@ -276,8 +286,10 @@ const overlayUp = win => !!win.document.getElementById('onboarding-map-overlay')
   win.showFeatureMap();
   win.onboardNext(); win.onboardNext();
   const t = win.document.body.textContent;
+  // v0.9.2021: a computer with no install offer gets the desktop card — "already
+  // installed … Open in app", the menu route, and "Firefox can’t install it".
   ok('a browser with no install route says so honestly',
-     /doesn’t support installing|Add to Home screen/.test(t) && !/Install now/.test(t));
+     /doesn’t support installing|Add to Home screen|can’t install it|already installed/.test(t) && !/Install now/.test(t));
 })();
 
 (function () {
