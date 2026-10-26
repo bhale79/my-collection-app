@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2030';
+const APP_VERSION = 'v0.9.2031';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -3683,6 +3683,21 @@ const RR_ADD_PIECE = {
   },
 };
 if (typeof window !== 'undefined') window.RR_ADD_PIECE = RR_ADD_PIECE;
+
+// ═══════════════════════════════════════════════════════════════
+// v0.9.2031 — A TYPED NUMBER THE CATALOG DOES NOT HOLD (Lars, York, 2026-10-26:
+// "I had a RMT 66238 … the list showed 20-"). The Add list matched the typed
+// digits ANYWHERE in a number, so the MTH 20-66238 stood in for an RMT 66238
+// the catalog lacks — and Next, finding that one "partial", picked it without
+// asking. Now: no row IS the typed number → the first row offers the number
+// as typed; a row that only CONTAINS it says so, with its maker; and Next
+// never picks a contains-match by itself. {num} = the typed number.
+const RR_ADD_TYPED = {
+  useTyped:    'Use {num} as typed, not in the catalog',
+  useTypedSub: 'Saves with the details you enter on the next steps',
+  contains:    '{maker} · contains {num}',   // the maker word, then why this row turned up
+};
+if (typeof window !== 'undefined') window.RR_ADD_TYPED = RR_ADD_TYPED;
 
 // ═══════════════════════════════════════════════════════════════
 // v0.9.2027 — TERMS AND WHAT THEY MEAN (a York customer: "maybe it would be

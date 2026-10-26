@@ -1293,7 +1293,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
               : ('The number <strong style="color:#ffd27d">' + _bcEsc((scanResult && scanResult.itemNum) || '') + '</strong> matches several catalog entries. '))
         +     'Tap the right one, or use View to check a photo.</div>'
         +   ((scanResult && scanResult.cautionHtml) ? '<div style="color:#ffb27d;font-size:0.8rem;text-align:center">&#9888; ' + _bcEsc(scanResult.cautionHtml) + '</div>' : '')
-        +   '<div style="overflow-y:auto;max-height:58vh;margin-top:0.3rem">' + rowsHtml + noneHtml + '</div>'
+        +   '<div style="overflow-y:auto;max-height:58vh;max-height:58dvh;margin-top:0.3rem">' + rowsHtml + noneHtml + '</div>'
         +   '<button id="bc-cand-cancel" style="padding:0.8rem;border-radius:10px;border:1px solid #444;background:#222;color:#eee;font-size:0.95rem;font-family:inherit;cursor:pointer">Cancel</button>'
         + '</div>';
       document.body.appendChild(overlay);
@@ -2607,7 +2607,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + '</style>'
       ;
       var _cWrap = ''
-        + '<div id="bi-cropwrap" style="max-height:52vh;overflow:hidden;border-radius:12px;background:#000;touch-action:none;overscroll-behavior:contain"><img id="bi-cropimg" style="display:block;max-width:100%"></div>'
+        + '<div id="bi-cropwrap" style="max-height:52vh;max-height:52dvh;overflow:hidden;border-radius:12px;background:#000;touch-action:none;overscroll-behavior:contain"><img id="bi-cropimg" style="display:block;max-width:100%"></div>'
       ;
       var _cRest = ''
         + '<div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.5rem">'

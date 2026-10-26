@@ -120,7 +120,7 @@ function _impInjectCss() {
   s.id = 'imp-css';
   s.textContent =
     '#imp-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9500;display:flex;align-items:center;justify-content:center;padding:1rem}' +
-    '#imp-panel{background:var(--surface,#1c1c22);color:var(--text,#eee);border:1px solid var(--border,#333);border-radius:14px;width:min(680px,96vw);max-height:92vh;display:flex;flex-direction:column;overflow:hidden}' +
+    '#imp-panel{background:var(--surface,#1c1c22);color:var(--text,#eee);border:1px solid var(--border,#333);border-radius:14px;width:min(680px,96vw);max-height:92vh;max-height:92dvh;display:flex;flex-direction:column;overflow:hidden}' +
     '#imp-head{display:flex;justify-content:space-between;align-items:center;padding:0.8rem 1rem;border-bottom:1px solid var(--border,#333)}' +
     '#imp-title{font-weight:700;font-size:1.05rem}' +
     '#imp-close{background:none;border:none;color:var(--text-dim,#999);font-size:1.1rem;cursor:pointer;padding:0.2rem 0.5rem}' +
@@ -147,7 +147,7 @@ function _impInjectCss() {
     // v0.9.1523: two-column mapping screen — rows left, definitions right.
     '.imp-2col{display:flex;gap:1rem;align-items:flex-start}' +
     '.imp-2col-main{flex:1;min-width:0}' +
-    '.imp-2col-aside{width:270px;flex-shrink:0;position:sticky;top:0;max-height:60vh;overflow:auto}' +
+    '.imp-2col-aside{width:270px;flex-shrink:0;position:sticky;top:0;max-height:60vh;max-height:60dvh;overflow:auto}' +
     '#imp-panel.wide{width:min(1080px,96vw);max-width:1080px}' +
     '@media (max-width:900px){.imp-2col{display:block}.imp-2col-aside{width:auto;position:static;max-height:none;margin-top:0.6rem}#imp-panel.wide{max-width:min(680px,96vw)}}';
   document.head.appendChild(s);

@@ -352,7 +352,7 @@
     ov.id = 'stage-pick-ov';
     ov.style.cssText = 'position:fixed;inset:0;z-index:100070;background:var(--scrim);display:flex;align-items:flex-start;justify-content:center;padding:2rem 1rem';
     ov.innerHTML =
-      '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1rem;width:100%;max-width:480px;max-height:80vh;display:flex;flex-direction:column">'
+      '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1rem;width:100%;max-width:480px;max-height:80vh;max-height:80dvh;display:flex;flex-direction:column">'
       + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem">'
       +   '<strong style="color:var(--text);font-size:0.95rem">Attach to which item?</strong>'
       +   '<button onclick="document.getElementById(\'stage-pick-ov\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer">✕</button>'

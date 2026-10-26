@@ -208,7 +208,7 @@
     var d = document.createElement('div');
     d.id = 'vp-modal';
     d.style.cssText = 'position:fixed;inset:0;z-index:9000;display:none;align-items:flex-end;justify-content:center;background:rgba(0,0,0,0.55)';
-    d.innerHTML = '<div id="vp-sheet" style="width:100%;max-width:520px;background:var(--bg,#14162e);border:1px solid var(--border);border-radius:18px 18px 0 0;max-height:90vh;overflow:auto;padding:0"></div>';
+    d.innerHTML = '<div id="vp-sheet" style="width:100%;max-width:520px;background:var(--bg,#14162e);border:1px solid var(--border);border-radius:18px 18px 0 0;max-height:90vh;max-height:90dvh;overflow:auto;padding:0"></div>';
     // v0.9.1791: the backdrop close is gone — Back is already wired for this one.
     document.body.appendChild(d);
     var st = document.createElement('style');

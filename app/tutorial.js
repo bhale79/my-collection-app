@@ -541,7 +541,7 @@ function rrTermsOpen() {
     +   '<strong style="font-size:1.1rem;color:var(--text)">\ud83d\udcd8 Terms and what they mean</strong>'
     +   '<button type="button" data-close="1" title="Close" style="background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;line-height:1;padding:0 0.25rem">\u00d7</button>'
     + '</div>'
-    + '<div style="padding:0.4rem 1.25rem 1.25rem;max-height:74vh;overflow-y:auto">'
+    + '<div style="padding:0.4rem 1.25rem 1.25rem;max-height:74vh;max-height:74dvh;overflow-y:auto">'
     + '<p style="font-size:0.8rem;color:var(--text-dim);margin:0.6rem 0 0">Words with a dotted line under them in the app show these too \u2014 rest the mouse on one, or press and hold it on a phone.</p>'
     + groups.map(function (g) {
         return '<div style="font-size:0.72rem;font-weight:700;color:var(--text-mid);text-transform:uppercase;letter-spacing:0.05em;margin:0.95rem 0 0.4rem">' + esc(g) + '</div>'
@@ -591,7 +591,7 @@ function openHelpHub(opts) {
     +   '<strong style="font-size:1.1rem;color:var(--text)">📖 Help Center</strong>'
     +   '<button type="button" onclick="' + X + '" style="background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;line-height:1;padding:0 0.25rem">×</button>'
     + '</div>'
-    + '<div style="padding:0.4rem 1.25rem 1.25rem;max-height:74vh;overflow-y:auto">'
+    + '<div style="padding:0.4rem 1.25rem 1.25rem;max-height:74vh;max-height:74dvh;overflow-y:auto">'
     // v0.9.1987 (Brad): the tour is the one guided walkthrough left; the ten
     // per-page guides gave way to narrated videos, drawn from the ONE list in
     // tutorial-gifs-config.js (rrVideoGroups). A video opens its player ON TOP
@@ -657,7 +657,7 @@ function _rrTwoDevicesHelp() {
     'display:flex;align-items:center;justify-content:center;padding:1rem';
   modal.innerHTML =
     '<div style="background:var(--surface);color:var(--text);border-radius:12px;max-width:520px;width:100%;' +
-      'max-height:85vh;display:flex;flex-direction:column;box-shadow:0 10px 40px var(--scrim)">' +
+      'max-height:85vh;max-height:85dvh;display:flex;flex-direction:column;box-shadow:0 10px 40px var(--scrim)">' +
       '<div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">' +
         '<strong style="font-size:1.05rem">Using more than one device</strong>' +
         '<button onclick="document.getElementById(\'rr-two-devices-help\').remove()" ' +

@@ -145,10 +145,10 @@
     var p = document.createElement('div');
     p.id = 'rrg-modal';
     p.style.cssText = narrow
-      ? 'position:fixed;left:0;right:0;bottom:0;max-height:72vh;overflow-y:auto;z-index:100010;'
+      ? 'position:fixed;left:0;right:0;bottom:0;max-height:72vh;max-height:72dvh;overflow-y:auto;z-index:100010;'
         + 'background:var(--surface,#1a1a2e);border-top:2px solid var(--gold,#d4a843);'
         + 'box-shadow:0 -6px 26px rgba(0,0,0,0.5);color:var(--text,#eee);font-family:var(--font-body,sans-serif)'
-      : 'position:fixed;left:' + L + 'px;top:' + T + 'px;width:470px;max-height:82vh;overflow-y:auto;'
+      : 'position:fixed;left:' + L + 'px;top:' + T + 'px;width:470px;max-height:82vh;max-height:82dvh;overflow-y:auto;'
         + 'z-index:100010;background:var(--surface,#1a1a2e);border:1px solid var(--border,#333);'
         + 'border-radius:14px;box-shadow:0 14px 44px rgba(0,0,0,0.55);color:var(--text,#eee);'
         + 'font-family:var(--font-body,sans-serif)';

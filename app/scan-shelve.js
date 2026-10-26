@@ -238,7 +238,7 @@ function rrShelveOpen(mode) {
       '<strong style="font-size:1.05rem">' + _shEsc(title) + '</strong>' +
       '<button id="rr-shelve-x" aria-label="Close" style="background:none;border:none;color:var(--text);font-size:1.6rem;line-height:1;cursor:pointer">&times;</button>' +
     '</div>' +
-    '<div id="rr-shelve-cam" style="position:relative;background:var(--ink-dark);flex:0 0 auto;aspect-ratio:4/3;max-height:52vh;overflow:hidden">' +
+    '<div id="rr-shelve-cam" style="position:relative;background:var(--ink-dark);flex:0 0 auto;aspect-ratio:4/3;max-height:52vh;max-height:52dvh;overflow:hidden">' +
       '<video id="rr-shelve-video" playsinline muted autoplay style="width:100%;height:100%;object-fit:cover"></video>' +
       '<div id="rr-shelve-nocam" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;text-align:center;padding:1rem;color:var(--ink-light);font-size:0.95rem;line-height:1.5"></div>' +
     '</div>' +
@@ -394,7 +394,7 @@ function _shDialog(html, onClose) {
   var d = document.createElement('div');
   d.id = 'rr-shelve-ask';
   d.style.cssText = 'position:fixed;inset:0;z-index:9750;background:var(--scrim);display:flex;align-items:center;justify-content:center;padding:1rem';
-  d.innerHTML = '<div style="position:relative;background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:440px;width:100%;max-height:86vh;overflow:auto;padding:1.1rem;color:var(--text);font-family:var(--font-body)">' +
+  d.innerHTML = '<div style="position:relative;background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:440px;width:100%;max-height:86vh;max-height:86dvh;overflow:auto;padding:1.1rem;color:var(--text);font-family:var(--font-body)">' +
     '<button data-sh-x aria-label="Close" style="position:absolute;top:0.4rem;right:0.6rem;background:none;border:none;color:var(--text-dim);font-size:1.4rem;line-height:1;cursor:pointer">&times;</button>' + html + '</div>';
   document.body.appendChild(d);
   d.querySelector('[data-sh-x]').addEventListener('click', function () { d.remove(); if (typeof onClose === 'function') onClose(); });
@@ -707,7 +707,7 @@ function rrShelvePrintOpen(kind, preKeys) {
   ov.id = 'rr-shelve-print';
   ov.style.cssText = 'position:fixed;inset:0;z-index:9760;background:var(--scrim);display:flex;align-items:center;justify-content:center;padding:1rem';
   var inp = 'background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.45rem 0.6rem;color:var(--text);font-family:var(--font-body);font-size:0.88rem';
-  ov.innerHTML = '<div style="position:relative;background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:480px;width:100%;max-height:88vh;display:flex;flex-direction:column;color:var(--text);font-family:var(--font-body)">' +
+  ov.innerHTML = '<div style="position:relative;background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:480px;width:100%;max-height:88vh;max-height:88dvh;display:flex;flex-direction:column;color:var(--text);font-family:var(--font-body)">' +
     '<div style="display:flex;align-items:center;justify-content:space-between;padding:0.85rem 1rem;border-bottom:1px solid var(--border)">' +
       '<strong style="font-size:1.02rem">' + _shEsc(_shW(isPlaces ? 'printTitleShelves' : 'printTitleItems')) + '</strong>' +
       '<button id="rr-print-x" aria-label="Close" style="background:none;border:none;color:var(--text);font-size:1.5rem;line-height:1;cursor:pointer">&times;</button>' +

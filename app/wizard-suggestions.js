@@ -579,6 +579,47 @@ function updateItemSuggestions(query) {
   // highlighted. Recomputed at render scope from q instead.
   var _hlNum = '';
   try { _hlNum = (typeof _extractSearchItemNum === 'function') ? String(_extractSearchItemNum(q) || '').trim().toLowerCase() : String(q || '').trim().toLowerCase(); } catch (eHN) {}
+  // ── v0.9.2031 (Lars, York: "RMT 66238 … showed 20-"): a NUMBER search where
+  // no listed row IS the typed number. The rows only CONTAIN it (MTH 20-66238
+  // holds 66238), and until now nothing said so. Now the first row offers the
+  // number as typed — the catalog simply lacks it — and every contains-row is
+  // labelled with its maker and why it is here. Words: RR_ADD_TYPED (config.js).
+  // The typed row carries no data-idx: the arrow keys and the in-app checks
+  // count data-idx rows as CATALOG rows, and this one is not.
+  // _numQ: a number search at all (then a row that neither IS nor STARTS WITH
+  // the number gets the contains label — 238E is a 238, 20-66238 is not);
+  // _typedNum: the number as the collector typed it, when no row IS it.
+  var _numQ = '', _typedNum = '';
+  try {
+    if (tab !== 'sold' && tab !== 'forsale' && /^\d/.test(_hlNum) && !_rrIsWheelArrangement(_hlNum) && candidates.length) {
+      _numQ = String(query || '').trim().split(/\s+/).filter(function (t) { return t.toLowerCase() === _hlNum; })[0] || _hlNum;
+      if (!candidates.some(function (c) { return rrNumSameAsTyped(c.num, _hlNum); })) _typedNum = _numQ;
+    }
+  } catch (eTN) {}
+  if (_typedNum) {
+    const tRow = document.createElement('div');
+    tRow.setAttribute('role', 'button');
+    tRow.setAttribute('tabindex', '0');
+    tRow.dataset.typedNum = _typedNum;
+    tRow.style.cssText = 'text-align:left;width:100%;padding:0.55rem 0.75rem;margin-bottom:2px;'
+      + 'border:1.5px dashed var(--accent2);background:var(--surface2);'
+      + 'border-radius:6px;cursor:pointer;color:var(--text);font-family:var(--font-body);'
+      + 'display:flex;flex-direction:column;gap:0.18rem;min-height:44px;'
+      + 'box-sizing:border-box;max-width:100%;flex-shrink:0';
+    const tLine1 = document.createElement('div');
+    tLine1.style.cssText = 'font-weight:600;font-size:0.92rem;color:var(--text)';
+    tLine1.textContent = rrTypedWords('useTyped', _typedNum);
+    tRow.appendChild(tLine1);
+    const tLine2 = document.createElement('div');
+    tLine2.style.cssText = 'font-size:0.8rem;color:var(--text-dim);line-height:1.35';
+    tLine2.textContent = rrTypedWords('useTypedSub', _typedNum);
+    tRow.appendChild(tLine2);
+    tRow.onclick = function() { selectSuggestion(_typedNum, '', '', { asTyped: true }); };
+    tRow.onkeydown = function(e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectSuggestion(_typedNum, '', '', { asTyped: true }); }
+    };
+    el.appendChild(tRow);
+  }
   candidates.forEach(function(c, i) {
     // Outer row is a column flex so we get a visual line-1 (item# + road
     // + reference link) over a line-2 (details). Role="button" lets us
@@ -653,6 +694,17 @@ function updateItemSuggestions(query) {
         + 'padding:0.1rem 0.4rem;border-radius:4px;flex-shrink:0;white-space:nowrap';
       railSpan.textContent = _railLabel;
       line1.appendChild(railSpan);
+    }
+    // v0.9.2031: a row that only CONTAINS the typed number says so, with its
+    // maker — "MTH · contains 66238" — so nobody takes it for the number typed.
+    if (_numQ && !rrNumSameAsTyped(c.num, _hlNum) && String(c.num || '').toLowerCase().indexOf(_hlNum) !== 0) {
+      const containsSpan = document.createElement('span');
+      containsSpan.setAttribute('data-contains-num', _numQ);
+      containsSpan.style.cssText = 'font-size:0.7rem;font-weight:700;letter-spacing:0.04em;'
+        + 'color:var(--warn);background:transparent;border:1px solid currentColor;'
+        + 'padding:0.1rem 0.4rem;border-radius:4px;flex-shrink:0;white-space:nowrap';
+      containsSpan.textContent = rrTypedWords('contains', _numQ, rrRowMakerWord(c));
+      line1.appendChild(containsSpan);
     }
     // v0.9.1935: "as LIONEL" on an MTH-built Lionel Corporation item, so the
     // row says why it turned up under either maker (the chip lives in era-badges.js).
@@ -828,8 +880,45 @@ function highlightSuggestion(idx) {
   });
 }
 
-function selectSuggestion(num, roadName, itemType) {
+// ── v0.9.2031 — the typed number against the rows it turned up ────────────
+// The same number? The typed form and the catalog's may differ only by the
+// dash before a letter suffix (2343-P / 2343P, 1076-L / 1076L — the forms
+// wizardNext already treats as one). Anything else is a DIFFERENT number:
+// 20-66238 is not 66238, however many digits they share.
+function rrNumSameAsTyped(rowNum, typed) {
+  var a = String(rowNum || '').trim().toLowerCase(), b = String(typed || '').trim().toLowerCase();
+  if (!a || !b) return false;
+  if (a === b) return true;
+  return a.replace(/-(?=[a-z]+$)/, '') === b.replace(/-(?=[a-z]+$)/, '');
+}
+// The maker word for a catalog row ("MTH", "RMT"), the way the badges say it.
+function rrRowMakerWord(m) {
+  var k = (typeof _manufacturerOfItem === 'function') ? (_manufacturerOfItem(m) || '') : '';
+  if (!k && m && m._tab) {
+    var _t = String(m._tab).trim();
+    k = /^3rd/i.test(_t) ? '3rd rail' : _t.split(/\s+/)[0];   // "RMT O" → RMT
+  }
+  return (typeof _brandLabel === 'function') ? _brandLabel(k) : String(k || '');
+}
+// The words, from RR_ADD_TYPED (config.js) — never typed here.
+function rrTypedWords(key, num, maker) {
+  var w = (typeof window !== 'undefined' && window.RR_ADD_TYPED) || {};
+  return String(w[key] || '').replace('{num}', num).replace('{maker}', maker || '');
+}
+if (typeof window !== 'undefined') { window.rrNumSameAsTyped = rrNumSameAsTyped; window.rrRowMakerWord = rrRowMakerWord; window.rrTypedWords = rrTypedWords; }
+
+// opts.asTyped (v0.9.2031): the "Use N as typed" row — the number stands as
+// typed, no catalog row behind it; wizardNext must not go hunting for one.
+function selectSuggestion(num, roadName, itemType, opts) {
   wizard.data.itemNum = num;
+  if (opts && opts.asTyped) {
+    wizard.data._typedAsIs = String(num).trim().toLowerCase();
+    wizard.matchedItem = null;
+    delete wizard.data._suggestedRoadName;
+    delete wizard.data._suggestedItemType;
+  } else {
+    delete wizard.data._typedAsIs;
+  }
   if (roadName) wizard.data._suggestedRoadName = roadName;
   // Session 115: remember the itemType the user picked so downstream
   // steps (lookupItem match, variation picker) can scope their queries

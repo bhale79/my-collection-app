@@ -390,7 +390,7 @@ function _nonItemDetailEdit(type, key) {
   bindOverlayClose(ov, function() { ov.remove(); });
 
   var box = document.createElement('div');
-  box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:520px;width:100%;max-height:85vh;overflow-y:auto;padding:1.5rem;position:relative';
+  box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:520px;width:100%;max-height:85vh;max-height:85dvh;overflow-y:auto;padding:1.5rem;position:relative';
 
   var hdr = document.createElement('div');
   hdr.style.cssText = 'font-family:var(--font-head);font-size:1.05rem;color:var(--t-accent);margin-bottom:0.25rem';
@@ -624,7 +624,7 @@ function _nonItemDetailPhotos(type, key) {
   bindOverlayClose(ov, function() { if (!ov._uploading) ov.remove(); });
 
   var box = document.createElement('div');
-  box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:560px;width:100%;max-height:85vh;overflow-y:auto;padding:1.5rem;position:relative';
+  box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:560px;width:100%;max-height:85vh;max-height:85dvh;overflow-y:auto;padding:1.5rem;position:relative';
 
   var hdr = document.createElement('div');
   hdr.style.cssText = 'font-family:var(--font-head);font-size:1.05rem;color:var(--t-accent);margin-bottom:0.25rem';
@@ -1779,7 +1779,7 @@ function rrShowCopyPicker(idx) {
       + '<div style="font-size:0.7rem;color:var(--text-dim);font-family:var(--font-mono);margin-top:0.15rem">Inventory ID ' + rrEsc(inv || '(none yet)') + '</div>'
       + '</button>';
   }).join('');
-  overlay.innerHTML = '<div style="background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:1.4rem;max-width:420px;width:100%;max-height:80vh;overflow:auto">'
+  overlay.innerHTML = '<div style="background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:1.4rem;max-width:420px;width:100%;max-height:80vh;max-height:80dvh;overflow:auto">'
     + '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.1em;color:var(--t-accent);text-transform:uppercase;margin-bottom:0.5rem">Which copy?</div>'
     + '<div style="font-size:0.88rem;color:var(--text);margin-bottom:0.2rem">You own <strong>' + keys.length + '</strong> of No. ' + rrEsc(item.itemNum || '') + '.</div>'
     + '<div style="font-size:0.8rem;color:var(--text-mid);margin-bottom:0.9rem;line-height:1.5">Everything on the page \u2014 editing, photos, selling, removing \u2014 acts on the copy you pick here.</div>'
@@ -1917,7 +1917,7 @@ function _buildPhotoGallery(el, photos, opts) {
   // v0.9.1293: never a drag source — a dragged <img> ghosts its URL, and a
   // URL dropped on a view chip is not a photo id.
   heroImg.draggable = false;
-  heroImg.style.cssText = 'width:100%;height:auto;max-height:70vh;object-fit:contain;display:block';
+  heroImg.style.cssText = 'width:100%;height:auto;max-height:70vh;max-height:70dvh;object-fit:contain;display:block';
   var heroLbl = document.createElement('div');
   heroLbl.style.cssText = 'position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,0.6));padding:0.35rem 0.55rem;'
     + (opts.canRename ? 'cursor:text;' : '');
@@ -1964,7 +1964,7 @@ function _buildPhotoGallery(el, photos, opts) {
     rail = document.createElement('div');
     rail.style.cssText = narrow
       ? 'display:flex;flex-direction:row;gap:0.5rem;width:100%;overflow-x:auto;padding-bottom:2px'
-      : 'display:flex;flex-direction:column;gap:0.5rem;width:74px;flex-shrink:0;max-height:70vh;overflow-y:auto';
+      : 'display:flex;flex-direction:column;gap:0.5rem;width:74px;flex-shrink:0;max-height:70vh;max-height:70dvh;overflow-y:auto';
     photos.forEach(function (p, i) {
       var t = document.createElement('div');
       t.title = (p.name || '').replace(/\.[^.]+$/, '')
@@ -2470,7 +2470,7 @@ function _rrDetailFieldsPicker() {
   ov.id = 'df-overlay';
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9600;display:flex;align-items:center;justify-content:center;padding:1rem';
   var box = document.createElement('div');
-  box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:460px;width:100%;max-height:88vh;overflow:auto;padding:1.1rem';
+  box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:460px;width:100%;max-height:88vh;max-height:88dvh;overflow:auto;padding:1.1rem';
   box.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem">' +
     '<strong style="font-size:1.05rem;color:var(--text)">Choose your detail fields</strong>' +
     '<button onclick="document.getElementById(\'df-overlay\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.4rem;cursor:pointer;line-height:1">&times;</button></div>' +
@@ -4036,7 +4036,7 @@ function showItemPanel(idx, pdKey, mode) {
   });
 
   const box = document.createElement('div');
-  box.style.cssText = 'background:var(--surface);border:1px solid rgba(41,128,185,0.35);border-radius:16px;max-width:500px;width:100%;position:relative;max-height:92vh;display:flex;flex-direction:column;overflow:hidden';
+  box.style.cssText = 'background:var(--surface);border:1px solid rgba(41,128,185,0.35);border-radius:16px;max-width:500px;width:100%;position:relative;max-height:92vh;max-height:92dvh;display:flex;flex-direction:column;overflow:hidden';
 
   // Header
   const header = document.createElement('div');
@@ -4335,7 +4335,7 @@ function showItemPanel(idx, pdKey, mode) {
         const curId = cur && cur.rowId ? String(cur.rowId).trim() : '';
         const cands = rrCatalogCandidates(pd.itemNum || item.itemNum);
         const cList = document.createElement('div');
-        cList.style.cssText = 'display:flex;flex-direction:column;gap:0.45rem;width:100%;max-height:45vh;overflow-y:auto;padding-right:0.2rem';
+        cList.style.cssText = 'display:flex;flex-direction:column;gap:0.45rem;width:100%;max-height:45vh;max-height:45dvh;overflow-y:auto;padding-right:0.2rem';
         if (!cands.length) {
           const none = document.createElement('div');
           none.style.cssText = 'font-size:0.8rem;color:var(--text-dim);padding:0.4rem 0';
@@ -4382,7 +4382,7 @@ function showItemPanel(idx, pdKey, mode) {
         row.style.alignItems = 'stretch';
         lbl.style.width = 'auto';
         const vList = document.createElement('div');
-        vList.style.cssText = 'display:flex;flex-direction:column;gap:0.45rem;width:100%;max-height:45vh;overflow-y:auto;padding-right:0.2rem';
+        vList.style.cssText = 'display:flex;flex-direction:column;gap:0.45rem;width:100%;max-height:45vh;max-height:45dvh;overflow-y:auto;padding-right:0.2rem';
         f.options.forEach(function (o) {
           const cur = String(o.v) === String(pd.variation || '');
           const card = document.createElement('div');
@@ -4766,7 +4766,7 @@ function openISDetail(rowKey) {
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
   // v0.9.1791: the backdrop close is gone — Back is already wired for this one.
   const box = document.createElement('div');
-  box.style.cssText = 'background:var(--surface);border:1px solid rgba(22,160,133,0.4);border-radius:16px;max-width:460px;width:100%;padding:1.75rem;position:relative;max-height:88vh;overflow-y:auto';
+  box.style.cssText = 'background:var(--surface);border:1px solid rgba(22,160,133,0.4);border-radius:16px;max-width:460px;width:100%;padding:1.75rem;position:relative;max-height:88vh;max-height:88dvh;overflow-y:auto';
   const closeBtn = document.createElement('button');
   closeBtn.innerHTML='✕'; closeBtn.style.cssText='position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer';
   closeBtn.onclick=()=>overlay.remove();
@@ -4852,7 +4852,7 @@ function rrCatalogDetailsPopup(idx) {
   const close = function () { overlay.remove(); };
   rrDismissGuard(overlay, close);   // a backdrop click does nothing (Brad: "never close if you pick outside"); Back closes
   const box = document.createElement('div');
-  box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:520px;width:100%;padding:1.75rem;position:relative;max-height:80vh;overflow-y:auto';
+  box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:520px;width:100%;padding:1.75rem;position:relative;max-height:80vh;max-height:80dvh;overflow-y:auto';
   const closeX = document.createElement('button');
   closeX.type = 'button';
   closeX.setAttribute('data-close', '1');

@@ -2925,7 +2925,7 @@
             obs.observe(document.body, { childList: true });
           } catch (eO) {}
         }
-        ov.innerHTML = '<div class="maint-task-card" data-id="' + _esc(t.id) + '" style="width:min(680px,calc(100vw - 2rem));max-height:calc(100vh - 2.5rem);overflow:auto;'
+        ov.innerHTML = '<div class="maint-task-card" data-id="' + _esc(t.id) + '" style="width:min(680px,calc(100vw - 2rem));max-height:calc(100vh - 2.5rem);max-height:calc(100dvh - 2.5rem);overflow:auto;'
             + 'background:var(--bg-card);border:1px solid var(--accent2);border-radius:14px;padding:1rem 1.1rem">'
           + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.6rem;margin-bottom:0.7rem">'
           +   '<div style="min-width:0">'
@@ -3098,7 +3098,7 @@
     var head = '<div style="font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin:0.6rem 0 0.25rem">Catalog parts for this item'
       + (words.length ? ' (' + hits.length + ' of ' + rows.length + ')' : ' (' + rows.length + (rows.length > 8 ? ' \u2014 scroll, or type to narrow' : '') + ')') + '</div>';
     if (!hits.length) return head + '<div style="font-size:0.8rem;color:var(--text-dim)">None of the ' + rows.length + ' catalog parts match what you typed.</div>';
-    return head + '<div style="max-height:44vh;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-right:0.25rem">' + hits.map(function (r) {
+    return head + '<div style="max-height:44vh;max-height:44dvh;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-right:0.25rem">' + hits.map(function (r) {
       var era = (typeof ERAS !== 'undefined' && ERAS[r._era]) || {};
       var src = era.label || r._tab || '';
       return '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;padding:0.3rem 0;border-bottom:1px solid var(--border)">'
@@ -3582,7 +3582,7 @@
     host.innerHTML =
       '<div class="page-title" style="display:flex;align-items:baseline;gap:0.6rem;margin:0.4rem 0 0.5rem;font-size:1.05rem">Parts for sale'
       + '<span style="font-size:0.85rem;color:var(--text-dim);font-weight:400">' + list.length + (list.length === 1 ? ' part' : ' parts') + (total > 0 ? ' \u00b7 ' + cur + Math.round(total).toLocaleString() + ' asking' : '') + '</span></div>'
-      + '<div class="table-wrap" style="max-height:40vh;overflow-y:auto"><table class="item-table"><thead><tr>'
+      + '<div class="table-wrap" style="max-height:40vh;max-height:40dvh;overflow-y:auto"><table class="item-table"><thead><tr>'
       + '<th style="width:12%">Part #</th><th style="width:48%">Description</th><th>Qty</th><th>Asking</th><th>Paid</th><th style="white-space:nowrap">Actions</th></tr></thead>'
       + '<tbody>' + rows + '</tbody></table></div>';
   };
@@ -4301,7 +4301,7 @@
     }).join('') || '<div style="color:var(--text-dim);font-size:0.85rem;padding:0.6rem 0">' + (all.length ? 'Nothing in your collection matches that.' : 'Your collection is empty — add an item first.') + '</div>';
     _wbOverlay(_cardHead('The Workbench · Step 1 of 2', _wbPurpose === 'part' ? 'Add a part — for which item?' : 'Add a task — for which item?', '_wbCloseCard()')
       + '<input id="wb-pick-q" type="search" value="' + _esc(_wbPickQ) + '" placeholder="Item number or road name…" oninput="_wbPickSearch(this.value)" style="' + IN + '">'
-      + '<div style="max-height:50vh;overflow-y:auto">' + lines + (list.length > 60 ? '<div style="color:var(--text-dim);font-size:0.76rem;padding:0.5rem 0.3rem">' + (list.length - 60) + ' more — keep typing to narrow it down.</div>' : '') + '</div>');
+      + '<div style="max-height:50vh;max-height:50dvh;overflow-y:auto">' + lines + (list.length > 60 ? '<div style="color:var(--text-dim);font-size:0.76rem;padding:0.5rem 0.3rem">' + (list.length - 60) + ' more — keep typing to narrow it down.</div>' : '') + '</div>');
     var qi = document.getElementById('wb-pick-q'); if (qi) { qi.focus(); if (keepFocus) qi.setSelectionRange(qi.value.length, qi.value.length); }
   }
   window._wbPicked = function (invId) {

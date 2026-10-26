@@ -1050,7 +1050,7 @@ function _openUserFieldsModal() {
   ov.id = 'uf-modal-overlay';
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9600;display:flex;align-items:center;justify-content:center;padding:1rem';
   var box = document.createElement('div');
-  box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:560px;width:100%;max-height:88vh;overflow:auto;padding:1.1rem';
+  box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:560px;width:100%;max-height:88vh;max-height:88dvh;overflow:auto;padding:1.1rem';
   var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">' +
     '<strong style="font-size:1.05rem;color:var(--text)">Extra Columns</strong>' +
     '<button onclick="document.getElementById(\'uf-modal-overlay\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.4rem;cursor:pointer;line-height:1">&times;</button></div>' +
@@ -1338,7 +1338,7 @@ function _openLocationsModal(opts){
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
   var typeOpts = LOCATION_TYPES.map(function(t){ return '<option value="'+t+'">'+t+'</option>'; }).join('');
   modal.innerHTML =
-    '<div style="background:var(--surface);border-radius:14px;max-width:480px;width:100%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.4);font-family:var(--font-body)">'
+    '<div style="background:var(--surface);border-radius:14px;max-width:480px;width:100%;max-height:85vh;max-height:85dvh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.4);font-family:var(--font-body)">'
     + '<div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">'
     +   '<strong style="font-size:1.05rem;color:var(--text)">Storage Locations</strong>'
     +   '<button id="loc-close" style="background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;line-height:1">&times;</button>'
@@ -1433,7 +1433,7 @@ function _openSubTypesModal(){
   // the backdrop and the shadow point at the palette's scrim (the colour ratchet rule)
   modal.style.cssText = 'position:fixed;inset:0;background:var(--scrim);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
   modal.innerHTML =
-    '<div style="background:var(--surface);border-radius:14px;max-width:480px;width:100%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 12px 40px var(--scrim);font-family:var(--font-body)">'
+    '<div style="background:var(--surface);border-radius:14px;max-width:480px;width:100%;max-height:85vh;max-height:85dvh;display:flex;flex-direction:column;box-shadow:0 12px 40px var(--scrim);font-family:var(--font-body)">'
     + '<div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">'
     +   '<strong style="font-size:1.05rem;color:var(--text)">Sub Types</strong>'
     +   '<button id="st-close" style="background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;line-height:1">&times;</button>'
@@ -1513,7 +1513,7 @@ function _uiShowVersionHistoryHelp() {
     'display:flex;align-items:center;justify-content:center;padding:1rem';
   modal.innerHTML =
     '<div style="background:var(--surface,#fff);color:var(--text,#111);' +
-      'border-radius:12px;max-width:560px;width:100%;max-height:85vh;' +
+      'border-radius:12px;max-width:560px;width:100%;max-height:85vh;max-height:85dvh;' +
       'display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.4)">' +
       '<div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border,#ddd);' +
         'display:flex;align-items:center;justify-content:space-between">' +

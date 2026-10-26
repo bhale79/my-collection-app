@@ -1432,7 +1432,7 @@
     var ov = document.createElement('div');
     ov.id = 'pin-attach-ov';
     ov.style.cssText = 'position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:1rem';
-    ov.innerHTML = '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;max-width:480px;width:100%;max-height:80vh;display:flex;flex-direction:column;overflow:hidden">'
+    ov.innerHTML = '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;max-width:480px;width:100%;max-height:80vh;max-height:80dvh;display:flex;flex-direction:column;overflow:hidden">'
       + '<div style="padding:0.9rem 1rem 0.6rem">'
       + '<div style="font-weight:700;color:var(--text);font-size:1rem">Add these photos to an item you own</div>'
       + '<div style="font-size:0.78rem;color:var(--text-dim);margin-top:0.2rem">Pick the copy \u2014 the photos file into its photo folder right away.</div>'
@@ -1737,7 +1737,7 @@
     ov.id = 'pin-place-ov';
     ov.style.cssText = 'position:fixed;inset:0;z-index:10002;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:1rem';
     var card = document.createElement('div');
-    card.style.cssText = 'background:var(--bg-card);border:1px solid var(--border);border-radius:14px;max-width:520px;width:100%;max-height:85vh;overflow-y:auto;padding:1rem';
+    card.style.cssText = 'background:var(--bg-card);border:1px solid var(--border);border-radius:14px;max-width:520px;width:100%;max-height:85vh;max-height:85dvh;overflow-y:auto;padding:1rem';
     card.innerHTML = '<div style="font-weight:700;color:var(--text);font-size:1rem;margin-bottom:0.2rem">Where does each photo go?</div>'
       + '<div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:0.7rem">Tap a view for each new photo, or Skip to leave it a plain photo.</div>';
     recs.forEach(function (rec) {
@@ -2663,7 +2663,7 @@
       }).join('');
       rows += plan.skipped ? '<div style="padding:0.5rem 0.2rem;color:var(--text-dim);font-size:0.8rem">' + plan.skipped + ' photo' + (plan.skipped > 1 ? 's' : '') + ' had no owned match and stay in the inbox.</div>' : '';
     }
-    ov.innerHTML = '<div class="rr-card" style="background:var(--surface,#fff);border-radius:12px;max-width:520px;width:100%;max-height:85vh;display:flex;flex-direction:column;padding:1rem">' +
+    ov.innerHTML = '<div class="rr-card" style="background:var(--surface,#fff);border-radius:12px;max-width:520px;width:100%;max-height:85vh;max-height:85dvh;display:flex;flex-direction:column;padding:1rem">' +
       '<div style="font-weight:700;font-size:1.05rem">Rescue stranded set photos</div>' +
       '<div style="color:var(--text-mid);font-size:0.8rem;margin:0.2rem 0 0.6rem">Nothing moves until you press Apply. Ticked rows are certain matches; the rest need you to pick which copy.</div>' +
       '<div style="overflow-y:auto;flex:1">' + rows + '</div>' +

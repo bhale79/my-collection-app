@@ -482,7 +482,7 @@ function _openCollColumnsModal() {
   ov.id = 'cc-overlay';
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9600;display:flex;align-items:center;justify-content:center;padding:1rem';
   var box = document.createElement('div');
-  box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:460px;width:100%;max-height:88vh;overflow:auto;padding:1.1rem';
+  box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:460px;width:100%;max-height:88vh;max-height:88dvh;overflow:auto;padding:1.1rem';
   box.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem">' +
     '<strong style="font-size:1.05rem;color:var(--text)">Choose your columns</strong>' +
     '<button onclick="document.getElementById(\'cc-overlay\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.4rem;cursor:pointer;line-height:1">&times;</button></div>' +
@@ -1482,7 +1482,7 @@ function _phMoreMenu(ev, includeMain) {
   var box = document.createElement('div');
   box.id = 'ph-more-menu';
   box.style.cssText = 'position:fixed;z-index:9800;background:var(--surface);border:1px solid var(--border);' +
-    'border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,0.4);padding:0.35rem;min-width:210px;max-height:70vh;overflow:auto';
+    'border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,0.4);padding:0.35rem;min-width:210px;max-height:70vh;max-height:70dvh;overflow:auto';
   var rowCss = 'display:flex;align-items:center;justify-content:space-between;gap:0.6rem;width:100%;' +
     'background:none;border:none;color:var(--text);font-family:var(--font-body);font-size:0.85rem;' +
     'padding:0.45rem 0.6rem;border-radius:7px;cursor:pointer;text-align:left';
@@ -1860,7 +1860,7 @@ function _openLevelPicker(level) {
   bindOverlayClose(overlay, function() { overlay.remove(); });
   var modal = document.createElement('div');
   modal.style.cssText = 'background:var(--bg-card);border-radius:12px;padding:1.1rem;'
-                     + 'max-width:340px;width:100%;max-height:80vh;overflow:auto;'
+                     + 'max-width:340px;width:100%;max-height:80vh;max-height:80dvh;overflow:auto;'
                      + 'border:1px solid var(--border);box-shadow:0 12px 36px rgba(0,0,0,0.5)';
   var head = level.charAt(0).toUpperCase() + level.slice(1);
   var heading = document.createElement('div');

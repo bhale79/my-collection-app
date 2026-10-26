@@ -2102,7 +2102,7 @@ function _identifyShowMasterChooser(candidates, meta, fullText) {
   // Backdrop click closes.
   bindOverlayClose(overlay, function() { _closeChooser(); });
 
-  var html = '<div style="background:var(--surface);border:1.5px solid var(--accent);border-radius:14px;max-width:520px;width:100%;padding:1.25rem;max-height:88vh;overflow-y:auto;position:relative">'
+  var html = '<div style="background:var(--surface);border:1.5px solid var(--accent);border-radius:14px;max-width:520px;width:100%;padding:1.25rem;max-height:88vh;max-height:88dvh;overflow-y:auto;position:relative">'
     + '<button id="id-chooser-close" aria-label="Close" style="position:absolute;top:0.35rem;right:0.55rem;background:none;border:none;color:var(--text-dim);font-size:1.5rem;line-height:1;cursor:pointer;padding:0.15rem 0.5rem;border-radius:6px">\u00d7</button>'
     + '<div style="font-family:var(--font-head);font-size:1rem;color:var(--t-accent);margin-bottom:0.4rem;padding-right:1.5rem">\ud83d\udd0d Pick the matching item</div>'
     + '<div style="font-size:0.82rem;color:var(--text-mid);line-height:1.5;margin-bottom:0.9rem">'
@@ -2286,6 +2286,8 @@ function _identifyRouteToManualEntry(itemNum, meta, userMfrs) {
   delete wizard.data._itemGrouping;
   delete wizard.data._partialMatches;
   delete wizard.data._partialQuery;
+  delete wizard.data._partialNum;
+  delete wizard.data._typedAsIs;   // v0.9.2031
   delete wizard.data._suggestedItemType;
   delete wizard.data._suggestedRoadName;
   wizard.matchedItem = null;

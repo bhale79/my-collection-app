@@ -100,7 +100,7 @@ function showAiUsageCard(force) {
   // never mentions an allowance they do not have.
   const ar = (typeof rrAutoReadOn === 'function') && rrAutoReadOn();
   ov.innerHTML =
-    '<div style="background:var(--surface,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;max-width:480px;width:100%;padding:20px 22px 18px;color:var(--text,#eee);font-family:var(--font-body,sans-serif);max-height:calc(100vh - 36px);overflow-y:auto;-webkit-overflow-scrolling:touch;margin:auto 0;box-shadow:0 12px 40px rgba(0,0,0,0.5)">'
+    '<div style="background:var(--surface,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;max-width:480px;width:100%;padding:20px 22px 18px;color:var(--text,#eee);font-family:var(--font-body,sans-serif);max-height:calc(100vh - 36px);max-height:calc(100dvh - 36px);overflow-y:auto;-webkit-overflow-scrolling:touch;margin:auto 0;box-shadow:0 12px 40px rgba(0,0,0,0.5)">'
     + '<div style="font-family:var(--font-head,sans-serif);font-size:1.25rem;text-align:center;font-weight:700;margin-bottom:4px">Scanning and photo ID</div>'
     + '<div style="text-align:center;font-size:0.8rem;color:var(--text-dim,#888);margin-bottom:14px;letter-spacing:0.04em">' + (ar ? 'Scanning is free. Photo ID is the one part with a limit.' : 'How the app reads barcodes, labels and photos.') + '</div>'
 
@@ -388,7 +388,7 @@ function _pwaInstallHelpCard(kind) {
     card.setAttribute('aria-label', c.title);
     card.dataset.kind = kind;
     card.style.cssText = 'position:fixed;bottom:5.5rem;left:0;right:0;margin:0 auto;z-index:9996;box-sizing:border-box;'
-      + 'width:min(92vw,440px);max-height:calc(100vh - 7rem);overflow:auto;background:var(--surface);color:var(--text);'
+      + 'width:min(92vw,440px);max-height:calc(100vh - 7rem);max-height:calc(100dvh - 7rem);overflow:auto;background:var(--surface);color:var(--text);'
       + 'border:1.5px solid var(--accent);border-radius:14px;padding:0.9rem 1rem;box-shadow:0 8px 28px var(--scrim);'
       + 'font-family:var(--font-body)';
     var steps = (c.steps || []).map(function (t, i) {

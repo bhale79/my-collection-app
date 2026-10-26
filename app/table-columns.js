@@ -343,7 +343,7 @@ function rrTableAddMenu(id, ev) {
   var box = document.createElement('div');
   box.id = 'rr-addcol';
   box.style.cssText = 'position:fixed;z-index:9700;background:var(--surface);border:1px solid var(--border);' +
-    'border-radius:10px;box-shadow:0 8px 28px var(--scrim);padding:0.4rem;max-height:60vh;overflow:auto;min-width:190px;max-width:330px';
+    'border-radius:10px;box-shadow:0 8px 28px var(--scrim);padding:0.4rem;max-height:60vh;max-height:60dvh;overflow:auto;min-width:190px;max-width:330px';
   if (!avail.length && !extra) {
     box.innerHTML = '<div style="padding:0.5rem 0.6rem;font-size:0.82rem;color:var(--text-dim)">Every column is already on the table.</div>';
   } else {

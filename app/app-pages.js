@@ -603,7 +603,7 @@ function openEphemeraEdit(tabId, rowKey) {
   overlay.className = 'modal-overlay open';
   overlay.id = 'eph-edit-modal';
   rrDismissGuard(overlay);   // v0.9.1785
-  overlay.innerHTML = '<div class="modal" style="max-width:480px;max-height:90vh;overflow-y:auto;padding:1rem">'
+  overlay.innerHTML = '<div class="modal" style="max-width:480px;max-height:90vh;max-height:90dvh;overflow-y:auto;padding:1rem">'
     + '<div style="font-family:var(--font-head);font-size:1.05rem;color:var(--text);margin-bottom:0.6rem">Edit — ' + esc(entry.title || entry.itemNum || '') + '</div>'
     + fields.map(function (f, i) {
         const v = entry[f[1]] == null ? '' : String(entry[f[1]]);
@@ -776,7 +776,7 @@ function openEphemeraDetail(tabId, rowKey) {
   ];
 
   overlay.innerHTML = `
-    <div class="modal" style="max-width:480px;max-height:85vh;overflow-y:auto">
+    <div class="modal" style="max-width:480px;max-height:85vh;max-height:85dvh;overflow-y:auto">
       <div class="modal-header" style="background:var(--surface2);border-bottom:1px solid var(--border);padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between">
         <div>
           <div style="font-size:0.65rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.2rem">${labels[tabId]}</div>
@@ -1975,7 +1975,7 @@ function rrFsPriceFill() {
       '</div></div>';
   }).join('');
   ov.innerHTML =
-    '<div style="background:var(--surface);border-radius:14px;max-width:640px;width:100%;max-height:86vh;' +
+    '<div style="background:var(--surface);border-radius:14px;max-width:640px;width:100%;max-height:86vh;max-height:86dvh;' +
     'display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.45);font-family:var(--font-body)">' +
       '<div style="padding:0.9rem 1.1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">' +
         '<strong style="font-size:1.02rem;color:var(--text)">Asking prices \u2014 ' + list.length.toLocaleString() + ' to fill in</strong>' +
@@ -3568,7 +3568,7 @@ function showSetDetail(setNum) {
 
   // ── Box ──
   const box = document.createElement('div');
-  box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:560px;width:100%;padding:1.5rem;position:relative;max-height:85vh;overflow-y:auto';
+  box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:560px;width:100%;padding:1.5rem;position:relative;max-height:85vh;max-height:85dvh;overflow-y:auto';
 
   // Close button
   const closeBtn = document.createElement('button');

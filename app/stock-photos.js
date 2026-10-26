@@ -136,7 +136,7 @@
     var old = document.getElementById('stock-photo-card'); if (old) old.remove();
     var inv = String(pd.inventoryId || '');
     var html = '<div id="stock-photo-card" style="grid-column:1/-1;position:relative;border-radius:10px;overflow:hidden;background:var(--surface2)">'
-      + '<img src="' + _esc(url) + '" alt="Stock photo" style="width:100%;max-height:60vh;object-fit:contain;display:block;background:#fff" onerror="this.parentNode.innerHTML=\'<div style=&quot;padding:1rem;color:var(--text-dim);font-size:0.82rem&quot;>The maker\\u2019s stock photo is no longer at its address.</div>\'">'
+      + '<img src="' + _esc(url) + '" alt="Stock photo" style="width:100%;max-height:60vh;max-height:60dvh;object-fit:contain;display:block;background:#fff" onerror="this.parentNode.innerHTML=\'<div style=&quot;padding:1rem;color:var(--text-dim);font-size:0.82rem&quot;>The maker\\u2019s stock photo is no longer at its address.</div>\'">'
       + '<div style="' + _bannerCss + '">' + STOCK.banner + ' — ' + _esc(_domain(url)) + '</div>'
       + '</div>'
       + '<div id="stock-photo-note" style="grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;gap:0.5rem;font-size:0.74rem;color:var(--text-dim)">'
@@ -285,7 +285,7 @@
       +   '<span id="stk-count" style="font-size:0.78rem;color:var(--text-dim)">0 selected</span>'
       +   '<button id="stk-use" onclick="_stockUseSelected()" class="btn btn-primary" style="margin-left:auto;padding:0.5rem 0.9rem;font-size:0.78rem" disabled>Use selected</button>'
       + '</div>'
-      + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:auto;max-height:60vh">'
+      + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:auto;max-height:60vh;max-height:60dvh">'
       + '<table style="width:100%;border-collapse:collapse"><thead><tr><th style="' + th + '"></th><th style="' + th + '">Stock photo</th><th style="' + th + '">Item</th><th style="' + th + '">Today</th><th style="' + th + '">From</th></tr></thead><tbody>' + rows + '</tbody></table></div>'
       + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.5rem">Shown by link from the maker’s site with a STOCK PHOTO banner; nothing is copied to your Drive. Your own photo always takes over when you add one. Stock photos never go into sale listings, share cards or reports.</div>');
   }

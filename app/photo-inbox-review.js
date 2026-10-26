@@ -536,7 +536,7 @@
     ov.id = 'pin-rv-slotpick';
     ov.style.cssText = 'position:fixed;inset:0;z-index:100075;background:var(--scrim);display:flex;align-items:center;justify-content:center;padding:1rem';
     ov.innerHTML =
-      '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1rem;width:100%;max-width:420px;max-height:80vh;overflow-y:auto">' +
+      '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1rem;width:100%;max-width:420px;max-height:80vh;max-height:80dvh;overflow-y:auto">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem">' +
           '<strong style="color:var(--text);font-size:0.95rem">Which photo is the ' + (sl ? sl.label : viewKey) + '?</strong>' +
           '<button onclick="document.getElementById(\'pin-rv-slotpick\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer">✕</button>' +

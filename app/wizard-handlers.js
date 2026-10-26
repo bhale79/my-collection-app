@@ -544,6 +544,8 @@ async function wizardChooseCategory(catId) {
     delete wizard.data._itemGrouping;
     delete wizard.data._partialMatches;
     delete wizard.data._partialQuery;
+    delete wizard.data._partialNum;
+    delete wizard.data._typedAsIs;   // v0.9.2031
     delete wizard.data._suggestedItemType;
     delete wizard.data._suggestedRoadName;
     wizard.matchedItem = null;

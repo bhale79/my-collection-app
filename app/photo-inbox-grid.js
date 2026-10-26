@@ -167,8 +167,8 @@
     // right-hand card would sit on top of the grid being picked from.
     var narrow = (window.innerWidth || 0) < 700;
     p.style.cssText = narrow
-      ? 'position:fixed;left:0;right:0;bottom:0;z-index:10040;background:var(--surface);border-top:2px solid var(--accent2);box-shadow:0 -4px 18px var(--scrim);padding:0.7rem 0.8rem;max-height:34vh;overflow-y:auto'
-      : 'position:fixed;top:70px;right:16px;width:300px;z-index:10040;background:var(--surface);border:1.5px solid var(--accent2);border-radius:12px;box-shadow:0 6px 22px var(--scrim);padding:0.75rem 0.85rem;max-height:72vh;overflow-y:auto';
+      ? 'position:fixed;left:0;right:0;bottom:0;z-index:10040;background:var(--surface);border-top:2px solid var(--accent2);box-shadow:0 -4px 18px var(--scrim);padding:0.7rem 0.8rem;max-height:34vh;max-height:34dvh;overflow-y:auto'
+      : 'position:fixed;top:70px;right:16px;width:300px;z-index:10040;background:var(--surface);border:1.5px solid var(--accent2);border-radius:12px;box-shadow:0 6px 22px var(--scrim);padding:0.75rem 0.85rem;max-height:72vh;max-height:72dvh;overflow-y:auto';
     // v0.9.1615 (Brad's circle around the panel sitting on his photos): on
     // desktop the card can be GRABBED by its title and moved; the spot is
     // remembered for the session, and every re-render (each tick re-paints

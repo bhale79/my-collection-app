@@ -512,7 +512,7 @@ async function _openPastReports() {
   var ov = document.createElement('div');
   ov.id = 'rep-past-ov';
   ov.style.cssText = 'position:fixed;inset:0;z-index:9500;background:var(--scrim);display:flex;align-items:center;justify-content:center;padding:1rem';
-  ov.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.1rem;width:100%;max-width:620px;max-height:85vh;display:flex;flex-direction:column">' +
+  ov.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.1rem;width:100%;max-width:620px;max-height:85vh;max-height:85dvh;display:flex;flex-direction:column">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.4rem">' +
         '<strong style="font-size:1.1rem;color:var(--text)">Past reports</strong>' +
         '<button data-close onclick="document.getElementById(\'rep-past-ov\').remove()" aria-label="Close" style="background:none;border:none;color:var(--text-dim);font-size:1.35rem;cursor:pointer;line-height:1">\u2715</button>' +

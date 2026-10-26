@@ -338,7 +338,7 @@ async function uiBackupList() {
     'display:flex;align-items:center;justify-content:center;padding:1rem';
   modal.innerHTML =
     '<div style="background:var(--surface,#fff);color:var(--text,#111);' +
-      'border-radius:12px;max-width:680px;width:100%;max-height:85vh;' +
+      'border-radius:12px;max-width:680px;width:100%;max-height:85vh;max-height:85dvh;' +
       'display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.4)">' +
       '<div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border,#ddd);' +
         'display:flex;align-items:center;justify-content:space-between">' +
@@ -416,7 +416,7 @@ async function uiTrashList() {
   modal.id = 'trash-list-modal';
   modal.style.cssText = 'position:fixed;inset:0;background:var(--scrim);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
   modal.innerHTML =
-    '<div style="background:var(--surface);color:var(--text);border-radius:12px;max-width:680px;width:100%;max-height:85vh;display:flex;flex-direction:column;border:1.5px solid var(--border)">' +
+    '<div style="background:var(--surface);color:var(--text);border-radius:12px;max-width:680px;width:100%;max-height:85vh;max-height:85dvh;display:flex;flex-direction:column;border:1.5px solid var(--border)">' +
       '<div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">' +
         '<strong style="font-size:1.05rem">Recently Removed</strong>' +
         '<button onclick="document.getElementById(\'trash-list-modal\').remove()" style="background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;line-height:1;padding:0 0.25rem">\u00d7</button>' +

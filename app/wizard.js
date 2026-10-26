@@ -3504,7 +3504,7 @@ function renderWizardStep() {
       if (pd.location && pd.location.trim() && !_bpvLocList.includes(pd.location.trim())) _bpvLocList.push(pd.location.trim());
     });
 
-    var _bpvHtml = '<div style="padding-top:0.25rem;max-height:65vh;overflow-y:auto;-webkit-overflow-scrolling:touch">';
+    var _bpvHtml = '<div style="padding-top:0.25rem;max-height:65vh;max-height:65dvh;overflow-y:auto;-webkit-overflow-scrolling:touch">';
 
     // v0.9.1242 (Brad): Est. Worth is asked BEFORE what you paid, on every
     // screen that asks both. What a thing is worth is the answer he wants
@@ -4444,7 +4444,7 @@ function renderWizardStep() {
         const overlay = document.createElement('div');
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:flex-end;justify-content:center;padding:0';
         const sheet = document.createElement('div');
-        sheet.style.cssText = 'background:var(--surface);border-radius:16px 16px 0 0;padding:1.25rem;width:100%;max-width:520px;max-height:80vh;overflow-y:auto';
+        sheet.style.cssText = 'background:var(--surface);border-radius:16px 16px 0 0;padding:1.25rem;width:100%;max-width:520px;max-height:80vh;max-height:80dvh;overflow-y:auto';
         sheet.innerHTML = `<div style="font-family:var(--font-head);font-size:0.65rem;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:var(--text-dim);text-align:center;margin-bottom:0.75rem">Set ${setNum} — Which version?</div>`;
 
         const _entered = wizard.data._enteredNums || [];
@@ -5800,7 +5800,33 @@ function renderWizardStep() {
     _wrap.appendChild(_info);
 
     const _list = document.createElement('div');
-    _list.style.cssText = 'display:flex;flex-direction:column;gap:0.35rem;max-height:55vh;overflow-y:auto;-webkit-overflow-scrolling:touch';
+    _list.style.cssText = 'display:flex;flex-direction:column;gap:0.35rem;max-height:55vh;max-height:55dvh;overflow-y:auto;-webkit-overflow-scrolling:touch';
+
+    // v0.9.2031: these rows only CONTAIN the typed number (wizardNext). The
+    // first choice keeps the number as typed — the catalog lacks it — and each
+    // row says its maker and why it is here. Words: RR_ADD_TYPED via rrTypedWords.
+    const _typedNum = String(wizard.data._partialNum || _query.split(/\s+/)[0] || '').trim();
+    if (_typedNum && typeof rrTypedWords === 'function') {
+      const tBtn = document.createElement('button');
+      tBtn.setAttribute('data-typed-num', _typedNum);
+      tBtn.style.cssText = 'text-align:left;width:100%;padding:0.7rem 0.9rem;border:2px dashed var(--accent2);background:var(--surface2);border-radius:10px;cursor:pointer;color:var(--text);font-family:var(--font-body);display:flex;flex-direction:column;gap:0.15rem;transition:all 0.12s';
+      const tL1 = document.createElement('div'); tL1.style.cssText = 'font-weight:600;font-size:0.92rem'; tL1.textContent = rrTypedWords('useTyped', _typedNum);
+      const tL2 = document.createElement('div'); tL2.style.cssText = 'font-size:0.78rem;color:var(--text-dim);line-height:1.35'; tL2.textContent = rrTypedWords('useTypedSub', _typedNum);
+      tBtn.appendChild(tL1); tBtn.appendChild(tL2);
+      tBtn.onclick = function() {
+        wizard.data.itemNum = _typedNum;
+        wizard.data._typedAsIs = _typedNum.toLowerCase();
+        wizard.data._partialMatches = [];
+        wizard.matchedItem = null;
+        delete wizard.data._suggestedRoadName;
+        delete wizard.data._suggestedItemType;
+        // Back to the number step with the typed number standing; its Next
+        // now walks past the picker (no partials) to the details.
+        wizard.step = wizard.step - 1;
+        renderWizardStep();
+      };
+      _list.appendChild(tBtn);
+    }
 
     _matches.forEach(function(m) {
       const desc = m.description || m.roadName || '';
@@ -5810,6 +5836,13 @@ function renderWizardStep() {
       btn.style.cssText = 'text-align:left;width:100%;padding:0.7rem 0.9rem;border:2px solid var(--border);background:var(--surface2);border-radius:10px;cursor:pointer;color:var(--text);font-family:var(--font-body);display:flex;flex-direction:column;gap:0.15rem;transition:all 0.12s';
       btn.innerHTML = '<div style="font-family:var(--font-mono);font-weight:700;font-size:0.95rem;color:var(--accent2)">' + m.itemNum + '</div>'
         + (sub ? '<div style="font-size:0.78rem;color:var(--text-dim);line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + sub + '</div>' : '');
+      if (_typedNum && typeof rrTypedWords === 'function' && typeof rrRowMakerWord === 'function') {
+        const cChip = document.createElement('span');
+        cChip.setAttribute('data-contains-num', _typedNum);
+        cChip.style.cssText = 'font-size:0.7rem;font-weight:700;letter-spacing:0.04em;font-family:var(--font-body);color:var(--warn);background:transparent;border:1px solid currentColor;padding:0.1rem 0.4rem;border-radius:4px;margin-left:0.5rem;vertical-align:middle';
+        cChip.textContent = rrTypedWords('contains', _typedNum, rrRowMakerWord(m));
+        btn.firstChild.appendChild(cChip);
+      }
       btn.onclick = function() {
         wizard.data.itemNum = m.itemNum;
         wizard.data._partialMatches = [];
@@ -6322,7 +6355,7 @@ function renderWizardStep() {
     // laptop): on a computer the fields sit in two columns (.wiz-pv-2up) —
     // worth beside paid, bought-from beside the date — and Notes and the set
     // banners span both. Same fields, same ids, same order.
-    let _pvHtml = '<div class="wiz-pv' + ((typeof _wizOneWidth === 'function' && _wizOneWidth()) ? ' wiz-pv-2up' : '') + '" style="padding-top:0.25rem;max-height:65vh;overflow-y:auto;-webkit-overflow-scrolling:touch">';
+    let _pvHtml = '<div class="wiz-pv' + ((typeof _wizOneWidth === 'function' && _wizOneWidth()) ? ' wiz-pv-2up' : '') + '" style="padding-top:0.25rem;max-height:65vh;max-height:65dvh;overflow-y:auto;-webkit-overflow-scrolling:touch">';
 
     const _pvIsSetLoco  = _pvD._setMode && (_pvD._setItemIndex || 0) === 0;
     const _pvIsSetOther = _pvD._setMode && (_pvD._setItemIndex || 0) > 0;
@@ -6646,7 +6679,7 @@ function renderWizardStep() {
         && !wizard.data._photoOnly && !wizard.data._setMode && !wizard.data.hasIS) {
       wizard.data.hasIS = 'No';
     }
-    const _skipKeys = new Set(['tab','itemCategory','_photoOnly','_tenderDone','_setDone','tenderMatch','setMatch','setType','unitPower','unit2Power','unit3Power','wantErrorPhotos','photosMasterBox','boxOnly','entryMode','_setId','_rawItemNum','matchedItem','_partialMatches','_partialQuery','_itemGrouping','_fromWantList','_fromWantKey','_returnPage','_manualEntry','_drivePhotos','_setMode','_setGroupId','_setFinalItems','_setItemIndex','_setItemsSaved','_setEntryMode','_resolvedSet','_setLocoNum','_setPrice','_setDate','_setWorth','_setCondition','_setHasBoxChecked','_setWantPhotos','_setPhotoThenSave','_prefilledCondition','_setQEPhotos','_setMemberPhotos','set_hasBox','set_boxCond','set_boxPhotos','set_notes','_suggestions_cache','_biBoxPhotoFile','_idItemPhotoFile','_boxAutoKnown','_completingQuickEntry','_existingGroupId','_fillItemMode','_wizSaveLock','_photoInventoryId','_addPhotoDriveId','_addPhotoDriveIds','_saveComplete','_era','suggestedRoadName','_manualEra','_alsoListForSale','_fromUpgradeList','_fromUpgradeKey','_cleanupWishlistMatches','_suggestedPricePaid','forSale_salePrice','forSale_dateListed','selectedForSaleKey','selectedSoldKey',
+    const _skipKeys = new Set(['tab','itemCategory','_photoOnly','_tenderDone','_setDone','tenderMatch','setMatch','setType','unitPower','unit2Power','unit3Power','wantErrorPhotos','photosMasterBox','boxOnly','entryMode','_setId','_rawItemNum','matchedItem','_partialMatches','_partialQuery','_partialNum','_typedAsIs','_itemGrouping','_fromWantList','_fromWantKey','_returnPage','_manualEntry','_drivePhotos','_setMode','_setGroupId','_setFinalItems','_setItemIndex','_setItemsSaved','_setEntryMode','_resolvedSet','_setLocoNum','_setPrice','_setDate','_setWorth','_setCondition','_setHasBoxChecked','_setWantPhotos','_setPhotoThenSave','_prefilledCondition','_setQEPhotos','_setMemberPhotos','set_hasBox','set_boxCond','set_boxPhotos','set_notes','_suggestions_cache','_biBoxPhotoFile','_idItemPhotoFile','_boxAutoKnown','_completingQuickEntry','_existingGroupId','_fillItemMode','_wizSaveLock','_photoInventoryId','_addPhotoDriveId','_addPhotoDriveIds','_saveComplete','_era','suggestedRoadName','_manualEra','_alsoListForSale','_fromUpgradeList','_fromUpgradeKey','_cleanupWishlistMatches','_suggestedPricePaid','forSale_salePrice','forSale_dateListed','selectedForSaleKey','selectedSoldKey',
       '_photoUploadsInFlight','_identifyMeta','_identifyMfrHints','_identifyScaleHint','_identifyTypeHint','_alreadyOwnedFyi',
       '_skipAllPhotos','soldTo','soldAt','_hasISExisting']);  // v0.9.906 + v1585: internal flags — never review rows
     // Skip set_num from summary if it's already shown in the header
@@ -7697,16 +7730,21 @@ async function _wizardNextCore() {
         }
       } catch (ePF2) {}
 
-      if (_partials.length === 1) {
-        // Single match — auto-select it
-        wizard.data.itemNum = _partials[0].itemNum;
+      // ── v0.9.2031 (Lars, York: typed RMT 66238, saved as MTH 20-66238): ONE
+      // contains-match used to be taken as the answer, silently — a different
+      // maker's number stood in for one the catalog lacks. A contains-match is
+      // never the typed number; the collector decides. One or many, they go to
+      // the picker, whose first row keeps the number as typed. And once the
+      // typed row was chosen (_typedAsIs, selectSuggestion), the number stands.
+      var _asTyped = !!(wizard.data._typedAsIs && wizard.data._typedAsIs === _numPart);
+      if (_asTyped) {
         wizard.data._partialMatches = [];
-        wizard.matchedItem = _partials[0];
-        lookupItem(_partials[0].itemNum);
-      } else if (_partials.length > 1) {
-        // Multiple partial matches — store them for itemPicker step
+        wizard.matchedItem = null;
+      } else if (_partials.length >= 1) {
+        // Contains-matches only — store them for the itemPicker step
         wizard.data._partialMatches = _partials;
         wizard.data._partialQuery = _rawInput;
+        wizard.data._partialNum = _numPart;
       } else {
         // No matches at all — allow adding as custom item
         wizard.data._partialMatches = [];

@@ -376,7 +376,7 @@ function _openFullCollPicker() {
   var titleText = wizard.tab === 'forsale' ? 'Pick Item to List' : 'Pick Item to Sell';
 
   var box = document.createElement('div');
-  box.style.cssText = 'background:var(--surface);border:1px solid ' + accentColor + '66;border-radius:16px;max-width:480px;width:100%;position:relative;max-height:85vh;display:flex;flex-direction:column;overflow:hidden';
+  box.style.cssText = 'background:var(--surface);border:1px solid ' + accentColor + '66;border-radius:16px;max-width:480px;width:100%;position:relative;max-height:85vh;max-height:85dvh;display:flex;flex-direction:column;overflow:hidden';
 
   var hdr = document.createElement('div');
   hdr.style.cssText = 'padding:1rem 1.25rem;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:space-between';
