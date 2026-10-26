@@ -1110,18 +1110,11 @@ function showItemDetailPage(idx, copyInvId, opts) {
   const groupMembers = pd && pd.groupId ? Object.values(state.personalData).filter(p => p.groupId === pd.groupId && p.itemNum !== it.itemNum) : [];
   // v0.9.728 (Brad, Phase 1 group sheet): FULL roster incl. this copy, with
   // state keys so member cards can open the edit panel / photos per piece.
-  function _grpRole(p) {
-    var n = String(p.itemNum || '').toUpperCase();
-    if (p._isIS || /-IS$/.test(n)) return 'Instruction Sheet';
-    if (/-MBOX$/.test(n)) return 'Master Carton';
-    if (/-BOX$/.test(n)) return 'Box';
-    if (typeof isTender === 'function' && isTender(n)) return 'Tender';
-    if (/C$/.test(n.replace(/-(P|D)$/, ''))) return 'B Unit';
-    if (/-D$/.test(n)) return 'Dummy A Unit';
-    if (/-P$/.test(n)) return 'Powered A Unit';
-    return 'Engine';
-  }
-  var _grpRank = { 'Engine': 0, 'Powered A Unit': 0, 'Dummy A Unit': 1, 'B Unit': 2, 'Tender': 3, 'Instruction Sheet': 4, 'Box': 5, 'Master Carton': 6 };
+  // v0.9.2029: the role words and their order live at the top level now
+  // (rrGroupRole / RR_GROUP_RANK, below) so the Add steps' "Adding to the …"
+  // line names a group exactly as this page does.
+  function _grpRole(p) { return rrGroupRole(p); }
+  var _grpRank = RR_GROUP_RANK;
   var _grpFull = [], _grpKeys = [];
   if (pd && pd.groupId && !_wantMode) {
     Object.keys(state.personalData).forEach(function (k) {
@@ -1139,8 +1132,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
   }
   var _isGroupSheet = _grpFull.length > 1;
   var _grpUnits = _grpFull.filter(function (p) { return !/-(BOX|MBOX|IS)$/i.test(String(p.itemNum || '')); });
-  var _grpCfg = (_isGroupSheet && typeof groupConfigLabel === 'function' && _grpUnits.length > 1)
-    ? groupConfigLabel(_grpUnits[0].itemNum, _grpUnits.slice(1).map(function (p) { return p.itemNum; })) : '';
+  // (the group's kind — AA Set, Engine + Tender — is worked out by rrGroupHeading, v0.9.2029)
   // Bug 15 (Session 154): include grouped instruction sheets (separate isData
   // store) so the detail page lists the IS as part of this item.
   if (pd && pd.groupId && state.isData) {
@@ -1305,15 +1297,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
   if (_isGroupSheet) {
     html += '<div style="background:var(--surface);border:1.5px solid var(--accent3,#2ecc71);border-radius:14px;padding:1rem 1.25rem;margin-bottom:1.5rem">'
       + '<div style="font-family:var(--font-head);font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent3,#2ecc71);margin-bottom:0.7rem">🔗 '
-      + (function () {
-          var _lead = _grpUnits[0] ? String(_grpUnits[0].itemNum || '') : '';
-          var _base = _lead.replace(/-(P|D)$/i, '');
-          // v0.9.2027: the kind of group is a defined word (RR_TERMS)
-          var _tw = function (k, h) { return (typeof rrTermWrap === 'function') ? rrTermWrap(k, h) : h; };
-          if (_grpCfg === 'Engine + Tender') return _base + ' ' + _tw('engineTender', 'Engine + Tender');
-          if (_grpCfg && _grpCfg !== 'Set') return _base + ' ' + (/^A{1,2}B?A?$/.test(_grpCfg) ? _tw('dieselSets', _grpCfg + ' Set') : _grpCfg + ' Set');
-          return _tw('groupedSet', 'Grouped Set');
-        })()
+      + rrGroupHeading(_grpUnits, true)   // v0.9.2029: one heading, shared with the Add steps' banner
       + ' · ' + _grpFull.length + ' pieces</div>'
       + '<div style="display:flex;gap:0.6rem;flex-wrap:wrap">'
       + _grpFull.map(function (p, i) {
@@ -2232,6 +2216,54 @@ window._grpRemoveMember = async function (idx, i) {
 // and maker ride along so an MTH engine's box is saved as MTH.
 // Saves: wizard-save.js (box block, saveInstructionSheet); the group they join
 // comes from rrGroupIdForCopy there. Test: tests/add_piece_2025_tests.js.
+// ── v0.9.2029: THE group heading and role words (were local to the item page) ──
+function rrGroupRole(p) {
+  var n = String((p && p.itemNum) || '').toUpperCase();
+  if (p && p._isIS || /-IS$/.test(n)) return 'Instruction Sheet';
+  if (/-MBOX$/.test(n)) return 'Master Carton';
+  if (/-BOX$/.test(n)) return 'Box';
+  if (typeof isTender === 'function' && isTender(n)) return 'Tender';
+  if (/C$/.test(n.replace(/-(P|D)$/, ''))) return 'B Unit';
+  if (/-D$/.test(n)) return 'Dummy A Unit';
+  if (/-P$/.test(n)) return 'Powered A Unit';
+  return 'Engine';
+}
+var RR_GROUP_RANK = { 'Engine': 0, 'Powered A Unit': 0, 'Dummy A Unit': 1, 'B Unit': 2, 'Tender': 3, 'Instruction Sheet': 4, 'Box': 5, 'Master Carton': 6 };
+// The group strip's heading ("205 AA Set", "2046 Engine + Tender", "Grouped
+// Set") from the group's units (no boxes / sheets), lead first. wrap = true
+// draws the kind of group as a defined word (v0.9.2027 terms).
+function rrGroupHeading(units, wrap) {
+  units = units || [];
+  var cfg = (units.length > 1 && typeof groupConfigLabel === 'function')
+    ? groupConfigLabel(units[0].itemNum, units.slice(1).map(function (p) { return p.itemNum; })) : '';
+  var _lead = units[0] ? String(units[0].itemNum || '') : '';
+  var _base = _lead.replace(/-(P|D)$/i, '');
+  var _tw = function (k, h) { return (wrap && typeof rrTermWrap === 'function') ? rrTermWrap(k, h) : h; };
+  if (cfg === 'Engine + Tender') return _base + ' ' + _tw('engineTender', 'Engine + Tender');
+  if (cfg && cfg !== 'Set') return _base + ' ' + (/^A{1,2}B?A?$/.test(cfg) ? _tw('dieselSets', cfg + ' Set') : cfg + ' Set');
+  return _tw('groupedSet', 'Grouped Set');
+}
+// The words for the Add steps' line when "Add Another Item" aimed them at a
+// copy: "Adding to the 205 AA Set", or — a copy with no other item in its
+// group yet — "Joins the group with No. 2343".
+function rrAddToGroupBannerText(pd) {
+  var C = (typeof RR_ADD_PIECE !== 'undefined') ? RR_ADD_PIECE : null;
+  if (!C || !C.banner || !pd) return '';
+  var units = [];
+  if (pd.groupId) {
+    Object.keys(state.personalData || {}).forEach(function (k) {
+      var p = state.personalData[k];
+      if (p && p.owned && p.groupId === pd.groupId && !C.pieceRe.test(String(p.itemNum || ''))) units.push(p);
+    });
+    units.sort(function (a, b) {
+      var ra = RR_GROUP_RANK[rrGroupRole(a)], rb = RR_GROUP_RANK[rrGroupRole(b)];
+      return (ra === undefined ? 9 : ra) - (rb === undefined ? 9 : rb);
+    });
+  }
+  if (units.length > 1) return C.banner.group.replace('{group}', rrGroupHeading(units, false));
+  return C.banner.single.replace('{num}', String(pd.itemNum || ''));
+}
+
 function _rrAddPieceKeyOf(inv) {
   inv = String(inv || '');
   var pd = state.personalData || {};
@@ -2275,11 +2307,19 @@ function rrAddPieceMissing(pdOrKey) {
 }
 function rrAddPieceBtnHtml(pd) {
   var C = (typeof RR_ADD_PIECE !== 'undefined') ? RR_ADD_PIECE : null;
-  if (!C || !pd || !rrAddPieceMissing(pd).length) return '';
+  // v0.9.2029: every item (not a box / sheet / carton row) can take another
+  // item into its group, so the button shows even when no piece is missing.
+  if (!C || !pd || !(rrAddPieceMissing(pd).length || rrAddAnotherOk(pd))) return '';
   var inv = String(pd.inventoryId || '').replace(/[^A-Za-z0-9_-]/g, '');
   return '<button id="detail-add-piece" onclick="rrAddPieceOpen(\'' + inv + '\')" data-ctip="' + C.tip.replace(/"/g, '&quot;') + '" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--accent2);background:var(--bg-card);background:color-mix(in srgb, rgb(201,146,42) 22%, var(--bg-card));color:var(--accent2);font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">'
     + '<svg style="flex-shrink:0" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'
     + C.button + '</button>';
+}
+// v0.9.2029: "Add Another Item" — any owned item that is not itself a piece row.
+function rrAddAnotherOk(pd) {
+  var C = (typeof RR_ADD_PIECE !== 'undefined') ? RR_ADD_PIECE : null;
+  var num = String((pd && pd.itemNum) || '').trim();
+  return !!(C && C.another && pd && pd.owned && num && !C.pieceRe.test(num));
 }
 function rrAddPieceOpen(inv) {
   var C = RR_ADD_PIECE;
@@ -2287,6 +2327,7 @@ function rrAddPieceOpen(inv) {
   var pd = key ? state.personalData[key] : null;
   if (!pd) { if (typeof showToast === 'function') showToast(C.gone, 4000, true); return; }
   var missing = rrAddPieceMissing(pd);
+  if (rrAddAnotherOk(pd)) missing = missing.concat([C.another]);   // v0.9.2029: always last
   var old = document.getElementById('rr-add-piece');
   if (old) old.remove();
   var ov = document.createElement('div');
@@ -2318,6 +2359,15 @@ async function rrAddPieceStart(inv, kind) {
   var pd = key ? state.personalData[key] : null;
   if (!pd) { if (typeof showToast === 'function') showToast(C.gone, 4000, true); return; }
   var num = String(pd.itemNum || '').trim();
+  // v0.9.2029: "Add Another Item" — the normal Add steps from the start, any
+  // number; only the GROUP is aimed (by inventory ID). The copy's era / maker
+  // do NOT ride along: a B unit or a set car is searched like any add.
+  if (kind === 'item') {
+    await openWizard('collection');
+    Object.assign(wizard.data, { _addToGroupKey: key, _addToGroupInv: String(pd.inventoryId || ''), _addToGroupNum: num });
+    if (typeof renderWizardStep === 'function') renderWizardStep();
+    return;
+  }
   var target = { _addPieceKey: key, _addPieceInv: String(pd.inventoryId || ''), _addPieceNum: num,
                  _era: pd.era || '', _manufacturer: pd.manufacturer || '' };
   if (kind === 'is') {
@@ -2349,6 +2399,8 @@ async function rrAddPieceStart(inv, kind) {
 if (typeof window !== 'undefined') {
   window.rrAddPieceMissing = rrAddPieceMissing; window.rrAddPieceBtnHtml = rrAddPieceBtnHtml;
   window.rrAddPieceOpen = rrAddPieceOpen; window.rrAddPieceStart = rrAddPieceStart;
+  window.rrAddAnotherOk = rrAddAnotherOk; window.rrAddToGroupBannerText = rrAddToGroupBannerText;
+  window.rrGroupRole = rrGroupRole; window.rrGroupHeading = rrGroupHeading;
 }
 
 // ══ v0.9.1571 — EDIT THE DETAILS CARD (Brad: "need to be able to edit the

@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2028';
+const APP_VERSION = 'v0.9.2029';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -3627,7 +3627,7 @@ function rrTypeWord(t) { return String(t || '') === 'Master Carton' ? RR_MASTER_
 if (typeof window !== 'undefined') { window.RR_MASTER_CARTON = RR_MASTER_CARTON; window.rrTypeWord = rrTypeWord; }
 const RR_ADD_PIECE = {
   button: 'Add a Piece to Group',
-  tip: 'Add a box, instruction sheet or ' + RR_MASTER_CARTON.toLowerCase() + ' that goes with this item. It joins this item’s group.',
+  tip: 'Add a box, instruction sheet, ' + RR_MASTER_CARTON.toLowerCase() + ' or another item (a B unit, a car for a set) that goes with this item. It joins this item’s group.',
   title: 'Add a piece to No. {num}',
   sub: 'It joins this group and links to this copy.',
   cancel: 'Cancel',
@@ -3639,6 +3639,16 @@ const RR_ADD_PIECE = {
     { kind: 'is',   icon: '📄', label: 'Instruction Sheet', desc: 'Paperwork that came with it',        ending: '-IS'   },
     { kind: 'mbox', icon: '🗃️', label: RR_MASTER_CARTON, desc: 'The plain carton the boxed item was shipped in', ending: '-MBOX' },
   ],
+  // v0.9.2029 ([stated] Brad: 'need to add "add another item" to the box. This
+  // is so you can add a b unit or maybe an item to a set or something like
+  // that.') — always offered (a group can always take one more item), last in
+  // the box. It opens the normal Add steps; the saved item joins THIS copy's
+  // group (wizard-save.js rrAddToGroupId). Not in `pieces`, so the list of
+  // MISSING pieces (rrAddPieceMissing) is unchanged.
+  another: { kind: 'item', icon: '🚂', label: 'Add Another Item', desc: 'A B unit, a car for a set, or anything else that belongs with this item' },
+  // The line across the top of every Add step while it is aimed at a group.
+  // {group} = the group's own heading ("205 AA Set"); {num} = the item's number.
+  banner: { group: 'Adding to the {group}', single: 'Joins the group with No. {num}' },
   // Words the Box Only screens use when the piece is a master carton.
   mbox: {
     cond: RR_MASTER_CARTON + ' Condition',

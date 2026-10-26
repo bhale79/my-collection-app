@@ -156,6 +156,47 @@ function rrGroupIdForCopy(existingItem, rawNum) {
   return gid;
 }
 
+// v0.9.2029 — "Add Another Item" (app-collection.js rrAddPieceStart kind
+// 'item'): the Add steps carry the copy they were started from by inventory ID
+// (d._addToGroupInv; a row older than inventory IDs by its key AND number).
+// The item saved joins that copy's group — rrGroupIdForCopy, the same one-place
+// rule the Box / Sheet pieces use, so an ungrouped copy gets the new group too.
+// Minted once per add (d._addToGroupGid), so every member of a set added this
+// way lands in the same group.
+function _rrAddToGroupCopy(d) {
+  if (!d || !(d._addToGroupInv || d._addToGroupKey)) return null;
+  var all = (typeof state !== 'undefined' && state.personalData) || {};
+  var inv = String(d._addToGroupInv || '');
+  if (inv) {
+    var ks = Object.keys(all);
+    for (var i = 0; i < ks.length; i++) {
+      var p = all[ks[i]];
+      if (p && p.owned && String(p.inventoryId || '') === inv) return p;
+    }
+    return null;
+  }
+  var q = all[d._addToGroupKey];
+  var same = String((q && q.itemNum) || '').trim().toUpperCase() === String(d._addToGroupNum || '').trim().toUpperCase();
+  return (q && q.owned && same) ? q : null;
+}
+function rrAddToGroupId(d) {
+  if (!d) return '';
+  if (d._addToGroupGid) return d._addToGroupGid;
+  var copy = _rrAddToGroupCopy(d);
+  if (!copy) return '';
+  d._addToGroupGid = rrGroupIdForCopy(copy, copy.itemNum);
+  return d._addToGroupGid;
+}
+// Back on the item page it was started from, the new item shows in the group.
+function _rrAddToGroupRepaint(d) {
+  try {
+    if (!d || !(d._addToGroupInv || d._addToGroupKey) || typeof rrDetailRepaint !== 'function') return;
+    var pg = document.getElementById('page-itemdetail');
+    if (!pg || !/\bactive\b/.test(pg.className || '')) return;
+    rrDetailRepaint(0, d._addToGroupInv || '');
+  } catch (e) {}
+}
+
 function _stampSaved(obj) {
   if (obj && typeof obj === 'object') obj._savedAt = Date.now();
   return obj;
@@ -217,7 +258,7 @@ async function _quickEntrySaveSet(condition, worth, photoFiles) {
   const resolvedSet = d._resolvedSet;
   const items = d._setFinalItems || (resolvedSet ? resolvedSet.items : []);
   const setNum = resolvedSet ? resolvedSet.setNum : (d.set_num || '');
-  const groupId = d._setGroupId || ('SET-' + setNum + '-' + Date.now());
+  const groupId = rrAddToGroupId(d) || d._setGroupId || ('SET-' + setNum + '-' + Date.now());   // v0.9.2029
   d._setGroupId = groupId;
   const setId = 'SET-' + setNum;
   const year = resolvedSet ? (resolvedSet.year || '') : '';
@@ -368,7 +409,7 @@ function launchSetItemWizard() {
   }
   const itemNum = items[idx];
   // Snapshot set-level data we need to preserve
-  const _setGroupId      = d._setGroupId;
+  const _setGroupId      = rrAddToGroupId(d) || d._setGroupId;   // v0.9.2029: a set added through "Add Another Item" joins that group
   const _setFinalItems   = d._setFinalItems;
   const _setItemIndex    = idx;
   const _setItemsSaved   = d._setItemsSaved || [];
@@ -412,6 +453,8 @@ function launchSetItemWizard() {
     set_notes: _setNotes,
     _returnPage,
     _existingGroupId: _setGroupId,
+    // v0.9.2029: the aimed group rides from member to member
+    _addToGroupInv: d._addToGroupInv, _addToGroupKey: d._addToGroupKey, _addToGroupNum: d._addToGroupNum, _addToGroupGid: d._addToGroupGid,
     tenderMatch: 'none',  // Prevent paired engine+tender detection
     setMatch: '',          // Prevent set detection
     // For the locomotive (item 0): pre-fill purchase fields
@@ -1343,6 +1386,11 @@ async function saveWizardItem() {
   const _isPairedCheck = d.tenderMatch && d.tenderMatch !== 'none';
   const _isSetCheck = d.setMatch === 'set-now';
   const _hasAnyBox = d.hasBox === 'Yes' || _isPairedCheck || _isSetCheck;
+  // v0.9.2029: "Add Another Item" — the new item joins the copy's group.
+  if (tab === 'collection' && !d.boxOnly && !d._setMode) {
+    const _atg = rrAddToGroupId(d);
+    if (_atg) d._existingGroupId = _atg;
+  }
   let groupId = d._existingGroupId || (_hasAnyBox ? ('GRP-' + _rawItemNum + '-' + Date.now()) : '');
 
   // Session 115: mint a groupId when the user opted to link ANY
@@ -2634,6 +2682,7 @@ async function saveWizardItem() {
     }
     renderBrowse();
     showToast(`✓ Item ${itemNum} added to ${tab === 'collection' ? 'My Collection' : tab === 'forsale' ? 'For Sale' : tab === 'sold' ? 'Sold' : 'Want List'}!`);
+    if (tab === 'collection') _rrAddToGroupRepaint(d);   // v0.9.2029
 
     // ── Vault: submit updated collection data in background ──
     if (typeof vaultIsOptedIn === 'function' && vaultIsOptedIn()) {

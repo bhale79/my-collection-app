@@ -196,10 +196,13 @@ async function openApp(browser, served) {
   ok('A5 an ungrouped item is offered all three', R.missC === 'box,is,mbox', R.missC);
   ok('B1 the button names itself from RR_ADD_PIECE and opens this copy by inventory ID',
      R.btnB.indexOf('Add a Piece to Group') >= 0 && R.btnB.indexOf("rrAddPieceOpen('12')") >= 0, R.btnB.slice(0, 120));
-  ok('B2 no button on a piece’s own page, none when nothing is missing', R.btnCb === '' && R.btnF === '', R.btnCb + '|' + R.btnF);
+  // v0.9.2029 ([stated] Brad: add "add another item" to the box): an item can always
+  // take another item into its group, so a full group keeps the button (its box
+  // then offers only Add Another Item — tests/add_item_2029_tests.js).
+  ok('B2 no button on a piece’s own page; a full group still has it (Add Another Item)', R.btnCb === '' && R.btnF.indexOf('Add a Piece to Group') >= 0, R.btnCb + '|' + R.btnF.slice(0, 60));
   ok('B3 the real item page draws the button for copy 2', R.pageBtn === true && /Add a Piece to Group/.test(R.pageBtnLabel), JSON.stringify([R.pageBtn, R.pageBtnLabel, R.pageErr]));
-  ok('B4 the real item page draws no button for a full group', R.pageBtnFull === false, String(R.pageBtnFull));
-  ok('C1 the popup is guarded and lists one button per missing piece', R.popGuarded && R.popPieces === 'box,is,mbox', R.popGuarded + ' ' + R.popPieces);
+  ok('B4 the real item page draws the button for a full group too (v0.9.2029)', R.pageBtnFull === true, String(R.pageBtnFull));
+  ok('C1 the popup is guarded and lists one button per missing piece, then Add Another Item (v0.9.2029)', R.popGuarded && R.popPieces === 'box,is,mbox,item', R.popGuarded + ' ' + R.popPieces);
   ok('C2 a backdrop click does not close it', R.popAfterBackdrop === true, String(R.popAfterBackdrop));
   ok('D1 Box opens on the box condition screen with the group question', R.dStep === 'boxCondDetails' && R.dGroupQ, R.dStep + ' ' + R.dGroupQ);
   ok('D2 the link is aimed at copy 2 only', R.dChoices === 'kB', R.dChoices);

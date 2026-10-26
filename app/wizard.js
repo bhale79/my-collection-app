@@ -2118,7 +2118,23 @@ function _wizFlowTitle() {
   }
 }
 
+// v0.9.2029: while "Add Another Item" aims the Add steps at a group, a line
+// across the top says where the item is going ("Adding to the 205 AA Set") —
+// on every step, before a number is typed too. Words: RR_ADD_PIECE.banner.
 function _renderAddingBanner() {
+  _renderAddingBannerItem();
+  var el = document.getElementById('wizard-adding-banner');
+  var d = (typeof wizard !== 'undefined' && wizard && wizard.data) || null;
+  if (!el || !d || !(d._addToGroupInv || d._addToGroupKey) || wizard.tab !== 'collection' || d.boxOnly) return;
+  var copy = (typeof _rrAddToGroupCopy === 'function') ? _rrAddToGroupCopy(d) : null;
+  var words = (copy && typeof rrAddToGroupBannerText === 'function') ? rrAddToGroupBannerText(copy) : '';
+  if (!words) return;
+  var e = function (t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+  el.insertAdjacentHTML('afterbegin', '<div id="wizard-group-banner" style="display:flex;align-items:center;gap:0.5rem;padding:0.45rem 0.7rem;margin-top:0.55rem;'
+    + 'background:var(--surface2);border-radius:6px;border-left:3px solid var(--accent3);font-size:0.82rem;font-weight:600;color:var(--text)">'
+    + '<span style="flex-shrink:0;font-size:0.95rem;line-height:1">\u{1F517}</span><span>' + e(words) + '</span></div>');
+}
+function _renderAddingBannerItem() {
   var el = document.getElementById('wizard-adding-banner');
   if (!el) return;
   if (typeof wizard === 'undefined' || !wizard) { el.innerHTML = ''; return; }
