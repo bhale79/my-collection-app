@@ -2242,7 +2242,18 @@ async function rrGPhotosPickSession(opts) {
   // Open the tab NOW (inside the user's click) so popup blockers stay quiet;
   // it gets pointed at the picker once the session exists.
   var tab = null;
-  try { tab = window.open('', '_blank'); } catch (e) {}
+  // v0.9.2026 (a York customer: "Google Photos permission was not granted" —
+  // and no way to grant it). A browser lets ONE click open ONE window. When
+  // the pass does not carry Photos permission yet, Google's permission window
+  // must be that one: opening our Photos tab first used it up, Chrome blocked
+  // Google's window, and the answer came back "not granted" every time — for
+  // every account that had not granted it before (the owner's had, so he never
+  // saw it). So the tab is opened first ONLY when no permission window is
+  // coming; otherwise the picker is offered with an "Open Google Photos"
+  // button once the permission is in (onNeedTab, below).
+  var _askFirst = (typeof _ensurePhotosScope === 'function') && (typeof _rrPassHasScope === 'function')
+    && (typeof SCOPE_PHOTOS !== 'undefined') && !_rrPassHasScope(SCOPE_PHOTOS);
+  if (!_askFirst) { try { tab = window.open('', '_blank'); } catch (e) {} }
   if (typeof _ensurePhotosScope === 'function') {
     var _ok = await _ensurePhotosScope();
     if (!_ok) { try { if (tab) tab.close(); } catch (e) {} return { error: 'scope' }; }
@@ -2272,7 +2283,7 @@ async function rrGPhotosPickSession(opts) {
   if (!tab) {
     var _opened = null;
     try { _opened = window.open(s.pickerUri, '_blank'); } catch (e) {}
-    if (!_opened && typeof opts.onNeedTab === 'function') opts.onNeedTab(s.pickerUri);
+    if (!_opened && typeof opts.onNeedTab === 'function') opts.onNeedTab(s.pickerUri, { askedFirst: _askFirst });
   }
   var _ivOf = function (cfg) { try { var dsec = parseFloat(String((cfg || {}).pollInterval || '').replace('s', '')); return dsec > 0 ? Math.max(2000, dsec * 1000) : 0; } catch (e) { return 0; } };
   var iv = _ivOf(s.pollingConfig) || 4000;
@@ -2399,7 +2410,7 @@ function _rrGPWaitShow(many) {
     setUri: function (u) { panel.uri = u || ''; var r = q('reopen'); if (r && panel.uri) r.style.display = ''; },
     close: function () { try { ov.remove(); } catch (e) {} },
   };
-  q('reopen').onclick = function () { if (panel.uri) { try { window.open(panel.uri, '_blank'); } catch (e) {} } };
+  q('reopen').onclick = function () { if (panel.uri) { try { window.open(panel.uri, '_blank'); } catch (e) {} panel.needTab = false; panel.stage('waiting'); } };
   var cancel = function () { panel.cancelled = true; panel.close(); };
   q('cancel').onclick = cancel;
   if (typeof window.rrDismissGuard === 'function') window.rrDismissGuard(ov, cancel);   // Back = Cancel; a stray tap on the backdrop does nothing
@@ -2415,9 +2426,12 @@ function rrGPhotosPickFiles(opts) {
   var aborted = function () { return panel.cancelled || !!(opts.shouldAbort && opts.shouldAbort()); };
   return window.rrGPhotosPickSession({
     shouldAbort: aborted,
-    onStatus: function () { panel.stage('waiting'); },
+    // v0.9.2026: while Google Photos could not be opened for the person, the
+    // panel keeps saying so (press Open Google Photos) — each poll used to
+    // overwrite it at once with "Waiting for you to press Done".
+    onStatus: function () { if (!panel.needTab) panel.stage('waiting'); },
     onUri: function (u) { panel.setUri(u); },
-    onNeedTab: function (u) { panel.setUri(u); panel.stage('blocked'); },
+    onNeedTab: function (u, info) { panel.setUri(u); panel.needTab = true; panel.stage(info && info.askedFirst ? 'permitted' : 'blocked'); },
   }).then(async function (pick) {
     try {
       if (aborted()) { if (pick && pick.sessionId) window.rrGPhotosEnd(pick.sessionId, pick.auth); return { error: 'cancelled' }; }

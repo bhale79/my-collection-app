@@ -2211,7 +2211,7 @@ async function saveWizardItem() {
         if (d.hasBox === 'Yes') {
           const _bxVar = d.boxVariation || '';
           const _bxDesc = d.boxVariationDesc || '';
-          const u1BoxRow = _buildGroupBoxRow(itemNum, d.boxCond || row[PERSONAL_FIELD_INDEX.boxCond], boxPhotos[0] || row[PERSONAL_FIELD_INDEX.photoBox] || '', groupId, d.datePurchased, itemNum, _bxVar, _bxDesc);
+          const u1BoxRow = _buildGroupBoxRow(itemNum, d.boxCond || row[PERSONAL_FIELD_INDEX.boxCond], boxPhotos[0] || row[PERSONAL_FIELD_INDEX.photoBox] || '', groupId, d.datePurchased, itemNum, _bxVar, _bxDesc, _resolveSaveEra());
           const _bx1ApRow = await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [u1BoxRow]);   // v0.9.1196
           var _bxNote = 'Box for ' + itemNum;
           if (_bxDesc) _bxNote += ' — ' + _bxDesc;
@@ -2227,7 +2227,7 @@ async function saveWizardItem() {
         // Unit 2 box (set save)
         if (isSetSave && d.unit2HasBox === 'Yes' && d.unit2ItemNum) {
           const u2Num = (d.unit2ItemNum || '').trim();
-          const u2BoxRow = _buildGroupBoxRow(u2Num, d.unit2BoxCond || '', Object.values(d.photosUnit2Box || {}).find(v => v) || '', groupId, d.datePurchased, itemNum);
+          const u2BoxRow = _buildGroupBoxRow(u2Num, d.unit2BoxCond || '', Object.values(d.photosUnit2Box || {}).find(v => v) || '', groupId, d.datePurchased, itemNum, undefined, undefined, _resolveSaveEra());
           const _bx2ApRow = await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [u2BoxRow]);   // v0.9.1196
           state.personalData[u2BoxRow[PERSONAL_FIELD_INDEX.inventoryId]] = rrSavedRecord(u2BoxRow, _bx2ApRow || 0, {
             row: _bx2ApRow || 0, itemNum: u2Num + '-BOX', variation: '',
@@ -2241,7 +2241,7 @@ async function saveWizardItem() {
         // Unit 3 box (ABA save)
         if (isSetSave && d.setType === 'ABA' && d.unit3HasBox === 'Yes') {
           const u3Num = _pdSuffix((d.unit3ItemNum || _rawItemNum).trim(), d.unit3Power);
-          const u3BoxRow = _buildGroupBoxRow(u3Num, d.unit3BoxCond || '', Object.values(d.photosUnit3Box || {}).find(v => v) || '', groupId, d.datePurchased, itemNum);
+          const u3BoxRow = _buildGroupBoxRow(u3Num, d.unit3BoxCond || '', Object.values(d.photosUnit3Box || {}).find(v => v) || '', groupId, d.datePurchased, itemNum, undefined, undefined, _resolveSaveEra());
           const _bx3ApRow = await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [u3BoxRow]);   // v0.9.1196
           state.personalData[u3BoxRow[PERSONAL_FIELD_INDEX.inventoryId]] = rrSavedRecord(u3BoxRow, _bx3ApRow || 0, {
             row: _bx3ApRow || 0, itemNum: u3Num + '-BOX', variation: '',
@@ -2255,7 +2255,7 @@ async function saveWizardItem() {
         // Tender box (paired save)
         if (isPairedSave && d.tenderHasBox === 'Yes') {
           const tNum = d.tenderMatch.trim();
-          const tBoxRow = _buildGroupBoxRow(tNum, d.tenderBoxCond || '', Object.values(d.photosTenderBox || {}).find(v => v) || '', groupId, d.datePurchased, itemNum);
+          const tBoxRow = _buildGroupBoxRow(tNum, d.tenderBoxCond || '', Object.values(d.photosTenderBox || {}).find(v => v) || '', groupId, d.datePurchased, itemNum, undefined, undefined, _resolveSaveEra());
           const _bxtApRow = await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [tBoxRow]);   // v0.9.1196
           state.personalData[tBoxRow[PERSONAL_FIELD_INDEX.inventoryId]] = rrSavedRecord(tBoxRow, _bxtApRow || 0, {
             row: _bxtApRow || 0, itemNum: tNum + '-BOX', variation: '',
@@ -2319,6 +2319,7 @@ async function saveWizardItem() {
           matchedTo: itemNum,
           inventoryId: isInvId,
           groupId: groupId,
+          era: _resolveSaveEra(),   // v0.9.2026: the item's era (its maker follows in buildPersonalRow) — it was saved blank and counted as Lionel Postwar
         });
         const _isApRow2 = await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [isRow]);   // v0.9.1196
         state.personalData[isInvId] = rrSavedRecord(isRow, _isApRow2 || 0, {
@@ -2357,7 +2358,7 @@ async function saveWizardItem() {
           hasBox: 'Yes',
           boxCond: d.masterBoxCond || '',
           photoBox: mbPhotoLink,
-          notes: (d.masterBoxNotes || '').trim() || 'Master box for ' + _rawItemNum + ' set',
+          notes: (d.masterBoxNotes || '').trim() || RR_MASTER_CARTON + ' for ' + _rawItemNum,   // v0.9.2026: the name
           datePurchased: d.datePurchased || '', purchasedFrom: d.purchasedFrom || '',
           matchedTo: itemNum,
           setId: setId || '',
@@ -2375,7 +2376,7 @@ async function saveWizardItem() {
           status: 'Owned', owned: true,
           itemType: 'Master Carton',
           condition: d.masterBoxCond || '', hasBox: 'Yes', boxCond: d.masterBoxCond || '',
-          notes: (d.masterBoxNotes || '').trim() || 'Master box for ' + _rawItemNum + ' set',
+          notes: (d.masterBoxNotes || '').trim() || RR_MASTER_CARTON + ' for ' + _rawItemNum,
           matchedTo: itemNum, setId: setId || '',
           inventoryId: mbInvId, groupId: groupId,
         });

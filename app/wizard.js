@@ -6112,7 +6112,7 @@ function renderWizardStep() {
         // Master Box — main column only, hidden in set mode
         if (!wizard.data._setMode) {
           const mbVal2 = wizard.data.hasMasterBox || '';
-          html += _inlineRow('Master Box?', _smallBtn('hasMasterBox', mbVal2, ['Yes','No'],
+          html += _inlineRow(RR_MASTER_CARTON + '?', _smallBtn('hasMasterBox', mbVal2, ['Yes','No'],
             (c) => "wizard.data.hasMasterBox=\'" + c + "\';_pvToggleMasterBox(\'" + c + "\')"));
         }
       }
@@ -6563,7 +6563,7 @@ function renderWizardStep() {
     const _keyLabels = {
       itemCategory:'Category', cat_type:'Type', cat_year:'Year',
       hasIS:'Has Instruction Sheet', is_sheetNum:'Sheet #', is_condition:'Sheet Condition', is_pricePaid:'Price Paid', is_estValue:'Est. Worth',
-      hasMasterBox:'Has Master Box', masterBoxCond:'Master Box Condition', masterBoxNotes:'Master Box Notes',
+      hasMasterBox:'Has ' + RR_MASTER_CARTON, masterBoxCond:RR_MASTER_CARTON + ' Condition', masterBoxNotes:RR_MASTER_CARTON + ' Notes',
       notOriginalDesc:'Modifications', tenderNotOriginalDesc:'Tender Modifications',
       unit2NotOriginalDesc:'Unit 2 Modifications', unit3NotOriginalDesc:'Unit 3 Modifications',
       cat_hasMailer:'Has Envelope/Mailer', cat_condition:'Condition',

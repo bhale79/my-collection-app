@@ -1230,7 +1230,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
           <span style="font-family:var(--font-head);font-size:1.6rem;color:var(--t-accent);letter-spacing:0.03em">${_wantMode ? ('Wanted: ' + (_wantHeading || (it.itemNum + (_wantPartner ? ' with a ' + _wantPartner : '')))) : (!String(it.itemNum||'').trim() ? String((pd && (pd.yourDescription || pd.description)) || it.description || 'No item number').split(' ').slice(0, 8).join(' ') : (String(it.itemNum||'').indexOf(' ')===-1 ? 'No. ' + it.itemNum + (it.poweredDummy === 'P' ? '-P' : it.poweredDummy === 'D' ? '-D' : '') : it.itemNum))}</span>${typeof window._noNumTag==='function' ? window._noNumTag(it.itemNum) : ''}
           ${isForSale ? `<span style="font-size:1rem;color:var(--gold);font-family:var(--font-head);letter-spacing:0.02em">— on the sale list for <span id="fs-price-span">${_fsPrice}</span></span> <a href="javascript:_fsEditPrice()" style="font-size:0.78rem;color:var(--accent2);text-decoration:none;font-weight:700">edit</a>` : ''}
           ${it.variation ? `<span style="font-size:0.9rem;color:var(--text-dim);background:var(--surface2);border-radius:6px;padding:0.15rem 0.6rem">Var. ${it.variation}</span>` : ''}
-          ${it.itemType ? `<span class="tag">${it.itemType}</span>` : ''}
+          ${it.itemType ? `<span class="tag">${rrTypeWord(it.itemType)}</span>` : ''}
           ${it.yearProd ? `<span style="font-size:0.82rem;color:var(--text-dim)">${it.yearProd}</span>` : ''}
           ${(typeof rrCatalogStatusChip === 'function') ? rrCatalogStatusChip(it) : ''}
           ${(typeof alsoSoldAsChipHTML === 'function') ? alsoSoldAsChipHTML(it, { size: 'lg' }) : ''}
@@ -1321,7 +1321,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
           var box = /-(BOX|MBOX)$/i.test(String(p.itemNum||'')) ? '' : (p.hasBox === 'Yes' ? ('Box ✓' + (p.boxCond ? ' (' + p.boxCond + ')' : '')) : 'No box');
           var worth = p.userEstWorth ? _currencySymbol() + parseFloat(p.userEstWorth).toLocaleString() : '';
           return '<div onclick="if(typeof _grpHeroSwap===\'function\')_grpHeroSwap(' + i + ')" title="' + ((window.innerWidth || 0) >= 1000 ? 'Show this unit\'s photo above' : 'Jump to this unit\'s photos') + '" style="cursor:pointer;flex:1;min-width:150px;max-width:230px;background:var(--surface2);border:1px solid ' + (me ? 'var(--accent3,#2ecc71)' : 'var(--border)') + ';border-radius:10px;padding:0.6rem 0.75rem">'
-            + '<div style="font-size:0.64rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--accent3,#2ecc71)">' + role + (me ? ' · this page' : '') + '</div>'
+            + '<div style="font-size:0.64rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--accent3,#2ecc71)">' + rrTypeWord(role) + (me ? ' · this page' : '') + '</div>'
             + '<div style="font-family:var(--font-mono);font-weight:700;color:var(--t-accent);font-size:0.95rem;margin:0.15rem 0">' + String(p.itemNum || '').replace(/</g, '&lt;') + (p.photoItem ? ' <span title="Has photos" style="font-size:0.78rem">📷</span>' : '') + '</div>'
             + '<div style="font-size:0.74rem;color:var(--text-mid);line-height:1.5">Cond ' + cond + (box ? ' · ' + box : '') + (worth ? '<br>Worth ' + worth : '') + '</div>'
             // v0.9.1569 (audit step 5): Remove sits beside Edit/Photos — the
@@ -3011,7 +3011,7 @@ function collectionActionSold(globalIdx, itemNum, variation, pdRow, invId) {
 // Returns a friendly label for a group member based on its item-number suffix.
 function _grpKind(num) {
   var u = String(num || '').toUpperCase();
-  if (u.endsWith('-MBOX')) return 'master carton';
+  if (u.endsWith('-MBOX')) return RR_MASTER_CARTON.toLowerCase();   // v0.9.2026: the name
   if (u.endsWith('-BOX'))  return 'box';
   if (u.endsWith('-IS'))   return 'instruction sheet';
   return 'item';

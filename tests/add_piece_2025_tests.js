@@ -223,13 +223,15 @@ async function openApp(browser, served) {
   const src = (n) => fs.readFileSync(path.join(APP, n), 'utf8');
   const plant = (n, from, to) => { const s = src(n); if (s.indexOf(from) < 0) throw new Error('plant anchor missing in ' + n + ': ' + from.slice(0, 50)); return { [n]: s.split(from).join(to) }; };
   const plants = [
-    ['P1 maker from the era again (old box save)', plant('wizard-save.js', 'manufacturer: _resolveSaveMfr(),', 'manufacturer: _getEraManufacturer(),'), r => r.dRowMfr === 'MTH'],
+    // v0.9.2026: the row builder now also gives a piece its item's maker (a second
+    // layer), so the old box-save maker only shows when BOTH layers are undone.
+    ['P1 maker from the era again (old box save + old row builder)', Object.assign(plant('wizard-save.js', 'manufacturer: _resolveSaveMfr(),', 'manufacturer: _getEraManufacturer(),'), plant('app.js', "if (!_mb && typeof _brandOfItem === 'function' && _pieceOf) {", 'if (false) {')), r => r.dRowMfr === 'MTH'],
     ['P2 the box photo held and dropped (old box save)', plant('wizard-save.js', "if (!_boPhotoLink && d._boxPhotoFile) {", "if (false) {"), r => r.dUploads === '30-1234-1-BOX BOX-FV.jpg'],
     ['P3 the sheet finds the first row with the number (old IS save)', plant('wizard-save.js', 'const found = _isAim ? _isAim.pd : _findCollectionItemByNum(linkedItem);', 'const found = _findCollectionItemByNum(linkedItem);'), r => r.fGroup === 'GRP-B'],
     ['P4 a new group not written onto the item (old IS save)', plant('wizard-save.js', '    if (found) resolvedGroupId = rrGroupIdForCopy(found, linkedItem);', "    if (found) resolvedGroupId = found.groupId || ('GRP-' + linkedItem + '-' + Date.now());"), r => r.f2ItemGroup === r.f2Group && r.f2Backfill],
     ['P5 the master carton saved as a box', plant('wizard-save.js', "const _isMbox = d._boxKind === 'mbox';", 'const _isMbox = false;'), r => r.eNum === '30-1234-1-MBOX'],
     ['P6 missing pieces read without the group (offers copy 1 a box)', plant('app-collection.js', '    if (pc.kind === \'box\')  return nums.indexOf(up + \'-BOX\') < 0;', '    if (pc.kind === \'box\')  return true;'), r => r.missA === 'is,mbox'],
-    ['P7 the aim kept when the number changes', plant('wizard-save.js', "  delete d._addPieceKey; delete d._manufacturer; delete d._era;\n  d._groupingLinkChoices = {};\n  return null;", '  return null;'), r => r.gMfr !== 'MTH'],
+    ['P7 the aim kept when the number changes', plant('wizard-save.js', "  delete d._addPieceKey; delete d._manufacturer; delete d._era;\n  d._groupingLinkChoices = {};\n  return null;", '  return null;'), r => r.gGroup !== 'GRP-B'],   // v0.9.2026: judged by the group (the builder now fixes the maker on its own)
   ];
   for (const [name, served, check] of plants) {
     const o = await openApp(browser, served);

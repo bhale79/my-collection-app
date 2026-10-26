@@ -11,7 +11,7 @@
 //   L1  his laptop, 1280x720, 1920x1080: step 2 with EVERY answer given (All
 //       Original No, the rest Yes) — nothing to scroll, Next on screen
 //   L2  two columns: Condition, Box Condition, Instruction Sheet Condition
-//       stacked on the left; All Original, Has Box, Instr. Sheet, Master Box,
+//       stacked on the left; All Original, Has Box, Instr. Sheet, Master Carton / Outside Shipper (v0.9.2026 name; was Master Box),
 //       Error Item stacked on the right
 //   L3  the answers still drive the screen: Has Box No hides Box Condition and
 //       Yes shows it (and the Yes/No buttons light the right one); Instr. Sheet
@@ -76,7 +76,7 @@ const step2 = (pg, opts) => pg.evaluate(async (opts) => {
   const btn = (label, txt) => { const sp = q(label); return sp ? [...sp.parentElement.querySelectorAll('button')].find(b => b.textContent.trim() === txt) : null; };
   const lit = b => !!b && /232, 64, 28|231, 76, 60|e74c3c|accent/i.test(b.getAttribute('style') || '') && !/border:\s*1(\.5)?px solid var\(--border\)/.test(b.getAttribute('style') || '');
   if (opts.answer) {
-    for (const [label, txt] of [['ALL ORIGINAL', 'No'], ['HAS BOX', 'Yes'], ['INSTR. SHEET', 'Yes'], ['MASTER BOX', 'Yes'], ['ERROR ITEM', 'Yes']]) {
+    for (const [label, txt] of [['ALL ORIGINAL', 'No'], ['HAS BOX', 'Yes'], ['INSTR. SHEET', 'Yes'], ['MASTER CARTON', 'Yes'], ['ERROR ITEM', 'Yes']]) {
       const b = btn(label, txt); if (b) { b.click(); await S(150); }
     }
   }
@@ -88,7 +88,7 @@ const step2 = (pg, opts) => pg.evaluate(async (opts) => {
     split: !!document.querySelector('.cd-fields.cd-split'),
     left: R(document.querySelector('.cd-sliders')), right: R(document.querySelector('.cd-questions')),
     cond: slider('cd-cond-val-main'), box: slider('cd-boxcond-val-main'), isc: slider('cd-is-cond-val'),
-    qs: ['ALL ORIGINAL', 'HAS BOX', 'INSTR. SHEET', 'MASTER BOX', 'ERROR ITEM'].map(l => { const s = q(l); return s ? R(s) : null; }),
+    qs: ['ALL ORIGINAL', 'HAS BOX', 'INSTR. SHEET', 'MASTER CARTON', 'ERROR ITEM'].map(l => { const s = q(l); return s ? R(s) : null; }),
     data: { orig: wizard.data.allOriginal, box: wizard.data.hasBox, is: wizard.data.hasIS, mb: wizard.data.hasMasterBox, err: wizard.data.isError },
     errYesLit: lit(btn('ERROR ITEM', 'Yes')), errNoLit: lit(btn('ERROR ITEM', 'No')),
     errBox: R(document.getElementById('cd-error-reveal-main')), sheetBox: R(document.getElementById('cd-is-reveal')),

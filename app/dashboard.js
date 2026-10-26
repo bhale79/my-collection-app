@@ -83,6 +83,12 @@ function _ownedNonBox(state) {
     // the list — looking like "item counted but missing".
     var _n176 = String(pd.itemNum || '').toUpperCase();
     if (_n176.endsWith('-BOX') || _n176.endsWith('-MBOX')) return false;
+    // v0.9.2026 ([stated] Brad "yes", after two York customers each added ONE
+    // MTH engine and saw 2 items, the second under Lionel Postwar): an
+    // instruction sheet GROUPED with its item is a piece of that item, like
+    // its box — the list already folds it away, so the count does too. A
+    // sheet on its own (no group) is still counted.
+    if (_n176.endsWith('-IS') && String(pd.groupId || '').trim()) return false;
     // v0.9.1567 (Brad, verbatim: "every item counts as one, if there are 3
     // items in a group, that counts as 3. not 1 or 4") — group companions
     // (tenders, dummies, B-units) are REAL ITEMS and count. The fold is a

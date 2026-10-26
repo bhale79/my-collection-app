@@ -465,6 +465,14 @@ function buildPersonalRow(fields) {
   if (!_rowIsManual && _mfi !== undefined) {   // v0.9.724: manual rows keep the maker the user chose
     // v0.9.1882: the brand follows THIS copy's row (its Row ID / key / era), never the first row under the number
     var _mb = (typeof _brandOfItem === 'function') ? _brandOfItem(inum, vari, _descPrefer) : '';
+    // v0.9.2026: a PIECE (a -BOX, -MBOX or -IS row) has no catalog row of its
+    // own, so it took the era view's maker ('Lionel' in All Collection) or
+    // none at all. It takes the maker of the item it belongs to — found with
+    // the era the save passes, never the bare number.
+    var _pieceOf = /^(.+?)-(BOX|MBOX|IS)$/i.exec(String(inum).trim());   // '30-1234-1-BOX' -> '30-1234-1'
+    if (!_mb && typeof _brandOfItem === 'function' && _pieceOf) {
+      _mb = _brandOfItem(_pieceOf[1], '', { era: fields.era || '', manufacturer: '' });
+    }
     if (_mb) row[_mfi] = _mb;
   }
   // Force identifier columns to TEXT so Google's USER_ENTERED doesn't
@@ -1806,7 +1814,7 @@ function getBoxVariations(itemNum) {
   if (state._boxVarCache) state._boxVarCache.set(cacheKey, boxes);
   return boxes;
 }
-function _buildGroupBoxRow(unitNum, boxCond, boxPhotoLink, groupId, datePurchased, leadItemNum, boxVariation, boxVariationDesc) {
+function _buildGroupBoxRow(unitNum, boxCond, boxPhotoLink, groupId, datePurchased, leadItemNum, boxVariation, boxVariationDesc, era) {
   var noteText = 'Box for ' + unitNum;
   if (boxVariationDesc) noteText += ' — ' + boxVariationDesc;
   // Session 156: uses buildPersonalRow so the field map is schema-agnostic.
@@ -1823,6 +1831,7 @@ function _buildGroupBoxRow(unitNum, boxCond, boxPhotoLink, groupId, datePurchase
     matchedTo:    unitNum,
     inventoryId:  nextInventoryId(),
     groupId:      groupId,
+    era:          era || undefined,   // v0.9.2026: the item's era (its maker follows in buildPersonalRow)
   });
 }
 function genSetId(baseNum) {

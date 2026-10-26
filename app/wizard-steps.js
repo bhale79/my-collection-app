@@ -350,7 +350,7 @@ function getSteps(tab) {
     if (wizard.data.boxOnly) {
       return [
         { id: 'itemNumGrouping',  title: 'Item Number',       type: 'itemNumGrouping' },
-        { id: 'boxCondDetails',   title: (d) => (d._boxKind === 'mbox' ? 'Master carton condition — ' : 'Box condition — ') + getItemLabel(d), type: 'boxCondDetails' },
+        { id: 'boxCondDetails',   title: (d) => (d._boxKind === 'mbox' ? RR_MASTER_CARTON + ' condition — ' : 'Box condition — ') + getItemLabel(d), type: 'boxCondDetails' },
         { id: 'boxVariation', title: (d) => 'Which box type do you have?', type: 'boxVariationPicker',
           skipIf: (d) => {
             // Session 140 (Tier 3.19): Lionel-only step — box-variation data
@@ -523,9 +523,9 @@ function getSteps(tab) {
         skipIf: (d) => _subs(d).length <= 1 },
 
       // ── Master box photos ──
-      { id: 'photosMasterBox', title: 'Add photos of the master box',
+      { id: 'photosMasterBox', title: () => 'Add photos of the ' + RR_MASTER_CARTON.toLowerCase(),   // v0.9.2026: the name
         type: 'drivePhotos', label: 'MasterBox',
-        photoBanner: { color: '#9b59b6', label: () => '\u{1F7EA} PHOTOS: Master Box' },
+        photoBanner: { color: '#9b59b6', label: () => '\u{1F7EA} PHOTOS: ' + RR_MASTER_CARTON },
         skipIf: (d) => d.hasMasterBox !== 'Yes' },
 
       // ── Year / Era (S153): fires only when master.yearProd is missing.

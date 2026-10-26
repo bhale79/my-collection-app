@@ -430,7 +430,7 @@ function buildPrefsPage() {
           </select>
         </div>
         <div class="pref-row" style="padding:0.45rem 0.6rem">
-          <div class="pref-row-label"><strong>Master Box</strong></div>
+          <div class="pref-row-label"><strong>${RR_MASTER_CARTON}</strong></div>
           <select class="pref-select" style="min-width:72px" onchange="_prefSet('lv_def_masterBox', this.value)">
             <option value="Yes" ${_prefGet('lv_def_masterBox','No')==='Yes'?'selected':''}>Yes</option><option value="No" ${_prefGet('lv_def_masterBox','No')==='No'?'selected':''}>No</option>
           </select>

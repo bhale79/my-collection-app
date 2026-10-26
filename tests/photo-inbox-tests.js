@@ -9341,13 +9341,16 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // because this section is about the markup, not the facts.
       // Session 85: _wizCondHelp joined the builder with the v1548 grading
       // help — one more true boundary, stubbed to empty markup.
+      // v0.9.2026: the master carton's NAME (config.js RR_MASTER_CARTON) is the
+      // real value, lifted from config.js — never retyped here.
+      const _mcName = (fs.readFileSync(require('path').join(__dirname, '..', 'app', 'config.js'), 'utf8').match(/const RR_MASTER_CARTON = '([^']+)';/) || [])[1];
       return new Function('wizard', 'rrEsc', '_cd2up', '_isMobile', '_cdMaster',
                           '_cdIsPaperLike', '_cdHideToggles', 'getMatchingTenders',
-                          '_cdEraFacts', '_wizCondHelp', 'window', 'document',
+                          '_cdEraFacts', '_wizCondHelp', 'window', 'document', 'RR_MASTER_CARTON',
         '"use strict";' + bsrc + '; return _buildCondCol;')(
         o.wizard || { data: {} }, x => String(x == null ? '' : x),
         !!o.two, !!o.mobile, o.master || null, !!o.paper, !!o.hide,
-        () => ['2466W'], o.facts || (() => []), () => '', {}, {})(col);
+        () => ['2466W'], o.facts || (() => []), () => '', {}, {}, _mcName)(col);
     };
 
     // a small stack parser — the one property at risk is nesting
@@ -9931,13 +9934,14 @@ META_WRITES.length = 0; TOASTS.length = 0;
     const a = wz.indexOf('function _buildCondCol(col) {');
     const bEnd = wz.indexOf('return html;\n    }', a);
     const bsrc = wz.slice(a, bEnd + 'return html;\n    }'.length);
+    const _mcName2 = (fs.readFileSync(require('path').join(__dirname, '..', 'app', 'config.js'), 'utf8').match(/const RR_MASTER_CARTON = '([^']+)';/) || [])[1];   // v0.9.2026: the real name
     const build = (o) => new Function('wizard', 'rrEsc', '_cd2up', '_isMobile', '_cdMaster',
       '_cdIsPaperLike', '_cdHideToggles', 'getMatchingTenders', '_cdEraFacts',
-      '_wizCondHelp', 'window', 'document', '"use strict";' + bsrc + '; return _buildCondCol;')(
+      '_wizCondHelp', 'window', 'document', 'RR_MASTER_CARTON', '"use strict";' + bsrc + '; return _buildCondCol;')(
         { data: { _era: o.era || '' } }, x => String(x == null ? '' : x),
         false, false, o.master || null, false, false, () => [],
         new Function('master', 'era', '"use strict";' + src + '; return _cdEraFacts(master, era);'),
-        () => '', {}, {})(o.col || { id: 'main', label: 'No. 20-3092-1', prefix: '', description: 'Premier Hudson' });
+        () => '', {}, {}, _mcName2)(o.col || { id: 'main', label: 'No. 20-3092-1', prefix: '', description: 'Premier Hudson' });
 
     const mth = build({ era: 'mth_o', master: { category: 'Premier' } });
     ok('the fact renders on the step',

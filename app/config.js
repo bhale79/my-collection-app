@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2025';
+const APP_VERSION = 'v0.9.2026';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -3361,6 +3361,7 @@ const RR_GPHOTOS_WAIT = {
   opening: 'Opening Google Photos\u2026',
   waiting: 'Waiting for you to press Done in Google Photos\u2026',
   blocked: 'Your browser blocked the Google Photos tab \u2014 press Open Google Photos.',
+  permitted: 'Google Photos permission is set \u2014 press Open Google Photos.',   // v0.9.2026: the first time, after Google's permission window
   fetching: 'Got it \u2014 bringing it in\u2026',
   reopen: 'Open Google Photos',
   cancel: 'Cancel',
@@ -3608,9 +3609,18 @@ if (typeof window !== 'undefined') { window.RR_INSTALL_HELP = RR_INSTALL_HELP; w
 // and the "which piece?" box it opens (app-collection.js rrAddPieceOpen).
 // Each piece names the ending its row's item number gets and the Add flow it
 // opens; the button only shows when at least one piece is missing.
+// v0.9.2026 — the NAME of a master carton, everywhere a person reads it
+// ([stated] Brad: "change the name of master carton to 'master carton / outside
+// shipper'" — customers asked whether "Master Box" meant the plain brown
+// shipping carton; it does). Words only: the type a row STORES stays
+// 'Master Carton' (reports, filters and older rows read it); rrTypeWord shows
+// a stored type in words.
+const RR_MASTER_CARTON = 'Master Carton / Outside Shipper';
+function rrTypeWord(t) { return String(t || '') === 'Master Carton' ? RR_MASTER_CARTON : String(t || ''); }
+if (typeof window !== 'undefined') { window.RR_MASTER_CARTON = RR_MASTER_CARTON; window.rrTypeWord = rrTypeWord; }
 const RR_ADD_PIECE = {
   button: 'Add a Piece to Group',
-  tip: 'Add a box, instruction sheet or master carton that goes with this item. It joins this item’s group.',
+  tip: 'Add a box, instruction sheet or ' + RR_MASTER_CARTON.toLowerCase() + ' that goes with this item. It joins this item’s group.',
   title: 'Add a piece to No. {num}',
   sub: 'It joins this group and links to this copy.',
   cancel: 'Cancel',
@@ -3620,17 +3630,17 @@ const RR_ADD_PIECE = {
   pieces: [
     { kind: 'box',  icon: '📦', label: 'Box',               desc: 'The box this item came in',          ending: '-BOX'  },
     { kind: 'is',   icon: '📄', label: 'Instruction Sheet', desc: 'Paperwork that came with it',        ending: '-IS'   },
-    { kind: 'mbox', icon: '🗃️', label: 'Master Carton',     desc: 'The outer carton it was shipped in', ending: '-MBOX' },
+    { kind: 'mbox', icon: '🗃️', label: RR_MASTER_CARTON, desc: 'The plain carton the boxed item was shipped in', ending: '-MBOX' },
   ],
   // Words the Box Only screens use when the piece is a master carton.
   mbox: {
-    cond: 'Master Carton Condition',
-    group: 'Links this master carton to your {num} with a shared Group ID.',
-    photo: 'Master carton photo (optional)',
-    photoBtn: 'Add master carton photo',
-    confirm: 'Ready to save the master carton!',
-    note: 'Master carton for {num}',
-    saved: '✓ Master carton for {num} saved!',
+    cond: RR_MASTER_CARTON + ' Condition',
+    group: 'Links this ' + RR_MASTER_CARTON.toLowerCase() + ' to your {num} with a shared Group ID.',
+    photo: RR_MASTER_CARTON + ' photo (optional)',
+    photoBtn: 'Add ' + RR_MASTER_CARTON.toLowerCase() + ' photo',
+    confirm: 'Ready to save the ' + RR_MASTER_CARTON.toLowerCase() + '!',
+    note: RR_MASTER_CARTON + ' for {num}',
+    saved: '✓ ' + RR_MASTER_CARTON + ' for {num} saved!',
   },
 };
 if (typeof window !== 'undefined') window.RR_ADD_PIECE = RR_ADD_PIECE;
