@@ -204,6 +204,22 @@ function _rrIsWheelArrangement(t) { return /^\d{1,2}(?:-\d{1,2}){2,}$/.test(Stri
 // matches on the number, not the whole descriptive string. Returns the
 // first token with 2+ digits or a digit-hyphen-digit shape; else the
 // first token (legacy behavior for pure text searches).
+// v0.9.2028 — THE one place the Add list's rail chip gets its words:
+// "<maker> <n>-Rail" (e.g. "Atlas 3-Rail", "Weaver 2-Rail"). The maker comes
+// from the row's own catalog (_rrCatalogRowMaker, catalog-display-config.js);
+// with no maker known it falls back to the bare "3-Rail". No rail number in
+// the row's Track/Power → '' (no chip; Lionel rows leave it blank).
+function rrRailChipLabel(c) {
+  if (!c || !c.trackPower) return '';
+  var m = String(c.trackPower).match(/(\d)\s*-?\s*rail/i);
+  if (!m) return '';
+  var rail = m[1] + '-Rail';
+  var maker = '';
+  try { if (typeof _rrCatalogRowMaker === 'function') maker = String(_rrCatalogRowMaker(c) || '').trim(); } catch (e) {}
+  return maker ? maker + ' ' + rail : rail;
+}
+if (typeof window !== 'undefined') window.rrRailChipLabel = rrRailChipLabel;
+
 function _extractSearchItemNum(query) {
   if (!query) return '';
   var toks = String(query).trim().split(/\s+/);
@@ -604,7 +620,9 @@ function updateItemSuggestions(query) {
 
     // ── Line 1 ── item# · road name · reference link (far right)
     const line1 = document.createElement('div');
-    line1.style.cssText = 'display:flex;align-items:baseline;gap:0.5rem;width:100%;min-width:0';
+    // v0.9.2028: wraps, so on a phone a long number + type + "Atlas 2-Rail"
+    // drops the reference link to its own line instead of off the edge.
+    line1.style.cssText = 'display:flex;flex-wrap:wrap;row-gap:0.3rem;align-items:baseline;gap:0.5rem;width:100%;min-width:0';
 
     const numSpan = document.createElement('span');
     numSpan.style.cssText = 'font-family:var(--font-mono);font-weight:600;color:var(--accent2);font-size:0.95rem;flex-shrink:0';
@@ -623,16 +641,11 @@ function updateItemSuggestions(query) {
       line1.appendChild(typeSpan);
     }
 
-    // Session 158: compact rail-type chip (3-Rail / 2-Rail) so multi-rail
-    // catalogs (Weaver/Atlas/MTH) are distinguishable at a glance — the two
-    // rows for one model (e.g. Weaver 1016-L 3-rail vs 1016-S 2-rail) look
-    // identical otherwise. Derived from the track/power field; absent for
-    // Lionel (field blank) so those rows stay clean.
-    var _railLabel = '';
-    if (c.trackPower) {
-      var _railMatch = String(c.trackPower).match(/(\d)\s*-?\s*rail/i);
-      if (_railMatch) _railLabel = _railMatch[1] + '-Rail';
-    }
+    // Session 158: compact rail-type chip so multi-rail catalogs
+    // (Weaver/Atlas/MTH) are distinguishable at a glance. v0.9.2028: the
+    // chip names the maker ("Atlas 3-Rail") — a bare "3-Rail" read like the
+    // 3rd Rail brand (Brad, 2026-10-25). Words come ONLY from rrRailChipLabel.
+    var _railLabel = rrRailChipLabel(c);
     if (_railLabel) {
       const railSpan = document.createElement('span');
       railSpan.style.cssText = 'font-size:0.7rem;font-weight:700;letter-spacing:0.04em;'
@@ -665,7 +678,7 @@ function updateItemSuggestions(query) {
       refA.onclick = function(ev) { ev.stopPropagation(); };
       refA.style.cssText = 'font-size:0.72rem;color:var(--accent2);text-decoration:none;'
         + 'padding:0.2rem 0.5rem;border:1px solid rgba(201,146,42,0.35);border-radius:6px;'
-        + 'background:rgba(201,146,42,0.08);flex-shrink:0;white-space:nowrap;font-weight:600';
+        + 'background:rgba(201,146,42,0.08);flex-shrink:0;white-space:nowrap;font-weight:600;margin-left:auto';
       line1.appendChild(refA);
     }
     row.appendChild(line1);
