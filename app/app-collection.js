@@ -1208,7 +1208,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
     ? rrOwnedCopyKeys(it.itemNum, it.variation) : [];
   var _copyPos = (pdKey && _allCopyKeys.length) ? (_allCopyKeys.indexOf(pdKey) + 1) : 0;
   var _copyChip = (_allCopyKeys.length > 1 && _copyPos > 0)
-    ? `<span onclick="rrShowCopyPicker(${idx})" title="You own ${_allCopyKeys.length} of this item — click to switch copies" style="font-size:0.8rem;color:var(--accent2);background:var(--surface2);border:1px solid var(--accent2);border-radius:6px;padding:0.12rem 0.5rem;cursor:pointer;white-space:nowrap">Copy ${_copyPos} of ${_allCopyKeys.length} \u25be</span>`
+    ? `<span onclick="rrShowCopyPicker(${idx})"${typeof rrTermAttrs === 'function' ? rrTermAttrs('copyOf') : ''} style="font-size:0.8rem;color:var(--accent2);background:var(--surface2);border:1px solid var(--accent2);border-radius:6px;padding:0.12rem 0.5rem;cursor:pointer;white-space:nowrap">Copy ${_copyPos} of ${_allCopyKeys.length} \u25be</span>`
     : '';
   let _headHtml = `
   <div style="margin-bottom:1.5rem">
@@ -1229,7 +1229,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
         <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.25rem">
           <span style="font-family:var(--font-head);font-size:1.6rem;color:var(--t-accent);letter-spacing:0.03em">${_wantMode ? ('Wanted: ' + (_wantHeading || (it.itemNum + (_wantPartner ? ' with a ' + _wantPartner : '')))) : (!String(it.itemNum||'').trim() ? String((pd && (pd.yourDescription || pd.description)) || it.description || 'No item number').split(' ').slice(0, 8).join(' ') : (String(it.itemNum||'').indexOf(' ')===-1 ? 'No. ' + it.itemNum + (it.poweredDummy === 'P' ? '-P' : it.poweredDummy === 'D' ? '-D' : '') : it.itemNum))}</span>${typeof window._noNumTag==='function' ? window._noNumTag(it.itemNum) : ''}
           ${isForSale ? `<span style="font-size:1rem;color:var(--gold);font-family:var(--font-head);letter-spacing:0.02em">— on the sale list for <span id="fs-price-span">${_fsPrice}</span></span> <a href="javascript:_fsEditPrice()" style="font-size:0.78rem;color:var(--accent2);text-decoration:none;font-weight:700">edit</a>` : ''}
-          ${it.variation ? `<span style="font-size:0.9rem;color:var(--text-dim);background:var(--surface2);border-radius:6px;padding:0.15rem 0.6rem">Var. ${it.variation}</span>` : ''}
+          ${it.variation ? `<span${typeof rrTermAttrs === 'function' ? rrTermAttrs('variation') : ''} style="font-size:0.9rem;color:var(--text-dim);background:var(--surface2);border-radius:6px;padding:0.15rem 0.6rem">Var. ${it.variation}</span>` : ''}
           ${it.itemType ? `<span class="tag">${rrTypeWord(it.itemType)}</span>` : ''}
           ${it.yearProd ? `<span style="font-size:0.82rem;color:var(--text-dim)">${it.yearProd}</span>` : ''}
           ${(typeof rrCatalogStatusChip === 'function') ? rrCatalogStatusChip(it) : ''}
@@ -1308,9 +1308,11 @@ function showItemDetailPage(idx, copyInvId, opts) {
       + (function () {
           var _lead = _grpUnits[0] ? String(_grpUnits[0].itemNum || '') : '';
           var _base = _lead.replace(/-(P|D)$/i, '');
-          if (_grpCfg === 'Engine + Tender') return _base + ' Engine + Tender';
-          if (_grpCfg && _grpCfg !== 'Set') return _base + ' ' + _grpCfg + ' Set';
-          return 'Grouped Set';
+          // v0.9.2027: the kind of group is a defined word (RR_TERMS)
+          var _tw = function (k, h) { return (typeof rrTermWrap === 'function') ? rrTermWrap(k, h) : h; };
+          if (_grpCfg === 'Engine + Tender') return _base + ' ' + _tw('engineTender', 'Engine + Tender');
+          if (_grpCfg && _grpCfg !== 'Set') return _base + ' ' + (/^A{1,2}B?A?$/.test(_grpCfg) ? _tw('dieselSets', _grpCfg + ' Set') : _grpCfg + ' Set');
+          return _tw('groupedSet', 'Grouped Set');
         })()
       + ' · ' + _grpFull.length + ' pieces</div>'
       + '<div style="display:flex;gap:0.6rem;flex-wrap:wrap">'
@@ -1321,7 +1323,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
           var box = /-(BOX|MBOX)$/i.test(String(p.itemNum||'')) ? '' : (p.hasBox === 'Yes' ? ('Box ✓' + (p.boxCond ? ' (' + p.boxCond + ')' : '')) : 'No box');
           var worth = p.userEstWorth ? _currencySymbol() + parseFloat(p.userEstWorth).toLocaleString() : '';
           return '<div onclick="if(typeof _grpHeroSwap===\'function\')_grpHeroSwap(' + i + ')" title="' + ((window.innerWidth || 0) >= 1000 ? 'Show this unit\'s photo above' : 'Jump to this unit\'s photos') + '" style="cursor:pointer;flex:1;min-width:150px;max-width:230px;background:var(--surface2);border:1px solid ' + (me ? 'var(--accent3,#2ecc71)' : 'var(--border)') + ';border-radius:10px;padding:0.6rem 0.75rem">'
-            + '<div style="font-size:0.64rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--accent3,#2ecc71)">' + rrTypeWord(role) + (me ? ' · this page' : '') + '</div>'
+            + '<div style="font-size:0.64rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--accent3,#2ecc71)">' + ((typeof RR_TERM_FOR !== 'undefined' && RR_TERM_FOR.role[role]) ? rrTermWrap(RR_TERM_FOR.role[role], rrTypeWord(role)) : rrTypeWord(role)) + (me ? ' · this page' : '') + '</div>'
             + '<div style="font-family:var(--font-mono);font-weight:700;color:var(--t-accent);font-size:0.95rem;margin:0.15rem 0">' + String(p.itemNum || '').replace(/</g, '&lt;') + (p.photoItem ? ' <span title="Has photos" style="font-size:0.78rem">📷</span>' : '') + '</div>'
             + '<div style="font-size:0.74rem;color:var(--text-mid);line-height:1.5">Cond ' + cond + (box ? ' · ' + box : '') + (worth ? '<br>Worth ' + worth : '') + '</div>'
             // v0.9.1569 (audit step 5): Remove sits beside Edit/Photos — the
@@ -1374,7 +1376,9 @@ function showItemDetailPage(idx, copyInvId, opts) {
     ...((typeof rrUserFieldsForItem === 'function' ? rrUserFieldsForItem(pd) : (typeof rrEnabledUserFields === 'function' ? rrEnabledUserFields() : [])).map(function (f) {
       return { id: 'uf_' + f.key,   // v0.9.1571: the KEY is stable; the label is Brad's to rename
                label: (typeof rrFieldLabel === 'function' ? rrFieldLabel(f) : f.label),
-               val: (pd && pd[f.key]) ? String(pd[f.key]).replace(/</g, '&lt;') : null };
+               // v0.9.2027: a field that SHOWS a worked-out value (the master carton column) reads it
+               val: f.show ? (String(f.show(pd) || '').replace(/</g, '&lt;') || null)
+                           : ((pd && pd[f.key]) ? String(pd[f.key]).replace(/</g, '&lt;') : null) };
     })),
     { id: 'inventoryId', label: 'Inventory ID', val: pd && pd.inventoryId ? pd.inventoryId : null },
     { id: 'instructionSheet', label: 'Instruction Sheet', val: pd ? (((groupMembers && groupMembers.some(function(m){return m._isIS;})) || (state.isData && Object.values(state.isData).some(function(_is){ return _is && _is.linkedItem === it.itemNum; }))) ? '\u2705 Yes' : 'No') : null },
@@ -1424,7 +1428,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0.6rem 1.5rem">
       ${details.map(d => `<div style="display:flex;justify-content:space-between;padding:0.35rem 0;border-bottom:1px solid var(--border)">
-        <span style="font-size:0.78rem;color:var(--text-dim);font-weight:600">${d.label}</span>
+        <span${(typeof RR_TERM_FOR !== 'undefined' && RR_TERM_FOR.detail[d.id]) ? rrTermAttrs(RR_TERM_FOR.detail[d.id]) : ''} style="font-size:0.78rem;color:var(--text-dim);font-weight:600">${d.label}</span>
         <span style="font-size:0.85rem;color:var(--text);text-align:right">${d.val}</span>
       </div>`).join('')}
     </div>
@@ -4130,7 +4134,12 @@ function showItemPanel(idx, pdKey, mode) {
     // can never drift apart.
     // v0.9.1988: the same list the detail page shows (rrUserFieldsForItem) —
     // a value on this item can always be changed or cleared here.
-    ...((typeof rrUserFieldsForItem === 'function' ? rrUserFieldsForItem(pd) : (typeof rrEnabledUserFields === 'function' ? rrEnabledUserFields() : [])).map(function (f) {
+    // v0.9.2027: a field whose value is worked out (show) is edited here only
+    // while it still holds text typed before (so that text can be changed or
+    // cleared) — a master carton is added as a piece of the group.
+    ...((typeof rrUserFieldsForItem === 'function' ? rrUserFieldsForItem(pd) : (typeof rrEnabledUserFields === 'function' ? rrEnabledUserFields() : [])).filter(function (f) {
+      return !f.show || String(pd[f.key] || '').trim() !== '';
+    }).map(function (f) {
       return { label: (typeof rrFieldLabel === 'function' ? rrFieldLabel(f) : f.label),
                key: f.key, val: pd[f.key] || '—', type: 'text',
                // v0.9.1531b: Location Detail offers what is inside THIS item's

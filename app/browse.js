@@ -4805,8 +4805,9 @@ function _rrBrowseCore(_co) {
       // sort as numbers; blanks sort LAST in both directions, because an
       // empty cell is not "before A" — it is an absence, and burying the
       // absences under the answers is what anyone sorting a column wants.
+      // v0.9.2027: a column with a worked-out value (xc.value — the master carton) sorts by what it shows.
       _COLL_EXTRA_COLS.forEach(function (xc) {
-        var raw = pd && pd[xc.pdKey] != null ? String(pd[xc.pdKey]).trim() : '';
+        var raw = xc.value ? String(xc.value(pd) || '').trim() : (pd && pd[xc.pdKey] != null ? String(pd[xc.pdKey]).trim() : '');
         if (xc.money) {
           var n = parseFloat(raw.replace(/[^0-9.\-]/g, ''));
           _row[xc.col] = isFinite(n) ? n : -1;

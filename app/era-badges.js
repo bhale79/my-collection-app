@@ -58,7 +58,10 @@
     var padX = size === 'lg' ? '8px' : '5px';
     var fontSize = size === 'lg' ? '0.7rem' : '0.62rem';
     return '<span class="era-badge era-badge-' + _escape(eraKey) + '" ' +
-      'title="' + _escape(fullLabel) + '" ' +
+      // v0.9.2027: a badge whose catalogue sits in one period says the period's years too
+      ((typeof rrEraTermKey === 'function' && rrEraTermKey(eraKey) && typeof rrTermAttrs === 'function')
+        ? rrTermAttrs(rrEraTermKey(eraKey), fullLabel) + ' '
+        : 'title="' + _escape(fullLabel) + '" ') +
       'style="display:inline-block;padding:' + padY + ' ' + padX + ';' +
       'border-radius:4px;font-size:' + fontSize + ';font-weight:700;' +
       'letter-spacing:0.05em;background:' + _escape(accent) + ';color:' + _escape(rrInkOn(accent)) + ';' +   // v0.9.1851

@@ -82,7 +82,9 @@ function _updateGroupingButtons() {
     // on POINTERDOWN (first contact, before any re-render can land);
     // onclick stays for keyboard users, double-fire guarded in
     // _selectGrouping.
-    html += '<button onpointerdown="_selectGrouping(\'' + btn.id + '\')" onclick="_selectGrouping(\'' + btn.id + '\')" style="flex:' + _btnFlex + ';min-width:0;padding:0.5rem 0.6rem;border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;transition:all 0.15s;font-family:var(--font-body);white-space:normal;word-break:break-word;text-align:center;line-height:1.2;'
+    // v0.9.2027: a grouping that is a defined word shows its definition on hover
+    var _gTerm = (typeof RR_TERM_FOR !== 'undefined' && typeof rrTermAttrs === 'function' && RR_TERM_FOR.grouping[btn.id]) ? rrTermAttrs(RR_TERM_FOR.grouping[btn.id]) : '';
+    html += '<button' + _gTerm + ' onpointerdown="_selectGrouping(\'' + btn.id + '\')" onclick="_selectGrouping(\'' + btn.id + '\')" style="flex:' + _btnFlex + ';min-width:0;padding:0.5rem 0.6rem;border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;transition:all 0.15s;font-family:var(--font-body);white-space:normal;word-break:break-word;text-align:center;line-height:1.2;'
       + 'border:2px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';'
       + 'background:' + (sel ? 'rgba(232,64,28,0.12)' : 'var(--surface2)') + ';'
       + 'color:' + (sel ? 'var(--t-accent)' : 'var(--text-mid)') + '">'

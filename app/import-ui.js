@@ -458,7 +458,7 @@ var _IMP_FIELD_LABELS = {
   quantity: 'Quantity (copies)', photoFile: 'Photo filename', ignore: '— not imported —',
   // v0.9.1514 (Phase 2): Scott's Shipper / Collection / Owner columns finally
   // have real homes. Custom slots show the user's own name once they name one.
-  locationDetail: 'Location Detail (Tote 12…)', shipper: 'Shipper (outer carton)',
+  locationDetail: 'Location Detail (Tote 12…)', shipper: RR_MASTER_CARTON,
   subCollection: 'Sub-collection', subType: 'Sub Type',   // v0.9.1863: a user field now
   custom1: 'Custom column 1', custom2: 'Custom column 2',
   custom3: 'Custom column 3', custom4: 'Custom column 4', custom5: 'Custom column 5',

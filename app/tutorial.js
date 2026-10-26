@@ -405,14 +405,18 @@ function tutCheckAutoLaunch() {
   var _active = null;
   var DELAY = 1500;
 
+  var _tipFor = null;   // v0.9.2027: the element the tip on screen belongs to
   function _show(target) {
     _clearTip();
+    _tipFor = target;
     var text = target.getAttribute('data-ctip');
     if (!text) return;
 
     var rect = target.getBoundingClientRect();
     var tip = document.createElement('div');
     tip.id = 'conductor-tip';
+    // v0.9.2027: a defined word's tip also shows on a phone (tutorial.css)
+    if (target.hasAttribute('data-term')) tip.classList.add('ctip-term');
     tip.innerHTML =
       '<img src="./img/conductor-pointing.png" id="ctip-img">' +
       '<div id="ctip-bubble"><div id="ctip-tail"></div>' + text + '</div>';
@@ -448,6 +452,7 @@ function tutCheckAutoLaunch() {
     if (existing) existing.remove();
     if (_timer) { clearTimeout(_timer); _timer = null; }
     _active = null;
+    _tipFor = null;
   }
 
   document.addEventListener('mouseover', function(e) {
@@ -466,11 +471,93 @@ function tutCheckAutoLaunch() {
     _clearTip();
   });
 
-  // Dismiss on scroll or click
-  document.addEventListener('scroll', _clearTip, true);
-  document.addEventListener('click', _clearTip, true);
+  // Dismiss on scroll or click.
+  // v0.9.2027: only a scroll that MOVES the word puts its tip away (the page,
+  // or a box the word sits in). Any scroll anywhere used to — the bottom nav
+  // settling, a list nudging itself into view — and a tip could vanish the
+  // moment it appeared.
+  document.addEventListener('scroll', function (e) {
+    var t = e.target, subject = _tipFor || _active;   // the tip on screen, or the one waiting to show
+    if (!subject) return;
+    if (t === document || t === document.documentElement || t === document.body || (t && t.contains && t.contains(subject))) _clearTip();
+  }, true);
+  document.addEventListener('click', function (e) {
+    if (Date.now() < _swallowUntil) { e.preventDefault(); e.stopPropagation(); return; }   // the click a press-and-hold would make
+    _clearTip();
+  }, true);
+
+  // ── v0.9.2027 — PRESS AND HOLD a defined word on a phone or tablet ──
+  // There is no mouse to rest on a word, so holding a finger on it for half a
+  // second shows the same conductor tip; lifting the finger leaves it up, and
+  // the next touch anywhere puts it away. Only words marked data-term (from
+  // rrTermAttrs, config.js) — buttons keep their tap. HOLD_MS is the wait.
+  var HOLD_MS = 500, _holdT = null, _heldTip = false, _holdXY = null, _swallowUntil = 0, _lastTouchAt = 0;
+  document.addEventListener('touchstart', function (e) {
+    var tgt = e.target && e.target.closest ? e.target.closest('[data-term][data-ctip]') : null;
+    if (document.getElementById('conductor-tip') && !_holdT) _clearTip();
+    if (_holdT) { clearTimeout(_holdT); _holdT = null; }
+    if (!tgt) return;
+    var t0 = e.touches && e.touches[0];
+    _holdXY = t0 ? [t0.clientX, t0.clientY] : null; _lastTouchAt = Date.now();
+    _holdT = setTimeout(function () { _holdT = null; _show(tgt); _heldTip = true; }, HOLD_MS);
+  }, { passive: true, capture: true });
+  document.addEventListener('touchmove', function (e) {
+    if (!_holdT || !_holdXY) return;
+    var t0 = e.touches && e.touches[0];
+    if (t0 && (Math.abs(t0.clientX - _holdXY[0]) > 10 || Math.abs(t0.clientY - _holdXY[1]) > 10)) { clearTimeout(_holdT); _holdT = null; }
+  }, { passive: true, capture: true });
+  document.addEventListener('touchend', function (e) {
+    if (_holdT) { clearTimeout(_holdT); _holdT = null; }
+    if (_heldTip) {   // the finger lifts off a press-and-hold: no click, the tip stays up
+      if (e.cancelable) e.preventDefault();
+      _swallowUntil = Date.now() + 600; _heldTip = false;
+    }
+  }, { capture: true });
+  document.addEventListener('contextmenu', function (e) {
+    if (Date.now() - _lastTouchAt < 1500 && e.target && e.target.closest && e.target.closest('[data-term]')) e.preventDefault();   // a phone's long-press menu, not a desktop right-click
+  }, true);
 })();
 
+
+// ── v0.9.2027 — Help → Terms and what they mean: every word in RR_TERMS
+// (config.js), grouped as the list groups them. The same words the dotted
+// underlines show — one list, so the page and the tips can never disagree.
+function rrTermsOpen() {
+  var old = document.getElementById('rr-terms'); if (old) old.remove();
+  var ov = document.createElement('div');
+  ov.id = 'rr-terms';
+  ov.style.cssText = 'position:fixed;inset:0;background:var(--scrim);z-index:100000;display:flex;align-items:flex-start;justify-content:center;padding:1.25rem;overflow-y:auto';
+  var close = function () { ov.remove(); };
+  if (typeof rrDismissGuard === 'function') rrDismissGuard(ov, close);   // a backdrop click does nothing; Back closes
+  var esc = function (t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+  var groups = [], byGroup = {};
+  (typeof RR_TERMS !== 'undefined' ? RR_TERMS : []).forEach(function (t) {
+    var g = t.group || 'Other';
+    if (!byGroup[g]) { byGroup[g] = []; groups.push(g); }
+    byGroup[g].push(t);
+  });
+  ov.innerHTML = '<div style="background:var(--surface);border-radius:16px;max-width:560px;width:100%;margin:auto;box-shadow:0 12px 40px var(--scrim);font-family:var(--font-body)">'
+    + '<div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">'
+    +   '<strong style="font-size:1.1rem;color:var(--text)">\ud83d\udcd8 Terms and what they mean</strong>'
+    +   '<button type="button" data-close="1" title="Close" style="background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;line-height:1;padding:0 0.25rem">\u00d7</button>'
+    + '</div>'
+    + '<div style="padding:0.4rem 1.25rem 1.25rem;max-height:74vh;overflow-y:auto">'
+    + '<p style="font-size:0.8rem;color:var(--text-dim);margin:0.6rem 0 0">Words with a dotted line under them in the app show these too \u2014 rest the mouse on one, or press and hold it on a phone.</p>'
+    + groups.map(function (g) {
+        return '<div style="font-size:0.72rem;font-weight:700;color:var(--text-mid);text-transform:uppercase;letter-spacing:0.05em;margin:0.95rem 0 0.4rem">' + esc(g) + '</div>'
+          + byGroup[g].map(function (t) {
+              return '<div data-term-row="' + esc(t.key) + '" style="padding:0.45rem 0;border-bottom:1px solid var(--border)">'
+                + '<div style="font-weight:700;color:var(--text);font-size:0.9rem">' + esc(t.word) + '</div>'
+                + '<div style="color:var(--text-mid);font-size:0.84rem;line-height:1.5;margin-top:0.1rem">' + esc(typeof rrTermDef === 'function' ? rrTermDef(t.key) : '') + '</div>'
+                + '</div>';
+            }).join('');
+      }).join('')
+    + '<div style="text-align:right;margin-top:1rem"><button type="button" data-close="2" style="padding:0.5rem 1.2rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);cursor:pointer">Close</button></div>'
+    + '</div></div>';
+  Array.prototype.forEach.call(ov.querySelectorAll('[data-close]'), function (b) { b.onclick = close; });
+  document.body.appendChild(ov);
+}
+if (typeof window !== 'undefined') window.rrTermsOpen = rrTermsOpen;
 
 // ═══════════════════════════════════════════════════════════════
 // HELP CENTER (Phase 1) — one hub, opened from the floating Help
@@ -516,6 +603,8 @@ function openHelpHub(opts) {
     // v0.9.1893: the welcome card is gone; its row now reopens the scanning /
     // photo ID explainer that the first Add an Item shows once.
     +   row(X + "if(typeof showAiUsageCard==='function')showAiUsageCard(true);", '📷', 'Scanning and photo ID', ((typeof rrAutoReadOn === 'function') && rrAutoReadOn()) ? 'What is free and unlimited, and the daily photo ID allowance' : 'How the app reads barcodes, labels and photos')
+    // v0.9.2027 (a York customer: "maybe it would be helpful to have a page with Term Definitions?")
+    +   row(X + "if(typeof rrTermsOpen==='function')rrTermsOpen();", '\ud83d\udcd8', 'Terms and what they mean', 'Master Carton, Error Item, All Original and the other words the app uses')
     +   hdr('Tips & Recovery')
     +   row(X + "if(typeof _uiShowVersionHistoryHelp==='function')_uiShowVersionHistoryHelp();", '↩️', 'How to undo a mistake', 'Restore an earlier version of your data')
     +   row(X + "if(typeof _rrTwoDevicesHelp==='function')_rrTwoDevicesHelp();", '\ud83d\udcf1', 'Using more than one device', 'Phone and computer both work \u2014 here is the one thing to know')

@@ -1425,7 +1425,10 @@ function _rbCellVal(key, pd, master, row) {
     default:
       // Every other column is a plain value on the personal row: Your Grade,
       // Bought From, Date Added, Your Description and the user's own fields
-      // (RR_USER_FIELDS).
+      // (RR_USER_FIELDS). v0.9.2027: a field that shows a worked-out value
+      // (the master carton column) reads it the same way the tables do.
+      { const _uf = (window.RR_USER_FIELDS || []).find(f => f.key === key && f.show);
+        if (_uf) return String(_uf.show(pd) || ''); }
       return (pd[key] != null) ? String(pd[key]) : '';
   }
 }

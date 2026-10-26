@@ -62,7 +62,10 @@ var RR_ROW_EXTRA_COLS = [
   { col: 'hasBox',        label: 'Has Box',       pdKey: 'hasBox' },
   { col: 'notes',         label: 'Notes',         pdKey: 'notes' },
   { col: 'subType',       label: 'Sub Type',      pdKey: 'subType' },
-  { col: 'shipper',       label: 'Shipper',       pdKey: 'shipper' },
+  // v0.9.2027: the master carton column — its name and its worked-out value (config.js)
+  // (read when drawn, not when this file loads — config.js owns the name)
+  { col: 'shipper', get label() { return (typeof RR_MASTER_CARTON !== 'undefined') ? RR_MASTER_CARTON : 'Shipper'; }, pdKey: 'shipper',
+    value: function (pd) { return (typeof rrMasterCartonText === 'function') ? rrMasterCartonText(pd) : String((pd && pd.shipper) || '').trim(); } },
   { col: 'subCollection', label: 'Sub-collection', pdKey: 'subCollection' },
   { col: 'custom1',       label: 'Custom 1',      pdKey: 'custom1', userField: true },
   { col: 'custom2',       label: 'Custom 2',      pdKey: 'custom2', userField: true },
@@ -74,7 +77,8 @@ var RR_ROW_EXTRA_COLS = [
 // The value an extra column shows for a personal row, formatted (money gets
 // the currency symbol). One formatter, both tables.
 function rrRowExtraValue(xc, pd) {
-  var v = (pd && pd[xc.pdKey] != null) ? String(pd[xc.pdKey]).trim() : '';
+  var v = xc.value ? String(xc.value(pd) || '').trim()   // v0.9.2027: a column with a worked-out value
+        : ((pd && pd[xc.pdKey] != null) ? String(pd[xc.pdKey]).trim() : '');
   if (xc.money && v) {
     var n = parseFloat(String(v).replace(/[^0-9.\-]/g, ''));
     if (!isNaN(n)) v = (typeof _currencySymbol === 'function' ? _currencySymbol() : '$') + n.toLocaleString();

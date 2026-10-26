@@ -2451,7 +2451,9 @@ window._selectTender = function(tNum) {
 // uses. ONE renderer now serves both steps — same config, same labels,
 // same location-scoped suggestions, skippable, never blocking a save.
 function _wizUserFieldsHtml(d) {
-  return ((typeof rrEnabledUserFields === 'function' ? rrEnabledUserFields() : []).map(function (f) {
+  // v0.9.2027: a field marked asked:false is answered elsewhere on the Add steps
+  // (the master carton column = the "Master Carton / Outside Shipper?" question)
+  return ((typeof rrEnabledUserFields === 'function' ? rrEnabledUserFields() : []).filter(function (f) { return f.asked !== false; }).map(function (f) {
     var _lbl = (typeof rrFieldLabel === 'function' ? rrFieldLabel(f) : f.label);
     var _dl2 = { attr: '', html: '' };
     if (f.scopedTo === 'location' && typeof rrDatalistFor === 'function' && typeof rrLocationDetails === 'function') {
@@ -3152,7 +3154,7 @@ function renderWizardStep() {
           Don't know the number? Photo ID
         </button>` : ''}
         ${showBoxOnly ? `
-        <label onclick="toggleBoxOnly()" style="
+        <label onclick="toggleBoxOnly()"${typeof rrTermAttrs === 'function' ? rrTermAttrs('boxOnly') : ''} style="
           display:flex;align-items:center;gap:0.75rem;padding:0.85rem 1rem;margin-top:0.75rem;
           border-radius:10px;border:2px solid ${boxOnlyChecked ? 'var(--accent2)' : 'var(--border)'};
           background:${boxOnlyChecked ? 'rgba(201,146,42,0.1)' : 'var(--surface2)'};
@@ -5609,7 +5611,7 @@ function renderWizardStep() {
             oninput="wizard.data.itemNum=this.value; debouncedItemSuggestions(this.value); _updateGroupingButtons(); _wizOwnedRefresh();"
             onkeydown="handleSuggestionKey(event)">
         </div>
-        <label onclick="toggleBoxOnly()" data-box-only-checkbox="1" style="
+        <label onclick="toggleBoxOnly()"${typeof rrTermAttrs === 'function' ? rrTermAttrs('boxOnly') : ''} data-box-only-checkbox="1" style="
           display:flex;align-items:center;gap:0.45rem;flex-shrink:0;
           padding:0.75rem 0.7rem;border-radius:8px;cursor:pointer;transition:all 0.15s;
           border:2px solid ${_ingBoxOnly ? 'var(--accent2)' : 'var(--border)'};
@@ -5950,9 +5952,10 @@ function renderWizardStep() {
         return h;
       };
       // Inline row: label left, buttons right, forced single line
-      const _inlineRow = (label, buttons, mb) => {
+      // v0.9.2027: termKey makes the question a defined word (RR_TERMS, config.js)
+      const _inlineRow = (label, buttons, mb, termKey) => {
         return '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.3rem;margin-bottom:' + (mb || '0.35rem') + ';flex-wrap:nowrap">'
-          + '<span style="font-size:0.65rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em;white-space:nowrap;flex-shrink:1;min-width:0;overflow:hidden;text-overflow:ellipsis">' + label + '</span>'
+          + '<span' + (termKey && typeof rrTermAttrs === 'function' ? rrTermAttrs(termKey) : '') + ' style="font-size:0.65rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em;white-space:nowrap;flex-shrink:1;min-width:0;overflow:hidden;text-overflow:ellipsis">' + label + '</span>'
           + buttons + '</div>';
       };
       
@@ -6065,7 +6068,7 @@ function renderWizardStep() {
       // (It used to collapse to a read-only badge once condition had any value,
       // which made it un-editable whenever a default/prior value was present.)
       html += '<div style="margin-bottom:0.5rem"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px">'
-        + '<span style="font-size:0.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.04em">Condition</span>'
+        + '<span' + (typeof rrTermAttrs === 'function' ? rrTermAttrs('condition') : '') + ' style="font-size:0.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.04em">Condition</span>'
         + '<span id="cd-cond-val-' + col.id + '" style="font-family:var(--font-mono);font-size:0.95rem;color:var(--t-accent);font-weight:700">' + condVal + '</span></div>'
         + '<input type="range" min="1" max="10" value="' + condVal + '" style="width:100%;accent-color:var(--accent)"'
         + ' oninput="wizard.data[\'' + condKey + '\']=parseInt(this.value);document.getElementById(\'cd-cond-val-' + col.id + '\').textContent=this.value">'
@@ -6075,7 +6078,7 @@ function renderWizardStep() {
       if (!_cdIsPaperLike) {
         html += '<div class="cd-blk">';
         html += _inlineRow('All Original?', _smallBtn(origKey, origVal, ['Yes','No','Unknown'],
-          (c) => "wizard.data[\'" + origKey + "\']=\'" + c + "\';_cdToggleOrig(\'" + col.id + "\',\'" + origKey + "\',\'" + c + "\')"));
+          (c) => "wizard.data[\'" + origKey + "\']=\'" + c + "\';_cdToggleOrig(\'" + col.id + "\',\'" + origKey + "\',\'" + c + "\')"), undefined, 'allOriginal');
         // Modifications textarea (hidden unless allOriginal=No)
         html += '<div id="cd-mod-' + col.id + '" style="margin-bottom:0.4rem;display:' + (origVal === 'No' ? 'block' : 'none') + '">';
         html += '<textarea placeholder="What has been changed?" style="width:100%;min-height:40px;background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:0.4rem;color:var(--text);font-family:var(--font-body);font-size:0.75rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data[\'' + modKey + '\']=this.value">' + rrEsc(modVal) + '</textarea></div>';
@@ -6084,10 +6087,10 @@ function renderWizardStep() {
         // Has Box — inline row
         html += '<div class="cd-blk">';
         html += _inlineRow('Has Box?', _smallBtn(boxKey, boxVal, ['Yes','No'],
-          (c) => "wizard.data[\'" + boxKey + "\']=\'" + c + "\';_cdToggleBox(\'" + col.id + "\',\'" + c + "\')"));
+          (c) => "wizard.data[\'" + boxKey + "\']=\'" + c + "\';_cdToggleBox(\'" + col.id + "\',\'" + c + "\')"), undefined, 'hasBox');
         // Box condition slider (inline reveal)
         html += '<div id="cd-boxcond-' + col.id + '" style="margin-bottom:0.4rem;display:' + (boxVal === 'Yes' ? 'block' : 'none') + ';padding:0.4rem;background:var(--bg);border-radius:5px;border:1px solid var(--border)">';
-        html += '<div style="display:flex;align-items:center;gap:0.4rem"><span style="font-size:0.65rem;color:var(--text-dim)">Box Cond:</span><span id="cd-boxcond-val-' + col.id + '" style="font-family:var(--font-head);font-size:0.95rem;color:var(--accent2);width:1.2rem;text-align:center">' + boxCondVal + '</span>';
+        html += '<div style="display:flex;align-items:center;gap:0.4rem"><span' + (typeof rrTermAttrs === 'function' ? rrTermAttrs('boxCondition') : '') + ' style="font-size:0.65rem;color:var(--text-dim)">Box Cond:</span><span id="cd-boxcond-val-' + col.id + '" style="font-family:var(--font-head);font-size:0.95rem;color:var(--accent2);width:1.2rem;text-align:center">' + boxCondVal + '</span>';
         html += '<input type="range" min="1" max="10" value="' + boxCondVal + '" style="flex:1;accent-color:var(--accent)" oninput="wizard.data[\'' + boxCondKey + '\']=parseInt(this.value);document.getElementById(\'cd-boxcond-val-' + col.id + '\').textContent=this.value"></div>';
         html += '</div>';
         html += '</div>';
@@ -6100,7 +6103,7 @@ function renderWizardStep() {
         const isCondVal = wizard.data.is_condition || 7;
         html += '<div class="cd-blk">';
         html += _inlineRow('Instr. Sheet?', _smallBtn('hasIS', isVal, ['Yes','No'],
-          (c) => "wizard.data.hasIS=\'" + c + "\';_cdToggleIS(\'" + c + "\')"));
+          (c) => "wizard.data.hasIS=\'" + c + "\';_cdToggleIS(\'" + c + "\')"), undefined, 'instructionSheet');
         // IS inline reveal
         html += '<div id="cd-is-reveal" style="margin-bottom:0.4rem;display:' + (isVal === 'Yes' ? 'block' : 'none') + ';padding:0.4rem;background:var(--bg);border-radius:5px;border:1px solid var(--border)">';
         html += '<input type="text" placeholder="Sheet # (e.g. 924-6)" value="' + isSheetVal.replace(/"/g, '&quot;') + '" style="width:100%;margin-bottom:0.3rem;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:0.3rem 0.4rem;color:var(--text);font-family:var(--font-body);font-size:0.78rem;outline:none;box-sizing:border-box" oninput="wizard.data.is_sheetNum=this.value">';
@@ -6113,7 +6116,7 @@ function renderWizardStep() {
         if (!wizard.data._setMode) {
           const mbVal2 = wizard.data.hasMasterBox || '';
           html += _inlineRow(RR_MASTER_CARTON + '?', _smallBtn('hasMasterBox', mbVal2, ['Yes','No'],
-            (c) => "wizard.data.hasMasterBox=\'" + c + "\';_pvToggleMasterBox(\'" + c + "\')"));
+            (c) => "wizard.data.hasMasterBox=\'" + c + "\';_pvToggleMasterBox(\'" + c + "\')"), undefined, 'masterCarton');
         }
       }
       
@@ -6125,7 +6128,7 @@ function renderWizardStep() {
         const errDescVal = wizard.data[errDescKey] || '';
         html += '<div class="cd-blk">';
         html += _inlineRow('Error Item?', _smallBtn(errKey, errVal, ['Yes','No'],
-          (c) => "wizard.data[\'" + errKey + "\']=\'" + c + "\';_cdToggleError(\'" + col.id + "\',\'" + c + "\')"));
+          (c) => "wizard.data[\'" + errKey + "\']=\'" + c + "\';_cdToggleError(\'" + col.id + "\',\'" + c + "\')"), undefined, 'errorItem');
         html += '<div id="cd-error-reveal-' + col.id + '" style="margin-bottom:0.4rem;display:' + (errVal === 'Yes' ? 'block' : 'none') + '">';
         html += '<textarea placeholder="Describe the error…" style="width:100%;min-height:38px;background:var(--bg);border:1px solid #e74c3c44;border-radius:5px;padding:0.4rem;color:var(--text);font-family:var(--font-body);font-size:0.75rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data[\'' + errDescKey + '\']=this.value">' + rrEsc(errDescVal) + '</textarea></div>';
         html += '</div>';
@@ -6575,7 +6578,7 @@ function renderWizardStep() {
       eph_material:'Material', eph_dimensions:'Dimensions',
       eph_lionelVerified:'Lionel Verified',
       location:'Storage Location',
-      locationDetail:'Location Detail', shipper:'Shipper', subCollection:'Sub-collection',
+      locationDetail:'Location Detail', shipper:RR_MASTER_CARTON, subCollection:'Sub-collection',
       custom1:'Custom 1', custom2:'Custom 2', custom3:'Custom 3', custom4:'Custom 4', custom5:'Custom 5',
       manualManufacturer:'Manufacturer', manualItemNum:'Item Number', manualItemType:'Item Type',
       manualRoadName:'Road Name', manualRoadNumber:'Road Number', manualCustomName:'Name',
@@ -6858,6 +6861,15 @@ function renderWizardStep() {
     // laptop): on a computer the review lines sit in two columns (.wiz-cf-2up),
     // read left to right. Same lines, same order, same edit buttons.
     var _cfWide = (typeof _wizOneWidth === 'function' && _wizOneWidth());
+    // v0.9.2027: a review line about a defined word carries its definition;
+    // a unit's line (tenderHasBox, unit2Condition…) uses its base word.
+    var _cfTermAttrs = function (k) {
+      if (typeof rrTermAttrs !== 'function' || typeof RR_TERM_FOR === 'undefined') return '';
+      var base = String(k).replace(/^(tender|unit2|unit3)(?=[A-Z])/, '');
+      base = base.charAt(0).toLowerCase() + base.slice(1);
+      var key = RR_TERM_FOR.review[k] || RR_TERM_FOR.review[base];
+      return key ? rrTermAttrs(key) : '';
+    };
     var _cfRow = function (k, v, labelOverride) {
       var label = labelOverride || _keyLabels[k] || k.replace(/^(cat_|eph_)/,'').replace(/([A-Z])/g,' $1').replace(/_/g,' ').toLowerCase().replace(/^./,function(c){return c.toUpperCase();});
       var isMoney = _moneyKeys.indexOf(k) >= 0;
@@ -6865,7 +6877,7 @@ function renderWizardStep() {
       // v0.9.1920 (camera list #2): the seller is a Contact ID — show the person.
       if (k === 'purchasedFrom' && typeof window._ctLabel === 'function') dispVal = window._ctLabel(v);
       return '<div style="display:flex;align-items:center;gap:0.4rem;padding:0.3rem 0.5rem;border-radius:6px;background:var(--surface2)">'
-        + '<span style="color:var(--text-dim);min-width:120px;flex-shrink:0;font-size:0.78rem">' + label + '</span>'
+        + '<span' + _cfTermAttrs(k) + ' style="color:var(--text-dim);min-width:120px;flex-shrink:0;font-size:0.78rem">' + label + '</span>'
         + '<span id="confirm-val-' + k + '" style="flex:1;word-break:break-word">' + rrEsc(dispVal) + '</span>'
         + '<button onclick="_confirmEdit(\'' + k + '\')" id="confirm-edit-btn-' + k + '" title="Edit" style="flex-shrink:0;background:none;border:1px solid var(--border);border-radius:5px;padding:0.2rem 0.45rem;cursor:pointer;color:var(--text-dim);font-size:0.72rem;font-family:var(--font-body)">✏️</button>'
         + '</div>';
@@ -8744,7 +8756,12 @@ function _cdSplitSliders(col) {
     box.classList.add('cd-sl');
   }
   var boxCond = right.querySelector('[id^="cd-boxcond-"]:not([id^="cd-boxcond-val-"])');
-  if (boxCond) { asRow(boxCond, 'Box Condition'); left.appendChild(boxCond); }
+  if (boxCond) {
+    asRow(boxCond, 'Box Condition'); left.appendChild(boxCond);
+    // v0.9.2027: the rebuilt label is still the defined word
+    var _bcLab = boxCond.querySelector('.cd-sl-label');
+    if (_bcLab && typeof rrTermDef === 'function' && rrTermDef('boxCondition')) { _bcLab.setAttribute('data-term', 'boxCondition'); _bcLab.setAttribute('data-ctip', rrTermDef('boxCondition')); }
+  }
   var isCondVal = right.querySelector('#cd-is-cond-val');
   if (isCondVal) {
     var isRow = isCondVal.parentElement, isRev = document.getElementById('cd-is-reveal') || right.querySelector('#cd-is-reveal');

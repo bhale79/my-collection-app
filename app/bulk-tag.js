@@ -41,7 +41,9 @@ function rrTagFields() {
     { key: 'subCollection', label: 'Sub-collection' },
     { key: 'subType', label: 'Sub Type' },
     { key: 'location', label: 'Location', pair: 'locationDetail', pairLabel: 'Location Detail' },
-    { key: 'shipper', label: 'Shipper' },
+    // v0.9.2027: no Shipper here — the master carton column shows the item's
+    // master carton piece ([stated] Brad: "the shipper and master carton should
+    // just be the same column"); it is added with Add a Piece to Group, not typed.
   ];
   try {
     (window.RR_USER_FIELDS || []).forEach(function (f) {

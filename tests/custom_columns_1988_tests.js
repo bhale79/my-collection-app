@@ -120,23 +120,25 @@ const screens = (pg, inv) => pg.evaluate(async (inv) => {
   // ── F3 he had saved his own "Edit fields" choice (his screenshot) ─────────
   const f3 = await r.pg.evaluate(async () => {
     const S = ms => new Promise(r => setTimeout(r, ms));
-    // a saved choice WITHOUT Shipper, then Shipper is made through "+ Custom column"
+    // a saved choice WITHOUT Sub Type, then Sub Type is made through "+ Custom column"
+    // (v0.9.2027: was Shipper — the master carton column is no longer typed; it
+    // shows the group's master carton, so "+ Custom column" does not offer it)
     localStorage.setItem('lv_detail_fields_v1', JSON.stringify(['condition', 'hasBox', 'estWorth', 'uf_subCollection']));
-    rrTagOpen('shipper'); await S(60); document.getElementById('rr-tag-value').value = 'Yes'; rrTagNext(); await S(150);
-    state.personalData.I1.shipper = 'Yes';
+    rrTagOpen('subType'); await S(60); document.getElementById('rr-tag-value').value = 'Operating'; rrTagNext(); await S(150);
+    state.personalData.I1.subType = 'Operating';
     const cfg = JSON.parse(localStorage.getItem('lv_detail_fields_v1'));
     showItemDetailPage(0, 'I1'); await S(200);
     return { cfg, grid: (document.getElementById('item-detail-content').textContent || '').replace(/\s+/g, ' ') };
   });
-  T('F3 with a saved "Edit fields" choice, a column switched on joins the Details card (ticked, at the end)', f3.cfg.slice(-1)[0] === 'uf_shipper' && /Shipper\s*Yes/.test(f3.grid), f3.cfg);
+  T('F3 with a saved "Edit fields" choice, a column switched on joins the Details card (ticked, at the end)', f3.cfg.slice(-1)[0] === 'uf_subType' && /Sub Type\s*Operating/.test(f3.grid), f3.cfg);
   await r.pg.evaluate(() => localStorage.removeItem('lv_detail_fields_v1'));
 
   // ── F2 the other fields in that list ─────────────────────────────────────
   await fill(r.pg, 'subType', 'Operating');
-  await fill(r.pg, 'shipper', 'Yes');
+  // v0.9.2027: Shipper is no longer filled by "+ Custom column" (see F3)
   await fill(r.pg, 'location', 'Basement', 'Tote 3');
   st = await r.pg.evaluate(() => ({ sub: localStorage.getItem('lv_subtype_enabled'), ship: localStorage.getItem('lv_shipper_enabled'), loc: localStorage.getItem('lv_location_enabled'), det: localStorage.getItem('lv_locdetail_enabled'), on: rrEnabledUserFields().map(f => f.key) }));
-  T('F2 Sub Type and Shipper switches come on the same way', st.sub === 'true' && st.ship === 'true' && st.on.includes('subType') && st.on.includes('shipper'), st);
+  T('F2 the Sub Type switch comes on the same way', st.sub === 'true' && st.on.includes('subType'), st);
   T('F2 Location brings Track Storage Location AND Location Detail on together', st.loc === 'true' && st.det === 'true' && st.on.includes('locationDetail'), st);
   T('page errors (fill a column)', r.errs.length === 0, r.errs);
   await r.ctx.close();
@@ -167,8 +169,8 @@ const screens = (pg, inv) => pg.evaluate(async (inv) => {
   r = await open(browser, {});
   await r.pg.evaluate(() => { state.personalData.I1.shipper = 'Original carton'; });
   s = await screens(r.pg, 'I1');
-  T('S1 switch off, but this item HAS a Shipper value: its detail page shows it', s.defs.includes('uf_shipper=Shipper') && /Shipper\s*Original carton/.test(s.grid) && !s.enabled.includes('shipper'), { defs: s.defs, enabled: s.enabled });
-  T('S1 …and Update Info lets it be changed or cleared', /Shipper/.test(s.panel) && /Original carton/.test(s.panel), s.panel.slice(0, 300));
+  T('S1 switch off, but this item HAS a Shipper value: its detail page shows it', s.defs.includes('uf_shipper=Master Carton / Outside Shipper') && /Outside Shipper\s*Original carton/.test(s.grid) && !s.enabled.includes('shipper'), { defs: s.defs, enabled: s.enabled });
+  T('S1 …and Update Info lets it be changed or cleared', /Outside Shipper/.test(s.panel) && /Original carton/.test(s.panel), s.panel.slice(0, 300));
   T('S1 the Add steps still do not ask for a switched-off field', !/shipper/i.test(s.wiz), s.wiz.slice(0, 200));
   const s2 = await screens(r.pg, 'I2');
   T('S2 an item with no value shows nothing for a switched-off field', !s2.defs.some(d => /^uf_/.test(d)), s2.defs);

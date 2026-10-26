@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2026';
+const APP_VERSION = 'v0.9.2027';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -2395,8 +2395,15 @@ window.RR_USER_FIELDS = [
   { key: 'locationDetail', label: 'Location Detail', hint: 'e.g. Tote 12, Shelf 3',
     pref: 'lv_locdetail_enabled', scopedTo: 'location', prefToggle: 'locdetail',
     requires: { pref: 'lv_location_enabled', toggle: 'location', label: 'Track Storage Location' } },
-  { key: 'shipper', label: 'Shipper', hint: 'Outer shipping carton — not the item box',
-    pref: 'lv_shipper_enabled' },
+  // v0.9.2027 ([stated] Brad: "the shipper and master carton should just be
+  // the same column"). The old free-text Shipper column IS the master carton
+  // column now: its NAME is RR_MASTER_CARTON, its value is read from the
+  // item's group (show: rrMasterCartonText — "Yes · 6/10" when the group holds
+  // a -MBOX piece, else any text typed here before), and the Add steps ask
+  // only the Yes/No master carton question (asked:false). The sheet column is
+  // still headed "Shipper" (PERSONAL_SCHEMA) — words, not data, changed.
+  { key: 'shipper', get label() { return RR_MASTER_CARTON; }, hint: 'Shows Yes when the item has one in its group',   // read when shown — the name is defined further down
+    pref: 'lv_shipper_enabled', show: function (pd) { return rrMasterCartonText(pd); }, asked: false },
   { key: 'subCollection', label: 'Sub-collection', hint: 'e.g. 6464, Disney, Monopoly',
     pref: 'lv_subcoll_enabled' },
   // v0.9.1863 (Brad: "sub type probably need to be set up like location where
@@ -3644,3 +3651,112 @@ const RR_ADD_PIECE = {
   },
 };
 if (typeof window !== 'undefined') window.RR_ADD_PIECE = RR_ADD_PIECE;
+
+// ═══════════════════════════════════════════════════════════════
+// v0.9.2027 — TERMS AND WHAT THEY MEAN (a York customer: "maybe it would be
+// helpful to have a page with Term Definitions?"; [stated] Brad: "mouse over
+// it for more than a few seconds ... and it shows the word's definition").
+// THE one list — Brad reviewed every line 2026-10-25 and rewrote Master
+// Carton, Dummy A Unit, B Unit and the three eras. A defined word on screen
+// carries rrTermAttrs(key): a dotted underline, the conductor tip after the
+// usual hover wait (tutorial.js), press-and-hold on a phone, and the same
+// words on Help → Terms (rrTermsOpen). A line with `field` reads the field
+// explanation the column headings already use (RR_FIELD_HELP) — one copy.
+// ═══════════════════════════════════════════════════════════════
+const RR_TERMS = [
+  { key: 'allOriginal',      word: 'All Original',      group: 'Adding an item', def: 'Every part is the one it left the factory with: no replaced parts, no repaint, no new lettering. Not sure? Pick Unk.' },
+  { key: 'hasBox',           word: 'Has Box',           group: 'Adding an item', def: 'The maker\u2019s own box the item was packed in, printed with its number. Not the plain shipping carton.' },
+  { key: 'instructionSheet', word: 'Instruction Sheet', group: 'Adding an item', def: 'The maker\u2019s paper instructions that came packed with the item.' },
+  { key: 'masterCarton',     word: RR_MASTER_CARTON,    group: 'Adding an item', def: 'For postwar, the box that held the grouped item\u2019s own boxes. For modern items, the outer shipping box, usually plain brown cardboard.' },
+  { key: 'errorItem',        word: 'Error Item',        group: 'Adding an item', def: 'A mistake made at the factory: wrong color, missing or upside-down lettering, wrong number, mismatched parts. Changes made later by an owner don\u2019t count.' },
+  { key: 'condition',        word: 'Condition',         group: 'Adding an item', field: 'condition' },
+  { key: 'boxCondition',     word: 'Box Condition',     group: 'Adding an item', def: 'The box graded on its own, on the same 1\u201310 scale.' },
+  { key: 'engineTender',     word: 'Engine + Tender',   group: 'Engines and groups', def: 'A steam engine and the tender behind it, kept together as one group.' },
+  { key: 'tender',           word: 'Tender',            group: 'Engines and groups', def: 'The car behind a steam engine that carries its coal (or oil) and water.' },
+  { key: 'poweredA',         word: 'Powered A Unit',    group: 'Engines and groups', def: 'A diesel with a cab, and with a motor.' },
+  { key: 'dummyA',           word: 'Dummy A Unit',      group: 'Engines and groups', def: 'A diesel with a cab but no motor.' },
+  { key: 'bUnit',            word: 'B Unit',            group: 'Engines and groups', def: 'A diesel with no cab.' },
+  { key: 'dieselSets',       word: 'AA / AB / ABA',     group: 'Engines and groups', def: 'How diesel units run together: two A\u2019s back to back, an A with a B, or a B between two A\u2019s.' },
+  { key: 'groupedSet',       word: 'Grouped Set',       group: 'Engines and groups', def: 'Pieces that belong together (engine, tender, box, sheet, carton), linked so they show as one. Boxes, cartons and sheets go with their item and aren\u2019t counted on their own.' },
+  { key: 'boxOnly',          word: 'Box Only',          group: 'Engines and groups', def: 'For a box you bought on its own, without the item.' },
+  { key: 'variation',        word: 'Variation',         group: 'The item page', field: 'variation' },
+  { key: 'inventoryId',      word: 'Inventory ID',      group: 'The item page', def: 'The app\u2019s own number for this one piece, so two copies of the same item are never mixed up.' },
+  { key: 'copyOf',           word: 'Copy 1 of 2',       group: 'The item page', def: 'You own more than one of this item; this is the one you\u2019re looking at.' },
+  { key: 'estWorth',         word: 'Est. Worth',        group: 'The item page', field: 'userEstWorth' },
+  { key: 'itemNum',          word: 'Item Number',       group: 'The item page', field: 'itemNum' },
+  { key: 'roadName',         word: 'Road Name',         group: 'The item page', field: 'roadName' },
+  { key: 'roadNumber',       word: 'Road Number',       group: 'The item page', field: 'roadNumber' },
+  { key: 'prewar',           word: 'Pre-war',           group: 'Eras', def: '1901\u20131942.' },
+  { key: 'postwar',          word: 'Postwar',           group: 'Eras', def: '1945\u20131969.' },
+  { key: 'modern',           word: 'MPC / Modern',      group: 'Eras', def: '1970 to today.' },
+];
+// Which term a thing on screen is, by the id the screen already uses.
+const RR_TERM_FOR = {
+  grouping: { engine_tender: 'engineTender', a_powered: 'poweredA', a_dummy: 'dummyA', aa: 'dieselSets', ab: 'dieselSets', aba: 'dieselSets' },
+  detail:   { condition: 'condition', allOriginal: 'allOriginal', hasBox: 'hasBox', estWorth: 'estWorth', inventoryId: 'inventoryId',
+              instructionSheet: 'instructionSheet', errorItem: 'errorItem', uf_shipper: 'masterCarton' },
+  role:     { 'Tender': 'tender', 'Powered A Unit': 'poweredA', 'Dummy A Unit': 'dummyA', 'B Unit': 'bUnit',
+              'Instruction Sheet': 'instructionSheet', 'Box': 'hasBox', 'Master Carton': 'masterCarton' },
+  review:   { allOriginal: 'allOriginal', hasBox: 'hasBox', hasIS: 'instructionSheet', hasMasterBox: 'masterCarton', isError: 'errorItem',
+              condition: 'condition', boxCond: 'boxCondition', variation: 'variation' },
+};
+function rrTermOf(key) { for (var i = 0; i < RR_TERMS.length; i++) if (RR_TERMS[i].key === key) return RR_TERMS[i]; return null; }
+function rrTermDef(key) {
+  var t = rrTermOf(key);
+  if (!t) return '';
+  if (t.def) return t.def;
+  return (t.field && typeof window !== 'undefined' && typeof window.rrFieldHelp === 'function') ? (window.rrFieldHelp(t.field) || '') : '';
+}
+// The attributes that make a word "defined": the dotted underline (app.css
+// [data-term]) and the conductor tip (tutorial.js reads data-ctip). '' for an
+// unknown key, so a screen never shows an empty bubble. `lead` is put before
+// the definition (an era badge says which catalogue it is first).
+function rrTermAttrs(key, lead) {
+  var d = rrTermDef(key);
+  if (!d) return '';
+  var tip = (lead ? lead + ' \u2014 ' : '') + d;
+  var esc = String(tip).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return ' data-term="' + key + '" data-ctip="' + esc + '"';
+}
+function rrTermWrap(key, html) { var a = rrTermAttrs(key); return a ? '<span' + a + '>' + html + '</span>' : html; }
+// The era period of a catalogue (an era key), from its own years: Pre-war,
+// Postwar or MPC / Modern; '' when the catalogue spans more than one.
+function rrEraTermKey(eraKey) {
+  if (typeof ERA_SPANS_PERIODS !== 'undefined' && ERA_SPANS_PERIODS[eraKey]) return '';
+  var e = (typeof ERAS !== 'undefined') ? ERAS[eraKey] : null;
+  var y = e ? parseInt(String(e.years || ''), 10) : NaN;
+  if (!isFinite(y)) return '';
+  return y <= 1942 ? 'prewar' : (y <= 1969 ? 'postwar' : 'modern');
+}
+// The ONE value of the Master Carton / Outside Shipper column (both tables,
+// the item page, reports): "Yes · 6/10" when the item's group holds a master
+// carton piece, else whatever was typed in the old Shipper column.
+var _rrMbIdx = { ref: null, n: -1, at: 0, map: null };
+function rrMasterCartonText(pd) {
+  if (!pd) return '';
+  var gid = String(pd.groupId || '').trim();
+  if (gid && typeof state !== 'undefined' && state.personalData) {
+    var all = state.personalData, n = Object.keys(all).length, now = Date.now();
+    if (_rrMbIdx.ref !== all || _rrMbIdx.n !== n || now - _rrMbIdx.at > 1500) {
+      var map = {};
+      Object.keys(all).forEach(function (k) {
+        var p = all[k];
+        if (p && p.owned && p.groupId && /-MBOX$/i.test(String(p.itemNum || '').trim())) map[p.groupId] = p;
+      });
+      _rrMbIdx = { ref: all, n: n, at: now, map: map };
+    }
+    var mb = _rrMbIdx.map[gid];
+    if (mb && mb !== pd) {
+      var c = String(mb.condition || mb.boxCond || '').trim();
+      return 'Yes' + (c ? ' \u00b7 ' + c + '/10' : '');
+    }
+  }
+  return String(pd.shipper == null ? '' : pd.shipper).trim();
+}
+if (typeof window !== 'undefined') {
+  window.RR_TERMS = RR_TERMS; window.RR_TERM_FOR = RR_TERM_FOR;
+  window.rrTermOf = rrTermOf; window.rrTermDef = rrTermDef; window.rrTermAttrs = rrTermAttrs; window.rrTermWrap = rrTermWrap;
+  window.rrEraTermKey = rrEraTermKey; window.rrMasterCartonText = rrMasterCartonText;
+  // the column heading's explanation is the term's definition — one copy
+  if (window.RR_FIELD_HELP) window.RR_FIELD_HELP.shipper = rrTermDef('masterCarton');
+}

@@ -243,7 +243,8 @@ ok('every guarded overlay offers Cancel / Done / Close / ✕', trapped.length ==
 // v0.9.2020: 52 — Scan to Shelve's camera screen (rr-shelve) and its question box (rr-shelve-ask, scan-shelve.js).
 // v0.9.2023: 53 — the label-printing screen (rr-shelve-print, scan-shelve.js).
 // v0.9.2025: 54 — "Add a piece to No. X" (rr-add-piece, app-collection.js rrAddPieceOpen).
-ok('54 guarded call sites, and ONE helper behind them', sites === 54, String(sites));
+// v0.9.2027: 55 — Help → Terms and what they mean (rr-terms, tutorial.js rrTermsOpen).
+ok('55 guarded call sites, and ONE helper behind them', sites === 55, String(sites));
 
 // nobody double-wires BackStack any more — the guard does it, once
 let dbl = 0;

@@ -145,7 +145,8 @@ const SNAP = () => {
     T('A: fresh — both off; the Detail switch is greyed out and cannot be thrown; nothing asked',
       [r.fresh.det, r.fresh.stored, r.fresh.asked, r.clickWhileOff.stored.detail, r.clickWhileOff.det.checked],
       [{ checked: false, disabled: true, dim: true }, { location: null, detail: null }, [], null, false]);
-    T('A: Extra Columns does not list it (one control per switch); seven rows left, Shipper first', r.extra, { detail: false, rows: 7, first: 'Shipper' });
+    // v0.9.2027: the Shipper row is named Master Carton / Outside Shipper (RR_MASTER_CARTON)
+    T('A: Extra Columns does not list it (one control per switch); seven rows left, the master carton column first', r.extra, { detail: false, rows: 7, first: 'Master Carton / Outside Shipper' });
     T('A: Location ON → the Detail switch wakes up, still off; the wizard asks for nothing extra yet',
       [r.locOn.det, r.locOn.stored, r.locOn.asked, r.locOn.locFlag], [{ checked: false, disabled: false, dim: false }, { location: 'true', detail: null }, [], true]);
     T('A: Detail ON through the page — written through _prefSet (stamped for the account, NOT the look clock); the field is enabled; the wizard asks (real renderer)',
