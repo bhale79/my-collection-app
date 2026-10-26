@@ -1281,6 +1281,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
       Add to Upgrade List
     </button>
+    ${typeof rrAddPieceBtnHtml === 'function' ? rrAddPieceBtnHtml(pd) : ''}
     ${(pd && pd.groupId) ? `<button onclick="_breakUpGroupFromDetail(${idx},'${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}')" data-ctip="Unlink the pieces in this group — they all stay in your collection." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--accent2);background:var(--bg-card);background:color-mix(in srgb, rgb(201,146,42) 10%, var(--bg-card));color:var(--accent2);font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       Break Up Group
@@ -2213,6 +2214,138 @@ window._grpRemoveMember = async function (idx, i) {
   if (state.personalData[k]) return;   // cancelled or refused — nothing changed
   if (typeof showItemDetailPage === 'function') showItemDetailPage(idx, window._lastDetailCopyInv);
 };
+
+// ══ v0.9.2025 — ADD A PIECE TO GROUP ════════════════════════════════════
+// Brad, 2026-10-25: a customer deleted his engine's box out of its group and
+// could not find any way to put it back — the group strip had Remove but no
+// Add. The item page now has "Add a Piece to Group" (words: RR_ADD_PIECE,
+// config.js). It offers only the pieces this copy's group does not have and
+// opens the app's own Add flows for them, aimed at THIS copy:
+//   Box, Master Carton → the Box Only flow (wizard.data._boxKind 'box'/'mbox')
+//   Instruction Sheet  → the Instruction Sheet flow
+// The copy is carried by its inventory ID (never a list position or the item
+// number alone — two copies of one engine must not be confused), and its era
+// and maker ride along so an MTH engine's box is saved as MTH.
+// Saves: wizard-save.js (box block, saveInstructionSheet); the group they join
+// comes from rrGroupIdForCopy there. Test: tests/add_piece_2025_tests.js.
+function _rrAddPieceKeyOf(inv) {
+  inv = String(inv || '');
+  var pd = state.personalData || {};
+  if (inv) {
+    var ks = Object.keys(pd);
+    for (var i = 0; i < ks.length; i++) {
+      var p = pd[ks[i]];
+      if (p && p.owned && String(p.inventoryId || '') === inv) return ks[i];
+    }
+    return null;
+  }
+  // A row older than inventory IDs: the copy this page was opened on.
+  var k = window._lastDetailPdKey;
+  return (k && pd[k] && pd[k].owned) ? k : null;
+}
+// The pieces this copy's group is missing, in RR_ADD_PIECE order.
+function rrAddPieceMissing(pdOrKey) {
+  var C = (typeof RR_ADD_PIECE !== 'undefined') ? RR_ADD_PIECE : null;
+  var pd = (typeof pdOrKey === 'string') ? (state.personalData || {})[pdOrKey] : pdOrKey;
+  if (!C || !pd || !pd.owned) return [];
+  var num = String(pd.itemNum || '').trim();
+  if (!num || C.pieceRe.test(num)) return [];
+  var nums = [];
+  if (pd.groupId) {
+    Object.keys(state.personalData || {}).forEach(function (k) {
+      var p = state.personalData[k];
+      if (p && p.owned && p.groupId === pd.groupId) nums.push(String(p.itemNum || '').trim().toUpperCase());
+    });
+  }
+  var hasIS = nums.some(function (n) { return /-IS$/.test(n); });
+  if (!hasIS && pd.groupId && state.isData) {
+    hasIS = Object.keys(state.isData).some(function (k) { var e = state.isData[k]; return e && e.groupId === pd.groupId; });
+  }
+  var up = num.toUpperCase();
+  return C.pieces.filter(function (pc) {
+    if (pc.kind === 'box')  return nums.indexOf(up + '-BOX') < 0;
+    if (pc.kind === 'is')   return !hasIS;
+    if (pc.kind === 'mbox') return !nums.some(function (n) { return /-MBOX$/.test(n); });
+    return false;
+  });
+}
+function rrAddPieceBtnHtml(pd) {
+  var C = (typeof RR_ADD_PIECE !== 'undefined') ? RR_ADD_PIECE : null;
+  if (!C || !pd || !rrAddPieceMissing(pd).length) return '';
+  var inv = String(pd.inventoryId || '').replace(/[^A-Za-z0-9_-]/g, '');
+  return '<button id="detail-add-piece" onclick="rrAddPieceOpen(\'' + inv + '\')" data-ctip="' + C.tip.replace(/"/g, '&quot;') + '" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--accent2);background:var(--bg-card);background:color-mix(in srgb, rgb(201,146,42) 22%, var(--bg-card));color:var(--accent2);font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">'
+    + '<svg style="flex-shrink:0" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'
+    + C.button + '</button>';
+}
+function rrAddPieceOpen(inv) {
+  var C = RR_ADD_PIECE;
+  var key = _rrAddPieceKeyOf(inv);
+  var pd = key ? state.personalData[key] : null;
+  if (!pd) { if (typeof showToast === 'function') showToast(C.gone, 4000, true); return; }
+  var missing = rrAddPieceMissing(pd);
+  var old = document.getElementById('rr-add-piece');
+  if (old) old.remove();
+  var ov = document.createElement('div');
+  ov.id = 'rr-add-piece';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+  var close = function () { ov.remove(); };
+  rrDismissGuard(ov, close);   // a backdrop click does nothing (Brad: "never close if you pick outside"); Back closes
+  var esc = function (t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+  var invArg = String(pd.inventoryId || '').replace(/[^A-Za-z0-9_-]/g, '');
+  ov.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:420px;width:100%;padding:1.3rem 1.4rem;font-family:var(--font-body)">'
+    + '<div style="font-family:var(--font-head);font-size:1.15rem;color:var(--t-accent);letter-spacing:0.03em">' + esc(C.title.replace('{num}', pd.itemNum)) + '</div>'
+    + '<div style="font-size:0.8rem;color:var(--text-dim);margin:0.2rem 0 1rem">' + esc(C.sub) + '</div>'
+    + missing.map(function (pc) {
+        return '<button type="button" data-piece="' + pc.kind + '" onclick="rrAddPieceStart(\'' + invArg + '\',\'' + pc.kind + '\')" style="display:flex;align-items:center;gap:0.8rem;width:100%;text-align:left;padding:0.8rem 0.9rem;border-radius:10px;border:1.5px solid var(--border);background:var(--surface2);margin-bottom:0.55rem;cursor:pointer;font-family:var(--font-body)">'
+          + '<span style="font-size:1.4rem;width:2rem;text-align:center;flex-shrink:0">' + pc.icon + '</span>'
+          + '<span><b style="display:block;font-size:0.92rem;color:var(--text)">' + esc(pc.label) + '</b>'
+          + '<span style="font-size:0.76rem;color:var(--text-dim)">' + esc(pc.desc) + '</span></span></button>';
+      }).join('')
+    + '<div style="text-align:right;margin-top:0.6rem"><button type="button" data-close="1" style="padding:0.5rem 1.1rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);font-family:var(--font-body);cursor:pointer">' + esc(C.cancel) + '</button></div>'
+    + '</div>';
+  ov.querySelector('[data-close]').onclick = close;
+  document.body.appendChild(ov);
+}
+async function rrAddPieceStart(inv, kind) {
+  var C = RR_ADD_PIECE;
+  var ov = document.getElementById('rr-add-piece');
+  if (ov) ov.remove();
+  var key = _rrAddPieceKeyOf(inv);
+  var pd = key ? state.personalData[key] : null;
+  if (!pd) { if (typeof showToast === 'function') showToast(C.gone, 4000, true); return; }
+  var num = String(pd.itemNum || '').trim();
+  var target = { _addPieceKey: key, _addPieceInv: String(pd.inventoryId || ''), _addPieceNum: num,
+                 _era: pd.era || '', _manufacturer: pd.manufacturer || '' };
+  if (kind === 'is') {
+    await openWizard('instrsheet');
+    Object.assign(wizard.data, target, { is_linkedItem: num, is_groupChoice: 'Yes' });
+    wizard.steps = getSteps('instrsheet');
+    var si = wizard.steps.findIndex(function (s) { return s.id === 'is_pick'; });
+    wizard.step = si < 0 ? 0 : si;
+    renderWizardStep();
+    return;
+  }
+  await openWizard('collection');
+  var d = wizard.data;
+  Object.assign(d, target, {
+    itemNum: num, variation: pd.variation || '',
+    boxOnly: true, _boxKind: kind === 'mbox' ? 'mbox' : 'box',
+    _itemGrouping: 'single', tenderMatch: '', setMatch: '', unitPower: '',
+    boxGroupSuggest: 'Yes',
+  });
+  d._groupingLinkChoices = {}; d._groupingLinkChoices[key] = true;
+  // The catalog row of THIS copy (its era / maker break number ties).
+  wizard.matchedItem = (String(pd.era || '') !== 'Manual' && typeof findMaster === 'function')
+    ? (findMaster(num, pd.variation || '', pd) || null) : null;
+  wizard.steps = getSteps('collection');
+  var bi = wizard.steps.findIndex(function (s) { return s.id === 'boxCondDetails'; });
+  wizard.step = bi < 0 ? 0 : bi;
+  renderWizardStep();
+}
+if (typeof window !== 'undefined') {
+  window.rrAddPieceMissing = rrAddPieceMissing; window.rrAddPieceBtnHtml = rrAddPieceBtnHtml;
+  window.rrAddPieceOpen = rrAddPieceOpen; window.rrAddPieceStart = rrAddPieceStart;
+}
 
 // ══ v0.9.1571 — EDIT THE DETAILS CARD (Brad: "need to be able to edit the
 // detail sheet and be able to add the different columns or take them away,

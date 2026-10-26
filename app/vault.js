@@ -726,7 +726,7 @@ async function vaultRenderMarketCard(itemNum, variation, containerEl) {
     <div class="vault-market-card" id="vault-market-card">
       <div class="vault-market-header">
         <span class="vault-market-title">Collector's Market Est.</span>
-        <span class="vault-market-badge">BETA</span>
+        ${typeof rrBetaBadge === 'function' ? rrBetaBadge('class="vault-market-badge"') : ''}
       </div>
       <div id="vault-market-body">
         <div style="color:var(--text-dim);font-size:0.84rem;padding:8px 0">Loading…</div>

@@ -611,6 +611,13 @@ function wizardChoose(field, val) {
 
 function toggleBoxOnly() {
   wizard.data.boxOnly = !wizard.data.boxOnly;
+  // v0.9.2025: "Add a Piece to Group" opened this as a box for ONE copy. Turning
+  // Box Only off makes it an ordinary add, so that aim (and the copy's era and
+  // maker it carried) must not ride along onto whatever is added instead.
+  if (wizard.data._addPieceKey) {
+    ['_addPieceKey', '_addPieceInv', '_addPieceNum', '_era', '_manufacturer', '_boxKind'].forEach(function (k) { delete wizard.data[k]; });
+    wizard.data._groupingLinkChoices = {};
+  }
   // Reset the step list so it picks up new boxOnly steps
   wizard.steps = getSteps(wizard.tab);
   renderWizardStep();

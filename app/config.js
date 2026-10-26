@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2024';
+const APP_VERSION = 'v0.9.2025';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -1373,8 +1373,9 @@ function rrSetRecordingMode(on) {
 // their own attributes, so each badge still looks exactly as it did.
 //
 // v0.9.2024 (Brad: "take the beta tag off"): the three badges were all on
-// Import, and Import is open to every user, so all three are gone. Nothing
-// calls this today; it stays so the next beta feature's badge uses the switch.
+// Import, and Import is open to every user, so all three are gone.
+// v0.9.2025 (Brad "yes"): the Collector's Market badge (vault.js) was typed in
+// by hand and showed in recordings; it now renders from here too.
 //
 // The sign-in gate is deliberately NOT included — Brad's call, 2026-09-12.
 // There the word is doing a real job rather than decorating: a stranger
@@ -3601,3 +3602,35 @@ function rrInstallHelpKind(ua, platform, touchPoints) {
   return 'desktop';
 }
 if (typeof window !== 'undefined') { window.RR_INSTALL_HELP = RR_INSTALL_HELP; window.rrInstallHelpKind = rrInstallHelpKind; }
+// v0.9.2025 — ADD A PIECE TO GROUP (Brad, 2026-10-25, after a customer
+// deleted his engine's box out of its group and could not find a way to put
+// it back: "change name to 'add a piece to group'"). The item page's button
+// and the "which piece?" box it opens (app-collection.js rrAddPieceOpen).
+// Each piece names the ending its row's item number gets and the Add flow it
+// opens; the button only shows when at least one piece is missing.
+const RR_ADD_PIECE = {
+  button: 'Add a Piece to Group',
+  tip: 'Add a box, instruction sheet or master carton that goes with this item. It joins this item’s group.',
+  title: 'Add a piece to No. {num}',
+  sub: 'It joins this group and links to this copy.',
+  cancel: 'Cancel',
+  gone: 'That item is no longer in your collection — refresh and try again.',
+  // A piece row's own page gets no button: a box does not get a box.
+  pieceRe: /-(BOX|MBOX|IS)$/i,
+  pieces: [
+    { kind: 'box',  icon: '📦', label: 'Box',               desc: 'The box this item came in',          ending: '-BOX'  },
+    { kind: 'is',   icon: '📄', label: 'Instruction Sheet', desc: 'Paperwork that came with it',        ending: '-IS'   },
+    { kind: 'mbox', icon: '🗃️', label: 'Master Carton',     desc: 'The outer carton it was shipped in', ending: '-MBOX' },
+  ],
+  // Words the Box Only screens use when the piece is a master carton.
+  mbox: {
+    cond: 'Master Carton Condition',
+    group: 'Links this master carton to your {num} with a shared Group ID.',
+    photo: 'Master carton photo (optional)',
+    photoBtn: 'Add master carton photo',
+    confirm: 'Ready to save the master carton!',
+    note: 'Master carton for {num}',
+    saved: '✓ Master carton for {num} saved!',
+  },
+};
+if (typeof window !== 'undefined') window.RR_ADD_PIECE = RR_ADD_PIECE;

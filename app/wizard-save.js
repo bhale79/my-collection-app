@@ -69,6 +69,93 @@ function _resolveSaveEra() {
   return 'pw';
 }
 
+// v0.9.2025 — the maker a save writes. "Add a Piece to Group" carries the
+// copy's own maker (wizard.data._manufacturer) so an MTH engine's box is saved
+// as MTH; every other flow sets nothing here and keeps the era's maker.
+function _resolveSaveMfr() {
+  try {
+    if (typeof wizard !== 'undefined' && wizard && wizard.data) {
+      var m = String(wizard.data._manufacturer || '').trim();
+      if (m) return m;
+    }
+  } catch (e) {}
+  return _getEraManufacturer();
+}
+
+// v0.9.2025 — "Add a Piece to Group" (app-collection.js rrAddPieceStart) aims
+// a Box / Master Carton / Instruction Sheet at ONE copy. At save time that copy
+// is found again by its inventory ID (a state key can change when the
+// collection reloads) and must still carry the number being saved — if the
+// person typed a different number on the way, the aim is dropped and the flow
+// behaves exactly as a plain Add. -> { key, pd } or null.
+function _rrAddPieceTarget(d, num) {
+  if (!d || !d._addPieceKey) return null;
+  var all = (typeof state !== 'undefined' && state.personalData) || {};
+  var key = d._addPieceKey;
+  var inv = String(d._addPieceInv || '');
+  if (inv) {
+    key = null;
+    var ks = Object.keys(all);
+    for (var i = 0; i < ks.length; i++) {
+      var p = all[ks[i]];
+      if (p && p.owned && String(p.inventoryId || '') === inv) { key = ks[i]; break; }
+    }
+  }
+  var pd = key ? all[key] : null;
+  var same = function (a, b) { return String(a || '').trim().toUpperCase() === String(b || '').trim().toUpperCase(); };
+  if (pd && pd.owned && same(pd.itemNum, num) && same(pd.itemNum, d._addPieceNum)) {
+    d._groupingLinkChoices = {}; d._groupingLinkChoices[key] = true;
+    return { key: key, pd: pd };
+  }
+  delete d._addPieceKey; delete d._manufacturer; delete d._era;
+  d._groupingLinkChoices = {};
+  return null;
+}
+
+// v0.9.2025 — after an aimed piece saves, the item page it was started from
+// repaints through THE detail repaint (rrDetailRepaint — by the copy's
+// inventory ID, never a remembered list position).
+function _rrAddPieceRepaint(d) {
+  try {
+    if (!d || !d._addPieceKey || typeof rrDetailRepaint !== 'function') return;
+    var pg = document.getElementById('page-itemdetail');
+    if (!pg || !/\bactive\b/.test(pg.className || '')) return;
+    rrDetailRepaint(0, d._addPieceInv || '');
+  } catch (e) {}
+}
+
+// v0.9.2025 — THE group a new piece joins: the copy's own group, or (when the
+// copy is in none yet) a new one written onto the copy too, identity-checked.
+// Used by the Box Only save and the Instruction Sheet save, so a piece and its
+// item can never end up holding different group IDs.
+function rrGroupIdForCopy(existingItem, rawNum) {
+  if (!existingItem) return '';
+  if (existingItem.groupId) return existingItem.groupId;
+  var gid = 'GRP-' + String(rawNum || existingItem.itemNum || '').replace(/[^A-Za-z0-9-]/g, '-') + '-' + Date.now();
+  existingItem.groupId = gid;
+  var existingInvId = existingItem.inventoryId || nextInventoryId();
+  if (!existingItem.inventoryId) existingItem.inventoryId = existingInvId;
+  // Audit NEW #1 fix: schema-derived columns (hardcoded U,V once corrupted
+  // matchedTo + setId). v0.9.1323: identity-checked — a moved row must never
+  // get a stranger's IDs. invId is '' on purpose: the row may predate ids
+  // (that is why it is being backfilled), so the item NUMBER is the check. A
+  // refused backfill is harmless: state carries the ids, and the next
+  // full-row save writes them.
+  if (existingItem.row && existingItem.row !== 99999) {
+    var _invCol = personalColLetter('inventoryId');
+    var _grpCol = personalColLetter('groupId');
+    rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, existingItem.row,
+      PERSONAL_TAB + '!' + _invCol + existingItem.row + ':' + _invCol + existingItem.row,
+      [[existingInvId]], { num: existingItem.itemNum || '', invId: '' }, 'collection')
+      .catch(function (e) { console.warn('Inventory ID backfill:', e); });
+    rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, existingItem.row,
+      PERSONAL_TAB + '!' + _grpCol + existingItem.row + ':' + _grpCol + existingItem.row,
+      [[gid]], { num: existingItem.itemNum || '', invId: '' }, 'collection')
+      .catch(function (e) { console.warn('Group ID backfill:', e); });
+  }
+  return gid;
+}
+
 function _stampSaved(obj) {
   if (obj && typeof obj === 'object') obj._savedAt = Date.now();
   return obj;
@@ -532,11 +619,14 @@ async function saveInstructionSheet() {
 
   // Resolve Group ID — if user opted to group with the collection item
   let resolvedGroupId = '';
+  // v0.9.2025: "Add a Piece to Group" names the exact copy; otherwise the first
+  // owned row with the number, as before. Either way the group comes from
+  // rrGroupIdForCopy, which writes a NEW group onto the item too — before, an
+  // ungrouped item's sheet got a group ID its item never held.
+  const _isAim = _rrAddPieceTarget(d, linkedItem);
   if (d.is_groupChoice === 'Yes') {
-    const found = _findCollectionItemByNum(linkedItem);
-    if (found) {
-      resolvedGroupId = found.groupId || ('GRP-' + linkedItem.replace(/[^A-Za-z0-9]/g,'-') + '-' + Date.now());
-    }
+    const found = _isAim ? _isAim.pd : _findCollectionItemByNum(linkedItem);
+    if (found) resolvedGroupId = rrGroupIdForCopy(found, linkedItem);
   }
 
   // Photo handling — use group folder if grouped, otherwise IS Photos folder
@@ -592,6 +682,9 @@ async function saveInstructionSheet() {
     yearMade: d.is_year || '',
     inventoryId: isStandaloneInvId,
     groupId: resolvedGroupId || '',
+    // v0.9.2025: a sheet added to a copy's group carries that copy's era and maker
+    era: _isAim ? (_isAim.pd.era || undefined) : undefined,
+    manufacturer: _isAim ? (_isAim.pd.manufacturer || undefined) : undefined,
   });
   try {
     const _apRowIS = await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [row]);
@@ -609,6 +702,7 @@ async function saveInstructionSheet() {
     closeWizard();
     buildDashboard();
     renderBrowse();
+    _rrAddPieceRepaint(d);   // v0.9.2025
   } catch(e) {
     showToast(rrSaveError(e, 'your item'), 5000, true);
   }
@@ -1292,9 +1386,15 @@ async function saveWizardItem() {
             .find(pd => pd.itemNum === itemNum && pd.variation === variation && pd.quickEntry) || null);
       if (d.boxOnly) {
         // Box-only entry: create a standalone -BOX row as its own inventory item
-        const boxItemNum = itemNum + '-BOX';
+        // v0.9.2025: the Box Only flow also saves a MASTER CARTON when "Add a
+        // Piece to Group" opened it for one (d._boxKind 'mbox'); same screens,
+        // same grouping, its own ending and words (RR_ADD_PIECE.mbox).
+        const _isMbox = d._boxKind === 'mbox';
+        const _MB = (typeof RR_ADD_PIECE !== 'undefined' && RR_ADD_PIECE.mbox) || {};
+        const boxItemNum = itemNum + (_isMbox ? '-MBOX' : '-BOX');
         const boxInvId = nextInventoryId();
         let boxGroupId = '';
+        _rrAddPieceTarget(d, itemNum);   // re-finds the aimed copy by inventory ID, or drops the aim
 
         // If user said Yes to grouping, find or create a Group ID shared with the item.
         // Session 115: when the Confirm step showed multiple candidates of
@@ -1328,53 +1428,33 @@ async function saveWizardItem() {
                                                    : Object.values(state.personalData).find(pd => pd.itemNum === itemNum && pd.owned);
             }
           }
-          if (existingItem) {
-            if (existingItem.groupId) {
-              // Item already has a group — join it
-              boxGroupId = existingItem.groupId;
-            } else {
-              // Item has no group yet — create one and backfill it
-              boxGroupId = 'GRP-' + _rawItemNum + '-' + Date.now();
-              existingItem.groupId = boxGroupId;
-              const existingInvId = existingItem.inventoryId || nextInventoryId();
-              if (!existingItem.inventoryId) existingItem.inventoryId = existingInvId;
-              // Audit NEW #1 fix: write to schema-derived columns. Hardcoded U,V
-              // were inventoryId+groupId pre-Session-156; after the reorder
-              // they're matchedTo+setId, so this was silently corrupting fields.
-              if (existingItem.row && existingItem.row !== 99999) {
-                var _invCol = personalColLetter('inventoryId');
-                var _grpCol = personalColLetter('groupId');
-                // Write each col separately since they're not adjacent in the
-                // post-Session-156 layout (AA and AB happen to be adjacent —
-                // safe to combine — but be defensive in case schema changes).
-                //
-                // v0.9.1323 (the wizard-save write-guard sweep): these two were
-                // the LAST bare row-targeted writes in this file — fire-and-
-                // forget onto a remembered row number. If the row had moved,
-                // they stamped an inventoryId and groupId onto whatever item
-                // now sat there, silently rewriting a stranger's IDENTITY
-                // columns — the worst column to corrupt. Identity-checked now;
-                // invId is deliberately '' because the sheet row predates ids
-                // (that is the very reason for the backfill), so the item
-                // NUMBER is the check. A refused backfill is harmless: state
-                // carries the ids, and the next full-row save writes them.
-                rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, existingItem.row,
-                  PERSONAL_TAB + '!' + _invCol + existingItem.row + ':' + _invCol + existingItem.row,
-                  [[existingInvId]], { num: existingItem.itemNum || '', invId: '' }, 'collection')
-                  .catch(e => console.warn('Inventory ID backfill:', e));
-                rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, existingItem.row,
-                  PERSONAL_TAB + '!' + _grpCol + existingItem.row + ':' + _grpCol + existingItem.row,
-                  [[boxGroupId]], { num: existingItem.itemNum || '', invId: '' }, 'collection')
-                  .catch(e => console.warn('Group ID backfill:', e));
-              }
-            }
-          }
+          // v0.9.2025: join the item's group, or start one and write it onto
+          // the item too — ONE helper (rrGroupIdForCopy, top of this file),
+          // shared with the Instruction Sheet save.
+          if (existingItem) boxGroupId = rrGroupIdForCopy(existingItem, _rawItemNum);
         }
 
-        const _boVar = d.boxVariation || variation;
-        const _boDesc = d.boxVariationDesc || '';
-        var _boNote = (d.notes || '').trim() || 'Box for ' + itemNum;
-        if (_boDesc && _boNote === 'Box for ' + itemNum) _boNote += ' — ' + _boDesc;
+        const _boVar = _isMbox ? '' : (d.boxVariation || variation);
+        const _boDesc = _isMbox ? '' : (d.boxVariationDesc || '');
+        const _boDefault = _isMbox ? String(_MB.note || 'Master carton for {num}').replace('{num}', itemNum) : 'Box for ' + itemNum;
+        var _boNote = (d.notes || '').trim() || _boDefault;
+        if (_boDesc && _boNote === _boDefault) _boNote += ' — ' + _boDesc;
+        // v0.9.2025: the photo picked on the box screen was held and never
+        // uploaded — the Box Only save read only the photo STEPS. It goes into
+        // the piece's own folder now, the way the master carton's photos do.
+        let _boPhotoLink = boxPhotos[0] || '';
+        if (!_boPhotoLink && d._boxPhotoFile) {
+          try {
+            await driveEnsureSetup();
+            const _boFolderId = await driveEnsureItemFolder(boxItemNum);
+            _boPhotoLink = 'https://drive.google.com/drive/folders/' + _boFolderId;
+            const _boExt = (String((d._boxPhotoFile && d._boxPhotoFile.name) || '').split('.').pop() || 'jpg').replace(/[^A-Za-z0-9]/g, '') || 'jpg';
+            await driveUploadPhoto(d._boxPhotoFile, boxItemNum + ' BOX-FV.' + _boExt, _boFolderId);
+          } catch (eBP) {
+            console.warn('[box] photo upload:', eBP);
+            if (typeof showToast === 'function') showToast('The box was saved, but its photo did not upload \u2014 add it from Edit / Photos.', 6000, true);
+          }
+        }
         // Session 156: boxRow via buildPersonalRow
         const _boxFields = {
           itemNum: boxItemNum,
@@ -1383,7 +1463,7 @@ async function saveWizardItem() {
           priceBox: d.priceBox || '',
           hasBox: 'Yes',
           boxCond: d.boxCond || '',
-          photoBox: boxPhotos[0] || '',
+          photoBox: _boPhotoLink,
           notes: _boNote,
           datePurchased: d.purchaseDate || '',
           userEstWorth: d.userEstWorth || '',
@@ -1393,8 +1473,9 @@ async function saveWizardItem() {
           location: d.location || '',
           ..._rrUserFieldValues(d),
           era: _resolveSaveEra(),
-          manufacturer: _getEraManufacturer(),
+          manufacturer: _resolveSaveMfr(),   // v0.9.2025: the copy's maker when Add a Piece aimed it
         };
+        if (_isMbox) _boxFields.itemType = 'Master Carton';
         const boxRow = buildPersonalRow(_boxFields);
 
         // v0.9.1267 (R3): identity-checked — but this one asks rrRowStillIs
@@ -1429,10 +1510,10 @@ async function saveWizardItem() {
         state.personalData[boxInvId] = rrSavedRecord(_bxWritten, _bxApRow || 0, {
           row: _bxApRow || 0, itemNum: boxItemNum, variation,
           status: 'Owned', owned: true,
-          itemType: 'Box',
+          itemType: _isMbox ? 'Master Carton' : 'Box',
           condition: d.boxCond || '', hasBox: 'Yes', boxCond: d.boxCond || '',
           priceBox: d.priceBox || '',
-          notes: (d.notes || '').trim() || 'Box for ' + itemNum,
+          notes: _boNote,
           datePurchased: d.purchaseDate || '',
           userEstWorth: d.userEstWorth || '',
           matchedTo: itemNum,
@@ -1445,7 +1526,8 @@ async function saveWizardItem() {
 
         d._saveComplete = true;
         closeWizard();
-        showToast('✓ Box for ' + itemNum + ' saved!' + (boxGroupId ? ' (grouped)' : ''));
+        showToast((_isMbox ? String(_MB.saved || '\u2713 Master carton for {num} saved!').replace('{num}', itemNum) : '✓ Box for ' + itemNum + ' saved!') + (boxGroupId ? ' (grouped)' : ''));
+        _rrAddPieceRepaint(d);   // v0.9.2025: back on the item's page, the new piece shows in its group
         buildDashboard();
         renderBrowse();
         return;  // Done — box-only exits here

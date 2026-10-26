@@ -350,18 +350,19 @@ function getSteps(tab) {
     if (wizard.data.boxOnly) {
       return [
         { id: 'itemNumGrouping',  title: 'Item Number',       type: 'itemNumGrouping' },
-        { id: 'boxCondDetails',   title: (d) => 'Box condition — ' + getItemLabel(d), type: 'boxCondDetails' },
+        { id: 'boxCondDetails',   title: (d) => (d._boxKind === 'mbox' ? 'Master carton condition — ' : 'Box condition — ') + getItemLabel(d), type: 'boxCondDetails' },
         { id: 'boxVariation', title: (d) => 'Which box type do you have?', type: 'boxVariationPicker',
           skipIf: (d) => {
             // Session 140 (Tier 3.19): Lionel-only step — box-variation data
             // lives on the Lionel PW - Boxes tab and is Lionel-specific by design.
+            if (d._boxKind === 'mbox') return true;   // v0.9.2025: box types are for item boxes, not master cartons
             if (typeof _wizardMfr === 'function' && _wizardMfr() !== 'lionel') return true;
             if (typeof getBoxVariations !== 'function') return true;
             var vars = getBoxVariations(d.itemNum);
             return vars.length < 2;
           } },
         { id: 'boxPurchaseValue', title: 'Purchase & Value',  type: 'boxPurchaseValue' },
-        { id: 'confirm',          title: 'Ready to save box info!', type: 'confirm' },
+        { id: 'confirm',          title: (d) => (d._boxKind === 'mbox' && typeof RR_ADD_PIECE !== 'undefined') ? RR_ADD_PIECE.mbox.confirm : 'Ready to save box info!', type: 'confirm' },
       ];
     }
     // Helper: is this a paired engine+tender set?

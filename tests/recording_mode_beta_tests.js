@@ -52,12 +52,23 @@ ok('it is defensive about being called before config loads',
 // ── no badge bypasses the switch ────────────────────────────────
 section('No badge bypasses the switch');
 const FILES = ['dashboard.js', 'import-ui.js', 'prefs.js'];
-FILES.forEach(f => {
-  const s = rd(f);
+// v0.9.2025: EVERY app file, not a named list — the Collector's Market badge
+// in vault.js was hand-typed and slipped past the old three-file list.
+const ALL = fs.readdirSync(path.join(__dirname, '..', 'app')).filter(f => /\.(js|html)$/.test(f));
+const handRolled = s => (s.match(/>\s*BETA\s*</g) || []).length;
+ok('planted: a hand-typed BETA span is caught', handRolled('<span class="vault-market-badge">BETA</span>') === 1);
+ALL.forEach(f => {
+  let s = rd(f);
+  // the switch itself is the ONE place allowed to write the span
+  if (f === 'config.js') s = s.replace("return '<span ' + (attrs || RR_BETA_BADGE_STYLE) + '>BETA</span>';", '');
   // a literal >BETA< in the markup is a badge that would survive recording mode
-  const raw = (s.match(/>\s*BETA\s*</g) || []).length;
+  const raw = handRolled(s);
   ok(f + ' has no hand-rolled BETA span left', raw === 0, raw ? raw + ' found' : '');
 });
+
+// ── the Collector's Market badge goes through the switch (v0.9.2025) ──
+section('Collector\'s Market badge answers recording mode');
+ok('vault.js asks rrBetaBadge for the market badge', /rrBetaBadge\('class="vault-market-badge"'\)/.test(rd('vault.js')));
 
 // ── Import is for everyone: no BETA badge on any of its doors ───
 // v0.9.2024. Brad: "take the beta tag off" (Import is open to every user).

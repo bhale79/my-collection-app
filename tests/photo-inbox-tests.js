@@ -18542,7 +18542,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // ── the backfills go through the guarded writer with itemNum identity
       //    and a deliberately empty invId ──
       const bkInv = /rrVerifiedRowUpdate\(state\.personalSheetId, PERSONAL_TAB, existingItem\.row,[\s\S]{0,200}?\[\[existingInvId\]\], \{ num: existingItem\.itemNum \|\| '', invId: '' \}, 'collection'\)/.test(ws);
-      const bkGrp = /rrVerifiedRowUpdate\(state\.personalSheetId, PERSONAL_TAB, existingItem\.row,[\s\S]{0,200}?\[\[boxGroupId\]\], \{ num: existingItem\.itemNum \|\| '', invId: '' \}, 'collection'\)/.test(ws);
+      // v0.9.2025: both backfills moved into rrGroupIdForCopy (top of wizard-save.js),
+      // shared by the Box Only and Instruction Sheet saves; the group id is `gid` there.
+      const bkGrp = /rrVerifiedRowUpdate\(state\.personalSheetId, PERSONAL_TAB, existingItem\.row,[\s\S]{0,200}?\[\[gid\]\], \{ num: existingItem\.itemNum \|\| '', invId: '' \}, 'collection'\)/.test(ws);
       ok('268 the inventoryId backfill is identity-checked (itemNum; invId deliberately empty)', bkInv);
       ok('268 the groupId backfill is identity-checked the same way', bkGrp);
       // ── the wishlist-cleanup blank writes through the guarded writer with

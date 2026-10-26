@@ -3408,7 +3408,9 @@ function renderWizardStep() {
       _bcdHtml += _bcdSlider('unit2BoxCond', 'B Unit Box Condition', '#8b5cf6');
       _bcdHtml += _bcdSlider('unit3BoxCond', 'A Dummy Box Condition', 'var(--text-dim)');   // v1868: the dim voice, not its old brown
     } else {
-      _bcdHtml += _bcdSlider('boxCond', 'Box Condition', '#d4a843');
+      // v0.9.2025: a master carton (Add a Piece to Group) uses these screens too
+      var _bcdMB = (_bcd._boxKind === 'mbox' && typeof RR_ADD_PIECE !== 'undefined') ? RR_ADD_PIECE.mbox : null;
+      _bcdHtml += _bcdSlider('boxCond', _bcdMB ? _bcdMB.cond : 'Box Condition', '#d4a843');
     }
     _bcdHtml += '<div style="display:flex;justify-content:space-between;font-size:0.7rem;color:var(--text-dim);margin-top:-0.35rem;margin-bottom:0.75rem"><span>Poor</span><span>Excellent' + _wizCondHelp() + '</span></div>';
 
@@ -3420,15 +3422,15 @@ function renderWizardStep() {
         + '<button type="button" id="bcd-grp-yes" onclick="_bcdSetGroup(&apos;Yes&apos;)" style="flex:1;padding:0.5rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:var(--font-body);border:2px solid ' + (_bcdGrouped ? 'var(--accent2)' : 'var(--border)') + ';background:' + (_bcdGrouped ? 'rgba(201,146,42,0.12)' : 'var(--surface2)') + ';color:' + (_bcdGrouped ? 'var(--accent2)' : 'var(--text-mid)') + '">Yes \u2014 link it</button>'
         + '<button type="button" id="bcd-grp-no" onclick="_bcdSetGroup(&apos;No&apos;)" style="flex:1;padding:0.5rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:var(--font-body);border:2px solid var(--border);background:var(--surface2);color:var(--text-mid)">No</button>'
         + '</div>'
-        + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.3rem">Links this box to your ' + _bcdNum + ' with a shared Group ID.</div>'
+        + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.3rem">' + ((_bcd._boxKind === 'mbox' && typeof RR_ADD_PIECE !== 'undefined') ? RR_ADD_PIECE.mbox.group.replace('{num}', _bcdNum) : 'Links this box to your ' + _bcdNum + ' with a shared Group ID.') + '</div>'
         + '</div>';
     }
 
     _bcdHtml += '<div style="margin-bottom:0.5rem">'
-      + '<div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-dim);margin-bottom:0.35rem">Box photo (optional)</div>'
+      + '<div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-dim);margin-bottom:0.35rem">' + ((_bcd._boxKind === 'mbox' && typeof RR_ADD_PIECE !== 'undefined') ? RR_ADD_PIECE.mbox.photo : 'Box photo (optional)') + '</div>'
       + '<button type="button" id="bcd-photo-btn" style="width:100%;padding:0.55rem;border-radius:9px;border:1.5px dashed var(--border);background:var(--surface2);color:var(--text-mid);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.4rem">'
       + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>'
-      + '<span id="bcd-photo-label">Add box photo</span>'
+      + '<span id="bcd-photo-label">' + (_bcd._boxPhotoFile ? '\u2713 ' + String(_bcd._boxPhotoFile.name || '').slice(0, 22) : ((_bcd._boxKind === 'mbox' && typeof RR_ADD_PIECE !== 'undefined') ? RR_ADD_PIECE.mbox.photoBtn : 'Add box photo')) + '</span>'
       + '</button>'
       + '<input type="file" id="bcd-photo-file" accept="image/*" capture="environment" style="display:none">'
       + '</div>';
