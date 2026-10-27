@@ -1583,7 +1583,7 @@ function buildSoldPage() {
   // list, only from here on — every count above is the collector's own — drawn by
   // the row code below, tagged and inert.
   if (!Object.keys(state.soldData || {}).length && typeof rrSampleRows === 'function') { const _sdSmp = rrSampleRows('sold', 0); if (_sdSmp.length) soldEntries = _sdSmp; }
-  const isMobileSold = window.innerWidth <= 640;
+  const isMobileSold = rrIsPhone();
   const soldCardsEl = document.getElementById('sold-cards');
   const soldTableWrap = document.getElementById('sold-table-wrap');
   const tbody = document.getElementById('sold-tbody');
@@ -2150,7 +2150,7 @@ function buildForSalePage() {
   // collector's own — drawn by the row code below, tagged and inert.
   const _fsOwnN = fsEntries.length;
   if (!Object.keys(state.forSaleData || {}).length && typeof rrSampleRows === 'function') { const _fsSmp = rrSampleRows('forsale', 0); if (_fsSmp.length) fsEntries = _fsSmp; }
-  const isMobileFs = window.innerWidth <= 640;
+  const isMobileFs = rrIsPhone();
   const fsCardsEl = document.getElementById('forsale-cards');
   const fsTableWrap = document.getElementById('forsale-table-wrap');
   const tbody = document.getElementById('forsale-tbody');
@@ -3358,7 +3358,7 @@ async function removeForSaleAndCollection(fsKey) {
 // ══════════════════════════════════════════════════════════════════════
 
 function buildSetsPage() {
-  const isMobile = window.innerWidth <= 640;
+  const isMobile = rrIsPhone();
   const sq = (state._setsSearch || '').toLowerCase();
   const yearFilter  = (document.getElementById('sets-filter-year')?.value  || '').trim();
   const gaugeFilter = (document.getElementById('sets-filter-gauge')?.value || '').trim();
@@ -3869,7 +3869,7 @@ function buildUpgradePage() {
   // Combined Want/Upgrade page (Session 161+). state._wishlistFilter controls
   // which slice is shown: 'all' (default) | 'want' | 'upgrade'. Pull entries
   // from BOTH state.wantData and state.upgradeData, tag with listType.
-  const isMobile = window.innerWidth <= 640;
+  const isMobile = rrIsPhone();
   const _uq = (state._upgradeSearch || '').toLowerCase();
   const _sort = state._upgradeSort || 'priority';
   const _up = state._upgradePriority || '';

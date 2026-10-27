@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2031';
+const APP_VERSION = 'v0.9.2032';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -3374,7 +3374,16 @@ const RR_GPHOTOS_WAIT = {
   cancel: 'Cancel',
   usingFirst: 'Using the first photo you picked',
   errSetup: 'Google Photos needs its one-time setup \u2014 open Photo Inbox \u2192 From Google Photos for the steps',
-  err_scope: 'Google Photos permission was not granted',
+  err_scope: 'Google Photos permission was not granted. On Google\u2019s page tap Advanced, then the \u201cGo to \u2026\u201d link that appears, then Allow \u2014 or add photos From this phone instead.',   // v0.9.2032
+  // v0.9.2032 (Mike, York: stopped at Google's red page and never got Google
+  // Photos). Until Google's review of the app is done, asking for the Photos
+  // permission shows "Google hasn't verified this app". Said BEFORE it appears,
+  // once per account (lv_gphotos_granted, through _prefSet) — never again once
+  // the permission is in. Shown by rrGPhotosUnverifiedNotice (drive.js).
+  unverifiedTitle: 'Before Google opens',
+  unverified: 'Google will show a page saying it hasn\u2019t verified this app. That is Google\u2019s standard page for a small app while its review is pending \u2014 the app only sees the photos you pick. On that page tap Advanced, then the \u201cGo to \u2026\u201d link that appears, then Allow.',
+  unverifiedGo: 'Continue to Google',
+  unverifiedNo: 'Not now',
   err_timeout: 'Gave up waiting for Google Photos \u2014 try again',
   err_none: 'No photo was picked',
   err_download: 'Could not fetch that photo from Google Photos \u2014 try again',
@@ -3698,6 +3707,27 @@ const RR_ADD_TYPED = {
   contains:    '{maker} · contains {num}',   // the maker word, then why this row turned up
 };
 if (typeof window !== 'undefined') window.RR_ADD_TYPED = RR_ADD_TYPED;
+
+// ═══════════════════════════════════════════════════════════════
+// v0.9.2032 — WHAT IS A PHONE (Bob, York, 2026-10-26: "I have to alternate my
+// phone from vertical to horizontal … then move to the next screen"). The app
+// decided phone-or-computer by WIDTH alone, in 26 places; an iPhone on its
+// side is 844 wide, so it got the computer layout squeezed into 330 px of
+// height — sidebar, tall header, clipped buttons, content below the fold.
+// ONE definition now: narrow, OR short with a touch screen. The stylesheet's
+// phone rules carry the same two clauses (app.css: `@media (max-width: 640px),
+// (max-height: 500px) and (pointer: coarse)` — the numbers below, and a scan in
+// iphone_2032_tests fails on any phone rule written another way). Every JS
+// decision asks rrIsPhone(); never `innerWidth <= 640` again.
+const RR_PHONE = { maxWidth: 640, shortHeight: 500 };
+function rrIsPhone() {
+  try {
+    if (window.innerWidth <= RR_PHONE.maxWidth) return true;
+    return window.innerHeight <= RR_PHONE.shortHeight
+      && !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+  } catch (e) { return false; }
+}
+if (typeof window !== 'undefined') { window.RR_PHONE = RR_PHONE; window.rrIsPhone = rrIsPhone; }
 
 // ═══════════════════════════════════════════════════════════════
 // v0.9.2027 — TERMS AND WHAT THEY MEAN (a York customer: "maybe it would be

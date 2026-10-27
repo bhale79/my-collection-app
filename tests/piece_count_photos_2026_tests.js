@@ -99,6 +99,11 @@ async function photos(pg, hasScope) {
       res(!!w);
     });
     window.accessToken = 'T';
+    // v0.9.2032: an account that has granted the Photos permission once (a new
+    // pass without it, the common case) — so the "Google hasn't verified this
+    // app" notice does not come first and ONE click still has to open Google's
+    // window. The notice itself is proven in iphone_2032_tests E.
+    try { localStorage.setItem('lv_gphotos_granted', '1'); } catch (e) {}
     const _open = window.open.bind(window);
     window.open = function (u, n) { const w = _open(u, n); if (n !== 'gperm') window._log.push('tab:' + (u || 'blank') + ':' + (w ? 'opened' : 'BLOCKED')); return w; };
     const b = document.createElement('button'); b.id = 'gp-test'; b.textContent = 'From Google Photos';

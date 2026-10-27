@@ -69,7 +69,7 @@
   .rr-card.rr-card-flex { display: flex; flex-direction: column; overflow: hidden; padding: 1.4rem; }
 
   /* Prevent iOS auto-zoom on inputs */
-  @media (max-width: 640px) {
+  @media (max-width: 640px), (max-height: 500px) and (pointer: coarse) {
     input, select, textarea { font-size: 16px !important; }
   }
 
@@ -391,7 +391,7 @@
       gap: 1.5rem; align-items: start;
     }
     .rr-detail-main { min-width: 0; }
-    .rr-detail-side img { max-height: 70vh; }
+    .rr-detail-side img { max-height: 70vh; max-height: 70dvh; }
     /* the thumbnail rail sits UNDER the hero here, not beside it */
     .rr-detail-side #item-detail-photos { flex-direction: column; }
   }
@@ -444,7 +444,7 @@
      wordmark is plain cream + accent now, matching the invite gate. */
   #auth-screen {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    min-height: 100vh; padding: 1.5rem;
+    min-height: 100vh; min-height: 100dvh; padding: 1.5rem;
     background: radial-gradient(ellipse at 30% 20%, #1a1f3a 0%, var(--bg) 60%),
                 radial-gradient(ellipse at 80% 80%, #2a1008 0%, transparent 50%);
   }
@@ -458,7 +458,7 @@
   }
   .auth-brand { flex: 1 1 0; min-width: 0; max-width: 520px; text-align: left; }
   .auth-conductor {
-    height: clamp(130px, 18vh, 200px); width: auto; display: block;
+    height: clamp(130px, 18vh, 200px); height: clamp(130px, 18dvh, 200px); width: auto; display: block;
     margin-bottom: 0.7rem;
   }
   .auth-wordmark {
@@ -741,7 +741,7 @@
 
   /* the composer */
   #rrlc-pop { position: fixed; inset: 0; z-index: 99960; background: var(--scrim); display: flex; align-items: center; justify-content: center; padding: 1rem; overflow-y: auto; }
-  .rrlc-box { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; max-width: 720px; width: 100%; max-height: 92vh; overflow-y: auto; padding: 1.1rem 1.2rem; color: var(--text); font-family: var(--font-body); }
+  .rrlc-box { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; max-width: 720px; width: 100%; max-height: 92vh; max-height: 92dvh; overflow-y: auto; padding: 1.1rem 1.2rem; color: var(--text); font-family: var(--font-body); }
   .rrlc-h { font-family: var(--font-head); font-size: 1rem; font-weight: 700; margin-bottom: 0.15rem; }
   .rrlc-sub, .rrlc-empty, .rrlc-note { font-size: 0.75rem; color: var(--text-dim); line-height: 1.5; margin-bottom: 0.7rem; }
   .rrlc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 0.7rem; }
@@ -1272,7 +1272,7 @@
     background: var(--scrim); font-family: var(--font-body); }
   .rr-ob-box { background: var(--surface); color: var(--text);
     border: 1px solid var(--border); border-radius: 14px; padding: 1.1rem 1.25rem;
-    width: 100%; max-width: 560px; max-height: 88vh; overflow-y: auto;
+    width: 100%; max-width: 560px; max-height: 88vh; max-height: 88dvh; overflow-y: auto;
     box-shadow: 0 12px 40px var(--scrim); }
   .rr-ob-h { font-family: var(--font-head); font-size: 1.05rem; font-weight: 700;
     margin-bottom: 0.35rem; }
@@ -1656,7 +1656,7 @@
   /* ── Setup Screen ──────────────────────────────────────────── */
   #setup-screen {
     display: none; flex-direction: column; align-items: center; justify-content: center;
-    min-height: 100vh; padding: 2rem;
+    min-height: 100vh; min-height: 100dvh; padding: 2rem;
   }
   #setup-screen.active { display: flex; }
   .setup-card {
@@ -1702,7 +1702,7 @@
   .mobile-nav-item.active { color: var(--t-nav); }
 
 
-  @media (max-width: 640px) {
+  @media (max-width: 640px), (max-height: 500px) and (pointer: coarse) {
     /* Layout */
     .sidebar { display: none; }
     /* v0.9.1811 (Brad: "the bottom menu bar shows on the invite-code and
@@ -1788,7 +1788,7 @@
     .form-field input, .form-field select, .form-field textarea { font-size: 1rem !important; min-height: 48px; }
     .status-btn { min-height: 48px !important; font-size: 0.95rem !important; }
     .filter-bar input { min-height: 44px; }
-    .filter-bar select { min-height: 44px; font-size: 0.9rem !important; }
+    .filter-bar select { min-height: 44px; font-size: 1rem !important; }   /* v0.9.2032: 16px — under that, iPhone Safari zooms the page when a field is tapped */
 
     /* Modal full screen */
     .modal-inner { width: 100% !important; max-width: 100% !important;
@@ -1997,7 +1997,7 @@
   .coll-actions-cell { white-space: nowrap !important; }
   .coll-actions-cell button { display: inline-block; width: 62px; text-align: center; margin: 0 0 0 4px !important; padding: 0.3rem 0 !important; }
   .dash-desktop-actions .btn { flex: 1 1 0; min-width: 0; justify-content: center; white-space: nowrap; overflow: hidden; font-size: clamp(0.55rem, 0.9vw, 0.74rem) !important; padding: 0.42rem 0.3rem !important; }
-  @media (max-width: 640px) {
+  @media (max-width: 640px), (max-height: 500px) and (pointer: coarse) {
     .dash-mobile-actions { display: flex !important; gap: 0.5rem; width: 100%; flex-wrap: wrap; }
     .dash-desktop-actions { display: none !important; }
     #dash-greeting { display: none !important; }
@@ -2238,7 +2238,7 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
   #item-detail-photos a[href] img,
   [id^="grp-photos-"] a[href] img {
     height: auto !important;
-    max-height: 70vh;
+    max-height: 70vh; max-height: 70dvh;
     object-fit: contain !important;
   }
 }
@@ -2274,7 +2274,7 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
   opacity: 1; transition: opacity 0.25s;
 }
 .mnav-more.gone { opacity: 0; }
-@media (max-width: 640px) { .mnav-more { display: flex; } }
+@media (max-width: 640px), (max-height: 500px) and (pointer: coarse) { .mnav-more { display: flex; } }
 
 /* ── Item-detail action buttons on phones (v0.9.1021, Brad) ───────────
    Five buttons wrapped into a ragged three rows with small tap targets.
@@ -2282,7 +2282,7 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
    Update Info/Pictures) spans the full width, the rest sit two-across.
    Every button gets the app's 48px phone tap-target floor. Desktop keeps
    the existing single flex row. */
-@media (max-width: 640px) {
+@media (max-width: 640px), (max-height: 500px) and (pointer: coarse) {
   .rr-detail-actions {
     display: grid !important;
     grid-template-columns: 1fr 1fr;
@@ -2305,7 +2305,7 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
    The app promises 44-48px targets on phones, but small square buttons
    added since (showcase ‹ ⏸ ›, photo ✂ crop, picker checkboxes) were
    26px and 15px. One rule, applied by class. */
-@media (max-width: 640px) {
+@media (max-width: 640px), (max-height: 500px) and (pointer: coarse) {
   .rr-tap { min-width: 44px !important; min-height: 44px !important;
             width: 44px !important; height: 44px !important; font-size: 1.05rem !important; }
   .rr-tap-box { width: 22px !important; height: 22px !important; }
@@ -2326,7 +2326,7 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
    "Share / Customers" is a desk job — hidden on phones. "Share to a
    friend" and the "+ Add" dropdown share one row below the title, equal
    width, at the phone tap-target height. Card action buttons likewise. */
-@media (max-width: 640px) {
+@media (max-width: 640px), (max-height: 500px) and (pointer: coarse) {
   #page-forsale .fs-share-customers { display: none !important; }
   #page-forsale .page-title { flex-wrap: wrap; row-gap: 0.5rem; }
   #page-forsale .page-title > span:first-child { flex: 1 1 100%; }
@@ -2348,7 +2348,7 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
    generous card padding. Trimmed together, plus half-height card
    buttons on ONE line each, three cards now land above the fold on a
    normal phone. Desktop untouched. */
-@media (max-width: 640px) {
+@media (max-width: 640px), (max-height: 500px) and (pointer: coarse) {
   /* card action buttons: half the height, one line, evenly spaced */
   .rr-fs-actions { gap: 0.35rem !important; margin-top: 0.45rem !important; }
   .rr-fs-actions > button {
@@ -2382,7 +2382,7 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
    card off the fold. On phones they become a 2x2 grid at a tighter
    height, the "Showing x of y" count moves up into the page title, and
    card buttons match the For Sale half-height treatment. */
-@media (max-width: 640px) {
+@media (max-width: 640px), (max-height: 500px) and (pointer: coarse) {
   #page-upgrade .page-title { font-size: 1rem !important; margin-bottom: 0.4rem !important; letter-spacing: 0.02em; }
   #page-upgrade #upgrade-title-stats { white-space: nowrap; }
   #page-upgrade .wu-filter-bar {
@@ -2394,7 +2394,7 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
   }
   #page-upgrade .wu-filter-bar > select {
     width: 100%; min-height: 38px !important; min-width: 0;
-    padding: 0.3rem 0.45rem !important; font-size: 0.8rem !important;
+    padding: 0.3rem 0.45rem !important; font-size: 1rem !important;   /* v0.9.2032: 16px, no tap-to-zoom */
   }
   #page-upgrade .wu-filter-bar > div {            /* the search pill */
     max-width: none !important; min-width: 0 !important; min-height: 38px;
@@ -2414,7 +2414,7 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
      so it costs one button instead of a third of the screen;
    • nothing scrolls sideways — rows are clamped to the viewport;
    • rows are tighter, and the row thumbnail sits on the right. */
-@media (max-width: 640px) {
+@media (max-width: 640px), (max-height: 500px) and (pointer: coarse) {
   /* filters live in the sheet — hidden inline, shown when moved into it */
   #page-browse > #hierarchy-chip-row { display: none !important; }
   #rr-filter-sheet #hierarchy-chip-row.rr-in-sheet {
@@ -2436,7 +2436,7 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
 
 /* v0.9.1026 (Brad): long titles must not run under the row thumbnail —
    the number line clips with an ellipsis instead of overflowing. */
-@media (max-width: 640px) {
+@media (max-width: 640px), (max-height: 500px) and (pointer: coarse) {
   .browse-card .browse-card-num { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   .browse-card .browse-card-num + span,
   .browse-card > div > div { min-width: 0; }
@@ -2467,7 +2467,7 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
    "Done with Photos" wrapped onto three lines and dragged the whole
    footer to a third of the screen. Buttons now sit on one line each,
    shrink to fit, and the footer keeps a sane height. */
-@media (max-width: 640px) {
+@media (max-width: 640px), (max-height: 500px) and (pointer: coarse) {
   .modal-footer {
     padding: 0.6rem 0.7rem !important;
     gap: 0.4rem !important;
@@ -2498,7 +2498,7 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
    symbols so "Done with Photos" stays fully readable. All four buttons
    share one row, centred, at the same height. */
 .wiz-lbl-short { display: none; }
-@media (max-width: 640px) {
+@media (max-width: 640px), (max-height: 500px) and (pointer: coarse) {
   .wiz-lbl-full { display: none; }
   .wiz-lbl-short { display: inline; }
   .modal-footer { align-items: center !important; }
@@ -2516,7 +2516,7 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
    Collection: smaller page title, filter controls in a tidy grid rather
    than three ragged wrapped rows, tighter cards, and card buttons at
    half height on ONE line. Desktop is untouched throughout. */
-@media (max-width: 640px) {
+@media (max-width: 640px), (max-height: 500px) and (pointer: coarse) {
 
   /* ── shared: titles + card blocks on every list page ── */
   #page-parts .page-title,
@@ -2547,7 +2547,7 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
   #page-sold .filter-bar > select,
   #page-sold .filter-bar > button {
     width: 100%; min-width: 0; min-height: 38px !important;
-    padding: 0.3rem 0.45rem !important; font-size: 0.8rem !important;
+    padding: 0.3rem 0.45rem !important; font-size: 1rem !important;   /* v0.9.2032: 16px, no tap-to-zoom */
   }
   #page-sold .filter-bar > div { min-width: 0; }   /* search rides beside the sort arrow */
   #page-sold > div:nth-of-type(3) { margin-bottom: 0.5rem !important; }
@@ -2566,7 +2566,7 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
   #page-sets .sets-filter-bar > div:first-child { grid-column: 1 / -1; max-width: none !important; min-height: 38px; }
   #page-sets .sets-filter-bar > select {
     width: 100%; min-width: 0; min-height: 38px !important;
-    padding: 0.3rem 0.45rem !important; font-size: 0.8rem !important;
+    padding: 0.3rem 0.45rem !important; font-size: 1rem !important;   /* v0.9.2032: 16px, no tap-to-zoom */
   }
   #sets-count-label { grid-column: 1 / -1; text-align: right; }
   #sets-cards { gap: 0.45rem !important; }
@@ -2591,7 +2591,7 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
    stands down and gives that space to the field being typed in.
    .wiz-kb is put on / taken off the popup by _kbApply() in wizard.js.
    ══════════════════════════════════════════════════════════════════════ */
-@media (max-width: 640px) {
+@media (max-width: 640px), (max-height: 500px) and (pointer: coarse) {
   .modal.wiz-kb .modal-header { padding-top: 0.5rem !important; padding-bottom: 0.35rem !important; }
   .modal.wiz-kb .modal-title { font-size: 0.95rem !important; line-height: 1.15 !important; }
   .modal.wiz-kb .modal-item-num { font-size: 0.62rem !important; margin-bottom: 0 !important; }
@@ -2609,12 +2609,34 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
    popup now ends ABOVE the nav — everything inside still scrolls, and the
    footer is always on screen where you can reach it.
    ══════════════════════════════════════════════════════════════════════ */
-@media (max-width: 640px) {
+@media (max-width: 640px), (max-height: 500px) and (pointer: coarse) {
   /* the nav is ~85px tall on a phone — clear it with a little to spare */
   .modal-overlay { padding-bottom: 92px; }
   #wizard-modal .modal {
     max-height: calc(100vh - 108px);
     max-height: calc(100dvh - 108px);
+  }
+
+  /* ══ v0.9.2032 — a phone on its SIDE (short + touch). Bob, York: "I have to
+     alternate my phone from vertical to horizontal … then move to the next
+     screen." Sideways there are ~330 px of height; the box above the bottom
+     bar kept ~100 px for the step itself. Here the Add box takes the WHOLE
+     height — over the bottom bar, which is useless mid-add anyway — and its
+     chrome stands down the way .wiz-kb does when the keyboard is up: one-line
+     header, no progress bar, short footer. Upright phones and computers are
+     untouched (this block is short-AND-touch only). */
+  @media (max-height: 500px) {
+    #wizard-modal { z-index: 900; padding: 0 !important; }   /* the bottom bar sits at 800 */
+    #wizard-modal .modal {   /* !important: wizard.js sets an inline width and height per step */
+      height: 100vh !important; height: 100dvh !important; max-height: 100vh !important; max-height: 100dvh !important;
+      max-width: 100% !important; border-radius: 0; box-sizing: border-box;
+    }
+    #wizard-modal .modal-header { padding-top: 0.4rem !important; padding-bottom: 0.3rem !important; }
+    #wizard-modal .modal-title { font-size: 0.95rem !important; line-height: 1.15 !important; }
+    #wizard-modal .modal-item-num { font-size: 0.62rem !important; margin-bottom: 0 !important; }
+    #wizard-modal #wizard-progress-wrap { display: none !important; }
+    #wizard-modal .modal-body { padding-top: 0.6rem !important; padding-bottom: 0.6rem !important; gap: 0.6rem !important; }
+    #wizard-modal .modal-footer { padding-top: 0.4rem !important; padding-bottom: 0.4rem !important; }
   }
 
   /* ══ v0.9.1411 — Photo Inbox toolbar, two compact rows on a phone ═════════
@@ -2717,7 +2739,7 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
   }
   /* the filter <select> can't render ::before reliably; give it the label via
      its own tiny font instead as a fallback so it never shows blank. */
-  #pin-toolbar #pin-filter-row > select { font-size: 0.6rem !important; }
+  #pin-toolbar #pin-filter-row > select { font-size: 1rem !important; }   /* v0.9.2032: was 0.6rem — iPhone Safari zoomed the page on every tap */
 
   /* Add + Identify keep their real (long) labels — only the row-2 strip is
      iconified. Make sure the half-width row-1 buttons wrap their text. */
@@ -2770,8 +2792,10 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
 
 /* Desktop / tablet: the overflow wrapper is invisible plumbing — its child
    (the paid read button) flows into the toolbar exactly as before v0.9.1411,
-   and the phone-only "⋯ More" button never shows. */
-@media (min-width: 641px) {
+   and the phone-only "⋯ More" button never shows.
+   v0.9.2032: "not a phone" is the exact opposite of the phone rule above
+   (narrow, or short with a touch screen): wide AND (tall, or not a touch screen). */
+@media (min-width: 641px) and (min-height: 501px), (min-width: 641px) and (pointer: fine), (min-width: 641px) and (pointer: none) {
   #pin-overflow { display: contents; }
   #pin-more-btn { display: none !important; }
 }
@@ -2981,7 +3005,7 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
   background: var(--surface); border: 2px solid var(--border-hi);
   border-radius: 10px;
 }
-#rr-thumb-preview img { width: 100%; height: auto; max-height: 60vh; object-fit: contain; display: block; border-radius: 6px; }
+#rr-thumb-preview img { width: 100%; height: auto; max-height: 60vh; max-height: 60dvh; object-fit: contain; display: block; border-radius: 6px; }
 
 /* ── v0.9.1808 (Brad: "All large cards should be the same size", no scrolling to
    see the bottom). Computer only: every large dashboard card is ONE height,
@@ -3053,7 +3077,7 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
   flex: 0 0 auto; align-self: center; margin-left: 1rem; box-sizing: border-box;
   /* v0.9.1955: as tall as the Add screen (wizard.js _wizPicFirstFit), so the
      two tops sit level; 580px only until the first fit */
-  height: 580px; max-height: 96vh; display: flex; flex-direction: column; gap: 0.5rem; overflow: hidden;
+  height: 580px; max-height: 96vh; max-height: 96dvh; display: flex; flex-direction: column; gap: 0.5rem; overflow: hidden;
   padding: 0.9rem; border-radius: 16px; border: 1px solid var(--border);
   background: var(--surface);
 }
@@ -3325,3 +3349,17 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
 .wiz-ing-wide:has(.wiz-pid-row) #wiz-match { margin-top: 0.3rem !important; }
 .wiz-ing-wide:has(.wiz-pid-row) .wiz-filter-hint { margin-bottom: 0.2rem !important; }
 .wiz-ing-wide:has(.wiz-pid-row) #wiz-suggestions > div:first-child { padding-top: 0.15rem !important; padding-bottom: 0.2rem !important; }
+
+/* ══ v0.9.2032 — TAP TARGETS on a phone (the iPhone audit, 2026-10-27): older
+   fingers miss anything under 40 px. Measured in the real app at 390 wide:
+   the notice × 13×16, "✎ Edit Dashboard" 24 tall, "Back to Collection" 21,
+   "× Hide this" 25, the Reports row buttons 31, the dashboard section headers
+   23, the item page's buttons 30, the pop-up × 30. Each gets a 40 px box here;
+   their looks are untouched. iphone_2032_tests measures every one. */
+@media (max-width: 640px), (max-height: 500px) and (pointer: coarse) {
+  .rr-notice-x { min-width: 40px !important; min-height: 40px !important; display: inline-flex !important; align-items: center; justify-content: center; }
+  #dash-edit-btn, #pin-help-btn, .rr-detail-back, .rep-row-actions button, .rr-detail-actions button, .rr-detail-photos-btn, .btn-close { min-height: 40px !important; }
+  .btn-close, .rr-wiz-cancel { min-width: 40px !important; }
+  .rep-row-actions { margin-top: -5px; margin-bottom: -4px; }   /* the 40 px buttons grew each Reports row by 9 px; the row keeps its old height (the tour rings that page and the tab beneath it, tour_count A5) */
+  .section-title[id^="dash-panel-header"] { min-height: 40px !important; }
+}

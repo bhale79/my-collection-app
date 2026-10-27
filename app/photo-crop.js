@@ -633,7 +633,7 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
   var _phone = false;
   try {
     _phone = (typeof IS_MOBILE_UA !== 'undefined' && IS_MOBILE_UA)
-      || (window.matchMedia && window.matchMedia('(max-width: 640px)').matches);
+      || (typeof rrIsPhone === 'function' && rrIsPhone());
   } catch (eP) {}
   window._rrCropOpen = true;
 

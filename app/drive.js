@@ -2269,9 +2269,16 @@ async function rrGPhotosPickSession(opts) {
   var _askFirst = (typeof _ensurePhotosScope === 'function') && (typeof _rrPassHasScope === 'function')
     && (typeof SCOPE_PHOTOS !== 'undefined') && !_rrPassHasScope(SCOPE_PHOTOS);
   if (!_askFirst) { try { tab = window.open('', '_blank'); } catch (e) {} }
+  // v0.9.2032 (Mike, York): Google's permission window shows "Google hasn't
+  // verified this app" until the review is done. Say so first, once per account.
+  if (_askFirst) {
+    var _go = await rrGPhotosUnverifiedNotice();
+    if (!_go) return { error: 'cancelled' };
+  }
   if (typeof _ensurePhotosScope === 'function') {
     var _ok = await _ensurePhotosScope();
     if (!_ok) { try { if (tab) tab.close(); } catch (e) {} return { error: 'scope' }; }
+    try { if (typeof _prefSet === 'function' && _prefGet(RR_GPHOTOS_GRANTED_KEY, '') !== '1') _prefSet(RR_GPHOTOS_GRANTED_KEY, '1'); } catch (eG) {}
   }
   var auth = { Authorization: 'Bearer ' + window.accessToken };
   var sRes;
@@ -2478,6 +2485,16 @@ function rrGPhotosPickFiles(opts) {
   }, function () { panel.close(); return { error: 'network' }; });
 }
 // What to tell the user about a result that brought nothing back ('' = say nothing).
+// v0.9.2032 — the words before Google's "hasn't verified this app" page. Shown
+// only while this ACCOUNT has never granted the Photos permission (the flag
+// travels with the account through _prefSet); once granted, Google does not
+// show the page again and neither do we. Resolves true = go on to Google.
+var RR_GPHOTOS_GRANTED_KEY = 'lv_gphotos_granted';
+async function rrGPhotosUnverifiedNotice() {
+  var W = _rrGPW();
+  try { if (typeof _prefGet === 'function' && _prefGet(RR_GPHOTOS_GRANTED_KEY, '') === '1') return true; } catch (e) {}
+  return await appConfirm(W.unverified || '', { title: W.unverifiedTitle || '', ok: W.unverifiedGo || 'OK', cancel: W.unverifiedNo || 'Cancel' });
+}
 function rrGPhotosErrText(res) {
   var W = _rrGPW(), e = res && res.error;
   if (!e || e === 'cancelled') return '';
@@ -2493,6 +2510,7 @@ if (typeof window !== 'undefined') {
   window.rrGPhotosEnd = rrGPhotosEnd;
   window.rrGPhotosPickFiles = rrGPhotosPickFiles;
   window.rrGPhotosErrText = rrGPhotosErrText;
+  window.rrGPhotosUnverifiedNotice = rrGPhotosUnverifiedNotice;   // v0.9.2032
 }
 
 // ══ v0.9.1177 — ONE thumbnail cell for every list ═════════════════════════

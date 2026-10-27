@@ -3770,6 +3770,7 @@ function _showPreloadPill(total) {
   var x = document.createElement('button');
   x.textContent = '✕';
   x.title = 'Hide this notice';
+  x.className = 'rr-notice-x';   // v0.9.2032: a 40 px tap target on a phone
   x.style.cssText = 'background:none;border:none;color:var(--text-dim);'
     + 'cursor:pointer;font-size:0.85rem;padding:0 0 0 0.35rem;opacity:0.7';
   x.onclick = function() { pill.remove(); };
@@ -3904,7 +3905,7 @@ function goToMyCollection() {
   filterOwned();
   // mobile
   const mNav = document.getElementById('mnav-browse');
-  if (mNav && window.innerWidth <= 640) { showPage('browse', mNav); filterOwned(); }
+  if (mNav && rrIsPhone()) { showPage('browse', mNav); filterOwned(); }
 }
 function goToWantList() {
   // v0.9.1348: points at Want/Upgrade now. The old selector looked for a
@@ -3915,7 +3916,7 @@ function goToWantList() {
   showPage('upgrade', navBtn);
   buildUpgradePage();
   const mNav = document.getElementById('mnav-want');
-  if (mNav && window.innerWidth <= 640) { showPage('upgrade', mNav); buildUpgradePage(); }
+  if (mNav && rrIsPhone()) { showPage('upgrade', mNav); buildUpgradePage(); }
 }
 
 

@@ -51,7 +51,7 @@ function renderReportLibrary() {
         '<div style="font-size:0.82rem;color:var(--text-dim);margin-top:1px">' + _repEsc(d.desc) + '</div>' +
         '<div style="font-size:0.73rem;color:var(--text-dim);margin-top:3px">' + _repFmtGen(meta[d.id]) + '</div>' +
       '</div>' +
-      '<div style="display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap">' +
+      '<div class="rep-row-actions" style="display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap">' +
         '<button id="rep-preview-' + _repEsc(d.id) + '" onclick="_repPreview(\'' + _repEsc(d.id) + '\')" style="' + btnA + '">Preview</button>' +
         '<button onclick="_repUpdate(\'' + _repEsc(d.id) + '\')" style="' + btn + '">Update</button>' +
         '<div style="position:relative"><button id="rep-export-' + _repEsc(d.id) + '" onclick="_repToggleMenu(event,\'' + _repEsc(d.id) + '\')" style="' + btn + '">Export &#9662;</button>' + menu + '</div>' +

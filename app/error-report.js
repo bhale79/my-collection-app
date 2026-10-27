@@ -605,7 +605,7 @@ var ERR_REPORT_CFG = {
           '<div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.2rem">' +
             '<h2 style="margin:0;font-size:1.15rem">Report a problem</h2>' +
             '<span style="flex:1"></span>' +
-            '<button onclick="errReportClose()" aria-label="Close" style="border:none;background:transparent;color:var(--text-dim);font-size:1.4rem;line-height:1;cursor:pointer">&times;</button>' +
+            '<button class="rr-notice-x" onclick="errReportClose()" aria-label="Close" style="border:none;background:transparent;color:var(--text-dim);font-size:1.4rem;line-height:1;cursor:pointer">&times;</button>' +
           '</div>' +
           '<p style="margin:0 0 0.9rem;font-size:0.84rem;color:var(--text-dim);line-height:1.5">' +
             'Tell us what happened in your own words. We already know which buttons you pressed and what the app was doing — you can see all of it below before anything is sent. ' +

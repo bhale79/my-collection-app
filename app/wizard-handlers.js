@@ -71,7 +71,7 @@ function _updateGroupingButtons() {
   container.style.display = 'block';
   let html = '<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.4rem">How are you entering this item?</div>';
   html += '<div class="wiz-grp-btns-row" style="display:flex;flex-wrap:wrap;gap:0.35rem">';
-  const _isMobile = window.innerWidth <= 640;
+  const _isMobile = rrIsPhone();
   const _btnFlex = _isMobile ? '1 1 calc(50% - 0.35rem)' : '1';
   buttons.forEach(function(btn) {
     const sel = current === btn.id;

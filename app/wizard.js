@@ -734,7 +734,7 @@ function _buildWizardModal() {
         // v0.9.1029 (Brad): on phones Back and Cancel shrink to their symbols
         // so "Done with Photos" stays READABLE rather than truncating to an
         // ambiguous "Done".
-        '<button class="btn btn-secondary" onclick="closeWizard()" aria-label="Cancel">' +
+        '<button class="btn btn-secondary rr-wiz-cancel" onclick="closeWizard()" aria-label="Cancel">' +
           '<span class="wiz-lbl-full">Cancel</span><span class="wiz-lbl-short">&#x2715;</span>' +
         '</button>' +
         '<button class="btn btn-secondary" id="wizard-skip-photos-btn" onclick="wizardSkipAllPhotos()" style="display:none">' +

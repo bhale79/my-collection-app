@@ -3994,7 +3994,7 @@ function _rrBrowseCore(_co) {
   // v0.9.1878: the chip the user CHOSE is guarded below; the chip that is LIT
   // (and the section the rows come from) is derived from it and the Type in
   // force by rrCollShowSection — the one decider, shared with the chip bar.
-  const _secDesk = !!(owned && window.innerWidth > 640);
+  const _secDesk = !!(owned && !rrIsPhone());
   let _secStored = _secDesk ? (state._collSection || 'trains') : 'all';
   // v0.9.990: typed-row section keys and their itemType matches (one source
   // of truth for the availability guard, the filter, and the chips below).
@@ -5133,7 +5133,7 @@ function _rrBrowseCore(_co) {
 
   // Rows
   const tbody = document.getElementById('browse-tbody');
-  const isMobile = window.innerWidth <= 640;
+  const isMobile = rrIsPhone();
   const cardsEl = document.getElementById('browse-cards');
   const tableEl = document.querySelector('.item-table');
   let _ephRowsHtml = '';
