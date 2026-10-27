@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2033';
+const APP_VERSION = 'v0.9.2034';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -3728,6 +3728,33 @@ function rrIsPhone() {
   } catch (e) { return false; }
 }
 if (typeof window !== 'undefined') { window.RR_PHONE = RR_PHONE; window.rrIsPhone = rrIsPhone; }
+
+// ═══════════════════════════════════════════════════════════════
+// v0.9.2034 — THE SCALE / GAUGE LIST (Melissa, 2026-10-27, typing in a Bowser
+// hopper: "N scale is not an option to choose"). The manual-entry picker typed
+// its own list (O … No. 1) and the photo reader kept a SECOND copy as a chain
+// of regexes — N, Z, On30 and HOn30 were in neither, though the catalog tabs
+// (ERA_SCALE) and the collection filters (_RR_CHIP_SCALE_LABEL) know them.
+// ONE list now: the picker draws it, and rrGaugeFromWords() turns a reader's
+// wording ("N scale", "Gauge 1", "Standard Gauge") into one of its entries.
+// Add a gauge HERE; the picker and the reader follow. '' = "— not sure —".
+const RR_MANUAL_GAUGES = ['O', 'O-27', 'Standard', 'S', 'HO', 'N', 'G', 'No. 1', 'Z', 'On30', 'HOn30'];
+// Most specific first, so "HOn30" is not read as "HO", "O-27" not as "O",
+// "On30" not as "O" and "No. 1" / "Gauge 1" not as nothing.
+const _RR_GAUGE_WORDS = [
+  ['HOn30', /\bhon30\b/i], ['On30', /\bon30\b/i], ['O-27', /\bo-?27\b/i],
+  ['Standard', /standard/i], ['No. 1', /\b(no\.?\s?1|gauge\s?1|1\s?gauge)\b/i],
+  ['HO', /\bho\b/i], ['N', /\bn\b/i], ['Z', /\bz\b/i], ['G', /\bg\b/i], ['S', /\bs\b/i], ['O', /\bo\b/i],
+];
+function rrGaugeFromWords(text) {
+  var t = String(text == null ? '' : text);
+  if (!t.trim()) return '';
+  for (var i = 0; i < _RR_GAUGE_WORDS.length; i++) {
+    if (_RR_GAUGE_WORDS[i][1].test(t) && RR_MANUAL_GAUGES.indexOf(_RR_GAUGE_WORDS[i][0]) >= 0) return _RR_GAUGE_WORDS[i][0];
+  }
+  return '';
+}
+if (typeof window !== 'undefined') { window.RR_MANUAL_GAUGES = RR_MANUAL_GAUGES; window.rrGaugeFromWords = rrGaugeFromWords; }
 
 // ═══════════════════════════════════════════════════════════════
 // v0.9.2027 — TERMS AND WHAT THEY MEAN (a York customer: "maybe it would be

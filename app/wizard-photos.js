@@ -2316,12 +2316,11 @@ function _identifyRouteToManualEntry(itemNum, meta, userMfrs) {
   if (desc) wizard.data.manualDesc = desc;
   // Year
   if (meta.year) wizard.data.manualYear = meta.year;
-  // Scale/Gauge (v0.9.666) — normalize the AI's wording to the picker options.
+  // Scale/Gauge (v0.9.666) — normalize the reader's wording to the picker options.
+  // v0.9.2034: through the ONE list (rrGaugeFromWords, config.js) — this used to
+  // be a second typed copy of the picker's list, and N was in neither.
   if (meta.gauge && !wizard.data.manualGauge) {
-    var _g = String(meta.gauge);
-    wizard.data.manualGauge = /standard/i.test(_g) ? 'Standard' : /o-?27/i.test(_g) ? 'O-27'
-      : /\bho\b/i.test(_g) ? 'HO' : /\bg\b/i.test(_g) ? 'G' : /no\.?\s?1/i.test(_g) ? 'No. 1'
-      : /\bs\b/i.test(_g) ? 'S' : /\bo\b/i.test(_g) ? 'O' : '';
+    wizard.data.manualGauge = rrGaugeFromWords(meta.gauge);
   }
   // Rebuild the wizard steps for the manual flow and start from step 0.
   if (typeof getSteps === 'function') {

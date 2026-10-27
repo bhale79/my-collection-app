@@ -2863,7 +2863,7 @@ function renderWizardStep() {
           '<input type="text" id="manual-roadnum" value="' + _esc(d.manualRoadNumber) + '" placeholder="e.g. 606" oninput="wizard.data.manualRoadNumber=this.value" style="' + _inStyle + '"></div>' +
           '<div><label style="font-size:0.82rem;color:var(--text-mid);display:block;margin:0.55rem 0 0.25rem">Scale / Gauge</label>' +
           '<select id="manual-gauge" onchange="wizard.data.manualGauge=this.value" style="' + _inStyle + '">' +
-            ['','O','O-27','Standard','S','HO','G','No. 1'].map(function(g){ return '<option value="' + g + '"' + ((d.manualGauge||'') === g ? ' selected' : '') + '>' + (g || '— not sure —') + '</option>'; }).join('') +
+            [''].concat(RR_MANUAL_GAUGES).map(function(g){ return '<option value="' + g + '"' + ((d.manualGauge||'') === g ? ' selected' : '') + '>' + (g || '— not sure —') + '</option>'; }).join('') +   // v0.9.2034: ONE list (config.js) — Melissa's missing N
           '</select></div>' +
         '<div><label style="' + _lblStyle + '">Description (optional)</label>' +
           '<textarea id="manual-desc" rows="2" placeholder="e.g. black USRA switcher, illuminated cab" oninput="wizard.data.manualDesc=this.value" style="' + _inStyle + ';resize:vertical">' + rrEsc(d.manualDesc) + '</textarea></div>' +
