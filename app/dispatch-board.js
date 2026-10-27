@@ -139,9 +139,28 @@ function _dbUnseen() {
   });
 }
 
+// v0.9.2033: a web address in the message becomes a tappable link
+// (new tab). The text is split on addresses FIRST, each piece escaped
+// on its own, so the address never passes through the escaper twice.
+// Trailing sentence punctuation stays outside the link.
+var _DB_URL_RE = /https?:\/\/[^\s<>"']+/g;
+function _dbLinkify(text) {
+  var out = '', last = 0, m;
+  _DB_URL_RE.lastIndex = 0;
+  while ((m = _DB_URL_RE.exec(text))) {
+    var url = m[0], tail = '';
+    var t = url.match(/[.,;:!?)]+$/);
+    if (t) { tail = t[0]; url = url.slice(0, -tail.length); }
+    out += _dbEsc(text.slice(last, m.index));
+    out += '<a href="' + _dbEsc(url) + '" target="_blank" rel="noopener" class="db-link" style="color:var(--t-link);word-break:break-all">' + _dbEsc(url) + '</a>' + _dbEsc(tail);
+    last = m.index + m[0].length;
+  }
+  return out + _dbEsc(text.slice(last));
+}
+
 // Body text: escape first, then paragraphs on blank lines / breaks.
 function _dbBodyHtml(msg) {
-  var esc = _dbEsc(msg);
+  var esc = _dbLinkify(String(msg == null ? '' : msg));
   return esc.split(/\n\s*\n/).map(function (p) {
     return '<p style="margin:0 0 0.6em">' + p.replace(/\n/g, '<br>') + '</p>';
   }).join('');
