@@ -1406,6 +1406,11 @@ function _renderHierarchyChips() {
     var _tTxt2 = _tVal2;
     try { var _oSel = _ftSel2 && _ftSel2.options[_ftSel2.selectedIndex]; if (_oSel && _oSel.value === _tVal2 && (_oSel.textContent || '').trim()) _tTxt2 = _oSel.textContent.trim(); } catch (eTx) {}
     if (_tVal2) { onCount++; html += _pillOn(_tTxt2, "_phClearOne('type')", "_openLevelPicker('type')"); }
+    // v0.9.2037 ([stated] Brad: the group "should just be under types"): a
+    // dashboard card's group — Sets, Engines, Freight … — is worn by the Type
+    // pill itself, never a chip of its own. Its × clears the group; the pill
+    // still opens the Type list, and a pick there replaces the group.
+    else if (_phOwned && state.filters.group) { onCount++; html += _pillOn(state.filters.group, "_phClearOne('group')", "_openLevelPicker('type')"); }
     else html += _pillIdle('Type', "_openLevelPicker('type')");
   }
 
@@ -1470,6 +1475,7 @@ function _phClearOne(which) {
     else if (which === 'subType') state.filters.subType = '';
     else if (which === 'imported') state.filters.imported = '';
     else if (which === 'needsDetails') state.filters.needsDetails = '';
+    else if (which === 'group') state.filters.group = '';   // v0.9.2037
     state.currentPage = 1;
   } catch (e) {}
   if (typeof renderBrowse === 'function') renderBrowse();
@@ -1589,7 +1595,7 @@ function _clearHierarchyFilters() {
   // v0.9.1915 (Brad): Clear clears FILTERS. The section you are looking at
   // is not one, so it stays where it is.
   st.manufacturer = 'any'; st.scale = 'any'; st.era = 'any';
-  try { state.filters.ownMaker = ''; state.filters.subCollection = ''; state.filters.subType = ''; } catch (eOM) {}   // v0.9.1513/1521
+  try { state.filters.ownMaker = ''; state.filters.subCollection = ''; state.filters.subType = ''; state.filters.group = ''; } catch (eOM) {}   // v0.9.1513/1521/2037
   _phSave(st);
   var _ftSel = document.getElementById('filter-type');
   if (_ftSel) _ftSel.value = '';
@@ -1702,7 +1708,7 @@ function _phChipCounts(level, options) {
     if (['manufacturer', 'scale', 'era', 'type', 'subCollection', 'subType'].indexOf(level) < 0) return null;
     var cur = _phState();
     var req = { level: level, clearType: state.filters.type || '', clearOwnMaker: state.filters.ownMaker || '', clearChips: cur, variants: [] };
-    if (level === 'type') { req.clearType = ''; }
+    if (level === 'type') { req.clearType = ''; req.clearF = { group: '' }; }   // v0.9.2037: a pick replaces the group, so the numbers are counted without it
     else if (level === 'subCollection' || level === 'subType') {
       // v0.9.1799: the "More" chip's two lists. Same question, same asker.
       var _cf = {}; _cf[level] = ''; req.clearF = _cf;
@@ -1951,6 +1957,7 @@ function _setHierarchyChoice(level, value) {
       // changes the type and nothing else; the catalog view keeps applyFilters.
       if (state.filters.owned) {
         state.filters.type = _ftSel.value;
+        state.filters.group = '';   // v0.9.2037: a Type pick (All Types too) replaces a dashboard card's group — the pill wears one or the other
         state.currentPage = 1;
         if (typeof renderBrowse === 'function') renderBrowse();
       } else if (typeof applyFilters === 'function') applyFilters();
@@ -2157,10 +2164,13 @@ if (typeof window !== 'undefined') window._grpFoldInfo = _grpFoldInfo;
 // The fold is only in effect in the PLAIN owned view. Search and column sort
 // un-fold so every member stays findable and sortable — Brad's decision
 // (2026-08-23), and the same rule the v1121 SET fold has always used.
+// v0.9.2037: a dashboard card's group chip un-folds too — the card counts
+// every piece ("3 items in a group counts as 3", v1567), so the list under
+// its chip draws every piece, one row each, and the two numbers agree.
 function _grpFoldActive() {
   try {
     return !!(state.filters.owned && !(state.filters.search || '').trim()
-              && !(state._collSort && state._collSort.col));
+              && !(state._collSort && state._collSort.col) && !state.filters.group);
   } catch (e) { return false; }
 }
 if (typeof window !== 'undefined') window._grpFoldActive = _grpFoldActive;
@@ -2889,6 +2899,7 @@ function resetFilters() {
   state.filters.ownMaker = '';
   state.filters.subCollection = '';
   state.filters.subType = '';
+  state.filters.group = '';   // v0.9.2037
   state.currentPage = 1;
   document.getElementById('filter-type').value = '';
   applyFilters();   // v0.9.1711: was _roadComboClear(), which only ever reached this call
@@ -2896,10 +2907,11 @@ function resetFilters() {
   renderBrowseTab('items');
 }
 
-function filterOwned(qe) {
+function filterOwned(qe, group) {
   resetFilters();
   state.filters.owned = true;
   if (qe) state.filters.quickEntry = qe;
+  if (group) state.filters.group = group;   // v0.9.2037: a dashboard card's group (rrCollGroupOpen)
   // Switch title to My Collection List — styled to match button size
   const titleEl = document.querySelector('#page-browse > .page-title > span');
   if (titleEl) {
@@ -2940,6 +2952,21 @@ function filterOwned(qe) {
   // built anywhere any more; the timer is gone (finding D, sweep 2).
 }
 
+// v0.9.2037 — a dashboard card's tap: My Collection, this GROUP only.
+// Lars (2026-10-28): "would be cool if these windows were also a link to view
+// the specific items". The group names are THE list in config.js
+// (rrCollGroupNames); the chip and the row test (_copyPasses) ask the same
+// rrCollGroupOf the card counted with, so the card's number is the row count.
+// Other holds paper and catalog rows too, so it opens the combined view.
+function rrCollGroupOpen(name) {
+  if (rrCollGroupNames().indexOf(name) < 0) return;
+  state._collSection = (name === RR_COLL_GROUP_OTHER) ? 'all' : 'trains';
+  state._collSecBeforeSearch = null;
+  showPage('browse', document.querySelector('.nav-item[onclick*="filterOwned"]'));
+  filterOwned('', name);
+}
+if (typeof window !== 'undefined') window.rrCollGroupOpen = rrCollGroupOpen;
+
 function removeQEFilter() {
   // Session 158 removed the QE checkbox and legacy dropdown here; v0.9.1711:
   // neither #qe-only-toggle nor #filter-quick-inline is built anywhere now,
@@ -2950,6 +2977,7 @@ function removeQEFilter() {
   state.filters.ownMaker = '';
   state.filters.subCollection = '';
   state.filters.subType = '';
+  state.filters.group = '';   // v0.9.2037
 }
 
 // ── filterByType (from between non-browse blocks) ───────────
@@ -4489,12 +4517,16 @@ function _rrBrowseCore(_co) {
       var _nd = !pd.manufacturer || !pd.itemType || (String(pd.era || '') === 'Manual' && !pd.yearMade);
       if (!_nd) return false;
     }
+    // v0.9.2037: a dashboard card's group — THE SAME question the card asked
+    // of this copy (_ownedGroupOf, dashboard.js: its own catalog entry's
+    // bucket, a manual row's own type, mapped by config.js rrCollGroupOf).
+    if (state.filters.group && typeof _ownedGroupOf === 'function' && _ownedGroupOf(pd) !== state.filters.group) return false;
     return true;
   }
   // Is any per-copy filter switched on? When none is, nothing below changes.
   function _copyFiltersOn() {
     return !!(boxed || state.filters.quickEntry || state.filters.imported === 'imported' || state.filters.ownMaker
-      || state.filters.subCollection || state.filters.subType || state.filters.needsDetails === 'needs');
+      || state.filters.subCollection || state.filters.subType || state.filters.needsDetails === 'needs' || state.filters.group);
   }
 
   const _rowPasses = item => {
@@ -4686,9 +4718,10 @@ function _rrBrowseCore(_co) {
     // v0.9.1799: Groups / Sub Types live on state.filters and the row test
     // reads them there, so a variant may carry filter overrides too.
     // v0.9.1878: so do the two More flags (Imported only, Needs details).
-    var _savedSC = state.filters.subCollection, _savedST = state.filters.subType, _savedIm = state.filters.imported, _savedND = state.filters.needsDetails;
+    var _savedSC = state.filters.subCollection, _savedST = state.filters.subType, _savedIm = state.filters.imported, _savedND = state.filters.needsDetails, _savedG = state.filters.group;
     var _setF = function (f) {
       if (!f) return;
+      if ('group' in f) state.filters.group = f.group;   // v0.9.2037
       if ('subCollection' in f) state.filters.subCollection = f.subCollection;
       if ('subType' in f) state.filters.subType = f.subType;
       if ('imported' in f) state.filters.imported = f.imported;
@@ -4736,7 +4769,7 @@ function _rrBrowseCore(_co) {
       }
     } finally {
       state.filters.ownMaker = _savedOM; type = _savedType; _stp3b = _savedChips; _collSec = _savedSec;
-      state.filters.subCollection = _savedSC; state.filters.subType = _savedST; state.filters.imported = _savedIm; state.filters.needsDetails = _savedND;
+      state.filters.subCollection = _savedSC; state.filters.subType = _savedST; state.filters.imported = _savedIm; state.filters.needsDetails = _savedND; state.filters.group = _savedG;
     }
     return _coOut;
   }
@@ -4932,7 +4965,7 @@ function _rrBrowseCore(_co) {
   // one row per piece. Folding skips search and column-sort views so
   // members stay findable and sortable.
   function _foldSets(_list) {
-    if (!(state.filters.owned && !(state.filters.search || '').trim() && !(state._collSort && state._collSort.col))) return _list;
+    if (!_grpFoldActive()) return _list;   // v0.9.2037: the ONE fold rule (it was a second copy of it)
     var _openFolds = window._rrOpenSetFolds = window._rrOpenSetFolds || {};
     var _foldedFD = [], _foldByGid = {};
     _list.forEach(function (it) {
@@ -5090,7 +5123,12 @@ function _rrBrowseCore(_co) {
       }
     } catch (eChip) {}
   }
-  if (_collSec === 'trains') {
+  if (state.filters.group) {
+    // v0.9.2037: under a dashboard card's group chip the rows are the owned
+    // items the card counted — catalogs, paper tabs and instruction sheets
+    // live outside that count, so none are drawn beneath the list.
+    _ephemeraRows.length = 0;
+  } else if (_collSec === 'trains') {
     _ephemeraRows.length = 0;
   } else if (_collSecFiltered) {
     const _secKeep = _ephemeraRows.filter(function(r) {
@@ -5312,10 +5350,16 @@ function _rrBrowseCore(_co) {
       // counter as the badge (_ownedNonBox), and show the piece total when the
       // two differ so no info is lost.
       var _itemCount = (typeof _ownedNonBox === 'function') ? _ownedNonBox(state).length : _pieceCount;
+      // v0.9.2037 (Lars, on a phone — where the chip bar sits behind the
+      // Filters button): under a dashboard card's group the title names the
+      // group and the card's own number, "Sets · 2 of 6 items", so the page
+      // says what it is showing without the chip. Same counter as the card.
+      var _grpTitle = (state.filters.group && typeof _ownedGroupCount === 'function')
+        ? _rrEscAttr(state.filters.group) + ' \u00b7 ' + _ownedGroupCount(state, state.filters.group).toLocaleString() + ' of ' : '';
       _tSpan.innerHTML = 'My Collection List '
         + '<span style="font-family:var(--font-body);font-size:0.8rem;color:var(--text-dim);font-weight:400;letter-spacing:0;text-transform:none">'
-        + _itemCount.toLocaleString() + ' item' + (_itemCount !== 1 ? 's' : '')
-        + (_pieceCount > _itemCount ? ' · ' + _pieceCount.toLocaleString() + ' pieces (powered/dummy pairs count once)' : '')
+        + _grpTitle + _itemCount.toLocaleString() + ' item' + (_itemCount !== 1 ? 's' : '')
+        + (!_grpTitle && _pieceCount > _itemCount ? ' · ' + _pieceCount.toLocaleString() + ' pieces (powered/dummy pairs count once)' : '')
         + '</span>';
     }
   } else {

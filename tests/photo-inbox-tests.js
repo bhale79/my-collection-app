@@ -2314,8 +2314,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
   section('99. Whole sets fold to one expandable row in My Collection');
   ok('only SET-… groups fold — pairs and GRP-… groups are untouched',
      /\^SET-\/i\.test\(String\(_fp\.groupId\)\)/.test(brw));
-  ok('folding is display-only and skips search and column-sort views',
-     /state\.filters\.owned && !\(state\.filters\.search \|\| ''\)\.trim\(\) && !\(state\._collSort && state\._collSort\.col\)/.test(brw));
+  ok('folding is display-only and skips search and column-sort views (v0.9.2037: the ONE rule, _grpFoldActive, which _foldSets asks)',
+     /state\.filters\.owned && !\(state\.filters\.search \|\| ''\)\.trim\(\)\s*&& !\(state\._collSort && state\._collSort\.col\)/.test(brw)
+     && /function _foldSets\(_list\) \{\s*\n\s*if \(!_grpFoldActive\(\)\) return _list;/.test(brw));
   ok('an expanded set renders its members beneath the set row',
      /if \(_openFolds\[_gid\]\) _foldedFD\.push\(it\);/.test(brw));
   ok('the set row shows number, name, piece count and worth',

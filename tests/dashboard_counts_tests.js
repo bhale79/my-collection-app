@@ -35,7 +35,8 @@ function OK(n, cond, why) { console.log((cond ? 'PASS' : 'FAIL') + '  ' + n + (c
 
 // What the stand-in collection holds, and what each item IS (its own entry).
 const WANT = {
-  breakdown: { Engines: 3, Tenders: 1, Freight: 2, Passenger: 1, Cabooses: 1, Accessories: 2, Other: 2 },
+  // v0.9.2037: Sets are a line of their own (the 11450); the typeless MYSTERY-1 is the one Other.
+  breakdown: { Engines: 3, Tenders: 1, Freight: 2, Passenger: 1, Cabooses: 1, Accessories: 2, Sets: 1, Other: 1 },
   engines: 3, cabooses: 1, freight: 2, passenger: 1, accessories: 2, sets: 1,
 };
 
@@ -63,6 +64,10 @@ function _ownedTypeCount(state, buckets) {
   var nums = _ownedTypeNumSet(state, buckets);
   return _ownedNonBox(state).filter(function(pd) { return _pdMatchSet(pd, nums); }).length;
 }
+function _ownedGroupCount(state, name) {
+  var b = { Engines: _ENGINE_BUCKETS, Cabooses: _CABOOSE_BUCKETS, Freight: _FREIGHT_BUCKETS, Passenger: _PASSENGER_BUCKETS, Accessories: _ACCESSORY_BUCKETS, Sets: _SET_BUCKETS }[name] || [];
+  return _ownedTypeCount(state, b);
+}
 function _ownedTypeBreakdown(state, ownedList) {
   var _eS=_ownedTypeNumSet(state,_ENGINE_BUCKETS), _tS=_ownedTypeNumSet(state,_TENDER_BUCKETS), _cS=_ownedTypeNumSet(state,_CABOOSE_BUCKETS), _pS=_ownedTypeNumSet(state,_PASSENGER_BUCKETS), _fS=_ownedTypeNumSet(state,_FREIGHT_BUCKETS), _aS=_ownedTypeNumSet(state,_ACCESSORY_BUCKETS);
   var types = { 'Engines':0, 'Tenders':0, 'Freight':0, 'Passenger':0, 'Cabooses':0, 'Accessories':0, 'Other':0 };
@@ -81,7 +86,7 @@ function _ownedTypeBreakdown(state, ownedList) {
 
 function plantedDashboard() {
   const src = fs.readFileSync(path.join(APP, 'dashboard.js'), 'utf8');
-  const a = src.indexOf('var _DASH_GROUPS = ['), b = src.indexOf('function _ownedNonBox(state) {');
+  const a = src.indexOf('var _DASH_GROUPS = '), b = src.indexOf('function _ownedNonBox(state) {');   // v0.9.2037: the list moved to config.js; the anchor is the line
   if (a < 0 || b < 0 || b < a) throw new Error('planted dashboard: anchors not found — the decider moved; update this test');
   return src.slice(0, a) + OLD_HELPERS + src.slice(b);
 }
@@ -136,11 +141,11 @@ async function runCase(browser, planted) {
     const num = id => Number(String(card(id).compute(state).value).replace(/,/g, ''));
     const html = card('collectionByType').compute(state).html || '';
     const shown = {}; html.replace(/<span[^>]*>([^<]+)<\/span><span[^>]*>(\d+)<\/span>/g, (_, k, v) => { shown[k] = Number(v); });
-    const full = Object.assign({ Engines: 0, Tenders: 0, Freight: 0, Passenger: 0, Cabooses: 0, Accessories: 0, Other: 0 }, shown);
+    const full = Object.assign({ Engines: 0, Tenders: 0, Freight: 0, Passenger: 0, Cabooses: 0, Accessories: 0, Sets: 0, Other: 0 }, shown);
     const sheet = (typeof _sheetCardModel === 'function') ? _sheetCardModel(card('collectionByType'), state) : null;
     const sheetRows = {}; ((sheet && sheet.rows) || []).forEach(r => { sheetRows[r[0]] = r[1]; });
     return {
-      breakdown: full, sheetRows: Object.assign({ Engines: 0, Tenders: 0, Freight: 0, Passenger: 0, Cabooses: 0, Accessories: 0, Other: 0 }, sheetRows),
+      breakdown: full, sheetRows: Object.assign({ Engines: 0, Tenders: 0, Freight: 0, Passenger: 0, Cabooses: 0, Accessories: 0, Sets: 0, Other: 0 }, sheetRows),
       engines: num('engines'), cabooses: num('cabooses'), freight: num('freight'), passenger: num('passenger'), accessories: num('accessories'), sets: num('sets'),
     };
   });

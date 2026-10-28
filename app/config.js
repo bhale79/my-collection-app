@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2036';
+const APP_VERSION = 'v0.9.2037';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -3766,6 +3766,53 @@ if (typeof window !== 'undefined') { window.RR_MANUAL_GAUGES = RR_MANUAL_GAUGES;
 // "Boxcar", "Caboose"); no bucket at all says "Item". rrGroupRole, app-collection.js.
 const RR_GROUP_ENGINE_BUCKETS = { 'Steam Locomotive': 1, 'Diesel Locomotive': 1, 'Electric Locomotive': 1, 'Motorized Unit': 1 };
 if (typeof window !== 'undefined') window.RR_GROUP_ENGINE_BUCKETS = RR_GROUP_ENGINE_BUCKETS;
+
+// ═══════════════════════════════════════════════════════════════
+// v0.9.2037 — THE GROUPS THE DASHBOARD COUNTS BY, and My Collection filters by.
+// Lars (2026-10-28, Report a problem, on the Total Sets / Cabooses / Engines
+// cards): "would be cool if these windows were also a link to view the
+// specific items" → [stated] Brad: "both" (the Total cards AND the Collection
+// by Type lines) → "go".
+//
+// ONE list. The Total cards count by it, the Collection by Type lines are drawn
+// from it, and a tap on either opens My Collection with the same group as a
+// chip (rrCollGroupOpen, browse.js; the row test asks rrCollGroupOf of the
+// copy's own bucket, exactly as the card does) — so the number on the card is
+// the number of rows in the list. The group lists used to live in dashboard.js
+// alone (v0.9.1879); a second home for them in browse.js is how the card and
+// the list would have drifted apart. The engine kinds are the ONE engine list
+// above (RR_GROUP_ENGINE_BUCKETS). A bucket on no group is "Other" — a line on
+// the card, a chip in the list, so every owned item has a group. The order
+// here is the order the Collection by Type card draws.
+const RR_COLL_GROUPS = [
+  ['Engines',     Object.keys(RR_GROUP_ENGINE_BUCKETS)],
+  ['Tenders',     ['Tender']],
+  ['Freight',     ['Boxcar', 'Hopper', 'Tank Car', 'Vat Car', 'Flatcar', 'Gondola', 'Stock Car', 'Intermodal', 'Operating Freight']],   // v0.9.1888: Vat Car
+  ['Passenger',   ['Passenger Car', 'Trolley']],   // Session 123: a trolley rides with the passenger cars
+  ['Cabooses',    ['Caboose']],
+  ['Accessories', ['Accessory', 'Track', 'Transformer/Power', 'Service Station Tool']],
+  ['Sets',        ['Set']]
+];
+const RR_COLL_GROUP_OTHER = 'Other';
+// The buckets a group holds (a copy — never hand the list itself out).
+function rrCollGroupBuckets(name) {
+  for (var i = 0; i < RR_COLL_GROUPS.length; i++) if (RR_COLL_GROUPS[i][0] === name) return RR_COLL_GROUPS[i][1].slice();
+  return [];
+}
+// The group a type bucket belongs to; a bucket on no group (and no bucket) is Other.
+function rrCollGroupOf(bucket) {
+  var b = String(bucket || '');
+  for (var i = 0; i < RR_COLL_GROUPS.length; i++) if (RR_COLL_GROUPS[i][1].indexOf(b) !== -1) return RR_COLL_GROUPS[i][0];
+  return RR_COLL_GROUP_OTHER;
+}
+// Every group name, in card order, Other last — the chip and the tap accept only these.
+function rrCollGroupNames() {
+  return RR_COLL_GROUPS.map(function (g) { return g[0]; }).concat([RR_COLL_GROUP_OTHER]);
+}
+if (typeof window !== 'undefined') {
+  window.RR_COLL_GROUPS = RR_COLL_GROUPS; window.RR_COLL_GROUP_OTHER = RR_COLL_GROUP_OTHER;
+  window.rrCollGroupBuckets = rrCollGroupBuckets; window.rrCollGroupOf = rrCollGroupOf; window.rrCollGroupNames = rrCollGroupNames;
+}
 
 // ═══════════════════════════════════════════════════════════════
 // v0.9.2027 — TERMS AND WHAT THEY MEAN (a York customer: "maybe it would be

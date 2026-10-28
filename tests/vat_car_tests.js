@@ -56,7 +56,7 @@ T('A2 labels are still in alphabetical order', (function () {
   const l = W.TYPE_BUCKETS.map(b => b.label.toLowerCase()); return l.every((x, i) => i === 0 || l[i - 1] < x);
 })(), W.TYPE_BUCKETS.map(b => b.label));
 T('A3 the icon map seats it with the rolling stock (freight icon)', W.BUCKET_TO_ICON['Vat'] === 'freight' && W.getBucketIcon({ itemType: 'Vat Car' }) === 'freight');
-T('A4 the dashboard\'s freight roll-up counts it', /_FREIGHT_BUCKETS = \[[^\]]*'Vat Car'[^\]]*\]/.test(DASH));
+T('A4 the dashboard\'s freight roll-up counts it (v0.9.2037: the ONE group list, config.js)', /\['Freight',\s*\[[^\]]*'Vat Car'[^\]]*\]/.test(CFG));
 T('A5 the label getter answers "Vat"', W.getTypeBucketLabel({ itemType: 'Vat Car', description: 'Pickles Vat Car' }) === 'Vat');
 
 // ── B · real rows ────────────────────────────────────────────────────────────

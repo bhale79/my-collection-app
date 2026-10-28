@@ -16,13 +16,21 @@
 // HELPERS
 // ══════════════════════════════════════════════════════════════════
 // Session 118 Phase D: bucket-aware category mapping for dashboard counts.
-var _ENGINE_BUCKETS = ['Steam Locomotive','Diesel Locomotive','Electric Locomotive','Motorized Unit'];
-var _TENDER_BUCKETS = ['Tender'];
-var _FREIGHT_BUCKETS = ['Boxcar','Hopper','Tank Car','Vat Car','Flatcar','Gondola','Stock Car','Intermodal','Operating Freight'];   // v0.9.1888: Vat Car
-var _PASSENGER_BUCKETS = ['Passenger Car','Trolley'];  // Session 123: Trolley counts as passenger for dashboard rollups
-var _CABOOSE_BUCKETS = ['Caboose'];
-var _ACCESSORY_BUCKETS = ['Accessory','Track','Transformer/Power','Service Station Tool'];
-var _SET_BUCKETS = ['Set'];
+// v0.9.2037 ([stated] Lars → Brad "go"): the lists live in config.js
+// (RR_COLL_GROUPS) — My Collection filters by the SAME lists when a card is
+// tapped, so a type is never on one list and off the other. These names are
+// kept for the old call sites; they are read from the one list, never typed.
+var _ENGINE_BUCKETS = rrCollGroupBuckets('Engines');
+var _TENDER_BUCKETS = rrCollGroupBuckets('Tenders');
+var _FREIGHT_BUCKETS = rrCollGroupBuckets('Freight');
+var _PASSENGER_BUCKETS = rrCollGroupBuckets('Passenger');
+var _CABOOSE_BUCKETS = rrCollGroupBuckets('Cabooses');
+var _ACCESSORY_BUCKETS = rrCollGroupBuckets('Accessories');
+var _SET_BUCKETS = rrCollGroupBuckets('Sets');
+// The tap a Total card and a Collection by Type line carry: My Collection,
+// filtered to this group (rrCollGroupOpen, browse.js). The card loop prefixes
+// window._fromDash so the list gets its Back to Dashboard bar.
+function _dashGroupTap(name) { return "rrCollGroupOpen('" + name + "')"; }
 
 // ══ v0.9.1879 — WHAT KIND OF ITEM IS THIS, for every count on the dashboard ══
 // [stated] Brad: "yes" — plan CATALOG_ROW_ID_PLAN_2026-10-04, Step 1.
@@ -45,10 +53,11 @@ var _SET_BUCKETS = ['Set'];
 // Dashboard tab the app writes into the user's sheet (sheet-builder.js).
 // Never count an owned item by matching its NUMBER against catalog rows —
 // tests/dashboard_counts_tests.js scans for it and plants the old code.
-var _DASH_GROUPS = [
-  ['Engines', _ENGINE_BUCKETS], ['Tenders', _TENDER_BUCKETS], ['Cabooses', _CABOOSE_BUCKETS],
-  ['Passenger', _PASSENGER_BUCKETS], ['Freight', _FREIGHT_BUCKETS], ['Accessories', _ACCESSORY_BUCKETS]
-];
+// v0.9.2037: the groups are THE ONE LIST in config.js (RR_COLL_GROUPS) — the
+// same list My Collection filters by when a card is tapped. Sets are a group
+// of their own now (they used to land on the Other line), so the Total Sets
+// card and the Collection by Type line say the same thing.
+var _DASH_GROUPS = RR_COLL_GROUPS;
 function _ownedBucketOf(pd) {
   if (!pd || typeof getTypeBucket !== 'function') return '';
   var m = _valueMasterOf(pd);                       // findMaster(num, variation, the owned row) — a manual row gets null
@@ -56,18 +65,25 @@ function _ownedBucketOf(pd) {
   var t = String(pd.itemType || '').trim();
   return t ? (getTypeBucket({ itemType: t }) || '') : '';
 }
+// The group an owned item is counted under — THE answer the Total cards, the
+// Collection by Type card, the sheet's Dashboard tab AND My Collection's group
+// chip (browse.js _copyPasses) all use. One owner; never a second mapping.
 function _ownedGroupOf(pd) {
-  var b = _ownedBucketOf(pd);
-  for (var i = 0; i < _DASH_GROUPS.length; i++) if (_DASH_GROUPS[i][1].indexOf(b) !== -1) return _DASH_GROUPS[i][0];
-  return 'Other';
+  return rrCollGroupOf(_ownedBucketOf(pd));
 }
 function _ownedTypeCount(state, buckets) {
   // Count OWNED items of a type, not master rows (one owned item = one count).
   return _ownedNonBox(state).filter(function (pd) { return buckets.indexOf(_ownedBucketOf(pd)) !== -1; }).length;
 }
+// The number on a Total card = the owned items whose group this is — the same
+// question the list answers row by row under the group chip.
+function _ownedGroupCount(state, name) {
+  return _ownedNonBox(state).filter(function (pd) { return _ownedGroupOf(pd) === name; }).length;
+}
 // Collection by Type, as numbers — the card draws it, the sheet's Dashboard tab writes it.
 function _ownedTypeBreakdown(state, ownedList) {
-  var types = { 'Engines': 0, 'Tenders': 0, 'Freight': 0, 'Passenger': 0, 'Cabooses': 0, 'Accessories': 0, 'Other': 0 };
+  var types = {};
+  rrCollGroupNames().forEach(function (n) { types[n] = 0; });
   (ownedList || _ownedNonBox(state)).forEach(function (pd) { types[_ownedGroupOf(pd)]++; });
   return types;
 }
@@ -668,7 +684,9 @@ var CARD_CATALOG = [
       var html = '';
       Object.entries(types).forEach(function(e) {
         if (e[1] > 0) {
-          html += '<div style="display:flex;justify-content:space-between;font-size:0.72rem;margin-top:3px">'
+          // v0.9.2037 (Lars): each line is a tap — My Collection, that group only.
+          html += '<div class="dash-row-hover" onclick="event.stopPropagation();window._fromDash=true;' + _dashGroupTap(e[0]) + '" title="See your ' + e[0].toLowerCase() + ' in My Collection"'
+            + ' style="display:flex;justify-content:space-between;font-size:0.72rem;margin-top:3px;cursor:pointer;min-height:1.6em;align-items:center">'
             + '<span style="color:var(--text-mid)">' + e[0] + '</span>'
             + '<span style="color:var(--text);font-weight:600">' + e[1] + '</span></div>';
         }
@@ -678,46 +696,46 @@ var CARD_CATALOG = [
     }
   },
   {
-    id: 'engines', label: 'Total Engines', color: '#e74c3c',
+    id: 'engines', label: 'Total Engines', color: '#e74c3c', onclick: _dashGroupTap('Engines'),   // v0.9.2037 (Lars): tap → My Collection, this group
     compute: function(state) {
-      var count = _ownedTypeCount(state, _ENGINE_BUCKETS);
+      var count = _ownedGroupCount(state, 'Engines');   // v0.9.2037: the group's count, as the list under its chip
       return { value: count.toLocaleString(), sub: 'locomotives in collection' };
     }
   },
   {
-    id: 'cabooses', label: 'Total Cabooses', color: '#c0392b',
+    id: 'cabooses', label: 'Total Cabooses', color: '#c0392b', onclick: _dashGroupTap('Cabooses'),   // v0.9.2037 (Lars): tap → My Collection, this group
     compute: function(state) {
-      var count = _ownedTypeCount(state, _CABOOSE_BUCKETS);
+      var count = _ownedGroupCount(state, 'Cabooses');   // v0.9.2037: the group's count, as the list under its chip
       return { value: count.toLocaleString(), sub: 'cabooses in collection' };
     }
   },
   {
-    id: 'freight', label: 'Total Freight Cars', color: '#8e44ad',
+    id: 'freight', label: 'Total Freight Cars', color: '#8e44ad', onclick: _dashGroupTap('Freight'),   // v0.9.2037 (Lars): tap → My Collection, this group
     compute: function(state) {
-      var count = _ownedTypeCount(state, _FREIGHT_BUCKETS);
+      var count = _ownedGroupCount(state, 'Freight');   // v0.9.2037: the group's count, as the list under its chip
       return { value: count.toLocaleString(), sub: 'freight cars in collection' };
     }
   },
   {
-    id: 'passenger', label: 'Total Passenger Cars', color: '#2980b9',
+    id: 'passenger', label: 'Total Passenger Cars', color: '#2980b9', onclick: _dashGroupTap('Passenger'),   // v0.9.2037 (Lars): tap → My Collection, this group
     compute: function(state) {
-      var count = _ownedTypeCount(state, _PASSENGER_BUCKETS);
+      var count = _ownedGroupCount(state, 'Passenger');   // v0.9.2037: the group's count, as the list under its chip
       return { value: count.toLocaleString(), sub: 'passenger cars in collection' };
     }
   },
   {
-    id: 'accessories', label: 'Total Accessories', color: '#16a085',
+    id: 'accessories', label: 'Total Accessories', color: '#16a085', onclick: _dashGroupTap('Accessories'),   // v0.9.2037 (Lars): tap → My Collection, this group
     compute: function(state) {
-      var count = _ownedTypeCount(state, _ACCESSORY_BUCKETS);
+      var count = _ownedGroupCount(state, 'Accessories');   // v0.9.2037: the group's count, as the list under its chip
       return { value: count.toLocaleString(), sub: 'accessories in collection' };
     }
   },
   {
-    id: 'sets', label: 'Total Sets', color: '#d35400',
+    id: 'sets', label: 'Total Sets', color: '#d35400', onclick: _dashGroupTap('Sets'),   // v0.9.2037 (Lars): tap → My Collection, this group
     compute: function(state) {
       // v0.9.1879: owned items whose own catalog entry is a set — it used to
       // count CATALOG rows typed Set whose number the user owned (any maker).
-      var count = _ownedTypeCount(state, _SET_BUCKETS);
+      var count = _ownedGroupCount(state, 'Sets');   // v0.9.2037: the group's count, as the list under its chip
       return { value: count.toLocaleString(), sub: 'sets in collection' };
     }
   },
