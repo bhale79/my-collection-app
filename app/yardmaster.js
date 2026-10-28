@@ -1456,6 +1456,41 @@
   // v0.9.2004: THE one key a catalog number is compared on at Commit — for
   // the master's existing rows and for rows inside the batch alike.
   function _ymCommitKey(v) { return String(v == null ? '' : v).trim(); }
+  // v0.9.2035 ([stated] Brad "yes" 2026-10-27): Commit adds a NEW VARIATION of a
+  // number already on the tab. The COTT crawl of Oct 17 queued 163 Pre-War /
+  // Science variations of numbers the master already had (the 22 No. 184
+  // Bungalows, the 610 cars…); the number-only check held every one. A row is a
+  // new variation when it carries Variation Details (var_desc) that no row of
+  // that number on the tab — or earlier in this batch — already carries. It gets
+  // the next free variation in the TAB's own style: letters on a letter tab
+  // (Pre-War A, B, C…), numbers on a number tab (PW - Science 1, 2, 3…). A row
+  // with no Variation Details is held exactly as before. A tab that leaves
+  // Variation blank (RMT O) stays blank unless a number needs telling apart. ONE identity rule:
+  // _ymVarKey; ONE style rule: _ymVarStyle; ONE next-value rule: _ymNextVar.
+  function _ymVarKey(dd) {
+    return String((dd && dd.varDesc) || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  }
+  function _ymVarStyle(vals, varIdx) {
+    var letters = 0, digits = 0;
+    (vals || []).slice(1).forEach(function (r) {
+      var v = String((r && r[varIdx]) == null ? '' : r[varIdx]).trim();
+      if (/^[A-Z]{1,2}$/.test(v)) letters++; else if (/^\d+$/.test(v)) digits++;
+    });
+    return letters > digits ? 'letters' : (digits ? 'digits' : 'none');   // 'none' = the tab leaves Variation blank
+  }
+  function _ymNextVar(style, used) {
+    if (style !== 'letters') {
+      var max = 0;
+      Object.keys(used).forEach(function (u) { if (/^\d+$/.test(u)) max = Math.max(max, +u); });
+      return String(max + 1);
+    }
+    var A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    for (var i = 0; i < 702; i++) {
+      var code = i < 26 ? A[i] : A[Math.floor(i / 26) - 1] + A[i % 26];
+      if (!used[code]) return code;
+    }
+    return '';
+  }
   window._ymCommit = async function () {
     if (!_isOwner() || !_ymData) return;
     var b = null;
@@ -1488,7 +1523,7 @@
     window._ymCommitBusy = true;
     try {
       // read each target tab's headers + existing numbers; dedupe HOLDS
-      var tabs = Object.keys(byTab), plan = {}, heldDup = [], heldTwice = [];
+      var tabs = Object.keys(byTab), plan = {}, heldDup = [], heldTwice = [], newVars = 0;
       for (var ti = 0; ti < tabs.length; ti++) {
         var t2 = tabs[ti];
         var gotRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + MID + '/values/' + encodeURIComponent("'" + t2 + "'!A1:" + MASTER_READ_LAST_COL), { headers: H });   // v0.9.1683: was A1:V — MTH tabs run to W, and Image URL lands after that
@@ -1500,21 +1535,59 @@
         var numCol = _ymNumberCol(heads, shape2), numIdx = numCol.idx;
         if (numIdx < 0) throw new Error('could not find the ' + numCol.header + ' column on ' + t2 + ' \u2014 commit stopped before any write');
         var existing = {};
-        vals.slice(1).forEach(function (r) { var n = _ymCommitKey(r[numIdx]); if (n) existing[n] = 1; });
+        // v0.9.2035: the tab's Variation / Variation Details columns (by MEANING,
+        // like every other header) — a Sets/Catalogs shape has neither.
+        var varIdx = -1, vdIdx = -1;
+        if (!shape2) heads.forEach(function (h, hi) { var f = _ymHeaderField(h); if (f === 'variation' && varIdx < 0) varIdx = hi; else if (f === 'varDesc' && vdIdx < 0) vdIdx = hi; });
+        var exVars = {};   // number → { used: {variation: 1}, keys: {varKey: 1} }
+        vals.slice(1).forEach(function (r) {
+          var n = _ymCommitKey(r[numIdx]); if (!n) return;
+          existing[n] = 1;
+          var e = exVars[n] || (exVars[n] = { used: {}, keys: {} });
+          if (varIdx >= 0) { var vv = String(r[varIdx] == null ? '' : r[varIdx]).trim(); if (vv) e.used[vv] = 1; }
+          if (vdIdx >= 0) { var vk = _ymVarKey({ varDesc: r[vdIdx] }); if (vk) e.keys[vk] = 1; }
+        });
+        var style = varIdx >= 0 ? _ymVarStyle(vals, varIdx) : '';
         // v0.9.1628: the first cut counted the HEADER on this side only —
         // one short every time, a false alarm AFTER the rows had landed.
         var fresh = [], rowsBefore = vals.slice(1).filter(function (r) { return String((r[numIdx] || '')).trim(); }).length;
-        // v0.9.2004: the dedupe also looks INSIDE the batch. Brad's 903
-        // re-check found 309 rows approved twice (same tab, same number) —
-        // the master check alone would have appended both copies. The first
-        // copy goes; a later one is HELD and said, keyed exactly like the
-        // master check (one key helper, _ymCommitKey) so the two can't differ.
-        var seenHere = {};
+        // v0.9.2004: the dedupe also looks INSIDE the batch (one key helper,
+        // _ymCommitKey, for the master side and the batch side alike).
+        // v0.9.2035: rows are taken a NUMBER at a time, so a number that is new
+        // to the tab but comes twice as two real variations gets both lettered.
+        var groups = {}, order = [];
         byTab[t2].forEach(function (dd) {
           var k = _ymCommitKey(dd[numCol.field]);   // v0.9.1754: compared on the field that fills that column
-          if (existing[k]) heldDup.push(dd);
-          else if (seenHere[k]) heldTwice.push(dd);
-          else { seenHere[k] = 1; fresh.push(dd); }
+          if (!groups[k]) { groups[k] = []; order.push(k); }
+          groups[k].push(dd);
+        });
+        order.forEach(function (k) {
+          var ex = exVars[k] || { used: {}, keys: {} };
+          var seenKeys = {}, distinct = [];
+          groups[k].forEach(function (dd, gi) {
+            var vk = _ymVarKey(dd);
+            if (gi > 0 && (!vk || seenKeys[vk])) { (existing[k] ? heldDup : heldTwice).push(dd); return; }
+            if (vk) seenKeys[vk] = 1;
+            distinct.push(dd);
+          });
+          var canVary = varIdx >= 0;
+          var many = distinct.length > 1;
+          distinct.forEach(function (dd) {
+            var vk = _ymVarKey(dd), given = String(dd.variation == null ? '' : dd.variation).trim();
+            if (existing[k]) {
+              // already on the tab: only a variation the tab doesn't have yet
+              if (!canVary || !vk || ex.keys[vk] || (given && ex.used[given])) { heldDup.push(dd); return; }
+            } else if (many && (!canVary || !vk)) {
+              if (dd !== distinct[0]) { heldTwice.push(dd); return; }
+            }
+            var row = dd, vNew = given;
+            if (canVary && !given && (existing[k] || many || style === 'digits')) vNew = _ymNextVar(style, ex.used);
+            if (vNew !== given) { row = Object.assign({}, dd, { variation: vNew }); if (existing[k]) newVars++; }
+            else if (existing[k]) newVars++;
+            if (vNew) ex.used[vNew] = 1;
+            if (vk) ex.keys[vk] = 1;
+            fresh.push(row);
+          });
         });
         plan[t2] = { heads: heads, fresh: fresh, rowsBefore: rowsBefore, allVals: vals, shape: shape2 };
       }
@@ -1530,6 +1603,7 @@
         return;
       }
       var lines = 'Append ' + totFresh + ' row' + (totFresh === 1 ? '' : 's') + ' — ' + perTab.join(', ') + '.'
+        + (newVars ? ' ' + newVars + ' of them ' + (newVars === 1 ? 'is a new variation' : 'are new variations') + ' of a number already in master (next free variation given).' : '')
         + (heldDup.length ? ' ' + heldDup.length + ' held \u2014 number already in master.' : '')
         + (heldTwice.length ? ' ' + heldTwice.length + ' held \u2014 same item twice in this batch.' : '')
         + (heldNoTab.length ? ' ' + heldNoTab.length + ' held \u2014 no tab picked.' : '')

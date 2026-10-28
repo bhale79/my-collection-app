@@ -174,9 +174,13 @@ const count = (arr, x) => arr.filter(y => y === x).length;
   ok('no hand-rolled number key left in the commit plan', !/existing\[String\(/.test(cm));
 
   // ═══ 3. planted offenders — the suite must catch each ═══
-  const guard = "else if (seenHere[k]) heldTwice.push(dd);";
+  // v0.9.2035: the in-batch guard now sits in the per-number pass (rows taken a number at a time)
+  const guard = "if (gi > 0 && (!vk || seenKeys[vk])) { (existing[k] ? heldDup : heldTwice).push(dd); return; }";
   ok('planted: the guard line exists exactly once to take out', SRC.split(guard).length === 2);
-  const off1 = await runCommit(SRC.replace(guard, ''));
+  // …and the second line of defence for a number that comes twice with nothing to tell the copies apart
+  const guard2 = "if (dd !== distinct[0]) { heldTwice.push(dd); return; }";
+  ok('planted: the second in-batch guard exists exactly once to take out', SRC.split(guard2).length === 2);
+  const off1 = await runCommit(SRC.replace(guard, '').replace(guard2, ''));
   ok('planted offender (in-batch guard removed) → N10 lands more than once and the suite sees it', count(off1.marx, 'N10') > 1, JSON.stringify(off1.marx));
   // a batch key that skips the trim — two helpers drifting apart
   const off2src = SRC.replace('var k = _ymCommitKey(dd[numCol.field]);', 'var k = String(dd[numCol.field] || "");');
