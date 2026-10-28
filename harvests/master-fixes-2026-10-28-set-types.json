@@ -1,0 +1,628 @@
+{
+ "what": "Master Version 2.60 — 68 Lionel MPC-Modern rows whose words say 'set' but whose Item Type said the engine inside it: 38 train sets (engine plus cars, or a named set, incl. Lars's 6-31712 Union Pacific ALCo PA Passenger Train Set typed 'Diesel') → Set; 30 engine-unit-only sets (Alco PA-PA / FA-FB-FA, powered + dummy, lash-ups) → Diesel Set (listed under Set). From Lars's problem report 2026-10-28 ('Assigned as Diesel not Set') and a measured review of every MPC-Modern row with 'set' in its description (217 rows; 148 car packs / accessory 'set of N' rows stay what they hold, per Brad's rule; the 12 'your call' rows Brad marked Set).",
+ "stated": "Brad (2026-10-28): \"yes but lets look at the other cells as well\" → review workbook SET_TYPE_REVIEW_2026-10-28 returned with the 12 \"?\" rows marked Set and every proposal left standing",
+ "masterVersion": "2.60",
+ "date": "2026-10-28",
+ "planReadAt": "public gviz read of Lionel MPC-Modern (21,943 non-blank rows) taken 2026-10-28 right before this record; the page re-reads the tab through the Sheets API and checks every old value and Row ID before writing",
+ "cellFormat": "[tab, item number (column A), column header, old, new, sheet row as a hint (filled by the page read), Row ID of the row]",
+ "counts": {
+  "cells": 68,
+  "rowsAdded": 0,
+  "toSet": 38,
+  "toDieselSet": 30
+ },
+ "cells": [
+  [
+   "Lionel MPC-Modern",
+   "1051",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "C42CS26UA3"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "11747",
+   "Item Type",
+   "Steam Locomotive",
+   "Set",
+   null,
+   "A2K4G2ASB7"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "11837",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "WCSZB2WN5M"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "11939",
+   "Item Type",
+   "Steam Locomotive",
+   "Set",
+   null,
+   "SGG7MZBX3Y"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "11944",
+   "Item Type",
+   "Steam Locomotive",
+   "Set",
+   null,
+   "EYCF3MSW43"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "11957",
+   "Item Type",
+   "Steam Locomotive",
+   "Set",
+   null,
+   "W2QBXD78N7"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "11972",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "CDZ5XPUP3P"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "11984",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "D8VRG696T6"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "1823030",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "RCENPX5W6G"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "1922080",
+   "Item Type",
+   "Electric Locomotive",
+   "Set",
+   null,
+   "ZK54NWZPFQ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "1922090",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "9DMMDHKBP5"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2122160",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "9SWNVBFSQ5"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2222020",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "RMJ52329G2"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2223070",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "H78U9H9RNM"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2323080",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "8XVYZ2WU2C"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2323130",
+   "Item Type",
+   "Steam Locomotive",
+   "Set",
+   null,
+   "KPXWKCP6SX"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2422050",
+   "Item Type",
+   "Steam Locomotive",
+   "Set",
+   null,
+   "Z4NWZQ6E8N"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-21953",
+   "Item Type",
+   "Diesel",
+   "Set",
+   null,
+   "96RDX782EB"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-30118",
+   "Item Type",
+   "Steam Locomotive",
+   "Set",
+   null,
+   "VNBACAQEK6"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-30126",
+   "Item Type",
+   "Steam Locomotive",
+   "Set",
+   null,
+   "FZ32EVBPB2"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-31712",
+   "Item Type",
+   "Diesel",
+   "Set",
+   null,
+   "FGATXYTXSW"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "81027",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "9JVZ4V4SDQ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "82442",
+   "Item Type",
+   "Steam Locomotive",
+   "Set",
+   null,
+   "CUWQC2TYM4"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "84787",
+   "Item Type",
+   "Steam Locomotive",
+   "Set",
+   null,
+   "2QFCR8JUTN"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "nonumb",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "JWM368VMKZ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "nonumb",
+   "Item Type",
+   "Steam Locomotive",
+   "Set",
+   null,
+   "RWNA6UZ9Q3"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "11713",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "9TMBU8DY5U"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "11734",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "UNS4VDZV76"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "11956",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "K8GFTZ6KH7"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "1285",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "NNEXNS2TEE"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "1489",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "RGNRWMN6D2"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "18107",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "BJN7EG3VQD"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "18107",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "TKBUHVJ3VJ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "18116",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "RPQCS8UCUT"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "18235",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "5QTR697DY9"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "18235",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "TP2FA2DS8T"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "18505",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "D2Y6ZNMKH9"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "1862",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "W5AYHHMNUG"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "18854",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "G6M6X6GCPE"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "18872",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "VT38QC4EH3"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "18872",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "AADMU75X9E"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "18901",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "CZHSXCJXHK"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "18903",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "K47DSFCDQK"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "18908",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "K9U4X5Q78Y"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "18934",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "D2RMPG4W7F"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "18939",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "4X9E8E9CYK"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "1923080",
+   "Item Type",
+   "Steam Locomotive",
+   "Diesel Set",
+   null,
+   "UGHS9X5QKM"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "1933160",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "G72V799FBT"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "1933170",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "GZSRKBDRHX"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "1933180",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "7D4HM8YZXH"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "1933190",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "4UWDXRMRWD"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "1933200",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "CRC4E7Z7K3"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "1933210",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "38Z2EQQBQ8"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28900",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "XFSJVBHW9D"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "82608262",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "W2X9G3X658"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "T-1171",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "CJFBTG7A5T"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "11988",
+   "Item Type",
+   "Motorized Unit",
+   "Set",
+   null,
+   "5ZGH5QMMXN"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "1957250",
+   "Item Type",
+   "HO Accessory",
+   "Set",
+   null,
+   "QQENHKSGVN"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "1957280",
+   "Item Type",
+   "HO Accessory",
+   "Set",
+   null,
+   "UPB6KKB8WP"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-11872",
+   "Item Type",
+   "Reefer - Steel-Sided Reefer",
+   "Set",
+   null,
+   "8DWPWZ2W4M"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-21567",
+   "Item Type",
+   "Superstreets",
+   "Set",
+   null,
+   "S4CQQXFTWF"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-21568",
+   "Item Type",
+   "Superstreets",
+   "Set",
+   null,
+   "HTMZ4PGKBZ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-21790",
+   "Item Type",
+   "Tank Train",
+   "Set",
+   null,
+   "CPEC6WE3G3"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-31773",
+   "Item Type",
+   "Tank Train",
+   "Set",
+   null,
+   "WKA69A98BR"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-37147",
+   "Item Type",
+   "Controller",
+   "Set",
+   null,
+   "8ANV8A8UQQ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38203",
+   "Item Type",
+   "Trolley",
+   "Set",
+   null,
+   "M4M5WP4K7Y"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "7-20003",
+   "Item Type",
+   "Mega Track",
+   "Set",
+   null,
+   "8HMZQCBU8Y"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "7-20004",
+   "Item Type",
+   "Mega Track",
+   "Set",
+   null,
+   "8E6M9EFRGK"
+  ]
+ ]
+}
