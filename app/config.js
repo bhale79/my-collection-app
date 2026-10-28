@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2035';
+const APP_VERSION = 'v0.9.2036';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -3755,6 +3755,17 @@ function rrGaugeFromWords(text) {
   return '';
 }
 if (typeof window !== 'undefined') { window.RR_MANUAL_GAUGES = RR_MANUAL_GAUGES; window.rrGaugeFromWords = rrGaugeFromWords; }
+
+// ═══════════════════════════════════════════════════════════════
+// v0.9.2036 — WHICH KINDS OF ITEM ARE AN "ENGINE" IN A GROUP (Lars, 2026-10-28:
+// his Blue Comet set, grouped with its box, read "ENGINE — 6-21787"). The
+// group strip's role word for the lead piece defaulted to "Engine" for anything
+// that was not a tender, unit, box or sheet — a set, a boxcar, a caboose all
+// said Engine. The lead piece is now named by what it IS (its type bucket):
+// these buckets say "Engine"; every other bucket says its own name ("Set",
+// "Boxcar", "Caboose"); no bucket at all says "Item". rrGroupRole, app-collection.js.
+const RR_GROUP_ENGINE_BUCKETS = { 'Steam Locomotive': 1, 'Diesel Locomotive': 1, 'Electric Locomotive': 1, 'Motorized Unit': 1 };
+if (typeof window !== 'undefined') window.RR_GROUP_ENGINE_BUCKETS = RR_GROUP_ENGINE_BUCKETS;
 
 // ═══════════════════════════════════════════════════════════════
 // v0.9.2027 — TERMS AND WHAT THEY MEAN (a York customer: "maybe it would be

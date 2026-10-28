@@ -1114,7 +1114,6 @@ function showItemDetailPage(idx, copyInvId, opts) {
   // (rrGroupRole / RR_GROUP_RANK, below) so the Add steps' "Adding to the …"
   // line names a group exactly as this page does.
   function _grpRole(p) { return rrGroupRole(p); }
-  var _grpRank = RR_GROUP_RANK;
   var _grpFull = [], _grpKeys = [];
   if (pd && pd.groupId && !_wantMode) {
     Object.keys(state.personalData).forEach(function (k) {
@@ -1123,8 +1122,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
     });
     var _zip = _grpFull.map(function (p, i) { return { p: p, k: _grpKeys[i] }; });
     _zip.sort(function (a, b) {
-      var ra = _grpRank[_grpRole(a.p)], rb = _grpRank[_grpRole(b.p)];
-      return (ra === undefined ? 9 : ra) - (rb === undefined ? 9 : rb);   // v0.9.729: 0 is a real rank (|| swallowed it → dummy sorted first, config said 'Set')
+      return rrGroupRank(_grpRole(a.p)) - rrGroupRank(_grpRole(b.p));   // v0.9.2036: one rank helper (v0.9.729: 0 is a real rank)
     });
     _grpFull = _zip.map(function (z) { return z.p; });
     _grpKeys = _zip.map(function (z) { return z.k; });
@@ -2226,9 +2224,18 @@ function rrGroupRole(p) {
   if (/C$/.test(n.replace(/-(P|D)$/, ''))) return 'B Unit';
   if (/-D$/.test(n)) return 'Dummy A Unit';
   if (/-P$/.test(n)) return 'Powered A Unit';
-  return 'Engine';
+  // v0.9.2036 (Lars: "ENGINE — 6-21787 Blue Comet set"): the lead piece is named
+  // by what it IS — its type bucket (the catalog row's, or a manual item's own
+  // type: _ownedBucketOf, dashboard.js). Locomotive buckets say "Engine"
+  // (RR_GROUP_ENGINE_BUCKETS, config.js); a set says "Set"; a car says its kind.
+  var b = (typeof _ownedBucketOf === 'function') ? String(_ownedBucketOf(p) || '') : '';
+  if (b && typeof RR_GROUP_ENGINE_BUCKETS !== 'undefined' && RR_GROUP_ENGINE_BUCKETS[b]) return 'Engine';
+  return b || 'Item';
 }
 var RR_GROUP_RANK = { 'Engine': 0, 'Powered A Unit': 0, 'Dummy A Unit': 1, 'B Unit': 2, 'Tender': 3, 'Instruction Sheet': 4, 'Box': 5, 'Master Carton': 6 };
+// v0.9.2036: THE group order. A lead piece of any kind (Engine, Set, Boxcar …)
+// sorts first; the pieces that go with it follow in RR_GROUP_RANK order.
+function rrGroupRank(role) { var r = RR_GROUP_RANK[role]; return r === undefined ? 0 : r; }
 // The group strip's heading ("205 AA Set", "2046 Engine + Tender", "Grouped
 // Set") from the group's units (no boxes / sheets), lead first. wrap = true
 // draws the kind of group as a defined word (v0.9.2027 terms).
@@ -2256,8 +2263,7 @@ function rrAddToGroupBannerText(pd) {
       if (p && p.owned && p.groupId === pd.groupId && !C.pieceRe.test(String(p.itemNum || ''))) units.push(p);
     });
     units.sort(function (a, b) {
-      var ra = RR_GROUP_RANK[rrGroupRole(a)], rb = RR_GROUP_RANK[rrGroupRole(b)];
-      return (ra === undefined ? 9 : ra) - (rb === undefined ? 9 : rb);
+      return rrGroupRank(rrGroupRole(a)) - rrGroupRank(rrGroupRole(b));   // v0.9.2036: one rank helper
     });
   }
   if (units.length > 1) return C.banner.group.replace('{group}', rrGroupHeading(units, false));
