@@ -2969,6 +2969,14 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
 @media (min-width: 1000px) {
   .maint-card, .rr-desk-zoom, .rr-card, .modal { zoom: var(--rr-pop-zoom); }
   .rr-card, .modal { max-height: calc(86dvh / var(--rr-pop-zoom)) !important; }
+  /* v0.9.2043: the Add box may use 94% of the window — it is ONE fixed-height box
+     on a computer (WIZ_STEP_W, v0.9.1971), so every pixel it is denied comes out of
+     step 1's match list. Its padding is inside the box, unlike .rr-card's. */
+  #wizard-modal .modal { max-height: calc(94dvh / var(--rr-pop-zoom)) !important; }
+  /* …and its header and footer keep less padding (every step, so the box never
+     jumps between steps): 24/16 and 16/16 at 1.5x was 78px of a 970px window. */
+  #wizard-modal .modal-header { padding-top: 1rem; padding-bottom: 0.65rem; }
+  #wizard-modal .modal-footer { padding-top: 0.6rem; padding-bottom: 0.6rem; }
   /* v0.9.1943 (Brad: "scale things down so you get a decent photo to see"):
      the Photo Inbox review card's laptop layout — the second column above */
   .rr-card.pin-rv-card { zoom: var(--rr-pop-zoom-sm); max-height: calc(86dvh / var(--rr-pop-zoom-sm)) !important; height: calc(86dvh / var(--rr-pop-zoom-sm)); }
@@ -3350,6 +3358,33 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
 .wiz-ing-wide:has(.wiz-pid-row) .wiz-filter-hint { margin-bottom: 0.2rem !important; }
 .wiz-ing-wide:has(.wiz-pid-row) #wiz-suggestions > div:first-child { padding-top: 0.15rem !important; padding-bottom: 0.2rem !important; }
 
+/* v0.9.2043 (Brad, the Add screen at 1920 wide: "we need to resize this as you
+   can't see but one option at the bottom"). Pop-ups on a big window are drawn at
+   1.5x (--rr-pop-zoom), and once a steam engine's Engine / Engine + Tender row and
+   the ADDING bar were up, the match list had room for less than one two-line row.
+   On a computer, step 1 now:
+   · draws each match on ONE line: number · type · details (cut with … — the whole
+     text on hover) · the reference link at the right end (wizard-suggestions.js
+     gives the hooks: .wiz-sug-row / -l1 / -spacer / -details / -ref);
+   · puts "How are you entering this item?" beside its buttons, not above them
+     (wizard-handlers.js, .wiz-grp-inline);
+   · the four filter boxes use oneLineMinHeightPx (item-search-filters-config.js).
+   The Add box itself may use 94% of the window (below). Phones never get these. */
+.wiz-ing-wide #wiz-suggestions .wiz-sug-row { flex-direction: row !important; flex-wrap: nowrap; align-items: center !important; gap: 0.5rem !important; padding: 0.15rem 0.6rem !important; min-height: 28px !important; }
+.wiz-ing-wide #wiz-suggestions .wiz-sug-l1 { display: contents !important; }
+.wiz-ing-wide #wiz-suggestions .wiz-sug-spacer { display: none !important; }
+.wiz-ing-wide #wiz-suggestions .wiz-sug-details { order: 1; flex: 1 1 auto; min-width: 0; width: auto !important; max-height: none !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; word-break: normal !important; overflow-wrap: normal !important; }
+.wiz-ing-wide #wiz-suggestions .wiz-sug-ref { order: 2; margin-left: auto; }
+.wiz-grp-inline { display: flex; align-items: center; gap: 0.6rem; }
+.wiz-grp-inline > .wiz-grp-lbl { margin-bottom: 0 !important; white-space: nowrap; flex-shrink: 0; }
+.wiz-grp-inline > .wiz-grp-btns-row { flex: 1 1 auto; min-width: 0; }
+.wiz-grp-inline .wiz-grp-btns-row > button { padding-top: 0.35rem !important; padding-bottom: 0.35rem !important; }
+.wiz-ing-wide #wiz-grouping-btns { margin-top: 0.45rem !important; }
+/* …and step 1's own margins: the body's 20px top/bottom and the step's 8px top
+   (×1.5 on a big window = 72px) go to the list instead. */
+#wizard-body:has(> .wiz-ing-wide) { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
+#wizard-body > .wiz-ing-wide { padding-top: 0 !important; }
+
 /* ══ v0.9.2032 — TAP TARGETS on a phone (the iPhone audit, 2026-10-27): older
    fingers miss anything under 40 px. Measured in the real app at 390 wide:
    the notice × 13×16, "✎ Edit Dashboard" 24 tall, "Back to Collection" 21,
@@ -3363,3 +3398,19 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
   .rep-row-actions { margin-top: -5px; margin-bottom: -4px; }   /* the 40 px buttons grew each Reports row by 9 px; the row keeps its old height (the tour rings that page and the tab beneath it, tour_count A5) */
   .section-title[id^="dash-panel-header"] { min-height: 40px !important; }
 }
+
+/* v0.9.2043 (Brad): "Updating…" with a spinning arrow in the top-right corner of
+   the item page's photo while a crop is being saved to Drive. Drawn by
+   _buildPhotoGallery (app-collection.js) from rrPhotoIsSaving (photo-crop.js). */
+.rr-photo-updating {
+  position: absolute; top: 8px; right: 8px; z-index: 2;
+  display: none; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: 999px;
+  background: rgba(0,0,0,0.6); color: #fff;
+  font-size: 0.8rem; font-weight: 600; line-height: 1.2;
+  pointer-events: none;
+}
+.rr-photo-updating.on { display: inline-flex; }
+.rr-photo-updating .rr-upd-arrow { display: inline-block; font-size: 1rem; animation: rr-upd-spin 1s linear infinite; }
+@keyframes rr-upd-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .rr-photo-updating .rr-upd-arrow { animation: none; } }

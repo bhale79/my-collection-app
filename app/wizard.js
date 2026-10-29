@@ -1718,6 +1718,8 @@ function _buildItemSearchFiltersDOM() {
   // instead of holding 130px and wrapping. A phone is too narrow: it wraps.
   var _oneLine = !window.IS_MOBILE_UA && (wizard.tab === 'collection' || wizard.tab === 'want');
   var _dropMin = _oneLine ? 0 : 130;
+  // v0.9.2043: the one-line row's box height — ONE number, item-search-filters-config.js
+  var _dropH = _oneLine ? (sz.oneLineMinHeightPx || sz.minHeightPx || 44) : (sz.minHeightPx || 44);
   bar.style.cssText = 'display:flex;gap:' + (sz.gapPx || 8) + 'px;margin-bottom:0.5rem;flex-wrap:' + (_oneLine ? 'nowrap' : 'wrap');
 
   function mkDrop(fieldId, label, values, currentVal) {
@@ -1733,9 +1735,9 @@ function _buildItemSearchFiltersDOM() {
         'letter-spacing:' + (_oneLine ? '0.03em' : '0.06em') + ';text-transform:uppercase;font-weight:600;' +
         'white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(label) + '</div>' +
       '<select id="' + fieldId + '" style="' +
-        'width:100%;padding:' + (_oneLine ? '0.5rem 0.4rem' : '0.5rem 0.65rem') + ';font-size:' + (_oneLine ? (sz.oneLineFontPx || 15) : (sz.fontPx || 14)) + 'px;' +
+        'width:100%;padding:' + (_oneLine ? '0.3rem 0.4rem' : '0.5rem 0.65rem') + ';font-size:' + (_oneLine ? (sz.oneLineFontPx || 15) : (sz.fontPx || 14)) + 'px;' +
         'background:var(--surface2);color:var(--text);border:1px solid var(--border);' +
-        'border-radius:8px;min-height:' + (sz.minHeightPx || 44) + 'px' +
+        'border-radius:8px;min-height:' + _dropH + 'px' +
       '">' + opts + '</select>';
     return wrap;
   }
@@ -1754,9 +1756,9 @@ function _buildItemSearchFiltersDOM() {
         'letter-spacing:' + (_oneLine ? '0.03em' : '0.06em') + ';text-transform:uppercase;font-weight:600;' +
         'white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(label) + '</div>' +
       '<select id="' + fieldId + '" style="' +
-        'width:100%;padding:' + (_oneLine ? '0.5rem 0.4rem' : '0.5rem 0.65rem') + ';font-size:' + (_oneLine ? (sz.oneLineFontPx || 15) : (sz.fontPx || 14)) + 'px;' +
+        'width:100%;padding:' + (_oneLine ? '0.3rem 0.4rem' : '0.5rem 0.65rem') + ';font-size:' + (_oneLine ? (sz.oneLineFontPx || 15) : (sz.fontPx || 14)) + 'px;' +
         'background:var(--surface2);color:var(--text);border:1px solid var(--border);' +
-        'border-radius:8px;min-height:' + (sz.minHeightPx || 44) + 'px' +
+        'border-radius:8px;min-height:' + _dropH + 'px' +
       '">' + opts + '</select>';
     return wrap;
   }
@@ -1784,7 +1786,7 @@ function _buildItemSearchFiltersDOM() {
     // Clear-filters button (Manufacturer + Era are remembered between adds).
     var _clrWrap = document.createElement('div');
     _clrWrap.style.cssText = 'display:flex;align-items:flex-end;flex:0 0 auto';
-    _clrWrap.innerHTML = '<button type="button" onclick="_clearAddFilters()" style="padding:0.5rem ' + (_oneLine ? '0.55rem' : '0.8rem') + ';font-size:' + (_oneLine ? '12px' : '13px') + ';background:var(--surface2);color:var(--text-mid);border:1px solid var(--border);border-radius:8px;min-height:' + (sz.minHeightPx || 44) + 'px;cursor:pointer;white-space:nowrap">Clear filters</button>';
+    _clrWrap.innerHTML = '<button type="button" onclick="_clearAddFilters()" style="padding:' + (_oneLine ? '0.3rem 0.55rem' : '0.5rem 0.8rem') + ';font-size:' + (_oneLine ? '12px' : '13px') + ';background:var(--surface2);color:var(--text-mid);border:1px solid var(--border);border-radius:8px;min-height:' + _dropH + 'px;cursor:pointer;white-space:nowrap">Clear filters</button>';
     bar.appendChild(_clrWrap);
   } else {
     if (showType) bar.appendChild(mkDrop('wiz-search-type', ui.typeLabel || 'Type',       types, wizard.data._searchFilterType || ''));

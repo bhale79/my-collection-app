@@ -62,6 +62,11 @@ window.ITEM_SEARCH_FILTERS = {
     fontPx:       17,
     oneLineFontPx: 15,  // v0.9.1926: the one-line filter row on a computer (Brad: "fit all the filters onto 1 line")
     minHeightPx:  46,   // grew with the font — still ≥ the 44px tap minimum
+    // v0.9.2043 (Brad, the Add screen: "you can't see but one option at the
+    // bottom"): the computer's one-line filter row. Pop-ups on a computer are
+    // drawn at 1.1–1.5x (--rr-pop-zoom), so 34 is 37–51 px on screen — still a
+    // full-size box; at 46 the four boxes took 69 px of a 1920x970 window.
+    oneLineMinHeightPx: 34,
     gapPx:        8,
   },
   maxOptions:         100000, // effectively uncapped — the type-to-search box

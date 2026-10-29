@@ -628,6 +628,11 @@ function updateItemSuggestions(query) {
     row.setAttribute('role', 'button');
     row.setAttribute('tabindex', '0');
     row.dataset.idx = i;
+    // v0.9.2043 (Brad: "you can't see but one option at the bottom"): on a
+    // computer the step-1 list (.wiz-ing-wide, app.css) draws each row as ONE
+    // line — number · type · details … reference link. These classes are the
+    // hooks; a phone keeps the two-line row.
+    row.className = 'wiz-sug-row';
     // box-sizing + max-width keep the row bounded; horizontal scroll is
     // prevented at the roadSpan level (min-width:0 + ellipsis) so we
     // deliberately do NOT set overflow:hidden on the row.
@@ -663,6 +668,7 @@ function updateItemSuggestions(query) {
     const line1 = document.createElement('div');
     // v0.9.2028: wraps, so on a phone a long number + type + "Atlas 2-Rail"
     // drops the reference link to its own line instead of off the edge.
+    line1.className = 'wiz-sug-l1';
     line1.style.cssText = 'display:flex;flex-wrap:wrap;row-gap:0.3rem;align-items:baseline;gap:0.5rem;width:100%;min-width:0';
 
     const numSpan = document.createElement('span');
@@ -717,6 +723,7 @@ function updateItemSuggestions(query) {
     // get chosen on the next wizard step. Spacer keeps the reference
     // link pinned right.
     const spacer = document.createElement('span');
+    spacer.className = 'wiz-sug-spacer';
     spacer.style.cssText = 'flex:1;min-width:0';
     line1.appendChild(spacer);
 
@@ -727,6 +734,7 @@ function updateItemSuggestions(query) {
       refA.target = '_blank';
       refA.rel = 'noopener';
       refA.textContent = _resolveRefLabel(c.refLink);
+      refA.className = 'wiz-sug-ref';
       refA.onclick = function(ev) { ev.stopPropagation(); };
       refA.style.cssText = 'font-size:0.72rem;color:var(--accent2);text-decoration:none;'
         + 'padding:0.2rem 0.5rem;border:1px solid rgba(201,146,42,0.35);border-radius:6px;'
@@ -736,13 +744,23 @@ function updateItemSuggestions(query) {
     row.appendChild(line1);
 
     // ── Line 2 ── disambiguator (subType · varDesc · description, etc.)
+    // v0.9.2043: a field that says the same as one already shown is left out —
+    // the 773 read "4-6-4 Steam Locomotive · 4-6-4 Steam Locomotive" because its
+    // road-name cell repeats the description.
+    var _detailsSeen = {};
     var _detailsParts = _rowFields
       .map(function(f) { return (c[f] || '').toString().trim(); })
-      .filter(function(v) { return v.length > 0; });
+      .filter(function(v) {
+        var k = v.toLowerCase();
+        if (!v.length || _detailsSeen[k]) return false;
+        _detailsSeen[k] = 1; return true;
+      });
     var _details = _detailsParts.join(_rowSep);
     if (_details.length > _rowMaxLen) _details = _details.substring(0, _rowMaxLen - 1) + '\u2026';
     if (_details) {
       const line2 = document.createElement('div');
+      line2.className = 'wiz-sug-details';
+      line2.title = _details;   // the whole text on hover, where one line cuts it short
       // 2-line visual cap via max-height + line-height. This is more
       // reliable than `display:-webkit-box + -webkit-line-clamp` which
       // has rendering quirks inside a flex-column parent with overflow.

@@ -1923,6 +1923,43 @@ function _buildPhotoGallery(el, photos, opts) {
   heroLblTxt.style.cssText = 'font-size:0.68rem;color:#fff;font-family:var(--font-head);letter-spacing:0.05em;text-transform:uppercase';
   heroLbl.appendChild(heroLblTxt);
   heroLink.appendChild(heroImg); heroLink.appendChild(heroLbl);
+  // v0.9.2043 (Brad): a spinning arrow + "Updating…" in the photo's top-right
+  // corner while a crop or Restore original is being saved to Drive — the crop
+  // screen closes at once, the new picture lands a few seconds later, and
+  // without this the page looked as if nothing had happened. Shown from the ONE
+  // record in photo-crop.js (rrPhotoIsSaving, by Drive id), so a redraw of the
+  // page mid-save draws it again on the same photo.
+  var heroBusy = document.createElement('div');
+  heroBusy.className = 'rr-photo-updating';
+  heroBusy.setAttribute('role', 'status');
+  heroBusy.setAttribute('aria-live', 'polite');
+  heroBusy.innerHTML = '<span class="rr-upd-arrow" aria-hidden="true">\u21bb</span><span class="rr-upd-word"></span>';
+  heroBusy.querySelector('.rr-upd-word').textContent = (typeof RR_PHOTO_UPDATING_LABEL === 'string') ? RR_PHOTO_UPDATING_LABEL : 'Updating\u2026';
+  heroLink.appendChild(heroBusy);
+  // On the PICTURE's own corner, not the frame's: a photo narrower than its
+  // frame is drawn centred (object-fit: contain) with dark bands either side.
+  var placeBusy = function () {
+    var nw = heroImg.naturalWidth, nh = heroImg.naturalHeight, bw = heroImg.clientWidth, bh = heroImg.clientHeight;
+    var offX = 0, offY = 0;
+    if (nw > 0 && nh > 0 && bw > 0 && bh > 0) {
+      var k = Math.min(bw / nw, bh / nh);
+      offX = Math.max(0, (bw - nw * k) / 2); offY = Math.max(0, (bh - nh * k) / 2);
+    }
+    heroBusy.style.right = Math.round(offX + 8) + 'px';
+    heroBusy.style.top = Math.round(offY + 8) + 'px';
+  };
+  heroImg.addEventListener('load', placeBusy);
+  var syncBusy = function () {
+    var p = photos[cur];
+    var on = !!(p && typeof window.rrPhotoIsSaving === 'function' && window.rrPhotoIsSaving(p.id));
+    heroBusy.classList.toggle('on', on);
+    if (on) placeBusy();
+  };
+  var onSaving = function () {
+    if (!heroBusy.isConnected) { document.removeEventListener('rr-photo-saving', onSaving); return; }   // this gallery was redrawn away
+    syncBusy();
+  };
+  document.addEventListener('rr-photo-saving', onSaving);
   // v0.9.1976 (Brad: "the crop, trash and undo buttons take up most of the
   // screen, we need to have this above the picture not on the picture" →
   // "yes"): the three photo buttons sit in a slim row ABOVE the picture,
@@ -2031,6 +2068,7 @@ function _buildPhotoGallery(el, photos, opts) {
     var src = heroSrcFor(p);
     if (src) heroImg.src = src;
     else { try { loadDriveThumb(p.id, heroImg, heroLink, null, 'hi'); } catch (e) {} }
+    syncBusy();   // v0.9.2043
     editBtn.onclick = function (ev) {
       ev.preventDefault(); ev.stopPropagation();
       _detailPhotoEdit(p.id, p.name || '', opts.folderLink || '', heroImg.id);

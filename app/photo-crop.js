@@ -1317,6 +1317,26 @@ function _rrCropKeepsOriginal(file) {
   return !!(file && /^image\/jpe?g$/i.test(String(file.type || '')));
 }
 
+// ══ "Updating…" — which photos are being saved right now (v0.9.2043) ═══════
+// Brad: "when you save you go back to the item detail page, it looks the same,
+// and maybe 5 seconds later it pops up correct … the user sees it and will
+// think it didn't do it." The crop screen closes the moment Apply is pressed;
+// the new bytes then take a few seconds to reach Drive. This is the ONE record
+// of which photos are mid-save, keyed by the Drive file id (an identity, never
+// a position — the page can redraw while the save runs, and the badge must
+// come back on the redrawn photo). Pages that show a photo ask
+// rrPhotoIsSaving(id) when they draw it and listen for 'rr-photo-saving' to
+// follow changes; the item page's gallery draws the badge (app-collection.js).
+var _rrPhotoSaving = {};
+function rrPhotoIsSaving(fileId) { return !!(fileId && _rrPhotoSaving[fileId]); }
+function _rrPhotoSavingMark(fileId, on) {
+  if (!fileId) return;
+  if (on) _rrPhotoSaving[fileId] = (_rrPhotoSaving[fileId] || 0) + 1;
+  else if (_rrPhotoSaving[fileId] > 1) _rrPhotoSaving[fileId]--;
+  else delete _rrPhotoSaving[fileId];
+  try { document.dispatchEvent(new CustomEvent('rr-photo-saving', { detail: { id: fileId, saving: rrPhotoIsSaving(fileId) } })); } catch (e) {}
+}
+
 // ══ Open the crop screen on a photo that lives in Drive ═════════════════════
 // Every ✂ on an uploaded photo comes through here. If the photo has an earlier
 // version, the screen shows THAT — the original — with the current crop drawn
@@ -1368,16 +1388,30 @@ async function _cropOpenDriveFile(fileId, o) {
   var cleanup = function () { if (madeUrl) { try { URL.revokeObjectURL(madeUrl); } catch (e) {} madeUrl = null; } };
   var restore = async function () {
     cleanup();
-    var okR = await _cropRestoreOriginal(fileId, orig.blob);
-    if (o.onDone) try { o.onDone(okR, orig.blob, 'restore'); } catch (e) {}
+    _rrPhotoSavingMark(fileId, true);   // v0.9.2043: "Updating…" until Drive answers
+    var okR = false;
+    try { okR = await _cropRestoreOriginal(fileId, orig.blob); }
+    finally {
+      if (o.onDone) try { o.onDone(okR, orig.blob, 'restore'); } catch (e) {}
+      _rrPhotoSavingMark(fileId, false);
+    }
   };
   _openCropper(src, async function (blob, box) {
     cleanup();
     if (showingOriginal && box && box.whole) { await restore(); return; }   // whole + level = the original itself, exact bytes
     var keepBox = (showingOriginal || state === 'single') ? box : null;    // a crop of a crop is not in the original's frame
-    var ok = await _cropReplaceDriveFile(fileId, blob, keepBox);
-    if (ok && (orig || state === 'single')) _cropRemember(fileId, orig ? orig.blob : null, keepBox);
-    if (o.onDone) try { o.onDone(ok, blob, 'crop'); } catch (e) {}
+    _rrPhotoSavingMark(fileId, true);   // v0.9.2043: "Updating…" until Drive answers
+    var ok = false;
+    try {
+      ok = await _cropReplaceDriveFile(fileId, blob, keepBox);
+      if (ok && (orig || state === 'single')) _cropRemember(fileId, orig ? orig.blob : null, keepBox);
+    } finally {
+      // onDone FIRST (it puts the new picture on the page), then the badge goes —
+      // never a moment with the old picture and no badge. finally: a throw can
+      // never leave the arrow spinning.
+      if (o.onDone) try { o.onDone(ok, blob, 'crop'); } catch (e) {}
+      _rrPhotoSavingMark(fileId, false);
+    }
   }, function () {
     cleanup();
     if (o.onCancel) try { o.onCancel(); } catch (e) {}
@@ -1472,6 +1506,8 @@ if (typeof window !== 'undefined') {
   window._cropPickByName = _cropPickByName;
   // v0.9.1872
   window._cropOpenDriveFile = _cropOpenDriveFile;
+  window.rrPhotoIsSaving = rrPhotoIsSaving;          // v0.9.2043
+  window._rrPhotoSavingMark = _rrPhotoSavingMark;
   window._cropRestoreOriginal = _cropRestoreOriginal;
   window._cropApplyCaptured = _cropApplyCaptured;
   window._cropProtectOriginal = _cropProtectOriginal;

@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2038';
+const APP_VERSION = 'v0.9.2043';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -3720,6 +3720,9 @@ if (typeof window !== 'undefined') window.RR_ADD_TYPED = RR_ADD_TYPED;
 // iphone_2032_tests fails on any phone rule written another way). Every JS
 // decision asks rrIsPhone(); never `innerWidth <= 640` again.
 const RR_PHONE = { maxWidth: 640, shortHeight: 500 };
+// v0.9.2043: the word on the photo while a crop is being saved to Drive
+// (Brad: "a rotate arrow with the word 'updating' in the top right of the picture").
+const RR_PHOTO_UPDATING_LABEL = 'Updating\u2026';
 function rrIsPhone() {
   try {
     if (window.innerWidth <= RR_PHONE.maxWidth) return true;

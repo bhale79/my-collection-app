@@ -69,9 +69,13 @@ function _updateGroupingButtons() {
   }
 
   container.style.display = 'block';
-  let html = '<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.4rem">How are you entering this item?</div>';
-  html += '<div class="wiz-grp-btns-row" style="display:flex;flex-wrap:wrap;gap:0.35rem">';
   const _isMobile = rrIsPhone();
+  // v0.9.2043 (Brad: the match list had room for one row): on a computer the
+  // question sits BESIDE its buttons (.wiz-grp-inline, app.css) — one row, not two.
+  // A phone keeps it above them.
+  let html = _isMobile ? '' : '<div class="wiz-grp-inline">';
+  html += '<div class="wiz-grp-lbl" style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.4rem">How are you entering this item?</div>';
+  html += '<div class="wiz-grp-btns-row" style="display:flex;flex-wrap:wrap;gap:0.35rem">';
   const _btnFlex = _isMobile ? '1 1 calc(50% - 0.35rem)' : '1';
   buttons.forEach(function(btn) {
     const sel = current === btn.id;
@@ -91,6 +95,7 @@ function _updateGroupingButtons() {
       + btn.label + '</button>';
   });
   html += '</div>';
+  if (!_isMobile) html += '</div>';
 
   // v0.9.1479: this function runs on EVERY keystroke and refresh — rewriting
   // identical innerHTML each time is what yanked live buttons out from under
