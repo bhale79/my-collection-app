@@ -61,7 +61,7 @@ const state = {
     { id: 'b2', partNum: '', desc: 'used up', qty: 0 },
   ],
 };
-const pickFn = new Function('state', grab('function _maintPickerParts(') + '\nreturn _maintPickerParts;')(state);
+const pickFn = new Function('state', grab('function _taskOpen(') + '\n' + grab('function _maintPickerParts(') + '\nreturn _maintPickerParts;')(state);   // v0.9.2038: "on a task" = an OPEN task (_taskOpen)
 const tgInv = { item: { itemNum: '2338' }, invId: 'i2' };
 
 let pk = pickFn(tgInv, 'log-B');   // opening Need a part on "E-unit service"
@@ -87,26 +87,28 @@ ok('the bin is checked as soon as the pop-up opens (no typing needed)', /window\
 const pickerHtml = grab('function _maintPickerHtml(');
 ok('nothing to attach to when the bench opened it with no job (taskId empty) → no picker', /if \(!taskId\) return '';/.test(pickerHtml));
 ok('on-hand lane says "Use it for this job"; wanted lane says "Attach to this job"', /Use it for this job/.test(pickerHtml) && /Attach to this job/.test(pickerHtml));
-ok('both lanes attach through _maintPopAttach (one writer)', (pickerHtml.match(/_maintPopAttach\(/g) || []).length === 1 && /window\._maintPopAttach = async function \(partRow, taskId\)/.test(src));
+ok('both lanes attach through _maintPopAttach (one writer)', (pickerHtml.match(/_maintPopAttach\(/g) || []).length === 1 && /window\._maintPopAttach = async function \(partId, taskId\)/.test(src));   // v0.9.2038: by the part's id
 const binCheck = grab('window._maintBinCheck = function (taskId)');
 ok('an empty search shows the bin\'s loose spares (capped at 8) instead of "type first"', /all\.slice\(0, 8\)/.test(binCheck) && !/Type what you need above/.test(binCheck));
 
 section('ONE column-M writer, ONE log-row remover');
-const setTask = grab('async function _maintPartSetTask(partRow, taskId)');
+const setTask = grab('async function _maintPartSetTask(partId, taskId)');   // v0.9.2038: the part by its id; the row read off it at write time
 ok('_maintPartSetTask writes ONLY column M of Parts Needed, verified', /'Parts Needed!M' \+ partRow/.test(setTask) && /rrVerifiedRowUpdate\(/.test(setTask) && !/sheetsAppend/.test(setTask));
 ok('…and keeps the in-memory row in step, then redraws card, bench, badge', /p\.taskId = String\(taskId \|\| ''\)/.test(setTask) && /_maintRenderTasks\(\); _wbBuild\(\); _wbBadge\(\)/.test(setTask));
-const attach = grab('window._maintPopAttach = async function (partRow, taskId)');
-const move = grab('window._maintPartMove = async function (partRow, taskId, sel)');
+const attach = grab('window._maintPopAttach = async function (partId, taskId)');
+const move = grab('window._maintPartMove = async function (partId, taskId, sel)');
+const unlink = grab('async function _unlinkTaskParts(logId)');   // v0.9.2038 (A8): ONE unlinker, Remove task and the history's Remove
 const rmTask = grab('window._maintRemoveTask = async function (logId)');
-ok('Attach, Move and Remove-task all go through _maintPartSetTask', [attach, move, rmTask].every(f => /_maintPartSetTask\(/.test(f)));
+ok('Attach, Move and Remove-task all go through _maintPartSetTask (v0.9.2038: Remove-task via _unlinkTaskParts)', [attach, move, unlink].every(f => /_maintPartSetTask\(/.test(f)) && /_unlinkTaskParts\(logId\)/.test(rmTask));
 ok('no other place writes Parts Needed column M', (src.match(/Parts Needed!M/g) || []).length === 1);
 const rmEntry = grab('window._maintRemoveEntry = async function (logId)');
 ok('history Remove and task-card Remove share _removeLogRow', /_removeLogRow\(l\)/.test(rmEntry) && /_removeLogRow\(l\)/.test(rmTask));
 ok('only _removeLogRow calls the row remover for the log tab', (src.match(/rrRemoveRowConfirmed\(state\.personalSheetId, LOG_TAB/g) || []).length === 1);
 
 section('Removing an open task (_maintRemoveTask)');
-ok('it unlinks every linked part BEFORE removing the row (a part never vanishes with the task)', rmTask.indexOf('_maintPartSetTask(parts[i].row, \'\')') > 0 && rmTask.indexOf('_maintPartSetTask(parts[i].row, \'\')') < rmTask.indexOf('_removeLogRow(l)'));
-ok('an unlink that fails stops the removal', /if \(!\(await _maintPartSetTask\(parts\[i\]\.row, ''\)\)\) return;/.test(rmTask));
+ok('it unlinks every linked part BEFORE removing the row (a part never vanishes with the task)', /_maintPartSetTask\(parts\[i\]\.id, ''\)/.test(unlink) && rmTask.indexOf('_unlinkTaskParts(logId)') > 0 && rmTask.indexOf('_unlinkTaskParts(logId)') < rmTask.indexOf('_removeLogRow(l)'));
+ok('an unlink that fails stops the removal', /if \(!\(await _maintPartSetTask\(parts\[i\]\.id, ''\)\)\) return false;/.test(unlink) && /if \(!\(await _unlinkTaskParts\(logId\)\)\) return;/.test(rmTask));
+ok('v0.9.2038 (A8): the history\'s Remove unlinks the same way, before its row goes', rmEntry.indexOf('_unlinkTaskParts(logId)') > 0 && rmEntry.indexOf('_unlinkTaskParts(logId)') < rmEntry.indexOf('_removeLogRow(l)'));
 ok('it asks first (v0.9.1819: in the app\'s own box), and says the parts stay on the list', /await appConfirm\(msg, \{ title: 'Remove this task'/.test(rmTask) && /stay/.test(rmTask) && /Parts Needed list/.test(rmTask));
 ok('it says nothing goes into the history (an open task was never done)', /nothing goes into the history/.test(rmTask));
 
@@ -119,7 +121,7 @@ const moveSel = grab('var moveSel = function (p, onTask)');
 ok('a part line gets a Move select listing the OTHER open tasks + "off this task"', /tasks\.filter\(function \(t\) \{ return t\.id !== \(p\.taskId \|\| ''\); \}\)/.test(moveSel) && /off this task \(keep for the item\)/.test(moveSel));
 ok('a loose part (no task) with no other tasks gets no Move select', /if \(!others\.length && !p\.taskId\) return '';/.test(moveSel));
 ok('installed parts get no Move select', /\(st === 'installed' \? '' : moveSel\(p\)\)/.test(card));
-ok('Move writes through _maintPartMove → _maintPartSetTask', /_maintPartMove\(' \+ p\.row/.test(moveSel));
+ok('Move writes through _maintPartMove → _maintPartSetTask', /_maintPartMove\(\\'' \+ rrJsArg\(p\.id\)/.test(moveSel));
 
 section('Page pins');
 // v0.9.1753: these read the version from config.js instead of hard-coding it,

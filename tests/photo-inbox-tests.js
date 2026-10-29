@@ -11030,8 +11030,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // v1864 80→81 (table-columns.js — the ONE column editor).
       // v2007 82→83, v2009 83→84, v2010 84→85, v2011 85→86, v2012 86→87, v2013 87→88 (the Photo Inbox pieces — the split).
       // v2020 88→89 (scan-shelve.js — Scan to Shelve, owners only).
-      ok('every ?v= mark in app/index.html matches it — all 89, none stale',
-         stamps.length === 89 && stamps.every(t => t === '?v=' + build),
+      // v2038 89→90 (store-links.js — the last stop for every outgoing link, store codes; folded from the Trainz chat's v2039).
+      ok('every ?v= mark in app/index.html matches it — all 90, none stale',
+         stamps.length === 90 && stamps.every(t => t === '?v=' + build),
          stamps.length + ' stamps; strays: ' + stamps.filter(t => t !== '?v=' + build).slice(0, 3).join(','));
       ok('the service worker cache name moved too (build + 10, the fixed offset)',
          new RegExp("const CACHE_NAME = 'mca-v" + (build + 10) + "';").test(rd('app/sw.js')),
@@ -11485,8 +11486,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('removing a sale record verifies — now through the guarded writer',
        /rrRemoveRowConfirmed\(state\.personalSheetId, 'Sold', sd\.row/.test(pages) &&
        !/sheetsUpdate\(state\.personalSheetId, 'Sold!A'/.test(pages));
-    ok('saving over an existing part verifies',
-       /rrRowStillIs\(state\.personalSheetId, 'Parts Needed', existingRow, _expId\)/.test(pages));
+    // v0.9.2038: the part save joined the guarded writer too (Workbench check
+    // A4/A7 — the part is found by its id, its row read at write time).
+    ok('saving over an existing part verifies — now through the guarded writer',
+       /rrVerifiedRowUpdate\(state\.personalSheetId, 'Parts Needed', existingRow, 'Parts Needed!A' \+ existingRow \+ ':H' \+ existingRow/.test(pages) &&
+       !/sheetsUpdate\(state\.personalSheetId, 'Parts Needed!A' \+ existingRow/.test(pages));
     ok('removing a part verifies — now through the guarded writer',
        /rrRemoveRowConfirmed\(state\.personalSheetId, 'Parts Needed', rowNum/.test(pages) &&
        !/sheetsUpdate\(state\.personalSheetId, 'Parts Needed!A' \+ rowNum/.test(pages));
@@ -11510,7 +11514,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // are still hand-rolled, and still need the ordering held.
       const SITES = [
         ['ephemera rewrite', /rrRowStillIs\(state\.personalSheetId, sheetName, rowNum, entry\.itemNum\)/, "sheetName + '!A' + rowNum"],
-        ['part save', /rrRowStillIs\(state\.personalSheetId, 'Parts Needed', existingRow, _expId\)/, "'Parts Needed!A' + existingRow"],
+        // v0.9.2038: the part save left this list for the guarded writer (pinned in 203b above).
       ];
       SITES.forEach(([name, checkRe, write]) => {
         const m = pages.match(checkRe);
@@ -15576,8 +15580,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
         // v0.9.1288 (R3-3): 6 -> 4. The sold removal and the part removal gave
         // up their hand-rolled rrRowStillIs for the one guarded writer, which
         // is the direction of travel — this number should only ever go down.
-        ok('234 …the inline-guarded set is exactly the four known sites',
-           inlineGuarded === 4, String(inlineGuarded));
+        // v0.9.2038: 4 -> 3. savePart's edit moved to rrVerifiedRowUpdate.
+        ok('234 …the inline-guarded set is exactly the three known sites',
+           inlineGuarded === 3, String(inlineGuarded));
         ok('234 …and contacts.js is the ONE deliberate exception, unchanged',
            contactsRaw === 1, String(contactsRaw));
         // v0.9.1288: fourteen of these now go through rrRemoveRowConfirmed,
@@ -15627,8 +15632,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
         // change still has to be deliberate.
         // v0.9.1944: 67 → 68 — Returned (app-pages.js rrSaleReturned) takes the
         // sale off Sold through rrRemoveRowConfirmed, a copy kept like every other.
-        ok('234 the sweep really landed — 68 sites write through the one guarded writer',
-           wrapped === 68, String(wrapped));
+        // v0.9.2038: 68 → 69 — savePart's edit (app-pages.js) writes through the
+        // guarded writer instead of its own inline rrRowStillIs.
+        ok('234 the sweep really landed — 69 sites write through the one guarded writer',
+           wrapped === 69, String(wrapped));
       }
     })();
 

@@ -150,10 +150,16 @@
     if (!el) { _log('wire: element not found', elOrId); return; }
     var id = el.id || ('_bs-auto-' + (++_autoWireN));
     var byBack = false;
+    var mine = null;
     var obs = new MutationObserver(function () {
       if (document.body.contains(el)) return;
       try { obs.disconnect(); } catch (e) {}
-      if (!byBack) pop(id);
+      // v0.9.2038 (Workbench check 2026-10-28, C22): pop only OUR entry. An
+      // overlay re-opened under the same id (remove the old one, append a new
+      // one, wire it) used to have the OLD element's observer fire after the
+      // new push and pop the NEW entry by id — so the device Back button no
+      // longer closed the overlay on screen and moved the page underneath.
+      if (!byBack && mine && _stack.indexOf(mine) >= 0) pop(id);
     });
     push(id, function () {
       byBack = true;
@@ -161,6 +167,7 @@
       if (typeof closeFn === 'function') { try { closeFn(); } catch (e) {} return; }
       if (el.parentNode) el.parentNode.removeChild(el);
     });
+    mine = (_stack.length && _stack[_stack.length - 1].id === id) ? _stack[_stack.length - 1] : null;
     obs.observe(document.body, { childList: true });
   }
 

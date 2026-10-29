@@ -244,7 +244,9 @@ ok('every guarded overlay offers Cancel / Done / Close / ✕', trapped.length ==
 // v0.9.2023: 53 — the label-printing screen (rr-shelve-print, scan-shelve.js).
 // v0.9.2025: 54 — "Add a piece to No. X" (rr-add-piece, app-collection.js rrAddPieceOpen).
 // v0.9.2027: 55 — Help → Terms and what they mean (rr-terms, tutorial.js rrTermsOpen).
-ok('55 guarded call sites, and ONE helper behind them', sites === 55, String(sites));
+// v0.9.2038: 57 — the Maintenance panel (maint-overlay) and Need a part
+// (maint-parts-pop, maintenance.js): the device Back button closes them now (C21).
+ok('57 guarded call sites, and ONE helper behind them', sites === 57, String(sites));
 
 // nobody double-wires BackStack any more — the guard does it, once
 let dbl = 0;

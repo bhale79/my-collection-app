@@ -1642,7 +1642,8 @@ var PANEL_CATALOG = [
     icon: '🔧',
     navFn: "showPage('parts', null); if (typeof buildPartsPage === 'function') buildPartsPage();",
     render: function(state) {
-      var rows = Object.values(state.partsData || {});
+      // v0.9.2038 (C26): only parts still needed — an installed part is history
+      var rows = (typeof _partsOpenList === 'function') ? _partsOpenList() : Object.values(state.partsData || {});
       var go = "showPage('parts', null); if (typeof buildPartsPage === 'function') buildPartsPage();";
       return rows.slice(0, DASH_LIST_MAX).map(function(pt) {
         var forTxt = pt.forItem ? 'For #' + pt.forItem : (pt.partNum ? 'Part #' + pt.partNum : '');

@@ -1603,7 +1603,7 @@
         return;
       }
       var lines = 'Append ' + totFresh + ' row' + (totFresh === 1 ? '' : 's') + ' — ' + perTab.join(', ') + '.'
-        + (newVars ? ' ' + newVars + ' of them ' + (newVars === 1 ? 'is a new variation' : 'are new variations') + ' of a number already in master (next free variation given).' : '')
+        + (newVars ? ' ' + newVars + ' of them ' + (newVars === 1 ? 'is a new variation' : 'are new variations') + ' of a number already in master (the next open variation given).' : '')
         + (heldDup.length ? ' ' + heldDup.length + ' held \u2014 number already in master.' : '')
         + (heldTwice.length ? ' ' + heldTwice.length + ' held \u2014 same item twice in this batch.' : '')
         + (heldNoTab.length ? ' ' + heldNoTab.length + ' held \u2014 no tab picked.' : '')

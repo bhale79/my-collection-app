@@ -333,10 +333,10 @@ function buildReport() {
           // A failure leaves it undefined; v0.9.1710 adds _wupPartsFailed so
           // the re-render offers Retry instead of reading again by itself.
           _wupPartsLoading=true;
-          (async()=>{ try{ if(typeof _ensurePartsTab==='function') await _ensurePartsTab(); const res=await sheetsGet(state.personalSheetId,'Parts Needed!A3:H'); const parts={}; (res.values||[]).forEach((r,idx)=>{ if(!r[0]||r[0]==='Part ID')return; parts['p'+(idx+3)]={row:idx+3,id:r[0]||'',description:r[1]||'',partNum:r[2]||'',forItem:r[3]||'',forInv:r[4]||'',photo:r[5]||'',notes:r[6]||'',dateAdded:r[7]||''}; }); state.partsData=parts; _wupPartsFailed=false; }catch(e){ console.warn('[Report] parts read failed \u2014 left unloaded; the report offers Retry (v0.9.1710):', e); _wupPartsFailed=true; } _wupPartsLoading=false; var _sel=document.getElementById('report-type'); if(_sel && _sel.value==='wantupgrade') buildReport(); })();
+          (async()=>{ try{ if(typeof _ensurePartsTab==='function') await _ensurePartsTab(); const res=await sheetsGet(state.personalSheetId,'Parts Needed!A3:M'); state.partsData=_parsePartsRows(res.values); /* v0.9.2038 (A9): the ONE parser, all thirteen columns — reading A–H only dropped status and task, so an installed part came back "wanted" for every screen that shares state.partsData */ _wupPartsFailed=false; }catch(e){ console.warn('[Report] parts read failed \u2014 left unloaded; the report offers Retry (v0.9.1710):', e); _wupPartsFailed=true; } _wupPartsLoading=false; var _sel=document.getElementById('report-type'); if(_sel && _sel.value==='wantupgrade') buildReport(); })();
         }
       } else {
-        const pp=Object.values(state.partsData||{});
+        const pp=(typeof _partsOpenList==='function') ? _partsOpenList() : Object.values(state.partsData||{});   // v0.9.2038 (C26): installed parts are not needed
         html+=sect('Parts Needed', pp.length);
         html+= pp.length ? pp.map(e=>{ const forL=e.forItem?('for '+e.forItem):''; const d=[esc(e.description),forL].filter(Boolean).join(' — '); return `<tr><td><span class="item-num">${esc(e.partNum)||'—'}</span></td><td>${d||'—'}</td><td>—</td><td>—</td><td>—</td><td style="font-size:0.77rem;color:var(--text-dim)">${cn(e.notes)}</td></tr>`; }).join('') : '<tr><td colspan="6" class="ui-empty">No parts on your list</td></tr>';
       }

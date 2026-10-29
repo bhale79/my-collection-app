@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2037';
+const APP_VERSION = 'v0.9.2038';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -3922,3 +3922,26 @@ if (typeof window !== 'undefined') {
   // the column heading's explanation is the term's definition — one copy
   if (window.RR_FIELD_HELP) window.RR_FIELD_HELP.shipper = rrTermDef('masterCarton');
 }
+
+
+// ══ v0.9.2039 — STORE CODES (affiliate links) ═══════════════════════════════
+// [stated] Brad, 2026-10-27: Trainz gave permission to use their site and
+// mentioned an affiliate link; "what i don't want is trainz plastered over
+// every button kind of thing". So nothing on screen changes: a link that was
+// already going to a store simply carries the store's code on its way out.
+//
+// THE ONE TABLE. A store's web address → what to add to links going there.
+//   host   — the store's domain; www.trainz.com and any other sub-address match,
+//            a look-alike (nottrainz.com, trainz.com.example.org) never does.
+//   params — the code as name → value pairs added to the address, e.g.
+//            { ref: 'ABC123' } turns trainz.com/x into trainz.com/x?ref=ABC123.
+//   wrap   — for a program run through a network: its redirect address with
+//            {url} where the store link goes. Leave '' for a plain code.
+// BLANK params AND blank wrap = the link leaves EXACTLY as it is (today's state:
+// Brad has not signed up yet). A second store's program is one more line here.
+// Read ONLY by rrAffiliateUrl (store-links.js) — never type a code anywhere else,
+// and never write one into the master sheet's links.
+const RR_AFFILIATE = [
+  { store: 'Trainz', host: 'trainz.com', params: {}, wrap: '' },
+];
+if (typeof window !== 'undefined') window.RR_AFFILIATE = RR_AFFILIATE;

@@ -25,7 +25,8 @@ const SM_MY_TAB = (typeof rrFeatureTab === 'function' ? rrFeatureTab : String)('
 
 var _smPages = null;        // the master list: [{ id, cat, sec, pg, dt, ty, fb, rep, cov, note }]
 var _smPagesLoading = null;
-var _smOwned = null;        // the collector's pages: { 'SM-0204': { row, id, cat, sec, pg, dt, cond, notes, photo, cov, added } }
+var _smOwned = null;
+var _smOwnedFailed = false;   // v0.9.2038 (A12): the last read of the collector's pages failed        // the collector's pages: { 'SM-0204': { row, id, cat, sec, pg, dt, cond, notes, photo, cov, added } }
 var _smOwnedLoading = null;
 var _smBusy = {};           // one write per page at a time (double-tap guard)
 var _smView = { ownedOnly: false, q: '', open: {} };
@@ -166,15 +167,22 @@ function rrSmLoadOwned(fresh) {
   if (_smOwnedLoading && !fresh) return _smOwnedLoading;
   var sid = (typeof state !== 'undefined' && state.personalSheetId) || '';
   if (!sid || typeof sheetsGet !== 'function') { _smOwned = _smOwned || {}; return Promise.resolve(_smOwned); }
+  // v0.9.2038 (Workbench check 2026-10-28, A12): a read that FAILED is not
+  // "you own none". It used to become {} — every owned page showed unticked,
+  // the count said 0, and the next tap acted on that wrong picture. Now only a
+  // sheet WITHOUT the tab ("Unable to parse range" — nothing ticked yet) means
+  // none; any other failure resolves to null, leaves what was loaded alone, and
+  // the list says it could not read them (_smOwnedFailed).
   var p = sheetsGet(sid, SM_MY_TAB + '!A3:J').then(function (resp) {
-    // a sheet without the tab answers with an error — that is "no pages yet"
-    if (resp && resp.error) { _smOwned = {}; return _smOwned; }
+    if (resp && resp.error) throw new Error(String((resp.error && resp.error.message) || 'read failed'));
     _smOwned = rrSmParseOwned(resp && resp.values, 3);
+    _smOwnedFailed = false;
     return _smOwned;
   }).catch(function (e) {
+    if (/Unable to parse range/i.test(String(e && e.message || ''))) { _smOwned = {}; _smOwnedFailed = false; return _smOwned; }   // no tab yet = nothing ticked yet
     console.warn('[service-manual] could not read your pages:', e && e.message);
-    if (!_smOwned) _smOwned = {};
-    return _smOwned;
+    _smOwnedFailed = true;
+    return null;
   }).then(function (o) { if (_smOwnedLoading === p) _smOwnedLoading = null; return o; });
   _smOwnedLoading = p;
   return p;
@@ -185,14 +193,15 @@ function rrSmOwnedCount() { return _smOwned ? Object.keys(_smOwned).length : 0; 
 async function _smEnsureTab() {
   var sid = (typeof state !== 'undefined' && state.personalSheetId) || '';
   if (!sid || typeof accessToken === 'undefined' || !accessToken) return false;
-  var meta = await (await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + sid + '?fields=sheets.properties',
-    { headers: { Authorization: 'Bearer ' + accessToken } })).json();
+  // v0.9.2038: both calls through _withTokenRetry (a lapsed sign-in renews and retries)
+  var meta = await (await _withTokenRetry(function () { return fetch('https://sheets.googleapis.com/v4/spreadsheets/' + sid + '?fields=sheets.properties',
+    { headers: { Authorization: 'Bearer ' + accessToken } }); })).json();
   if (!meta || !Array.isArray(meta.sheets)) return false;          // a failed read is not a missing tab
   if (meta.sheets.some(function (s) { return s.properties && s.properties.title === SM_MY_TAB; })) return true;
-  await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + sid + ':batchUpdate', {
+  await _withTokenRetry(function () { return fetch('https://sheets.googleapis.com/v4/spreadsheets/' + sid + ':batchUpdate', {
     method: 'POST', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
     body: JSON.stringify({ requests: [{ addSheet: { properties: { title: SM_MY_TAB, tabColor: { red: 0.17, green: 0.48, blue: 0.48 } } } }] })
-  });
+  }); });
   await sheetsUpdate(sid, SM_MY_TAB + '!A1', [[RR_SERVICE_MANUAL.MY_TAB_TITLE]]);
   await sheetsUpdate(sid, SM_MY_TAB + '!A2:J2', [RR_SERVICE_MANUAL.MY_HEADERS]);
   return true;
@@ -204,6 +213,17 @@ function _smToday() {
 }
 function _smPageById(id) {
   return (_smPages || []).filter(function (p) { return p.id === id; })[0] || null;
+}
+// v0.9.2038 (A12): read the collector's pages again before a change. Offline
+// (a train show) there is nothing to read — the pages already loaded stand in,
+// as they always did, and the change queues. Online, a read that fails stops
+// the change rather than acting on a stale or empty picture.
+async function _smFresh() {
+  if (typeof _rrOfflineNow === 'function' && _rrOfflineNow()) return !!_smOwned;
+  return !!(await rrSmLoadOwned(true));
+}
+function _smReadFailToast() {
+  if (typeof showToast === 'function') showToast('Could not read your pages from your Google sheet \u2014 nothing was changed. Check the connection and try again.', 4500, true);
 }
 function _smToastErr(e, what) {
   if (e && /readonly/.test(String(e.message || ''))) return;          // the read-only toast has already said it
@@ -223,11 +243,11 @@ async function rrSmSetOwned(id, on) {
       var page = _smPageById(id);
       if (!page) return false;
       if (!(await _smEnsureTab())) { if (typeof showToast === 'function') showToast('Could not reach your Google sheet \u2014 please try again.', 4000, true); return false; }
-      await rrSmLoadOwned(true);                                       // another device may have ticked it already
+      if (!(await _smFresh())) { _smReadFailToast(); return false; }   // another device may have ticked it already; v0.9.2038: could not look → change nothing
       if (!_smOwned[id]) {
         await sheetsAppend(sid, SM_MY_TAB + '!A:J', [rrSmRowFor(page, _smToday())]);
         await rrSmLoadOwned(true);
-        if (!_smOwned[id]) _smOwned[id] = { row: 0, id: id, cat: page.cat, sec: page.sec, pg: page.pg, dt: page.dt, cond: '', notes: '', photo: '', cov: page.cov, added: _smToday() };   // queued while offline — it goes up later
+        if (_smOwned && !_smOwned[id]) _smOwned[id] = { row: 0, id: id, cat: page.cat, sec: page.sec, pg: page.pg, dt: page.dt, cond: '', notes: '', photo: '', cov: page.cov, added: _smToday() };   // queued while offline — it goes up later
       }
       return true;
     }
@@ -238,7 +258,7 @@ async function rrSmSetOwned(id, on) {
         (rec.photo ? '\nIts photo stays in your Google Drive.' : ''),
         { title: 'Remove this page?', ok: 'Remove', cancel: 'Keep it', danger: true });
     if (!yes) return false;
-    await rrSmLoadOwned(true);
+    if (!(await _smFresh())) { _smReadFailToast(); return false; }   // v0.9.2038 (A12)
     rec = _smOwned[id];
     if (!rec) return true;                                             // already gone (another device)
     if (!rec.row) { if (typeof showToast === 'function') showToast('That page is still being saved — try again in a moment.', 3500); return false; }
@@ -266,11 +286,11 @@ async function rrSmEditDetails(id) {
   _smBusy[id] = true;
   try {
     var sid = state.personalSheetId;
-    await rrSmLoadOwned(true);
+    if (!(await _smFresh())) { _smReadFailToast(); return false; }   // v0.9.2038 (A12)
     rec = _smOwned[id];
     if (!rec || !rec.row) return false;
     var wrote = await rrVerifiedRowUpdate(sid, SM_MY_TAB, rec.row, SM_MY_TAB + '!F' + rec.row + ':G' + rec.row,
-      [[String(cond), String(notes)]], { num: id }, 'Service Manual page');
+      [[rrSheetText(cond), rrSheetText(notes)]], { num: id }, 'Service Manual page');   // v0.9.2038 (A5): typed words stay words
     if (wrote) { rec.cond = String(cond); rec.notes = String(notes); }
     return wrote;
   } catch (e) { _smToastErr(e, 'the details'); return false; }
@@ -287,7 +307,7 @@ async function rrSmAddPhoto(id, file) {
   try {
     if (typeof showToast === 'function') showToast('Saving your photo…', 2000);
     var link = await driveUploadItemPhoto(file, id, RR_SERVICE_MANUAL.PHOTO_VIEW, '', 'Lionel Service Manual ' + id);
-    await rrSmLoadOwned(true);
+    if (!(await _smFresh())) { _smReadFailToast(); return false; }   // v0.9.2038 (A12)
     rec = _smOwned[id];
     if (!rec || !rec.row || !link) return false;
     var wrote = await rrVerifiedRowUpdate(state.personalSheetId, SM_MY_TAB, rec.row, SM_MY_TAB + '!H' + rec.row,
@@ -342,9 +362,22 @@ function renderServiceManualTab() {
   if (!_smPages || !_smOwned) {
     root.innerHTML = '<div style="padding:1.2rem 0.4rem;color:var(--text-mid);font-size:0.9rem">Loading the service manual…</div>';
     Promise.all([rrSmLoadPages(), rrSmLoadOwned(false)]).then(function () {
-      if (_smPages && _smPages.length) { renderServiceManualTab(); return; }
       var r = _smRoot();
-      if (r) r.innerHTML = '<div style="padding:1.2rem 0.4rem;color:var(--text-mid);font-size:0.9rem">The service manual list could not be loaded. Check your connection and try again.</div>';
+      if (!(_smPages && _smPages.length)) {
+        if (r) r.innerHTML = '<div style="padding:1.2rem 0.4rem;color:var(--text-mid);font-size:0.9rem">The service manual list could not be loaded. Check your connection and try again.</div>';
+        return;
+      }
+      // v0.9.2038 (A12): could not read the pages you own → say so, with Try
+      // again; never draw every box unticked as if you owned none.
+      if (!_smOwned) {
+        if (r) {
+          r.innerHTML = '<div style="padding:1.2rem 0.4rem;color:var(--text-mid);font-size:0.9rem">Could not read the pages you own from your Google sheet. Check your connection and '
+            + '<button type="button" class="sm-retry" style="border:1px solid var(--border);background:var(--surface2);color:var(--text);border-radius:7px;padding:0.3rem 0.65rem;font-size:0.82rem;font-family:var(--font-body);cursor:pointer">Try again</button></div>';
+          _smWire(r);
+        }
+        return;
+      }
+      renderServiceManualTab();
     });
     return;
   }
@@ -404,7 +437,9 @@ function _smWire(root) {
     var t = ev.target && ev.target.closest ? ev.target.closest('button') : null;
     if (!t) return;
     var id = t.getAttribute('data-sm-id');
-    if (t.classList.contains('sm-back')) {
+    if (t.classList.contains('sm-retry')) {
+      renderServiceManualTab();
+    } else if (t.classList.contains('sm-back')) {
       if (typeof renderBrowseTab === 'function') renderBrowseTab('items');
     } else if (t.classList.contains('sm-view')) {
       _smView.ownedOnly = t.getAttribute('data-sm-owned') === '1';

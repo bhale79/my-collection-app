@@ -66,8 +66,9 @@ const state = {
   },
   personalData: { '190': { inventoryId: '190', itemNum: '2338', variation: '' } },
 };
+const SHEETS = fs.readFileSync(path.join(APP, 'sheets.js'), 'utf8');   // v0.9.2038: the real rrSheetText
 const helpers = new Function('state',
-  grabObj(pages, 'var PARTS_COPY = {') + ';\n'
+  grabFrom(SHEETS, 'function rrSheetText(v)') + '\n' + grabObj(pages, 'var PARTS_COPY = {') + ';\n'
   + grabFrom(pages, 'function _partsNorm(') + '\n' + grabFrom(pages, 'function _partsRowBuild(') + '\n'
   + grabFrom(pages, 'function _partsFindDup(') + '\n' + grabFrom(pages, 'function _partsTaskLabel(') + '\n'
   + 'return { PARTS_COPY: PARTS_COPY, norm: _partsNorm, row: _partsRowBuild, dup: _partsFindDup, label: _partsTaskLabel };')(state);
@@ -75,7 +76,7 @@ const helpers = new Function('state',
 const r = helpers.row({ id: 'part-1', description: 'lens', partNum: '2343-13', forItem: '2338', forInv: '190', notes: 'n', dateAdded: '2026-09-15', status: 'wanted', taskId: 'log-open' });
 ok('the row has all 13 columns A–M', Array.isArray(r) && r.length === 13, r && r.length);
 ok('identifier cells carry the apostrophe guard (id, part#, item, inventory id, date, task id)', r[0] === "'part-1" && r[2] === "'2343-13" && r[3] === "'2338" && r[4] === "'190" && r[7] === "'2026-09-15" && r[12] === "'log-open");
-ok('text cells do not (description, notes, status)', r[1] === 'lens' && r[6] === 'n' && r[8] === 'wanted');
+ok('typed text cells go up as text through rrSheetText (v0.9.2038 — "-" "+" "=" stay words); status stays a plain word', r[1] === "'lens" && r[6] === "'n" && r[8] === 'wanted');
 ok('status defaults to wanted, id is minted when missing', helpers.row({ description: 'x' })[8] === 'wanted' && /^'part-\d+$/.test(helpers.row({ description: 'x' })[0]));
 ok('an already-guarded value is not double-guarded', helpers.row({ id: "'part-9" })[0] === "'part-9");
 
@@ -103,15 +104,16 @@ ok('exactly ONE sheetsAppend to the Parts Needed tab in the whole app (inside _p
 const savePart = grabFrom(pages, 'async function savePart(');
 ok('savePart adds a NEW part through _partsAppendRow and checks for a duplicate first', /_partsAppendRow\(\{/.test(savePart) && /_partsFindDup\(\{/.test(savePart) && /_partsChooser\(/.test(savePart));
 ok('savePart keeps the edit path (A:H update) so lifecycle columns are never clobbered', /'Parts Needed!A' \+ existingRow \+ ':H' \+ existingRow/.test(savePart));
-ok('a duplicate is only checked for NEW rows, and "Add it anyway" is honoured once', /if \(!\(existingRow > 0\) && !window\._partsAddAnyway\)/.test(savePart) && /window\._partsAddAnyway = false;/.test(savePart));
+// v0.9.2038 re-pin: the edit is named by the part's id (savePart(existingId)), not a row
+ok('a duplicate is only checked for NEW rows, and "Add it anyway" is honoured once', /if \(!isEdit && !window\._partsAddAnyway\)/.test(savePart) && /window\._partsAddAnyway = false;/.test(savePart) && /var isEdit = !!existingId;/.test(savePart));
 const popAdd = grabFrom(maint, 'window._maintPopAddWanted = async function (taskId)');
 const popSave = grabFrom(maint, 'async function _maintPopSaveWanted(fields, taskId, retry)');   // v0.9.1756: the ONE save path behind the typed box and the catalog lane
 const popCat = grabFrom(maint, 'window._maintPopWantCatalog = async function (era, partNum, variation, taskId)');
 ok('the Need-a-part popup adds through _partsAppendRow and checks for a duplicate first (v0.9.1756: inside _maintPopSaveWanted, which the typed box AND the catalog lane call)', /_partsAppendRow\(fields\)/.test(popSave) && /_partsFindDup\(fields\)/.test(popSave) && /_maintPopSaveWanted\(fields, taskId/.test(popAdd) && /_maintPopSaveWanted\(fields, taskId/.test(popCat) && !/_partsAppendRow\(/.test(popAdd) && !/_partsAppendRow\(/.test(popCat));
-ok('…a duplicate already on THIS job is refused with a toast; on another job it is offered "Attach it to this job"', /dupOnJob/.test(popSave) && /_maintPopAttach\(dup\.row, taskId\)/.test(popSave) && /dupAttach/.test(popSave));
-const binUse = grabFrom(maint, 'window._maintBinUse = async function (binId, taskId)');
-ok('the bin\'s Use one: a WANTED row for the same part and unit turns bought (no second row), else the one appender', /_partsFindDup\(fields\)/.test(binUse) && /markPartBought\(dup\.row\)/.test(binUse) && /_partsAppendRow\(fields\)/.test(binUse));
-ok('…and puts the fulfilled row on the job when it was not already there', /_maintPartSetTask\(dup\.row, taskId\)/.test(binUse));
+ok('…a duplicate already on THIS job is refused with a toast; on another job it is offered "Attach it to this job"', /dupOnJob/.test(popSave) && /_maintPopAttach\(dup\.id, taskId\)/.test(popSave) && /dupAttach/.test(popSave));
+const binUse = grabFrom(maint, 'async function _maintBinUseRun(binId, taskId)');   // v0.9.2038: the work behind the guarded button
+ok('the bin\'s Use one: a WANTED row for the same part and unit turns bought (no second row), else the one appender', /_partsFindDup\(fields\)/.test(binUse) && /markPartBought\(dup\.id\)/.test(binUse) && /_partsAppendRow\(fields\)/.test(binUse));
+ok('…and puts the fulfilled row on the job when it was not already there', /_maintPartSetTask\(dup\.id, taskId\)/.test(binUse));
 ok('no other place builds a Parts Needed row by hand (no 13-cell literal outside the builder)', !/\[_t\('part-' \+ Date\.now\(\)\)/.test(maint) && !/\[_t\('part-' \+ Date\.now\(\)\)/.test(pages));
 
 section('B · the Parts Needed page reads the task link live and opens the card');
@@ -125,17 +127,17 @@ const wbOpen = grabFrom(maint, 'window._wbOpen = function (invId, itemNum, focus
 ok('_wbOpen takes the task to land on and scrolls/flashes it', wbOpen.length > 0 && /_wbFocusTask\(focusTaskId\)/.test(wbOpen) && /scrollIntoView/.test(grabFrom(maint, 'function _wbFocusTask(')));
 
 section('C · Installed on the Parts Needed page: take me to the task, or ask');
-const mpi = grabFrom(pages, 'function markPartInstalled(rowNum, opts)');
+const mpi = grabFrom(pages, 'function markPartInstalled(partId, opts)');   // v0.9.2038: by the part's id
 ok('markPartInstalled exists with the routing options and is exported once', mpi.length > 0 && (pages.match(/window\.markPartInstalled = markPartInstalled;/g) || []).length === 1);
 ok('no engine on the part → the Edit form asks which one (no dead-end toast)', /showAddPartModal\(p\.id\)/.test(mpi) && /PARTS_COPY\.whichEngine/.test(mpi) && !/Linked item is not in your collection/.test(mpi));
-ok('on an OPEN task → the card opens ON that task (unless already on the card) and the form names the task', /window\._wbOpen\(p\.forInv, p\.forItem, _task\.id\)/.test(mpi) && /if \(!opts\.onCard/.test(mpi) && /_partInstallForm\(rowNum, p, pd, _task\)/.test(mpi));
+ok('on an OPEN task → the card opens ON that task (unless already on the card) and the form names the task', /window\._wbOpen\(p\.forInv, p\.forItem, _task\.id\)/.test(mpi) && /if \(!opts\.onCard/.test(mpi) && /_partInstallForm\(p, pd, _task\)/.test(mpi));
 ok('on the engine with no open task → "Installed as part of which job?" lists its open tasks + "no job"', /PARTS_COPY\.whichJobTitle/.test(mpi) && /PARTS_COPY\.whichJobNone/.test(mpi) && /l\.status === 'open' && String\(l\.invId \|\| ''\) === String\(p\.forInv\)/.test(mpi));
-ok('picking a job links the part through the ONE column-M writer, then continues', /window\._maintPartSetTask\(p\.row, t\.id\)/.test(mpi) && /jobPicked: true/.test(mpi));
-const form = grabFrom(pages, 'function _partInstallForm(rowNum, p, pd, task)');
-ok('one install form for both doors; it names the task when there is one', form.length > 0 && /task \? ', task <strong/.test(form) && /_savePartInstalled\(' \+ rowNum \+ '\)/.test(form));
-const spi = grabFrom(pages, 'async function _savePartInstalled(rowNum)');
+ok('picking a job links the part through the ONE column-M writer, then continues', /window\._maintPartSetTask\(p\.id, t\.id\)/.test(mpi) && /jobPicked: true/.test(mpi));
+const form = grabFrom(pages, 'function _partInstallForm(p, pd, task)');
+ok('one install form for both doors; it names the task when there is one', form.length > 0 && /task \? ', task <strong/.test(form) && /_savePartInstalled\(\\'' \+ rrJsArg\(p\.id\) \+ '\\'\)/.test(form));
+const spi = grabFrom(pages, 'async function _savePartInstalled(partId)');
 ok('after a successful install it offers to mark the task complete — through the existing _maintChoreDone', /PARTS_COPY\.markDone/.test(spi) && /window\._maintChoreDone\(_t2\.row, _t2\.id\)/.test(spi));
-ok('the card\'s own Installed-it says "already on the card" so the card is not reopened on top of itself', /markPartInstalled\(rowNum, \{ onCard: true \}\)/.test(grabFrom(maint, 'window._maintPartInstalled = function (rowNum)')));
+ok('the card\'s own Installed-it says "already on the card" so the card is not reopened on top of itself', /markPartInstalled\(partId, \{ onCard: true \}\)/.test(grabFrom(maint, 'window._maintPartInstalled = function (partId)')));
 const chooser = grabFrom(pages, 'function _partsChooser(');
 // v0.9.1790 RE-PIN. The rule is unchanged — an in-app overlay, device Back
 // closes it, above every other modal, with a Cancel. What changed is HOW the
@@ -150,13 +152,13 @@ ok('…and a tap outside no longer closes it (Brad: never close if you pick outs
 
 section('D · Remove on the card, loose rule, whole-row blank');
 const card = grabFrom(maint, 'function _maintRenderTasks()');
-ok('every non-installed part line carries Remove → _maintPartRemove', /_maintPartRemove\(' \+ p\.row/.test(card) && /var rm = st === 'installed' \? '' :/.test(card) && /\+ act \+ rm \+/.test(card));
+ok('every non-installed part line carries Remove → _maintPartRemove', /_maintPartRemove\(\\'' \+ rrJsArg\(p\.id\)/.test(card) && /var rm = st === 'installed' \? '' :/.test(card) && /\+ act \+ rm \+/.test(card));
 ok('the loose rule: a part whose task is not OPEN (gone or done) is loose again', /if \(p\.taskId && _taskOpen\(p\.taskId\)\) return false;/.test(card) && /l\.status === 'open'/.test(grabFrom(maint, 'function _taskOpen(')));
 const preview = grabFrom(maint, 'window._maintRenderPreview = function (idx, it, pd)');
 ok('…which is exactly the preview\'s rule (linked = on an OPEN task), so card and preview agree', /l\.status === 'open'/.test(preview) && /if \(linked\[p\.id\] \|\| st === 'installed'\) return;/.test(preview));
-const rmCard = grabFrom(maint, 'window._maintPartRemove = async function (rowNum)');
-ok('the card\'s Remove asks first (v0.9.1819: the app\'s own box), then goes through removePart (the one remover) and redraws card, bench, badge, preview', /await appConfirm\(/.test(rmCard) && /await removePart\(rowNum\)/.test(rmCard) && /_maintRenderTasks\(\); _wbBuild\(\); _wbBadge\(\)/.test(rmCard) && /_maintRenderPreview/.test(rmCard));
-const rmPage = grabFrom(pages, 'async function removePart(rowNum)');
+const rmCard = grabFrom(maint, 'window._maintPartRemove = async function (partId)');
+ok('the card\'s Remove asks first (v0.9.1819: the app\'s own box), then goes through removePart (the one remover) and redraws card, bench, badge, preview', /await appConfirm\(/.test(rmCard) && /await removePart\(p\.id\)/.test(rmCard) && /_maintRenderTasks\(\); _wbBuild\(\); _wbBadge\(\)/.test(rmCard) && /_maintRenderPreview/.test(rmCard));
+const rmPage = grabFrom(pages, 'async function removePart(partId)');
 ok('removePart blanks the WHOLE row (13 cells, A–M) where the lifecycle columns exist', /\['', '', '', '', '', '', '', '', '', '', '', '', ''\]/.test(rmPage) && /\(_wide \? 'M' : 'H'\)/.test(rmPage));
 ok('removePart returns true/false and drops the part from memory at once', /return true;/.test(rmPage) && /return false;/.test(rmPage) && /delete state\.partsData\[k\]/.test(rmPage));
 ok('only removePart blanks a Parts Needed row', (pages.match(/rrRemoveRowConfirmed\(state\.personalSheetId, 'Parts Needed'/g) || []).length === 1 && !/rrRemoveRowConfirmed\(state\.personalSheetId, 'Parts Needed'/.test(maint));

@@ -980,24 +980,71 @@
   function _atlasFamilies(sc) { return (typeof window.atlasFamilies === 'function') ? window.atlasFamilies(sc) : []; }
 
   // ── v0.9.1646: Trainz exploded diagrams (see trainz-diagrams-config.js) ──
+  // v0.9.2038 (Workbench check 2026-10-28, B14/B15): matched by MAKER + ERA +
+  // number, never by number alone. Catalog numbers repeat across makers and
+  // eras, and the number-only match sent American Flyer 350/356/342, Marx
+  // 1666/400, prewar 617/211 and postwar 6822 to Lionel diagrams of other
+  // trains. Trainz's library is Lionel's (plus six of Lionel's own American
+  // Flyer models); each diagram's family is read off its title:
+  //   'af'      — "American Flyer …" (Lionel-made AF, item tab mod_s)
+  //   'prewar'  — "Prewar …"                         (item tab prewar)
+  //   'modern'  — "MPC …" / "LTI …" (6-xxxxx numbers) (item tabs mpc / mod)
+  //   'postwar' — everything else                     (item tab pw)
+  // Any other tab (Marx, Gilbert American Flyer, MTH, Atlas, …) gets none —
+  // the Google button below still searches for it. The 6-prefix juggling
+  // (18860 ↔ 618860) is a MODERN rule only: postwar 6822 is not MPC 6-6822.
+  // A postwar sub-number (3562-25, 6436-110) also tries its base (3562).
+  // A number the title spells as "44 Ton" is a size, not an item: postwar 44
+  // is the Missile Launcher, not the 44 Ton Switcher.
   var _tzLookup = null;
-  function _tzDiagram(item) {
+  function _tzFamily(e) {
+    var t = (String(e.t || '') + ' ' + String(e.h || '')).toLowerCase();
+    if (/american flyer/.test(t)) return 'af';
+    if (/\bpre-?war\b/.test(t)) return 'prewar';
+    if (/\bmpc\b|\blti\b/.test(t)) return 'modern';
+    return 'postwar';
+  }
+  function _tzItemFamily(eraKey) {
+    var e = String(eraKey || '').toLowerCase();
+    if (e === 'pw') return 'postwar';
+    if (e === 'prewar') return 'prewar';
+    if (e === 'mpc' || e === 'mod') return 'modern';
+    if (e === 'mod_s') return 'af';
+    return null;
+  }
+  function _tzDiagram(item, eraKey) {
     var list = window.TRAINZ_DIAGRAMS;
-    if (!list || !list.length) return null;
+    if (!list || !list.length || !item) return null;
+    if (eraKey === undefined) {
+      try { eraKey = (typeof _itemEraKey === 'function') ? _itemEraKey(item) : (item._era || item.era || null); } catch (eE) { eraKey = null; }
+    }
+    var fam = _tzItemFamily(eraKey);
+    if (!fam) return null;
     if (!_tzLookup) {
-      _tzLookup = {};
+      _tzLookup = { af: {}, prewar: {}, modern: {}, postwar: {} };
       list.forEach(function (e) {
-        e.n.split('|').forEach(function (k) { if (k && _tzLookup[k] == null) _tzLookup[k] = e; });
+        var f = _tzFamily(e);
+        e.n.split('|').forEach(function (k) {
+          if (!k) return;
+          if (new RegExp('\\b' + k + '[ -]ton\\b', 'i').test(String(e.t || ''))) return;   // "44 Ton" is a size
+          if (_tzLookup[f][k] == null) _tzLookup[f][k] = e;
+        });
       });
     }
-    var n = String(item && item.itemNum || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').replace(/^X/, '');
+    var map = _tzLookup[fam];
+    var raw = String(item.itemNum || '').trim().toUpperCase().replace(/^X/, '');
+    var n = raw.replace(/[^A-Z0-9]/g, '');
     if (!n) return null;
     var tries = [n];
-    if (/^6\d{4,}$/.test(n)) tries.push(n.slice(1));          // 618860 -> 18860
-    else if (/^\d{4,}$/.test(n)) tries.push('6' + n);         // 18860 -> 618860
+    if (fam === 'modern' || fam === 'af') {
+      if (/^6\d{4,}$/.test(n)) tries.push(n.slice(1));          // 618860 -> 18860
+      else if (/^\d{4,}$/.test(n)) tries.push('6' + n);         // 18860 -> 618860
+    } else if (/^[0-9A-Z]+-\d+$/.test(raw)) {
+      tries.push(raw.replace(/-\d+$/, '').replace(/[^A-Z0-9]/g, ''));   // 3562-25 -> 3562
+    }
     var base = n.replace(/[A-Z]+$/, '');
     if (base && base !== n) tries.push(base);                 // 2343C -> 2343 (after exact)
-    for (var i = 0; i < tries.length; i++) if (_tzLookup[tries[i]]) return _tzLookup[tries[i]];
+    for (var i = 0; i < tries.length; i++) if (map[tries[i]]) return map[tries[i]];
     return null;
   }
 
@@ -1030,11 +1077,23 @@
         });
       });
     }
-    var n = String(num == null ? '' : num).trim().toUpperCase().replace(/^X/, '');
+    // v0.9.2038 (B17): the app spells a powered unit "2343-P" — the dash goes
+    // before the letter is read (it used to leave "2343-" and find nothing).
+    var n = String(num == null ? '' : num).trim().toUpperCase().replace(/^X/, '').replace(/-([A-Z]+)$/, '$1');
     if (!n) return null;
     if (_pwsmLookup[n]) return _pwsmLookup[n];                      // exact (protects 2343C etc.)
     var noSub = n.replace(/-\d+$/, '');                             // 6142-75 → 6142
     if (noSub !== n && _pwsmLookup[noSub]) return _pwsmLookup[noSub];
+    // v0.9.2038 (B17): the powered unit, however it is spelled. The catalog
+    // writes P (2343P, 204P, 2031P); LCCA's index writes P for the F-3s and A
+    // for the Alcos (204A, 2031A). A bare number with no letter (the 2343 /
+    // 2353 / 2356 rows) is the engine — its powered unit's section.
+    var pa = /P$/.test(noSub) ? noSub.replace(/P$/, 'A') : /A$/.test(noSub) ? noSub.replace(/A$/, 'P') : '';
+    if (pa && _pwsmLookup[pa]) return _pwsmLookup[pa];
+    if (/^\d+$/.test(noSub)) {
+      if (_pwsmLookup[noSub + 'P']) return _pwsmLookup[noSub + 'P'];
+      if (_pwsmLookup[noSub + 'A']) return _pwsmLookup[noSub + 'A'];
+    }
     var noSuf = noSub.replace(/[A-Z]+$/, '');                       // 2046W → 2046 (only after exact miss)
     if (noSuf && noSuf !== noSub && _pwsmLookup[noSuf]) return _pwsmLookup[noSuf];
     return null;
@@ -1419,7 +1478,10 @@
   function _docsUrl(route, item) {
     var num = String(item && item.itemNum || '').trim();
     if (route === 'lcca') {
-      var pf = _pwsmFile(num);
+      // v0.9.2038 (B16): a section only for a POSTWAR item; prewar gets the archive home
+      var _uEra = null;
+      try { _uEra = (typeof _itemEraKey === 'function') ? _itemEraKey(item) : (item && (item._era || item.era)) || null; } catch (eU) {}
+      var pf = (String(_uEra || '').toLowerCase() === 'pw') ? _pwsmFile(num) : null;
       return pf ? (PWSM_BASE + pf + '.pdf' + (PWSM_TOK[pf] ? '?sfvrsn=' + PWSM_TOK[pf] : '')) : PWSM_HOME;
     }
     if (route === 'lionel')
@@ -1851,7 +1913,16 @@
           || md.find(function (m) { return fits(m, false, false); })
           || null;
     }
-    if (!item && window._lastDetailPdKey && state.personalData) item = state.personalData[window._lastDetailPdKey];
+    // v0.9.2038 (B18): nothing in the catalog (still loading, or a number it
+    // does not have) → the OWNED copy this card was opened for, found above by
+    // its inventoryId. It used to fall back to whatever item was last opened on
+    // the detail page — a different train's card, with this one's tasks saved
+    // onto it. That last-opened copy is used only when it IS this item.
+    if (!item && owned) item = owned;
+    if (!item && window._lastDetailPdKey && window.state && state.personalData) {
+      var _last = state.personalData[window._lastDetailPdKey];
+      if (_last && String(_last.itemNum || '').trim() === want && (!invId || String(_last.inventoryId || '') === String(invId))) item = _last;
+    }
     return item || null;
   }
 
@@ -1868,7 +1939,10 @@
     var eraKey = null;
     try { eraKey = (typeof _itemEraKey === 'function') ? _itemEraKey(item) : (item._era || item.era || null); } catch (e) {}
     var route = _docsRoute(eraKey);
-    var _pwsmHit = (route === 'lcca') ? _pwsmFile(String(item.itemNum || '')) : null;
+    // v0.9.2038 (B16): the LCCA map is the POSTWAR Service Manual — a prewar
+    // 211 / 617 / 45 / 68 / 60 is another train with the same number. Prewar
+    // keeps the archive button, without a section that is not its own.
+    var _pwsmHit = (route === 'lcca' && String(eraKey || '').toLowerCase() === 'pw') ? _pwsmFile(String(item.itemNum || '')) : null;
     var _atlasHit = (route === 'atlas') ? _atlasMatch(item, eraKey) : null;
     var routeLabel = _maintRouteLabel(route, item, _pwsmHit, _atlasHit);
     var linkBtn = _btn('blue');
@@ -1965,7 +2039,7 @@
       }
     }
     // ── Trainz exploded diagram, when their library has this item ──
-    var tzd = _tzDiagram(item);
+    var tzd = _tzDiagram(item, eraKey);
     if (tzd) {
       h += '<div style="margin-top:0.5rem"><button onclick="window.open(\'https://www.trainz.com/pages/parts-diagram/' + _esc(tzd.h) + '\',\'_blank\')" ' + linkBtn + '>Trainz diagram: ' + _esc(tzd.t) + ' →</button></div>';
     }
@@ -2098,6 +2172,10 @@
       + '</div></div>';
 
     document.body.insertAdjacentHTML('beforeend', html);
+    // v0.9.2038 (C21): the device Back button closes the panel (through the
+    // same close as its ✕, which also redraws the preview) instead of moving
+    // the page underneath; a stray tap outside still does nothing.
+    try { if (window.rrDismissGuard) window.rrDismissGuard(document.getElementById('maint-overlay'), window._maintClosePanel); } catch (eG) {}
     window._maintShowGrp = function (g) {
       var ov = document.getElementById('maint-overlay'); if (!ov) return;
       ov.querySelectorAll('.maint-sec').forEach(function (el) { el.style.display = (g && el.getAttribute('data-grp') === g) ? '' : 'none'; });
@@ -2126,27 +2204,41 @@
   var DOCS_TAB = (typeof rrFeatureTab === 'function' ? rrFeatureTab : String)('My Manuals');   // v0.9.1861: registered where it is born (config.js RR_FEATURE_TABS); String when config.js is not loaded (a test sandbox)
   async function _ensureDocsTab() {
     try {
-      var meta = await (await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + '?fields=sheets.properties',
-        { headers: { Authorization: 'Bearer ' + accessToken } })).json();
+      // v0.9.2038 (A10): through _withTokenRetry — a lapsed sign-in is renewed
+      // and tried again, instead of reading as "could not reach your sheet".
+      var meta = await (await _withTokenRetry(function () { return fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + '?fields=sheets.properties',
+        { headers: { Authorization: 'Bearer ' + accessToken } }); })).json();
       // v0.9.1675: a FAILED read (expired token → {error}, no sheets) is
       // not "the tab is missing". Bail; never try to create on a guess —
       // the header write that followed used to land in the offline outbox
       // as a phantom "1 change has not saved".
       if (!meta || !Array.isArray(meta.sheets)) return false;
       if (meta.sheets.some(function (sh) { return sh.properties && sh.properties.title === DOCS_TAB; })) return true;
-      await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + ':batchUpdate', {
+      await _withTokenRetry(function () { return fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + ':batchUpdate', {
         method: 'POST', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
         body: JSON.stringify({ requests: [{ addSheet: { properties: { title: DOCS_TAB, tabColor: { red: 0.16, green: 0.5, blue: 0.72 } } } }] })
-      });
+      }); });
       await sheetsUpdate(state.personalSheetId, DOCS_TAB + '!A1:H1',
         [['Doc ID', 'Title', 'Type', 'URL', 'Covers', 'Topics', 'Notes', 'Date Added']]);
       return true;
     } catch (e) { console.warn('[MyManuals] ensure failed', e && e.message); return false; }
   }
+  // v0.9.2038 (Workbench check 2026-10-28, A10): a read that FAILED is not an
+  // empty library. It used to leave state.myManuals null (the Toolbox spun on
+  // "Loading your Toolbox…" for good) or set it to [] (an item's card said
+  // "Nothing saved for this item yet" while ten manuals sat in the sheet). Now
+  // the three loaders below answer true / false, keep whatever was already
+  // loaded on a failure, and note it in _readFailed so each screen can say
+  // "could not read" with a Try again — never a confident "nothing".
+  var _readFailed = { docs: false, log: false, bin: false };
+  function _readFailHtml(what, retryJs) {
+    return '<div class="maint-readfail" style="font-size:0.82rem;color:var(--t-danger);padding:0.4rem 0">Could not read your ' + what + ' from your Google sheet \u2014 check the connection.'
+      + (retryJs ? ' <button onclick="' + retryJs + '" ' + _btnQuiet('sm') + '>Try again</button>' : '') + '</div>';
+  }
   async function _loadMyDocs() {
     try {
-      if (!(await _ensureDocsTab())) return;
-      var res = await sheetsGet(state.personalSheetId, DOCS_TAB + '!A2:H').catch(function () { return { values: [] }; });
+      if (!(await _ensureDocsTab())) { _readFailed.docs = true; return false; }
+      var res = await sheetsGet(state.personalSheetId, DOCS_TAB + '!A2:H');
       // v0.9.1674: map THEN filter — the row number is the sheet position,
       // so a blanked (removed) row in the middle must still count. Filter-
       // then-map numbered every doc below a blank one row too high, and the
@@ -2155,8 +2247,15 @@
         var g = function (j) { return (r[j] != null) ? String(r[j]) : ''; };
         return { row: i + 2, id: g(0), title: g(1), type: g(2), url: g(3), covers: g(4), topics: g(5), notes: g(6), date: _isoDate(g(7)) };
       }).filter(function (d) { return d.id; });
-    } catch (e) { state.myManuals = state.myManuals || []; }
+      _readFailed.docs = false;
+      return true;
+    } catch (e) { console.warn('[MyManuals] read failed', e && e.message); _readFailed.docs = true; return false; }
   }
+  window._maintDocsRetry = function () {
+    _readFailed.docs = false;
+    _loadMyDocs().then(function () { _maintRenderMyDocs(); if (typeof _wbBuild === 'function') _wbBuild(); });
+    _maintRenderMyDocs(); if (typeof _wbBuild === 'function') _wbBuild();
+  };
   function _docCovers(item) {
     var n = String(item && item.itemNum || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
     return (state.myManuals || []).filter(function (d) {
@@ -2171,6 +2270,11 @@
     var vel = document.getElementById('maint-videos');   // v0.9.1859: the videos list under the YouTube row
     if ((!el && !vel) || !_panelItem) return;
     var render = function () {
+      if (!state.myManuals && _readFailed.docs) {
+        if (vel) vel.innerHTML = _readFailHtml('saved videos', '_maintDocsRetry()');
+        if (el) el.innerHTML = _readFailHtml('saved manuals', '_maintDocsRetry()');
+        return;
+      }
       var docs = _docCovers(_panelItem);
       if (vel) {
         var vids = docs.filter(function (d) { return String(d.type || '') === 'video'; });
@@ -2201,7 +2305,9 @@
     // prefill from what we already KNOW: the item + LCCA/Trainz families
     var out = [String(item.itemNum || '').trim()];
     try {
-      var pf = _pwsmFile(String(item.itemNum || ''));
+      var _sEra = null;
+      try { _sEra = (typeof _itemEraKey === 'function') ? _itemEraKey(item) : (item._era || null); } catch (eS) {}
+      var pf = (String(_sEra || '').toLowerCase() === 'pw') ? _pwsmFile(String(item.itemNum || '')) : null;   // v0.9.2038 (B16): postwar only
       if (pf && PWSM_FILES[pf]) PWSM_FILES[pf].split(',').forEach(function (n) { if (n && out.indexOf(n) < 0) out.push(n); });
       var tz = _tzDiagram(item);
       if (tz) tz.n.split('|').forEach(function (n) { if (n && out.indexOf(n) < 0) out.push(n); });
@@ -2241,6 +2347,10 @@
       + '</div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
     rrDismissGuard(document.getElementById('maint-docform'));   // v0.9.1789 (wires BackStack too)
+    // v0.9.2038 (A13): the file goes to Drive ONCE. A save that failed after the
+    // upload (the sheet write) used to upload it again on the retry, leaving an
+    // orphan copy in Drive each time. The first upload's link is kept here.
+    var _uploadedUrl = '';
     document.getElementById('docf-save').onclick = async function () {
       var g = function (id) { var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; };
       var url = fixedUrl || g('docf-url');
@@ -2252,21 +2362,26 @@
       var topics = g('docf-topics');
       if (!covers && !general) { if (typeof showToast === 'function') showToast('Covers is empty — at least this item\u2019s number.', 3000, true); return; }
       if (!covers && !topics) { if (typeof showToast === 'function') showToast('Give it a topic or an item number so the Toolbox can find it again.', 3500, true); return; }
-      var title = g('docf-title') || (type === 'picture' ? 'Saved diagram' : url.replace(/^https?:\/\//, '').slice(0, 60));
+      // v0.9.2038 (C28): a document saved with no name is named after its file
+      // (the link is not made until the upload, so the old fallback was empty)
+      var _fileName = (pendingFile && pendingFile.name) ? String(pendingFile.name).replace(/\.[A-Za-z0-9]{1,5}$/, '').trim() : '';
+      var title = g('docf-title') || (type === 'picture' ? 'Saved diagram' : type === 'document' ? (_fileName || 'Saved document') : url.replace(/^https?:\/\//, '').slice(0, 60));
       var btn = this; btn.disabled = true; btn.textContent = 'Saving…';
       try {
-        if (pendingFile) {
+        if (pendingFile && _uploadedUrl) url = _uploadedUrl;
+        else if (pendingFile) {
           await driveEnsureSetup();
           var folder = await driveFindOrCreateFolder('Manuals', driveCache.photosId);
           var ext = (pendingFile.name && pendingFile.name.indexOf('.') >= 0) ? pendingFile.name.slice(pendingFile.name.lastIndexOf('.')) : '';
           var up = await driveUploadPhoto(pendingFile, 'manual-' + Date.now() + ext, folder);
           if (!up || !up.id) throw new Error('upload failed');
           url = 'https://drive.google.com/file/d/' + up.id + '/view';
+          _uploadedUrl = url;
         }
         if (!(await _ensureDocsTab())) throw new Error('My Manuals tab unavailable');
         var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
         await sheetsAppend(state.personalSheetId, DOCS_TAB + '!A:H',
-          [[_t('doc-' + Date.now()), title, type, url, covers, topics, '', _t(new Date().toISOString().split('T')[0])]]);
+          [[_t('doc-' + Date.now()), rrSheetText(title), type, url, rrSheetText(covers), rrSheetText(topics), '', _t(new Date().toISOString().split('T')[0])]]);   // v0.9.2038 (A5): typed words as text
         state.myManuals = null;
         var f = document.getElementById('maint-docform'); if (f) f.remove();
         _maintRenderMyDocs();
@@ -2319,18 +2434,20 @@
 
   async function _ensureLogTab() {
     try {
-      var meta = await (await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + '?fields=sheets.properties',
-        { headers: { Authorization: 'Bearer ' + accessToken } })).json();
+      // v0.9.2038 (A10): through _withTokenRetry — a lapsed sign-in is renewed
+      // and tried again, instead of reading as "could not reach your sheet".
+      var meta = await (await _withTokenRetry(function () { return fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + '?fields=sheets.properties',
+        { headers: { Authorization: 'Bearer ' + accessToken } }); })).json();
       // v0.9.1675: a FAILED read (expired token → {error}, no sheets) is
       // not "the tab is missing". Bail; never try to create on a guess —
       // the header write that followed used to land in the offline outbox
       // as a phantom "1 change has not saved".
       if (!meta || !Array.isArray(meta.sheets)) return false;
       if (meta.sheets.some(function (sh) { return sh.properties && sh.properties.title === LOG_TAB; })) return true;
-      await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + ':batchUpdate', {
+      await _withTokenRetry(function () { return fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + ':batchUpdate', {
         method: 'POST', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
         body: JSON.stringify({ requests: [{ addSheet: { properties: { title: LOG_TAB, tabColor: { red: 0.09, green: 0.63, blue: 0.52 } } } }] })
-      });
+      }); });
       await sheetsUpdate(state.personalSheetId, LOG_TAB + '!A1:K1',
         [['Log ID', 'Inventory ID', 'Item Number', 'Type', 'Text', 'Part Number', 'Serviced By', 'Date Added', 'Date Done', 'Status', 'Notes']]);
       return true;
@@ -2371,10 +2488,12 @@
 
   async function _loadLog() {
     try {
-      if (!(await _ensureLogTab())) return;
-      var res = await sheetsGet(state.personalSheetId, LOG_TAB + '!A2:K').catch(function () { return { values: [] }; });
+      if (!(await _ensureLogTab())) { _readFailed.log = true; return false; }
+      var res = await sheetsGet(state.personalSheetId, LOG_TAB + '!A2:K');
       state.maintLog = _parseLog(res.values);
-    } catch (e) { state.maintLog = state.maintLog || []; }
+      _readFailed.log = false;
+      return true;
+    } catch (e) { console.warn('[Workbench] log read failed', e && e.message); _readFailed.log = true; return false; }   // v0.9.2038 (A10): keep what was loaded
   }
 
   function _openNeeds() {
@@ -2442,6 +2561,19 @@
   // below asks _target() instead of reaching for the panel — ONE save path
   // for a task and one for a part, whichever door you came in.
   var _wbTarget = null;
+  // v0.9.2038 (Workbench check 2026-10-28, A1): ONE guard against a double tap.
+  // "+ Add task", "+ Add to Parts Wanted" / "+ Want it", the bin's "Use one" /
+  // "Use it for…" and − / + had none: two quick taps wrote two task rows, two
+  // wanted rows, or took two parts out of the bin. A key is held for as long
+  // as its save runs; a second tap on the same key meanwhile does nothing.
+  // Every change to one bin part shares one key ('bin:' + its id), so − and
+  // "Use one" can never both count from the same number.
+  var _busy = {};
+  async function _once(key, fn) {
+    if (_busy[key]) return false;
+    _busy[key] = true;
+    try { return await fn(); } finally { delete _busy[key]; }
+  }
   function _target() {
     if (_wbTarget && _wbTarget.item) return _wbTarget;
     return { item: _panelItem, invId: String(window._maintPanelInvId || '') };
@@ -2483,7 +2615,7 @@
       return '<label style="display:flex;align-items:center;gap:0.5rem;padding:0.35rem 0;border-bottom:1px solid var(--border);font-size:0.82rem;color:' + (taken ? 'var(--text-dim)' : 'var(--text)') + ';cursor:' + (taken ? 'default' : 'pointer') + '">'
         + (taken
             ? '<span aria-hidden="true" style="display:inline-block;width:1.05rem;height:1.05rem;flex-shrink:0;border:1.5px dashed var(--border);border-radius:3px;box-sizing:border-box"></span>'
-            : '<input type="checkbox" name="maint-chore-part" value="' + _esc(String(p.row)) + '" style="width:1.05rem;height:1.05rem;flex-shrink:0">')
+            : '<input type="checkbox" name="maint-chore-part" value="' + _esc(String(p.id)) + '" style="width:1.05rem;height:1.05rem;flex-shrink:0">')
         + '<span><b>' + _esc(p.description || p.partNum || 'part') + '</b>'
         + (p.partNum && p.description ? ' <span style="font-family:var(--font-mono);color:' + (taken ? 'var(--text-dim)' : 'var(--t-accent)') + '">#' + _esc(p.partNum) + '</span>' : '')
         + ' <span style="color:var(--text-dim);font-size:0.72rem">(' + (taken ? 'already on: ' + _esc(e.onTask) : where) + ')</span></span>'
@@ -2539,15 +2671,22 @@
     if (typeof showToast === 'function') showToast('Took \u201c' + gone + '\u201d off the list');
   };
   window._maintAddChore = async function (andPart) {
+    if (_busy.addChore) return false;   // v0.9.2038 (A1): a second tap while the first saves does nothing
+    _busy.addChore = true;
+    try { return await _maintAddChoreRun(andPart); }
+    finally { delete _busy.addChore; }
+  };
+  async function _maintAddChoreRun(andPart) {
     var tg = _target();
     if (!_isOwner() || !tg.item) return;
     var sel = document.getElementById('maint-chore-pick');
     var customIn = document.getElementById('maint-chore-custom-in');
     var chore = sel && sel.value === '__custom' ? (customIn ? String(customIn.value || '').trim() : '') : (sel ? sel.value : '');
     if (!chore) { if (typeof showToast === 'function') showToast(sel && sel.value === '__custom' ? 'Type the new task first.' : 'Pick what needs doing first.', 2500, true); return; }
-    // v0.9.1858: the parts ticked in the pop-up go on the new task once it exists
+    // v0.9.1858: the parts ticked in the pop-up go on the new task once it exists.
+    // v0.9.2038 (A4): a tick box carries the part's ID, never its row.
     var picked = [];
-    try { picked = Array.prototype.map.call(document.querySelectorAll ? document.querySelectorAll('input[name="maint-chore-part"]:checked') : [], function (c) { return parseInt(c.value, 10); }).filter(function (n) { return n > 0; }); } catch (eP) { picked = []; }
+    try { picked = Array.prototype.map.call(document.querySelectorAll ? document.querySelectorAll('input[name="maint-chore-part"]:checked') : [], function (c) { return String(c.value || ''); }).filter(Boolean); } catch (eP) { picked = []; }
     // v0.9.1766 (Brad): only joins the dropdown if he ticked the box.
     if (sel && sel.value === '__custom') {
       var keep = document.getElementById('maint-chore-custom-keep');
@@ -2561,7 +2700,7 @@
       var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
       var logId = 'log-' + Date.now();
       var row = [_t(logId), _t(tg.invId || ''), _t(String(tg.item.itemNum || '')),
-                 'chore', chore, '', '', _t(new Date().toISOString().split('T')[0]), '', 'open'];
+                 'chore', rrSheetText(chore), '', '', _t(new Date().toISOString().split('T')[0]), '', 'open'];   // v0.9.2038 (A5): a typed task name stays words
       await sheetsAppend(state.personalSheetId, LOG_TAB + '!A:J', [row]);
       await _loadLog(); _wbBadge(); _maintRenderTasks();
       if (customIn) customIn.value = '';
@@ -2570,15 +2709,22 @@
       // "+ Add a part for it" the card goes but the TARGET stays, so the Need-a-
       // part pop-up that follows is for this item (the _wbPartFor way).
       if (_wbTarget) { if (andPart) { var _wc = document.getElementById('wb-card'); if (_wc) _wc.remove(); _wbBuild(); } else _wbCloseCard(); }
-      // v0.9.1858: the ticked parts, one column-M write each (the ONE writer)
+      // v0.9.1858: the ticked parts, one column-M write each (the ONE writer).
+      // v0.9.2038 (A11): each one is counted — a part that did not go on the
+      // task is SAID, not folded into "(2 parts on it)".
+      var onIt = 0;
       for (var pi = 0; pi < picked.length; pi++) {
-        try { if (typeof _maintPartSetTask === 'function') await _maintPartSetTask(picked[pi], logId); } catch (ePS) {}
+        try { if (typeof _maintPartSetTask === 'function' && (await _maintPartSetTask(picked[pi], logId))) onIt++; } catch (ePS) { console.warn('[Workbench] part not attached', ePS && ePS.message); }
       }
-      if (typeof showToast === 'function') showToast('✓ On the Workbench: ' + chore + (picked.length ? ' (' + picked.length + ' part' + (picked.length === 1 ? '' : 's') + ' on it)' : ''));
+      var missed = picked.length - onIt;
+      if (typeof showToast === 'function') {
+        if (missed) showToast('✓ On the Workbench: ' + chore + ' \u2014 but ' + missed + ' of the ' + picked.length + ' ticked part' + (picked.length === 1 ? '' : 's') + ' did not go on it. Open the task and attach ' + (missed === 1 ? 'it' : 'them') + ' with Need a part.', 6500, true);
+        else showToast('✓ On the Workbench: ' + chore + (onIt ? ' (' + onIt + ' part' + (onIt === 1 ? '' : 's') + ' on it)' : ''));
+      }
       // v0.9.1858: "+ Add a part for it" — the task exists now, so Need a part opens FOR it
       if (andPart && typeof window._maintPartsPopup === 'function') window._maintPartsPopup(logId, 'No. ' + String(tg.item.itemNum || '') + ' \u00b7 ' + chore);
     } catch (e) { if (typeof showToast === 'function') showToast(rrSaveError(e, 'the chore'), 4000, true); }
-  };
+  }
 
   // v0.9.1819: the task card's "Mark complete" asks in the app's own box, then
   // hands off to _maintChoreDone — the ONE way into the service history.
@@ -2589,12 +2735,15 @@
   };
   window._maintChoreDone = async function (rowNum, logId) {
     var today = new Date().toISOString().split('T')[0];
+    // v0.9.2038: the task is the one with this id; its row is read off it as it is NOW
+    var _lt = (state.maintLog || []).find(function (x) { return x.id === logId; });
+    if (_lt) rowNum = _lt.row;
     try {
       var ok = (typeof rrVerifiedRowUpdate === 'function')
         ? await rrVerifiedRowUpdate(state.personalSheetId, LOG_TAB, rowNum, LOG_TAB + '!I' + rowNum + ':J' + rowNum, [["'" + today, 'done']], { num: logId }, 'Workbench')
         : false;
       if (!ok) return;
-      var l = (state.maintLog || []).find(function (x) { return x.row === rowNum; });
+      var l = _lt || (state.maintLog || []).find(function (x) { return x.row === rowNum; });
       if (l) { l.status = 'done'; l.dateDone = today; }
       _wbBuild(); _wbBadge(); _maintRenderTasks();
       if (typeof showToast === 'function') showToast('✓ Done — written to the service history');
@@ -2603,18 +2752,23 @@
 
   // _maintAddNote removed in v0.9.1672 (Brad: notes live on tasks; history entries edit in place).
 
+  // v0.9.2038 (A11): answers true when the history line was written, false when
+  // it was not — the caller tells the user (it used to go to the console only).
   window._maintLogPartInstalled = async function (invId, itemNum, desc, partNum, by) {
     // called by app-pages._savePartInstalled (owner path) — the auto trail
     try {
-      if (!(await _ensureLogTab())) return;
+      if (!(await _ensureLogTab())) return false;
       var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
       var today = new Date().toISOString().split('T')[0];
       await sheetsAppend(state.personalSheetId, LOG_TAB + '!A:J',
-        [[_t('log-' + Date.now()), _t(invId || ''), _t(String(itemNum || '')), 'part-installed', desc || 'part installed', _t(partNum || ''), by || 'self', _t(today), _t(today), 'done']]);
+        [[_t('log-' + Date.now()), _t(invId || ''), _t(String(itemNum || '')), 'part-installed', rrSheetText(desc || 'part installed'), _t(partNum || ''), rrSheetText(by || 'self'), _t(today), _t(today), 'done']]);
+    } catch (e) { console.warn('[Workbench] log part-installed failed', e && e.message); return false; }
+    try {
       await _loadLog(); _wbBadge();
       _maintRenderTasks();   // v0.9.1676: the task card's "Parts on hand" line becomes "Installed"
       if (_previewArgs && document.getElementById('maint-preview')) window._maintRenderPreview(_previewArgs.idx, _previewArgs.it, _previewArgs.pd);
-    } catch (e) { console.warn('[Workbench] log part-installed failed', e && e.message); }
+    } catch (e2) { console.warn('[Workbench] redraw after part-installed', e2 && e2.message); }
+    return true;
   };
 
   window._maintShowHistory = function (invId, itemNum) {
@@ -2677,11 +2831,18 @@
         await _ensureLogNotesCol();
         var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
         // E..K: Text, Part Number, Serviced By, Date Added, Date Done, Status, Notes
-        var dateDone = (l.type === 'chore' && l.status === 'open') ? '' : date;
-        var vals = [[text, _t(part), by, _t(l.dateAdded || date), _t(dateDone), l.status, notes]];
+        // v0.9.2038 (A6): an OPEN task's date IS its Date Added — the date box
+        // shows it, so a change there is written there. (It used to write the old
+        // Date Added back, say "✓ Entry updated", and show the new date until the
+        // next reload brought the old one back.) A finished entry's date is Date Done.
+        var isOpen = (l.type === 'chore' && l.status === 'open');
+        var dateDone = isOpen ? '' : date;
+        var dateAdded = isOpen ? (date || l.dateAdded) : (l.dateAdded || date);
+        // v0.9.2038 (A5): what was typed goes up as text
+        var vals = [[rrSheetText(text), _t(part), rrSheetText(by), _t(dateAdded), _t(dateDone), l.status, rrSheetText(notes)]];
         var ok = await rrVerifiedRowUpdate(state.personalSheetId, LOG_TAB, l.row, LOG_TAB + '!E' + l.row + ':K' + l.row, vals, { num: l.id }, 'service history');
         if (!ok) { btn.disabled = false; btn.textContent = 'Save'; return; }
-        l.text = text; l.partNum = part; l.by = by; l.notes = notes; if (dateDone) l.dateDone = dateDone; else l.dateAdded = date || l.dateAdded;
+        l.text = text; l.partNum = part; l.by = by; l.notes = notes; l.dateAdded = dateAdded; if (dateDone) l.dateDone = dateDone;
         var f = document.getElementById('wb-entry'); if (f) f.remove();
         var ctx = window._wbHistoryCtx;
         // v0.9.1789: ask the SCREEN whether the history is open, not a stale
@@ -2710,11 +2871,25 @@
     _maintRenderTasks(); _wbBuild(); _wbBadge();
     return true;
   }
+  // v0.9.2038 (A8): the history's Remove unlinks the entry's parts first, the
+  // way Remove task always has — an open task removed from the History tab used
+  // to leave its parts pointing at a task that no longer exists. ONE unlinker
+  // for both doors; one that fails stops the removal.
+  async function _unlinkTaskParts(logId) {
+    var parts = _taskParts(logId);
+    for (var i = 0; i < parts.length; i++) { if (!(await _maintPartSetTask(parts[i].id, ''))) return false; }
+    return true;
+  }
   window._maintRemoveEntry = async function (logId) {
     var l = (state.maintLog || []).find(function (x) { return x.id === logId; });
     if (!l) return;
-    if (!(await appConfirm('Remove \u201c' + rrEsc(l.text) + '\u201d (' + rrEsc(l.dateDone || l.dateAdded) + ') from the service history?', { title: 'Remove from history', ok: 'Remove', danger: true }))) return;
-    try { await _removeLogRow(l); }
+    var parts = _taskParts(logId).filter(function (p) { return (p.status || 'wanted') !== 'installed'; });
+    if (!(await appConfirm('Remove \u201c' + rrEsc(l.text) + '\u201d (' + rrEsc(l.dateDone || l.dateAdded) + ') from the service history?'
+        + (parts.length ? ' The ' + parts.length + ' part' + (parts.length > 1 ? 's' : '') + ' on it stay' + (parts.length > 1 ? '' : 's') + ' on your Parts Needed list for this item.' : ''), { title: 'Remove from history', ok: 'Remove', danger: true }))) return;
+    try {
+      if (!(await _unlinkTaskParts(logId))) return;
+      await _removeLogRow(l);
+    }
     catch (e) { if (typeof showToast === 'function') showToast('Could not remove it', 3500, true); }
   };
   // v0.9.1752 (Brad: "i don't have a way to delete a task i did in error or
@@ -2730,7 +2905,7 @@
       + (parts.length ? ' The ' + parts.length + ' part' + (parts.length > 1 ? 's' : '') + ' linked to it stay' + (parts.length > 1 ? '' : 's') + ' on your Parts Needed list for this item.' : '');
     if (!(await appConfirm(msg, { title: 'Remove this task', ok: 'Remove', danger: true }))) return;
     try {
-      for (var i = 0; i < parts.length; i++) { if (!(await _maintPartSetTask(parts[i].row, ''))) return; }
+      if (!(await _unlinkTaskParts(logId))) return;
       if (await _removeLogRow(l) && typeof showToast === 'function') showToast('✓ Task removed');
     } catch (e) { if (typeof showToast === 'function') showToast('Could not remove the task', 3500, true); }
   };
@@ -2738,9 +2913,12 @@
   // none): column M, verified, then the card, the bench and the Parts page
   // redraw. Used by Remove task, by Move on a part line, and by the picker's
   // "Attach to this job" / "Use it for this job".
-  async function _maintPartSetTask(partRow, taskId) {
-    var p = Object.values(state.partsData || {}).find(function (x) { return x.row === partRow; });
-    if (!p) return false;
+  // v0.9.2038 (A4): _maintPartSetTask(partId, taskId) — the part by its id; the
+  // row is read off the part at the moment of the write.
+  async function _maintPartSetTask(partId, taskId) {
+    var p = (typeof _partsFind === 'function') ? _partsFind(partId) : null;
+    if (!p) { if (typeof showToast === 'function') showToast('That part is no longer on your list \u2014 refresh and try again.', 4000, true); return false; }
+    var partRow = p.row;
     var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
     if (typeof _ensurePartsLifecycleCols === 'function') await _ensurePartsLifecycleCols();
     var ok = await rrVerifiedRowUpdate(state.personalSheetId, 'Parts Needed', partRow, 'Parts Needed!M' + partRow, [[_t(taskId || '')]], { num: p.id }, 'Parts Needed');
@@ -2752,9 +2930,9 @@
   }
   window._maintPartSetTask = _maintPartSetTask;
   // Move a part line to another open task on this unit, or off every task
-  window._maintPartMove = async function (partRow, taskId, sel) {
+  window._maintPartMove = async function (partId, taskId, sel) {
     if (sel && sel.value === '') return;
-    var ok = await _maintPartSetTask(partRow, taskId);
+    var ok = await _maintPartSetTask(partId, taskId);
     if (ok && typeof showToast === 'function') showToast(taskId ? '✓ Part moved to that task' : '✓ Part kept for this item — not tied to a task');
     if (!ok && sel) sel.value = '';
   };
@@ -2831,7 +3009,7 @@
         var opts = '<option value="">Move…</option>'
           + others.map(function (t) { return '<option value="' + _esc(t.id) + '">to: ' + _esc(t.text) + '</option>'; }).join('')
           + (p.taskId ? '<option value="__none">off this task (keep for the item)</option>' : '');
-        return '<select onchange="_maintPartMove(' + p.row + ',this.value===\'__none\'?\'\':this.value,this)" title="Move this part to another task" style="' + _QUIET + ';padding:0.2rem 0.3rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.7rem;flex-shrink:0">' + opts + '</select>';
+        return '<select onchange="_maintPartMove(\'' + rrJsArg(p.id) + '\',this.value===\'__none\'?\'\':this.value,this)" title="Move this part to another task" style="' + _QUIET + ';padding:0.2rem 0.3rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.7rem;flex-shrink:0">' + opts + '</select>';
       };
       var partRow = function (p, fromList) {
         var st = p.status || 'wanted';
@@ -2839,10 +3017,10 @@
         var txt = st === 'installed' ? '<b>Installed</b> — ' + name
                 : st === 'bought' ? '<span style="color:var(--green)">✓ <b>Parts on hand</b></span> — ' + name
                 : '<span style="color:var(--warn)"><b>Waiting on</b></span> “' + name + '”';
-        var act = st === 'bought' ? '<button onclick="_maintPartInstalled(' + p.row + ')" ' + _btn('green', 'sm', 'flex-shrink:0') + '>Installed it</button>'
-                : st === 'wanted' ? '<button onclick="_maintPartBought(' + p.row + ')" ' + _btn('green', 'sm', 'flex-shrink:0') + '>Bought it</button>' : '';
+        var act = st === 'bought' ? '<button onclick="_maintPartInstalled(\'' + rrJsArg(p.id) + '\')" ' + _btn('green', 'sm', 'flex-shrink:0') + '>Installed it</button>'
+                : st === 'wanted' ? '<button onclick="_maintPartBought(\'' + rrJsArg(p.id) + '\')" ' + _btn('green', 'sm', 'flex-shrink:0') + '>Bought it</button>' : '';
         // v0.9.1753 (Brad: "says waiting on the part, i can't get rid of it"): Remove right here, through the one remover
-        var rm = st === 'installed' ? '' : '<button onclick="_maintPartRemove(' + p.row + ')" title="Take this part off your Parts Needed list" ' + _btn('red', 'sm', 'flex-shrink:0') + '>Remove</button>';
+        var rm = st === 'installed' ? '' : '<button onclick="_maintPartRemove(\'' + rrJsArg(p.id) + '\')" title="Take this part off your Parts Needed list" ' + _btn('red', 'sm', 'flex-shrink:0') + '>Remove</button>';
         return '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;font-size:0.8rem;color:var(--text);margin-top:0.35rem;flex-wrap:wrap">'
           + '<div style="flex:1;min-width:10rem">' + txt
           + (p.partNum && p.description ? ' <span style="font-family:var(--font-mono);color:var(--text-dim);font-size:0.72rem">#' + _esc(p.partNum) + '</span>' : '')
@@ -2975,7 +3153,12 @@
       }).join('');
       _maintPaintTaskCard();
     };
-    if (state.maintLog) render(); else _loadLog().then(render);
+    if (state.maintLog) render();
+    else _loadLog().then(function () {
+      if (state.maintLog) { render(); return; }
+      var el2 = document.getElementById('maint-tasks');   // v0.9.2038 (A10): could not read ≠ "No open tasks"
+      if (el2) el2.innerHTML = _readFailHtml('tasks', '_maintRenderTasks()');
+    });
   }
   window._maintRenderTasks = _maintRenderTasks;
   // v0.9.1788: open one job. Keyed by the task's OWN id, never the row number
@@ -2992,22 +3175,23 @@
   // v0.9.1676: the part's lifecycle from the task card — same writers the
   // Parts Needed page uses (markPartBought / markPartInstalled in
   // app-pages.js), then the card and the detail-page preview redraw.
-  window._maintPartBought = async function (rowNum) {
+  // v0.9.2038 (A4): all three by the part's id
+  window._maintPartBought = async function (partId) {
     if (typeof markPartBought !== 'function') return;
-    await markPartBought(rowNum);
+    await markPartBought(partId);
     _maintRenderTasks();
     if (_previewArgs && document.getElementById('maint-preview')) window._maintRenderPreview(_previewArgs.idx, _previewArgs.it, _previewArgs.pd);
   };
-  window._maintPartInstalled = function (rowNum) {
-    if (typeof markPartInstalled === 'function') markPartInstalled(rowNum, { onCard: true });   // its Save calls _maintLogPartInstalled → card redraws; v0.9.1753: the card is already open, don't reopen it
+  window._maintPartInstalled = function (partId) {
+    if (typeof markPartInstalled === 'function') markPartInstalled(partId, { onCard: true });   // its Save calls _maintLogPartInstalled → card redraws; v0.9.1753: the card is already open, don't reopen it
   };
   // v0.9.1753: Remove on a part line — the Parts Needed page's ONE remover, then the card, bench, badge and preview redraw
-  window._maintPartRemove = async function (rowNum) {
-    var p = Object.values(state.partsData || {}).find(function (x) { return x.row === rowNum; });
+  window._maintPartRemove = async function (partId) {
+    var p = (typeof _partsFind === 'function') ? _partsFind(partId) : null;
     if (!p || typeof removePart !== 'function') return;
     var copy = window.PARTS_COPY || {};
     if (!(await appConfirm(String(copy.removeCard || 'Take \u201c%s\u201d off your Parts Needed list?').replace('%s', rrEsc(p.description || p.partNum || 'part')), { title: 'Take it off the list', ok: 'Take it off', danger: true }))) return;
-    if (!(await removePart(rowNum))) return;
+    if (!(await removePart(p.id))) return;
     _maintRenderTasks(); _wbBuild(); _wbBadge();
     if (_previewArgs && document.getElementById('maint-preview')) window._maintRenderPreview(_previewArgs.idx, _previewArgs.it, _previewArgs.pd);
   };
@@ -3025,11 +3209,12 @@
     var ta = document.getElementById('task-notes-' + logId);
     var txt = ta ? String(ta.value || '').trim() : '';
     var l = (state.maintLog || []).find(function (x) { return x.id === logId; });
+    if (l) rowNum = l.row;   // v0.9.2038: the task's row as it is NOW, not as it was drawn
     if (l && (l.notes || '') === txt) { var h0 = document.getElementById('task-notes-hint-' + logId); if (h0) h0.textContent = txt ? 'saved' : ''; return; }
     var h = document.getElementById('task-notes-hint-' + logId); if (h) h.textContent = 'saving…';
     try {
       await _ensureLogNotesCol();
-      var ok = await rrVerifiedRowUpdate(state.personalSheetId, LOG_TAB, rowNum, LOG_TAB + '!K' + rowNum, [[txt]], { num: logId }, 'Workbench');
+      var ok = await rrVerifiedRowUpdate(state.personalSheetId, LOG_TAB, rowNum, LOG_TAB + '!K' + rowNum, [[rrSheetText(txt)]], { num: logId }, 'Workbench');   // v0.9.2038 (A5)
       if (!ok) { if (h) h.textContent = 'not saved — refresh'; return; }
       if (l) l.notes = txt;
       if (h) h.textContent = 'saved';
@@ -3057,10 +3242,16 @@
     var forUnit = function (p) { return inv ? p.forInv === inv : (p.forItem === num && !p.forInv); };
     var taskName = function (id) { var t = (state.maintLog || []).find(function (l) { return l.id === id; }); return t ? t.text : ''; };
     var onHand = [], wanted = [];
+    // v0.9.2038 (Workbench check 2026-10-28, C20): taskId '' means "a task not
+    // made yet" (the Add-task pop-up), not "skip the parts on no task" — that
+    // skipped every LOOSE part, so the v1858 "tick a part for this task" box
+    // never offered one. A part is left out only when it is already on THIS
+    // task. And "already on" means an OPEN task: a part whose task is finished
+    // or removed is loose again (the card's own rule, _taskOpen).
     Object.values(state.partsData || {}).forEach(function (p) {
-      if (!forUnit(p) || (p.taskId || '') === String(taskId || '')) return;
+      if (!forUnit(p) || (taskId && (p.taskId || '') === String(taskId))) return;
       var st = p.status || 'wanted';
-      var e = { part: p, onTask: p.taskId ? taskName(p.taskId) : '' };
+      var e = { part: p, onTask: (p.taskId && _taskOpen(p.taskId)) ? taskName(p.taskId) : '' };
       if (st === 'bought') onHand.push(e); else if (st === 'wanted') wanted.push(e);
     });
     var bin = (state.partsBin || []).filter(function (b) { return b.qty > 0; });
@@ -3129,8 +3320,8 @@
     if (el) _maintCatalogLaneRender(el.getAttribute('data-task') || '');
   };
   // "Attach to this job" / "Use it for this job": the SAME column-M writer
-  window._maintPopAttach = async function (partRow, taskId) {
-    var ok = await _maintPartSetTask(partRow, taskId);
+  window._maintPopAttach = async function (partId, taskId) {
+    var ok = await _maintPartSetTask(partId, taskId);
     if (!ok) return;
     var pop = document.getElementById('maint-parts-pop'); if (pop) pop.remove();
     if (_wbTarget) _wbCloseCard();
@@ -3147,7 +3338,7 @@
         + (p.partNum && p.description ? ' <span style="font-family:var(--font-mono);color:var(--accent2)">#' + _esc(p.partNum) + '</span>' : '')
         + (e.onTask ? ' <span style="color:var(--text-dim);font-size:0.72rem">(now on: ' + _esc(e.onTask) + ')</span>' : ' <span style="color:var(--text-dim);font-size:0.72rem">(not tied to a task)</span>')
         + '</div>'
-        + '<button onclick="_maintPopAttach(' + p.row + ',\'' + rrJsArg(taskId) + '\')" ' + _btn('green', 'sm', 'flex-shrink:0') + '>' + verb + '</button>'
+        + '<button onclick="_maintPopAttach(\'' + rrJsArg(p.id) + '\',\'' + rrJsArg(taskId) + '\')" ' + _btn('green', 'sm', 'flex-shrink:0') + '>' + verb + '</button>'
         + '</div>';
     };
     return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.9rem 1rem;margin-bottom:0.8rem">'
@@ -3204,6 +3395,9 @@
       + '</div>'
       + '</div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
+    // v0.9.2038 (C21): Back closes Need a part — through the same close as its ✕
+    // (from the Workbench card that is _wbCloseCard, which also clears the target).
+    try { if (window.rrDismissGuard) window.rrDismissGuard(document.getElementById('maint-parts-pop'), _wbTarget ? function () { _wbCloseCard(); var pp = document.getElementById('maint-parts-pop'); if (pp) pp.remove(); } : null); } catch (eG2) {}
     window._maintBinCheck(taskId);   // v0.9.1752: the bin's loose spares show at once; typing narrows them
     var pi = document.getElementById('maint-pop-part'); if (pi) pi.focus();
   };
@@ -3278,15 +3472,28 @@
       try { handle.setPointerCapture(e.pointerId); } catch (eC) {}
       e.preventDefault();
     });
+    // the wrapper is the right half of the window: it may go as far as the
+    // left edge, and never so far that its title bar leaves the screen.
+    // v0.9.2038 (C23): ONE clamp, used while dragging AND when the window
+    // changes size (a resized browser, a rotated iPad) — the old position used
+    // to stay where it was and could leave the pop-up off the screen.
+    var place = function (dx, dy) {
+      var w = window.innerWidth || 0, h = window.innerHeight || 0;
+      dx = Math.max(-w * 0.5, Math.min(w * 0.4, dx));
+      dy = Math.max(-h * 0.05, Math.min(h * 0.8, dy));
+      el.style.transform = 'translate(' + Math.round(dx) + 'px,' + Math.round(dy) + 'px)';
+    };
     handle.addEventListener('pointermove', function (e) {
       if (!on) return;
-      var w = window.innerWidth || 0, h = window.innerHeight || 0;
-      // the wrapper is the right half of the window: it may go as far as the
-      // left edge, and never so far that its title bar leaves the screen
-      var dx = Math.max(-w * 0.5, Math.min(w * 0.4, ox + e.clientX - sx));
-      var dy = Math.max(-h * 0.05, Math.min(h * 0.8, oy + e.clientY - sy));
-      el.style.transform = 'translate(' + Math.round(dx) + 'px,' + Math.round(dy) + 'px)';
+      place(ox + e.clientX - sx, oy + e.clientY - sy);
     });
+    var onResize = function () {
+      if (!document.body.contains(el)) { window.removeEventListener('resize', onResize); return; }
+      if (!_dgSideBySide()) { el.style.transform = ''; return; }   // too narrow to sit beside — back in place
+      var m2 = /translate\((-?[\d.]+)px,\s*(-?[\d.]+)px\)/.exec(el.style.transform || '');
+      if (m2) place(+m2[1], +m2[2]);
+    };
+    window.addEventListener('resize', onResize);
     var stop = function () { on = false; };
     handle.addEventListener('pointerup', stop);
     handle.addEventListener('pointercancel', stop);
@@ -3294,6 +3501,9 @@
   window._maintDiagramsOpen = function () {
     var tg = _target();
     if (!tg.item || !document.getElementById('maint-parts-pop')) return;
+    // v0.9.2038 (C22): pressed again while it is open → back to its list, not
+    // closed-and-rebuilt (the rebuild took the pop-up off the Back list).
+    if (document.getElementById(DG_ID)) { window._maintDiagramsList(); return; }
     window._maintDiagramsClose();
     var side = _dgSideBySide();
     var el = document.createElement('div');
@@ -3351,28 +3561,35 @@
   // v0.9.1756: the ONE save path behind the popup's typed box AND the catalog
   // lane's "+ Want it" — the duplicate check, the one appender, the refresh.
   // `retry` re-runs the caller after "Add it anyway".
+  // v0.9.2038 (A1): one save at a time — a double tap on "+ Add to Parts Wanted"
+  // or "+ Want it" wrote the part twice (the duplicate check reads the list the
+  // first write had not reached yet).
   async function _maintPopSaveWanted(fields, taskId, retry) {
-    var tg = _target();
-    // v0.9.1753 (Brad: no duplicates): already on the list for this unit → offer it, don't add it twice
-    var dup = (typeof _partsFindDup === 'function') ? _partsFindDup(fields) : null;
-    if (dup && !window._partsAddAnyway) {
-      var pc = window.PARTS_COPY || {};
-      if (taskId && (dup.taskId || '') === taskId) { if (typeof showToast === 'function') showToast(pc.dupOnJob || 'That part is already on this job.', 3500); return false; }
-      var opts = [];
-      if (taskId) opts.push({ label: pc.dupAttach || 'Attach it to this job', primary: true, run: function () { window._maintPopAttach(dup.row, taskId); } });
-      else opts.push({ label: pc.dupOpen || 'Open that one', primary: true, run: function () { var pop0 = document.getElementById('maint-parts-pop'); if (pop0) pop0.remove(); if (typeof showAddPartModal === 'function') showAddPartModal(dup.id); } });
-      opts.push({ label: pc.dupAddAnyway || 'Add it anyway', run: function () { window._partsAddAnyway = true; if (typeof retry === 'function') retry(); } });
-      _partsChooser(pc.dupTitle || 'Already on your list', _esc(dup.description || dup.partNum) + ' \u2014 ' + _esc(dup.status || 'wanted') + ((typeof _partsTaskLabel === 'function' && _partsTaskLabel(dup)) ? ', ' + _esc(_partsTaskLabel(dup)) : ''), opts);
-      return false;
-    }
-    window._partsAddAnyway = false;
-    await _partsAppendRow(fields);   // v0.9.1753: the one appender (app-pages.js)
-    if (typeof buildPartsPage === 'function') await buildPartsPage();
-    var pop = document.getElementById('maint-parts-pop'); if (pop) pop.remove();
-    _maintRenderTasks(); _wbBadge();
-    if (_wbTarget) _wbCloseCard();
-    if (typeof showToast === 'function') showToast(taskId ? '✓ Added to Parts Wanted — linked to this task' : '✓ Added to Parts Wanted for No. ' + String(tg.item && tg.item.itemNum || ''));
-    return true;
+    if (_busy.saveWanted) return false;
+    _busy.saveWanted = true;
+    try {
+      var tg = _target();
+      // v0.9.1753 (Brad: no duplicates): already on the list for this unit → offer it, don't add it twice
+      var dup = (typeof _partsFindDup === 'function') ? _partsFindDup(fields) : null;
+      if (dup && !window._partsAddAnyway) {
+        var pc = window.PARTS_COPY || {};
+        if (taskId && (dup.taskId || '') === taskId) { if (typeof showToast === 'function') showToast(pc.dupOnJob || 'That part is already on this job.', 3500); return false; }
+        var opts = [];
+        if (taskId) opts.push({ label: pc.dupAttach || 'Attach it to this job', primary: true, run: function () { window._maintPopAttach(dup.id, taskId); } });
+        else opts.push({ label: pc.dupOpen || 'Open that one', primary: true, run: function () { var pop0 = document.getElementById('maint-parts-pop'); if (pop0) pop0.remove(); if (typeof showAddPartModal === 'function') showAddPartModal(dup.id); } });
+        opts.push({ label: pc.dupAddAnyway || 'Add it anyway', run: function () { window._partsAddAnyway = true; if (typeof retry === 'function') retry(); } });
+        _partsChooser(pc.dupTitle || 'Already on your list', _esc(dup.description || dup.partNum) + ' \u2014 ' + _esc(dup.status || 'wanted') + ((typeof _partsTaskLabel === 'function' && _partsTaskLabel(dup)) ? ', ' + _esc(_partsTaskLabel(dup)) : ''), opts);
+        return false;
+      }
+      window._partsAddAnyway = false;
+      await _partsAppendRow(fields);   // v0.9.1753: the one appender (app-pages.js)
+      if (typeof buildPartsPage === 'function') await buildPartsPage();
+      var pop = document.getElementById('maint-parts-pop'); if (pop) pop.remove();
+      _maintRenderTasks(); _wbBadge();
+      if (_wbTarget) _wbCloseCard();
+      if (typeof showToast === 'function') showToast(taskId ? '✓ Added to Parts Wanted — linked to this task' : '✓ Added to Parts Wanted for No. ' + String(tg.item && tg.item.itemNum || ''));
+      return true;
+    } finally { delete _busy.saveWanted; }
   }
   // v0.9.1756: "+ Want it" on a catalog line — the catalog's own number and
   // description go on the list (nothing re-typed), the note says which
@@ -3405,18 +3622,20 @@
   var BIN_TAB = (typeof rrFeatureTab === 'function' ? rrFeatureTab : String)('Parts Bin');   // v0.9.1861: registered where it is born (config.js RR_FEATURE_TABS); String when config.js is not loaded (a test sandbox)
   async function _ensureBinTab() {
     try {
-      var meta = await (await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + '?fields=sheets.properties',
-        { headers: { Authorization: 'Bearer ' + accessToken } })).json();
+      // v0.9.2038 (A10): through _withTokenRetry — a lapsed sign-in is renewed
+      // and tried again, instead of reading as "could not reach your sheet".
+      var meta = await (await _withTokenRetry(function () { return fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + '?fields=sheets.properties',
+        { headers: { Authorization: 'Bearer ' + accessToken } }); })).json();
       // v0.9.1675: a FAILED read (expired token → {error}, no sheets) is
       // not "the tab is missing". Bail; never try to create on a guess —
       // the header write that followed used to land in the offline outbox
       // as a phantom "1 change has not saved".
       if (!meta || !Array.isArray(meta.sheets)) return false;
       if (meta.sheets.some(function (sh) { return sh.properties && sh.properties.title === BIN_TAB; })) return true;
-      await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + ':batchUpdate', {
+      await _withTokenRetry(function () { return fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + ':batchUpdate', {
         method: 'POST', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
         body: JSON.stringify({ requests: [{ addSheet: { properties: { title: BIN_TAB, tabColor: { red: 0.55, green: 0.35, blue: 0.15 } } } }] })
-      });
+      }); });
       await sheetsUpdate(state.personalSheetId, BIN_TAB + '!A1:M1',
         [['Bin ID', 'Part Number', 'Description', 'Quantity', 'Where Acquired', 'Date Acquired', 'Price Paid', 'Photo Link', 'Topics', 'For Sale', 'Asking Price', 'Notes', 'Date Added']]);
       return true;
@@ -3424,14 +3643,16 @@
   }
   async function _loadBin() {
     try {
-      if (!(await _ensureBinTab())) return;
-      var res = await sheetsGet(state.personalSheetId, BIN_TAB + '!A2:M').catch(function () { return { values: [] }; });
+      if (!(await _ensureBinTab())) { _readFailed.bin = true; return false; }
+      var res = await sheetsGet(state.personalSheetId, BIN_TAB + '!A2:M');
       state.partsBin = (res.values || []).map(function (r, i) {
         var g = function (j) { return (r[j] != null) ? String(r[j]) : ''; };
         return { row: i + 2, id: g(0), partNum: g(1), desc: g(2), qty: parseInt(g(3), 10) || 0, where: g(4), dateAcq: _isoDate(g(5)),
                  price: g(6), photo: g(7), topics: g(8), forSale: /^(yes|true|1)$/i.test(g(9)), asking: g(10), notes: g(11), date: _isoDate(g(12)) };
       }).filter(function (b) { return b.id; });
-    } catch (e) { state.partsBin = state.partsBin || []; }
+      _readFailed.bin = false;
+      return true;
+    } catch (e) { console.warn('[Bin] read failed', e && e.message); _readFailed.bin = true; return false; }   // v0.9.2038 (A10): keep what was loaded
   }
   function _binSearch(text) {
     var q = String(text || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(function (w) { return w.length >= 2; });
@@ -3483,7 +3704,8 @@
           if (up && up.id) photo = 'https://drive.google.com/file/d/' + up.id + '/view';
         }
         var sale = document.getElementById('binf-sale'); var forSale = sale && sale.checked ? 'Yes' : '';
-        var row = [_t(existing.id || ('bin-' + Date.now())), _t(num), desc, String(qty), g('binf-where'), _t(g('binf-date')), g('binf-price'), photo, g('binf-topics'), forSale, g('binf-asking'), g('binf-notes'), _t(existing.date || new Date().toISOString().split('T')[0])];
+        // v0.9.2038 (A5): the typed words (description, where, topics, notes) go up as text; prices stay numbers
+        var row = [_t(existing.id || ('bin-' + Date.now())), _t(num), rrSheetText(desc), String(qty), rrSheetText(g('binf-where')), _t(g('binf-date')), g('binf-price'), photo, rrSheetText(g('binf-topics')), forSale, g('binf-asking'), rrSheetText(g('binf-notes')), _t(existing.date || new Date().toISOString().split('T')[0])];
         if (existing.id) {
           if (!(await rrVerifiedRowUpdate(state.personalSheetId, BIN_TAB, existing.row, BIN_TAB + '!A' + existing.row + ':M' + existing.row, [row], { num: existing.id }, 'Parts Bin'))) { btn.disabled = false; btn.textContent = 'Save changes'; return; }
         } else {
@@ -3504,14 +3726,16 @@
     var b = (state.partsBin || []).find(function (x) { return x.id === id; });
     if (b) window._maintBinForm(b);
   };
-  window._maintBinQty = async function (id, delta) {
-    var b = (state.partsBin || []).find(function (x) { return x.id === id; });
-    if (!b) return;
-    var q = Math.max(0, (b.qty || 0) + delta);
-    try {
-      if (!(await rrVerifiedRowUpdate(state.personalSheetId, BIN_TAB, b.row, BIN_TAB + '!D' + b.row, [[String(q)]], { num: b.id }, 'Parts Bin'))) return;
-      b.qty = q; _binBuild();
-    } catch (e) { if (typeof showToast === 'function') showToast('Could not update the quantity', 3500, true); }
+  window._maintBinQty = function (id, delta) {
+    return _once('bin:' + id, async function () {   // v0.9.2038 (A1): one change to this bin part at a time
+      var b = (state.partsBin || []).find(function (x) { return x.id === id; });
+      if (!b) return;
+      var q = Math.max(0, (b.qty || 0) + delta);
+      try {
+        if (!(await rrVerifiedRowUpdate(state.personalSheetId, BIN_TAB, b.row, BIN_TAB + '!D' + b.row, [[String(q)]], { num: b.id }, 'Parts Bin'))) return;
+        b.qty = q; _binBuild();
+      } catch (e) { if (typeof showToast === 'function') showToast('Could not update the quantity', 3500, true); }
+    });
   };
   window._maintBinRemove = async function (id) {
     var b = (state.partsBin || []).find(function (x) { return x.id === id; });
@@ -3557,7 +3781,7 @@
     var host = _fsPartsHost();
     if (!host) return;
     if (!_isOwner()) { host.innerHTML = ''; return; }
-    if (!state.partsBin) { _loadBin().then(function () { window._maintRenderFsParts(); }); return; }
+    if (!state.partsBin) { _loadBin().then(function (ok) { if (ok) window._maintRenderFsParts(); }); return; }   // v0.9.2038: a failed read stops here (it used to ask again forever)
     var list = _fsPartsList();
     if (!list.length) { host.innerHTML = ''; return; }
     var cur = (typeof _currencySymbol === 'function') ? _currencySymbol() : '$';
@@ -3645,32 +3869,53 @@
     } finally { _fsPartBusy = false; }
   };
 
-  // use one from the bin on a task: decrement + a BOUGHT Parts Needed row linked to the task
-  window._maintBinUse = async function (binId, taskId) {
+  // use one from the bin on a task: a BOUGHT Parts Needed row linked to the task, then one fewer in the bin.
+  // v0.9.2038 (Workbench check 2026-10-28, A3): the part is RECORDED FIRST and
+  // the bin counts down only after that landed — the For Sale "Sold" way round.
+  // It used to take one out of the bin first: a failed record then left the bin
+  // one short with the part on no list at all. If the count-down is the step
+  // that fails, the part is still recorded and the toast says to check the bin.
+  // (A1: one change per bin part at a time — key 'bin:' + its id.)
+  window._maintBinUse = function (binId, taskId) {
+    return _once('bin:' + binId, function () { return _maintBinUseRun(binId, taskId); });
+  };
+  async function _binCountDown(b) {
+    var q = Math.max(0, b.qty - 1);
+    try {
+      if (!(await rrVerifiedRowUpdate(state.personalSheetId, BIN_TAB, b.row, BIN_TAB + '!D' + b.row, [[String(q)]], { num: b.id }, 'Parts Bin'))) return false;
+      b.qty = q;
+      return true;
+    } catch (e) { console.warn('[Bin] count-down failed', e && e.message); return false; }
+  }
+  var BIN_COUNT_MISSED = 'The part is recorded, but your Parts Bin still counts it \u2014 take one off there with \u2212.';
+  async function _maintBinUseRun(binId, taskId) {
     var b = (state.partsBin || []).find(function (x) { return x.id === binId; });
     var tg = _target();
     if (!b || !tg.item) return;
+    if (!(b.qty > 0)) { if (typeof showToast === 'function') showToast('None of those left in your bin.', 3000, true); return; }
     try {
-      if (!(await rrVerifiedRowUpdate(state.personalSheetId, BIN_TAB, b.row, BIN_TAB + '!D' + b.row, [[String(Math.max(0, b.qty - 1))]], { num: b.id }, 'Parts Bin'))) return;
-      b.qty = Math.max(0, b.qty - 1);
       var today = new Date().toISOString().split('T')[0];
       var fields = { description: b.desc, partNum: b.partNum, forItem: String(tg.item.itemNum || ''), forInv: tg.invId || '', photo: b.photo || '',
                      notes: 'from Parts Bin' + (b.where ? ' (' + b.where + ')' : ''), dateAdded: today, status: 'bought', dateBought: b.dateAcq || today, price: b.price || '', taskId: taskId || '' };
       // v0.9.1753 (Brad: no duplicates): a WANTED row for this same part and unit is fulfilled from the bin — it turns bought, no second row
       var dup = (typeof _partsFindDup === 'function') ? _partsFindDup(fields) : null;
       if (dup && (dup.status || 'wanted') === 'wanted' && typeof markPartBought === 'function') {
-        await markPartBought(dup.row);
-        if (taskId && (dup.taskId || '') !== taskId) await _maintPartSetTask(dup.row, taskId);
+        if (!(await markPartBought(dup.id))) return;   // not recorded → the bin is not touched (the user has been told)
+        if (taskId && (dup.taskId || '') !== taskId) await _maintPartSetTask(dup.id, taskId);
       } else {
-        await _partsAppendRow(fields);   // the one appender (app-pages.js)
+        await _partsAppendRow(fields);   // the one appender (app-pages.js); a throw lands in the catch — the bin is not touched
       }
+      var counted = await _binCountDown(b);
       if (typeof buildPartsPage === 'function') await buildPartsPage();
       var pop = document.getElementById('maint-parts-pop'); if (pop) pop.remove();
       _maintRenderTasks(); _wbBadge();
       if (_wbTarget) _wbCloseCard();
-      if (typeof showToast === 'function') showToast(taskId ? '✓ Pulled one from the bin — it’s on the task, ready to install' : '✓ Pulled one from the bin — it’s spoken for this item, ready to install');
+      if (typeof showToast === 'function') {
+        if (!counted) showToast(BIN_COUNT_MISSED, 6000, true);
+        else showToast(taskId ? '✓ Pulled one from the bin — it’s on the task, ready to install' : '✓ Pulled one from the bin — it’s spoken for this item, ready to install');
+      }
     } catch (e) { if (typeof showToast === 'function') showToast(rrSaveError(e, 'the bin part'), 4000, true); }
-  };
+  }
   window._maintBinCheck = function (taskId) {
     var el = document.getElementById('maint-pop-bin'); if (!el) return;
     var q = (document.getElementById('maint-pop-part') || {}).value || '';
@@ -3689,7 +3934,12 @@
           + '</div>';
       }).join('');
     };
-    if (state.partsBin) render(); else _loadBin().then(render);
+    if (state.partsBin) render();
+    else _loadBin().then(function () {
+      if (state.partsBin) { render(); return; }
+      var el3 = document.getElementById('maint-pop-bin');   // v0.9.2038 (A10): could not read ≠ "Your Parts Bin is empty"
+      if (el3) el3.innerHTML = _readFailHtml('Parts Bin', '_maintBinCheck(\'' + rrJsArg(taskId || '') + '\')');
+    });
     _maintCatalogLaneRender(taskId);   // v0.9.1756: the catalog lane narrows with the same typing
   };
 
@@ -3784,25 +4034,31 @@
   window._binFits = _binFits;
   window._binItemFromPartNum = _binItemFromPartNum;
 
-  // "Use it for 84631": one comes out of the bin, the want becomes bought
-  // (the same I:J stamp the Parts page writes), so it shows up under
-  // "spoken for" on this very page.
-  window._maintBinUseFor = async function (binId, partRow) {
+  // "Use it for 84631": the want becomes bought (the same I:J stamp the Parts
+  // page writes), then one comes out of the bin, so it shows up under "spoken
+  // for" on this very page. v0.9.2038: the want is named by its id (A4), it is
+  // recorded BEFORE the bin counts down (A3), one at a time per bin part (A1).
+  window._maintBinUseFor = function (binId, partId) {
+    return _once('bin:' + binId, function () { return _maintBinUseForRun(binId, partId); });
+  };
+  async function _maintBinUseForRun(binId, partId) {
     var b = (state.partsBin || []).find(function (x) { return x.id === binId; });
-    var p = Object.values(state.partsData || {}).find(function (x) { return x.row === partRow; });
+    var p = (typeof _partsFind === 'function') ? _partsFind(partId) : null;
     if (!b || !p || b.qty <= 0) return;
     try {
-      if (!(await rrVerifiedRowUpdate(state.personalSheetId, BIN_TAB, b.row, BIN_TAB + '!D' + b.row, [[String(Math.max(0, b.qty - 1))]], { num: b.id }, 'Parts Bin'))) return;
-      b.qty = Math.max(0, b.qty - 1);
-      if (typeof markPartBought === 'function') await markPartBought(partRow);
-      if (b.qty === 0 && typeof rrRemoveRowConfirmed === 'function') {
+      if (typeof markPartBought !== 'function' || !(await markPartBought(p.id))) return;   // not recorded → the bin is not touched
+      var counted = await _binCountDown(b);
+      if (counted && b.qty === 0 && typeof rrRemoveRowConfirmed === 'function') {
         var gone = await rrRemoveRowConfirmed(state.personalSheetId, BIN_TAB, b.row, BIN_TAB + '!A' + b.row + ':M' + b.row, [['', '', '', '', '', '', '', '', '', '', '', '', '']], { num: b.id }, 'Parts Bin');
         if (gone) await _loadBin();
       }
       _binBuild();
-      if (typeof showToast === 'function') showToast('✓ Spoken for — it’s on ' + (p.forItem || 'the item') + ' now, ready to install');
+      if (typeof showToast === 'function') {
+        if (!counted) showToast(BIN_COUNT_MISSED, 6000, true);
+        else showToast('✓ Spoken for — it’s on ' + (p.forItem || 'the item') + ' now, ready to install');
+      }
     } catch (e) { if (typeof showToast === 'function') showToast(rrSaveError(e, 'the bin part'), 4000, true); }
-  };
+  }
 
   function _binFitsHtml(b) {
     var fits = _binFits(b);
@@ -3810,7 +4066,7 @@
     return '<div style="font-size:0.78rem;margin-top:0.3rem;display:flex;flex-direction:column;gap:0.2rem">' + fits.map(function (f) {
       if (f.kind === 'want') {
         var lab = 'You need one for <b>' + _esc(f.item || '?') + '</b>' + (f.part.description ? ' (' + _esc(f.part.description) + ')' : '') + ' <span style="color:var(--text-dim)">— ' + f.how + '</span>';
-        return '<div style="color:var(--text)">✓ ' + lab + (b.qty > 0 ? ' <button onclick="_maintBinUseFor(\'' + rrJsArg(b.id) + '\',' + f.part.row + ')" ' + _btn('green', 'sm') + '>Use it for ' + _esc(f.item || 'this') + '</button>' : '') + '</div>';
+        return '<div style="color:var(--text)">✓ ' + lab + (b.qty > 0 ? ' <button onclick="_maintBinUseFor(\'' + rrJsArg(b.id) + '\',\'' + rrJsArg(f.part.id) + '\')" ' + _btn('green', 'sm') + '>Use it for ' + _esc(f.item || 'this') + '</button>' : '') + '</div>';
       }
       if (f.kind === 'number') {
         var open = f.inv ? '<a href="#" onclick="event.preventDefault();_openOwnedByInvId(\'' + rrJsArg(f.inv) + '\')" style="color:var(--accent3);text-decoration:none">' + _esc(f.label) + '</a>' : '<span style="color:var(--text)">' + _esc(f.label) + '</span>';
@@ -3845,7 +4101,7 @@
       + '</div>'
       + '<div style="display:flex;gap:0.35rem;align-items:center;flex-wrap:wrap">'
       +   '<span style="padding:0.2rem 0.55rem;border-radius:99px;font-size:0.68rem;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;background:var(--bg-card);background:color-mix(in srgb, var(--forsale) 18%, var(--bg-card));color:var(--forsale)">spoken for</span>'
-      +   (pd ? '<button onclick="markPartInstalled(' + p.row + ')" ' + _btn('green', 'sm') + '>✓ Installed</button>' : '')
+      +   (pd ? '<button onclick="markPartInstalled(\'' + rrJsArg(p.id) + '\')" ' + _btn('green', 'sm') + '>✓ Installed</button>' : '')
       +   '<button onclick="showPage(\'parts\',document.querySelector(\'.nav-item[onclick*=buildPartsPage]\'));if(typeof buildPartsPage===\'function\')buildPartsPage()" ' + _btnQuiet('sm') + '>Open in Parts Needed</button>'
       + '</div></div>';
   }
@@ -3853,6 +4109,7 @@
   function _binBuild() {
     var pg = document.getElementById('wb-bin');   // v0.9.1753 (Brad): the bin lives on the Workbench, fourth tab
     if (!pg) return;
+    if (!state.partsBin && _readFailed.bin) { pg.innerHTML = _readFailHtml('Parts Bin', '_wbTab(\'bin\')'); return; }   // v0.9.2038 (A10)
     var bin = (state.partsBin || []).slice().sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); });
     var spoken = _binSpokenFor();
     var head = '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.3rem"><span style="font-family:var(--font-head);font-size:1rem;font-weight:700;color:var(--text)">Parts Bin</span>'
@@ -3966,7 +4223,9 @@
     var box = document.getElementById('wb-toolbox');
     if (!box) return;
     if (!state.myManuals) {
-      box.innerHTML = '<div style="text-align:center;padding:2rem 1rem;color:var(--text-dim)"><div class="spinner" style="margin:0 auto 0.5rem;width:20px;height:20px;border-width:2px"></div>Loading your Toolbox…</div>';
+      box.innerHTML = _readFailed.docs
+        ? '<div style="text-align:center;padding:2rem 1rem">' + _readFailHtml('Toolbox', '_maintDocsRetry()') + '</div>'
+        : '<div style="text-align:center;padding:2rem 1rem;color:var(--text-dim)"><div class="spinner" style="margin:0 auto 0.5rem;width:20px;height:20px;border-width:2px"></div>Loading your Toolbox…</div>';
       return;
     }
     var st = _tbState;
@@ -4025,7 +4284,7 @@
             +   (d.date ? ' <span style="font-size:0.72rem;color:var(--text-dim)">' + _esc(d.date) + '</span>' : '')
             +   '<div>'
             +     (covers.length ? '<span style="font-size:0.72rem;color:var(--text-dim)">covers</span> ' + covers.slice(0, 12).map(function (c) { return '<span style="' + chip + '">' + _esc(c) + '</span>'; }).join('') + (covers.length > 12 ? '<span style="' + chip + '">+' + (covers.length - 12) + '</span>' : '') : '<span style="font-size:0.72rem;color:var(--text-dim)">general — fits everything</span>')
-            +     (tps.length ? ' ' + tps.map(function (t) { return '<span onclick="_tbTopic(\'' + rrJsArg(t.replace(/\\/g, '\\\\').replace(/'/g, "\\'")) + '\')" title="Show everything about ' + _esc(t) + '" style="' + topicChip + '">' + _esc(t) + '</span>'; }).join('') : '')
+            +     (tps.length ? ' ' + tps.map(function (t) { return '<span onclick="_tbTopic(\'' + rrJsArg(t) + '\')" title="Show everything about ' + _esc(t) + '" style="' + topicChip + '">' + _esc(t) + '</span>'; }).join('') : '')
             +   '</div>'
             +   (d.notes ? '<div style="font-size:0.78rem;color:var(--text-mid);margin-top:0.2rem">' + _esc(d.notes).slice(0, 160) + (d.notes.length > 160 ? '…' : '') + '</div>' : '')
             + '</div>'
@@ -4067,7 +4326,7 @@
       var btn = this; btn.disabled = true; btn.textContent = 'Saving…';
       try {
         // B..G: Title, Type, URL, Covers, Topics, Notes — column A (Doc ID) is the identity the writer verifies
-        var ok = await rrVerifiedRowUpdate(state.personalSheetId, DOCS_TAB, d.row, DOCS_TAB + '!B' + d.row + ':G' + d.row, [[title, type, url, covers, topics, notes]], { num: d.id }, 'My Manuals');
+        var ok = await rrVerifiedRowUpdate(state.personalSheetId, DOCS_TAB, d.row, DOCS_TAB + '!B' + d.row + ':G' + d.row, [[rrSheetText(title), type, url, rrSheetText(covers), rrSheetText(topics), rrSheetText(notes)]], { num: d.id }, 'My Manuals');   // v0.9.2038 (A5)
         if (!ok) { btn.disabled = false; btn.textContent = 'Save'; return; }
         var f = document.getElementById('tb-edit'); if (f) f.remove();
         await _loadMyDocs();
@@ -4151,6 +4410,10 @@
   function _wbBuild() {
     var pg = document.getElementById('page-workbench');
     if (!pg) return;
+    if (!_isOwner()) {   // v0.9.2038 (C27): never draw the bench past the gate
+      pg.innerHTML = '<div class="page-title">The Workbench</div><div style="color:var(--text-dim);padding:1rem 0">The Workbench is switched off on this device.</div>';
+      return;
+    }
     // v0.9.1672 (Brad): "just a row for the item, what the maintenance is,
     // and if a part is needed — no buttons; those live on the card you get
     // when you click the row."
@@ -4344,6 +4607,27 @@
       var k = Object.keys(state.personalData).find(function (kk) { var p = state.personalData[kk]; return p && String(p.inventoryId || '') === String(invId); });
       pd = k ? state.personalData[k] : null;
     }
+    // v0.9.2038 (Workbench check 2026-10-28, B19): a row written before
+    // inventory IDs (a task or a part with only an item number) used to open
+    // the card by NUMBER alone — and numbers repeat across makers, so a Lionel
+    // 54's task could open on the Marx 54. The owned copies with that number
+    // decide: one → that copy; several → ask which one; none → the number.
+    if (!invId && !pd && itemNum && state.personalData) {
+      var _n = String(itemNum).trim();
+      var _cands = Object.values(state.personalData).filter(function (p) { return p && p.owned !== false && String(p.itemNum || '').trim() === _n && p.inventoryId; });
+      if (_cands.length === 1) pd = _cands[0];
+      else if (_cands.length > 1 && typeof _partsChooser === 'function') {
+        _partsChooser('Which ' + _esc(_n) + ' is this for?', 'This entry was saved before each copy had its own ID.',
+          _cands.map(function (c) {
+            var _m = (typeof findMaster === 'function') ? findMaster(c.itemNum, c.variation, c) : null;
+            var _e = null; try { _e = (typeof _itemEraKey === 'function') ? _itemEraKey(c) : null; } catch (eK) {}
+            var _lbl = (typeof ERAS !== 'undefined' && _e && ERAS[_e]) ? ERAS[_e].label : '';
+            return { label: _esc('No. ' + c.itemNum + (_m && _m.roadName ? ' — ' + _m.roadName : '') + (c.variation ? ' (var. ' + c.variation + ')' : '') + (_lbl ? ' · ' + _lbl : '')),
+                     run: function () { window._wbOpen(String(c.inventoryId), c.itemNum, focusTaskId); } };
+          }));
+        return;
+      }
+    }
     var num = String((pd && pd.itemNum) || itemNum || '');
     var variation = pd ? String(pd.variation || '') : '';
     window._maintOpenPanel(-1, num, variation, invId || (pd && pd.inventoryId) || '');
@@ -4427,7 +4711,7 @@
           + (history.length > 1 ? ' ' + dim('+' + (history.length - 1) + ' more') : ''));
       }
       var docs = state.myManuals ? _docCovers({ itemNum: num }) : null;
-      body += line((docs === null ? dim('loading manuals…')
+      body += line((docs === null ? (_readFailed.docs ? dim('saved manuals could not be read \u2014 check the connection') : dim('loading manuals…'))
         : docs.length ? '<b>' + docs.length + '</b> saved ' + (docs.length === 1 ? 'manual / doc' : 'manuals / docs') + ' for ' + _esc(num)
         : dim('No manuals saved for ' + _esc(num) + ' yet')));
       if (!tasks.length && !history.length && docs !== null && !docs.length && body.indexOf('Waiting on') < 0 && body.indexOf('Parts on hand') < 0) {
@@ -4462,6 +4746,11 @@
   // v0.9.1847: the Workbench's builder on THE ONE LIST (config.js) — so the
   // menu, Back and the after-update return all fill it in, not just the button.
   window.rrRegisterPage('workbench', function () {
+    // v0.9.2038 (Workbench check 2026-10-28, C27): the page asks the gate
+    // every time it is shown. Switched off (Vault features tab) or recording
+    // mode on, the menu button goes — but Back and the page trail still led
+    // here and drew the whole bench. Now it says so and goes to the Dashboard.
+    if (!_isOwner()) { _wbBuild(); setTimeout(function () { if (typeof showPage === 'function') showPage('dashboard', null); }, 0); return; }
     _loadLog().then(function(){ _wbBuild(); _wbBadge(); });
     if (!state.myManuals) _loadMyDocs().then(_wbBuild);
     _wbBuild();
@@ -4491,7 +4780,16 @@
       else homeSection.appendChild(btn);
     }
     // v0.9.1753: the Parts Bin is the Workbench's fourth tab — no separate page or menu entry.
-    _loadLog().then(_wbBadge);
+    // v0.9.2038: the badge's read WAITS for a good pass instead of asking for
+    // one. _ensureLogTab now goes through _withTokenRetry, which renews a lapsed
+    // pass — and at start-up, with yesterday's pass still saved, that opened a
+    // SECOND Google window over the app's own renewal (quiet_renewal_boot_tests
+    // B1/B4). A badge count is not worth a sign-in window; it fills in once the
+    // app has its pass, the way every other start-up read does.
+    (function _wbBadgeWhenSignedIn(n) {
+      if (typeof rrPassLapsed === 'function' && rrPassLapsed()) { if (n < 240) setTimeout(function () { _wbBadgeWhenSignedIn(n + 1); }, 1000); return; }
+      _loadLog().then(_wbBadge);
+    })(0);
     return true;
   }
 

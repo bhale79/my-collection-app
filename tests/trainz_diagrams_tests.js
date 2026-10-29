@@ -103,11 +103,13 @@ function grab(src, name) {
   for (let k = src.indexOf('{', i); k < src.length; k++) { if (src[k] === '{') d++; else if (src[k] === '}') { d--; if (!d) return src.slice(i, k + 1); } }
   throw new Error('unbalanced ' + name);
 }
-const tz = new Function('window', 'var _tzLookup = null;\n' + grab(maint, '_tzDiagram') + '\nreturn _tzDiagram;')({ TRAINZ_DIAGRAMS: cfg });
-const hit = n => { const e = tz({ itemNum: n }); return e ? e.h : null; };
+// v0.9.2038: the matcher asks the item's ERA too (maker + era + number, never the
+// number alone) — tests/maint_safety_2038_tests.js section B holds the cross-maker cases.
+const tz = new Function('window', 'var _tzLookup = null;\n' + grab(maint, '_tzFamily') + '\n' + grab(maint, '_tzItemFamily') + '\n' + grab(maint, '_tzDiagram') + '\nreturn _tzDiagram;')({ TRAINZ_DIAGRAMS: cfg });
+const hit = (n, era) => { const e = tz({ itemNum: n }, era || 'pw'); return e ? e.h : null; };
 ok('2338 → the GP-7 page', hit('2338') === e2338.h);
 ok('2343C → 2343\'s page (the suffix falls away)', hit('2343C') && /2343/.test(hit('2343C')));
-ok('18860 and 6-18860 reach the same page', hit('18860') && hit('18860') === hit('6-18860'));
+ok('18860 and 6-18860 reach the same page (modern)', hit('18860', 'mpc') && hit('18860', 'mpc') === hit('6-18860', 'mpc'));
 ok('ZW → the transformer page', hit('ZW') && /zw/.test(hit('ZW')), hit('ZW'));
 ok('a number no title holds → nothing', hit('99999999') === null);
 

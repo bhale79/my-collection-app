@@ -170,6 +170,21 @@ function _rrOfflineNow() {
 }
 if (typeof window !== 'undefined') window._rrOfflineNow = _rrOfflineNow;
 
+// v0.9.2038 (Workbench check 2026-10-28, A5): ONE way to write what a person
+// TYPED into a cell. Every value write here is USER_ENTERED, so Sheets reads
+// a typed "-replaced brushes" or "+2 shims" or "=see notes" as a FORMULA and
+// the cell comes back "#ERROR!" — the words are gone. A leading apostrophe
+// makes Sheets store exactly the text typed; it is hidden in the sheet and
+// stripped on every read, so the app sees the words, not the apostrophe.
+// Always added (even when the text starts with an apostrophe of its own, so
+// "'Tis" keeps it). Free text only — ids and dates keep their own guard, and
+// prices stay numbers so a sheet can still add them up.
+function rrSheetText(v) {
+  v = (v == null) ? '' : String(v);
+  return v ? "'" + v : v;
+}
+if (typeof window !== 'undefined') window.rrSheetText = rrSheetText;
+
 function _rrWriteFailed(kind, args, err) {
   try { if (typeof rrOutboxRecord === 'function') rrOutboxRecord(kind, args, err); } catch (e) {}
   return err;

@@ -4747,20 +4747,25 @@ if (typeof rrFeatureTab === 'function') rrFeatureTab('Parts Needed');
 async function _ensurePartsTab() {
   if (!state.personalSheetId || typeof accessToken === 'undefined' || !accessToken) return false;
   try {
-    var meta = await (await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + '?fields=sheets.properties',
-      { headers: { Authorization: 'Bearer ' + accessToken } })).json();
+    // v0.9.2038 (A10): both calls go through _withTokenRetry — a lapsed sign-in
+    // is renewed and tried again instead of reading as "could not reach".
+    var meta = await (await _withTokenRetry(function () { return fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + '?fields=sheets.properties',
+      { headers: { Authorization: 'Bearer ' + accessToken } }); })).json();
     // v0.9.1675: a failed metadata read (expired token → {error}) is not a
     // missing tab — bail rather than create-on-a-guess and queue a phantom
     // header write in the outbox.
     if (!meta || !Array.isArray(meta.sheets)) return false;
     var exists = meta.sheets.some(function (s) { return s.properties && s.properties.title === 'Parts Needed'; });
     if (exists) return true;
-    await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + ':batchUpdate', {
+    await _withTokenRetry(function () { return fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + ':batchUpdate', {
       method: 'POST', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
       body: JSON.stringify({ requests: [{ addSheet: { properties: { title: 'Parts Needed', tabColor: { red: 0.62, green: 0.42, blue: 0.20 } } } }] })
-    });
+    }); });
     await sheetsUpdate(state.personalSheetId, 'Parts Needed!A1', [['🔧 Parts Needed']]);
-    await sheetsUpdate(state.personalSheetId, 'Parts Needed!A2:L2',
+    // v0.9.2038: A2:M2 — thirteen headings need thirteen columns. The range said
+    // A2:L2 (twelve) and Google refuses a write wider than its range, so a new
+    // sheet's Parts Needed tab was made with no heading row at all.
+    await sheetsUpdate(state.personalSheetId, 'Parts Needed!A2:M2',
       [['Part ID', 'Description', 'Part Number', 'For Item', 'For Inventory ID', 'Photo Link', 'Notes', 'Date Added', 'Status', 'Date Bought', 'Date Installed', 'Price Paid', 'Task ID']]);
     return true;
   } catch (e) { console.warn('[Parts] ensure tab failed', e && e.message); return false; }
@@ -4834,11 +4839,13 @@ function _partsOwnedRow(inv) {
 }
 // The row in tab order A–M. Identifier-ish cells get the apostrophe guard so
 // Sheets never turns a part number, an id or a date into something else.
+// v0.9.2038 (A5): the description and notes are what a person typed — written
+// through rrSheetText (sheets.js) so "-" "+" "=" at the front stay words.
 function _partsRowBuild(f) {
   f = f || {};
   var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
-  return [_t(f.id || ('part-' + Date.now())), String(f.description || ''), _t(f.partNum), _t(f.forItem), _t(f.forInv),
-          String(f.photo || ''), String(f.notes || ''), _t(f.dateAdded || new Date().toISOString().split('T')[0]),
+  return [_t(f.id || ('part-' + Date.now())), rrSheetText(f.description || ''), _t(f.partNum), _t(f.forItem), _t(f.forInv),
+          String(f.photo || ''), rrSheetText(f.notes || ''), _t(f.dateAdded || new Date().toISOString().split('T')[0]),
           String(f.status || 'wanted'), _t(f.dateBought), _t(f.dateInstalled), String(f.price || ''), _t(f.taskId)];
 }
 // THE appender — the only sheetsAppend for the Parts Needed tab in the app.
@@ -4880,6 +4887,25 @@ function _partsSplitTyped(text) {
   if (at < 0) return { partNum: '', description: t };
   var rest = toks.slice(0, at).concat(toks.slice(at + 1)).join(' ').trim();
   return { partNum: clean(toks[at]), description: rest };
+}
+// v0.9.2038 (Workbench check 2026-10-28, A4): THE way a button names a part —
+// by its own Part ID (column A), never by its sheet row. A row is a position:
+// a background reload with rows that moved left every button holding a row
+// number pointing at whatever part now sat there, and the row guard then
+// compared against THAT part's id and let the write through. A button carries
+// the id; the row is looked up at the moment of the write. Null when the part
+// is no longer on the list (removed on another device).
+// v0.9.2038 (Workbench check 2026-10-28, C26): ONE answer to "is this part
+// still needed?" — an INSTALLED part is history, not a want. The nav badge,
+// the dashboard's Parts Wanted card, the Want/Upgrade report and the Parts
+// page each counted every row, installed ones too, and with recording mode on
+// the Parts page listed installed history as parts still needed.
+function _partsIsOpen(p) { return !!p && (p.status || 'wanted') !== 'installed'; }
+function _partsOpenList() { return Object.values(state.partsData || {}).filter(_partsIsOpen); }
+function _partsFind(partId) {
+  if (partId == null || partId === '') return null;
+  var id = String(partId);
+  return Object.values(state.partsData || {}).find(function (p) { return p && p.id === id; }) || null;
 }
 // "Is this part already on the list for this unit?" — same unit (inventory
 // id when there is one, else item number with no inventory id), same part
@@ -4932,7 +4958,8 @@ function _partsChooser(title, sub, options) {
 function _partsOpenCard(inv, num, taskId) { if (typeof window._wbOpen === 'function') window._wbOpen(inv, num, taskId || ''); }
 if (typeof window !== 'undefined') {
   window.PARTS_COPY = PARTS_COPY; window._partsEsc = _partsEsc; window._partsNorm = _partsNorm; window._partsOwnedRow = _partsOwnedRow;
-  window._partsRowBuild = _partsRowBuild; window._partsAppendRow = _partsAppendRow; window._partsFindDup = _partsFindDup;
+  window._partsRowBuild = _partsRowBuild; window._partsAppendRow = _partsAppendRow; window._partsFindDup = _partsFindDup; window._partsFind = _partsFind;
+  window._partsIsOpen = _partsIsOpen; window._partsOpenList = _partsOpenList;
   window._partsSplitTyped = _partsSplitTyped; window._partsLooksLikeNum = _partsLooksLikeNum;
   window._partsTaskLabel = _partsTaskLabel; window._partsChooser = _partsChooser; window._partsOpenCard = _partsOpenCard;
 }
@@ -4947,12 +4974,23 @@ async function buildPartsPage() {
   // (Adding a part still creates the tab when it is needed: _partsAppendRow.)
   if (window._offlineMode || (typeof rrGuideOnScreen === 'function' && rrGuideOnScreen())) { _renderPartsList(); return; }
   listEl.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--text-dim)">Loading parts…</div>';
+  // v0.9.2038 (A10): a FAILED read is not an empty list. It used to become
+  // { values: [] } and replace the parts in memory with nothing — the page said
+  // "No parts on your list yet", the badge read —, and every Workbench card lost
+  // its parts until the next good read. Now the parts already in hand stay and
+  // the page says the refresh did not happen.
+  var _readFailed = false;
   try {
     await _ensurePartsTab();
-    var res = await sheetsGet(state.personalSheetId, 'Parts Needed!A3:M').catch(function () { return { values: [] }; });
+    var res = await sheetsGet(state.personalSheetId, 'Parts Needed!A3:M');
     state.partsData = _parsePartsRows(res.values);
-  } catch (e) { state.partsData = state.partsData || {}; }
+  } catch (e) {
+    _readFailed = true;
+    console.warn('[Parts] read failed — keeping the list already loaded:', e && e.message);
+    state.partsData = state.partsData || {};
+  }
   _renderPartsList();
+  if (_readFailed && typeof showToast === 'function') showToast('Could not refresh your Parts list from your sheet \u2014 showing what was loaded before. Check the connection and try again.', 4500, true);
 }
 if (typeof window !== 'undefined') window.buildPartsPage = buildPartsPage;
 
@@ -4962,7 +5000,7 @@ if (typeof window !== 'undefined') window.buildPartsPage = buildPartsPage;
 function _updatePartsBadge() {
   var badge = document.getElementById('nav-parts');
   if (!badge) return;
-  var n = Object.keys(state.partsData || {}).length;
+  var n = _partsOpenList().length;   // v0.9.2038 (C26): installed parts are not needed
   badge.textContent = n || '\u2014';
 }
 if (typeof window !== 'undefined') window._updatePartsBadge = _updatePartsBadge;
@@ -4975,9 +5013,9 @@ function _renderPartsList() {
   // v0.9.1647 (phase 2, owner preview): lifecycle view — open parts
   // (wanted/bought) by default, a toggle reveals installed history.
   var _lc = (typeof _maintIsOwner === 'function' && _maintIsOwner());
-  if (_lc && !window._partsShowInstalled) {
-    parts = parts.filter(function (p) { return (p.status || 'wanted') !== 'installed'; });
-  }
+  // v0.9.2038 (C26): installed history is hidden for EVERYONE unless the owner
+  // asks for it — recording mode (_lc false) used to show it as still needed.
+  if (!(_lc && window._partsShowInstalled)) parts = parts.filter(_partsIsOpen);
   var cnt = document.getElementById('parts-count');
   if (cnt) cnt.textContent = parts.length ? (' ' + parts.length + ' part' + (parts.length !== 1 ? 's' : '')) : '';
   var _instCount = _lc ? Object.values(state.partsData || {}).filter(function (p) { return (p.status || 'wanted') === 'installed'; }).length : 0;
@@ -4988,9 +5026,11 @@ function _renderPartsList() {
   if (!parts.length) {
     listEl.innerHTML = '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)">'
       + '<div style="font-size:2.5rem;margin-bottom:0.5rem">🔧</div>'
-      + '<p>No parts on your list yet</p>'
+      + '<p>' + ((_lc && _instCount) ? 'Nothing still needed \u2014 every part on your list is installed' : 'No parts on your list yet') + '</p>'
       + '<p style="font-size:0.8rem;margin-top:0.4rem">Add a part you need to track down at a show — a description, a part number, and which item it\'s for.</p>'
-      + '</div>';
+      + '</div>'
+      // v0.9.2038: every part installed → the list is empty, but the history is still one tap away
+      + ((_lc && _instCount) ? '<div style="text-align:center;margin-top:0.8rem"><button onclick="window._partsShowInstalled=true;_renderPartsList()" style="padding:0.45rem 0.9rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.78rem;cursor:pointer">Show installed history (' + _instCount + ')</button></div>' : '');
     return;
   }
   parts.sort(function (a, b) { return (b.dateAdded || '').localeCompare(a.dateAdded || ''); });
@@ -5032,11 +5072,11 @@ function _renderPartsList() {
             : (p.status === 'bought' ? 'background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 18%, var(--bg-card));color:var(--t-orange)'
             : 'background:var(--surface2);color:var(--text-dim)'))
           + '">' + ((p.status || 'wanted') === 'installed' ? '\u2713 installed' + (p.dateInstalled ? ' ' + p.dateInstalled : '') : (p.status === 'bought' ? 'bought' + (p.dateBought ? ' ' + p.dateBought : '') + ' \u2014 in the drawer' : 'wanted')) + '</span>') : '')
-      + (_lc && (p.status || 'wanted') === 'wanted' ? '<button onclick="markPartBought(' + p.row + ')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:var(--t-orange);font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">Bought it</button>' : '')
-      + ((p.forInv && state.personalData && state.personalData[p.forInv] && (p.status || 'wanted') !== 'installed') ? '<button onclick="markPartInstalled(' + p.row + ')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:var(--t-green);font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">\u2713 Installed</button>' : '')
+      + (_lc && (p.status || 'wanted') === 'wanted' ? '<button onclick="markPartBought(\'' + rrJsArg(p.id) + '\')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:var(--t-orange);font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">Bought it</button>' : '')
+      + ((p.forInv && state.personalData && state.personalData[p.forInv] && (p.status || 'wanted') !== 'installed') ? '<button onclick="markPartInstalled(\'' + rrJsArg(p.id) + '\')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:var(--t-green);font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">\u2713 Installed</button>' : '')
       + '<button onclick="googlePart(\'' + esc(p.partNum) + '\',\'' + esc(p.forItem) + '\',\'' + esc(p.description) + '\',\'' + esc(p.forInv || '') + '\')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 10%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">Google</button>'
-      + '<button onclick="showAddPartModal(\'' + p.id + '\')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.75rem;cursor:pointer">Edit</button>'
-      + '<button onclick="removePart(' + p.row + ')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:var(--t-danger);font-family:var(--font-body);font-size:0.75rem;cursor:pointer">Remove</button>'
+      + '<button onclick="showAddPartModal(\'' + rrJsArg(p.id) + '\')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.75rem;cursor:pointer">Edit</button>'
+      + '<button onclick="removePart(\'' + rrJsArg(p.id) + '\')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:var(--t-danger);font-family:var(--font-body);font-size:0.75rem;cursor:pointer">Remove</button>'
       + '</div></div></div>';
   }).join('');
   if (_lc && (_instCount || window._partsShowInstalled)) {
@@ -5047,19 +5087,24 @@ function _renderPartsList() {
 }
 
 // v0.9.1647: wanted -> bought. Stamps I:J on the row (verified first).
-async function markPartBought(rowNum) {
-  var p = Object.values(state.partsData || {}).find(function (x) { return x.row === rowNum; });
-  if (!p) return;
+// v0.9.2038 (A4): named by the part's id; the row is read off the part as it is
+// NOW. Returns true when it landed, false when it did not (the user has been
+// told either way) — the bin's "Use one" takes a part out only after a true.
+async function markPartBought(partId) {
+  var p = _partsFind(partId);
+  if (!p) { if (typeof showToast === 'function') showToast('That part is no longer on your list \u2014 refresh and try again.', 4000, true); return false; }
+  var rowNum = p.row;
   var today = new Date().toISOString().split('T')[0];
   try {
     if (typeof _ensurePartsLifecycleCols === 'function') await _ensurePartsLifecycleCols();
     if (!(await rrVerifiedRowUpdate(state.personalSheetId, 'Parts Needed', rowNum,
-        'Parts Needed!I' + rowNum + ':J' + rowNum, [['bought', today]], { num: p.id }, 'Parts list'))) return;
+        'Parts Needed!I' + rowNum + ':J' + rowNum, [['bought', today]], { num: p.id }, 'Parts list'))) return false;
     p.status = 'bought'; p.dateBought = today;
     _renderPartsList();
     if (typeof _binVisible === 'function' && _binVisible()) _binBuild();   // v0.9.1748: the drawer page shows it as spoken for
     if (typeof showToast === 'function') showToast('\u2713 Marked bought \u2014 it\u2019s in the drawer');
-  } catch (e) { if (typeof showToast === 'function') showToast(rrSaveError(e, 'the part'), 4000, true); }
+    return true;
+  } catch (e) { if (typeof showToast === 'function') showToast(rrSaveError(e, 'the part'), 4000, true); return false; }
 }
 if (typeof window !== 'undefined') window.markPartBought = markPartBought;
 
@@ -5145,7 +5190,7 @@ function showAddPartModal(existingId) {
     + '<textarea id="_part-notes" rows="2" placeholder="anything else to remember" style="width:100%;box-sizing:border-box;padding:0.5rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.9rem;resize:vertical;margin-bottom:1rem">' + String(existing.notes || '') + '</textarea>'
     + '<div style="display:flex;gap:0.6rem">'
     + '<button onclick="document.getElementById(\'_part-modal\').remove()" style="flex:1;padding:0.6rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);cursor:pointer">Cancel</button>'
-    + '<button onclick="savePart(' + (existing.row || 0) + ')" style="flex:2;padding:0.6rem;border-radius:8px;border:none;background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-weight:600;cursor:pointer">' + (existingId ? 'Save' : '+ Add Part') + '</button>'
+    + '<button onclick="savePart(\'' + rrJsArg(existingId || '') + '\')" style="flex:2;padding:0.6rem;border-radius:8px;border:none;background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-weight:600;cursor:pointer">' + (existingId ? 'Save' : '+ Add Part') + '</button>'
     + '</div></div>';
   rrDismissGuard(ov);   // v0.9.1785
   window._partPhotoFile = null;
@@ -5183,7 +5228,10 @@ function _partPhotoPicked(ev) {
 }
 if (typeof window !== 'undefined') window._partPhotoPicked = _partPhotoPicked;
 
-async function savePart(existingRow) {
+// v0.9.2038: savePart(existingId) — the Edit form names the part by its id (A4);
+// a new part is savePart(''). Editing keeps the part's own Date Added (A7 — it
+// used to be reset to today on every edit) and the typed words go up as text (A5).
+async function savePart(existingId) {
   var desc = (document.getElementById('_part-desc') || {}).value || '';
   if (!desc.trim()) { if (typeof showToast === 'function') showToast('Please enter a description'); return; }
   var partNum = (document.getElementById('_part-num') || {}).value || '';
@@ -5194,14 +5242,17 @@ async function savePart(existingRow) {
   var forInv = sel ? sel.value : '';
   var forItem = '';
   if (sel && sel.selectedIndex >= 0 && sel.options[sel.selectedIndex]) forItem = sel.options[sel.selectedIndex].getAttribute('data-item') || '';
+  var isEdit = !!existingId;
+  var ex = isEdit ? _partsFind(existingId) : null;
+  if (isEdit && !ex) { if (typeof showToast === 'function') showToast('That part is no longer on your list \u2014 nothing was saved. Refresh and try again.', 5000, true); return; }
   // v0.9.1753 (Brad: no duplicates): the same part for the same unit is OFFERED, not added twice
-  if (!(existingRow > 0) && !window._partsAddAnyway) {
+  if (!isEdit && !window._partsAddAnyway) {
     var _dup = _partsFindDup({ forInv: forInv, forItem: forItem, partNum: partNum, description: desc });
     if (_dup) {
       _partsChooser(PARTS_COPY.dupTitle,
         _partsEsc(_dup.description || _dup.partNum) + ' \u2014 ' + _partsEsc(_dup.status || 'wanted') + (_partsTaskLabel(_dup) ? ', ' + _partsEsc(_partsTaskLabel(_dup)) : ''),
         [{ label: PARTS_COPY.dupOpen, primary: true, run: function () { var mo = document.getElementById('_part-modal'); if (mo) mo.remove(); showAddPartModal(_dup.id); } },
-         { label: PARTS_COPY.dupAddAnyway, run: function () { window._partsAddAnyway = true; savePart(existingRow); } }]);
+         { label: PARTS_COPY.dupAddAnyway, run: function () { window._partsAddAnyway = true; savePart(existingId); } }]);
       return;
     }
   }
@@ -5212,13 +5263,8 @@ async function savePart(existingRow) {
   if (typeof showToast === 'function') showToast('Saving…', 1500);
   try {
     await _ensurePartsTab();
-    var id = '';
-    if (existingRow > 0) {
-      var ex = Object.values(state.partsData || {}).find(function (p) { return p.row === existingRow; });
-      id = ex ? ex.id : ('part-' + Date.now());
-    } else { id = 'part-' + Date.now(); }
-    var photoLink = '';
-    if (existingRow > 0) { var _exp = Object.values(state.partsData || {}).find(function(p){ return p.row === existingRow; }); photoLink = (_exp && _exp.photo) || ''; }
+    var id = isEdit ? ex.id : ('part-' + Date.now());
+    var photoLink = isEdit ? (ex.photo || '') : '';
     if (window._partPhotoFile) {
       try {
         await driveEnsureSetup();
@@ -5228,21 +5274,13 @@ async function savePart(existingRow) {
       } catch (pe) { console.warn('[Parts] photo upload failed', pe && pe.message); }
       window._partPhotoFile = null;
     }
-    var row = [_t(id), desc, _t(partNum), _t(forItem), _t(forInv), photoLink, notes, new Date().toISOString().split('T')[0]];
-    if (existingRow > 0) {
+    if (isEdit) {
       // v0.9.1253 (finding 4): this overwrites eight columns of an existing
-      // part. Confirm the row still holds that part first.
-      const _expId = (Object.values(state.partsData || {}).find(function (p) { return p.row === existingRow; }) || {}).id;
-      const _ok = (typeof rrRowStillIs === 'function')
-        ? await rrRowStillIs(state.personalSheetId, 'Parts Needed', existingRow, _expId)
-        : true;
-      if (!_ok) {
-        if (typeof showToast === 'function') {
-          showToast('Your Parts list changed somewhere else — nothing was saved. Refresh and try again.', 5000, true);
-        }
-        return;
-      }
-      await sheetsUpdate(state.personalSheetId, 'Parts Needed!A' + existingRow + ':H' + existingRow, [row]);
+      // part. Confirm the row still holds that part first — the row as it is
+      // NOW (v0.9.2038: read off the part found by its id).
+      var existingRow = ex.row;
+      var row = [_t(id), rrSheetText(desc), _t(partNum), _t(forItem), _t(forInv), photoLink, rrSheetText(notes), _t(ex.dateAdded || new Date().toISOString().split('T')[0])];
+      if (!(await rrVerifiedRowUpdate(state.personalSheetId, 'Parts Needed', existingRow, 'Parts Needed!A' + existingRow + ':H' + existingRow, [row], { num: id }, 'Parts list'))) return;
     } else {
       await _partsAppendRow({ id: id, description: desc, partNum: partNum, forItem: forItem, forInv: forInv, photo: photoLink, notes: notes });   // v0.9.1753: the one appender (A–M)
     }
@@ -5252,7 +5290,11 @@ async function savePart(existingRow) {
 }
 if (typeof window !== 'undefined') window.savePart = savePart;
 
-async function removePart(rowNum) {
+// v0.9.2038 (A4): removePart(partId) — by the part's id, never a remembered row.
+async function removePart(partId) {
+  var _p = _partsFind(partId);
+  if (!_p) { if (typeof showToast === 'function') showToast('That part is no longer on your list \u2014 refresh to see it as it is now.', 4000, true); return false; }
+  var rowNum = _p.row;
   if (!rowNum) return false;
   // v0.9.1253 (finding 4): confirm the row is still this part before blanking.
   // v0.9.1288 (R3-3): this one was already honest — the success toast sat after
@@ -5261,7 +5303,7 @@ async function removePart(rowNum) {
   // repeating the check its own way, and so the failure message is the specific
   // one ("kept on this device and will go up on its own", where that is true)
   // instead of a flat "Remove failed".
-  const _expId = (Object.values(state.partsData || {}).find(function (p) { return p.row === rowNum; }) || {}).id;
+  const _expId = _p.id;
   // v0.9.1753: blank the WHOLE row (A–M) where the lifecycle columns exist, so a
   // removed part leaves no status or task id behind; A–H on a tab without them.
   var _wide = (typeof _maintIsOwner === 'function' && _maintIsOwner() && typeof _ensurePartsLifecycleCols === 'function') ? await _ensurePartsLifecycleCols() : false;
@@ -5269,7 +5311,7 @@ async function removePart(rowNum) {
   var _blank = [_wide ? ['', '', '', '', '', '', '', '', '', '', '', '', ''] : ['', '', '', '', '', '', '', '']];
   if (!(await rrRemoveRowConfirmed(state.personalSheetId, 'Parts Needed', rowNum, _range, _blank, { num: _expId || '' }, 'Parts list'))) return false;
   // the in-memory list drops it at once, so the card, bench, preview and badge all redraw right
-  Object.keys(state.partsData || {}).forEach(function (k) { if (state.partsData[k] && state.partsData[k].row === rowNum) delete state.partsData[k]; });
+  Object.keys(state.partsData || {}).forEach(function (k) { if (state.partsData[k] && state.partsData[k].id === _expId) delete state.partsData[k]; });
   if (typeof _updatePartsBadge === 'function') _updatePartsBadge();
   if (typeof showToast === 'function') showToast('Part removed');
   buildPartsPage();
@@ -5282,10 +5324,11 @@ if (typeof window !== 'undefined') window.removePart = removePart;
 // collection item. Appends a timestamped line to the item's Notes, lets
 // the user flip All Original, then removes the part from the list.
 // ════════════════════════════════════════════════════════════════════
-function markPartInstalled(rowNum, opts) {
+// v0.9.2038 (A4): markPartInstalled(partId, opts) — the part by its id.
+function markPartInstalled(partId, opts) {
   opts = opts || {};
-  var p = Object.values(state.partsData || {}).find(function (x) { return x.row === rowNum; });
-  if (!p) return;
+  var p = _partsFind(partId);
+  if (!p) { if (typeof showToast === 'function') showToast('That part is no longer on your list \u2014 refresh and try again.', 4000, true); return; }
   var pd = _partsOwnedRow(p.forInv);
   if (!pd) {
     // v0.9.1753 (Brad: "ask me installed on what"): no engine on the part yet → the Edit form asks which one
@@ -5301,7 +5344,7 @@ function markPartInstalled(rowNum, opts) {
   var _task = p.taskId ? _log.find(function (l) { return l.id === p.taskId && l.type === 'chore' && l.status === 'open'; }) : null;
   if (_task) {
     if (!opts.onCard && typeof window._wbOpen === 'function') window._wbOpen(p.forInv, p.forItem, _task.id);
-    _partInstallForm(rowNum, p, pd, _task);
+    _partInstallForm(p, pd, _task);
     return;
   }
   if (!opts.jobPicked) {
@@ -5310,18 +5353,18 @@ function markPartInstalled(rowNum, opts) {
       _partsChooser(PARTS_COPY.whichJobTitle, _partsEsc(p.description || p.partNum || 'part') + ' \u2014 No. ' + _partsEsc(pd.itemNum),
         _open.map(function (t) {
           return { label: _partsEsc(t.text) + ' <span style="color:var(--text-dim);font-size:0.78rem">since ' + _partsEsc(t.dateAdded || '') + '</span>', run: function () {
-            var w = (typeof window._maintPartSetTask === 'function') ? window._maintPartSetTask(p.row, t.id) : Promise.resolve(true);
-            Promise.resolve(w).then(function (ok) { if (ok !== false) markPartInstalled(rowNum, { onCard: opts.onCard, jobPicked: true }); });
+            var w = (typeof window._maintPartSetTask === 'function') ? window._maintPartSetTask(p.id, t.id) : Promise.resolve(true);
+            Promise.resolve(w).then(function (ok) { if (ok !== false) markPartInstalled(p.id, { onCard: opts.onCard, jobPicked: true }); });
           } };
-        }).concat([{ label: PARTS_COPY.whichJobNone, run: function () { markPartInstalled(rowNum, { onCard: opts.onCard, jobPicked: true }); } }]));
+        }).concat([{ label: PARTS_COPY.whichJobNone, run: function () { markPartInstalled(p.id, { onCard: opts.onCard, jobPicked: true }); } }]));
       return;
     }
   }
-  _partInstallForm(rowNum, p, pd, null);
+  _partInstallForm(p, pd, null);
 }
 if (typeof window !== 'undefined') window.markPartInstalled = markPartInstalled;
 // the install form — one form, whether it was reached from the Parts Needed page or the card
-function _partInstallForm(rowNum, p, pd, task) {
+function _partInstallForm(p, pd, task) {
   var m = (typeof findMaster === 'function') ? findMaster(pd.itemNum, '', pd) : null;
   var itemLabel = pd.itemNum + (m && m.roadName ? ' \u2014 ' + m.roadName : '');
   var today = new Date().toISOString().split('T')[0];
@@ -5359,16 +5402,29 @@ function _partInstallForm(rowNum, p, pd, task) {
     + '<div style="font-size:0.68rem;color:var(--text-dim);margin:-0.3rem 0 0.9rem">Adding a replacement part usually means it is no longer all original \u2014 change to Yes if this was a correct original part.</div>'
     + '<div style="display:flex;gap:0.6rem">'
     + '<button onclick="document.getElementById(\'_part-install-modal\').remove()" style="flex:1;padding:0.6rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);cursor:pointer">Cancel</button>'
-    + '<button onclick="_savePartInstalled(' + rowNum + ')" style="flex:2;padding:0.6rem;border-radius:8px;border:none;background:#2ecc71;color:#fff;font-family:var(--font-body);font-weight:600;cursor:pointer">\u2713 Save to item</button>'
+    + '<button onclick="_savePartInstalled(\'' + rrJsArg(p.id) + '\')" style="flex:2;padding:0.6rem;border-radius:8px;border:none;background:#2ecc71;color:#fff;font-family:var(--font-body);font-weight:600;cursor:pointer">\u2713 Save to item</button>'
     + '</div></div>';
   document.body.appendChild(ov);
   // v0.9.1786: BackStack is wired by rrDismissGuard above — one place, not two.
   var di = document.getElementById('_inst-desc'); if (di) di.focus();
 }
 
-async function _savePartInstalled(rowNum) {
-  var p = Object.values(state.partsData || {}).find(function (x) { return x.row === rowNum; });
-  if (!p) return;
+// v0.9.2038 (Workbench check 2026-10-28, A2): every write here is checked.
+// The old version ignored a REFUSED write (rrVerifiedRowUpdate answering false
+// — the item's row moved): it carried on, showed "✓ Installed", and for anyone
+// but the owner then took the part off the list — the part gone, and its line
+// never written to the item. Now:
+//   • the item's notes line is the record. Refused (or the item not on the
+//     sheet yet) → stop: nothing else happens, the part stays on the list.
+//   • the same line already in the notes (a retry) is not written twice.
+//   • All Original refused → the install still stands; the toast says so.
+//   • the owner's Parts Needed stamp refused → the item keeps its line, the
+//     part stays "bought", no history line, and the toast says what to check.
+//   • the history line failing is said, not swallowed (A11).
+async function _savePartInstalled(partId) {
+  var p = _partsFind(partId);
+  if (!p) { if (typeof showToast === 'function') showToast('That part is no longer on your list \u2014 refresh and try again.', 4000, true); return; }
+  var rowNum = p.row;
   var pd = p.forInv ? (state.personalData || {})[p.forInv] : null;
   if (!pd) { if (typeof showToast === 'function') showToast('Linked item not found', 3500, true); return; }
   var g = function (id) { var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; };
@@ -5382,38 +5438,51 @@ async function _savePartInstalled(rowNum) {
     + (partNum ? ' (part# ' + partNum + ')' : '')
     + (price ? ', ' + (typeof _currencySymbol === 'function' ? _currencySymbol() : '$') + price : '')
     + (vendor ? ' from ' + vendor : '');
-  var newNotes = pd.notes ? (pd.notes + '\n' + line) : line;
+  var _hadLine = !!(pd.notes && String(pd.notes).split('\n').indexOf(line) >= 0);
+  var newNotes = _hadLine ? String(pd.notes) : (pd.notes ? (pd.notes + '\n' + line) : line);
+  if (!(pd.row && pd.row !== 99999)) {
+    if (typeof showToast === 'function') showToast('That item is not on your sheet yet \u2014 nothing was saved. Try again in a moment.', 4500, true);
+    return;
+  }
   var modal = document.getElementById('_part-install-modal'); if (modal) modal.remove();
   if (typeof showToast === 'function') showToast('Saving\u2026', 1500);
   try {
     var sheetId = state.personalSheetId;
-    if (pd.row && pd.row !== 99999 && typeof personalColLetter === 'function') {
-      await rrVerifiedRowUpdate(sheetId, PERSONAL_TAB, pd.row, PERSONAL_TAB + '!' + personalColLetter('notes') + pd.row, [[newNotes]], { num: pd.itemNum || '', invId: pd.inventoryId || '' }, 'collection');
-      if (orig && orig !== pd.allOriginal) {
-        await rrVerifiedRowUpdate(sheetId, PERSONAL_TAB, pd.row, PERSONAL_TAB + '!' + personalColLetter('allOriginal') + pd.row, [[orig]], { num: pd.itemNum || '', invId: pd.inventoryId || '' }, 'collection');
-      }
+    var _who = { num: pd.itemNum || '', invId: pd.inventoryId || '' };
+    if (!_hadLine) {
+      if (!(await rrVerifiedRowUpdate(sheetId, PERSONAL_TAB, pd.row, PERSONAL_TAB + '!' + personalColLetter('notes') + pd.row, [[rrSheetText(newNotes)]], _who, 'collection'))) return;   // told already; nothing else changes
     }
     pd.notes = newNotes;
-    if (orig) pd.allOriginal = orig;
+    var _origNote = '';
+    if (orig && orig !== pd.allOriginal) {
+      if (await rrVerifiedRowUpdate(sheetId, PERSONAL_TAB, pd.row, PERSONAL_TAB + '!' + personalColLetter('allOriginal') + pd.row, [[orig]], _who, 'collection')) pd.allOriginal = orig;
+      else _origNote = ' (All Original was not changed \u2014 set it on the item)';
+    }
     // v0.9.1647 (phase 2): the OWNER keeps the row as installed history
     // (status/date/price in I-L); everyone else keeps the original
     // delete-on-install behavior — their app is unchanged.
     if (typeof _maintIsOwner === 'function' && _maintIsOwner()) {
       if (typeof _ensurePartsLifecycleCols === 'function') await _ensurePartsLifecycleCols();
-      if (await rrVerifiedRowUpdate(state.personalSheetId, 'Parts Needed', rowNum,
-          'Parts Needed!I' + rowNum + ':L' + rowNum, [['installed', p.dateBought || '', date, price || '']], { num: p.id }, 'Parts list')) {
-        p.status = 'installed'; p.dateInstalled = date; if (price) p.pricePaid = price;
+      if (!(await rrVerifiedRowUpdate(state.personalSheetId, 'Parts Needed', rowNum,
+          'Parts Needed!I' + rowNum + ':L' + rowNum, [['installed', p.dateBought || '', date, price || '']], { num: p.id }, 'Parts list'))) {
+        if (typeof showToast === 'function') showToast('The line was added to ' + pd.itemNum + '\u2019s notes, but your Parts list did not update \u2014 refresh and press Installed again (the line is not added twice).', 6000, true);
+        return;
       }
+      p.status = 'installed'; p.dateInstalled = date; if (price) p.pricePaid = price;
       if (typeof _binVisible === 'function' && _binVisible()) _binBuild();   // v0.9.1748: it leaves the drawer
-      if (typeof window._maintLogPartInstalled === 'function') window._maintLogPartInstalled(pd.inventoryId, pd.itemNum, desc, partNum, vendor ? ('self — from ' + vendor) : 'self');   // v0.9.1654: the Workbench auto-trail
+      var _logged = (typeof window._maintLogPartInstalled === 'function') ? await window._maintLogPartInstalled(pd.inventoryId, pd.itemNum, desc, partNum, vendor ? ('self — from ' + vendor) : 'self') : true;   // v0.9.1654: the Workbench auto-trail
+      if (_logged === false) _origNote += ' \u2014 but the service-history line did not save; add it from the item\u2019s Service history';
       _renderPartsList();
     } else {
-      await removePart(rowNum);
+      if (!(await removePart(p.id))) {
+        if (typeof showToast === 'function') showToast('The line was added to ' + pd.itemNum + '\u2019s notes, but the part is still on your Parts list \u2014 take it off there.', 6000, true);
+        return;
+      }
     }
     if (typeof renderBrowse === 'function') renderBrowse();
     if (typeof buildDashboard === 'function') buildDashboard();
     if (typeof _cachePersonalData === 'function') _cachePersonalData();
-    if (typeof showToast === 'function') showToast('\u2713 Installed on ' + pd.itemNum + ' \u2014 added to its notes');
+    if (typeof showToast === 'function') showToast('\u2713 Installed on ' + pd.itemNum + ' \u2014 added to its notes' + _origNote, _origNote ? 6000 : undefined, !!_origNote);
     // v0.9.1753 (Brad): the part is in — is the job done too? Ask once, in place.
     var _t2 = p.taskId ? (state.maintLog || []).find(function (l) { return l.id === p.taskId && l.type === 'chore' && l.status === 'open'; }) : null;
     if (_t2 && typeof window._maintChoreDone === 'function' && (await appConfirm(PARTS_COPY.markDone.replace('%s', rrEsc(_t2.text)), { title: PARTS_COPY.markDoneTitle, ok: PARTS_COPY.markDoneYes, cancel: PARTS_COPY.markDoneNo }))) await window._maintChoreDone(_t2.row, _t2.id);

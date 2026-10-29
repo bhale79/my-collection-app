@@ -103,10 +103,10 @@ ok('empty drawer says so (and how each group fills)', /The drawer is empty\./.te
 ok('an empty bin under a full spoken-for group says "Nothing loose in the bin"', /Nothing loose in the bin\./.test(build));
 ok('every loose card carries its fits line', /_binFitsHtml\(b\)/.test(build));
 const spokenHtml = grab('function _binSpokenHtml(p)');
-ok('a spoken-for card has the Installed button (same handler as Parts Needed) when the item is in the collection', /markPartInstalled\(' \+ p\.row \+ '\)/.test(spokenHtml) && /pd \?/.test(spokenHtml));
+ok('a spoken-for card has the Installed button (same handler as Parts Needed) when the item is in the collection', /markPartInstalled\(\\'' \+ rrJsArg\(p\.id\) \+ '\\'\)/.test(spokenHtml)   /* v0.9.2038: by the part's id */ && /pd \?/.test(spokenHtml));
 ok('…and its For-link opens the item', /_openOwnedByInvId/.test(spokenHtml));
 ok('the "not known" line never guesses', /Fits: not known/.test(grab('function _binFitsHtml(b)')));
-ok('"Use it for …" pulls one from the bin AND marks the want bought (the Parts page stamp, reused)', /window\._maintBinUseFor = async function/.test(src) && /markPartBought\(partRow\)/.test(src));
+ok('"Use it for …" pulls one from the bin AND marks the want bought (the Parts page stamp, reused)', /window\._maintBinUseFor = function \(binId, partId\)/.test(src) && /markPartBought\(p\.id\)/.test(grab('async function _maintBinUseForRun(binId, partId)')));   // v0.9.2038: by id, recorded before the bin counts down
 ok('marking bought or installed on the Parts page re-renders the drawer if it is open', (pages.match(/_binVisible\(\)\) _binBuild\(\)/g) || []).length === 2   /* v0.9.1753: the bin is the Workbench's fourth tab; _binVisible() is the one question */);
 ok('the subtitle says what the page is now', /Everything in the drawer/.test(build));
 

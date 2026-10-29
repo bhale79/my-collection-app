@@ -142,8 +142,9 @@ function wantHarness(src, opts) {
 ok('the three want-list call sites pass the VARIATION to both searches (phone cards, desktop table, detail page)',
    (pages.match(/wantFindOnEbay\('\$\{u\.itemNum\}','\$\{_?escName\}','\$\{escVar\}'\)/g) || []).length === 2 &&
    (pages.match(/wantSearchOtherSites\('\$\{u\.itemNum\}','\$\{_?escName\}','\$\{escVar\}'\)/g) || []).length === 2 &&
-   /wantFindOnEbay\('\$\{it\.itemNum\}','\$\{\(it\.roadName\|\|''\)[\s\S]{0,60}?\}','\$\{\(it\.variation\|\|''\)/.test(coll) &&
-   /wantSearchOtherSites\('\$\{it\.itemNum\}','\$\{\(it\.roadName\|\|''\)[\s\S]{0,60}?\}','\$\{\(it\.variation\|\|''\)/.test(coll));
+   // v0.9.2038 re-pin: the detail page passes each through rrJsArg (an apostrophe broke the hand escape)
+   /wantFindOnEbay\('\$\{rrJsArg\(it\.itemNum\)\}','\$\{rrJsArg\(it\.roadName\|\|''\)\}','\$\{rrJsArg\(it\.variation\|\|''\)\}'\)/.test(coll) &&
+   /wantSearchOtherSites\('\$\{rrJsArg\(it\.itemNum\)\}','\$\{rrJsArg\(it\.roadName\|\|''\)\}','\$\{rrJsArg\(it\.variation\|\|''\)\}'\)/.test(coll));
 ok('the eBay modal hands the variation on to _ebayDoSearch',
    /function wantFindOnEbay\(itemNum, roadName, variation\)/.test(pages) && /_ebayDoSearch\('\$\{itemNum\}','\$\{\(roadName\|\|''\)[\s\S]{0,60}?\}','\$\{\(variation\|\|''\)/.test(pages));
 const noComments = src => src.replace(/^\s*\/\/.*$/gm, '');

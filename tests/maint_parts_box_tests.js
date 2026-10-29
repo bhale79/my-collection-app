@@ -77,7 +77,9 @@ ok('the custom name box and the checkbox hide together (one wrapper)',
 
 // ── B · the real _maintAddChore, driven ────────────────────────────────────
 section('B · a typed name joins the dropdown ONLY when the box is ticked');
-const addSrc = grabFrom(maint, 'window._maintAddChore = async function');
+// v0.9.2038: the button's function holds the double-tap guard; the work is _maintAddChoreRun
+const SHEETS = fs.readFileSync(path.join(__dirname, '..', 'app', 'sheets.js'), 'utf8');
+const addSrc = grabFrom(maint, 'window._maintAddChore = async function') + '\n' + grabFrom(maint, 'async function _maintAddChoreRun(andPart)') + '\n' + grabFrom(SHEETS, 'function rrSheetText(v)');
 ok('_maintAddChore lifted', !!addSrc);
 
 const CHORES_FIX = ['Oil / lubricate', 'Replace traction tire'];
@@ -96,7 +98,7 @@ async function runAdd(opts) {
   const fn = new Function(
     'window', 'document', 'state', '_target', '_isOwner', '_favs', '_saveFavs',
     'MAINT', 'CHORES', 'LOG_TAB', '_ensureLogTab', 'sheetsAppend', '_loadLog', '_wbBadge',
-    '_maintRenderTasks', 'showToast', '_wbTarget', '_wbCloseCard',
+    '_maintRenderTasks', 'showToast', '_wbTarget', '_wbCloseCard', '_busy',
     addSrc + '\nreturn window._maintAddChore;'
   )(
     win,
@@ -113,7 +115,7 @@ async function runAdd(opts) {
     async (sheetId, range, rows) => { calls.appended++; calls.row = rows && rows[0]; return true; },
     async () => {}, () => {}, () => {},
     (m) => calls.toasts.push(String(m)),
-    null, () => {}
+    null, () => {}, {}
   );
   await fn();
   return calls;

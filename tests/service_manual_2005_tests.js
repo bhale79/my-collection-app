@@ -71,6 +71,9 @@ function sandbox(opts) {
   };
   // fetch — the tab-exists check (the tab is there) and anything else
   ctx.fetch = async function (u) { log.push('fetch'); return { json: async () => ({ sheets: [{ properties: { title: 'Service Manual' } }] }) }; };
+  // v0.9.2038: the tab check goes through _withTokenRetry now — same call, same answer
+  ctx._withTokenRetry = async function (fn) { return fn(); };
+  ctx.rrSheetText = function (v) { v = (v == null) ? '' : String(v); return v ? "'" + v : v; };   // sheets.js (v0.9.2038)
   ctx.sheetsUpdate = async function (sid, range) { log.push('update ' + range); return {}; };
   // sheetsAppend — slow on purpose, so a second tap lands while the first is in flight
   ctx.sheetsAppend = async function (sid, range, values) {

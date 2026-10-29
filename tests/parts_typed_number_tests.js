@@ -63,7 +63,7 @@ ok('the Need-a-part popup\'s box: _maintPopAddWanted calls _partsSplitTyped and 
    /var split = _partsSplitTyped\(txt\);[\s\S]{0,200}?description: split\.description, partNum: split\.partNum/.test(maint));
 ok('…and its private isNum test is gone', !/var isNum = /.test(maint));
 ok('the Parts page\'s Add a Part (savePart): a blank number is read out of the description',
-   /function savePart\(existingRow\) \{[\s\S]{0,900}?if \(!partNum\.trim\(\)\) \{ var _sp = _partsSplitTyped\(desc\); if \(_sp\.partNum && _sp\.description\) \{ partNum = _sp\.partNum; desc = _sp\.description; \} \}/.test(pages));
+   /function savePart\(existingId\) \{[\s\S]{0,900}?if \(!partNum\.trim\(\)\) \{ var _sp = _partsSplitTyped\(desc\); if \(_sp\.partNum && _sp\.description\) \{ partNum = _sp\.partNum; desc = _sp\.description; \} \}/.test(pages));
 ok('the helper is on window for maintenance.js', /window\._partsSplitTyped = _partsSplitTyped/.test(pages));
 
 section('C · the forms: number first, then description');

@@ -34,6 +34,8 @@ function ok(name, cond, detail) {
 }
 function section(t) { console.log('\n== ' + t + ' =='); }
 const maint = fs.readFileSync(path.join(__dirname, '..', 'app', 'maintenance.js'), 'utf8');
+// v0.9.2038: the REAL rrSheetText (sheets.js) — typed words go up behind an apostrophe
+const SHEETS = fs.readFileSync(path.join(__dirname, '..', 'app', 'sheets.js'), 'utf8');
 function grabFrom(src, sig) {
   const i = src.indexOf(sig); if (i < 0) throw new Error('not found: ' + sig);
   let d = 0;
@@ -52,8 +54,8 @@ function buildForm(src, parts) {
     () => ({ item: { itemNum: '2338' }, invId: '190' }),
     () => parts || { onHand: [], wanted: [] });
 }
-const DRUM = { part: { row: 7, description: 'Lionel Light Blue E-Unit Drum', partNum: '259E-1', status: 'bought' }, onTask: '' };
-const WIRE = { part: { row: 9, description: 'E-Unit Finger Wire', partNum: '100-44', status: 'wanted' }, onTask: 'Fix railing' };
+const DRUM = { part: { row: 7, id: 'part-7', description: 'Lionel Light Blue E-Unit Drum', partNum: '259E-1', status: 'bought' }, onTask: '' };
+const WIRE = { part: { row: 9, id: 'part-9', description: 'E-Unit Finger Wire', partNum: '100-44', status: 'wanted' }, onTask: 'Fix railing' };
 
 section('A · the Tasks box: the tasks and the button, nothing else');
 const tasksSec = maint.slice(maint.indexOf("sec('Tasks for this item',"), maint.indexOf("sec('Parts for this item',"));
@@ -72,10 +74,10 @@ ok('"Something else…" is a line too, and its name box + keep-it checkbox are t
    /data-chore="__custom"/.test(html) && /id="maint-chore-custom" style="display:none/.test(html) && /id="maint-chore-custom-in"/.test(html) && /id="maint-chore-custom-keep"/.test(html));
 ok('the chosen service rides in the hidden #maint-chore-pick', /<input type="hidden" id="maint-chore-pick" value="">/.test(html));
 ok('the parts this item has are listed — the drum (in the drawer) with a tick box',
-   /name="maint-chore-part" value="7"/.test(html) && /Lionel Light Blue E-Unit Drum/.test(html) && /#259E-1/.test(html) && /in your drawer/.test(html));
+   /name="maint-chore-part" value="part-7"/.test(html) && /Lionel Light Blue E-Unit Drum/.test(html) && /#259E-1/.test(html) && /in your drawer/.test(html));
 // v0.9.1859 ([stated] Brad): "if a part is on another task already, don't let it be available to be checked."
 ok('…the wire, already on Fix railing, is shown greyed with NO tick box and names its job',
-   !/name="maint-chore-part" value="9"/.test(html) && /E-Unit Finger Wire/.test(html) && /already on: Fix railing/.test(html)
+   !/name="maint-chore-part" value="part-9"/.test(html) && /E-Unit Finger Wire/.test(html) && /already on: Fix railing/.test(html)
    && /<label style="[^"]*color:var\(--text-dim\)[^"]*"><span aria-hidden="true"[^>]*><\/span><span><b>E-Unit Finger Wire/.test(html));
 ok('…and the help line says so', /A part already on another job stays there/.test(html));
 ok('it says what ticking a part does', /Tick a part to put it on this task/.test(html));
@@ -102,7 +104,8 @@ section('C · choosing a line');
 
 section('D · the real _maintAddChore: the task, then the ticked parts, then Need a part');
 (async function main() {
-  const addSrc = grabFrom(maint, 'window._maintAddChore = async function');
+  // v0.9.2038: the button's function holds the double-tap guard; the work is _maintAddChoreRun
+  const addSrc = grabFrom(maint, 'window._maintAddChore = async function') + '\n' + grabFrom(maint, 'async function _maintAddChoreRun(andPart)') + '\n' + grabFrom(SHEETS, 'function rrSheetText(v)');
   async function run(opts) {
     const calls = { appended: 0, row: null, setTask: [], popup: null, toasts: [], popRemoved: 0 };
     const els = { 'maint-chore-pick': { value: opts.pick }, 'maint-chore-custom-in': { value: opts.typed || '' }, 'maint-chore-custom-keep': { checked: false } };
@@ -111,7 +114,7 @@ section('D · the real _maintAddChore: the task, then the ticked parts, then Nee
     const fn = new Function(
       'window', 'document', 'state', '_target', '_isOwner', '_favs', '_saveFavs',
       'MAINT', 'CHORES', 'LOG_TAB', '_ensureLogTab', 'sheetsAppend', '_loadLog', '_wbBadge',
-      '_maintRenderTasks', 'showToast', '_wbTarget', '_wbCloseCard', '_wbBuild', '_maintPartSetTask',
+      '_maintRenderTasks', 'showToast', '_wbTarget', '_wbCloseCard', '_wbBuild', '_maintPartSetTask', '_busy',
       addSrc + '\nreturn window._maintAddChore;'
     )(
       win,
@@ -124,16 +127,17 @@ section('D · the real _maintAddChore: the task, then the ticked parts, then Nee
       async () => {}, () => {}, () => {},
       (m) => calls.toasts.push(String(m)),
       null, () => {}, () => {},
-      async (row, taskId) => { calls.setTask.push([row, taskId]); return true; }
+      async (row, taskId) => { calls.setTask.push([row, taskId]); return true; },
+      {}
     );
     await fn(!!opts.andPart);
     return calls;
   }
   {
-    const r = await run({ pick: 'E-unit service', ticked: [7, 9], popOpen: true });
+    const r = await run({ pick: 'E-unit service', ticked: ['part-7', 'part-9'], popOpen: true });
     const id = r.row && String(r.row[0]).replace(/^'/, '');
-    ok('a service with two ticked parts: ONE task row, written open', r.appended === 1 && r.row[3] === 'chore' && r.row[4] === 'E-unit service' && r.row[9] === 'open');
-    ok('…both parts go on it through _maintPartSetTask, with the NEW task\'s id', r.setTask.length === 2 && r.setTask[0][0] === 7 && r.setTask[1][0] === 9 && r.setTask.every(x => x[1] === id) && /^log-\d+$/.test(id), JSON.stringify(r.setTask) + ' id=' + id);
+    ok('a service with two ticked parts: ONE task row, written open', r.appended === 1 && r.row[3] === 'chore' && r.row[4] === "'E-unit service" && r.row[9] === 'open');
+    ok('…both parts go on it through _maintPartSetTask, with the NEW task\'s id', r.setTask.length === 2 && r.setTask[0][0] === 'part-7' && r.setTask[1][0] === 'part-9' && r.setTask.every(x => x[1] === id) && /^log-\d+$/.test(id), JSON.stringify(r.setTask) + ' id=' + id);
     ok('…the pop-up closes, the toast counts the parts, Need a part does NOT open', r.popRemoved === 1 && r.toasts.some(t => /2 parts on it/.test(t)) && r.popup === null);
   }
   {
@@ -143,24 +147,24 @@ section('D · the real _maintAddChore: the task, then the ticked parts, then Nee
     ok('…then Need a part opens FOR that task, named after it', r.popup && r.popup.id === id && /No\. 2338 · Oil \/ lubricate/.test(r.popup.name), JSON.stringify(r.popup));
   }
   {
-    const r = await run({ pick: '', ticked: [7] });
+    const r = await run({ pick: '', ticked: ['part-7'] });
     ok('nothing picked: no row, no part moved, a plain-words toast', r.appended === 0 && r.setTask.length === 0 && r.toasts.some(t => /Pick what needs doing first/.test(t)));
   }
   {
     const r = await run({ pick: '__custom', typed: 'Swap the bulb' });
-    ok('a typed service still works (the v1766 path)', r.appended === 1 && r.row[4] === 'Swap the bulb');
+    ok('a typed service still works (the v1766 path)', r.appended === 1 && r.row[4] === "'Swap the bulb");
   }
 
   section('E · planted offenders are caught');
   ok('E1 the dropdown put back in the Tasks box is caught', /_choreFormHtml/.test(tasksSec.replace("'<button onclick=\"_maintAddTaskPopup()\" '", "_choreFormHtml('_maintAddChore()') + '<button '")));
-  ok('E2 a part line without the tick box is caught', !/name="maint-chore-part" value="7"/.test(buildForm(maint.replace('name="maint-chore-part" value="', 'name="x" value="'), { onHand: [DRUM], wanted: [] })));
+  ok('E2 a part line without the tick box is caught', !/name="maint-chore-part" value="part-7"/.test(buildForm(maint.replace('name="maint-chore-part" value="', 'name="x" value="'), { onHand: [DRUM], wanted: [] })));
   ok('E3 the × put on a built-in is caught', (() => { const o = maint.replace("var custom = CHORES.indexOf(ch) < 0;", "var custom = true;"); return /_maintDelChore\('Oil/.test(buildForm(o, null)); })());
   {
-    const o = maint.replace("await _maintPartSetTask(picked[pi], logId);", "await _maintPartSetTask(picked[pi], '');");
-    const addO = grabFrom(o, 'window._maintAddChore = async function');
+    const o = maint.replace("await _maintPartSetTask(picked[pi], logId)", "await _maintPartSetTask(picked[pi], '')");
+    const addO = grabFrom(o, 'async function _maintAddChoreRun(andPart)');
     ok('E4 the parts put on a BLANK task id (not the new task) is caught', /_maintPartSetTask\(picked\[pi\], ''\)/.test(addO) && !/_maintPartSetTask\(picked\[pi\], logId\)/.test(addO));
   }
-  ok('E6 a tick box on a part that is on another job is caught', /name="maint-chore-part" value="9"/.test(buildForm(maint.replace("var taken = !!e.onTask;", "var taken = false;"), { onHand: [], wanted: [WIRE] })));
+  ok('E6 a tick box on a part that is on another job is caught', /name="maint-chore-part" value="part-9"/.test(buildForm(maint.replace("var taken = !!e.onTask;", "var taken = false;"), { onHand: [], wanted: [WIRE] })));
   ok('E5 "+ Add a part for it" wired to a plain add (no true) is caught', !/_maintAddChore\(true\)/.test(buildForm(maint.replace("addJs.replace(/\\(\\)$/, '(true)')", "addJs"), null)));
 
   console.log('\n' + pass + ' passed, ' + fail + ' failed');

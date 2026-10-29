@@ -4,7 +4,7 @@
 // fetches fresh copies in the background for next load.
 // NEVER caches Google API, OAuth, or Sheets calls.
 
-const CACHE_NAME = 'mca-v2047';
+const CACHE_NAME = 'mca-v2048';
 
 // ── v0.9.1214: the version stamp has to survive as far as the cache ──
 // Brad, on v1213: "im reset twice and it still looks the same." He was
@@ -42,6 +42,7 @@ const SHELL_FILES = [
   './index.html',
   './manifest.json',
   './config.js',
+  './store-links.js',   // v0.9.2038 (folded from the Trainz chat's v0.9.2039): the last stop for every outgoing link
   './non-item-detail-config.js',
   './back-stack.js',
   './road-typeahead.js',
