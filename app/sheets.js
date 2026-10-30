@@ -185,6 +185,44 @@ function rrSheetText(v) {
 }
 if (typeof window !== 'undefined') window.rrSheetText = rrSheetText;
 
+// v0.9.2044 (known-problems sweep, KNOWN_PROBLEMS_SWEEP_REPORT_2026-10-29.md,
+// B11 + B12): ONE rule for every cell the app sends "as if typed". rrSheetText
+// above guards the fields someone remembered to wrap — the Workbench and a few
+// pages, 13 of the 88 writes. Everything else went in raw, so Google re-read
+// it: a note "-missing one coupler" or a phone "+1 717 555 1234" became a
+// FORMULA and the cell came back #ERROR! (the words gone); "0209" on the Sold
+// or Want list became 209; "6-8459" or "10-1024" became a DATE. This runs on
+// every cell inside the writers themselves (sheetsUpdate, sheetsAppend and the
+// bulk-tag batch — the only three USER_ENTERED writers), so no caller can
+// forget it. It changes ONLY the shapes Google would misread, by putting
+// Sheets' own "this is text" mark in front (hidden in the sheet, never read
+// back). Plain numbers and prices stay numbers, ISO and US dates stay dates,
+// links and ordinary words are untouched, and a value that already carries
+// the mark is left alone (so rrSheetText and this never double it).
+// Set-up writes (headers, the Dashboard tab's buttons) are the app's own
+// words and formulas and skip this on purpose — sheetsSetupUpdate.
+function rrSheetCell(v) {
+  if (typeof v !== 'string' || !v) return v;
+  if (v.charAt(0) === "'") return v;
+  var t = v.trim();
+  if (/^[-+]?(0|[1-9]\d*)(\.\d+)?$/.test(t)) return v;            // a plain number stays a number
+  if (/^[=+\-@]/.test(t)) return "'" + v;                          // = + - @ at the front: Google reads a formula
+  if (/^0\d/.test(t)) return "'" + v;                              // 0209, 001, 0401-1: the zero would be dropped
+  if (/^\d{1,2}[-\/]\d{1,4}$/.test(t)) return "'" + v;             // 6-8459, 10-1024, 1/2: Google makes a date
+  var m3 = /^(\d{1,4})[-\/](\d{1,4})[-\/](\d{1,4})$/.exec(t);
+  if (m3 && !/^\d{4}[-\/]\d{1,2}[-\/]\d{1,2}$/.test(t)                      // not an ISO date
+      && !(m3[3].length === 4 && +m3[1] <= 12 && +m3[2] <= 31)              // not a US date
+      && (m3[1].length >= 3 || m3[2].length >= 3 || m3[3].length >= 3)) {  // 20-2619-3 and the like
+    return "'" + v;
+  }
+  return v;
+}
+function rrSheetCells(values) {
+  if (!Array.isArray(values)) return values;
+  return values.map(function (r) { return Array.isArray(r) ? r.map(rrSheetCell) : rrSheetCell(r); });
+}
+if (typeof window !== 'undefined') { window.rrSheetCell = rrSheetCell; window.rrSheetCells = rrSheetCells; }
+
 function _rrWriteFailed(kind, args, err) {
   try { if (typeof rrOutboxRecord === 'function') rrOutboxRecord(kind, args, err); } catch (e) {}
   return err;
@@ -423,7 +461,8 @@ async function sheetsUpdate(spreadsheetId, range, values, opts) {
     throw new Error('readonly');
   }
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${_encodeRange(range)}?valueInputOption=USER_ENTERED`;
-  const body = JSON.stringify({ range, majorDimension: 'ROWS', values });
+  // v0.9.2044: every data cell through the one rule (set-up writes keep their own words and formulas)
+  const body = JSON.stringify({ range, majorDimension: 'ROWS', values: (opts && opts.setup) ? values : rrSheetCells(values) });
   try {
     const _go = () => _withTokenRetry(() => fetch(url, {
       method: 'PUT',
@@ -493,7 +532,7 @@ async function sheetsAppend(spreadsheetId, range, values) {
   // returned, same contract as before (v0.9.1196 callers store it). If the
   // response ever lacks a parsable range, return 0 — the honest "row
   // unknown", which every downstream guard already treats as do-not-write.
-  const body = JSON.stringify({ majorDimension: 'ROWS', values: values });
+  const body = JSON.stringify({ majorDimension: 'ROWS', values: rrSheetCells(values) });   // v0.9.2044: the one cell rule
   const appendRange = `${tabName}!A3:A`;   // anchor the table below the two header rows
   try {
     const _go = () => _withTokenRetry(() => fetch(
@@ -921,7 +960,7 @@ async function rrTrashRestore(archiveRow) {
         `https://sheets.googleapis.com/v4/spreadsheets/${state.personalSheetId}/values/${_encodeRange(RR_TRASH_TAB + '!D' + archiveRow)}?valueInputOption=RAW`,
         { method: 'PUT',
           headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ values: [[why + ' \u2014 put back ' + new Date().toISOString().slice(0, 10)]] }) }
+          body: JSON.stringify({ values: [[why + ' \u2014 put back ' + rrToday()]] }) }
       ));
     } catch (eMark) {
       // The row IS back; failing to annotate is cosmetic. Say so in the log and

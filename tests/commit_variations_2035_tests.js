@@ -147,6 +147,7 @@ function boot(v, src) {
   sandbox.window = sandbox;
   sandbox.encodeURIComponent = encodeURIComponent;
   vm.createContext(sandbox);
+  sandbox.rrToday = require('./lib/rr-today.js');   // v0.9.2044: the app's one today (config.js), handed in
   vm.runInContext(src, sandbox, { filename: 'yardmaster.js' });
   return { sandbox, page, asks, toasts, appended };
 }

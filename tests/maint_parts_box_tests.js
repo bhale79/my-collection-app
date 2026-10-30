@@ -26,6 +26,7 @@
 // Run:  node tests/maint_parts_box_tests.js
 // ═══════════════════════════════════════════════════════════════
 const fs = require('fs');
+global.rrToday = require('./lib/rr-today.js');   // v0.9.2044: the app's one today (config.js) for code run by new Function / in this process
 const path = require('path');
 let pass = 0, fail = 0;
 function ok(name, cond, detail) {

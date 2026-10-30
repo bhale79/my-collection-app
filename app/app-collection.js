@@ -3029,7 +3029,7 @@ function _checkGroupBeforeForSale(globalIdx, pdKey) {
     const saveBtn = document.getElementById('_grpfs-price-save');
     if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = rrToday();
       const sheetId = state.personalSheetId;
       // Session 154: list ONLY the lead row for the whole set (one price). The
       // box / instruction sheet stay in the collection, grouped — they do NOT

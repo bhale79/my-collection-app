@@ -2503,7 +2503,7 @@
         if (!(await _ensureDocsTab())) throw new Error('My Manuals tab unavailable');
         var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
         await sheetsAppend(state.personalSheetId, DOCS_TAB + '!A:H',
-          [[_t('doc-' + Date.now()), rrSheetText(title), type, url, rrSheetText(covers), rrSheetText(topics), '', _t(new Date().toISOString().split('T')[0])]]);   // v0.9.2038 (A5): typed words as text
+          [[_t('doc-' + Date.now()), rrSheetText(title), type, url, rrSheetText(covers), rrSheetText(topics), '', _t(rrToday())]]);   // v0.9.2038 (A5): typed words as text
         state.myManuals = null;
         var f = document.getElementById('maint-docform'); if (f) f.remove();
         _maintRenderMyDocs();
@@ -2823,7 +2823,7 @@
       var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
       var logId = 'log-' + Date.now();
       var row = [_t(logId), _t(tg.invId || ''), _t(String(tg.item.itemNum || '')),
-                 'chore', rrSheetText(chore), '', '', _t(new Date().toISOString().split('T')[0]), '', 'open'];   // v0.9.2038 (A5): a typed task name stays words
+                 'chore', rrSheetText(chore), '', '', _t(rrToday()), '', 'open'];   // v0.9.2038 (A5): a typed task name stays words
       await sheetsAppend(state.personalSheetId, LOG_TAB + '!A:J', [row]);
       await _loadLog(); _wbBadge(); _maintRenderTasks();
       if (customIn) customIn.value = '';
@@ -2853,7 +2853,7 @@
       .then(function (yes) { if (yes) window._maintChoreDone(rowNum, logId); });
   };
   window._maintChoreDone = async function (rowNum, logId) {
-    var today = new Date().toISOString().split('T')[0];
+    var today = rrToday();
     // v0.9.2038: the task is the one with this id; its row is read off it as it is NOW
     var _lt = (state.maintLog || []).find(function (x) { return x.id === logId; });
     if (_lt) rowNum = _lt.row;
@@ -2878,7 +2878,7 @@
     try {
       if (!(await _ensureLogTab())) return false;
       var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
-      var today = new Date().toISOString().split('T')[0];
+      var today = rrToday();
       await sheetsAppend(state.personalSheetId, LOG_TAB + '!A:J',
         [[_t('log-' + Date.now()), _t(invId || ''), _t(String(itemNum || '')), 'part-installed', rrSheetText(desc || 'part installed'), _t(partNum || ''), rrSheetText(by || 'self'), _t(today), _t(today), 'done']]);
     } catch (e) { console.warn('[Workbench] log part-installed failed', e && e.message); return false; }
@@ -3820,7 +3820,7 @@
         }
         var sale = document.getElementById('binf-sale'); var forSale = sale && sale.checked ? 'Yes' : '';
         // v0.9.2038 (A5): the typed words (description, where, topics, notes) go up as text; prices stay numbers
-        var row = [_t(existing.id || ('bin-' + Date.now())), _t(num), rrSheetText(desc), String(qty), rrSheetText(g('binf-where')), _t(g('binf-date')), g('binf-price'), photo, rrSheetText(g('binf-topics')), forSale, g('binf-asking'), rrSheetText(g('binf-notes')), _t(existing.date || new Date().toISOString().split('T')[0])];
+        var row = [_t(existing.id || ('bin-' + Date.now())), _t(num), rrSheetText(desc), String(qty), rrSheetText(g('binf-where')), _t(g('binf-date')), g('binf-price'), photo, rrSheetText(g('binf-topics')), forSale, g('binf-asking'), rrSheetText(g('binf-notes')), _t(existing.date || rrToday())];
         if (existing.id) {
           if (!(await rrVerifiedRowUpdate(state.personalSheetId, BIN_TAB, existing.row, BIN_TAB + '!A' + existing.row + ':M' + existing.row, [row], { num: existing.id }, 'Parts Bin'))) { btn.disabled = false; btn.textContent = 'Save changes'; return; }
         } else {
@@ -3954,7 +3954,7 @@
     var price = String(_det.price || '').trim() || String(b.asking || '').trim();
     _fsPartBusy = true;
     try {
-      var today = _det.dateSold || new Date().toISOString().split('T')[0];
+      var today = _det.dateSold || rrToday();
       var note = FS_PART_NOTE + (b.desc ? ' \u2014 ' + b.desc : '') + (_det.notes ? '; ' + _det.notes : '') + (b.photo ? '; photo ' + b.photo : '');
       // 1 — the sale, first and unconditionally
       var soldRow = _buildSoldRow({ itemNum: b.partNum || 'PART', variation: '', copy: '1', pricePaid: b.price || '', salePrice: price, dateSold: today,
@@ -4009,7 +4009,7 @@
     if (!b || !tg.item) return;
     if (!(b.qty > 0)) { if (typeof showToast === 'function') showToast('None of those left in your bin.', 3000, true); return; }
     try {
-      var today = new Date().toISOString().split('T')[0];
+      var today = rrToday();
       var fields = { description: b.desc, partNum: b.partNum, forItem: String(tg.item.itemNum || ''), forInv: tg.invId || '', photo: b.photo || '',
                      notes: 'from Parts Bin' + (b.where ? ' (' + b.where + ')' : ''), dateAdded: today, status: 'bought', dateBought: b.dateAcq || today, price: b.price || '', taskId: taskId || '' };
       // v0.9.1753 (Brad: no duplicates): a WANTED row for this same part and unit is fulfilled from the bin — it turns bought, no second row

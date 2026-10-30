@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2051';
+const APP_VERSION = 'v0.9.2052';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -345,9 +345,7 @@ function rrGuideOnScreen() {
   try { return !!(typeof document !== 'undefined' && document.getElementById && document.getElementById('gt-callout')); } catch (e) { return false; }
 }
 function _rrSampleDate(daysAgo) {
-  var d = new Date(Date.now() - (daysAgo || 0) * 86400000);
-  var p = function (n) { return (n < 10 ? '0' : '') + n; };
-  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+  return rrToday(new Date(Date.now() - (daysAgo || 0) * 86400000));   // v0.9.2044: the one today
 }
 // The catalog row a sample stands for, in the shape parseMasterRow gives every row.
 function _rrSampleMaster(it) {
@@ -3731,6 +3729,23 @@ function rrIsPhone() {
   } catch (e) { return false; }
 }
 if (typeof window !== 'undefined') { window.RR_PHONE = RR_PHONE; window.rrIsPhone = rrIsPhone; }
+
+// ── v0.9.2044 (known-problems sweep, B10): ONE "today", in the person's own
+// time. Working it out as toISOString's first ten letters gives today in
+// LONDON — after
+// 7 PM Central (6 PM in winter) it is already tomorrow there, so an item
+// added in the evening saved a Date Added of tomorrow, and the same for Date
+// Sold, Date Listed, parts, chores and contacts (47 places). Every "today"
+// the app writes or shows comes from here; tests/sweep_saves_2044_tests.js
+// fails on any other way of working it out. A day key that must follow
+// London on purpose carries the marker  rr-utc-day  and says why.
+// `d` (optional) — a Date to read instead of now, still in local time.
+function rrToday(d) {
+  var t = (d && typeof d.getFullYear === 'function' && !isNaN(d.getTime())) ? d : new Date();
+  var p = function (n) { return (n < 10 ? '0' : '') + n; };
+  return t.getFullYear() + '-' + p(t.getMonth() + 1) + '-' + p(t.getDate());
+}
+if (typeof window !== 'undefined') window.rrToday = rrToday;
 
 // ═══════════════════════════════════════════════════════════════
 // v0.9.2034 — THE SCALE / GAUGE LIST (Melissa, 2026-10-27, typing in a Bowser

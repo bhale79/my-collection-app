@@ -2791,11 +2791,11 @@
       }
     } catch (e0) {}
     try { var o = JSON.parse(localStorage.getItem('rr_tokens_left') || 'null');
-      return (o && o.d === new Date().toISOString().slice(0, 10) && typeof o.n === 'number') ? o.n : null; }
+      return (o && o.d === rrToday() && typeof o.n === 'number') ? o.n : null; }
     catch (e) { return null; }
   }
   function _tokSave(n) {
-    try { if (typeof n === 'number') localStorage.setItem('rr_tokens_left', JSON.stringify({ d: new Date().toISOString().slice(0, 10), n: n })); } catch (e) {}
+    try { if (typeof n === 'number') localStorage.setItem('rr_tokens_left', JSON.stringify({ d: rrToday(), n: n })); } catch (e) {}
   }
   function _tokLine() {
     var n = _tokGet();

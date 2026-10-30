@@ -186,7 +186,7 @@
     var n = String(pd.itemNum || '').trim(), e = _era(pd) || '';
     if (!n) return;
     var q = _wantQ();
-    if (!q.some(function (x) { return x.n === n && x.e === e; })) { q.push({ n: n, e: e, d: new Date().toISOString().slice(0, 10) }); _wantSave(q); }
+    if (!q.some(function (x) { return x.n === n && x.e === e; })) { q.push({ n: n, e: e, d: rrToday() }); _wantSave(q); }
   }
   async function _wantDrain() {
     try {

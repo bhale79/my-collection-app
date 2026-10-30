@@ -50,6 +50,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm');
+global.rrToday = require('./lib/rr-today.js');   // v0.9.2044: the app's one today (config.js) for code run by new Function / in this process
 const APP = path.join(__dirname, '..', 'app');
 const read = f => fs.readFileSync(path.join(APP, f), 'utf8');
 const MAINT = read('maintenance.js'), PAGES = read('app-pages.js'), SHEETS = read('sheets.js'),
@@ -120,6 +121,7 @@ function sandbox(o) {
   c.sheetsUpdate = async (sid, range, values) => { log.push('update ' + range + ' ' + JSON.stringify(values)); return {}; };
   c.sheetsGet = async (sid, range) => { log.push('get ' + range); if (c.failGet) throw new Error(c.failGet); return { values: c.getValues || [] }; };
   vm.createContext(c);
+  c.rrToday = require('./lib/rr-today.js');   // v0.9.2044: the app's one today (config.js), handed in
   return c;
 }
 function load(c, code) { vm.runInContext(code, c); return c; }
@@ -241,7 +243,7 @@ const ONCE = grab(MAINT, 'async function _once(key, fn)');
     };
     const r = await run(MAINT);
     ok('"Use one" whose record fails → the bin is NOT touched (still 3)', r.qty === 3 && !r.counted, r);
-    const old = plant(MAINT, "    try {\n      var today = new Date().toISOString().split('T')[0];\n      var fields = { description: b.desc,", "    try {\n      await _binCountDown(b);\n      var today = new Date().toISOString().split('T')[0];\n      var fields = { description: b.desc,");
+    const old = plant(MAINT, "    try {\n      var today = rrToday();\n      var fields = { description: b.desc,", "    try {\n      await _binCountDown(b);\n      var today = rrToday();\n      var fields = { description: b.desc,");
     const p = await run(old);
     ok('PLANTED: the count-down first (the old order) → the bin is one short', p.qty === 2, p);
   }
@@ -373,7 +375,7 @@ const ONCE = grab(MAINT, 'async function _once(key, fn)');
     };
     const w = await run(PAGES);
     ok('an edit writes the part\'s own Date Added back (2026-09-01), not today', /"'2026-09-01"\]\]$/.test(w), w);
-    const p = await run(plant(PAGES, "_t(ex.dateAdded || new Date().toISOString().split('T')[0])];", "_t(new Date().toISOString().split('T')[0])];"));
+    const p = await run(plant(PAGES, "_t(ex.dateAdded || rrToday())];", "_t(rrToday())];"));
     ok('PLANTED: the old row (today\'s date) is caught', !/"'2026-09-01"/.test(p) && /Parts Needed!A7:H7/.test(p), p);
     const c2 = sandbox({ state: { partsData: {} } });
     c2.document = { getElementById: id => ({ '_part-desc': { value: 'x' } })[id] || null };

@@ -451,7 +451,7 @@ async function _doShare(mode) {
       var url = URL.createObjectURL(pdfBlob);
       var a = document.createElement('a');
       a.href = url;
-      a.download = 'collection-share-' + new Date().toISOString().slice(0,10) + '.pdf';
+      a.download = 'collection-share-' + rrToday() + '.pdf';
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 5000);
       showToast('PDF downloaded', 2500);

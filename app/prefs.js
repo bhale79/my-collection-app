@@ -836,7 +836,7 @@ function exportFullCollection() {
       esc(pd.isError||''), esc(pd.errorDesc||''), esc(pd.inventoryId||''),
       esc(pd.groupId||''), esc(pd.location||''),
     ].join(','));
-  const dateTag = new Date().toISOString().slice(0,10);
+  const dateTag = rrToday();
   const csv = headers.map(h=>`"${h}"`).join(',') + '\n' + rows.join('\n');
   const blob = new Blob([csv], {type:'text/csv'});
   const url = URL.createObjectURL(blob);

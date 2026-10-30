@@ -21,6 +21,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 'use strict';
 const fs = require('fs'), path = require('path');
+Object.assign(global, require('./lib/rr-sheet-cells.js'));   // v0.9.2044: the lifted sheetsUpdate runs every cell through the app's one rule
 const APP = path.join(__dirname, '..', 'app');
 const src = f => fs.readFileSync(path.join(APP, f), 'utf8');
 let pass = 0, fail = 0;

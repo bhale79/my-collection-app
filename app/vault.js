@@ -232,7 +232,7 @@ async function vaultPost(payload) {
 // NEXT app load (never loops within a session).
 function _rrHeartbeat() {
   try {
-    var today = new Date().toISOString().slice(0, 10);
+    var today = rrToday();
     if (localStorage.getItem('lv_hb_day') === today) return;
     vaultPost({ action: 'heartbeat', v: (typeof APP_VERSION !== 'undefined' ? APP_VERSION : '') })
       .then(function (r) {

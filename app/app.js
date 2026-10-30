@@ -380,7 +380,7 @@ function buildPersonalRow(fields) {
   if (!fields) return row;
   // v0.9.720: stamp Date Added on NEW rows. Full-row UPDATE callers pass the
   // existing value (even '') so re-saves never rewrite the original date.
-  if (fields.dateAdded === undefined && fields.itemNum) fields = Object.assign({}, fields, { dateAdded: new Date().toISOString().slice(0, 10) });
+  if (fields.dateAdded === undefined && fields.itemNum) fields = Object.assign({}, fields, { dateAdded: rrToday() });
   // v0.9.1393 — every column the schema calls a Date is written AS a date.
   // Derived from the schema headers rather than a hand-kept list, so a new
   // date column cannot quietly miss out.
@@ -1352,7 +1352,7 @@ function _buildSoldRow(opts) {
     pick(opts.condition, src.condition),
     pick(opts.pricePaid, src.priceItem),
     opts.salePrice || '',
-    opts.dateSold || new Date().toISOString().split('T')[0],
+    opts.dateSold || rrToday(),
     opts.notes || '',
     pick(opts.inventoryId, src.inventoryId),
     pick(opts.manufacturer, src.manufacturer, ((typeof _brandOfItem === 'function' ? _brandOfItem(opts.itemNum) : '') || (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : 'Lionel'))),

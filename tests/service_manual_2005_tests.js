@@ -93,6 +93,7 @@ function sandbox(opts) {
   ctx.appConfirm = async function () { log.push('confirm'); return ctx.confirmAnswer; };
   ctx.showToast = function (m) { log.push('toast ' + m); };
   vm.createContext(ctx);
+  ctx.rrToday = require('./lib/rr-today.js');   // v0.9.2044: the app's one today (config.js), handed in
   vm.runInContext(constSrc(CFG, 'SERVICE_MANUAL_TAB') + '\n' + constSrc(CFG, 'RR_SERVICE_MANUAL') + '\n' +
     'var CATALOG_REFRESH_MAX_AGE_DAYS = 7;\nwindow.RR_SERVICE_MANUAL = RR_SERVICE_MANUAL;\n' + SM, ctx, { filename: 'service-manual.js' });
   return ctx;

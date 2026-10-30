@@ -2445,7 +2445,7 @@ async function _impWrite() {
         var key = it.srcTab + '|' + it.srcRow;
         var ask = (_imp.priceWhen === 'now') ? rrImpCleanMoney(_imp.itemPrices[key] || '') : '';
         forSale.push([
-          it.itemNum || '', '', cond, ask, new Date().toISOString().slice(0, 10),
+          it.itemNum || '', '', cond, ask, rrToday(),
           (it.yourDesc || '').slice(0, 120), rrImpCleanMoney(it.priceItem),
           rrImpCleanMoney(it.userEstWorth), invId,
           m ? '' : (it.manufacturer || ''),

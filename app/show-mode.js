@@ -24,7 +24,7 @@
   var HISTORY_KEY = 'lv_show_history';
 
   function _esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
-  function _todayISO() { try { return new Date().toLocaleDateString('en-CA'); } catch (e) { return ''; } }
+  function _todayISO() { return rrToday(); }   // v0.9.2044: the one today (config.js)
   function _session() {
     try { return JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); } catch (e) { return null; }
   }

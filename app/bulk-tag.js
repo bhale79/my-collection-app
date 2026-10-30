@@ -531,7 +531,10 @@ async function _rrTagBatch(data) {
   var res = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + '/values:batchUpdate', {
     method: 'POST',
     headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data: data }),
+    // v0.9.2044: the third USER_ENTERED writer — its cells go through the same one rule as sheetsUpdate / sheetsAppend
+    body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data: (data || []).map(function (d) {
+      return (d && Array.isArray(d.values) && typeof rrSheetCells === 'function') ? Object.assign({}, d, { values: rrSheetCells(d.values) }) : d;
+    }) }),
   });
   if (!res.ok) throw new Error('Sheets said ' + res.status);
   return res.json();

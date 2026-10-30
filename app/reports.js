@@ -353,7 +353,7 @@ function buildReport() {
 // the local date and time (two made the same day had identical names).
 function _repCsvName(base) {
   if (typeof window !== 'undefined' && typeof window._repStampName === 'function') return window._repStampName(base, '.csv');
-  return base + '-' + new Date().toISOString().slice(0, 10) + '.csv';
+  return base + '-' + rrToday() + '.csv';
 }
 function _repKeepCsv(blob, name) {
   try { if (typeof window._archiveBlob === 'function') window._archiveBlob(blob, name, 'text/csv'); } catch (e) {}

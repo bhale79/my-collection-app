@@ -105,6 +105,7 @@ function boot(opts) {
   };
   sandbox.window = sandbox;
   vm.createContext(sandbox);
+  sandbox.rrToday = require('./lib/rr-today.js');   // v0.9.2044: the app's one today (config.js), handed in
   vm.runInContext(SRC, sandbox, { filename: 'sheets.js' });
   return { sandbox, calls, toasts, tabs };
 }
@@ -366,6 +367,7 @@ function boot2(opts) {
   };
   sandbox.window = sandbox;
   vm.createContext(sandbox);
+  sandbox.rrToday = require('./lib/rr-today.js');   // v0.9.2044: the app's one today (config.js), handed in
   vm.runInContext(SRC, sandbox, { filename: 'sheets.js' });
   return { sandbox, calls, toasts, sheets };
 }

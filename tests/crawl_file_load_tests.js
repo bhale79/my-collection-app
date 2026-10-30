@@ -87,6 +87,7 @@ function makeBox(opts) {
   ctx.rrRegisterPage = function () {};
   ctx.rrJsArg = (s) => String(s);
   vm.createContext(ctx);
+  ctx.rrToday = require('./lib/rr-today.js');   // v0.9.2044: the app's one today (config.js), handed in
   vm.runInContext(defM[0].replace('const ', 'var '), ctx);
   vm.runInContext(ym, ctx);
   // the Office's own reload is not under test here

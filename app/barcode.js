@@ -905,7 +905,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       if (!(window.state && state.personalSheetId && typeof sheetsAppend === 'function')) return;
       await _bcMapEnsureTab();
       await sheetsAppend(state.personalSheetId, "'Barcode Map'!A1",
-        [[upc, itemNum, String(mfr || ''), new Date().toISOString().slice(0, 10), String(how || 'scan')]]);
+        [[upc, itemNum, String(mfr || ''), rrToday(), String(how || 'scan')]]);
       console.log('[bcmap] learned', upc, '\u2192', itemNum);
     } catch (e) { console.warn('[bcmap] could not save the pairing', e && e.message); }
   }
@@ -952,7 +952,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       if (window.state && state.personalSheetId && typeof sheetsAppend === 'function') {
         await _bcMapEnsureTab();
         await sheetsAppend(state.personalSheetId, "'Barcode Map'!A1",
-          [[upc, '', '', new Date().toISOString().slice(0, 10), 'forgotten']]);
+          [[upc, '', '', rrToday(), 'forgotten']]);
       }
       console.log('[bcmap] forgot', upc);
     } catch (e) { console.warn('[bcmap] could not forget the pairing', e && e.message); }
@@ -978,7 +978,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       var q = _bcPairQueue();
       if (!q.some(function (x) { return x.u === upc && x.n === itemNum; })) {
         q.push({ u: upc, n: itemNum, m: String(mfr || ''), im: inMaster ? 1 : 0,
-                 h: String(how || 'scan'), d: new Date().toISOString().slice(0, 10) });
+                 h: String(how || 'scan'), d: rrToday() });
         _bcPairQSave(q);
       }
       _bcPairDrain();

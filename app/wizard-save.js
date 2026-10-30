@@ -985,7 +985,7 @@ async function saveEphemeraItem() {
       photoItem: photoFolderLink, datePurchased: d.eph_dateAcquired || '',
       yearMade: d.eph_year || '', inventoryId: _uniInvId, era: 'Manual',
       description: _uniDesc,
-      dateAdded: new Date().toISOString().slice(0, 10),
+      dateAdded: rrToday(),
     });
     _stampSaved(pdObj);
     state.personalData[_uniInvId || (ephItemNum + '||' + actualRow)] = pdObj;
@@ -1929,7 +1929,7 @@ async function saveWizardItem() {
         itemNum, fsVariation,
         fsCondition,
         d.askingPrice || '',
-        d.dateListed || new Date().toISOString().split('T')[0],
+        d.dateListed || rrToday(),
         fsNotes,
         fsOrigPrice,
         fsEstWorth,
@@ -2651,7 +2651,7 @@ async function saveWizardItem() {
         condition: d.condition || '',
         priceItem: d.priceItem || '',
         salePrice: d.salePrice || '',
-        dateSold: d.dateSold || (new Date().toISOString().split('T')[0]),
+        dateSold: d.dateSold || (rrToday()),
         notes: d.notes || '',
         soldTo: d.soldTo || '', soldAt: (d.soldAt || '').trim(),   // v0.9.1944
         inventoryId: (typeof _soldInvIdForState !== 'undefined' && _soldInvIdForState) || '',

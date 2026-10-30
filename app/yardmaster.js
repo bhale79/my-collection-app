@@ -368,7 +368,7 @@
   // ── Mark a chore done: write TODAY into that row's last_done ───
   window._ymChoreDone = function (row, name) {
     if (!_isOwner()) return;
-    var today = new Date().toISOString().slice(0, 10);
+    var today = rrToday();
     fetch('https://sheets.googleapis.com/v4/spreadsheets/' + YM.VAULT_ID
         + '/values/' + encodeURIComponent('chores!C' + row) + '?valueInputOption=RAW',
         { method: 'PUT',
@@ -665,7 +665,7 @@
     if (_ymArchiveBusy) { if (typeof showToast === 'function') showToast('An archive is already running \u2014 hold on.', 3000); return -1; }
     _ymArchiveBusy = true;
     var H = { Authorization: 'Bearer ' + window.accessToken, 'Content-Type': 'application/json' };
-    var today = new Date().toISOString().slice(0, 10);
+    var today = rrToday();
     var SS = 'https://sheets.googleapis.com/v4/spreadsheets/' + YM.VAULT_ID;
     var colOf = _ymColLetter;
     var readVals = async function (range, what) {
@@ -836,7 +836,7 @@
   window._ymApplyVerdicts = async function (pairs, recordUndo) {
     if (!_isOwner() || !pairs.length) return;
     if (!(await _ymRowsStillMatch(pairs.map(function (pr) { return pr.dd; })))) return;
-    var today = new Date().toISOString().slice(0, 10);
+    var today = rrToday();
     var data = pairs.map(function (pr) {
       return { range: 'crawl_deltas!P' + pr.dd.sheetRow + ':Q' + pr.dd.sheetRow,
                values: [[pr.status, pr.status === 'pending' ? '' : today]] };
@@ -1010,7 +1010,7 @@
                desc: gv('ym-ed-desc'), years: gv('ym-ed-years'), msrp: gv('ym-ed-msrp') };
     if (!nv.num) { if (typeof showToast === 'function') showToast('The item number can\u2019t be empty.', 3000, true); return; }
     if (!(await _ymRowsStillMatch([dd]))) return;   // v0.9.1689
-    var today = new Date().toISOString().slice(0, 10);
+    var today = rrToday();
     try {
       var r = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + YM.VAULT_ID + '/values:batchUpdate',
         { method: 'POST',
@@ -1143,7 +1143,7 @@
     _ymQueueBusy = true;
     var H = { Authorization: 'Bearer ' + window.accessToken, 'Content-Type': 'application/json' };
     var SS = 'https://sheets.googleapis.com/v4/spreadsheets/' + YM.VAULT_ID;
-    var today = new Date().toISOString().slice(0, 10);
+    var today = rrToday();
     try {
       // headers, by name, fresh
       var dhRes = await fetch(SS + '/values/' + encodeURIComponent(YM.DELTAS_TAB + '!A1:AZ1'), { headers: H });
@@ -1340,7 +1340,7 @@
     var F = (typeof RR_CRAWL_FILE !== 'undefined') ? RR_CRAWL_FILE : { MAX_BYTES: 10485760 };
     var H = { Authorization: 'Bearer ' + window.accessToken, 'Content-Type': 'application/json' };
     var SS = 'https://sheets.googleapis.com/v4/spreadsheets/' + YM.VAULT_ID;
-    var today = new Date().toISOString().slice(0, 10);
+    var today = rrToday();
     var getVals = async function (range) {
       var r = await fetch(SS + '/values/' + encodeURIComponent(range), { headers: H });
       if (!r.ok) throw new Error('could not read the review queue (HTTP ' + r.status + ') — nothing was loaded');
@@ -1499,7 +1499,7 @@
     var MID = (typeof MASTER_SHEET_ID !== 'undefined') ? MASTER_SHEET_ID : '';
     if (!MID) { if (typeof showToast === 'function') showToast('Master sheet id unavailable \u2014 reload the app.', 3500, true); return; }
     var H = { Authorization: 'Bearer ' + window.accessToken, 'Content-Type': 'application/json' };
-    var today = new Date().toISOString().slice(0, 10);
+    var today = rrToday();
     var approved = _ymData.deltas.filter(function (dd) {
       return dd.batch === _ymBatchId && (dd.status === 'approved' || dd.status === 'edited');
     });

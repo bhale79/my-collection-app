@@ -207,10 +207,7 @@ async function _smEnsureTab() {
   return true;
 }
 
-function _smToday() {
-  var d = new Date();
-  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-}
+function _smToday() { return rrToday(); }   // v0.9.2044: the one today (config.js)
 function _smPageById(id) {
   return (_smPages || []).filter(function (p) { return p.id === id; })[0] || null;
 }

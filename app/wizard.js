@@ -4038,7 +4038,7 @@ function renderWizardStep() {
     // v0.9.749 (Brad): "Date listed" defaults to TODAY (user can change it) —
     // same for recording a sale date. Stamp wizard.data too so Next keeps it.
     if (!wizard.data[s.id] && (s.id === 'dateListed' || s.id === 'dateSold')) {
-      try { wizard.data[s.id] = new Date().toLocaleDateString('en-CA'); } catch (e) {}
+      wizard.data[s.id] = rrToday();   // v0.9.2044: the one today (config.js)
     }
     const val = wizard.data[s.id] || '';
     body.innerHTML = `
@@ -6437,7 +6437,7 @@ function renderWizardStep() {
     // auto-fill today's date when none has been chosen; the user can still change it.
     if (!_pvIsSetOther) {
       var _pvToday = '';
-      try { var _pvDt = new Date(); _pvToday = _pvDt.getFullYear() + '-' + String(_pvDt.getMonth() + 1).padStart(2, '0') + '-' + String(_pvDt.getDate()).padStart(2, '0'); } catch (e) {}
+      _pvToday = rrToday();   // v0.9.2044: the one today (config.js)
       var _pvDateVal = _pvD.datePurchased || _pvToday;
       if (!_pvD.datePurchased && _pvToday) { wizard.data.datePurchased = _pvToday; }   // default so a blank date saves as today
       _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">' + (_pvIsSetLoco ? 'Date Set Purchased' : 'Date Purchased') + '</div>';

@@ -3597,7 +3597,7 @@ function _ncShowFsSoldModal(type, key, action) {
   const ids = _ncIdentifiers(type, entry);
   const isSold = action === 'sold';
   const title = ids.title || ids.itemNum;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = rrToday();
   const condition = entry.condition || '';
   const estValue  = entry.estValue || '';
   const accent = isSold ? '#2ecc71' : '#e67e22';
@@ -3805,7 +3805,7 @@ function _ncShowUpgradeModal(type, key) {
       const _brUgEntry = {
         itemNum: ids.itemNum, variation: ids.variation,
         priority, expectedPrice: price,
-        notes: title, dateAdded: new Date().toISOString().slice(0, 10),
+        notes: title, dateAdded: rrToday(),
         inventoryId: (_brPd && _brPd.inventoryId) || '',
       };
       const _brUgKey = _brUgEntry.inventoryId || ('legacy-row-' + Date.now());

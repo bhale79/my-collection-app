@@ -88,6 +88,7 @@ function world(S, setupSrc, ymSrc) {
     + 'function _rrWriteFailed(k, a, e) { return e; } async function _withTokenRetry(f) { return f(); } function _encodeRange(r) { return encodeURIComponent(r); } const console = { log(m) { logs.push(String(m)); }, warn() {}, error() {} };\n'
     + grab(setupSrc, 'async function rrEnsureGridColumns(spreadsheetId, tabTitle, wantCols)') + '\n'
     + grab(SHEETS, 'function _rrOfflineNow()') + '\n' + grab(SHEETS, 'async function sheetsUpdate(spreadsheetId, range, values, opts)') + '\n'
+    + grab(SHEETS, 'function rrSheetCell(v)') + '\n' + grab(SHEETS, 'function rrSheetCells(values)') + '\n'   // v0.9.2044: sheetsUpdate's one cell rule comes with it
     + grab(ymSrc, 'function _ymColLetter(i)') + '\n' + grab(ymSrc, 'async function _ymAddHeaderColumn(MID, H, tab, heads, header)') + '\n'
     + 'return { rrEnsureGridColumns, _ymAddHeaderColumn, sheetsUpdate };';
   const logs = [];

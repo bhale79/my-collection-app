@@ -884,7 +884,7 @@ function ephemeraForSale(tabId, rowKey) {
       </div>
       <div style="margin-bottom:1.1rem">
         <div class="field-label">Date Listed</div>
-        <input type="date" id="eph-fs-date" value="${new Date().toISOString().slice(0,10)}"
+        <input type="date" id="eph-fs-date" value="${rrToday()}"
           style="width:100%;padding:0.5rem 0.7rem;border-radius:7px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box">
       </div>
       <div style="display:flex;gap:0.6rem">
@@ -944,7 +944,7 @@ function ephemeraSold(tabId, rowKey) {
       </div>
       <div style="margin-bottom:1.1rem">
         <div class="field-label">Date Sold</div>
-        <input type="date" id="eph-sold-date" value="${new Date().toISOString().slice(0,10)}"
+        <input type="date" id="eph-sold-date" value="${rrToday()}"
           style="width:100%;padding:0.5rem 0.7rem;border-radius:7px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box">
       </div>
       <div id="eph-sale-fields">${typeof rrSaleFieldsHTML === 'function' ? rrSaleFieldsHTML('eph-sale', { soldAt: rrSaleShowName(), notes: title }, { notes: true }) : ''}</div>
@@ -2417,7 +2417,7 @@ function _rrSaleE(v) {
   return (typeof rrEsc === 'function') ? rrEsc(v)
     : String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
-function _rrSaleToday() { try { return new Date().toLocaleDateString('en-CA'); } catch (e) { return new Date().toISOString().slice(0, 10); } }
+function _rrSaleToday() { return rrToday(); }   // v0.9.2044: the one today (config.js)
 
 // The running Show Mode session's name (show-mode.js keeps it), or ''.
 function rrSaleShowName() {
@@ -4848,7 +4848,7 @@ function _partsRowBuild(f) {
   f = f || {};
   var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
   return [_t(f.id || ('part-' + Date.now())), rrSheetText(f.description || ''), _t(f.partNum), _t(f.forItem), _t(f.forInv),
-          String(f.photo || ''), rrSheetText(f.notes || ''), _t(f.dateAdded || new Date().toISOString().split('T')[0]),
+          String(f.photo || ''), rrSheetText(f.notes || ''), _t(f.dateAdded || rrToday()),
           String(f.status || 'wanted'), _t(f.dateBought), _t(f.dateInstalled), String(f.price || ''), _t(f.taskId)];
 }
 // THE appender — the only sheetsAppend for the Parts Needed tab in the app.
@@ -5097,7 +5097,7 @@ async function markPartBought(partId) {
   var p = _partsFind(partId);
   if (!p) { if (typeof showToast === 'function') showToast('That part is no longer on your list \u2014 refresh and try again.', 4000, true); return false; }
   var rowNum = p.row;
-  var today = new Date().toISOString().split('T')[0];
+  var today = rrToday();
   try {
     if (typeof _ensurePartsLifecycleCols === 'function') await _ensurePartsLifecycleCols();
     if (!(await rrVerifiedRowUpdate(state.personalSheetId, 'Parts Needed', rowNum,
@@ -5282,7 +5282,7 @@ async function savePart(existingId) {
       // part. Confirm the row still holds that part first — the row as it is
       // NOW (v0.9.2038: read off the part found by its id).
       var existingRow = ex.row;
-      var row = [_t(id), rrSheetText(desc), _t(partNum), _t(forItem), _t(forInv), photoLink, rrSheetText(notes), _t(ex.dateAdded || new Date().toISOString().split('T')[0])];
+      var row = [_t(id), rrSheetText(desc), _t(partNum), _t(forItem), _t(forInv), photoLink, rrSheetText(notes), _t(ex.dateAdded || rrToday())];
       if (!(await rrVerifiedRowUpdate(state.personalSheetId, 'Parts Needed', existingRow, 'Parts Needed!A' + existingRow + ':H' + existingRow, [row], { num: id }, 'Parts list'))) return;
     } else {
       await _partsAppendRow({ id: id, description: desc, partNum: partNum, forItem: forItem, forInv: forInv, photo: photoLink, notes: notes });   // v0.9.1753: the one appender (A–M)
@@ -5370,7 +5370,7 @@ if (typeof window !== 'undefined') window.markPartInstalled = markPartInstalled;
 function _partInstallForm(p, pd, task) {
   var m = (typeof findMaster === 'function') ? findMaster(pd.itemNum, '', pd) : null;
   var itemLabel = pd.itemNum + (m && m.roadName ? ' \u2014 ' + m.roadName : '');
-  var today = new Date().toISOString().split('T')[0];
+  var today = rrToday();
   var _esc = function (str) { return String(str || '').replace(/"/g, '&quot;'); };
   var _instNum = String(p.partNum || ''), _instDesc = String(p.description || '');
   if (!_instNum.trim()) { var _sp = _partsSplitTyped(_instDesc); if (_sp.partNum && _sp.description) { _instNum = _sp.partNum; _instDesc = _sp.description; } }
@@ -5435,7 +5435,7 @@ async function _savePartInstalled(partId) {
   var partNum = g('_inst-part');
   var price = g('_inst-price');
   var vendor = g('_inst-vendor');
-  var date = g('_inst-date') || new Date().toISOString().split('T')[0];
+  var date = g('_inst-date') || rrToday();
   var orig = g('_inst-orig') || pd.allOriginal || '';
   var line = date + ' \u2014 Installed ' + desc
     + (partNum ? ' (part# ' + partNum + ')' : '')

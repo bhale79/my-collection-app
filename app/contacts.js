@@ -46,7 +46,7 @@
     var el = document.getElementById(id); if (el) el.remove();
     if (window.BackStack) BackStack.pop(id);
   };
-  function _today() { try { return new Date().toLocaleDateString('en-CA'); } catch (e) { return ''; } }
+  function _today() { return rrToday(); }   // v0.9.2044: the one today (config.js)
 
   // ── v0.9.769 — pre-OCR pipeline: auto-crop to the card, grayscale,
   // invert dark cards (white-on-black reads badly), stretch contrast, downscale.

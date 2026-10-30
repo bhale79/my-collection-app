@@ -1,6 +1,8 @@
 // Headless checks for v0.9.1057 inbox work.
 // Loads photo-inbox.js inside a stubbed browser and drives the real functions.
 const fs = require('fs');
+Object.assign(global, require('./lib/rr-sheet-cells.js'));   // v0.9.2044: lifted sheetsUpdate / sheetsAppend run every cell through the app's one rule
+global.rrToday = require('./lib/rr-today.js');   // v0.9.2044: the app's one today (config.js)
 // The Photo Inbox is read ONLY through tests/lib/pin-source.js (every piece, in load order).
 
 // v0.9.1256: ONE READER for "where does the app live". Two reads below used to
