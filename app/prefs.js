@@ -40,6 +40,9 @@ function _rebuildPrefsKeepScroll() {
 // Uses the cached folder id when present; otherwise runs Drive setup
 // once (same folders the photo uploads use) and then opens it.
 async function _prefsOpenPhotosFolder() {
+  // v0.9.2047 (known-problems sweep): the tab is opened inside the tap; the
+  // first-time Drive setup below is a wait iPhone Safari will not open after.
+  var _pfTab = rrOpenLater();
   try {
     var pid = (typeof driveCache !== 'undefined' && driveCache.photosId) || localStorage.getItem('lv_photos_id');
     if (!pid && typeof driveEnsureSetup === 'function') {
@@ -47,9 +50,10 @@ async function _prefsOpenPhotosFolder() {
       await driveEnsureSetup();
       pid = (typeof driveCache !== 'undefined' && driveCache.photosId) || '';
     }
-    if (!pid) { showToast('Photo folder not set up yet — add a photo to an item first', 3500, true); return; }
-    window.open('https://drive.google.com/drive/folders/' + pid, '_blank');
+    if (!pid) { _pfTab.drop(); showToast('Photo folder not set up yet — add a photo to an item first', 3500, true); return; }
+    _pfTab.go('https://drive.google.com/drive/folders/' + pid);
   } catch (e) {
+    _pfTab.drop();
     console.warn('[Prefs] photos folder open:', e);
     showToast((typeof rrIsSignInError === 'function' && rrIsSignInError(e))
       ? 'You\u2019re signed out \u2014 sign in to open your photo folder'

@@ -168,3 +168,67 @@ function showToast(msg, duration, isError) {
   }, duration || 2400);
   t.onclick = () => { clearTimeout(_timer); t.remove(); };
 }
+
+// ══ v0.9.2047 (known-problems sweep, release 2) — TWO helpers for what a tap
+// is allowed to do, so the rule lives in ONE place:
+//
+// rrOpenLater() — a browser lets a tap open ONE window, and iPhone Safari
+// counts the tap as spent the moment the code waits for anything (a Drive
+// check, an upload, a Doc being made). `window.open` after that wait is
+// refused silently — the person taps and nothing happens. The way that works
+// everywhere (drive.js's picker since v1417, the Photo Inbox's Lens since
+// v1835): open a BLANK tab inside the tap, do the waiting, then point the tab
+// at the address — or close it if the work failed. This is that pattern as a
+// helper. Call it BEFORE the first await.
+//   var t = rrOpenLater();            // inside the tap
+//   ... await work ...
+//   t.go(url)   → the tab shows the page (falls back to window.open if the
+//                  blank tab could not be opened, e.g. a strict blocker)
+//   t.drop()    → closes the blank tab (the work failed; nothing to show)
+// opts.ownPage: sever the tab from the app before pointing it (what v1911's
+// rrOpenExternal does with 'noopener' — an outside site runs as its own page
+// and can never reach back into the app).
+function rrOpenLater(opts) {
+  var tab = null;
+  try { tab = window.open('', '_blank'); } catch (e) { tab = null; }
+  var ownPage = !!(opts && opts.ownPage);
+  return {
+    tab: tab,
+    go: function (url) {
+      if (tab) {
+        try {
+          if (ownPage) { try { tab.opener = null; } catch (eO) {} }
+          // the store-link last stop (store-links.js) wraps window.open; a tab
+          // pointed by hand passes its address through the same checkpoint
+          tab.location = (typeof rrAffiliateUrl === 'function') ? rrAffiliateUrl(url) : url;
+          return true;
+        } catch (e) { tab = null; }
+      }
+      try { var w = window.open(url, '_blank', ownPage ? 'noopener' : undefined); return !!w; } catch (e2) { return false; }
+    },
+    drop: function () { try { if (tab) tab.close(); } catch (e) {} tab = null; }
+  };
+}
+window.rrOpenLater = rrOpenLater;
+
+// rrOnce(key, fn) — a quick second tap on a Save must not save twice. While
+// fn's promise is still running, another call with the same key does nothing
+// and returns null. The Workbench (v2038) and the sale screens (_rrBusyMark)
+// keep their own flags; this is the plain one for a button whose pop-up stays
+// open while it saves. Pass the button as the third argument and it is
+// disabled and reads "Saving…" until fn settles, then put back.
+var _rrOnceBusy = {};
+function rrOnce(key, fn, btn) {
+  if (_rrOnceBusy[key]) return null;
+  _rrOnceBusy[key] = true;
+  var _was = null;
+  if (btn) { _was = btn.textContent; btn.disabled = true; btn.textContent = 'Saving…'; }
+  var _done = function () {
+    delete _rrOnceBusy[key];
+    if (btn) { btn.disabled = false; if (_was !== null && btn.isConnected) btn.textContent = _was; }
+  };
+  var p;
+  try { p = Promise.resolve(fn()); } catch (e) { _done(); throw e; }
+  return p.then(function (v) { _done(); return v; }, function (e) { _done(); throw e; });
+}
+window.rrOnce = rrOnce;

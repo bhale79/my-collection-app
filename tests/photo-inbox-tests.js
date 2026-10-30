@@ -15592,8 +15592,14 @@ META_WRITES.length = 0; TOASTS.length = 0;
         // rrPersonalSafeWrite (app.js — it re-reads the row and refuses another item).
         ok('234 …the inline-guarded set is exactly the one known site',
            inlineGuarded === 1, String(inlineGuarded));
-        ok('234 …and contacts.js is the ONE deliberate exception, unchanged',
-           contactsRaw === 1, String(contactsRaw));
+        // v0.9.2047 (known-problems sweep, C18): the exception is GONE — 1 → 0.
+        // The v1284 reason ("a rename replaces cell A") is from before ids:
+        // column A is the contact's id now, the name is column B, and the
+        // delete has verified on that id since v1292. The edit now goes
+        // through rrVerifiedRowUpdate with the same id (a pre-id contact has
+        // a blank A, and rrRowStillIs lets that through, exactly as delete).
+        ok('234 …and contacts.js no longer has a raw row write (the v1284 exception retired in v0.9.2047)',
+           contactsRaw === 0, String(contactsRaw));
         // v0.9.1288: fourteen of these now go through rrRemoveRowConfirmed,
         // which is rrVerifiedRowUpdate plus "and tell the user if it threw" —
         // still the same guarded writer underneath, so both names count.
@@ -15643,8 +15649,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
         // sale off Sold through rrRemoveRowConfirmed, a copy kept like every other.
         // v0.9.2038: 68 → 69 — savePart's edit (app-pages.js) writes through the
         // guarded writer instead of its own inline rrRowStillIs.
-        ok('234 the sweep really landed — 69 sites write through the one guarded writer',
-           wrapped === 69, String(wrapped));
+        ok('234 the sweep really landed — 70 sites write through the one guarded writer',
+           // v0.9.2047: 69 → 70 — the contact EDIT joins the guarded set (see
+           // the retired exception above): the last remembered-row write that
+           // did not check its row.
+           wrapped === 70, String(wrapped));
       }
     })();
 
@@ -17426,9 +17435,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /var pd = rrSharePdOf\(it\);/.test(sl52) &&
          !/it\.pd \|\| \(it\.fs && it\.fs\.inventoryId && state\.personalData/.test(sl52));
       // ── copy for email ──
+      // v0.9.2047 (known-problems sweep, A9): the ONE image is stitched AHEAD
+      // (_rrStitchAhead) and the tap hands the ready picture — or its promise —
+      // to the ClipboardItem with no wait first (sweep_taps_2047_tests A4).
       ok('252 our own copy button exists and stitches ONE image to the clipboard',
          /_rrCopyCardsToClipboard/.test(sl52) &&
-         /new ClipboardItem\(\{ 'image\/png': blob \}\)/.test(sl52) &&
+         /new ClipboardItem\(\{ 'image\/png': pic \}\)/.test(sl52) &&
+         /async function _rrStitchCards\(files\)/.test(sl52) &&
          /Copy for email/.test(sl52));
       ok('252 copy falls back to downloads when the browser refuses',
          /catch \(e\) \{\s*\n\s*_rrDownloadFiles\(files\);/.test(sl52));

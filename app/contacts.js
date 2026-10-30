@@ -1269,7 +1269,18 @@
                      (function () { var b = ov.querySelector('#ct-f-pref'); return (b && b.checked) ? 'Yes' : ''; })()];
       try {
         if (!(await _ensureTab())) throw new Error('no tab');
-        if (row) await sheetsUpdate(state.personalSheetId, TAB + '!A' + row + ':Q' + row, [rowVals]);
+        // v0.9.2047 (known-problems sweep): the edit wrote row N without
+        // checking row N was still this contact — a contact deleted above it
+        // on another device shifts every row up, and the edit landed on the
+        // wrong person. Delete has checked since v1292 (_ctBlankRow); the
+        // edit now goes through the same verified writer. A refusal has
+        // already told the user; the form stays open with their words.
+        if (row) {
+          if (!(await rrVerifiedRowUpdate(state.personalSheetId, TAB, row, TAB + '!A' + row + ':Q' + row, [rowVals], { num: c.id || '' }, 'contact list'))) {
+            this.textContent = '✓ Save Contact'; this.disabled = false;
+            return;
+          }
+        }
         else await sheetsAppend(state.personalSheetId, TAB + '!A:Q', [rowVals]);
         window._ctClose('ct-modal');
         showToast('✓ ' + name + ' saved to Contacts');

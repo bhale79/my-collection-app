@@ -2678,13 +2678,17 @@ function openPhotoWizard(itemNum, variation, pdKey) {
 // someone wired a dropdown back to it.
 
 async function openPhotoFolder(itemNum, storedLink, invId) {
+  // v0.9.2047 (known-problems sweep): the tab is opened INSIDE the tap and
+  // pointed once Drive has answered — iPhone Safari refuses a window opened
+  // after the wait (rrOpenLater, wizard-utils.js).
+  var _pfTab = rrOpenLater();
   if (storedLink) {
     var _pfMatch = (storedLink || '').match(/folders\/([a-zA-Z0-9_-]+)/);
     if (_pfMatch && _pfMatch[1] && _pfMatch[1] !== 'undefined') {
       try {
         var _pfCheck = await driveRequest('GET', '/files/' + _pfMatch[1] + '?fields=id,trashed');
         if (_pfCheck && _pfCheck.id && !_pfCheck.trashed) {
-          window.open(storedLink, '_blank');
+          _pfTab.go(storedLink);
           return;
         }
       } catch(e) { /* stale link, fall through */ }
@@ -2694,7 +2698,7 @@ async function openPhotoFolder(itemNum, storedLink, invId) {
   try {
     var folderId = await driveEnsureItemFolder(itemNum);
     var freshLink = driveFolderLink(folderId);
-    window.open(freshLink, '_blank');
+    _pfTab.go(freshLink);
     // Auto-repair the broken link in the sheet
     // ── v0.9.1761: this repair used to pick the copy by ITEM NUMBER ALONE ──
     // — not even the variation — and then WRITE the folder link onto that
@@ -2715,7 +2719,7 @@ async function openPhotoFolder(itemNum, storedLink, invId) {
       try { if (typeof rrThumbBust === 'function') rrThumbBust(state.personalData[_pfKey]); } catch (eTB) {}   // v0.9.1201
       rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, state.personalData[_pfKey].row, PERSONAL_TAB + '!' + personalColLetter('photoItem') + state.personalData[_pfKey].row, [[freshLink]], { num: state.personalData[_pfKey].itemNum || '', invId: state.personalData[_pfKey].inventoryId || '' }, 'collection').catch(function(e) { console.warn('Photo link update:', e); });
     }
-  } catch(e) { showToast(rrSaveError(e, 'the folder'), 5000, true); }
+  } catch(e) { _pfTab.drop(); showToast(rrSaveError(e, 'the folder'), 5000, true); }
 }
 
 function showOwnedItemMenu(idx, pdKey) {

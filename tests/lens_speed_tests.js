@@ -155,21 +155,30 @@ function oneShrinker(drive) { return (strip(drive).match(/createImageBitmap\(/g)
     var limits = [], realST = window.setTimeout;
     window.setTimeout = function (fn, ms) { if (fn && /_lwKill|id-lens-wait/.test(String(fn)) || ms >= 15000) limits.push(ms); return realST.apply(window, arguments); };
     var n0 = _opened.length;
+    // v0.9.2047 (known-problems sweep): the tab is opened BLANK inside the tap
+    // (rrOpenLater) and pointed at Lens once the upload is done — iPhone Safari
+    // refuses a window opened after the wait. The stand-in hands back a tab
+    // and records where it is pointed and whether it was cut loose first.
+    window._pointed = []; var realOpen = window.open;
+    window.open = function (u, t, f) { _opened.push([String(u).slice(0, 80), t, f]); var tab = { opener: 'app', close: function () { _pointed.push('CLOSED'); } }; Object.defineProperty(tab, 'location', { set: function (v) { _pointed.push([String(v).slice(0, 80), tab.opener]); } }); return tab; };
     var p = _identifyOpenLens();
+    var openedInTap = _opened.length - n0;
     await new Promise(r => realST(r, 900));
     var during = !!document.getElementById('id-lens-wait');
     await p;
-    window.setTimeout = realST;
+    window.setTimeout = realST; window.open = realOpen;
     var openedNow = _opened.length - n0, rightAfter = !!document.getElementById('id-lens-wait');
     await new Promise(r => realST(r, 2800));
     window._upDelay = 0;
     var list = JSON.parse(localStorage.getItem('rr_research_times_v1') || '[]');
     var lens = list.filter(x => x.mode === 'lens').pop();
-    return { during: during, openedNow: openedNow, open: _opened[_opened.length - 1], rightAfter: rightAfter, after: !!document.getElementById('id-lens-wait'), limits: limits, lens: lens };
+    return { during: during, openedNow: openedNow, openedInTap: openedInTap, open: _opened[_opened.length - 1], pointed: _pointed, rightAfter: rightAfter, after: !!document.getElementById('id-lens-wait'), limits: limits, lens: lens };
   });
   T('C1  the Sending screen is up while the photo uploads', c1.during, c1);
   T('C2  its safety limit is RR_LENS.COVER_MAX_MS (90 s), not 15 s', c1.limits.indexOf(90000) >= 0 && c1.limits.indexOf(15000) < 0, c1.limits);
-  T('C3  Google Lens is opened once, on its own (noopener), with the photo link and the hint', c1.openedNow === 1 && /^https:\/\/lens\.google\.com\/uploadbyurl\?url=/.test(c1.open[0]) && c1.open[1] === '_blank' && c1.open[2] === 'noopener', c1.open);
+  T('C3  ONE tab, opened blank INSIDE the tap (before the upload), then pointed at Lens — cut loose from the app first (v1911\'s own page) — with the photo link and the hint',
+    c1.openedInTap === 1 && c1.openedNow === 1 && c1.open[0] === '' && c1.open[1] === '_blank'
+    && c1.pointed.length === 1 && /^https:\/\/lens\.google\.com\/uploadbyurl\?url=/.test(c1.pointed[0][0]) && c1.pointed[0][1] === null, [c1.open, c1.pointed]);
   T('C4  …and the Sending screen goes once Google is opening', c1.after === false, c1);
   T('C5  the Lens hand-off is recorded: its steps and the tap-to-Google total', c1.lens && c1.lens.outcome === 'opened' && c1.lens.steps.some(s => /lens: upload/.test(s[0])) && c1.lens.total >= 1400, c1.lens);
 

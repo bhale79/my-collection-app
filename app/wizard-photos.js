@@ -1063,6 +1063,12 @@ async function _identifyOpenLens() {
   // or the RR_LENS safety limit — never mid-upload.
   setTimeout(_lwKill, (typeof RR_LENS !== 'undefined' && RR_LENS.COVER_MAX_MS) || 90000);
   var _lensSteps = [], _lensT0 = Date.now();
+  // v0.9.2047 (known-problems sweep): the photo upload is a wait of several
+  // seconds, and iPhone Safari refuses a window opened after it — the Photo
+  // Inbox's Lens button has opened its tab first since v1835; this one never
+  // did. ownPage keeps v1911's rule (Google runs as its own page, no handle
+  // back into the app).
+  var _lensTab = rrOpenLater({ ownPage: true });
   try {
     if (typeof driveStageLensPhoto !== 'function') {
       throw new Error('Drive integration not loaded — please refresh and try again');
@@ -1133,7 +1139,8 @@ async function _identifyOpenLens() {
       + (_hint ? '&q=' + encodeURIComponent(_hint) + '&lns_mode=mu' : '');
     if (staged.reused) _lensSteps.push(['lens: photo already sent (reused)', 0]);
     try { if (typeof window.rrTimingSave === 'function') window.rrTimingSave('lens', 'opened', _lensSteps, Date.now() - _lensT0); } catch (eTS) {}   // v0.9.1911
-    if (typeof window.rrOpenExternal === 'function') window.rrOpenExternal(url, 'Google Lens');
+    if (_lensTab.tab) _lensTab.go(url);   // v0.9.2047: the tab opened inside the tap
+    else if (typeof window.rrOpenExternal === 'function') window.rrOpenExternal(url, 'Google Lens');
     else window.open(url, '_blank', 'noopener');
     setTimeout(_lwKill, 2500);   // v0.9.1911: Google is opening — the screen's job is done
     if (searchBtn) { searchBtn.disabled = false; searchBtn.innerHTML = origText; }
@@ -1145,6 +1152,7 @@ async function _identifyOpenLens() {
     }
     _identifyLensOpened = true;   // v0.9.642: arms the return-from-Lens clipboard check
   } catch(e) {
+    _lensTab.drop();   // v0.9.2047: nothing to show — close the tab opened in the tap
     try { _lwKill(); } catch (e5) {}   // v0.9.1469: never leave the wait screen up on failure
     console.error('[Lens] Search failed:', e);
     if (typeof showToast === 'function') showToast(rrSaveError(e, 'your change'), 4000, true);

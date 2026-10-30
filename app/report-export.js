@@ -377,6 +377,10 @@ async function exportReportGoogleDoc() {
   var type = (document.getElementById('report-type') || {}).value || 'insurance';
   if (!accessToken) { showToast('Please sign in first.', 4000, true); return; }
   _repBtnBusy('Creating the Google Doc\u2026');
+  // v0.9.2047 (known-problems sweep): the Doc takes seconds to make; a window
+  // opened after that wait is refused on iPhone (the Doc was made, nothing
+  // opened). The tab opens inside the tap and is pointed at the Doc when ready.
+  var _gdTab = rrOpenLater();
   try {
     var html = _reportToHTML(type);
     // v0.9.1966: the report's real name (Contacts was titled "Want-Upgrade-Parts") + date AND time
@@ -398,8 +402,8 @@ async function exportReportGoogleDoc() {
     var d = await res.json();
     if (d.error || !d.webViewLink) throw new Error((d.error && d.error.message) || 'create failed');
     _repBtnDone('Google Doc created \u2014 and kept in Past reports');
-    window.open(d.webViewLink, '_blank', 'noopener');
-  } catch (e) { console.error('[Report GoogleDoc]', e); showToast(rrSaveError(e, 'the Google Doc', { kept: false }), 6000, true); _repBtnDone(); }
+    _gdTab.go(d.webViewLink);
+  } catch (e) { _gdTab.drop(); console.error('[Report GoogleDoc]', e); showToast(rrSaveError(e, 'the Google Doc', { kept: false }), 6000, true); _repBtnDone(); }
 }
 
 // Build clean (light-themed) HTML for the Doc from the current report.

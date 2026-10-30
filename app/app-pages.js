@@ -2767,10 +2767,13 @@ async function rrSaleReturned(key) {
   if (!sd) { if (typeof showToast === 'function') showToast('Sale record not found', 3000, true); return; }
   if (/^Part from Parts Bin/.test(String(sd.notes || ''))) { if (typeof showToast === 'function') showToast(T.returnedPart || '', 4500, true); return; }
   if (_rrReturnBusy) return;
+  // v0.9.2047 (known-problems sweep): the flag is taken BEFORE the question.
+  // It used to be set after — two quick taps on Returned opened two questions
+  // and, answered one after the other, both went on. Cancel gives it back.
+  _rrReturnBusy = true;
   var num = sd.itemNum || '';
   var fill = function (s, extra) { return String(s || '').replace('{num}', num).replace('{what}', extra || ''); };
-  if (!(await appConfirm(fill(T.returnedAsk), { ok: T.returnedOk, title: T.returnedTitle }))) return;
-  _rrReturnBusy = true;
+  if (!(await appConfirm(fill(T.returnedAsk), { ok: T.returnedOk, title: T.returnedTitle }))) { _rrReturnBusy = false; return; }
   try {
     var invId = String(sd.inventoryId || '').trim();
     var id = invId || String(num).trim();
@@ -2954,14 +2957,14 @@ async function markForSaleAsSold(fsKey, askingPrice) {
   const itemNum = fs.itemNum || '';
   const variation = fs.variation || '';
   if (_rrSellBusy) return;   // stability rule 4: one sale at a time
+  _rrSellBusy = true;   // v0.9.2047: taken BEFORE the box — two quick taps used to open two boxes, and both sales went through
   // v0.9.1944: price, who, where, when and notes — one box (rrSaleDetailsDialog).
   const _fsMaster = (typeof findMaster === 'function') ? (findMaster(itemNum, variation, fs) || {}) : {};
   const _det = await rrSaleDetailsDialog({
     subtitle: 'No. ' + itemNum + ((_fsMaster.roadName || _fsMaster.description) ? ' \u2014 ' + (_fsMaster.roadName || _fsMaster.description) : ''),
     price: askingPrice || '', priceHint: true, notes: fs.notes || '',
   });
-  if (!_det) return; // cancelled
-  _rrSellBusy = true;
+  if (!_det) { _rrSellBusy = false; return; } // cancelled — the flag goes back
   // v0.9.1947 (Brad: "when i hit save on the item that i sold, it needs to go
   // back to the sale list. right now it looks like the item didn't move"):
   // the listing leaves the For Sale list NOW and the list is what you see; the
@@ -4434,8 +4437,8 @@ function showAddToUpgradeModal(itemNum, variation, pdRow, invId, groupMode) {
     ? '<div style="font-family:var(--font-mono);font-size:0.9rem;color:var(--t-accent);margin-bottom:0.1rem">Set: ' + _grpReal.map(function(p){ return p.itemNum; }).join(' + ') + '</div>'
     : '<div style="font-family:var(--font-mono);font-size:0.9rem;color:var(--t-accent);margin-bottom:0.1rem">' + itemNum + (variation ? ' <span style="color:var(--text-dim);font-size:0.8rem">' + variation + '</span>' : '') + '</div>';
   var _saveBtnHtml = _isAllUpg
-    ? '<button onclick="saveUpgradeGroup()" style="padding:0.6rem;border-radius:8px;background:#8b5cf6;color:#fff;border:none;font-family:var(--font-body);font-size:0.9rem;font-weight:600;cursor:pointer;margin-top:0.25rem">+ Add set (' + _grpReal.length + ' items) to Upgrade List</button>'
-    : '<button onclick="saveUpgradeItem(\'' + itemNum + '\',\'' + _escVarU + '\',' + (existing.row||0) + ',\'' + _invU + '\')" style="padding:0.6rem;border-radius:8px;background:#8b5cf6;color:#fff;border:none;font-family:var(--font-body);font-size:0.9rem;font-weight:600;cursor:pointer;margin-top:0.25rem">' + (existing.row ? 'Update Upgrade Entry' : '+ Add to Upgrade List') + '</button>';
+    ? '<button onclick="saveUpgradeGroup(this)" style="padding:0.6rem;border-radius:8px;background:#8b5cf6;color:#fff;border:none;font-family:var(--font-body);font-size:0.9rem;font-weight:600;cursor:pointer;margin-top:0.25rem">+ Add set (' + _grpReal.length + ' items) to Upgrade List</button>'
+    : '<button onclick="saveUpgradeItem(\'' + itemNum + '\',\'' + _escVarU + '\',' + (existing.row||0) + ',\'' + _invU + '\',this)" style="padding:0.6rem;border-radius:8px;background:#8b5cf6;color:#fff;border:none;font-family:var(--font-body);font-size:0.9rem;font-weight:600;cursor:pointer;margin-top:0.25rem">' + (existing.row ? 'Update Upgrade Entry' : '+ Add to Upgrade List') + '</button>';
   const old = document.getElementById('upgrade-add-modal');
   if (old) old.remove();
   const overlay = document.createElement('div');
@@ -4519,7 +4522,14 @@ function _chooseUpgradeScope(itemNum, variation, pdRow, invId, pd) {
 
 // Session 162: save one Upgrade entry per piece of a grouped set, using the
 // single set of details entered once. Mirrors saveUpgradeItem's reload.
-async function saveUpgradeGroup() {
+// v0.9.2047 (known-problems sweep): the pop-up stays open while it saves and
+// its button stayed live — a quick second tap added every piece TWICE. Both
+// Upgrade saves now run through rrOnce (wizard-utils.js): the second tap does
+// nothing, the button reads "Saving…" until the first finishes.
+function saveUpgradeGroup(btn) {
+  return rrOnce('upgrade-save', function () { return _saveUpgradeGroupNow(); }, btn);
+}
+async function _saveUpgradeGroupNow() {
   const priority = document.getElementById('upg-priority')?.value || 'Medium';
   const targetCond = document.getElementById('upg-target-cond')?.value || '';
   const maxPrice = document.getElementById('upg-max-price')?.value || '';
@@ -4565,7 +4575,10 @@ async function saveUpgradeGroup() {
   }
 }
 
-async function saveUpgradeItem(itemNum, variation, existingRow, invId) {
+function saveUpgradeItem(itemNum, variation, existingRow, invId, btn) {
+  return rrOnce('upgrade-save', function () { return _saveUpgradeItemNow(itemNum, variation, existingRow, invId); }, btn);
+}
+async function _saveUpgradeItemNow(itemNum, variation, existingRow, invId) {
   const priority = document.getElementById('upg-priority')?.value || 'Medium';
   const targetCond = document.getElementById('upg-target-cond')?.value || '';
   const maxPrice = document.getElementById('upg-max-price')?.value || '';

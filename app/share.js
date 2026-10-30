@@ -497,25 +497,36 @@ async function _doShare(mode) {
       // Upload to Drive and share link
       if (prog) prog.textContent = 'Uploading to your Google Drive…';
       var link = await _uploadShareToDrive(pdfBlob);
-      if (prog) prog.textContent = 'Opening share sheet…';
-
-      var shareData = {
+      // v0.9.2047 (known-problems sweep): this used to call the share sheet
+      // (or copy the link) right here, AFTER the upload — the same trap the
+      // Gmail route above avoided since v1311: iPhone Safari (and Chrome, past
+      // a few seconds) will not open a share sheet or write the clipboard once
+      // the tap that started it is spent on a wait. The sheet silently never
+      // opened; the copy silently failed. Now the link is ready first, and
+      // the share / copy happen from a FRESH tap on a button (rrShareLinkNow /
+      // rrShareLinkCopy, below), the way the Gmail draft does.
+      window._rrShareLinkData = {
         title: 'Rail Roster Share',
         text: message || 'Check out these items from my collection.',
         url: link,
       };
-
-      if (navigator.share) {
-        await navigator.share(shareData);
-        showToast('Shared!', 2000);
-      } else {
-        // Fallback: copy link to clipboard
-        await navigator.clipboard.writeText((message ? message + '\n\n' : '') + link);
-        showToast('Link copied to clipboard', 3000);
+      if (prog) prog.style.display = 'none';
+      if (acts) {
+        if (typeof window._rrActsStash === 'function') window._rrActsStash(acts);
+        acts.style.display = 'flex';
+        acts.innerHTML =
+          (navigator.share
+            ? '<button onclick="rrShareLinkNow()" style="display:flex;align-items:center;justify-content:center;gap:0.5rem;padding:0.75rem;border-radius:9px;border:none;background:var(--green);color:var(--on-accent);font-family:var(--font-body);font-weight:700;font-size:0.95rem;cursor:pointer">' +
+                '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>' +
+                'Share the link' +
+              '</button>'
+            : '') +
+          '<button onclick="rrShareLinkCopy()" style="padding:0.55rem;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">' +
+            (navigator.share ? 'Copy the message + link instead' : 'Copy the message + link') +
+          '</button>' +
+          '<div style="text-align:center;font-size:0.72rem;color:var(--text-dim)">The sheet lives in your Google Drive — anyone with the link can view it. Your picks are kept in case you want the PDF too.</div>' +
+          (typeof window._rrBackBtnHtml === 'function' ? window._rrBackBtnHtml() : '');
       }
-      // v0.9.1302: stay open with the picks intact (see the pdf branch note).
-      if (prog) prog.textContent = 'Shared — your picks are kept in case you want the PDF too.';
-      if (acts) acts.style.display = 'flex';
     }
 
   } catch(err) {
@@ -531,6 +542,30 @@ async function _doShare(mode) {
     if (acts) acts.style.display = 'flex';
   }
 }
+
+// v0.9.2047: the share sheet / the copy run INSIDE a tap (see the link branch
+// above). Each reads what the upload left in _rrShareLinkData.
+function rrShareLinkNow() {
+  var d = window._rrShareLinkData;
+  if (!d || !d.url) return;
+  if (!navigator.share) { rrShareLinkCopy(); return; }
+  navigator.share({ title: d.title, text: d.text, url: d.url }).then(function () {
+    showToast('Shared!', 2000);
+  }).catch(function (err) {
+    if (err && err.name === 'AbortError') return;   // backed out of the system window
+    rrShareLinkCopy();
+  });
+}
+function rrShareLinkCopy() {
+  var d = window._rrShareLinkData;
+  if (!d || !d.url) return;
+  var t = (d.text ? d.text + '\n\n' : '') + d.url;
+  try {
+    navigator.clipboard.writeText(t).then(function () { showToast('Link copied — paste it into any message', 3000); },
+      function () { showToast('Could not copy on this browser — the link is ' + d.url, 6000, true); });
+  } catch (e) { showToast('Could not copy on this browser — the link is ' + d.url, 6000, true); }
+}
+if (typeof window !== 'undefined') { window.rrShareLinkNow = rrShareLinkNow; window.rrShareLinkCopy = rrShareLinkCopy; }
 
 // ── Fetch a Drive photo as a base64 data URL ──────────────────────
 async function _fetchPhotoAsDataUrl(fileId) {

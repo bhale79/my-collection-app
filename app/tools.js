@@ -647,7 +647,7 @@ function _buildSetBody(r, idx) {
         _getMasterName(itm) +
         (alreadyWanted
           ? '<span style="font-size:0.72rem;color:var(--gold);margin-left:auto;white-space:nowrap">★ On want list</span>'
-          : '<button onclick="toolAddToWantList(\'' + itm.replace(/'/g, "\\'") + '\',' + idx + ')" style="margin-left:auto;padding:0.2rem 0.55rem;border-radius:6px;border:1px solid var(--gold);background:var(--bg-card);background:color-mix(in srgb, rgb(212,168,67) 8%, var(--bg-card));color:var(--gold);font-family:var(--font-body);font-size:0.72rem;cursor:pointer;white-space:nowrap;flex-shrink:0">+ Want List</button>') +
+          : '<button onclick="toolAddToWantList(\'' + itm.replace(/'/g, "\\'") + '\',' + idx + ',this)" style="margin-left:auto;padding:0.2rem 0.55rem;border-radius:6px;border:1px solid var(--gold);background:var(--bg-card);background:color-mix(in srgb, rgb(212,168,67) 8%, var(--bg-card));color:var(--gold);font-family:var(--font-body);font-size:0.72rem;cursor:pointer;white-space:nowrap;flex-shrink:0">+ Want List</button>') +
       '</div>';
     });
 
@@ -693,7 +693,13 @@ function toggleSetRow(idx) {
   if (chevron) chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
 }
 
-async function toolAddToWantList(itemNum, setIdx) {
+// v0.9.2047 (known-problems sweep): the ★ button stayed live while the row was
+// being added — a quick second tap put the item on the Want List twice. One
+// add at a time per item (rrOnce, wizard-utils.js); the button reads "Saving…".
+function toolAddToWantList(itemNum, setIdx, btn) {
+  return rrOnce('setbuilder-want:' + itemNum, function () { return _toolAddToWantListNow(itemNum, setIdx); }, btn);
+}
+async function _toolAddToWantListNow(itemNum, setIdx) {
   // Find master data for this item
   var norm = function(n) { return (n || '').trim().toUpperCase(); };
   var master = state.masterData && state.masterData.find(function(m) {

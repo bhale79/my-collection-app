@@ -1551,7 +1551,11 @@ _pinGrpPanelRender();
   function showToast(m) { window.__toast = m; }
   window.__copied = null;
   Object.defineProperty(navigator, 'clipboard', { value: { write: function (items) { window.__copied = items; return Promise.resolve(); } }, configurable: true });
+  // v0.9.2047: the real ClipboardItem takes a Blob OR a promise of one (Safari's
+  // form for a picture finished after the tap; Chrome 153 measured the same) —
+  // the stand-in resolves whatever it was handed, as the real one does.
   window.ClipboardItem = function (o) { this.parts = o; };
+  window.__copiedParts = async function () { var it = window.__copied && window.__copied[0]; if (!it) return null; var out = {}; for (var k in it.parts) out[k] = await Promise.resolve(it.parts[k]); return out; };
 </script>
 <script>${sellSrc.slice(li0, li1)}
 ${sellSrc.slice(h0, h1)}
@@ -1583,7 +1587,7 @@ window.__ready = (async function () {
         await new Promise(function (r) { setTimeout(r, 300); });
         const items = window.__copied;
         if (!items || items.length !== 1) return { items: items ? items.length : 0 };
-        const blob = items[0].parts['image/png'];
+        const blob = (await window.__copiedParts())['image/png'];
         const im = new Image();
         const u = URL.createObjectURL(blob);
         await new Promise(function (r) { im.onload = r; im.src = u; });

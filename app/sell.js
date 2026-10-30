@@ -301,6 +301,7 @@ async function shareAsCards() {
       // Cards are built. The share sheet must open from a FRESH tap (building the
       // cards used up the original tap's user-gesture), so show a button to tap.
       window._rrShareFiles = files; window._rrShareText = _rrShareTextWithLinks(msg || title);
+      _rrStitchAhead(files);   // v0.9.2047
       if (prog) prog.style.display = 'none';
       if (acts) {
         _rrActsStash(acts);
@@ -322,6 +323,7 @@ async function shareAsCards() {
     // the picture in. Windows' share menu stays as a small "Other apps…".
     if (!isMobile) {
       window._rrShareFiles = files; window._rrShareText = _rrShareTextWithLinks(msg || title); window._rrShareTitle = title;
+      _rrStitchAhead(files);   // v0.9.2047
       if (prog) prog.style.display = 'none';
       if (acts) {
         _rrActsStash(acts);
@@ -545,31 +547,51 @@ function _rrBackBtnHtml() {
 // and put THAT on the clipboard — a single picture pastes into any email
 // body, where a clipboard full of files does not. The seams between cards
 // are white because email bodies are; this is print-side, not themeable.
+// v0.9.2047 (known-problems sweep): the stitching is its own step, started the
+// moment the cards exist (_rrStitchAhead) — so the Copy tap finds the picture
+// READY and hands it straight to the clipboard. Loading the images and drawing
+// the canvas are waits, and iPhone Safari refuses a clipboard write that comes
+// after a wait inside the tap: the button did nothing there. When the tap lands
+// before the picture is done, the promise itself goes into the ClipboardItem —
+// Safari's own form for exactly this; a browser without it falls to the download.
+async function _rrStitchCards(files) {
+  var imgs = [];
+  for (var i = 0; i < files.length; i++) {
+    var u = URL.createObjectURL(files[i]);
+    var im = await _rrLoadImg(u);
+    setTimeout(URL.revokeObjectURL.bind(URL, u), 4000);
+    if (im) imgs.push(im);
+  }
+  if (!imgs.length) throw new Error('no images');
+  var GAP = 16, W = 0, H = 0;
+  for (var j = 0; j < imgs.length; j++) { W = Math.max(W, imgs[j].width); H += imgs[j].height; }
+  H += GAP * (imgs.length - 1);
+  var c = document.createElement('canvas'); c.width = W; c.height = H;
+  var ctx = c.getContext('2d');
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
+  var y = 0;
+  for (var k = 0; k < imgs.length; k++) { ctx.drawImage(imgs[k], 0, y); y += imgs[k].height + GAP; }
+  var blob = await new Promise(function (res) { c.toBlob(res, 'image/png'); });
+  if (!blob) throw new Error('canvas failed');
+  return blob;
+}
+function _rrStitchAhead(files) {
+  window._rrShareStitchBlob = null;
+  window._rrShareStitch = null;
+  if (!files || !files.length) return;
+  var p = _rrStitchCards(files);
+  window._rrShareStitch = p;
+  p.then(function (b) { if (window._rrShareStitch === p) window._rrShareStitchBlob = b; }, function () {});
+}
 async function _rrCopyCardsToClipboard(opt) {
   var quiet = !!(opt && opt.quiet);   // v0.9.1965: Email with Gmail says its own words
   var files = window._rrShareFiles || [];
   if (!files.length) return false;
   try {
     if (!(navigator.clipboard && navigator.clipboard.write && window.ClipboardItem)) throw new Error('no clipboard api');
-    var imgs = [];
-    for (var i = 0; i < files.length; i++) {
-      var u = URL.createObjectURL(files[i]);
-      var im = await _rrLoadImg(u);
-      setTimeout(URL.revokeObjectURL.bind(URL, u), 4000);
-      if (im) imgs.push(im);
-    }
-    if (!imgs.length) throw new Error('no images');
-    var GAP = 16, W = 0, H = 0;
-    for (var j = 0; j < imgs.length; j++) { W = Math.max(W, imgs[j].width); H += imgs[j].height; }
-    H += GAP * (imgs.length - 1);
-    var c = document.createElement('canvas'); c.width = W; c.height = H;
-    var ctx = c.getContext('2d');
-    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
-    var y = 0;
-    for (var k = 0; k < imgs.length; k++) { ctx.drawImage(imgs[k], 0, y); y += imgs[k].height + GAP; }
-    var blob = await new Promise(function (res) { c.toBlob(res, 'image/png'); });
-    if (!blob) throw new Error('canvas failed');
-    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+    // No wait before the write: the ready picture, else its promise (built ahead), else start it now
+    var pic = window._rrShareStitchBlob || window._rrShareStitch || _rrStitchCards(files);
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': pic })]);
     if (!quiet) showToast('Copied! Click into your email and paste — all ' + files.length + ' card' + (files.length > 1 ? 's' : '') + ' arrive as one picture.', 4000);
     return true;
   } catch (e) {
@@ -919,12 +941,25 @@ async function _sellMakePdf() {
   var btn = document.getElementById('sell-pdf-btn'); if (btn) { btn.disabled = true; btn.textContent = 'Building PDF…'; }
   try {
     var link = await _sellDatedPdfLink();
-    if (btn) { btn.outerHTML = '<input readonly value="' + _sellEsc(link) + '" style="width:100%;padding:0.5rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:0.78rem" onclick="this.select()">'; }
-    _sellStatus('Dated PDF link ready — copy it into a text or email.');
-    try { await navigator.clipboard.writeText(link); showToast('PDF link copied'); } catch (e) {}
+    // v0.9.2047 (known-problems sweep): the copy used to run right here, after
+    // the PDF was built — a wait iPhone Safari will not write the clipboard
+    // after (and the failure was swallowed). Now a Copy button sits beside the
+    // link box and the copy runs inside ITS tap (rrSellPdfLinkCopy).
+    window._sellPdfLink = link;
+    if (btn) { btn.outerHTML = '<div style="display:flex;gap:0.4rem;align-items:stretch"><input readonly value="' + _sellEsc(link) + '" style="flex:1;min-width:0;padding:0.5rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:0.78rem" onclick="this.select()"><button type="button" onclick="rrSellPdfLinkCopy()" style="padding:0.5rem 0.8rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-weight:600;font-size:0.8rem;cursor:pointer;white-space:nowrap">Copy</button></div>'; }
+    _sellStatus('Dated PDF link ready — tap Copy, then paste it into a text or email.');
   } catch (e) { console.error(e); _sellStatus('Could not create the PDF — try again.'); if (btn) { btn.disabled = false; btn.textContent = 'Create dated PDF link'; } }
 }
+function rrSellPdfLinkCopy() {
+  var link = window._sellPdfLink || '';
+  if (!link) return;
+  try {
+    navigator.clipboard.writeText(link).then(function () { showToast('PDF link copied'); },
+      function () { showToast('Could not copy on this browser — select the link and copy it', 4000, true); });
+  } catch (e) { showToast('Could not copy on this browser — select the link and copy it', 4000, true); }
+}
 if (typeof window !== 'undefined') {
+  window.rrSellPdfLinkCopy = rrSellPdfLinkCopy;
   window.openSalesShareModal = openSalesShareModal;
   window._sellMakeLink = _sellMakeLink; window._sellAddCustomer = _sellAddCustomer;
   window._sellToggleAccess = _sellToggleAccess; window._sellRemoveCustomer = _sellRemoveCustomer; window._sellMakePdf = _sellMakePdf;
