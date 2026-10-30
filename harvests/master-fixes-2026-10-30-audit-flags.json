@@ -1,0 +1,2224 @@
+{
+ "what": "Master Version 2.67 — the audit-flags + set-type review edit, 243 cells, nothing added or removed. (1) 88 rows added by the Office / crawls since Oct 18 with a BLANK Item Type get a type from their own words, in the word their tab already uses (K-Line O 58, RMT O 23, Lionel MPC-Modern 4, Williams O 2, Micro-Trains N 1). (2) 46 new Lionel Pre-War variation rows with a blank Gauge get their parent row's gauge (Standard & O; 127 Standard). (3) 48 other-maker rows typed as an engine whose product is a set: unit-only sets → Diesel Set / Electric Set, engine-plus-cars or named sets → Set (Marx 4222 → Set; Lionel PW 4681 and Williams BERK115 / HDO27-1 kept). (4) 57 MTH rows checked against mthtrains.com: 28 RDC Budd Car Sets → Set, 22 → Set, 6 → Diesel Set, 22-90935 → Tank Car (18 kept: turbines with tenders, C-Liner A units, 20-2595B). (5) Kato N 106-4801 / 106-4802 Set → Tank Car (car packs are the car they hold, as their sisters 106-4803..4806). (6) American Models S 3220 → Hopper, 6027 → Flatcar (typed Steam Locomotive by mistake at 2.65). Not in this record: the 4 pre-war years on PW - Science / PW - Other (left as they are) and the 30 RMT \"Part\" rows (an app change, next release).",
+ "stated": "Brad 2026-10-29/30, one group at a time (decision record _Claude_Work_Files/REVIEW_DECISIONS_2026-10-29.md): Group 1 \"yes\" (leave), Group 2 \"yes\" (app), Group 3 \"yes\", Group 4 \"yes\" + \"keep it\" (4681) + \"yes\" (Marx 4222), Group 5 \"they are sets\" (RDC) + \"yes\" (the other 47), Group 6 \"yes\"; final \"yes\" to write 07:55 CT; \"yes\" to add AM 3220 / 6027 08:03 CT",
+ "masterVersion": "2.67",
+ "date": "2026-10-30",
+ "planReadAt": "public CSV export (export?format=csv&gid=) of the 21 tabs, 2026-10-30 ~13:00 UTC, after Master Version 2.66; every cell found by Row ID with the expected item number and old value (243/243, 0 skipped); the page re-reads each tab through the Sheets API and checks every old value and Row ID before writing",
+ "cellFormat": "[tab, item number (column A), column header, old, new, sheet row as a hint (filled by the page read), Row ID of the row]",
+ "counts": {
+  "cells": 243,
+  "rowsAdded": 0,
+  "byTab": {
+   "Lionel MPC-Modern": 4,
+   "Micro-Trains N": 1,
+   "RMT O": 29,
+   "K-Line O": 58,
+   "Williams O": 7,
+   "Lionel Pre-War": 46,
+   "3rd Rail O": 3,
+   "LGB G": 1,
+   "Marklin Gauge 1": 1,
+   "Marklin H0": 9,
+   "Marklin Z": 4,
+   "Marx O": 1,
+   "Menards O": 1,
+   "S-Helper Service S": 5,
+   "USA Trains G": 12,
+   "MTH HO": 1,
+   "MTH O": 55,
+   "MTH Tinplate": 1,
+   "Kato N": 2,
+   "American Models S": 2
+  }
+ },
+ "check": "run through the app's own parseMasterRow / getTypeBucket / checkTab (tools/master-audit): every new type lands on a real shelf; 134 audit flags clear, 0 new",
+ "cells": [
+  [
+   "Lionel MPC-Modern",
+   "19683",
+   "Item Type",
+   "",
+   "Boxcar",
+   null,
+   "5XW7NABJCS"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "19696",
+   "Item Type",
+   "",
+   "Boxcar",
+   null,
+   "XZ3SXHQA5R"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "22998",
+   "Item Type",
+   "",
+   "Accessory",
+   null,
+   "88UNK5HWZW"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "28239",
+   "Item Type",
+   "",
+   "Diesel",
+   null,
+   "76NUV73JBG"
+  ],
+  [
+   "Micro-Trains N",
+   "6338",
+   "Item Type",
+   "",
+   "Freight Car",
+   null,
+   "WCQBKJRQ9R"
+  ],
+  [
+   "RMT O",
+   "92614",
+   "Item Type",
+   "",
+   "Diesel Set",
+   null,
+   "9M3DAF7WZW"
+  ],
+  [
+   "RMT O",
+   "92615",
+   "Item Type",
+   "",
+   "Diesel Set",
+   null,
+   "XEWND9CBQA"
+  ],
+  [
+   "RMT O",
+   "92623",
+   "Item Type",
+   "",
+   "Diesel Set",
+   null,
+   "ZGUF2XSGY9"
+  ],
+  [
+   "RMT O",
+   "92715",
+   "Item Type",
+   "",
+   "Diesel Locomotive",
+   null,
+   "9B7Q63F3CU"
+  ],
+  [
+   "RMT O",
+   "92723",
+   "Item Type",
+   "",
+   "Diesel Locomotive",
+   null,
+   "D2T64BFEW3"
+  ],
+  [
+   "RMT O",
+   "96262",
+   "Item Type",
+   "",
+   "Hopper",
+   null,
+   "4RRWKMP4BT"
+  ],
+  [
+   "RMT O",
+   "96355",
+   "Item Type",
+   "",
+   "Hopper",
+   null,
+   "WVCJSJ8BKF"
+  ],
+  [
+   "RMT O",
+   "96562",
+   "Item Type",
+   "",
+   "Freight Car",
+   null,
+   "CSMMJG6FKR"
+  ],
+  [
+   "RMT O",
+   "CAB621",
+   "Item Type",
+   "",
+   "Caboose",
+   null,
+   "R7TY8Y8M6S"
+  ],
+  [
+   "RMT O",
+   "RMT-4331",
+   "Item Type",
+   "",
+   "Diesel Locomotive",
+   null,
+   "9D586E643Q"
+  ],
+  [
+   "RMT O",
+   "RMT-4332",
+   "Item Type",
+   "",
+   "Diesel Locomotive",
+   null,
+   "N4WDJVFW8B"
+  ],
+  [
+   "RMT O",
+   "RMT-4621",
+   "Item Type",
+   "",
+   "Diesel Locomotive",
+   null,
+   "JW35BU87WA"
+  ],
+  [
+   "RMT O",
+   "RMT-4622",
+   "Item Type",
+   "",
+   "Diesel Locomotive",
+   null,
+   "MDRKKTBCFK"
+  ],
+  [
+   "RMT O",
+   "RMT-93015-1",
+   "Item Type",
+   "",
+   "Passenger Car",
+   null,
+   "AXFHXEYZNT"
+  ],
+  [
+   "RMT O",
+   "RMT-93015-2",
+   "Item Type",
+   "",
+   "Passenger Car",
+   null,
+   "TWYE4ENNB6"
+  ],
+  [
+   "RMT O",
+   "RMT-93023-1",
+   "Item Type",
+   "",
+   "Passenger Car",
+   null,
+   "32CHUC9W3M"
+  ],
+  [
+   "RMT O",
+   "RMT-93023-2",
+   "Item Type",
+   "",
+   "Passenger Car",
+   null,
+   "NXSTJ86Y46"
+  ],
+  [
+   "RMT O",
+   "RMT-96431",
+   "Item Type",
+   "",
+   "Boxcar",
+   null,
+   "D356F8W955"
+  ],
+  [
+   "RMT O",
+   "RMT-96432",
+   "Item Type",
+   "",
+   "Boxcar",
+   null,
+   "67ETMF8WGA"
+  ],
+  [
+   "RMT O",
+   "RMT-96446",
+   "Item Type",
+   "",
+   "Boxcar",
+   null,
+   "RANVA8D42H"
+  ],
+  [
+   "RMT O",
+   "RMT-96462",
+   "Item Type",
+   "",
+   "Boxcar",
+   null,
+   "3QNHJQ8B2B"
+  ],
+  [
+   "RMT O",
+   "RMT-96463",
+   "Item Type",
+   "",
+   "Boxcar",
+   null,
+   "PQ332MN9KB"
+  ],
+  [
+   "RMT O",
+   "RMT-CAB331",
+   "Item Type",
+   "",
+   "Caboose",
+   null,
+   "GUGRBBF3CR"
+  ],
+  [
+   "K-Line O",
+   "K-25303",
+   "Item Type",
+   "",
+   "Diesel Set",
+   null,
+   "QD5MCG3ZYJ"
+  ],
+  [
+   "K-Line O",
+   "K-42403",
+   "Item Type",
+   "",
+   "Accessory",
+   null,
+   "FXQM2VNDNB"
+  ],
+  [
+   "K-Line O",
+   "K-42438",
+   "Item Type",
+   "",
+   "Accessory",
+   null,
+   "T98VUREKJR"
+  ],
+  [
+   "K-Line O",
+   "K-515505",
+   "Item Type",
+   "",
+   "Boxcar",
+   null,
+   "JR3SWKG2F6"
+  ],
+  [
+   "K-Line O",
+   "K-5154003",
+   "Item Type",
+   "",
+   "Boxcar",
+   null,
+   "3JDQMJA6UC"
+  ],
+  [
+   "K-Line O",
+   "K-5154006",
+   "Item Type",
+   "",
+   "Boxcar",
+   null,
+   "PHBEPJCU7E"
+  ],
+  [
+   "K-Line O",
+   "K-5154009",
+   "Item Type",
+   "",
+   "Boxcar",
+   null,
+   "9VBCDSW96F"
+  ],
+  [
+   "K-Line O",
+   "K-5154011",
+   "Item Type",
+   "",
+   "Boxcar",
+   null,
+   "3FJFCJ7WVN"
+  ],
+  [
+   "K-Line O",
+   "K-5154013",
+   "Item Type",
+   "",
+   "Boxcar",
+   null,
+   "YVFUA4BHZY"
+  ],
+  [
+   "K-Line O",
+   "K-5154015",
+   "Item Type",
+   "",
+   "Boxcar",
+   null,
+   "P5SHAFG5RX"
+  ],
+  [
+   "K-Line O",
+   "K-625801",
+   "Item Type",
+   "",
+   "Hopper",
+   null,
+   "A4CNG6DV8J"
+  ],
+  [
+   "K-Line O",
+   "K-641203",
+   "Item Type",
+   "",
+   "Boxcar",
+   null,
+   "Q3KUCJXJYY"
+  ],
+  [
+   "K-Line O",
+   "K3499-0008CC",
+   "Item Type",
+   "",
+   "Steam Locomotive",
+   null,
+   "YN8QDCPD3V"
+  ],
+  [
+   "K-Line O",
+   "K3601-4449",
+   "Item Type",
+   "",
+   "Steam Locomotive",
+   null,
+   "7ZRAEWM5F3"
+  ],
+  [
+   "K-Line O",
+   "K4416-0033",
+   "Item Type",
+   "",
+   "Passenger Car",
+   null,
+   "SAPNA29MWU"
+  ],
+  [
+   "K-Line O",
+   "K4601-30040",
+   "Item Type",
+   "",
+   "Passenger Car",
+   null,
+   "RRJ4R5UFT7"
+  ],
+  [
+   "K-Line O",
+   "K4601-30041",
+   "Item Type",
+   "",
+   "Passenger Car",
+   null,
+   "RAAGRKUXJ8"
+  ],
+  [
+   "K-Line O",
+   "K4601-30101",
+   "Item Type",
+   "",
+   "Passenger Car",
+   null,
+   "G6AUSYX2UJ"
+  ],
+  [
+   "K-Line O",
+   "K4601-30102",
+   "Item Type",
+   "",
+   "Passenger Car",
+   null,
+   "GR6QEXWY5K"
+  ],
+  [
+   "K-Line O",
+   "K4601-30103",
+   "Item Type",
+   "",
+   "Passenger Car",
+   null,
+   "SVS2RVF2PN"
+  ],
+  [
+   "K-Line O",
+   "K4601-30104",
+   "Item Type",
+   "",
+   "Passenger Car",
+   null,
+   "5Y7425J8SW"
+  ],
+  [
+   "K-Line O",
+   "K4601-30105",
+   "Item Type",
+   "",
+   "Passenger Car",
+   null,
+   "4NQKBZPP88"
+  ],
+  [
+   "K-Line O",
+   "K4601-30106",
+   "Item Type",
+   "",
+   "Passenger Car",
+   null,
+   "Q3MFYFYSAE"
+  ],
+  [
+   "K-Line O",
+   "K4601-30107",
+   "Item Type",
+   "",
+   "Passenger Car",
+   null,
+   "55UXHJZ3XC"
+  ],
+  [
+   "K-Line O",
+   "K4601-30108",
+   "Item Type",
+   "",
+   "Passenger Car",
+   null,
+   "BMEWXU5V76"
+  ],
+  [
+   "K-Line O",
+   "K4601-30109",
+   "Item Type",
+   "",
+   "Passenger Car",
+   null,
+   "HHBGJP9NNB"
+  ],
+  [
+   "K-Line O",
+   "K4601-30110",
+   "Item Type",
+   "",
+   "Passenger Car",
+   null,
+   "DQS3U9W22J"
+  ],
+  [
+   "K-Line O",
+   "K4601-30111",
+   "Item Type",
+   "",
+   "Passenger Car",
+   null,
+   "J68KSFF46G"
+  ],
+  [
+   "K-Line O",
+   "K4601-30201",
+   "Item Type",
+   "",
+   "Passenger Car",
+   null,
+   "JG68GQUJ69"
+  ],
+  [
+   "K-Line O",
+   "K4601-30202",
+   "Item Type",
+   "",
+   "Passenger Car",
+   null,
+   "N8UVU4CT3S"
+  ],
+  [
+   "K-Line O",
+   "K4601-30203",
+   "Item Type",
+   "",
+   "Passenger Car",
+   null,
+   "UWTF3YAYSM"
+  ],
+  [
+   "K-Line O",
+   "K4601-30204",
+   "Item Type",
+   "",
+   "Passenger Car",
+   null,
+   "VHWFZDG3PS"
+  ],
+  [
+   "K-Line O",
+   "K4601-30205",
+   "Item Type",
+   "",
+   "Passenger Car",
+   null,
+   "RTC3DZY29U"
+  ],
+  [
+   "K-Line O",
+   "K4616-30002",
+   "Item Type",
+   "",
+   "Passenger Car",
+   null,
+   "QCQC4UV2AK"
+  ],
+  [
+   "K-Line O",
+   "K4616-30004",
+   "Item Type",
+   "",
+   "Passenger Car",
+   null,
+   "TBCACE2BF4"
+  ],
+  [
+   "K-Line O",
+   "K4603-33410",
+   "Item Type",
+   "",
+   "Passenger Car",
+   null,
+   "CGR6WXR4TR"
+  ],
+  [
+   "K-Line O",
+   "K4603-33412",
+   "Item Type",
+   "",
+   "Passenger Car",
+   null,
+   "H3Y4FFZESH"
+  ],
+  [
+   "K-Line O",
+   "K4603-33803",
+   "Item Type",
+   "",
+   "Passenger Car",
+   null,
+   "TFSSCPD4ZN"
+  ],
+  [
+   "K-Line O",
+   "K4688-10312",
+   "Item Type",
+   "",
+   "Passenger Car",
+   null,
+   "BHRV63YC92"
+  ],
+  [
+   "K-Line O",
+   "K4688-42952",
+   "Item Type",
+   "",
+   "Passenger Car",
+   null,
+   "QFKR9YBE8U"
+  ],
+  [
+   "K-Line O",
+   "K612-7600",
+   "Item Type",
+   "",
+   "Caboose",
+   null,
+   "4MB2HMD3TU"
+  ],
+  [
+   "K-Line O",
+   "K617-1055",
+   "Item Type",
+   "",
+   "Caboose",
+   null,
+   "XJAK7PGCR2"
+  ],
+  [
+   "K-Line O",
+   "K632-8012",
+   "Item Type",
+   "",
+   "Tank Car",
+   null,
+   "7R3PJ2U4XK"
+  ],
+  [
+   "K-Line O",
+   "K6333-2112",
+   "Item Type",
+   "",
+   "Tank Car",
+   null,
+   "6QM7NH7Y33"
+  ],
+  [
+   "K-Line O",
+   "K6333-2114",
+   "Item Type",
+   "",
+   "Tank Car",
+   null,
+   "YXNU267CJE"
+  ],
+  [
+   "K-Line O",
+   "K6333-8012",
+   "Item Type",
+   "",
+   "Tank Car",
+   null,
+   "2P2EHXTY6E"
+  ],
+  [
+   "K-Line O",
+   "K703-8011",
+   "Item Type",
+   "",
+   "Operating Car",
+   null,
+   "PNZSYTUTKJ"
+  ],
+  [
+   "K-Line O",
+   "K7041-2111",
+   "Item Type",
+   "",
+   "Operating Car",
+   null,
+   "3G92K8CV2E"
+  ],
+  [
+   "K-Line O",
+   "K742-8016",
+   "Item Type",
+   "",
+   "Reefer",
+   null,
+   "PNG4Y3B9XJ"
+  ],
+  [
+   "K-Line O",
+   "K761-2112",
+   "Item Type",
+   "",
+   "Boxcar",
+   null,
+   "GSV3NG6GC5"
+  ],
+  [
+   "K-Line O",
+   "K761-2113",
+   "Item Type",
+   "",
+   "Boxcar",
+   null,
+   "C8B6479JE6"
+  ],
+  [
+   "K-Line O",
+   "K761-7601",
+   "Item Type",
+   "",
+   "Boxcar",
+   null,
+   "7DHHK6T2XV"
+  ],
+  [
+   "K-Line O",
+   "K761-7604",
+   "Item Type",
+   "",
+   "Boxcar",
+   null,
+   "D5M63KAUCW"
+  ],
+  [
+   "K-Line O",
+   "K761-7611",
+   "Item Type",
+   "",
+   "Boxcar",
+   null,
+   "2XG3CWGUSV"
+  ],
+  [
+   "K-Line O",
+   "K762-7482",
+   "Item Type",
+   "",
+   "Reefer",
+   null,
+   "4MQ7P8R57U"
+  ],
+  [
+   "K-Line O",
+   "K762-7487",
+   "Item Type",
+   "",
+   "Reefer",
+   null,
+   "RVWC42TNRM"
+  ],
+  [
+   "K-Line O",
+   "K762-7490",
+   "Item Type",
+   "",
+   "Reefer",
+   null,
+   "2N36NMVX65"
+  ],
+  [
+   "K-Line O",
+   "K771-2111",
+   "Item Type",
+   "",
+   "Flatcar",
+   null,
+   "C5SY4B2HZC"
+  ],
+  [
+   "Williams O",
+   "GP-9-230D",
+   "Item Type",
+   "",
+   "Diesel Locomotive",
+   null,
+   "QPRP82QDYY"
+  ],
+  [
+   "Williams O",
+   "SD45-206",
+   "Item Type",
+   "",
+   "Diesel Locomotive",
+   null,
+   "TUGTJ9JNQJ"
+  ],
+  [
+   "Lionel Pre-War",
+   "184",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "PZXXH5FQ5G"
+  ],
+  [
+   "Lionel Pre-War",
+   "184",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "RQZTQRFU3H"
+  ],
+  [
+   "Lionel Pre-War",
+   "184",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "FWSZ8MQMFT"
+  ],
+  [
+   "Lionel Pre-War",
+   "184",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "2RGXQXZZJS"
+  ],
+  [
+   "Lionel Pre-War",
+   "184",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "SZP9A3GGS2"
+  ],
+  [
+   "Lionel Pre-War",
+   "184",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "PQ6UAHD39E"
+  ],
+  [
+   "Lionel Pre-War",
+   "184",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "SXBQ7NH4TD"
+  ],
+  [
+   "Lionel Pre-War",
+   "184",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "4MRQJAMDVK"
+  ],
+  [
+   "Lionel Pre-War",
+   "184",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "WCJNK3QA8T"
+  ],
+  [
+   "Lionel Pre-War",
+   "184",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "UDM8H6XRYC"
+  ],
+  [
+   "Lionel Pre-War",
+   "184",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "YS9FSZRUNT"
+  ],
+  [
+   "Lionel Pre-War",
+   "184",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "GHFHXAENND"
+  ],
+  [
+   "Lionel Pre-War",
+   "184",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "3NWPBJETKJ"
+  ],
+  [
+   "Lionel Pre-War",
+   "184",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "U8CJSJ2B8Y"
+  ],
+  [
+   "Lionel Pre-War",
+   "184",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "H38TSPTHW7"
+  ],
+  [
+   "Lionel Pre-War",
+   "184",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "A5JA83SQ33"
+  ],
+  [
+   "Lionel Pre-War",
+   "184",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "5RWSZ2Q7AX"
+  ],
+  [
+   "Lionel Pre-War",
+   "184",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "8U8RX2JFFX"
+  ],
+  [
+   "Lionel Pre-War",
+   "184",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "YY6TNZZR6D"
+  ],
+  [
+   "Lionel Pre-War",
+   "184",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "Y6BBVB34JE"
+  ],
+  [
+   "Lionel Pre-War",
+   "184",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "Q9JHVZQQK2"
+  ],
+  [
+   "Lionel Pre-War",
+   "184",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "MDAWYKTMVH"
+  ],
+  [
+   "Lionel Pre-War",
+   "191",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "DZFD57B96H"
+  ],
+  [
+   "Lionel Pre-War",
+   "191",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "FPRSJBU59B"
+  ],
+  [
+   "Lionel Pre-War",
+   "191",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "2XUNFRE99P"
+  ],
+  [
+   "Lionel Pre-War",
+   "191",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "BE2VKQ558R"
+  ],
+  [
+   "Lionel Pre-War",
+   "191",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "K8CXQ8PPCW"
+  ],
+  [
+   "Lionel Pre-War",
+   "191",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "XZJNYYZKP2"
+  ],
+  [
+   "Lionel Pre-War",
+   "191",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "WDCGPTPMBJ"
+  ],
+  [
+   "Lionel Pre-War",
+   "191",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "5HEN7UMWMX"
+  ],
+  [
+   "Lionel Pre-War",
+   "191",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "JB3J2RUHNH"
+  ],
+  [
+   "Lionel Pre-War",
+   "436",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "2UEETUNK5H"
+  ],
+  [
+   "Lionel Pre-War",
+   "436",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "5PQ49SRTKC"
+  ],
+  [
+   "Lionel Pre-War",
+   "436",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "WVRCECGUXH"
+  ],
+  [
+   "Lionel Pre-War",
+   "436",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "6ZJUG77KCV"
+  ],
+  [
+   "Lionel Pre-War",
+   "126",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "CRSUSJ75WF"
+  ],
+  [
+   "Lionel Pre-War",
+   "126",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "6PM9HMXHZV"
+  ],
+  [
+   "Lionel Pre-War",
+   "126",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "VQKK7HZPJB"
+  ],
+  [
+   "Lionel Pre-War",
+   "127",
+   "Gauge",
+   "",
+   "Standard",
+   null,
+   "4UAQJYRSFG"
+  ],
+  [
+   "Lionel Pre-War",
+   "127",
+   "Gauge",
+   "",
+   "Standard",
+   null,
+   "BMHBSPATUA"
+  ],
+  [
+   "Lionel Pre-War",
+   "127",
+   "Gauge",
+   "",
+   "Standard",
+   null,
+   "MABASD2PDV"
+  ],
+  [
+   "Lionel Pre-War",
+   "127",
+   "Gauge",
+   "",
+   "Standard",
+   null,
+   "8E62ASTPYU"
+  ],
+  [
+   "Lionel Pre-War",
+   "127",
+   "Gauge",
+   "",
+   "Standard",
+   null,
+   "EZW6ENAA37"
+  ],
+  [
+   "Lionel Pre-War",
+   "127",
+   "Gauge",
+   "",
+   "Standard",
+   null,
+   "5H278MQ3B6"
+  ],
+  [
+   "Lionel Pre-War",
+   "137",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "NYNTKKCJ23"
+  ],
+  [
+   "Lionel Pre-War",
+   "137",
+   "Gauge",
+   "",
+   "Standard & O",
+   null,
+   "Q8AKF2W9BR"
+  ],
+  [
+   "3rd Rail O",
+   "3R-NSL-ELECTROLINER",
+   "Item Type",
+   "Electric Engine",
+   "Set",
+   null,
+   "PM6SMNT7MA"
+  ],
+  [
+   "3rd Rail O",
+   "3R-NSL-SILVERLINER",
+   "Item Type",
+   "Electric Engine",
+   "Set",
+   null,
+   "HYT65XUS99"
+  ],
+  [
+   "3rd Rail O",
+   "3R-UP-M10000",
+   "Item Type",
+   "Diesel Engine",
+   "Set",
+   null,
+   "3NXD8RHBTZ"
+  ],
+  [
+   "LGB G",
+   "29000",
+   "Item Type",
+   "Steam Engine",
+   "Set",
+   null,
+   "3JUYEUAQDA"
+  ],
+  [
+   "Marklin Gauge 1",
+   "55007",
+   "Item Type",
+   "Steam Locomotive",
+   "Set",
+   null,
+   "W68DHWM6WF"
+  ],
+  [
+   "Marklin H0",
+   "30470",
+   "Item Type",
+   "Steam Locomotive",
+   "Set",
+   null,
+   "7TB4M53NJR"
+  ],
+  [
+   "Marklin H0",
+   "37187",
+   "Item Type",
+   "Steam Locomotive",
+   "Set",
+   null,
+   "6QVYWFQR94"
+  ],
+  [
+   "Marklin H0",
+   "37670",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "H62SCRJUUB"
+  ],
+  [
+   "Marklin H0",
+   "37912",
+   "Item Type",
+   "Steam Locomotive",
+   "Set",
+   null,
+   "VXMGF8KHHE"
+  ],
+  [
+   "Marklin H0",
+   "37955",
+   "Item Type",
+   "Steam Locomotive",
+   "Set",
+   null,
+   "67SFWHCE7A"
+  ],
+  [
+   "Marklin H0",
+   "36332",
+   "Item Type",
+   "Electric Locomotive",
+   "Electric Set",
+   null,
+   "PFHH59ZZTS"
+  ],
+  [
+   "Marklin H0",
+   "36837",
+   "Item Type",
+   "Electric Locomotive",
+   "Electric Set",
+   null,
+   "8CZDWR8X9D"
+  ],
+  [
+   "Marklin H0",
+   "37276",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "TKF66XQDTJ"
+  ],
+  [
+   "Marklin H0",
+   "37565",
+   "Item Type",
+   "Electric Locomotive",
+   "Electric Set",
+   null,
+   "FS4P5XKC73"
+  ],
+  [
+   "Marklin Z",
+   "81972",
+   "Item Type",
+   "Locomotive",
+   "Set",
+   null,
+   "UT3PADRE9Z"
+  ],
+  [
+   "Marklin Z",
+   "88175",
+   "Item Type",
+   "Electric Locomotive",
+   "Electric Set",
+   null,
+   "YJ88E9VR3V"
+  ],
+  [
+   "Marklin Z",
+   "88888",
+   "Item Type",
+   "Electric Locomotive",
+   "Set",
+   null,
+   "55JF2DG68Q"
+  ],
+  [
+   "Marklin Z",
+   "88789",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "E48ARAZY3G"
+  ],
+  [
+   "Marx O",
+   "4222",
+   "Item Type",
+   "Steam Locomotive",
+   "Set",
+   null,
+   "S2Y5KN7VD3"
+  ],
+  [
+   "Menards O",
+   "279-9330",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "62HAE4FHSR"
+  ],
+  [
+   "RMT O",
+   "RMT-92621",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "NEG2ZS68YN"
+  ],
+  [
+   "RMT O",
+   "RMT-92626",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "T24N5PQ4YJ"
+  ],
+  [
+   "RMT O",
+   "RMT-92633",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "BX2HVMS5S5"
+  ],
+  [
+   "RMT O",
+   "RMT-92647",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "AZN3HFRA6P"
+  ],
+  [
+   "RMT O",
+   "RMT-92648",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "R8VTEZBN7P"
+  ],
+  [
+   "RMT O",
+   "RMT-92675",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "7854UZF96K"
+  ],
+  [
+   "S-Helper Service S",
+   "536",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "54CXQSZN8G"
+  ],
+  [
+   "S-Helper Service S",
+   "537",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "K223EW2MFK"
+  ],
+  [
+   "S-Helper Service S",
+   "538",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "XXCT6QTEZ4"
+  ],
+  [
+   "S-Helper Service S",
+   "539",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "NT6NHADSGY"
+  ],
+  [
+   "S-Helper Service S",
+   "540",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "DGFT7Y6HBZ"
+  ],
+  [
+   "USA Trains G",
+   "R72300",
+   "Item Type",
+   "Diesel Engine",
+   "Set",
+   null,
+   "2G3WC8D5YN"
+  ],
+  [
+   "USA Trains G",
+   "22400",
+   "Item Type",
+   "Diesel Engine",
+   "Diesel Set",
+   null,
+   "JTS6VJK7V6"
+  ],
+  [
+   "USA Trains G",
+   "22401",
+   "Item Type",
+   "Diesel Engine",
+   "Diesel Set",
+   null,
+   "NS7FMHDDQG"
+  ],
+  [
+   "USA Trains G",
+   "22403",
+   "Item Type",
+   "Diesel Engine",
+   "Diesel Set",
+   null,
+   "4KFV68QJ3Q"
+  ],
+  [
+   "USA Trains G",
+   "22404-2",
+   "Item Type",
+   "Diesel Engine",
+   "Diesel Set",
+   null,
+   "TK8NRFTWT3"
+  ],
+  [
+   "USA Trains G",
+   "22405",
+   "Item Type",
+   "Diesel Engine",
+   "Diesel Set",
+   null,
+   "S42ZBMPUFV"
+  ],
+  [
+   "USA Trains G",
+   "22406",
+   "Item Type",
+   "Diesel Engine",
+   "Diesel Set",
+   null,
+   "9FZ2Q8YJW8"
+  ],
+  [
+   "USA Trains G",
+   "22408",
+   "Item Type",
+   "Diesel Engine",
+   "Diesel Set",
+   null,
+   "DV5R6W5HPH"
+  ],
+  [
+   "USA Trains G",
+   "22411",
+   "Item Type",
+   "Diesel Engine",
+   "Diesel Set",
+   null,
+   "PBUZANBUGK"
+  ],
+  [
+   "USA Trains G",
+   "R22270",
+   "Item Type",
+   "Diesel Engine",
+   "Diesel Set",
+   null,
+   "6T8VXJN5MX"
+  ],
+  [
+   "USA Trains G",
+   "R22404-1",
+   "Item Type",
+   "Diesel Engine",
+   "Diesel Set",
+   null,
+   "URCKZ32S54"
+  ],
+  [
+   "USA Trains G",
+   "R22502",
+   "Item Type",
+   "Diesel Engine",
+   "Diesel Set",
+   null,
+   "5V3V8ZX7MG"
+  ],
+  [
+   "Williams O",
+   "00305",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "Q2CVVGANJY"
+  ],
+  [
+   "Williams O",
+   "00323",
+   "Item Type",
+   "Steam Locomotive",
+   "Set",
+   null,
+   "7CKRY2ZVT8"
+  ],
+  [
+   "Williams O",
+   "20912",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "NYD9DZQRVQ"
+  ],
+  [
+   "Williams O",
+   "7322127",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "JZBWE2BV69"
+  ],
+  [
+   "Williams O",
+   "F7-120",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "2F9J2HNDE5"
+  ],
+  [
+   "MTH HO",
+   "80-2060-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "F285QQ3AVQ"
+  ],
+  [
+   "MTH O",
+   "20-1001-1",
+   "Item Type",
+   "Steam Locomotive",
+   "Set",
+   null,
+   "THGCSQKPFK"
+  ],
+  [
+   "MTH O",
+   "20-1002-1",
+   "Item Type",
+   "Steam Locomotive",
+   "Set",
+   null,
+   "ZMWTBUYEZK"
+  ],
+  [
+   "MTH O",
+   "20-1003-1",
+   "Item Type",
+   "Steam Locomotive",
+   "Set",
+   null,
+   "ZHCFMR2MJ5"
+  ],
+  [
+   "MTH O",
+   "20-20013-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "7KUYZVQ8GA"
+  ],
+  [
+   "MTH O",
+   "20-20392-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "9SEF587CDF"
+  ],
+  [
+   "MTH O",
+   "20-20393-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "DFYYUATSU9"
+  ],
+  [
+   "MTH O",
+   "20-20421-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "G3QSGSPF8Y"
+  ],
+  [
+   "MTH O",
+   "20-2382-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "DAM29ADBFD"
+  ],
+  [
+   "MTH O",
+   "20-2504-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "UGAA534AZW"
+  ],
+  [
+   "MTH O",
+   "20-2595-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "7S7TKR83Q5"
+  ],
+  [
+   "MTH O",
+   "20-2769-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "A92BXX2QS5"
+  ],
+  [
+   "MTH O",
+   "20-2770-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "2WGVM6FR8W"
+  ],
+  [
+   "MTH O",
+   "20-2771-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "YGVYV9ZSE2"
+  ],
+  [
+   "MTH O",
+   "20-2772-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "7KURBTQW2U"
+  ],
+  [
+   "MTH O",
+   "20-2773-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "REVK27MWY2"
+  ],
+  [
+   "MTH O",
+   "20-2774-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "QHKDFECSNH"
+  ],
+  [
+   "MTH O",
+   "20-2775-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "SPGVTH83J6"
+  ],
+  [
+   "MTH O",
+   "20-3801-1",
+   "Item Type",
+   "Steam Locomotive",
+   "Set",
+   null,
+   "H7T3TXDKMN"
+  ],
+  [
+   "MTH O",
+   "22-90935",
+   "Item Type",
+   "Diesel Locomotive",
+   "Tank Car",
+   null,
+   "BUC542PCBX"
+  ],
+  [
+   "MTH O",
+   "30-20029-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "XFXPWCYUT9"
+  ],
+  [
+   "MTH O",
+   "30-20030-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "9W8XSBUTSP"
+  ],
+  [
+   "MTH O",
+   "30-20031-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "PVXZFNWFUB"
+  ],
+  [
+   "MTH O",
+   "30-20032-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "W4Y5RUKWHQ"
+  ],
+  [
+   "MTH O",
+   "30-20301-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "QYUFE6S2ZH"
+  ],
+  [
+   "MTH O",
+   "30-20302-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "3XZJMSDHZM"
+  ],
+  [
+   "MTH O",
+   "30-20303-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "UCWJNYFB6Z"
+  ],
+  [
+   "MTH O",
+   "30-20304-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "SHYTDJ2UAR"
+  ],
+  [
+   "MTH O",
+   "30-20514-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "38YDC79T7Y"
+  ],
+  [
+   "MTH O",
+   "30-20515-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "ER8HQXZWM6"
+  ],
+  [
+   "MTH O",
+   "30-20516-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "MM7BU5BKN7"
+  ],
+  [
+   "MTH O",
+   "30-20517-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "6R4P5ES5CH"
+  ],
+  [
+   "MTH O",
+   "30-2183-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "ZD57XMFSFV"
+  ],
+  [
+   "MTH O",
+   "30-2210-0",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "ZXE8TUJ6PM"
+  ],
+  [
+   "MTH O",
+   "30-2210-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "X6K46SBVD7"
+  ],
+  [
+   "MTH O",
+   "30-2387-0",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "3PXVVVEF5H"
+  ],
+  [
+   "MTH O",
+   "30-2387-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "3BHTAAJRT4"
+  ],
+  [
+   "MTH O",
+   "30-2388-0",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "WNS4TP6YF6"
+  ],
+  [
+   "MTH O",
+   "30-2388-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "2BZEGU2YCN"
+  ],
+  [
+   "MTH O",
+   "30-2389-0",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "RPRAG3VVV6"
+  ],
+  [
+   "MTH O",
+   "30-2389-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "3C9VWVC9BF"
+  ],
+  [
+   "MTH O",
+   "30-2390-0",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "RCFTB75MPN"
+  ],
+  [
+   "MTH O",
+   "30-2390-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "GGFMDACVH7"
+  ],
+  [
+   "MTH O",
+   "30-2692-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "M8GXEF2ZYQ"
+  ],
+  [
+   "MTH O",
+   "30-2693-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "MNXJUBC9RY"
+  ],
+  [
+   "MTH O",
+   "30-2694-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "228BQYS5AH"
+  ],
+  [
+   "MTH O",
+   "30-2695-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "7AKG4S3J76"
+  ],
+  [
+   "MTH O",
+   "30-2840-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "GTGF4SZF78"
+  ],
+  [
+   "MTH O",
+   "30-2843-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "VKFEAD6ZHU"
+  ],
+  [
+   "MTH O",
+   "20-21373-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "RW2C5REA7F"
+  ],
+  [
+   "MTH O",
+   "20-21374-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "6C73E77D68"
+  ],
+  [
+   "MTH O",
+   "20-21375-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "SDUW624YJV"
+  ],
+  [
+   "MTH O",
+   "20-21376-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "ZACVUUZF9X"
+  ],
+  [
+   "MTH O",
+   "20-21377-1",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "2V6H8WZEM4"
+  ],
+  [
+   "MTH O",
+   "MT-2128LP",
+   "Item Type",
+   "Diesel Locomotive",
+   "Diesel Set",
+   null,
+   "ECJEZVWQF7"
+  ],
+  [
+   "MTH O",
+   "30-2183-0",
+   "Item Type",
+   "Diesel Locomotive",
+   "Set",
+   null,
+   "H9TP9T2FX8"
+  ],
+  [
+   "MTH Tinplate",
+   "10-3012",
+   "Item Type",
+   "Steam Locomotive",
+   "Set",
+   null,
+   "QBTNJ7VZYY"
+  ],
+  [
+   "Kato N",
+   "106-4801",
+   "Item Type",
+   "Set",
+   "Tank Car",
+   null,
+   "K82445VNF4"
+  ],
+  [
+   "Kato N",
+   "106-4802",
+   "Item Type",
+   "Set",
+   "Tank Car",
+   null,
+   "XKASK5KCKQ"
+  ],
+  [
+   "American Models S",
+   "3220",
+   "Item Type",
+   "Steam Locomotive",
+   "Hopper",
+   null,
+   "DZV88WQD8W"
+  ],
+  [
+   "American Models S",
+   "6027",
+   "Item Type",
+   "Steam Locomotive",
+   "Flatcar",
+   null,
+   "FD5W2AQ3MD"
+  ]
+ ]
+}
