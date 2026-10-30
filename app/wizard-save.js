@@ -1544,7 +1544,11 @@ async function saveWizardItem() {
                                           existing.itemNum, existing.inventoryId || '');
           if (_bxUpdated) {
             _bxWritten = rrCarryPersonalRow(existing, boxRow, Object.keys(_boxFields).filter(k => _boxFields[k] !== undefined).concat(['quickEntry']));
-            await sheetsUpdate(state.personalSheetId, personalFullRowRange(existing.row), [_bxWritten]);
+            // v0.9.2039: changed columns only; another device's change is kept (app.js)
+            var _bxOut = {};
+            _bxUpdated = await rrPersonalSafeWrite(Object.assign({}, existing), _bxWritten, Object.assign({}, existing), { out: _bxOut, quiet: true });
+            if (_bxUpdated && _bxOut.row) _bxWritten = _bxOut.row;
+            if (!_bxUpdated) _bxWritten = boxRow;
           }
           else console.warn('[box] row ' + existing.row + ' moved — appending a new box row instead.');
         }
@@ -1860,7 +1864,13 @@ async function saveWizardItem() {
         }
         _mainWrittenRow = rrCarryPersonalRow(existing, row, Object.keys(_mainFields || {}).filter(k => _mainFields[k] !== undefined)
             .concat(['groupId', 'setId', 'matchedTo', 'quickEntry']));
-        await sheetsUpdate(state.personalSheetId, personalFullRowRange(existing.row), [_mainWrittenRow]);
+        // v0.9.2039: only the columns this save changed are written; another
+        // device's change since this device loaded the row is kept (app.js).
+        var _fillOut = {};
+        if (!(await rrPersonalSafeWrite(Object.assign({}, existing), _mainWrittenRow, Object.assign({}, existing), { out: _fillOut, quiet: true }))) {
+          throw new Error('ROW_MOVED');
+        }
+        if (_fillOut.row) _mainWrittenRow = _fillOut.row;
         _mainApRow = existing.row;
       } else {
         // Always append for a plain new collection add — never overwrite existing rows

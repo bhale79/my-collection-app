@@ -13033,9 +13033,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
         (src.match(/sheetsUpdate\(state\.personalSheetId, personalFullRowRange\(/g) || [])
           .forEach(() => rawFull.push(name));
       });
+      // v0.9.2039 (two devices never save over each other): the two wizard-save
+      // whole-row rewrites now go through rrPersonalSafeWrite (app.js), which
+      // re-reads the row, refuses a row that holds another item, and writes
+      // only the columns the save changed. None is left raw.
       ok('no full-row write goes straight to sheetsUpdate any more',
-         rawFull.length === 2 && rawFull.every(n => n === 'wizard-save.js'),
-         rawFull.join(',') || '(none)');
+         rawFull.length === 0 && (ws7.match(/rrPersonalSafeWrite\(/g) || []).length === 2,
+         rawFull.join(',') || '(none raw)');
       ok('…and the two that remain each ask rrRowStillIs themselves first',
          (ws7.match(/rrRowStillIs\(state\.personalSheetId, PERSONAL_TAB, existing\.row,/g) || []).length === 2,
          String((ws7.match(/rrRowStillIs\(state\.personalSheetId, PERSONAL_TAB, existing\.row,/g) || []).length));
@@ -13061,8 +13065,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
          String((pg7.match(/if \(_mBlanked2?\) delete state\.personalData/g) || []).length));
       ok('the group-sale members in the wizard are too',
          /if \(_spBlanked\) delete state\.personalData/.test(ws7));
+      // v0.9.2039: the edit-save's writer is rrPersonalSafeWrite (same refusal contract)
       ok('the edit-save gives the button back instead of leaving it on "Saving…"',
-         /if \(!\(await personalWriteRow\(pd, newRow\)\)\) \{[\s\S]{0,160}saveBtn\.disabled = false;\s*\n\s*return;/.test(coll7));
+         /if \(!\(await rrPersonalSafeWrite\(pd, newRow, _base, \{ out: _out \}\)\)\) \{[\s\S]{0,160}saveBtn\.disabled = false;\s*\n\s*return;/.test(coll7));
 
       section('217e. One message, one place');
       ok('the refusal wording lives in exactly one constant',
@@ -15583,8 +15588,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
         // up their hand-rolled rrRowStillIs for the one guarded writer, which
         // is the direction of travel — this number should only ever go down.
         // v0.9.2038: 4 -> 3. savePart's edit moved to rrVerifiedRowUpdate.
-        ok('234 …the inline-guarded set is exactly the three known sites',
-           inlineGuarded === 3, String(inlineGuarded));
+        // v0.9.2039: 3 -> 1. The two wizard-save whole-row rewrites moved to
+        // rrPersonalSafeWrite (app.js — it re-reads the row and refuses another item).
+        ok('234 …the inline-guarded set is exactly the one known site',
+           inlineGuarded === 1, String(inlineGuarded));
         ok('234 …and contacts.js is the ONE deliberate exception, unchanged',
            contactsRaw === 1, String(contactsRaw));
         // v0.9.1288: fourteen of these now go through rrRemoveRowConfirmed,
@@ -18541,18 +18548,19 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const ws = fs.readFileSync(p68.join(__dirname, '..', 'app', 'wizard-save.js'), 'utf8');
       // ── exactly two raw sheetsUpdate calls remain, both full-row rewrites
       //    sitting directly behind an rrRowStillIs check ──
+      // v0.9.2039: 2 -> 0. Both rewrites go through rrPersonalSafeWrite now.
       const allUpd = (ws.match(/\bsheetsUpdate\(/g) || []).length;
-      ok('268 exactly two raw sheetsUpdate calls remain in wizard-save.js',
-         allUpd === 2, String(allUpd));
+      ok('268 no raw sheetsUpdate call remains in wizard-save.js',
+         allUpd === 0, String(allUpd));
       // Both known sites: the box-row path (verify, else append fresh) and the
       // main-row path (verify, else throw ROW_MOVED). Anchor each by the
       // rrRowStillIs call feeding the same `existing` row.
       ok('268 …the box-row rewrite is fed by rrRowStillIs',
          // v0.9.1941: the only thing between the check and the write is building the
          // row it writes (kept, so the record in memory is built from it)
-         /_bxUpdated = await rrRowStillIs\([\s\S]{0,200}?if \(_bxUpdated\) \{\s*\n\s*_bxWritten = rrCarryPersonalRow\([^;]*\);\s*\n\s*await sheetsUpdate\(/.test(ws));
+         /_bxUpdated = await rrRowStillIs\([\s\S]{0,200}?if \(_bxUpdated\) \{\s*\n\s*_bxWritten = rrCarryPersonalRow\([^;]*\);[\s\S]{0,200}?_bxUpdated = await rrPersonalSafeWrite\(/.test(ws));   // v0.9.2039
       ok('268 …the main-row rewrite verifies-or-throws ROW_MOVED first',
-         /await rrRowStillIs\([\s\S]{0,200}?\)\)\) \{\s*\n\s*throw new Error\('ROW_MOVED'\);\s*\n\s*\}\s*\n\s*_mainWrittenRow = rrCarryPersonalRow\([^;]*\);\s*\n\s*await sheetsUpdate\(/.test(ws));   // v0.9.1941
+         /await rrRowStillIs\([\s\S]{0,200}?\)\)\) \{\s*\n\s*throw new Error\('ROW_MOVED'\);\s*\n\s*\}\s*\n\s*_mainWrittenRow = rrCarryPersonalRow\([^;]*\);[\s\S]{0,200}?if \(!\(await rrPersonalSafeWrite\([^\n]*\)\)\) \{\s*\n\s*throw new Error\('ROW_MOVED'\);/.test(ws));   // v0.9.1941, v0.9.2039
       // ── the backfills go through the guarded writer with itemNum identity
       //    and a deliberately empty invId ──
       const bkInv = /rrVerifiedRowUpdate\(state\.personalSheetId, PERSONAL_TAB, existingItem\.row,[\s\S]{0,200}?\[\[existingInvId\]\], \{ num: existingItem\.itemNum \|\| '', invId: '' \}, 'collection'\)/.test(ws);

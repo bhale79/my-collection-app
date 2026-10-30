@@ -285,6 +285,121 @@ async function rrPersonalRemoveRow(rec, why) {
 }
 if (typeof window !== 'undefined') window.rrPersonalRemoveRow = rrPersonalRemoveRow;
 
+// ══ v0.9.2039 — TWO DEVICES NEVER SAVE OVER EACH OTHER (Build Plan Release 1) ══
+// [stated] Brad 2026-10-28: "if two phones logged into the same account and
+// adding or modifing items … they don't overwrite or not save over anything."
+// FOUND first: an edit wrote the WHOLE row from the copy this device loaded
+// earlier — so phone B's new Condition was silently put back by phone A saving
+// a new price. A single collector with a phone and a computer could hit it too.
+// The rule now, for every whole-row EDIT of a My Collection row:
+//   1. only the columns THIS save changed are written (never the rest);
+//   2. the row is re-read first; a column someone else changed since this
+//      device opened the item is kept as they left it;
+//   3. when both changed the SAME column, the person is asked which to keep —
+//      the app never picks silently.
+// The comparison is done in ROW space: the baseline record (the item as this
+// device opened it) and the re-read record are both turned into a row by the
+// same builder (rrCarryPersonalRow over a blank row), so dates and the TEXT
+// guard on Item Number compare like for like with what the save wrote.
+// Offline: the row cannot be re-read, so only this save's changed columns go
+// into the offline queue — never the whole row. Words: RR_SAFE_SAVE (config.js).
+// tests/safe_save_2039_tests.js (two pretend phones, every combination).
+function rrRecordRow(rec) {
+  return rrCarryPersonalRow(rec || {}, buildPersonalRow(null), []);
+}
+// PURE. Column arrays in, a plan out:
+//   write     — column indexes this save changed and nobody else did (or both
+//               made the same change)
+//   conflicts — [{ i, field, header, mine, theirs }] both changed, differently
+function rrRowMerge(baseRow, mineRow, curRow) {
+  const s = function (v) { return String(v == null ? '' : v).trim().replace(/^'/, ''); };
+  const write = [], conflicts = [];
+  for (let i = 0; i < PERSONAL_SCHEMA.length; i++) {
+    const b = s(baseRow && baseRow[i]), m = s(mineRow && mineRow[i]), c = s(curRow && curRow[i]);
+    if (m === b) continue;                      // not this save's change: never written
+    if (c === b || c === m) { write.push(i); continue; }
+    conflicts.push({ i: i, field: PERSONAL_SCHEMA[i].field, header: PERSONAL_SCHEMA[i].header || PERSONAL_SCHEMA[i].field, mine: m, theirs: c });
+  }
+  return { write: write, conflicts: conflicts };
+}
+// Consecutive column indexes -> [[from, to], …] so each run is ONE write.
+function rrColumnRuns(idx) {
+  const sorted = (idx || []).slice().sort(function (a, b) { return a - b; });
+  const runs = [];
+  sorted.forEach(function (i) {
+    const last = runs[runs.length - 1];
+    if (last && i === last[1] + 1) last[1] = i; else runs.push([i, i]);
+  });
+  return runs;
+}
+// THE whole-row edit of a My Collection row. rec = the record being saved (its
+// row + identity), values = the full row this save built, base = the record as
+// this device OPENED it. Returns true when the save landed (rec is updated to
+// what the sheet now holds), false when it was refused (the row no longer holds
+// this item — the person has been told, unless opts.quiet: the caller reports
+// it). opts.out.row receives the row as it now stands (for the caller's
+// in-memory record). No base -> the old whole-row write.
+async function rrPersonalSafeWrite(rec, values, base, opts) {
+  if (!rec || !rec.row || rec.row === 99999) return false;
+  if (!base) return await personalWriteRow(rec, values);
+  const W = (typeof RR_SAFE_SAVE !== 'undefined' && RR_SAFE_SAVE) || {};
+  const baseRow = rrRecordRow(base);
+  let curRec = null, curRow = null;
+  const offline = (typeof _rrOfflineNow === 'function') && _rrOfflineNow();
+  if (!offline) {
+    try {
+      const res = await sheetsGet(state.personalSheetId, personalFullRowRange(rec.row));
+      const cells = (((res && res.values) || [[]])[0]) || [];
+      curRec = rrPersonalRecordFromRow(cells, rec.row);
+      curRow = rrRecordRow(curRec);
+    } catch (e) { curRec = null; curRow = null; }
+  }
+  if (curRec) {
+    const bare = function (v) { return String(v == null ? '' : v).trim().replace(/^'/, ''); };
+    const wantId = bare(rec.inventoryId), gotId = bare(curRec.inventoryId);
+    const wantNum = bare(base.itemNum || rec.itemNum), gotNum = bare(curRec.itemNum);
+    const same = (wantId && gotId) ? wantId === gotId : (wantNum ? wantNum === gotNum : true);
+    if (!same) {
+      console.warn('[safe-save] row ' + rec.row + ' no longer holds this item — refusing to write.');
+      if (!(opts && opts.quiet) && typeof rrRowMovedToast === 'function') rrRowMovedToast();
+      return false;
+    }
+  }
+  const plan = rrRowMerge(baseRow, values, curRow || baseRow);
+  const show = function (v) { v = String(v == null ? '' : v); return v ? '“' + rrEsc(v.length > 40 ? v.slice(0, 39) + '…' : v) + '”' : String(W.blank || ''); };   // sheet text goes into the box's HTML: escaped
+  for (const c of plan.conflicts) {
+    const msg = String(W.ask || '')
+      .replace('{field}', rrEsc(c.header)).replace('{theirs}', show(c.theirs)).replace('{mine}', show(c.mine));
+    const keepMine = await appConfirm(msg, { title: W.title,
+                                             ok: String(W.keepMine || '').replace('{mine}', show(c.mine)),
+                                             cancel: String(W.keepTheirs || '').replace('{theirs}', show(c.theirs)) });
+    if (keepMine) plan.write.push(c.i);
+  }
+  const written = {};
+  plan.write.forEach(function (i) { written[i] = true; });
+  let firstErr = null;
+  for (const run of rrColumnRuns(plan.write)) {
+    const range = PERSONAL_TAB + '!' + colLetter(run[0]) + rec.row + ':' + colLetter(run[1]) + rec.row;
+    try { await sheetsUpdate(state.personalSheetId, range, [values.slice(run[0], run[1] + 1)]); }
+    catch (e) { if (!firstErr) firstErr = e; }      // offline: every run still reaches the queue
+  }
+  // The row as it now stands: this save's columns where written, everything
+  // else as the sheet holds it (the re-read), else as this device had it.
+  const nowRow = values.slice();
+  const keepRow = curRow || baseRow;
+  for (let i = 0; i < PERSONAL_SCHEMA.length; i++) if (!written[i]) nowRow[i] = keepRow[i];
+  if (opts && opts.out) opts.out.row = nowRow;
+  if (curRec) PERSONAL_SCHEMA.forEach(function (sc, i) { if (!written[i]) rec[sc.field] = curRec[sc.field]; });
+  if (firstErr) throw firstErr;
+  return true;
+}
+if (typeof window !== 'undefined') {
+  window.rrRecordRow = rrRecordRow;
+  window.rrRowMerge = rrRowMerge;
+  window.rrColumnRuns = rrColumnRuns;
+  window.rrPersonalSafeWrite = rrPersonalSafeWrite;
+}
+
 // v0.9.1919 — THE way to build a whole-row UPDATE of an existing My Collection row.
 //
 // Brad's beta (found while scripting the booth video): "Update Info/Pictures →

@@ -1247,7 +1247,8 @@ function _subRememberAnswer(r) {
   var fp = _subFp();
   if (!fp || !r) return;
   var keep = {};
-  ['sub', 'enforce', 'level', 'features', 'payLink', 'renewLink', 'portalLink', 'showMode', 'trialEnds',
+  ['sub', 'enforce', 'level', 'features', 'plan', 'payLink',   // v0.9.2040: plan kept, so an outage never drops a business to regular
+   'renewLink', 'portalLink', 'showMode', 'trialEnds',
    'daysLeft', 'paidThrough', 'cancelAtPeriodEnd', 'freeUntil', 'betaEnded', 'endedOn'].forEach(function (k) {
     if (r[k] !== undefined) keep[k] = r[k];
   });

@@ -41,7 +41,18 @@
 
 const fs = require('fs');
 const path = require('path');
-const { scanJs } = require('./color-count.js');
+const { scanJs: _scanJsRaw } = require('./color-count.js');
+// v0.9.2041: each file's scan is made ONCE and reused. The dead-handler pass
+// below asks for every file's scan once per handler name (~1,100 names), so
+// the same 60-odd files were walked ~65,000 times — 73 of photo-inbox-tests'
+// 80 seconds, and the reason that suite hit run-all's 180 s limit on a busy
+// machine. Same input, same output: the scan is a pure function of the text.
+const _scanMemo = new Map();
+function scanJs(src) {
+  let out = _scanMemo.get(src);
+  if (out === undefined) { out = _scanJsRaw(src); _scanMemo.set(src, out); }
+  return out;
+}
 
 const APP = path.join(__dirname, '..', 'app');
 

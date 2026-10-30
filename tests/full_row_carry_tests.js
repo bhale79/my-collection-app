@@ -22,6 +22,10 @@
 //   D  scan: every whole-row write to My Collection in app/ goes through the
 //      builder (or is a blanking); PLANTED: the old panel line and a bare
 //      sheetsUpdate(personalFullRowRange…) are both caught
+// v0.9.2039 (two devices never save over each other): an edit now writes ONLY
+// the columns it changed (rrPersonalSafeWrite, app.js), so the stand-in Sheets
+// keeps the item's WHOLE row (window.__rows) — a GET answers from it and a PUT
+// lands in it — and B reads "the sheet row" from there, not from one PUT.
 // The stand-in world is the one item_panel_copy_tests uses (lifted from there).
 // ═══════════════════════════════════════════════════════════════════════════
 const fs = require('fs'), path = require('path');
@@ -92,6 +96,8 @@ async function boot(browser, planted) {
     sheetA[state.personalData.g.row] = '6464-1'; sheetInv[state.personalData.g.row] = 'INV-ZZ';   // g's row was taken by another item
     const last = Math.max(...Object.keys(sheetA).map(Number));
     window.__sheet = { header: 'Master Row ID', reads: [], writes: [], puts: [] };
+    window.__rows = {};   // v0.9.2039: whole rows the stand-in sheet holds (row -> cells)
+    const colIdx = L => { let n = 0; for (const ch of String(L)) n = n * 26 + (ch.charCodeAt(0) - 64); return n - 1; };
     window.fetch = async function (url, opts) {
       const u = String(url); const method = (opts && opts.method) || 'GET';
       const ok = b => ({ ok: true, status: 200, json: async () => b, text: async () => JSON.stringify(b) });
@@ -107,12 +113,19 @@ async function boot(browser, planted) {
       }
       if (/values:batchUpdate/.test(u) && method === 'POST') { window.__sheet.writes.push(JSON.parse(opts.body)); return ok({ totalUpdatedCells: 1 }); }
       const m = /\/values\/([^?]+)\?/.exec(u);
-      if (m && method === 'GET') {   // rrRowStillIs: A{row}:{inv}{row}
+      if (m && method === 'GET') {   // rrRowStillIs: A{row}:{inv}{row}; the safe save: the whole row
         const r = decodeURIComponent(m[1]); const rowN = Number((/!A(\d+)/.exec(r) || [])[1]);
+        if (window.__rows[rowN]) { const end = colIdx((/:([A-Z]+)\d+$/.exec(r) || [])[1] || 'A'); return ok({ values: [window.__rows[rowN].slice(0, end + 1)] }); }
         const cells = []; cells[0] = sheetA[rowN] || ''; cells[F.inventoryId] = sheetInv[rowN] || '';
         return ok({ values: [cells] });
       }
-      if (m && method === 'PUT') { window.__sheet.puts.push({ range: decodeURIComponent(m[1]), body: JSON.parse(opts.body) }); return ok({ updatedCells: 1 }); }
+      if (m && method === 'PUT') {
+        const r = decodeURIComponent(m[1]); const body = JSON.parse(opts.body);
+        window.__sheet.puts.push({ range: r, body });
+        const mm = /!([A-Z]+)(\d+)/.exec(r); const rowN = mm ? Number(mm[2]) : 0;
+        if (window.__rows[rowN]) { const c0 = colIdx(mm[1]); (body.values[0] || []).forEach((v, k) => { window.__rows[rowN][c0 + k] = v; }); }
+        return ok({ updatedCells: 1 });
+      }
       return ok({});
     };
     window.showToast = function () {};
@@ -168,6 +181,7 @@ async function panelRun(browser, planted, edit) {
     return (async () => {
       const idxMotor = state.masterData.findIndex(m => m.rowId === 'MMMMMMMMMM');
       const before = Object.assign({}, rec);
+      window.__rows[rec.row] = rrRecordRow(rec);   // v0.9.2039: the sheet holds the whole row
       showItemPanel(idxMotor, 'a', 'edit');
       const ov = document.getElementById('item-panel-overlay');
       const rowsOf = () => Array.from(ov.querySelectorAll('#item-panel-fields-container > div'));
@@ -179,9 +193,10 @@ async function panelRun(browser, planted, edit) {
       }
       Array.from(ov.querySelectorAll('button')).find(b => /Save All Changes/.test(b.textContent)).click();
       await new Promise(res => setTimeout(res, 700));
-      const put = window.__sheet.puts[0]; const F = PERSONAL_FIELD_INDEX;
-      if (!put) return { noPut: true };
-      const row = put.body.values[0];
+      const F = PERSONAL_FIELD_INDEX;
+      const row = window.__rows[rec.row];             // the sheet row as it now stands
+      // writes to THIS item's row (other rows get unrelated background repairs in this world)
+      const puts = window.__sheet.puts.map(p => p.range).filter(r => new RegExp('![A-Z]+' + rec.row + '(:|$)').test(r));
       const dateF = PERSONAL_SCHEMA.filter(c => /^date\\b/i.test(c.header)).map(c => c.field);
       const want = (f) => dateF.includes(f) ? rrDateForSheet(before[f]) : (f === 'quickEntry' ? '' : before[f]);
       const skip = edit ? ['condition'] : [];
@@ -192,6 +207,7 @@ async function panelRun(browser, planted, edit) {
         changed: PERSONAL_SCHEMA.filter(s => !skip.includes(s.field) && bare(row[F[s.field]]) !== bare(want(s.field))).map(s => s.field + ': ' + before[s.field] + ' -> ' + row[F[s.field]]),
         guard: { item: row[F.itemNum], matched: row[F.matchedTo] },
         cond: row[F.condition], width: row.length, live: { pf: state.personalData.a.purchasedFrom, c1: state.personalData.a.custom1 },
+        puts, condCell: PERSONAL_TAB + '!' + personalColLetter('condition') + rec.row + ':' + personalColLetter('condition') + rec.row,
       };
     })();
   `), !!edit);
@@ -234,6 +250,9 @@ function scanSource(name, src) {
     const joined = lines.slice(i, i + 3).join(' ');
     let m = /personalWriteRow\(\s*[^,]+,\s*([^)]*?(?:\(\))?)\s*\)/.exec(ln);
     if (m && !okExpr(m[1], i)) bad.push(name + ':' + (i + 1) + '  ' + ln.trim());
+    // v0.9.2039: the safe whole-row edit takes the same VALUES (second argument)
+    const ms = /rrPersonalSafeWrite\(\s*(?:Object\.assign\(\{\},\s*[\w$.]+\)|[^,()]+)\s*,\s*([\w$]+)\s*,/.exec(ln);
+    if (ms && !okExpr(ms[1], i)) bad.push(name + ':' + (i + 1) + '  ' + ln.trim());
     if (/personalFullRowRange\(/.test(ln) && /sheetsUpdate(Row)?\(/.test(ln) && !/function /.test(ln)) {
       const v = /personalFullRowRange\([^)]*\)\s*,\s*\[\s*([\s\S]*?)\]\s*(?:,|\))/.exec(joined);
       if (!v || !okExpr(v[1].split('\n')[0], i)) bad.push(name + ':' + (i + 1) + '  ' + ln.trim());
@@ -282,15 +301,17 @@ function scanAll(overrides) {
   console.log('\n== B · the REAL edit panel, every column filled ==');
   const b1 = await panelRun(browser, null, false);
   T('B0 no script error', b1.errs.length === 0, b1.errs);
-  T('B1 Save All Changes with no edit: no column on the sheet row went blank', !b1.out.noPut && b1.out.blank.length === 0, b1.out);
-  T('B2 ...and every column is what the record held', !b1.out.noPut && b1.out.changed.length === 0, b1.out.changed);
-  T('B2b ...with the TEXT guard on Item Number and Matched To (so "0401-1" is never read as a date)', !b1.out.noPut && /^'/.test(b1.out.guard.item) && /^'/.test(b1.out.guard.matched), b1.out.guard);
+  T('B1 Save All Changes with no edit: no column on the sheet row went blank', b1.out.blank.length === 0, b1.out);
+  T('B2 ...and every column is what the record held', b1.out.changed.length === 0, b1.out.changed);
+  T('B2b ...with the TEXT guard on Item Number and Matched To (so "0401-1" is never read as a date)', /^'/.test(b1.out.guard.item) && /^'/.test(b1.out.guard.matched), b1.out.guard);
+  T('B2c v0.9.2039: nothing changed → NOTHING is written (no whole-row write from an old copy)', b1.out.puts.length === 0, b1.out.puts);
   const b2 = await panelRun(browser, null, true);
   T('B3 an edit (Condition → 9) lands, and nothing else changed', b2.out.cond === '9' && b2.out.changed.length === 0 && b2.out.blank.length === 0, b2.out);
+  T('B3b v0.9.2039: ...as ONE write of the Condition cell alone', b2.out.puts.length === 1 && b2.out.puts[0] === b2.out.condCell, b2.out.puts);
   T('B4 ...and the live record still has Bought From and Custom 1', b2.out.live && b2.out.live.pf === 'C-1700000000000' && b2.out.live.c1 === 'v-custom1', b2.out.live);
   const bp = await panelRun(browser, { panel: plantedPanel() }, false);
   const dropped = ['purchasedFrom', 'yourGrade', 'yourDescription', 'importBatch', 'locationDetail', 'shipper', 'subCollection', 'custom1', 'custom5', 'gauge', 'eraPeriod', 'stockPhotoLink'];
-  T('B5 PLANTED: the old builder line → the 12 collector columns come back blank (the bug, caught)', !bp.out.noPut && dropped.every(f => bp.out.blank.includes(f)), bp.out.blank);
+  T('B5 PLANTED: the old builder line → the 12 collector columns come back blank (the bug, caught)', dropped.every(f => bp.out.blank.includes(f)), bp.out.blank);
 
   console.log('\n== C · finishing a Quick Entry ==');
   const c = await qeRun(browser, null);

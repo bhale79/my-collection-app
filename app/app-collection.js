@@ -4058,6 +4058,9 @@ function showItemPanel(idx, pdKey, mode) {
   // new object: the owned-by-inventory maps and drawn rows hold the live one).
   const _live = state.personalData[pdKey] || {};
   const pd = Object.assign({}, _live);
+  // v0.9.2039: the item AS THIS DEVICE OPENED IT — the baseline the save compares
+  // with, so a column another device changed meanwhile is kept, never overwritten.
+  const _base = Object.assign({}, _live);
   const item = state.masterData[idx] || {
     itemNum: pd.itemNum, variation: pd.variation || '',
     roadName: pd.roadName || '', itemType: pd.itemType || '',
@@ -4743,12 +4746,20 @@ function showItemPanel(idx, pdKey, mode) {
         // this item's details over a different one. If the row moved, stop:
         // the user has been told to refresh, and the overlay stays open with
         // their edits intact rather than closing on a save that did not happen.
-        if (!(await personalWriteRow(pd, newRow))) {
+        // v0.9.2039: rrPersonalSafeWrite — only the columns this save changed are
+        // written; a column another device changed since the panel opened is kept;
+        // both changed the same column -> the person chooses (app.js).
+        const _out = {};
+        if (!(await rrPersonalSafeWrite(pd, newRow, _base, { out: _out }))) {
           saveBtn.textContent = '💾 Save All Changes'; saveBtn.disabled = false;
           return;
         }
         // v0.9.1883: the edits land on the live record only now, on a save that landed
-        state.personalData[pdKey] = Object.assign(_live, pd, { priceComplete: calc > 0 ? calc.toFixed(2) : '' });
+        // v0.9.2039: …as the row now STANDS (this save's columns + what another device changed)
+        const _now = (_out.row && typeof rrSavedRecord === 'function')
+          ? rrSavedRecord(_out.row, pd.row, {})
+          : { priceComplete: calc > 0 ? calc.toFixed(2) : '' };
+        state.personalData[pdKey] = Object.assign(_live, pd, _now);
         // v0.9.1315: a For Sale listing of THIS copy carries the variation
         // too — update it in the same save so the two can never disagree.
         if (_varChanged && pd.inventoryId && state.forSaleData && state.forSaleData[pd.inventoryId]) {

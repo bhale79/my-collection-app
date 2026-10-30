@@ -201,10 +201,12 @@ function rrStickerForgetPlace(loc, spot) {
 }
 
 // ── the location write ─────────────────────────────────────────────────────
-async function rrShelveSaveLocation(key, place) {
+// how = 'scan' | 'undo' | 'check' — the Movement Log's How column (RR_MOVE_LOG.how).
+async function rrShelveSaveLocation(key, place, how) {
   var pd = state.personalData[key];
   if (!pd || !pd.row || !place) return false;
   var loc = String(place.loc || '').trim(), spot = String(place.spot || '').trim();
+  var from = { loc: String(pd.location || '').trim(), spot: String(pd.locationDetail || '').trim() };
   var expect = { num: pd.itemNum || '', invId: pd.inventoryId || '' };
   var ok = await rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, pd.row,
     PERSONAL_TAB + '!' + personalColLetter('location') + pd.row, [[loc]], expect, 'collection');
@@ -217,7 +219,92 @@ async function rrShelveSaveLocation(key, place) {
   }
   try { if (typeof _cachePersonalData === 'function') _cachePersonalData(); } catch (e) {}
   try { window._rrBrowseSig = null; window._rrCollPageSig = null; } catch (e) {}
+  // v0.9.2041: one line in the Movement Log for a real move. The move is
+  // already saved; a log that cannot be written never undoes or blocks it.
+  if (!_shSamePlace(from, { loc: loc, spot: spot })) {
+    try { await rrMoveLogAdd(pd, from, { loc: loc, spot: spot }, how || 'scan'); } catch (e) { console.warn('[movement log]', e && e.message); }
+  }
   return true;
+}
+
+// ═══ v0.9.2041 — THE MOVEMENT LOG ═════════════════════════════════════════
+// Lines are only ADDED (sheetsAppend). Nothing in the app edits, clears or
+// deletes them — tests/scan_shelve_pro_2041_tests.js scans for it.
+var _SH_MOVE_TAB = (typeof rrFeatureTab === 'function' ? rrFeatureTab : String)('Movement Log');
+var _shMoveOk = {};                                   // which spreadsheets have the tab (this session)
+function _shMoveKnown(sid) {
+  if (_shMoveOk[sid]) return true;
+  try { return (JSON.parse(localStorage.getItem(RR_MOVE_LOG.okKey) || '[]') || []).indexOf(sid) >= 0; } catch (e) { return false; }
+}
+function _shMoveRemember(sid) {
+  _shMoveOk[sid] = true;
+  try {
+    var l = JSON.parse(localStorage.getItem(RR_MOVE_LOG.okKey) || '[]') || [];
+    if (l.indexOf(sid) < 0) { l.push(sid); localStorage.setItem(RR_MOVE_LOG.okKey, JSON.stringify(l.slice(-50))); }
+  } catch (e) {}
+}
+var _shMoveMaking = null;                             // one "make the tab" at a time
+async function _shMoveEnsure(sid) {
+  if (_shMoveOk[sid]) return true;
+  if (_shMoveMaking && _shMoveMaking.sid === sid) return _shMoveMaking.p;
+  var p = (async function () {
+    try {
+      var meta = await (await _withTokenRetry(function () { return fetch('https://sheets.googleapis.com/v4/spreadsheets/' + sid + '?fields=sheets.properties',
+        { headers: { Authorization: 'Bearer ' + accessToken } }); })).json();
+      if (!meta || !Array.isArray(meta.sheets)) return false;           // a failed read is not "missing" — never create on a guess
+      if (meta.sheets.some(function (sh) { return sh.properties && sh.properties.title === _SH_MOVE_TAB; })) { _shMoveRemember(sid); return true; }
+      // the sheet is backed up BEFORE it gains a tab — no backup, no new tab
+      await backupCreateAuto(RR_MOVE_LOG.backupReason);
+      await _withTokenRetry(function () { return fetch('https://sheets.googleapis.com/v4/spreadsheets/' + sid + ':batchUpdate', {
+        method: 'POST', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requests: [{ addSheet: { properties: { title: _SH_MOVE_TAB, tabColor: { red: 0.36, green: 0.42, blue: 0.75 } } } }] })
+      }); });
+      await sheetsUpdate(sid, _SH_MOVE_TAB + '!A1:H2', [RR_MOVE_LOG.headers, [RR_MOVE_LOG.note, '', '', '', '', '', '', '']]);
+      _shMoveRemember(sid);
+      return true;
+    } catch (e) { console.warn('[movement log] could not make the tab', e && e.message); return false; }
+  })();
+  _shMoveMaking = { sid: sid, p: p };
+  try { return await p; } finally { if (_shMoveMaking && _shMoveMaking.p === p) _shMoveMaking = null; }
+}
+function _shWhen(d) {
+  var p2 = function (n) { return (n < 10 ? '0' : '') + n; };
+  return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes());
+}
+function rrMoveLogRow(pd, from, to, how, when, who) {
+  var name = function (p) { return p && p.loc ? rrShelvePlaceName(p) : RR_MOVE_LOG.words.nowhere; };
+  // a leading ' keeps Sheets from turning "2026-10-29 01:14", 000123 or 1317-2 into a date or a number
+  return ["'" + _shWhen(when || new Date()), "'" + String(pd.inventoryId || ''), "'" + String(pd.itemNum || ''), rrShelveItemName(pd),
+          name(from), name(to), String(who || ''), (RR_MOVE_LOG.how[how] || RR_MOVE_LOG.how.scan)];
+}
+async function rrMoveLogAdd(pd, from, to, how) {
+  var sid = state.personalSheetId;
+  if (!sid || !pd) return false;
+  var ok = _shMoveKnown(sid) || ((typeof _rrOfflineNow !== 'function' || !_rrOfflineNow()) && await _shMoveEnsure(sid));
+  if (!ok) return false;
+  var who = (state.user && (state.user.email || state.user.name)) || '';
+  await sheetsAppend(sid, _SH_MOVE_TAB + '!A:H', [rrMoveLogRow(pd, from, to, how, new Date(), who)]);
+  return true;
+}
+// The item page's history: this copy's lines, newest first.
+async function rrMoveLogFor(pd) {
+  var res = await sheetsGet(state.personalSheetId, _SH_MOVE_TAB + '!A3:H');
+  var inv = String(pd.inventoryId || '');
+  var bare = function (v) { return String(v == null ? '' : v).replace(/^'/, '').trim(); };
+  return ((res && res.values) || []).filter(function (r) { return inv && bare(r[1]) === inv; })
+    .map(function (r) { return { when: bare(r[0]), from: bare(r[4]), to: bare(r[5]), who: bare(r[6]), how: bare(r[7]) }; }).reverse();
+}
+async function rrShelveHistory(key) {
+  var pd = state.personalData[key]; if (!pd) return null;
+  var W = RR_MOVE_LOG.words, lines;
+  try { lines = await rrMoveLogFor(pd); }
+  catch (e) { if (typeof showToast === 'function') showToast(W.historyFailed, 4500, true); return null; }
+  var box = 'padding:0.45rem 0.55rem;border:1px solid var(--border);border-radius:8px;margin-top:0.35rem;background:var(--surface2);font-size:0.86rem;line-height:1.4';
+  return _shDialog('<div id="rr-move-history" style="font-weight:700;font-size:1.02rem;margin-bottom:0.3rem">' + _shEsc(W.historyTitle.replace('{item}', rrShelveItemName(pd))) + '</div>' +
+    (lines.length ? lines.map(function (l) {
+      return '<div data-move-line style="' + box + '"><div style="color:var(--text-dim);font-size:0.76rem">' + _shEsc(l.when) + (l.how ? ' \u00b7 ' + _shEsc(l.how) : '') + (l.who ? ' \u00b7 ' + _shEsc(l.who) : '') + '</div>' +
+        _shEsc(l.from) + ' \u2192 <strong>' + _shEsc(l.to) + '</strong></div>';
+    }).join('') : '<div style="font-size:0.88rem;color:var(--text-mid)">' + _shEsc(W.historyNone) + '</div>'));
 }
 
 // ── the screen ─────────────────────────────────────────────────────────────
@@ -226,13 +313,20 @@ var _sh = null;   // { mode, item, place, last, stream, stop, busy, seen }
 function rrShelveOpen(mode) {
   if (!rrShelveOn()) return;
   mode = mode || { kind: 'shelve' };
-  if (mode.kind === 'shelve' && !rrShelveLocationOn()) { if (typeof showToast === 'function') showToast(_shW('needLocation'), 5000, true); return; }
+  // v0.9.2041 (TRR Pro release 3): Scan to Shelve fills in Location, so it
+  // switches Track Storage Location on through that switch's own door (the
+  // same one Preferences uses) instead of sending the person to find it.
+  if ((mode.kind === 'shelve' || mode.kind === 'check') && !rrShelveLocationOn()) {
+    if (!_shLocationTurnOn()) { if (typeof showToast === 'function') showToast(_shW('needLocation'), 5000, true); return; }
+    if (typeof showToast === 'function') showToast(_shW('locationTurnedOn'), 4500);
+  }
   rrShelveClose();
-  _sh = { mode: mode, item: '', place: null, last: null, stream: null, stop: false, busy: false, seen: {} };
+  _sh = { mode: mode, item: '', place: null, last: null, stream: null, stop: false, busy: false, seen: {}, scanned: {}, checkPlace: null };
   var ov = document.createElement('div');
   ov.id = 'rr-shelve';
   ov.style.cssText = 'position:fixed;inset:0;z-index:9700;background:var(--bg);display:flex;flex-direction:column;font-family:var(--font-body);color:var(--text)';
-  var title = mode.kind === 'shelve' ? _shW('title') : _shW('pair');
+  var title = mode.kind === 'shelve' ? _shW('title') : mode.kind === 'check' ? _shW('check') : _shW('pair');
+  var firstLine = mode.kind === 'shelve' ? _shW('aim') : mode.kind === 'check' ? _shW('checkScanShelf') : _shW('pairScan', { what: mode.label || '' });
   ov.innerHTML =
     '<div style="display:flex;align-items:center;justify-content:space-between;padding:0.75rem 1rem;border-bottom:1px solid var(--border);background:var(--surface)">' +
       '<strong style="font-size:1.05rem">' + _shEsc(title) + '</strong>' +
@@ -243,7 +337,12 @@ function rrShelveOpen(mode) {
       '<div id="rr-shelve-nocam" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;text-align:center;padding:1rem;color:var(--ink-light);font-size:0.95rem;line-height:1.5"></div>' +
     '</div>' +
     '<div style="padding:0.8rem 1rem;overflow:auto;flex:1">' +
-      '<div id="rr-shelve-status" style="font-size:0.95rem;font-weight:600;margin-bottom:0.6rem">' + _shEsc(mode.kind === 'shelve' ? _shW('aim') : _shW('pairScan', { what: mode.label || '' })) + '</div>' +
+      '<div id="rr-shelve-status" style="font-size:0.95rem;font-weight:600;margin-bottom:0.6rem">' + _shEsc(firstLine) + '</div>' +
+      '<div id="rr-shelve-here" style="font-size:0.88rem;margin-bottom:0.5rem"></div>' +
+      (mode.kind === 'check'
+        ? '<div id="rr-shelve-checklog" style="font-size:0.86rem;margin-bottom:0.6rem;color:var(--text-mid)"></div>' +
+          '<button id="rr-shelve-checkdone" class="pref-btn" style="font-weight:700;margin-bottom:0.6rem;display:none">' + _shEsc(_shW('checkDone')) + '</button>'
+        : '') +
       (mode.kind === 'shelve'
         ? '<div id="rr-shelve-pair" style="display:grid;grid-template-columns:auto 1fr;gap:0.35rem 0.6rem;font-size:0.9rem;margin-bottom:0.6rem">' +
             '<span style="color:var(--text-dim)">' + _shEsc(_shW('itemSlot')) + '</span><span id="rr-shelve-item">—</span>' +
@@ -264,7 +363,20 @@ function rrShelveOpen(mode) {
   var go = function () { var v = typed.value; typed.value = ''; if (rrStickerNorm(v)) rrShelveCode(v); };
   ov.querySelector('#rr-shelve-go').addEventListener('click', go);
   typed.addEventListener('keydown', function (e) { if (e.key === 'Enter') go(); });
+  var done = ov.querySelector('#rr-shelve-checkdone');
+  if (done) done.addEventListener('click', rrShelveCheckResult);
   _shCameraStart();
+}
+// Track Storage Location on, through ITS door: the account setting (_prefSet)
+// and the live switch (_onPrefChange), exactly as Preferences turns it on.
+function _shLocationTurnOn() {
+  try {
+    if (typeof _prefSet !== 'function') return false;
+    _prefSet('lv_location_enabled', 'true');
+    if (typeof _onPrefChange === 'function') _onPrefChange('location', true);
+    var cb = document.getElementById('ptog-location'); if (cb) cb.checked = true;
+    return rrShelveLocationOn();
+  } catch (e) { return false; }
 }
 function rrShelveClose() {
   if (_sh) { _sh.stop = true; _shCameraStop(); }
@@ -350,6 +462,7 @@ async function rrShelveCode(code, opts) {
     var f = rrStickerFind(c);
     if (f && f.kind === 'foreign') { _shStatus(_shW('foreign')); return false; }
     if (f && f.kind === 'missing') { _shStatus(_shW('missing', { inv: f.inv })); return false; }
+    if (mode.kind === 'check') return _shCheckCode(f);      // v0.9.2041: never asks, never writes
     if (!f) {
       f = await _shAskNew(c);
       if (!f || !_sh) return false;
@@ -359,6 +472,7 @@ async function rrShelveCode(code, opts) {
     if (_sh.item && _sh.place) return await _shSavePair();
     _shPaint();
     _shStatus(_sh.item ? _shW('needPlace') : _shW('needItem'));
+    if (!_sh.item && _sh.place) _shHereLink(_sh.place);
     return true;
   } finally {
     if (_sh) _sh.busy = false;
@@ -367,12 +481,13 @@ async function rrShelveCode(code, opts) {
 async function _shSavePair() {
   var key = _sh.item, place = _sh.place, pd = state.personalData[key];
   var prev = { loc: pd ? (pd.location || '') : '', spot: pd ? (pd.locationDetail || '') : '' };
-  var ok = await rrShelveSaveLocation(key, place);
+  var ok = await rrShelveSaveLocation(key, place, 'scan');
   if (!_sh) return ok;
   if (!ok) { _shPaint(); return false; }
   var msg = _shW('saved', { item: rrShelveItemName(pd), place: rrShelvePlaceName(place) });
   _sh.last = { key: key, prev: prev, msg: msg };
   _sh.item = '';
+  _shHereLink(null);
   var keep = document.getElementById('rr-shelve-keep');
   if (!(keep && keep.checked)) _sh.place = null;
   _shStatus(msg, true);
@@ -383,9 +498,112 @@ async function _shSavePair() {
 async function rrShelveUndo() {
   if (!_sh || !_sh.last) return false;
   var l = _sh.last;
-  var ok = await rrShelveSaveLocation(l.key, l.prev);
+  var ok = await rrShelveSaveLocation(l.key, l.prev, 'undo');
   if (ok && _sh) { _sh.last = null; _shStatus(_shW('undone'), true); _shPaint(); }
   return ok;
+}
+
+// ═══ v0.9.2041 — WHAT'S ON THIS SHELF + SHELF CHECK (TRR Pro release 3) ═══
+// Both only READ. The one write on these screens is "Move here", and it goes
+// through the one location writer, rrShelveSaveLocation.
+function _shNorm(v) { return String(v == null ? '' : v).trim().toLowerCase(); }
+// The owned copies recorded at a place. A place with a spot = that spot only;
+// a place without one = everything in that location, whatever spot. Pure.
+function rrShelveItemsAt(place) {
+  if (!place || !_shNorm(place.loc)) return [];
+  var loc = _shNorm(place.loc), spot = _shNorm(place.spot);
+  return _shOwnedKeys().filter(function (k) {
+    var p = state.personalData[k];
+    if (_shNorm(p.location) !== loc) return false;
+    return !spot || _shNorm(p.locationDetail) === spot;
+  });
+}
+function _shHereLink(place) {
+  var el = document.getElementById('rr-shelve-here');
+  if (!el) return;
+  if (!place) { el.innerHTML = ''; return; }
+  var n = rrShelveItemsAt(place).length;
+  el.innerHTML = '<button id="rr-shelve-herebtn" class="pref-btn" style="font-size:0.8rem">' + _shEsc(_shW('whatsHere', { n: n })) + '</button>';
+  el.querySelector('#rr-shelve-herebtn').addEventListener('click', function () { rrShelveWhatsHere(place); });
+}
+function rrShelveWhatsHere(place) {
+  var keys = rrShelveItemsAt(place);
+  var line = function (k) {
+    var p = state.personalData[k];
+    return '<div style="padding:0.45rem 0.55rem;border:1px solid var(--border);border-radius:8px;margin-top:0.35rem;background:var(--surface2);font-size:0.88rem">' +
+      _shEsc(rrShelveItemName(p)) + (p.inventoryId ? ' <span style="color:var(--text-dim);font-size:0.78rem">#' + _shEsc(p.inventoryId) + '</span>' : '') +
+      (!_shNorm(place.spot) && p.locationDetail ? ' <span style="color:var(--text-dim);font-size:0.78rem">› ' + _shEsc(p.locationDetail) + '</span>' : '') + '</div>';
+  };
+  return _shDialog('<div id="rr-shelve-herelist" style="font-weight:700;font-size:1.02rem;margin-bottom:0.3rem">' + _shEsc(_shW('whatsHereTitle', { place: rrShelvePlaceName(place) })) + '</div>' +
+    (keys.length ? keys.map(line).join('') : '<div style="font-size:0.88rem;color:var(--text-mid)">' + _shEsc(_shW('whatsHereNone')) + '</div>'));
+}
+// One scan during a shelf check: the first must be a shelf; then items are
+// ticked off. Nothing is written and no "new sticker" question is asked.
+function _shCheckCode(f) {
+  if (!_sh.checkPlace) {
+    if (!f || f.kind !== 'place') { _shStatus(_shW('checkPlaceFirst')); return false; }
+    _sh.checkPlace = f.place; _sh.scanned = {};
+    _shStatus(_shW('checkScanItems', { place: rrShelvePlaceName(f.place) }));
+    var d = document.getElementById('rr-shelve-checkdone'); if (d) d.style.display = '';
+    _shHereLink(f.place);
+    return true;
+  }
+  if (!f) { _shStatus(_shW('checkPlaceFirst')); return false; }
+  if (f.kind === 'place') {
+    if (_shSamePlace(f.place, _sh.checkPlace)) return true;
+    _shStatus(_shW('checkAnotherShelf')); return false;
+  }
+  if (f.kind !== 'item') return false;
+  if (!_sh.scanned[f.key]) {
+    _sh.scanned[f.key] = true;
+    var log = document.getElementById('rr-shelve-checklog');
+    if (log) log.insertAdjacentHTML('afterbegin', '<div>' + _shEsc(_shW('checkScanned', { item: rrShelveItemName(f.pd) })) + '</div>');
+  }
+  _shStatus(_shW('checkScanned', { item: rrShelveItemName(f.pd) }), true);
+  return true;
+}
+// The result, pure: { found, missing, elsewhere } as lists of keys.
+function rrShelveCheckSort(place, scannedKeys) {
+  var here = rrShelveItemsAt(place), seen = {}, inHere = {};
+  (scannedKeys || []).forEach(function (k) { seen[k] = true; });
+  here.forEach(function (k) { inHere[k] = true; });
+  return {
+    found: here.filter(function (k) { return seen[k]; }),
+    missing: here.filter(function (k) { return !seen[k]; }),
+    elsewhere: Object.keys(seen).filter(function (k) { return !inHere[k] && state.personalData[k]; }),
+  };
+}
+function rrShelveCheckResult() {
+  if (!_sh || !_sh.checkPlace) return null;
+  var place = _sh.checkPlace;
+  var r = rrShelveCheckSort(place, Object.keys(_sh.scanned));
+  var name = function (k) { var p = state.personalData[k]; return _shEsc(rrShelveItemName(p)) + (p.inventoryId ? ' <span style="color:var(--text-dim);font-size:0.78rem">#' + _shEsc(p.inventoryId) + '</span>' : ''); };
+  var box = 'padding:0.45rem 0.55rem;border:1px solid var(--border);border-radius:8px;margin-top:0.35rem;background:var(--surface2);font-size:0.86rem';
+  var head = function (w, n) { return '<div style="font-weight:700;margin-top:0.85rem">' + _shEsc(_shW(w, { n: n })) + '</div>'; };
+  var html = '<div style="font-weight:700;font-size:1.02rem">' + _shEsc(_shW('check')) + ' — ' + _shEsc(rrShelvePlaceName(place)) + '</div>';
+  if (!r.missing.length && !r.elsewhere.length) html += '<div data-sh-allgood style="margin-top:0.5rem;color:var(--t-green);font-weight:600">' + _shEsc(_shW('checkAllGood')) + '</div>';
+  if (r.missing.length) html += head('checkMissing', r.missing.length) + r.missing.map(function (k) {
+    return '<div data-sh-missing="' + _shEsc(k) + '" style="' + box + '">' + name(k) + (rrStickerNorm(state.personalData[k].stickerCode) ? '' : ' <span style="color:var(--text-dim);font-size:0.76rem">(' + _shEsc(_shW('checkNoSticker')) + ')</span>') + '</div>';
+  }).join('');
+  if (r.elsewhere.length) html += head('checkElsewhere', r.elsewhere.length) + r.elsewhere.map(function (k) {
+    var p = state.personalData[k];
+    var was = p.location ? _shW('checkWas', { place: rrShelvePlaceName({ loc: p.location, spot: p.locationDetail || '' }) }) : _shW('checkNowhere');
+    return '<div data-sh-else="' + _shEsc(k) + '" style="' + box + ';display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap"><span style="flex:1;min-width:10rem">' + name(k) +
+      ' <span style="color:var(--text-dim);font-size:0.76rem">(' + _shEsc(was) + ')</span></span>' +
+      '<button data-sh-movehere="' + _shEsc(k) + '" class="pref-btn" style="font-size:0.78rem">' + _shEsc(_shW('checkMoveHere')) + '</button></div>';
+  }).join('');
+  if (r.found.length) html += head('checkFound', r.found.length) + r.found.map(function (k) { return '<div data-sh-found="' + _shEsc(k) + '" style="' + box + '">' + name(k) + '</div>'; }).join('');
+  var d = _shDialog('<div id="rr-shelve-checkresult">' + html + '</div>');
+  d.querySelectorAll('[data-sh-movehere]').forEach(function (b) {
+    b.addEventListener('click', async function () {
+      if (b.disabled) return;
+      b.disabled = true;                                  // one press = one write
+      var k = b.getAttribute('data-sh-movehere');
+      if (await rrShelveSaveLocation(k, place, 'check')) b.outerHTML = '<span style="color:var(--t-green);font-weight:600;font-size:0.8rem">' + _shEsc(_shW('checkMoved')) + '</span>';
+      else b.disabled = false;
+    });
+  });
+  return r;
 }
 
 // ── a sticker the app has not seen ─────────────────────────────────────────
@@ -545,6 +763,7 @@ function rrShelveItemLineHtml(pd, key) {
         '<button onclick="rrShelveRemoveItemSticker(\'' + k + '\')" style="' + btn + '">' + _shEsc(_shW('remove')) + '</button>'
       : '<button onclick="rrShelvePairItem(\'' + k + '\')" style="' + btn + '">' + _shEsc(_shW('pair')) + '</button>') +
     '<button onclick="rrShelvePrintOpen(\'items\',[\'' + k + '\'])" style="' + btn + '">' + _shEsc(_shW('printLabel')) + '</button>' +
+    '<button onclick="rrShelveHistory(\'' + k + '\')" style="' + btn + '">' + _shEsc(RR_MOVE_LOG.words.history) + '</button>' +   // v0.9.2041
     '</div>';
 }
 function _shRedrawDetail() {
@@ -589,6 +808,7 @@ function rrShelveTopHtml() {
   if (!rrShelveOn()) return '';
   return '<div id="rr-shelve-top" style="margin-bottom:0.85rem;padding:0.7rem;border:1px solid var(--border);border-radius:10px;background:var(--surface2)">' +
     '<button onclick="rrShelveOpen()" class="pref-btn" style="font-weight:700">▣ ' + _shEsc(_shW('button')) + '</button>' +
+    '<button onclick="rrShelveOpen({kind:\'check\'})" class="pref-btn" style="margin-left:0.35rem">' + _shEsc(_shW('check')) + '</button>' +
     '<span style="display:inline-flex;gap:0.35rem;flex-wrap:wrap;margin-left:0.35rem">' +
       '<button onclick="rrShelvePrintOpen(\'places\')" class="pref-btn" style="font-size:0.8rem">' + _shEsc(_shW('printShelves')) + '</button>' +
       '<button onclick="rrShelvePrintOpen(\'items\')" class="pref-btn" style="font-size:0.8rem">' + _shEsc(_shW('printItems')) + '</button>' +
@@ -616,6 +836,51 @@ function _shLoadQr() {
     document.head.appendChild(sc);
   });
   return _shQrLoading;
+}
+// v0.9.2041: THE label size — ONE account setting (RR_SHELVE.sizeKey), read
+// ONLY here. Returns a template in inches. A single-label size is a page the
+// label's own size, one label on it.
+function _shSizeRaw() {
+  try {
+    var raw = (typeof rrPrefRead === 'function') ? rrPrefRead(RR_SHELVE.sizeKey) : localStorage.getItem(RR_SHELVE.sizeKey);
+    var o = JSON.parse(raw || 'null');
+    return (o && typeof o === 'object') ? o : null;
+  } catch (e) { return null; }
+}
+function _shCustomOk(w, h) {
+  var L = RR_SHELVE.customLimits;
+  return isFinite(w) && isFinite(h) && w >= L.minW && w <= L.maxW && h >= L.minH && h <= L.maxH;
+}
+function _shOneLabelTpl(w, h) {
+  var pad = Math.max(0.06, Math.min(0.15, Math.min(w, h) * 0.08));
+  var side = w >= h * 1.6;                                   // wide: QR left, words right; else QR on top
+  var qr = side ? Math.min(h - 2 * pad, w * 0.42) : Math.min(w - 2 * pad, h * 0.55);
+  return { pageW: w, pageH: h, cols: 1, rows: 1, w: w, h: h, left: 0, top: 0, gapX: 0, gapY: 0, qr: Math.round(qr * 1000) / 1000, pad: pad, one: true, stack: !side };
+}
+function rrShelveLabelTpl() {
+  var o = _shSizeRaw() || {};
+  var def = (RR_SHELVE.sizes || []).filter(function (z) { return z.id === o.id; })[0];
+  if (o.id === 'custom') {
+    var w = parseFloat(o.w), h = parseFloat(o.h);
+    if (_shCustomOk(w, h)) return Object.assign(_shOneLabelTpl(w, h), { id: 'custom' });
+  } else if (def && def.w && def.h) {
+    return Object.assign(_shOneLabelTpl(def.w, def.h), { id: def.id });
+  }
+  return Object.assign({}, RR_SHELVE.label, { id: 'avery5160' });
+}
+// The ONE writer. false (nothing saved) for an unknown size or a custom size outside the limits.
+function rrShelveSetLabelSize(id, w, h) {
+  var def = (RR_SHELVE.sizes || []).filter(function (z) { return z.id === id; })[0];
+  if (!def) return false;
+  var v = { id: id };
+  if (id === 'custom') {
+    w = parseFloat(w); h = parseFloat(h);
+    if (!_shCustomOk(w, h)) return false;
+    v.w = w; v.h = h;
+  }
+  var txt = JSON.stringify(v);
+  if (typeof rrPrefWrite === 'function') rrPrefWrite(RR_SHELVE.sizeKey, txt); else localStorage.setItem(RR_SHELVE.sizeKey, txt);
+  return true;
 }
 // Where label i lands on the sheets, in inches: skip = labels already used on
 // the first sheet. Pure — the tests read it.
@@ -660,17 +925,18 @@ function _shDrawQr(doc, qrLib, text, x, y, size) {
   }
   return n;
 }
-async function rrShelveLabelsPdf(entries, skip) {
+async function rrShelveLabelsPdf(entries, skip, tplIn) {
   var J = window.jspdf && window.jspdf.jsPDF;
   if (!J) throw new Error('jsPDF missing');
   var qrLib = await _shLoadQr();
-  var tpl = RR_SHELVE.label;
-  var doc = new J({ unit: 'in', format: [tpl.pageW, tpl.pageH], orientation: 'portrait' });
-  var slots = rrShelveLabelSlots(entries.length, skip, tpl), page = 0;
+  var tpl = tplIn || rrShelveLabelTpl();                   // v0.9.2041: the chosen size
+  var doc = new J({ unit: 'in', format: [tpl.pageW, tpl.pageH], orientation: tpl.pageW > tpl.pageH ? 'landscape' : 'portrait' });
+  var slots = rrShelveLabelSlots(entries.length, tpl.one ? 0 : skip, tpl), page = 0;
   doc.setTextColor(0); doc.setFillColor(0);
   entries.forEach(function (e, i) {
     var s = slots[i];
-    while (s.page > page) { doc.addPage(); page++; }
+    while (s.page > page) { doc.addPage([tpl.pageW, tpl.pageH], tpl.pageW > tpl.pageH ? 'landscape' : 'portrait'); page++; }
+    if (tpl.stack) { _shStackLabel(doc, qrLib, e, s, tpl); return; }
     var qx = s.x + tpl.pad, qy = s.y + (tpl.h - tpl.qr) / 2;
     _shDrawQr(doc, qrLib, e.code, qx, qy, tpl.qr);
     var tx = qx + tpl.qr + 0.06, tw = s.x + tpl.w - tpl.pad - tx, ty = s.y + 0.27;
@@ -681,7 +947,21 @@ async function rrShelveLabelsPdf(entries, skip) {
       doc.splitTextToSize(String(l), tw).slice(0, 2).forEach(function (ln) { if (ty < s.y + tpl.h - 0.06) { doc.text(ln, tx, ty); ty += 0.13; } });
     });
   });
-  return { doc: doc, slots: slots, pages: page + 1 };
+  return { doc: doc, slots: slots, pages: page + 1, tpl: tpl };
+}
+// A tall label: the QR centred at the top, the words under it.
+function _shStackLabel(doc, qrLib, e, s, tpl) {
+  var qx = s.x + (tpl.w - tpl.qr) / 2, qy = s.y + tpl.pad;
+  _shDrawQr(doc, qrLib, e.code, qx, qy, tpl.qr);
+  var tw = tpl.w - 2 * tpl.pad, tx = s.x + tpl.pad;
+  var big = Math.max(10, Math.min(28, tpl.w * 6)), small = Math.round(big * 0.75);
+  var ty = qy + tpl.qr + big / 72 + 0.04;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(big);
+  doc.splitTextToSize(String(e.title || ''), tw).slice(0, 2).forEach(function (ln) { doc.text(ln, tx, ty); ty += big / 72 * 1.15; });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(small);
+  e.lines.forEach(function (l) {
+    doc.splitTextToSize(String(l), tw).slice(0, 3).forEach(function (ln) { if (ty < s.y + tpl.h - tpl.pad) { doc.text(ln, tx, ty); ty += small / 72 * 1.2; } });
+  });
 }
 function rrShelvePrintOpen(kind, preKeys) {
   if (!rrShelveOn()) return;
@@ -713,7 +993,15 @@ function rrShelvePrintOpen(kind, preKeys) {
       '<button id="rr-print-x" aria-label="Close" style="background:none;border:none;color:var(--text);font-size:1.5rem;line-height:1;cursor:pointer">&times;</button>' +
     '</div>' +
     '<div style="padding:0.8rem 1rem;overflow:auto;flex:1">' +
-      '<div style="font-size:0.78rem;color:var(--text-dim);line-height:1.45;margin-bottom:0.6rem">' + _shEsc(_shW('printHelp')) + '</div>' +
+      '<div style="display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap;margin-bottom:0.45rem">' +
+        '<label for="rr-print-size" style="font-size:0.82rem;color:var(--text-mid)">' + _shEsc(_shW('labelSize')) + '</label>' +
+        '<select id="rr-print-size" style="' + inp + ';flex:1;min-width:12rem">' + (RR_SHELVE.sizes || []).map(function (z) { return '<option value="' + _shEsc(z.id) + '">' + _shEsc(z.name) + '</option>'; }).join('') + '</select>' +
+      '</div>' +
+      '<div id="rr-print-custom" style="display:none;gap:0.4rem;align-items:center;flex-wrap:wrap;margin-bottom:0.45rem">' +
+        '<label style="font-size:0.8rem;color:var(--text-mid)">' + _shEsc(_shW('labelCustomW')) + ' <input id="rr-print-cw" type="number" step="0.125" style="width:5rem;' + inp + '"></label>' +
+        '<label style="font-size:0.8rem;color:var(--text-mid)">' + _shEsc(_shW('labelCustomH')) + ' <input id="rr-print-ch" type="number" step="0.125" style="width:5rem;' + inp + '"></label>' +
+      '</div>' +
+      '<div id="rr-print-help" style="font-size:0.78rem;color:var(--text-dim);line-height:1.45;margin-bottom:0.6rem"></div>' +
       (isPlaces ? '' : '<input id="rr-print-q" type="text" placeholder="' + _shEsc(_shW('printSearch')) + '" style="width:100%;box-sizing:border-box;' + inp + '">') +
       '<div style="display:flex;gap:0.4rem;align-items:center;margin:0.5rem 0">' +
         '<button id="rr-print-all" class="pref-btn" style="font-size:0.78rem">' + _shEsc(_shW('printTickAll')) + '</button>' +
@@ -723,7 +1011,7 @@ function rrShelvePrintOpen(kind, preKeys) {
       '<div id="rr-print-list"></div>' +
     '</div>' +
     '<div style="padding:0.75rem 1rem;border-top:1px solid var(--border);display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">' +
-      '<label style="font-size:0.8rem;color:var(--text-mid);display:flex;align-items:center;gap:0.35rem">' + _shEsc(_shW('printSkip')) +
+      '<label id="rr-print-skipwrap" style="font-size:0.8rem;color:var(--text-mid);display:flex;align-items:center;gap:0.35rem">' + _shEsc(_shW('printSkip')) +
         ' <input id="rr-print-skip" type="number" min="0" max="' + (RR_SHELVE.label.cols * RR_SHELVE.label.rows - 1) + '" value="0" style="width:4rem;' + inp + '"></label>' +
       '<button id="rr-print-go" class="pref-btn" style="margin-left:auto;font-weight:700">' + _shEsc(_shW('printGo')) + '</button>' +
     '</div></div>';
@@ -744,6 +1032,29 @@ function rrShelvePrintOpen(kind, preKeys) {
     count();
   };
   if (q) q.addEventListener('input', draw);
+  // v0.9.2041: the label size — shows the saved one; a change is saved at once
+  var sizeSel = ov.querySelector('#rr-print-size'), cw = ov.querySelector('#rr-print-cw'), ch = ov.querySelector('#rr-print-ch');
+  var paintSize = function () {
+    var t = rrShelveLabelTpl(), raw = _shSizeRaw() || {};
+    if (sizeSel.value !== 'custom') sizeSel.value = t.id;
+    ov.querySelector('#rr-print-custom').style.display = sizeSel.value === 'custom' ? 'flex' : 'none';
+    if (sizeSel.value === 'custom' && raw.id === 'custom') { cw.value = raw.w; ch.value = raw.h; }
+    ov.querySelector('#rr-print-skipwrap').style.display = t.one ? 'none' : 'flex';
+    if (!t.one) ov.querySelector('#rr-print-skip').max = String(t.cols * t.rows - 1);
+    ov.querySelector('#rr-print-help').textContent = t.one ? _shW('printHelpOne', { w: t.w, h: t.h }) : _shW('printHelp');
+  };
+  var saveCustom = function () {
+    if (rrShelveSetLabelSize('custom', cw.value, ch.value)) { paintSize(); return true; }
+    var L = RR_SHELVE.customLimits;
+    ov.querySelector('#rr-print-help').textContent = _shW('labelCustomBad', { minW: L.minW, maxW: L.maxW, minH: L.minH, maxH: L.maxH });
+    return false;
+  };
+  sizeSel.addEventListener('change', function () {
+    if (sizeSel.value === 'custom') { ov.querySelector('#rr-print-custom').style.display = 'flex'; if (cw.value && ch.value) saveCustom(); return; }
+    rrShelveSetLabelSize(sizeSel.value); paintSize();
+  });
+  cw.addEventListener('change', saveCustom); ch.addEventListener('change', saveCustom);
+  paintSize();
   ov.querySelector('#rr-print-all').addEventListener('click', function () { shown.forEach(function (r) { ticked[r.id] = true; }); draw(); });
   ov.querySelector('#rr-print-none').addEventListener('click', function () { ticked = {}; draw(); });
   ov.querySelector('#rr-print-x').addEventListener('click', function () { ov.remove(); });
@@ -752,6 +1063,7 @@ function rrShelvePrintOpen(kind, preKeys) {
     if (busy) return;
     var pick = rows.filter(function (r) { return ticked[r.id]; });
     if (!pick.length) { if (typeof showToast === 'function') showToast(_shW('printNone'), 3000, true); return; }
+    if (sizeSel.value === 'custom' && !saveCustom()) return;   // a custom size outside the limits makes no file
     var entries = isPlaces ? rrShelveLabelEntries('places', pick.map(function (r) { return r.place; }))
                            : rrShelveLabelEntries('items', pick.map(function (r) { return r.key; }));
     busy = true;
@@ -780,5 +1092,9 @@ if (typeof window !== 'undefined') {
     rrStickerAppCodeItem: rrStickerAppCodeItem, rrStickerAppCodePlace: rrStickerAppCodePlace, rrStickerParseApp: rrStickerParseApp,
     rrShelveLabelSlots: rrShelveLabelSlots, rrShelveLabelEntries: rrShelveLabelEntries, rrShelveLabelsPdf: rrShelveLabelsPdf,
     rrShelvePrintOpen: rrShelvePrintOpen,
+    rrShelveLabelTpl: rrShelveLabelTpl, rrShelveSetLabelSize: rrShelveSetLabelSize,                 // v0.9.2041
+    rrShelveItemsAt: rrShelveItemsAt, rrShelveWhatsHere: rrShelveWhatsHere,
+    rrShelveCheckSort: rrShelveCheckSort, rrShelveCheckResult: rrShelveCheckResult,
+    rrMoveLogRow: rrMoveLogRow, rrMoveLogAdd: rrMoveLogAdd, rrMoveLogFor: rrMoveLogFor, rrShelveHistory: rrShelveHistory,
   });
 }

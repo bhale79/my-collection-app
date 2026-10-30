@@ -100,6 +100,8 @@ async function boot(browser, planted) {
     sheetA[state.personalData.g.row] = '6464-1'; sheetInv[state.personalData.g.row] = 'INV-ZZ';   // g's row was taken by another item
     const last = Math.max(...Object.keys(sheetA).map(Number));
     window.__sheet = { header: 'Master Row ID', reads: [], writes: [], puts: [] };
+    window.__rows = {};   // v0.9.2039: whole rows the stand-in sheet holds (row -> cells)
+    const colIdx = L => { let n = 0; for (const ch of String(L)) n = n * 26 + (ch.charCodeAt(0) - 64); return n - 1; };
     window.fetch = async function (url, opts) {
       const u = String(url); const method = (opts && opts.method) || 'GET';
       const ok = b => ({ ok: true, status: 200, json: async () => b, text: async () => JSON.stringify(b) });
@@ -115,12 +117,23 @@ async function boot(browser, planted) {
       }
       if (/values:batchUpdate/.test(u) && method === 'POST') { window.__sheet.writes.push(JSON.parse(opts.body)); return ok({ totalUpdatedCells: 1 }); }
       const m = /\/values\/([^?]+)\?/.exec(u);
-      if (m && method === 'GET') {   // rrRowStillIs: A{row}:{inv}{row}
+      if (m && method === 'GET') {   // rrRowStillIs: A{row}:{inv}{row}; v0.9.2039 safe save: the whole row
         const r = decodeURIComponent(m[1]); const rowN = Number((/!A(\d+)/.exec(r) || [])[1]);
+        // v0.9.2039: the sheet holds an item's WHOLE row — taken from the record the
+        // first time it is read (when the row still holds that record), then kept.
+        const own = Object.values(state.personalData).find(p => p.row === rowN);
+        if (!window.__rows[rowN] && own && String(sheetA[rowN] || '') === String(own.itemNum || '') && String(sheetInv[rowN] || '') === String(own.inventoryId || '')) window.__rows[rowN] = rrRecordRow(own);
+        if (window.__rows[rowN]) { const end = colIdx((/:([A-Z]+)\d+$/.exec(r) || [])[1] || 'A'); return ok({ values: [window.__rows[rowN].slice(0, end + 1)] }); }
         const cells = []; cells[0] = sheetA[rowN] || ''; cells[F.inventoryId] = sheetInv[rowN] || '';
         return ok({ values: [cells] });
       }
-      if (m && method === 'PUT') { window.__sheet.puts.push({ range: decodeURIComponent(m[1]), body: JSON.parse(opts.body) }); return ok({ updatedCells: 1 }); }
+      if (m && method === 'PUT') {
+        const r = decodeURIComponent(m[1]); const body = JSON.parse(opts.body);
+        window.__sheet.puts.push({ range: r, body });
+        const mm = /!([A-Z]+)(\d+)/.exec(r); const rowN = mm ? Number(mm[2]) : 0;
+        if (window.__rows[rowN]) { const c0 = colIdx(mm[1]); (body.values[0] || []).forEach((v, k) => { window.__rows[rowN][c0 + k] = v; }); }
+        return ok({ updatedCells: 1 });
+      }
       return ok({});
     };
     window.showToast = function () {};
@@ -171,11 +184,11 @@ async function saveRun(browser, planted) {
     await new Promise(r => setTimeout(r, 400));
     const recs = Object.keys(state.personalData).filter(k => state.personalData[k].inventoryId === 'INV-B');
     const r = recs.length ? state.personalData[recs[0]] : {};
-    const put = window.__sheet.puts.find(x => /!A\d+:/.test(x.range));
+    const sheetRow = window.__rows[rowBefore];   // v0.9.2039: the sheet row as it now stands (the save writes only its changed columns)
     return { threw, copies: recs.length, rowBefore, row: r.row, photo: r.photoItem || '', box: r.photoBox || '', c1: r.custom1 || '',
       mri: r.masterRowId || '', ld: r.locationDetail || '', cond: r.condition, qe: r.quickEntry,
-      sheetPhoto: put ? put.body.values[0][PERSONAL_FIELD_INDEX.photoItem] : null,
-      sheetBox: put ? put.body.values[0][PERSONAL_FIELD_INDEX.photoBox] : null };
+      sheetPhoto: sheetRow ? sheetRow[PERSONAL_FIELD_INDEX.photoItem] : null,
+      sheetBox: sheetRow ? sheetRow[PERSONAL_FIELD_INDEX.photoBox] : null };
   }, { LINK, BOXL });
   await pg.close();
   return { out, errs };

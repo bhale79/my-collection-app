@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2052';
+const APP_VERSION = 'v0.9.2054';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -102,13 +102,42 @@ function rrFeaturesRemember(r) {
     if (!r || !Array.isArray(r.features)) return;
     var em = String((window.state && window.state.user && window.state.user.email) || '').toLowerCase();
     if (!em) return;
-    localStorage.setItem(RR_FEATURES_CACHE_KEY, JSON.stringify({ email: em, features: r.features, at: Date.now() }));
+    localStorage.setItem(RR_FEATURES_CACHE_KEY, JSON.stringify({ email: em, features: r.features,
+      plan: r.plan === RR_PLAN_PRO ? RR_PLAN_PRO : 'regular', at: Date.now() }));   // v0.9.2040: the plan too
   } catch (e) {}
+}
+// ── WHICH PLAN — Regular or Pro (v0.9.2040, TRR Pro release 2) ─────────────
+// Brad, 2026-10-28: Pro is the SAME app with business features switched on
+// ("lets do those four changes"). The backend (relay v4.9) answers plan
+// 'pro' or 'regular' beside the subscription, and it ALREADY leaves the Pro
+// features out of a regular person's list — so a Pro feature is checked
+// exactly like every other one: rrFeatureOn('name'). NEVER test "is this Pro?"
+// to switch a feature on (tests/pro_switch_2040_tests.js fails if anything
+// does). rrPlan() exists for ONE job: saying "Pro" on My Subscription.
+// Same sources as the feature list: the backend's answer, else this account's
+// remembered answer on this device (a backend outage never turns a business
+// back into a regular account), else regular. Recording mode = a new regular
+// member, so a help video never shows Pro.
+const RR_PLAN_PRO = 'pro';
+const RR_PLAN_WORDS = { pro: 'Pro' };
+function rrPlan() {
+  try {
+    if (typeof rrRecordingMode === 'function' && rrRecordingMode()) return 'regular';
+    var s = (typeof window !== 'undefined') && window._subState;
+    if (s && s.sub) return s.plan === RR_PLAN_PRO ? RR_PLAN_PRO : 'regular';
+    var em = String((window.state && window.state.user && window.state.user.email) || '').toLowerCase();
+    var c = JSON.parse(localStorage.getItem(RR_FEATURES_CACHE_KEY) || 'null');
+    if (c && em && c.email === em && c.plan === RR_PLAN_PRO) return RR_PLAN_PRO;
+  } catch (e) {}
+  return 'regular';
 }
 if (typeof window !== 'undefined') {
   window.rrFeatureOn = rrFeatureOn;
   window.rrFeatureList = rrFeatureList;
   window.rrFeaturesRemember = rrFeaturesRemember;
+  window.RR_PLAN_PRO = RR_PLAN_PRO;
+  window.RR_PLAN_WORDS = RR_PLAN_WORDS;
+  window.rrPlan = rrPlan;
 }
 
 // ── THE INVITE SCREEN — ONE switch (v0.9.1892, launch build) ─────────────
@@ -2809,6 +2838,21 @@ var RR_SHELVE = {
   qrLevel: 'M',
   // Avery 5160 / 8160 address labels — 30 per US Letter sheet, 1" x 2-5/8".
   label: { pageW: 8.5, pageH: 11, cols: 3, rows: 10, w: 2.625, h: 1, left: 0.1875, top: 0.5, gapX: 0.125, gapY: 0, qr: 0.82, pad: 0.09 },
+  // v0.9.2041 (TRR Pro release 3 — [stated] Brad 2026-10-28: "be generic and
+  // let the user pick their own" printer and labels). The label SIZE is ONE
+  // account setting (sizeKey), read only by rrShelveLabelTpl() (scan-shelve.js).
+  // A roll / single-label size prints ONE label per page, the page exactly the
+  // label's size — what a label printer's driver expects. Custom = W x H typed
+  // in inches, kept inside customLimits. The sheet above stays the default.
+  sizeKey: 'lv_label_size',
+  sizes: [
+    { id: 'avery5160', name: 'Sheet of 30 \u2014 1\u2033 \u00d7 2\u215d\u2033 (Avery 5160 / 8160 size)' },
+    { id: 'roll2x1',   name: 'Roll \u2014 2\u2033 \u00d7 1\u2033', w: 2, h: 1 },
+    { id: 'roll2x125', name: 'Roll \u2014 2\u00bc\u2033 \u00d7 1\u00bc\u2033', w: 2.25, h: 1.25 },
+    { id: 'label4x6',  name: 'Shipping label \u2014 4\u2033 \u00d7 6\u2033', w: 4, h: 6 },
+    { id: 'custom',    name: 'Custom size' },
+  ],
+  customLimits: { minW: 1, maxW: 8.5, minH: 0.75, maxH: 11 },
   pdfName: 'Rail Roster labels.pdf',
   words: {
     button: 'Scan to Shelve',
@@ -2854,6 +2898,34 @@ var RR_SHELVE = {
     pairScan: 'Scan the sticker for {what}.',
     placePaired: 'Sticker paired',
     needLocation: 'Turn on Track Storage Location first (Preferences) \u2014 Scan to Shelve fills in Location.',
+    // v0.9.2041: Scan to Shelve switches Track Storage Location on itself
+    locationTurnedOn: 'Track Storage Location is now on \u2014 Scan to Shelve fills in Location.',
+    labelSize: 'Label size',
+    labelCustomW: 'Width (inches)',
+    labelCustomH: 'Height (inches)',
+    printHelpOne: 'One label per page, {w}\u2033 \u00d7 {h}\u2033 \u2014 set your label printer to the same size and print at 100% (not \u201cfit to page\u201d).',
+    labelCustomBad: 'Type a width from {minW} to {maxW} inches and a height from {minH} to {maxH}.',
+    // v0.9.2041: what is on a shelf, and the shelf check
+    whatsHere: 'What\u2019s here ({n})',
+    whatsHereTitle: 'On {place}',
+    whatsHereNone: 'Nothing in your collection is recorded here yet.',
+    check: 'Shelf check',
+    checkHelp: 'Scan a shelf, then every item on it. The app shows what is missing and what belongs somewhere else. Nothing changes unless you press Move here.',
+    checkScanShelf: 'Scan the shelf you are checking.',
+    checkScanItems: 'Now scan every item on {place}. Press Done when you have scanned them all.',
+    checkScanned: '\u2713 {item}',
+    checkDone: 'Done \u2014 show the result',
+    checkFound: 'Here and scanned ({n})',
+    checkMissing: 'Recorded here but not scanned ({n})',
+    checkElsewhere: 'Scanned here but recorded somewhere else ({n})',
+    checkWas: 'recorded at {place}',
+    checkNowhere: 'no location recorded',
+    checkNoSticker: 'no sticker paired',
+    checkMoveHere: 'Move here',
+    checkMoved: '\u2713 now recorded here',
+    checkAllGood: 'Everything recorded here was scanned.',
+    checkPlaceFirst: 'Scan the shelf first.',
+    checkAnotherShelf: 'That is another shelf \u2014 press Done first to finish this one.',
     afterAdd: 'Which of the items you just added is the sticker on?',
     printShelves: 'Print shelf labels',
     printItems: 'Print item labels',
@@ -2876,6 +2948,27 @@ var RR_SHELVE = {
   },
 };
 if (typeof window !== 'undefined') window.RR_SHELVE = RR_SHELVE;
+// ── v0.9.2041 — THE MOVEMENT LOG (TRR Pro release 3, design agreed with Brad
+// 2026-10-28: "date/time, item, from, to, who — lines only added, never
+// edited or deleted; item page shows history"). A tab of the collection's own
+// sheet, made the first time a scan moves something (the sheet is BACKED UP
+// first — no backup, no new tab). Its name is registered where it is born
+// (scan-shelve.js, rrFeatureTab). A new column goes at the END.
+const RR_MOVE_LOG = {
+  headers: ['When', 'Inventory ID', 'Item Number', 'Item', 'From', 'To', 'Who', 'How'],
+  note: 'Every move of an item, newest at the bottom. Lines are only ever added \u2014 never edit or delete them.',
+  backupReason: 'before-movement-log',
+  okKey: 'rr_movelog_sheets_v1',      // sheets on this device whose Movement Log is known to exist (so an offline move still queues its line)
+  how: { scan: 'Scan to Shelve', undo: 'Scan to Shelve \u2014 undo', check: 'Shelf check' },
+  words: {
+    history: 'Movement history',
+    historyTitle: 'Where {item} has been',
+    historyNone: 'No moves recorded yet.',
+    historyFailed: 'Could not read the Movement Log \u2014 check your connection and try again.',
+    nowhere: '(no location)',
+  },
+};
+if (typeof window !== 'undefined') window.RR_MOVE_LOG = RR_MOVE_LOG;
 window.rrSavedLocations = function () {
   try {
     var raw = (typeof _prefGet === 'function') ? _prefGet(RR_LOCATIONS_KEY, '[]') : localStorage.getItem(RR_LOCATIONS_KEY);
@@ -3963,3 +4056,18 @@ const RR_AFFILIATE = [
   { store: 'Trainz', host: 'trainz.com', params: {}, wrap: '' },
 ];
 if (typeof window !== 'undefined') window.RR_AFFILIATE = RR_AFFILIATE;
+
+
+// ══ v0.9.2039 — TWO DEVICES NEVER SAVE OVER EACH OTHER: the words ═══════════
+// [stated] Brad 2026-10-28: "if two phones logged into the same account and
+// adding or modifing items … they don't overwrite or not save over anything."
+// Read ONLY by rrPersonalSafeWrite (app.js). {field} = the column's heading,
+// {theirs} / {mine} = the two values, already in quotes ("(blank)" when empty).
+const RR_SAFE_SAVE = {
+  title: 'Changed on another device',
+  ask: '{field} was changed on another device after you opened this item. It now says {theirs}. You changed it to {mine}.',
+  keepMine: 'Keep mine ({mine})',
+  keepTheirs: 'Keep {theirs}',
+  blank: '(blank)',
+};
+if (typeof window !== 'undefined') window.RR_SAFE_SAVE = RR_SAFE_SAVE;

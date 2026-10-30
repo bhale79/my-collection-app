@@ -15,6 +15,8 @@
 //   node tests/run-all.js --all        both tiers
 //   node tests/run-all.js --only inbox run the suites whose file name contains "inbox"
 //   node tests/run-all.js --list       show the tiers and stop
+//   node tests/run-all.js --all --receipt ../ship_x.receipt.json
+//                                      also write a TEST RECEIPT (2026-10-28, below)
 //   node tests/run-all.js --serial     one at a time (the quick tier runs 4 abreast;
 //                                      the browser tier is always one at a time)
 //   node tests/run-all.js --fast       THE RELEASE GATE (2026-10-19): the quick tier
@@ -56,10 +58,22 @@
 // crop_preview_tests died once under four-abreast load and that was the whole
 // record). Such a suite now shows the five lines before its verdict, stack
 // frames dropped, so the crash reads from the scoreboard.
+// TEST RECEIPT (2026-10-28, Brad: "set up rules ... ensure we test ... make
+// sure we don't screw up anyones app" -> "okay"). --receipt <path> writes one
+// JSON file: the sha256 of every file under app/ and tests/ AS IT WAS TESTED
+// (taken before the first suite starts and checked again after the last one —
+// a file that changed during the run voids the receipt), which tier ran, the
+// reds, and the CORE list from tests/lib/core-files.json. ship.py
+// (receipt_guard.py on Brad's PC) refuses to ship a staged app/ or tests/
+// file whose bytes are not in a PASSING receipt, and refuses a release that
+// touches a CORE file unless the receipt's tier is "full+browser"
+// (node tests/run-all.js --all). Nothing untested, or changed after testing,
+// can go out.
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const { spawn } = require('child_process');
+const crypto = require('crypto');
+const { spawn, execSync } = require('child_process');
 
 const TESTS = __dirname;
 
@@ -96,6 +110,61 @@ function discover() {
     if (tiers[t]) tiers[t].push(name);
   });
   return tiers;
+}
+
+// ── the receipt's fingerprints ───────────────────────────────────────────
+const ROOT = path.join(TESTS, '..');
+function coreList() {
+  try { return JSON.parse(fs.readFileSync(path.join(TESTS, 'lib', 'core-files.json'), 'utf8')); }
+  catch (e) { return { core: [], mutable: [] }; }
+}
+function fingerprint() {
+  const skip = new Set(coreList().mutable || []);
+  const out = {};
+  function walk(rel) {
+    fs.readdirSync(path.join(ROOT, rel)).sort().forEach(n => {
+      if (n === 'node_modules' || n === '.git') return;
+      const r = rel + '/' + n;
+      const full = path.join(ROOT, r);
+      if (fs.statSync(full).isDirectory()) return walk(r);
+      if (skip.has(r)) return;
+      out[r] = crypto.createHash('sha256').update(fs.readFileSync(full)).digest('hex');
+    });
+  }
+  walk('app');
+  walk('tests');
+  return out;
+}
+function receiptTier(o) {
+  if (o.fast) return 'fast';
+  if (o.only) return 'partial';
+  if (o.quick && o.browser) return 'full+browser';
+  if (o.quick) return 'full';
+  return 'partial';
+}
+function writeReceipt(file, o) {
+  let head = '';
+  try { head = execSync('git rev-parse HEAD', { cwd: ROOT, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(); } catch (e) {}
+  let version = '';
+  try { const m = fs.readFileSync(path.join(ROOT, 'app', 'config.js'), 'utf8').match(/const APP_VERSION = '([^']+)'/); version = m ? m[1] : ''; } catch (e) {}
+  const changed = Object.keys(Object.assign({}, o.before, o.after)).filter(k => o.before[k] !== o.after[k]).sort();
+  const cl = coreList();
+  const receipt = {
+    kind: 'rail-roster-test-receipt', format: 1,
+    made: new Date().toISOString(), head, version,
+    tier: receiptTier(o),
+    passed: o.red.length === 0 && o.unclassified === 0 && changed.length === 0,
+    suites: o.results.length, green: o.results.length - o.red.length,
+    red: o.red.map(r => r.name), unclassified: o.unclassified,
+    changed_during_run: changed,
+    core_files: cl.core || [], mutable: cl.mutable || [],
+    files: o.before
+  };
+  fs.writeFileSync(file, JSON.stringify(receipt, null, 1) + '\n');
+  console.log('receipt: ' + file + ' — tier ' + receipt.tier + ', ' + (receipt.passed ? 'PASSED' : 'NOT passed') +
+              (changed.length ? ' (files changed DURING the run: ' + changed.slice(0, 5).join(', ') + ')' : '') +
+              ', ' + Object.keys(o.before).length + ' files fingerprinted');
+  return receipt;
 }
 
 function runOne(name, tier) {
@@ -182,6 +251,9 @@ async function main() {
   console.log('run-all — ' + items.length + ' suite' + (items.length === 1 ? '' : 's') +
               ' (' + (want.quick ? (fast ? 'fast' : 'quick') : '') + (want.quick && want.browser ? ' + ' : '') + (want.browser ? 'browser' : '') + (only ? ', only "' + only + '"' : '') + (withs.length ? ', with ' + withs.join(',') : '') +
               '), quick ' + width + ' at a time, browser one at a time\n');
+  const receiptAt = argv.indexOf('--receipt');
+  const receiptFile = receiptAt >= 0 ? path.resolve(String(argv[receiptAt + 1] || '')) : '';
+  const before = receiptFile ? fingerprint() : null;
   const t0 = Date.now();
   const quickItems = items.filter(i => i.tier === 'quick');
   const browserItems = items.filter(i => i.tier === 'browser');
@@ -204,8 +276,12 @@ async function main() {
     console.log('\nUNCLASSIFIED — these run NOWHERE. Name them *_tests.js / *-tests.js, or add them to QUICK_EXTRA, BROWSER or AUDITS in tests/run-all.js:');
     tiers.unclassified.forEach(n => console.log('  ' + n));
   }
+  if (receiptFile) {
+    writeReceipt(receiptFile, { before, after: fingerprint(), results, red, unclassified: tiers.unclassified.length,
+                                fast, only, quick: want.quick, browser: want.browser });
+  }
   process.exit(red.length || tiers.unclassified.length ? 1 : 0);
 }
 
-module.exports = { classify, discover, usesBrowser, QUICK_EXTRA, BROWSER, AUDITS };
+module.exports = { classify, discover, usesBrowser, QUICK_EXTRA, BROWSER, AUDITS, fingerprint, receiptTier, writeReceipt, coreList };
 if (require.main === module) main();

@@ -144,7 +144,8 @@ const TRIAL = { sub: 'trial', trialEnds: '2026-11-09', portalLink: 'https://bill
   r = await boot(browser, true, BETA, { 'config.js': NAIVE });
   T('X-D3 PLANTED: no day fallback → May 31 runs into March (caught)', r.dates && r.dates[1] !== '2027-02-28', r.dates);
   // the planted S2 offender: a typed price inside the line
-  const TYPED = subFn.replace("var price = (typeof RR_PRICE_TEXT !== 'undefined') ? RR_PRICE_TEXT : '';", "var price = '$75/year plus tax';");
+  // v0.9.2040: the line now also leaves the regular price out for a Pro account (isPro)
+  const TYPED = subFn.replace("var price = isPro ? '' : ((typeof RR_PRICE_TEXT !== 'undefined') ? RR_PRICE_TEXT : '');", "var price = '$75/year plus tax';");
   T('X-S2 PLANTED: the price typed into prefs.js → the S2 check fails on it (caught)', TYPED !== subFn && !s2ok(TYPED), TYPED === subFn);
 
   await browser.close();

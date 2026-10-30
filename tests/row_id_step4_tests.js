@@ -13,6 +13,10 @@
 //    under the number (all makers); picking one and saving writes THAT row's
 //    Row ID, key, type, maker and descriptions; Cancel forgets the pick;
 //    PLANTED: the variation re-derivation left in → the pick is overridden
+// v0.9.2039 (two devices never save over each other): an edit writes ONLY the
+// columns it changed (rrPersonalSafeWrite, app.js), so the stand-in Sheets
+// keeps the item's WHOLE row (window.__rows) — a GET answers from it, a PUT
+// lands in it — and B reads "what was written" from that row.
 // ═══════════════════════════════════════════════════════════════════════════
 const fs = require('fs'), path = require('path');
 let chromium;
@@ -83,6 +87,8 @@ async function boot(browser, planted) {
     sheetA[state.personalData.g.row] = '6464-1'; sheetInv[state.personalData.g.row] = 'INV-ZZ';   // g's row was taken by another item
     const last = Math.max(...Object.keys(sheetA).map(Number));
     window.__sheet = { header: 'Master Row ID', reads: [], writes: [], puts: [] };
+    window.__rows = {};   // v0.9.2039: whole rows the stand-in sheet holds (row -> cells)
+    const colIdx = L => { let n = 0; for (const ch of String(L)) n = n * 26 + (ch.charCodeAt(0) - 64); return n - 1; };
     window.fetch = async function (url, opts) {
       const u = String(url); const method = (opts && opts.method) || 'GET';
       const ok = b => ({ ok: true, status: 200, json: async () => b, text: async () => JSON.stringify(b) });
@@ -98,12 +104,19 @@ async function boot(browser, planted) {
       }
       if (/values:batchUpdate/.test(u) && method === 'POST') { window.__sheet.writes.push(JSON.parse(opts.body)); return ok({ totalUpdatedCells: 1 }); }
       const m = /\/values\/([^?]+)\?/.exec(u);
-      if (m && method === 'GET') {   // rrRowStillIs: A{row}:{inv}{row}
+      if (m && method === 'GET') {   // rrRowStillIs: A{row}:{inv}{row}; the safe save: the whole row
         const r = decodeURIComponent(m[1]); const rowN = Number((/!A(\d+)/.exec(r) || [])[1]);
+        if (window.__rows[rowN]) { const end = colIdx((/:([A-Z]+)\d+$/.exec(r) || [])[1] || 'A'); return ok({ values: [window.__rows[rowN].slice(0, end + 1)] }); }
         const cells = []; cells[0] = sheetA[rowN] || ''; cells[F.inventoryId] = sheetInv[rowN] || '';
         return ok({ values: [cells] });
       }
-      if (m && method === 'PUT') { window.__sheet.puts.push({ range: decodeURIComponent(m[1]), body: JSON.parse(opts.body) }); return ok({ updatedCells: 1 }); }
+      if (m && method === 'PUT') {
+        const r = decodeURIComponent(m[1]); const body = JSON.parse(opts.body);
+        window.__sheet.puts.push({ range: r, body });
+        const mm = /!([A-Z]+)(\d+)/.exec(r); const rowN = mm ? Number(mm[2]) : 0;
+        if (window.__rows[rowN]) { const c0 = colIdx(mm[1]); (body.values[0] || []).forEach((v, k) => { window.__rows[rowN][c0 + k] = v; }); }
+        return ok({ updatedCells: 1 });
+      }
       return ok({});
     };
     window.showToast = function () {};
@@ -138,6 +151,8 @@ async function panel(browser, planted, pick) {
   const out = await pg.evaluate(async (pick) => {
     const r = {};
     const idxMotor = state.masterData.findIndex(m => m.rowId === 'MMMMMMMMMM');
+    const rec = state.personalData.a;
+    window.__rows[rec.row] = rrRecordRow(rec);     // v0.9.2039: the sheet holds the whole row
     showItemPanel(idxMotor, 'a', 'edit');
     const ov = document.getElementById('item-panel-overlay');
     const rows = Array.from(ov.querySelectorAll('#item-panel-fields-container > div'));
@@ -159,9 +174,12 @@ async function panel(browser, planted, pick) {
     const save = Array.from(ov.querySelectorAll('button')).find(b => /Save All Changes/.test(b.textContent));
     save.click();
     await new Promise(res => setTimeout(res, 600));
-    const put = window.__sheet.puts[0];
     const F = PERSONAL_FIELD_INDEX;
+    // v0.9.2039: only the changed columns are written, each to the item's OWN row (3)
+    const mine = window.__sheet.puts.filter(x => /![A-Z]+3(:|$)/.test(x.range));
+    const put = mine.length ? { range: mine.map(x => x.range).join(','), body: { values: [window.__rows[rec.row]] } } : null;
     r.putRange = put ? put.range : '';
+    r.allOwnRow = mine.length > 0 && mine.every(x => /^My Collection![A-Z]+3:[A-Z]+3$/.test(x.range));
     // v0.9.2020 added Sticker Code at the END of the sheet (AZ) — the full-row
     // write ends at the schema's LAST column, so ask the schema, never type a letter.
     r.lastCol = (function () { var n = Math.max.apply(null, Object.keys(F).map(function (k) { return F[k]; })) + 1, l = ''; while (n > 0) { n--; l = String.fromCharCode(65 + (n % 26)) + l; n = Math.floor(n / 26); } return l; })();
@@ -221,8 +239,8 @@ async function cancelCase(browser) {
     JSON.stringify(p.cards) === JSON.stringify(['MMMMMMMMMM*', 'BBBBBBBBBB', 'CCCCCCCCCC', 'C2C2C2C2C2']), p.cards);
   T('B4 a card shows the era, the variation, type · road · year, the full description and a see-it link', p.cardText.some(t => /Var C/.test(t) && /orange body/.test(t)) && p.cardText.some(t => /Lionel Lines/.test(t)) && p.cottLink, p.cardText);
   T('B5 picking the boxcar stages it (the field now names the boxcar; nothing written yet — and NOT on the live record: v0.9.1883 edits a copy)', /Boxcar/.test(p.staged) && p.stagedOnRecord === '', p.staged);
-  T('B6 Save writes the full row with THAT entry\'s Row ID and key — identity-checked (one PUT to the item\'s own row)',
-    p.written && p.written.id === 'BBBBBBBBBB' && p.written.key === 'prewar|800|' && new RegExp('!A3:' + p.lastCol + '3$').test(p.putRange), p);
+  T('B6 Save writes THAT entry\'s Row ID and key — identity-checked, only to the item\'s own row (v0.9.2039: the changed columns)',
+    p.written && p.written.id === 'BBBBBBBBBB' && p.written.key === 'prewar|800|' && p.allOwnRow, p);
   T('B7 ...and the entry\'s type, road, descriptions, era and maker ride along; the number keeps its text-guard quote, the variation is the entry\'s',
     p.written && p.written.type === 'Boxcar' && p.written.road === 'Lionel Lines' && p.written.desc === 'Box Car (O gauge)' && p.written.era === 'prewar' && p.written.mfr === 'Lionel' && p.written.num === "'800" && p.written.variation === '', p.written);
   T('B8 the record carries the new ID, the staged pick is gone, the panel closed', p.record.id === 'BBBBBBBBBB' && !p.record.staged && p.closed, p.record);

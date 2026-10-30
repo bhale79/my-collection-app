@@ -1,0 +1,21 @@
+{
+  "_why": "THE one list of CORE app files (2026-10-28, Brad: 'make sure we don't screw up anyones app' -> 'okay'). A release that changes any file listed here must be gated by the FULL quick tier AND the browser tier before it ships, not left to the nightly run. tests/run-all.js copies this list into the test receipt; ship.py (receipt_guard.py, on Brad's PC) reads it FROM the receipt, so there is exactly one copy. The version trio (config.js, sw.js, index.html) is NOT listed: every release bumps it. A new core file (a Pro piece, a new save path) is added HERE, nowhere else.",
+  "core": [
+    "app/sheets.js",
+    "app/write-outbox.js",
+    "app/app.js",
+    "app/app-auth.js",
+    "app/app-data.js",
+    "app/app-setup.js",
+    "app/drive.js",
+    "app/wizard-save.js",
+    "app/backup.js",
+    "app/photo-inbox-offline.js",
+    "app/vault.js",
+    "app/scan-shelve.js"
+  ],
+  "mutable": [
+    "tests/color-budget.json"
+  ],
+  "_mutable_why": "Files a test run rewrites as it goes (color-count's ratchet). They are left out of the receipt's fingerprints; never stage one in a release without checking it out first."
+}

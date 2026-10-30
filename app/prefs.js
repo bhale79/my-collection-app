@@ -75,24 +75,31 @@ function _prefsSubRowHtml() {
     if (!s || !s.sub) return '';
     var esc = function (v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
     var d = function (iso) { return iso ? (typeof _formatDateLong === 'function' ? _formatDateLong(iso) : iso) : ''; };   // v0.9.1893: money dates in words
-    var price = (typeof RR_PRICE_TEXT !== 'undefined') ? RR_PRICE_TEXT : '';
+    // v0.9.2040: a Pro account says so ("Pro — Renews …"). The regular price
+    // is not quoted to a Pro account (Pro's price is not set yet — it comes
+    // from the Stripe receipt, not from here). rrPlan() is the one reader.
+    var isPro = (typeof rrPlan === 'function') && !rec && rrPlan() === RR_PLAN_PRO;
+    var proWord = isPro ? ((typeof RR_PLAN_WORDS !== 'undefined' && RR_PLAN_WORDS.pro) || '') : '';
+    var price = isPro ? '' : ((typeof RR_PRICE_TEXT !== 'undefined') ? RR_PRICE_TEXT : '');
     var line = '', btn = '';
     var email = String((state.user && state.user.email) || '');
     var portal = s.portalLink ? s.portalLink + (s.portalLink.indexOf('?') < 0 ? '?' : '&') + 'prefilled_email=' + encodeURIComponent(email) : '';
     if (s.sub === 'beta') {
       line = s.freeUntil ? 'Beta tester \u2014 free until ' + d(s.freeUntil) : 'Beta tester \u2014 free';
+      if (proWord) line = proWord + line.slice('Beta tester'.length);   // v0.9.2040: a business made Pro by hand
     } else if (s.sub === 'trial') {
-      line = 'Free trial' + (s.trialEnds ? ' \u2014 ends ' + d(s.trialEnds) : '') + '. Then ' + price + '.';
+      line = 'Free trial' + (s.trialEnds ? ' \u2014 ends ' + d(s.trialEnds) : '') + (price ? '. Then ' + price + '.' : '.');
       if (s.cancelAtPeriodEnd) line = 'Free trial' + (s.trialEnds ? ' \u2014 ends ' + d(s.trialEnds) : '') + '. You cancelled, so you will not be charged.';
     } else if (s.sub === 'active') {
       line = s.cancelAtPeriodEnd
         ? 'Paid through ' + d(s.paidThrough) + '. You cancelled, so it will not renew.'
-        : 'Renews ' + d(s.paidThrough) + ' \u2014 ' + price + '.';
+        : 'Renews ' + d(s.paidThrough) + (price ? ' \u2014 ' + price : '') + '.';
     } else if (s.sub === 'expired') {
       line = 'Your subscription has ended.';
     } else {
       return '';
     }
+    if (proWord && s.sub !== 'beta' && s.sub !== 'expired') line = proWord + ' \u2014 ' + line;
     if (portal && s.sub !== 'beta') {
       btn = '<a class="pref-btn" href="' + esc(portal) + '" target="_blank" rel="noopener" style="text-decoration:none">Manage \u2197</a>';
     }

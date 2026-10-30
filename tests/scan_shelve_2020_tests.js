@@ -100,10 +100,13 @@ async function boot(browser, email, files, recording) {
   const o2 = await pg.evaluate(async () => {
     _prefSet('lv_location_enabled', 'false'); window.__toasts = [];
     rrShelveOpen(); const opened = !!document.getElementById('rr-shelve');
-    _prefSet('lv_location_enabled', 'true');
-    return { opened, toasts: window.__toasts };
+    const nowOn = _prefGet('lv_location_enabled', 'false') === 'true';
+    rrShelveClose(); _prefSet('lv_location_enabled', 'true');
+    return { opened, nowOn, toasts: window.__toasts };
   });
-  T('O2 Location tracking off → a plain message, no camera screen', !o2.opened && o2.toasts.some(t => /Track Storage Location/.test(t)), o2);
+  // v0.9.2041 (TRR Pro release 3, "+ Track Storage Location on automatically"):
+  // it used to refuse with "turn it on first"; now it turns it on and says so.
+  T('O2 Location tracking off → switched ON for you, the screen opens, and it says so', o2.opened && o2.nowOn && o2.toasts.some(t => /Track Storage Location is now on/.test(t)), o2);
 
   console.log('== P · a new sticker ==');
   const p1 = await pg.evaluate(async () => {
@@ -243,7 +246,7 @@ async function boot(browser, email, files, recording) {
 
   console.log('== X · planted ==');
   const SH = rd('scan-shelve.js');
-  pg = await boot(browser, 'bhale@ipd-llc.com', { 'scan-shelve.js': planted(SH, '  var ok = await rrShelveSaveLocation(key, place);', '  var ok = true;', 'save') });
+  pg = await boot(browser, 'bhale@ipd-llc.com', { 'scan-shelve.js': planted(SH, "  var ok = await rrShelveSaveLocation(key, place, 'scan');", '  var ok = true;', 'save') });
   const x1 = await pg.evaluate(async () => { rrShelveOpen(); await rrStickerSetItem('101', 'A'); await rrStickerSetPlace('B', { loc: 'Garage', spot: 'Shelf 4' }); await rrShelveCode('A'); await rrShelveCode('B'); return state.personalData['101'].location; });
   T('X-S1 PLANTED: the location write skipped → the item has no location (caught)', x1 !== 'Garage', x1);
   await pg.close();
