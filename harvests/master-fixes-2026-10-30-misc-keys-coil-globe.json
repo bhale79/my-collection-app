@@ -1,0 +1,248 @@
+{
+ "what": "Master Version 2.68 — three hand-entered Lionel PW - Items rows corrected from COTT's Lionel Miscellaneous page (J-36 and J-38 were 'Junction Block', C-161 'Controller'; COTT's numerical index sends all three to that page as two wartime telegraph keys and a coil), and 39 variation 1 '12V Globe' (a real No. 39 12-volt globe, COTT bulbs page A0729) given its own link and COTT text instead of the Miscellaneous page run-on, with the 1950 year and the telegraph key's photo colour cleared.",
+ "stated": "Brad (2026-10-30): \"yes\" to writing up the master edit, then \"yes\" to the 26-cell plan (MASTER_EDIT_PLAN_2026-10-30_MISC_KEYS_COIL_GLOBE.md)",
+ "masterVersion": "2.68",
+ "date": "2026-10-30",
+ "planReadAt": "Sheets API read of Lionel PW - Items (public key) right before this record; COTT pages from the WordPress page feed",
+ "cellFormat": "[tab, item number (column A), column header, old, new, sheet row as a hint, Row ID of the row]",
+ "counts": {
+  "cells": 26,
+  "rowsAdded": 0
+ },
+ "cells": [
+  [
+   "Lionel PW - Items",
+   "C-161",
+   "Item Type",
+   "Accessory",
+   "Misc Lionel",
+   2899,
+   "PT2UYFA44X"
+  ],
+  [
+   "Lionel PW - Items",
+   "C-161",
+   "Control",
+   "Traditional",
+   "",
+   2899,
+   "PT2UYFA44X"
+  ],
+  [
+   "Lionel PW - Items",
+   "C-161",
+   "Description",
+   "Controller",
+   "Coil",
+   2899,
+   "PT2UYFA44X"
+  ],
+  [
+   "Lionel PW - Items",
+   "C-161",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/postwar-elliot-rowland-catalogs/",
+   "https://cornucopiaoftoytrains.com/lionel-miscellaneous/#C161",
+   2899,
+   "PT2UYFA44X"
+  ],
+  [
+   "Lionel PW - Items",
+   "C-161",
+   "Notes",
+   "Preserved from live (Manual source — non-COTT)",
+   "Corrected 2026-10-30 from COTT Lionel Miscellaneous (was \"Controller\")",
+   2899,
+   "PT2UYFA44X"
+  ],
+  [
+   "Lionel PW - Items",
+   "C-161",
+   "Source",
+   "Manual",
+   "COTT",
+   2899,
+   "PT2UYFA44X"
+  ],
+  [
+   "Lionel PW - Items",
+   "C-161",
+   "Original COTT Desc",
+   "",
+   "C-161 COIL",
+   2899,
+   "PT2UYFA44X"
+  ],
+  [
+   "Lionel PW - Items",
+   "J-36",
+   "Item Type",
+   "Accessory",
+   "Misc Lionel",
+   2999,
+   "SKDE5DKVPZ"
+  ],
+  [
+   "Lionel PW - Items",
+   "J-36",
+   "Control",
+   "Traditional",
+   "",
+   2999,
+   "SKDE5DKVPZ"
+  ],
+  [
+   "Lionel PW - Items",
+   "J-36",
+   "Description",
+   "Junction Block",
+   "Telegraph Key",
+   2999,
+   "SKDE5DKVPZ"
+  ],
+  [
+   "Lionel PW - Items",
+   "J-36",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/transformers/",
+   "https://cornucopiaoftoytrains.com/lionel-miscellaneous/#J36",
+   2999,
+   "SKDE5DKVPZ"
+  ],
+  [
+   "Lionel PW - Items",
+   "J-36",
+   "Notes",
+   "Preserved from live (Manual source — non-COTT)",
+   "Corrected 2026-10-30 from COTT Lionel Miscellaneous (was \"Junction Block\")",
+   2999,
+   "SKDE5DKVPZ"
+  ],
+  [
+   "Lionel PW - Items",
+   "J-36",
+   "Source",
+   "Manual",
+   "COTT",
+   2999,
+   "SKDE5DKVPZ"
+  ],
+  [
+   "Lionel PW - Items",
+   "J-36",
+   "Original COTT Desc",
+   "",
+   "J-36 TELEGRAPH KEY",
+   2999,
+   "SKDE5DKVPZ"
+  ],
+  [
+   "Lionel PW - Items",
+   "J-38",
+   "Item Type",
+   "Accessory",
+   "Misc Lionel",
+   3000,
+   "WHW2X66S34"
+  ],
+  [
+   "Lionel PW - Items",
+   "J-38",
+   "Control",
+   "Traditional",
+   "",
+   3000,
+   "WHW2X66S34"
+  ],
+  [
+   "Lionel PW - Items",
+   "J-38",
+   "Description",
+   "Junction Block",
+   "Telegraph Key",
+   3000,
+   "WHW2X66S34"
+  ],
+  [
+   "Lionel PW - Items",
+   "J-38",
+   "Year Produced",
+   "",
+   "1942",
+   3000,
+   "WHW2X66S34"
+  ],
+  [
+   "Lionel PW - Items",
+   "J-38",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/bulbs-master-cartons/",
+   "https://cornucopiaoftoytrains.com/lionel-miscellaneous/#MIS38",
+   3000,
+   "WHW2X66S34"
+  ],
+  [
+   "Lionel PW - Items",
+   "J-38",
+   "Notes",
+   "Preserved from live (Manual source — non-COTT)",
+   "Corrected 2026-10-30 from COTT Lionel Miscellaneous (was \"Junction Block\")",
+   3000,
+   "WHW2X66S34"
+  ],
+  [
+   "Lionel PW - Items",
+   "J-38",
+   "Source",
+   "Manual",
+   "COTT",
+   3000,
+   "WHW2X66S34"
+  ],
+  [
+   "Lionel PW - Items",
+   "J-38",
+   "Original COTT Desc",
+   "",
+   "J-38 TELEGRAPH KEY 1942",
+   3000,
+   "WHW2X66S34"
+  ],
+  [
+   "Lionel PW - Items",
+   "39",
+   "Year Produced",
+   "1950",
+   "",
+   1474,
+   "ZCK2X269B3"
+  ],
+  [
+   "Lionel PW - Items",
+   "39",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/lionel-miscellaneous/#MIS39",
+   "https://cornucopiaoftoytrains.com/bulbs-replacement-page-1/#BULB39g",
+   1474,
+   "ZCK2X269B3"
+  ],
+  [
+   "Lionel PW - Items",
+   "39",
+   "Original COTT Desc",
+   "TUNING COIL\nGOLDEN ANNIVERSARY TRAY 1950\nLIONEL PRINTING KIT\nMILITARY TRANSFORMER No. 7502 - 1952\nENGINEER HAT AND PINS\nGEIGER COUNTER - 1962\nDEALER ASHTRAY - circa 1964\nDEALER ABACUS 1966\nNAVY COMPASS MARK 1 - 1942\nBottom\nCourtesy of the Leverich collection\nINCLINOMETER\nCourtesy of the Leverich collection\nC-161 COIL\nJ-36 TELEGRAPH KEY\nJ-38 TELEGRAPH KEY 1942",
+   "No. 39 12 – VOLT GLOBE",
+   1474,
+   "ZCK2X269B3"
+  ],
+  [
+   "Lionel PW - Items",
+   "39",
+   "Body Color",
+   "white, gray (photo)",
+   "",
+   1474,
+   "ZCK2X269B3"
+  ]
+ ]
+}
