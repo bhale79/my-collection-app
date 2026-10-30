@@ -1226,14 +1226,32 @@ function _wizSetKind(kind) {
   // v0.9.1278: an inbox-born add carries its photo and its staged-note key.
   // Switching kind restarts the flow — these must survive the restart, or
   // choosing "Paper Item" would silently orphan the photos back in the inbox.
+  // v0.9.2053 (Mike's audit): the list is RR_INBOX_CARRY_KEYS (config.js), the
+  // same one the inbox hands over — this one used to keep 4 of them, and a type
+  // switched away and back dropped which photo is which view, the unit roles and
+  // "also list for sale". The NUMBER rides along too: a number on screen before
+  // the switch is the number after it (Cataloged ↔ Manual), never a blank box.
   const _keep = {};
+  let _carryNum = '';
   try {
-    ['_addPhotoDriveId', '_addPhotoDriveIds', '_fromInbox', '_pinStagedNum'].forEach(function (k) {
+    const _ck = (typeof RR_INBOX_CARRY_KEYS !== 'undefined') ? RR_INBOX_CARRY_KEYS : ['_addPhotoDriveId', '_addPhotoDriveIds', '_fromInbox', '_pinStagedNum'];
+    _ck.forEach(function (k) {
       if (wizard.data && wizard.data[k] !== undefined) _keep[k] = wizard.data[k];
     });
+    const _d0 = wizard.data || {};
+    _carryNum = String(_d0.itemNum || _d0.manualItemNum || '').trim();
   } catch (e) {}
   wizard = { step: 0, tab: 'collection', data: Object.assign({ tab: 'collection', _returnPage: _rp, itemCategory: 'lionel' }, _keep), steps: getSteps('collection'), matchedItem: null };
-  if (kind === 'cataloged') { renderWizardStep(); return; }
+  if (kind === 'cataloged') {
+    if (_carryNum) wizard.data.itemNum = _carryNum;
+    renderWizardStep();
+    if (_carryNum) {
+      try { const _inp = document.getElementById('wiz-input'); if (_inp) _inp.value = _carryNum; } catch (eI) {}
+      try { if (typeof debouncedItemSuggestions === 'function') debouncedItemSuggestions(_carryNum); } catch (eS) {}
+    }
+    return;
+  }
+  if (kind === 'manual' && _carryNum) wizard.data.manualItemNum = _carryNum;
   wizardChooseCategory(kind);
 }
 // v0.9.1039: ONE definition of the Item Type selector. The header (phones)
@@ -1454,6 +1472,11 @@ function _doCloseWizard() {
     if (!_wd._saveComplete && _wd._pinStagedNum && typeof window.rrPinDropStaged === 'function')
       window.rrPinDropStaged(_wd._pinStagedNum,   // v0.9.2050: a real number's note too — this add's photos only
         (_wd._addPhotoDriveIds && _wd._addPhotoDriveIds.length) ? _wd._addPhotoDriveIds : (_wd._addPhotoDriveId ? [_wd._addPhotoDriveId] : []));
+    // v0.9.2053 (Mike's audit): a SET add from the inbox holds one note per
+    // member; closing without finishing lets go of the ones still waiting
+    // (this set's photos only — a member that saved is armed and untouched).
+    if (!_wd._saveComplete && _wd._pinSetStagedFiles && _wd._pinSetStagedFiles.length && typeof window.rrPinReleaseSetHolds === 'function')
+      window.rrPinReleaseSetHolds(_wd._pinSetStagedFiles, false);
   } catch (eNn) {}
   // v0.9.697: single-chokepoint cache snapshot (Brad's "says it saves but it
   // doesn't"): many save paths updated the sheet + in-memory state but never
@@ -1630,6 +1653,13 @@ async function _confirmSetCancel() {
 
     // v0.9.1122: shared with the abandoned-set notice in My Collection.
     const _nRemoved = await rrRemoveSetGroup(groupId);
+    // v0.9.2053: the saved members just went — their photos' armed notes have
+    // no item to file into any more, so they are let go too (not yet moved
+    // ones only); the photos stay in the inbox.
+    try {
+      if (wizard && wizard.data && wizard.data._pinSetStagedFiles && typeof window.rrPinReleaseSetHolds === 'function')
+        window.rrPinReleaseSetHolds(wizard.data._pinSetStagedFiles, true);
+    } catch (eRS) {}
     overlay.remove();
     showToast('Set entry canceled \u2014 ' + _nRemoved + ' item' + (_nRemoved !== 1 ? 's' : '') + ' removed');
     _doCloseWizard();

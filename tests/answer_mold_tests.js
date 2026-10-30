@@ -36,6 +36,7 @@ function grab(src, name) {
 
 // Build the real reader from a given copy of the source (so a planted copy
 // can be built the same way and must FAIL).
+require('./lib/maker-rule').installMakerRule(global);   // v0.9.2053: the cleaner asks config.js's one maker rule
 function build(src) {
   const a = src.indexOf('const _IDENTIFY_ROAD_NAMES');
   const b = src.indexOf('function extractIdentifyMetadata(');

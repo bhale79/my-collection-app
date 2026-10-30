@@ -281,6 +281,8 @@ src = require('./lib/pin-source').pinHook(src, '\n;window.__Upload=_upload;'
   + '\n;window.__StagePairSet=typeof _stagePairSet==="function"?_stagePairSet:null;'
   + '\n;window.__InboxCacheSave=typeof _inboxCacheSave==="function"?_inboxCacheSave:null;'
   + '\n;window.__InboxCacheLoad=typeof _inboxCacheLoad==="function"?_inboxCacheLoad:null;', 'photo-inbox-offline.js');
+// v0.9.2053: the inbox's maker check asks config.js's one maker-name rule
+require('./lib/maker-rule').installMakerRule(global);
 eval(src);
 
 const T = window.__T;
@@ -2228,7 +2230,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('the wizard binding is assigned bare, never via window',
      !/window\.wizard = \{/.test(sw) && /\n    wizard = \{/.test(sw));
   ok('the members come from each photo\'s own read', /_pinFilesToRead\(g\)\.forEach/.test(sw));
-  ok('finishing returns to the photo inbox', /_returnPage: 'photo-inbox' \}/.test(sw));
+  ok('finishing returns to the photo inbox', /_returnPage: 'photo-inbox'[,\s}]/.test(sw));
   ok('the identify steps are skipped \u2014 the reads did that part',
      /_skip = \{ set_knowsNum: 1, set_num: 1, set_loco: 1 \}/.test(sw));
   ok('a group without enough reads says so instead of guessing',
@@ -2331,7 +2333,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   // v0.9.1122: the note is written at click time but PARKED in staging —
   // see section 100 for why it may not be armed until the member saves.
   ok('the set add writes one pending note per member',
-     /stage0\[n1\] = \{ link: '', fromFid: '', toFid: ''/.test(pv6) &&
+     /stage0\[n1\] = (?:_pinHoldMark\()?\{ link: '', fromFid: '', toFid: ''/.test(pv6) &&
      /localStorage\.setItem\(SETSTAGE_KEY, JSON\.stringify\(stage0\)\)/.test(pv6));
   ok('the notes carry every photo that read that number, first one as RSV',
      /numFiles\[n0\] = numFiles\[n0\] \|\| \[\]/.test(pv6) && /rsvFid: fl\[0\]\.id, files: fl/.test(pv6));
@@ -2568,7 +2570,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
      /cancelLabel: 'Use whole photo',/.test(a6src));
   // #4 — a cancelled single add must not file its photos
   ok('the single add parks its note in staging, not the live list',
-     /stage1\[num\] = \{ link: link/.test(a6src) &&
+     /stage1\[num\] = (?:_pinHoldMark\()?\{ link: link/.test(a6src) &&
      /localStorage\.setItem\(SETSTAGE_KEY, JSON\.stringify\(stage1\)\)/.test(a6src));
   ok('nothing writes PENDING_KEY before a save any more',
      !/pend\[num\] = \{ link: link/.test(a6src));
@@ -7109,6 +7111,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       setTimeout: setTimeout, clearTimeout: clearTimeout, setInterval: setInterval, clearInterval: clearInterval,
     };
     sb.window = sb; sb.self = sb; sb.window.addEventListener = noop;
+    require('./lib/maker-rule').installMakerRule(sb);   // v0.9.2053: the cleaner asks config.js's one maker rule
     vm.createContext(sb);
     vm.runInContext(src, sb, { filename: 'wizard-photos.js' });
     const extract = sb.extractIdentifyMetadata;
@@ -21143,18 +21146,24 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // unchanged; only the literal string this check grepped for moved.
       ok('291 BRAD\'S BUG: the review card offers a way out with no item number',
          /'_pinAddItem\(\)'/.test(pin91) &&
-         /_pinAddItem = function[\s\S]{0,400}_pinAddNoNumber\(\)/.test(pin91),
+         /_pinAddItem = async function[\s\S]{0,900}_pinAddNoNumber\(\)/.test(pin91),
          'the Add button\'s router no longer reaches _pinAddNoNumber');
 
-      // The route must be unconditional on what the READER found — only the
-      // number box decides. Brad's blueprint produced a confident-looking
-      // catalog guess, so anything gated on "no number was read" would not
-      // have been available for him.
-      const routerFn = (pin91.match(/window\._pinAddItem = function[\s\S]*?\n  \};/) || [''])[0];
-      ok('291 …and the router consults only the number box, nothing else',
-         routerFn.length > 0 && /pin-rv-num/.test(routerFn) &&
-         !/_aiS|ids0|\.num\b/.test(routerFn),
-         'the router looks at reader results, not just the box');
+      // The route must stay reachable whatever the READER found — Brad's
+      // blueprint produced a confident-looking catalog guess. v0.9.2053 (Mike,
+      // MTH 20-20169-3, [stated] Brad "build it" on the plan): with an empty box
+      // and a best guess on the card the router ASKS "Add it as …?" — and its
+      // "It's something else" answer is the no-number road, so the way out is one
+      // tap behind the question, never gone. A box with a number in it still
+      // decides on its own; nothing else ever routes to a numbered add.
+      const routerFn = (pin91.match(/window\._pinAddItem = async function[\s\S]*?\n  \};/) || [''])[0];
+      const askFn = (pin91.match(/async function _pinAskGuess\(forSale\) \{[\s\S]*?\n  \}/) || [''])[0];
+      ok('291 …the number box decides first; an empty box with a guess asks, and "something else" is the no-number road',
+         routerFn.length > 0 && /pin-rv-num/.test(routerFn) && /if \(num\) return window\._pinReviewAdd\('new'\)/.test(routerFn)
+         && /g === 'none'\) return window\._pinAddNoNumber\(\)/.test(routerFn)
+         && askFn.length > 0 && /if \(forSale\)[^\n]*return 'stay'; \}\s*return 'none';/.test(askFn)
+         && /return forSale \? 'stay' : 'none';\s*\}$/.test(askFn),
+         'the router can strand a numberless photo');
 
       // The whole point: this path must never consult the item-number box.
       const fn91 = (pin91.match(/window\._pinAddNoNumber = function[\s\S]*?\n  \};/) || [''])[0];
@@ -22408,7 +22417,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
          seg.indexOf('var _offAdd') < seg.indexOf('await _folder()')
          && seg.indexOf('var _offAdd') < seg.indexOf('await driveEnsureItemFolder'), '');
       ok('311 the staged note is still written (the pipeline resolves folders at move time)',
-         /stage1\[num\] = \{ link: link, fromFid: fromFid, toFid: toFid/.test(seg), '');
+         /stage1\[num\] = (?:_pinHoldMark\()?\{ link: link, fromFid: fromFid, toFid: toFid/.test(seg), '');
       ok('311 …and _flushPending really does resolve missing folders later',
          /if \(!rec\.fromFid\) rec\.fromFid = await _folder\(\);/.test(pi11)
          && /if \(!rec\.toFid\) rec\.toFid = await driveEnsureItemFolder\(num\);/.test(pi11), '');

@@ -2066,11 +2066,12 @@
   // AI said Marx — matching by number alone showed 'Maker: Atlas'. Prefer a
   // catalog row whose brand agrees with the AI; if none agrees, keep the
   // number match but flag the conflict instead of presenting it as fact.
+  // v0.9.2053 (Mike's MTH audit): "M.T.H." / "Mike's Train House" / "RailKing"
+  // against a catalog row of MTH used to DISAGREE here — the first-word compare
+  // knew no other spelling — and the add became a hand-made "isn't in the
+  // catalog" entry. The answer comes from the ONE maker-name rule (config.js).
   function _pinMfrAgree(a, b) {
-    a = String(a || '').toLowerCase().trim(); b = String(b || '').toLowerCase().trim();
-    if (!a || !b) return true;   // nothing to compare -> no conflict
-    var aw = a.split(/\s+/)[0], bw = b.split(/\s+/)[0];
-    return a.indexOf(bw) >= 0 || b.indexOf(aw) >= 0;
+    return rrMakerSame(a, b);
   }
   // v0.9.1066 (Brad: "we still are not using the manufacturer and era when
   // id'ing them ... all my pictures are lionel postwar and i got atlas and
@@ -2469,7 +2470,11 @@
     var html = '';
     if (!lk.num) {
       var _fi = _pinFailInfo();
-      html = '<div style="font-size:0.9rem;color:var(--text-dim)">No number picked up automatically — type it below if you can see it, or use Research.</div>'
+      // v0.9.2053: with a best guess on the card the number WAS picked up — it is
+      // just not certain. Saying "no number" under a headline that shows one
+      // was the contradiction Mike's card carried.
+      var _gLine = (PIN._rvGuess && typeof RR_INBOX_GUESS !== 'undefined') ? RR_INBOX_GUESS.cardLine : '';
+      html = '<div style="font-size:0.9rem;color:var(--text-dim)">' + (_gLine || 'No number picked up automatically — type it below if you can see it, or use Research.') + '</div>'
         + (_fi ? _pinWhyHtml(_fi.raw, _fi.dbg, null) : '');
     } else if (lk.master && lk.mfrMismatch) {
       html = '<div style="font-size:0.82rem;color:var(--t-gold);font-weight:700;line-height:1.5;margin-bottom:0.35rem">⚠ The photo says ' + String(lk.mfrMismatch).replace(/</g, '&lt;') + ' — but #' + String(lk.num).replace(/</g, '&lt;') + ' in the catalog is a ' + String(lk.maker || '?').replace(/</g, '&lt;') + ' item. Probably NOT the same thing.</div>'

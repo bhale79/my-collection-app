@@ -998,6 +998,8 @@ async function saveEphemeraItem() {
     // photo link is written by the same flush that handles every other add.
     try {
       if (d._pinStagedNum) {
+        if (typeof rrPinEnsureStaged === 'function')   // v0.9.2053: the safety net (see the collection save)
+          rrPinEnsureStaged(d._pinStagedNum, (d._addPhotoDriveIds && d._addPhotoDriveIds.length) ? d._addPhotoDriveIds : [d._addPhotoDriveId]);
         if (typeof rrPinRekeyStaged === 'function') rrPinRekeyStaged(d._pinStagedNum, ephItemNum);
         if (typeof rrPinSetPhotoSaved === 'function') rrPinSetPhotoSaved(ephItemNum);
       }
@@ -1217,6 +1219,23 @@ async function _saveManualEntry() {
     era: 'Manual', manufacturer,
   });
   _stampSaved(state.personalData[invId]);
+
+  // v0.9.2053 (Mike's audit — the likeliest root of his first report, "Photos
+  // get uploaded but I get message that the app hasn't finished saving them"):
+  // an add from the Photo Inbox that became a HAND-MADE entry (a maker spelled
+  // "M.T.H.", a number the catalog didn't have yet) saved its row — and never
+  // armed the inbox's hold. The photos stayed in the inbox, never reached the
+  // item, and every retry said the add "has not finished saving". The manual
+  // save now does what the catalog and paper saves do: hold checked, re-keyed
+  // to the number the row carries, armed — and the photos file into this item.
+  try {
+    if (d._pinStagedNum) {
+      if (typeof rrPinEnsureStaged === 'function')
+        rrPinEnsureStaged(d._pinStagedNum, (d._addPhotoDriveIds && d._addPhotoDriveIds.length) ? d._addPhotoDriveIds : [d._addPhotoDriveId]);
+      if (typeof rrPinRekeyStaged === 'function') rrPinRekeyStaged(d._pinStagedNum, displayId);
+      if (typeof rrPinSetPhotoSaved === 'function') rrPinSetPhotoSaved(displayId);
+    }
+  } catch (ePhM) {}
 
   _cachePersonalData();
   d._saveComplete = true;   // v0.9.689: was throwing "cancel and discard?" AFTER a successful manual save
@@ -2509,6 +2528,10 @@ async function saveWizardItem() {
         // but saves as 2344-P. Re-key first so the arm finds the note under
         // its exact name; the tiered matcher in rrPinSetPhotoSaved is the
         // safety net, not the plan.
+        // v0.9.2053: the safety net — the hold is still there before it is armed
+        // (re-made from this Add screen's own photos if it was let go meanwhile).
+        if (d._pinStagedNum && typeof rrPinEnsureStaged === 'function')
+          rrPinEnsureStaged(d._pinStagedNum, (d._addPhotoDriveIds && d._addPhotoDriveIds.length) ? d._addPhotoDriveIds : [d._addPhotoDriveId]);
         if (d._pinStagedNum && d._pinStagedNum !== itemNum &&
             typeof rrPinRekeyStaged === 'function') rrPinRekeyStaged(d._pinStagedNum, itemNum);
         if (typeof rrPinSetPhotoSaved === 'function') {

@@ -1946,23 +1946,9 @@ function extractIdentifyMetadata(text, opts) {
   if (!out.manufacturer && opts && opts.mfrHint && String(opts.mfrHint) !== 'Unknown') {
     out.manufacturer = String(opts.mfrHint);
   }
-  var _canonMfr = function (s) {
-    s = String(s || '');
-    if (/american\s+flyer/i.test(s)) return 'American Flyer';
-    if (/m\.\s?t\.\s?h|\bmth\b|tinplate\s+traditions|rail\s?king\b/i.test(s)) return 'MTH';
-    if (/\batlas\b/i.test(s)) return 'Atlas O';
-    if (/k[\s\-]?line\b/i.test(s)) return 'K-Line';
-    if (/\blionel\b/i.test(s)) return 'Lionel';
-    if (/\bweaver\b|quality\s+craft|bev-?bel/i.test(s)) return 'Weaver';
-    if (/\bwilliams\b/i.test(s)) return 'Williams';
-    if (/\bmarx\b/i.test(s)) return 'Marx';
-    if (/\brmt\b|ready\s*made\s*toys/i.test(s)) return 'RMT';
-    if (/\bmenards\b/i.test(s)) return 'Menards';
-    if (/\b3rd\s*rail\b|sunset\s+models|golden\s+gate\s+depot/i.test(s)) return '3rd Rail';
-    if (/\busa\s*trains\b|charles\s+ro/i.test(s)) return 'USA Trains';
-    if (/\blgb\b|lehmann/i.test(s)) return 'LGB';
-    return '';
-  };
+  // v0.9.2053: the maker words live ONCE, in config.js (RR_MAKER_WORDS) — this
+  // used to be a private copy that the Photo Inbox's maker check never saw.
+  var _canonMfr = function (s) { return rrMakerName(s); };
   if (out.manufacturer) {
     out.manufacturer = _canonMfr(out.manufacturer) || out.manufacturer;
   } else if (_numSysMfr) {

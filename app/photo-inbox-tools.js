@@ -1159,9 +1159,9 @@
         // is armed by rrPinSetPhotoSaved when a save really happens.
         try {
           var stage1 = JSON.parse(localStorage.getItem(SETSTAGE_KEY) || '{}');
-          stage1[num] = { link: link, fromFid: fromFid, toFid: toFid, ts: ts,
+          stage1[num] = _pinHoldMark({ link: link, fromFid: fromFid, toFid: toFid, ts: ts,
             rsvFid: (fileList[0] && fileList[0].id) || '',   // v0.9.935: files as the Right Side View
-            files: fileList.map(function (fl) { return { id: fl.id, name: fl.name, role: (fl._meta && fl._meta.role) || '' }; }) };   // v0.9.1562: role rides along
+            files: fileList.map(function (fl) { return { id: fl.id, name: fl.name, role: (fl._meta && fl._meta.role) || '' }; }) });   // v0.9.1562: role rides along; v0.9.2053: which opening holds it
           localStorage.setItem(SETSTAGE_KEY, JSON.stringify(stage1));
         } catch (eP) {}
         _pinRefresh();
@@ -1308,11 +1308,15 @@
       nums.forEach(function (n1) {
         var fl = numFiles[n1] || [];
         if (!fl.length) return;
-        stage0[n1] = { link: '', fromFid: '', toFid: '', ts: ts0,
-                       rsvFid: fl[0].id, files: fl };
+        stage0[n1] = _pinHoldMark({ link: '', fromFid: '', toFid: '', ts: ts0,
+                       rsvFid: fl[0].id, files: fl });   // v0.9.2053: which opening holds it
       });
       localStorage.setItem(SETSTAGE_KEY, JSON.stringify(stage0));
     } catch (eP0) {}
+    // v0.9.2053: the Add screen knows which holds are this set's, so closing it
+    // without a save lets them go (rrPinReleaseSetHolds, from _doCloseWizard).
+    var _setHoldIds = [];
+    try { Object.keys(stage0 || {}).forEach(function (k0) { (stage0[k0].files || []).forEach(function (f0) { if (f0 && f0.id) _setHoldIds.push(f0.id); }); }); } catch (eSH) {}
     var ov = document.getElementById('pin-review-ov'); if (ov) ov.remove();
     _buildWizardModal();
     // v0.9.1115 (Brad: "it asks me the priority for this item, which is a
@@ -1325,7 +1329,8 @@
     wizard = {
       step: 0, tab: 'set',
       data: { tab: 'set', set_knowsNum: 'No', _enteredNums: nums.slice(0),
-              _setMemberPhotos: memberPhotos, _returnPage: 'photo-inbox' },
+              _setMemberPhotos: memberPhotos, _returnPage: 'photo-inbox',
+              _pinSetStagedNums: Object.keys(stage0 || {}), _pinSetStagedFiles: _setHoldIds },
       steps: [], matchedItem: null,
     };
     wizard.steps = getSteps('set');
@@ -1341,12 +1346,55 @@
   // the fast lane exactly as before (wizard opens prefilled, past the
   // item-number step). Box empty → the no-number lane (wizard Step 1, Item
   // Type picker). The user never has to know two lanes exist.
-  window._pinAddItem = function () {
+  window._pinAddItem = async function () {
     var num = String((document.getElementById('pin-rv-num') || {}).value || '').trim();
-    return num ? window._pinReviewAdd('new') : window._pinAddNoNumber();
+    if (num) return window._pinReviewAdd('new');
+    // v0.9.2053 (Mike, 2026-10-29): an empty box with a best guess on the card
+    // is not "no number". The guess sat in a chip, the big button opened an
+    // empty Add screen about paper and mock-ups, and a train went in blank.
+    var g = await _pinAskGuess();
+    if (g === 'use') return window._pinReviewAdd('new');
+    if (g === 'none') return window._pinAddNoNumber();
+    // 'stay' — he backed out of the question; the card stays as it was
   };
   window._pinAttachOwned      = function () { return window._pinReviewAdd('attach'); };
-  window._pinSendForSale      = function () { return window._pinReviewAdd('forsale'); };
+  window._pinSendForSale      = async function () {
+    var num = String((document.getElementById('pin-rv-num') || {}).value || '').trim();
+    if (!num && (PIN._rvGuess || PIN._rvGuessMany)) {
+      // v0.9.2053: the same question — the sales list needs a number, and the
+      // card has the reader's guess at one. ("It's something else" leaves the
+      // box for him to type in: a sales listing has no no-number road.)
+      var g = await _pinAskGuess(true);
+      if (g !== 'use') return;
+    }
+    return window._pinReviewAdd('forsale');
+  };
+  // v0.9.2053 — THE "Add it as …?" QUESTION. Answers 'use' (the guess is now in
+  // the box, looked up exactly as tapping its chip does), 'none' (no number),
+  // 'stay' (backed out, or nothing to ask about). Words: RR_INBOX_GUESS.
+  async function _pinAskGuess(forSale) {
+    var W = (typeof RR_INBOX_GUESS !== 'undefined') ? RR_INBOX_GUESS : null;
+    var guess = String(PIN._rvGuess || '');
+    var esc = function (t) { return (typeof rrEsc === 'function') ? rrEsc(t) : String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
+    var fill = function (t) { return String(t || '').split('{num}').join(esc(guess)); };
+    if (!W) return forSale ? 'stay' : 'none';
+    if (guess) {
+      var yes = await appConfirm(fill(W.ask), { title: fill(W.title), ok: fill(W.yes), cancel: W.no, dismiss: null });
+      if (yes === null) return 'stay';
+      if (yes) {
+        try { window._pinPickNum(guess); } catch (eP) { var b = document.getElementById('pin-rv-num'); if (b) b.value = guess; }
+        return 'use';
+      }
+      if (forSale) { try { var b2 = document.getElementById('pin-rv-num'); if (b2) b2.focus(); } catch (eF) {} return 'stay'; }
+      return 'none';
+    }
+    if (PIN._rvGuessMany) {
+      if (forSale) { showToast(W.many.replace(/, or add it with no number\.?$/, '.'), 4500); return 'stay'; }
+      var ok = await appConfirm(W.many, { title: W.manyTitle, ok: W.manyYes, cancel: W.manyNo, dismiss: null });
+      return ok ? 'none' : 'stay';
+    }
+    return forSale ? 'stay' : 'none';
+  }
 
   // == v0.9.1498 (task #28, Brad): "Add to an existing item in my collection" ==
   //
@@ -1503,9 +1551,9 @@
       Object.keys(stage).forEach(function (k0) {
         if (k0.indexOf(NONUM_PREFIX) === 0) delete stage[k0];
       });
-      stage[key] = { link: '', fromFid: '', toFid: '', ts: new Date().getTime(),
+      stage[key] = _pinHoldMark({ link: '', fromFid: '', toFid: '', ts: new Date().getTime(),
                      rsvFid: (fileList[0] && fileList[0].id) || '',
-                     files: fileList.map(function (fl) { return { id: fl.id, name: fl.name, role: (fl._meta && fl._meta.role) || '' }; }) };   // v0.9.1562: role rides along
+                     files: fileList.map(function (fl) { return { id: fl.id, name: fl.name, role: (fl._meta && fl._meta.role) || '' }; }) });   // v0.9.1562: role rides along; v0.9.2053: which opening holds it
       localStorage.setItem(SETSTAGE_KEY, JSON.stringify(stage));
     } catch (eS) { console.warn('[Inbox] could not stage the numberless add', eS && eS.message); }
 
@@ -1560,6 +1608,106 @@
   // (fileIds = wizard.data._addPhotoDriveIds), so another add's note is never
   // touched. STAGED notes only — an armed (PENDING_KEY) note belongs to a saved
   // item and is never dropped here. The photos themselves stay in the inbox.
+  // ══ v0.9.2053 — WHICH OPENING OF THE APP HOLDS THESE PHOTOS ══════════════
+  // Mike's audit, second half: an iPhone restarts a home-screen app after a
+  // trip to the camera or another app, and an add in progress simply vanishes —
+  // no close runs, so v0.9.2051's release never fires, and the photos stayed
+  // "spoken for" for up to 30 minutes. Every hold now carries the opening of
+  // the app that made it (`open`) and a "still here" mark (`beat`) that an
+  // open Add screen keeps fresh. Leaving the page (the app switched away)
+  // zeroes the mark at once; coming back refreshes it. A hold from ANOTHER
+  // opening whose mark is zero or quiet past RR_ADD_HOLD_QUIET_MS is let go by
+  // the sweep. A hold from this opening is never let go by this rule.
+  var _PIN_OPEN_ID = (function () {
+    try {
+      if (!window._rrAppOpenId) window._rrAppOpenId = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+      return window._rrAppOpenId;
+    } catch (e) { return 'open-' + Date.now(); }
+  })();
+  function _pinHoldMark(rec) {
+    try { rec.open = _PIN_OPEN_ID; rec.beat = _rrNowMs(); } catch (e) {}
+    return rec;
+  }
+  // Refresh (alive=true) or zero (alive=false) the mark on THIS opening's holds.
+  function _pinHoldBeat(alive) {
+    try {
+      var stage = JSON.parse(localStorage.getItem(SETSTAGE_KEY) || '{}'), dirty = false, now = _rrNowMs();
+      Object.keys(stage).forEach(function (k) {
+        _pendList(stage[k]).forEach(function (rec) {
+          if (rec && typeof rec === 'object' && rec.open === _PIN_OPEN_ID) { rec.beat = alive ? now : 0; dirty = true; }
+        });
+      });
+      if (dirty) localStorage.setItem(SETSTAGE_KEY, JSON.stringify(stage));
+    } catch (e) {}
+  }
+  try {
+    var _beatMs = (typeof RR_ADD_HOLD_BEAT_MS === 'number') ? RR_ADD_HOLD_BEAT_MS : 60000;
+    var _beatT = setInterval(function () {
+      if (document.visibilityState === 'hidden') return;
+      if (typeof _pinWizardOpen === 'function' && _pinWizardOpen()) _pinHoldBeat(true);
+    }, _beatMs);
+    if (_beatT && _beatT.unref) _beatT.unref();   // a test runner's clock: never what keeps it alive
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'hidden') _pinHoldBeat(false);
+      else if (typeof _pinWizardOpen === 'function' && _pinWizardOpen()) _pinHoldBeat(true);
+    });
+    window.addEventListener('pagehide', function () { _pinHoldBeat(false); });
+  } catch (eHB) {}
+  // The safety net: a save makes sure its photos are still held before it
+  // arms them. If a hold was let go while this Add screen was in fact still
+  // alive (a computer tab left in the background while another tab opened the
+  // inbox), it is written again here from the Add screen's own photo list — so
+  // the photos ALWAYS follow a real save. Nothing happens when the hold is
+  // there, or when those photos are already armed for a saved item.
+  window.rrPinEnsureStaged = function (key, fileIds) {
+    try {
+      var k = String(key || '').trim();
+      var ids = (fileIds || []).filter(Boolean);
+      if (!k || !ids.length) return false;
+      var stage = JSON.parse(localStorage.getItem(SETSTAGE_KEY) || '{}');
+      var pend = JSON.parse(localStorage.getItem(PENDING_KEY) || '{}');
+      var holds = function (store) {
+        return Object.keys(store).some(function (sk) {
+          return _pendList(store[sk]).some(function (rec) { return rec && rec.files && rec.files.some(function (f) { return f && ids.indexOf(f.id) >= 0; }); });
+        });
+      };
+      if (holds(stage) || holds(pend)) return false;
+      var known = {};
+      try { (PIN._groups || []).forEach(function (g) { (g.files || []).forEach(function (f) { if (f && f.id) known[f.id] = f; }); }); } catch (eK) {}
+      stage[k] = _pinHoldMark({ link: '', fromFid: '', toFid: '', ts: _rrNowMs(), rsvFid: ids[0],
+        files: ids.map(function (id) { var f = known[id] || {}; return { id: id, name: f.name || '', role: (f._meta && f._meta.role) || '' }; }) });
+      localStorage.setItem(SETSTAGE_KEY, JSON.stringify(stage));
+      console.log('[Inbox] a saved add’s photo hold was missing — written again so its photos follow the save:', k);
+      return true;
+    } catch (e) { console.warn('[Inbox] could not re-make the photo hold', e && e.message); return false; }
+  };
+  // A cancelled SET add lets go of ITS holds — every staged note made only of
+  // this set's photos. With alsoArmed (the set was cancelled AND its saved
+  // members deleted), armed notes for those photos that have not moved yet go
+  // too: their items no longer exist, so nothing will ever file them.
+  window.rrPinReleaseSetHolds = function (fileIds, alsoArmed) {
+    try {
+      var ids = {}; (fileIds || []).forEach(function (id) { if (id) ids[id] = 1; });
+      if (!Object.keys(ids).length) return 0;
+      var gone = 0;
+      [SETSTAGE_KEY].concat(alsoArmed ? [PENDING_KEY] : []).forEach(function (storeKey) {
+        var store = JSON.parse(localStorage.getItem(storeKey) || '{}'), dirty = false;
+        Object.keys(store).forEach(function (k) {
+          var notes = _pendList(store[k]);
+          var kept = notes.filter(function (rec) {
+            var mine = rec && rec.files && rec.files.length && rec.files.every(function (f) { return f && ids[f.id]; });
+            if (mine && storeKey === PENDING_KEY && rec.moved) mine = false;   // already filed — nothing to undo here
+            if (mine) { gone++; dirty = true; }
+            return !mine;
+          });
+          if (!kept.length) delete store[k];
+          else if (kept.length !== notes.length) store[k] = (kept.length === 1 && !Array.isArray(store[k])) ? kept[0] : kept;
+        });
+        if (dirty) localStorage.setItem(storeKey, JSON.stringify(store));
+      });
+      return gone;
+    } catch (e) { console.warn('[Inbox] could not release the set’s photo holds', e && e.message); return 0; }
+  };
   window.rrPinDropStaged = function (key, fileIds) {
     try {
       var k = String(key || '');
@@ -1578,6 +1726,30 @@
     } catch (e) { console.warn('[Inbox] could not drop the staged note', e && e.message); }
   };
 
+  // v0.9.2053 (Mike's audit, fix 7): is the full catalog still on its way to
+  // this phone? rrCatalogIndexStatus (app-data.js) is the one honest answer.
+  function _pinCatalogStillLoading() {
+    try {
+      var st = (typeof rrCatalogIndexStatus === 'function') ? rrCatalogIndexStatus() : null;
+      return !!(st && !st.complete);
+    } catch (e) { return false; }
+  }
+  // Wait for it (starting a build if none is running), then call back(true);
+  // after RR_CATALOG_WAIT_MS, call back(false). Says what it is doing.
+  function _pinWaitForCatalog(num, back) {
+    var limit = (typeof RR_CATALOG_WAIT_MS === 'number') ? RR_CATALOG_WAIT_MS : 20000;
+    var t0 = _rrNowMs(), finished = false;
+    try {
+      var st0 = rrCatalogIndexStatus();
+      if (!st0.building && typeof _scheduleLookupIndex === 'function') _scheduleLookupIndex(0);
+    } catch (eB) {}
+    try { showToast((typeof RR_CATALOG_WAIT_TEXT !== 'undefined') ? RR_CATALOG_WAIT_TEXT.waiting : 'Looking it up in the catalog\u2026', limit); } catch (eT) {}
+    var poll = setInterval(function () {
+      if (finished) return;
+      var done = !_pinCatalogStillLoading();
+      if (done || (_rrNowMs() - t0) > limit) { finished = true; clearInterval(poll); back(done); }
+    }, 400);
+  }
   window._pinAddNow = function (num, aiMeta, photoDriveId, opts) {
     if (typeof openWizard !== 'function') { showToast('Add wizard not available', 2500, true); return; }
     // v0.9.1491: the stopwatch — one line per stage in the console, so a
@@ -1659,72 +1831,87 @@
             showToast('Starting a paper/other item — the photos will attach when you save', 3000);
             return;
           }
-          var m = _pinBestMaster(num, (aiMeta && aiMeta.manufacturer) || '', (aiMeta && aiMeta._prefer) || null);
-          // v0.9.1371 — remember WHY there is no match. A brand disagreement
-          // (v0.9.941, Marx 1303 vs Atlas 1303) is a deliberate "make a manual
-          // entry for the real brand" and must keep working; only a genuinely
-          // EMPTY catalogue lookup earns the dashed-relative widening below.
-          var _mfrSuppressed = false;
-          if (m && aiMeta && aiMeta.manufacturer) {
-            var _mMk = m.manufacturer || ((typeof ERAS !== 'undefined' && ERAS[m._era]) ? ERAS[m._era].manufacturer : '');
-            // v0.9.941: photo says one brand, number matches another -> treat as
-            // no catalog match so the wizard makes a manual entry for the REAL
-            // brand instead of silently adopting the wrong item (Marx 1303 vs
-            // Atlas 1303).
-            if (!_pinMfrAgree(aiMeta.manufacturer, _mMk)) { m = null; _mfrSuppressed = true; }
-          }
-          if (m) {
-            wizard.matchedItem = m;
-            if (m._era) wizard.data._era = m._era;
-            // v0.9.1341: carry the inbox's own answer into the wizard. AFTER
-            // the match, because a grouping resolves the B unit and the dummy
-            // from the item number and the catalog. Through the SAME resolver
-            // the grouping buttons use (rrApplyGroupingChoice) — reproducing
-            // its fields here would have missed the engine-row lock, which is
-            // the number-only first-find shape all over again.
-            //
-            // Deliberately does NOT advance past the grouping step. The tag
-            // could be wrong, and a pre-filled answer he can see and change
-            // beats a silent one he cannot.
-            var _pg = _pinGroupingFor(opts && opts.groupKind);
-            if (_pg && typeof rrApplyGroupingChoice === 'function') {
-              try {
-                if (rrApplyGroupingChoice(_pg)) {
-                  wizard.data._pinGroupingFromInbox = _pg;
-                  if (typeof getSteps === 'function' && wizard.tab) wizard.steps = getSteps(wizard.tab);
-                }
-              } catch (ePg) { console.warn('[Inbox] grouping prefill:', ePg); }
+          // v0.9.2053: the catalog side of the prefill, as one step that can run
+          // again once a still-loading catalog arrives (waited = 'loaded' /
+          // 'gaveUp'; false the first time).
+          var _resolve = function (waited) {
+            if (waited && !(_pinWizardOpen() && wizard && wizard.data && wizard.data._pinStagedNum === num)) return;   // closed meanwhile
+            var m = _pinBestMaster(num, (aiMeta && aiMeta.manufacturer) || '', (aiMeta && aiMeta._prefer) || null);
+            // v0.9.1371 — remember WHY there is no match. A brand disagreement
+            // (v0.9.941, Marx 1303 vs Atlas 1303) is a deliberate "make a manual
+            // entry for the real brand" and must keep working; only a genuinely
+            // EMPTY catalogue lookup earns the dashed-relative widening below.
+            var _mfrSuppressed = false;
+            if (m && aiMeta && aiMeta.manufacturer) {
+              var _mMk = m.manufacturer || ((typeof ERAS !== 'undefined' && ERAS[m._era]) ? ERAS[m._era].manufacturer : '');
+              // v0.9.941: photo says one brand, number matches another -> treat as
+              // no catalog match so the wizard makes a manual entry for the REAL
+              // brand instead of silently adopting the wrong item (Marx 1303 vs
+              // Atlas 1303).
+              if (!_pinMfrAgree(aiMeta.manufacturer, _mMk)) { m = null; _mfrSuppressed = true; }
             }
-            wizard.step++;              // same advance a barcode scan does
-            renderWizardStep();
-            _tm('prefilled + rendered');
-            try { requestAnimationFrame(function () { setTimeout(function () { _tm('settled — paint done'); }, 0); }); } catch (eTm) {}
-            showToast(_pg
-              ? '\u2713 ' + num + ' \u2014 catalog details filled in, and it is already set up as ' + _pinKindLabel(opts.groupKind)
-              : '\u2713 ' + num + ' \u2014 catalog details filled in', _pg ? 4000 : 2500);
-          } else if (!_mfrSuppressed && _pinDashedKin(num).length) {
-            // v0.9.1371 — the catalogue DOES know this number, as a family of
-            // dashed relatives. Saying "isn't in the catalog" here was simply
-            // false, and it threw away fourteen real rows. Hand it to the
-            // wizard the way typing the number by hand does: the item-number
-            // step's partial matching already offers every relative, and Brad
-            // picks the one he is holding. No guessing on his behalf.
-            var _kin = _pinDashedKin(num);
-            var _inpK = document.getElementById('wiz-input');
-            if (_inpK) _inpK.value = num;
-            try { if (typeof debouncedItemSuggestions === 'function') debouncedItemSuggestions(num); } catch (eK) {}
-            var _shown = _kin.slice(0, 3).join(', ');
-            showToast('There is no plain ' + num + ' — it is catalogued as ' + _shown
-              + (_kin.length > 3 ? ' and ' + (_kin.length - 3) + ' more' : '')
-              + '. Pick the one you have.', 6000);
-          } else if (typeof _identifyRouteToManualEntry === 'function' && _identifyRouteToManualEntry(num, aiMeta || {}, [])) {
-            showToast(num + " isn't in the catalog — details from the photo are filled in", 3000);
-          } else {
-            // Last resort: behave like typing the number by hand.
-            var inp = document.getElementById('wiz-input');
-            if (inp) inp.value = num;
-            try { if (typeof debouncedItemSuggestions === 'function') debouncedItemSuggestions(num); } catch (e) {}
-          }
+            if (m) {
+              wizard.matchedItem = m;
+              if (m._era) wizard.data._era = m._era;
+              // v0.9.1341: carry the inbox's own answer into the wizard. AFTER
+              // the match, because a grouping resolves the B unit and the dummy
+              // from the item number and the catalog. Through the SAME resolver
+              // the grouping buttons use (rrApplyGroupingChoice) — reproducing
+              // its fields here would have missed the engine-row lock, which is
+              // the number-only first-find shape all over again.
+              //
+              // Deliberately does NOT advance past the grouping step. The tag
+              // could be wrong, and a pre-filled answer he can see and change
+              // beats a silent one he cannot.
+              var _pg = _pinGroupingFor(opts && opts.groupKind);
+              if (_pg && typeof rrApplyGroupingChoice === 'function') {
+                try {
+                  if (rrApplyGroupingChoice(_pg)) {
+                    wizard.data._pinGroupingFromInbox = _pg;
+                    if (typeof getSteps === 'function' && wizard.tab) wizard.steps = getSteps(wizard.tab);
+                  }
+                } catch (ePg) { console.warn('[Inbox] grouping prefill:', ePg); }
+              }
+              wizard.step++;              // same advance a barcode scan does
+              renderWizardStep();
+              _tm('prefilled + rendered');
+              try { requestAnimationFrame(function () { setTimeout(function () { _tm('settled — paint done'); }, 0); }); } catch (eTm) {}
+              showToast(_pg
+                ? '\u2713 ' + num + ' \u2014 catalog details filled in, and it is already set up as ' + _pinKindLabel(opts.groupKind)
+                : '\u2713 ' + num + ' \u2014 catalog details filled in', _pg ? 4000 : 2500);
+            } else if (!waited && !_mfrSuppressed && _pinCatalogStillLoading()) {
+              // v0.9.2053 (Mike's audit): no match AND the full catalog is still
+              // loading on this phone — "isn't in the catalog" would be a guess
+              // dressed as a fact (rrCatalogIndexStatus's own warning). Wait for
+              // it, then match as normal; give up after RR_CATALOG_WAIT_MS.
+              _pinWaitForCatalog(num, function (loaded) { try { _resolve(loaded ? 'loaded' : 'gaveUp'); } catch (eW) { console.warn('[Inbox] wizard prefill after the catalog wait:', eW); } });
+            } else if (!_mfrSuppressed && _pinDashedKin(num).length) {
+              // v0.9.1371 — the catalogue DOES know this number, as a family of
+              // dashed relatives. Saying "isn't in the catalog" here was simply
+              // false, and it threw away fourteen real rows. Hand it to the
+              // wizard the way typing the number by hand does: the item-number
+              // step's partial matching already offers every relative, and Brad
+              // picks the one he is holding. No guessing on his behalf.
+              var _kin = _pinDashedKin(num);
+              var _inpK = document.getElementById('wiz-input');
+              if (_inpK) _inpK.value = num;
+              try { if (typeof debouncedItemSuggestions === 'function') debouncedItemSuggestions(num); } catch (eK) {}
+              var _shown = _kin.slice(0, 3).join(', ');
+              showToast('There is no plain ' + num + ' — it is catalogued as ' + _shown
+                + (_kin.length > 3 ? ' and ' + (_kin.length - 3) + ' more' : '')
+                + '. Pick the one you have.', 6000);
+            } else if (typeof _identifyRouteToManualEntry === 'function' && _identifyRouteToManualEntry(num, aiMeta || {}, [])) {
+              showToast(waited === 'gaveUp' && typeof RR_CATALOG_WAIT_TEXT !== 'undefined'
+                ? RR_CATALOG_WAIT_TEXT.gaveUp.split('{num}').join(num)
+                : num + " isn't in the catalog — details from the photo are filled in", waited === 'gaveUp' ? 6000 : 3000);
+            } else {
+              // Last resort: behave like typing the number by hand.
+              var inp = document.getElementById('wiz-input');
+              if (inp) inp.value = num;
+              try { if (typeof debouncedItemSuggestions === 'function') debouncedItemSuggestions(num); } catch (e) {}
+            }
+          };
+          _resolve(false);
         } catch (e) { console.warn('[Inbox] wizard prefill:', e); }
       }
       if (tries > 100) clearInterval(t);
@@ -2123,6 +2310,18 @@
             console.log('[Inbox] released photos from a claim that never completed:', num,
                         '(photos stay in the inbox)');
             return;                                  // drop the NOTE, never the photos
+          }
+          // v0.9.2053: a hold from ANOTHER opening of the app whose "still
+          // here" mark is zero (that page left) or quiet is an add the iPhone
+          // restarted out from under him — let go now, not in 30 minutes.
+          var _openId = (typeof _PIN_OPEN_ID !== 'undefined') ? _PIN_OPEN_ID : '';
+          var _quiet = (typeof RR_ADD_HOLD_QUIET_MS === 'number') ? RR_ADD_HOLD_QUIET_MS : 180000;
+          if (storeKey === SETSTAGE_KEY && rec.open && _openId && rec.open !== _openId
+              && (!rec.beat || (now - rec.beat) > _quiet)) {
+            dirty = true;
+            console.log('[Inbox] released photos held by an add from an earlier opening of the app:', num,
+                        '(photos stay in the inbox)');
+            return;
           }
           if (storeKey === SETSTAGE_KEY && !wizOpen && (now - rec.ts) > abandonMs) {
             dirty = true;                            // v0.9.2050: an abandoned add's hold

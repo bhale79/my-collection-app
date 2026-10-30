@@ -747,6 +747,15 @@
         if (_recNum && _recNum.num) sugGuess = String(_recNum.num);
       }
     } catch (eR) {}
+    // v0.9.2053 (Mike, MTH 20-20169-3): the guess is remembered for the Add
+    // buttons, which ask "Add it as …?" instead of silently taking the
+    // no-number road when the box is empty. One guess = the question; two or
+    // more choices on the card = "which one?" (_pinAddItem, tools piece).
+    try {
+      var _altN = _pinAltList().length;
+      PIN._rvGuess = (!sug && sugGuess && _altN < 2) ? String(sugGuess) : '';
+      PIN._rvGuessMany = !sug && _altN >= 2;
+    } catch (eG) { PIN._rvGuess = ''; PIN._rvGuessMany = false; }
     var nums = {};
     Object.values((window.state || {}).personalData || {}).forEach(function (pd) {
       if (pd && pd.owned && pd.itemNum) nums[pd.itemNum] = true;

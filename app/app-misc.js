@@ -79,6 +79,11 @@ function rrMaybeShowAddHelp() {
   setTimeout(function () {
     try {
       if (_aiUsageSeenByThisAccount()) return;
+      // v0.9.2053 (Mike's audit): an add that starts in the Photo Inbox has
+      // ALREADY been read from the photo — explaining scanning and photo ID on
+      // top of a filled-in Add screen only confuses. Not marked seen: the card
+      // still shows on his first ordinary Add.
+      if (typeof wizard !== 'undefined' && wizard && wizard.data && wizard.data._fromInbox) return;
       if (document.getElementById('gt-callout')) return;               // a guided walkthrough is running
       if (typeof rrRecordingMode === 'function' && rrRecordingMode()) return;
       showAiUsageCard(false);

@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2059';
+const APP_VERSION = 'v0.9.2062';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -1154,6 +1154,74 @@ function rrMakerNorm(mfr) {
   var m = String(mfr == null ? '' : mfr).trim().toLowerCase().replace(/\s+/g, ' ');
   return (RR_MAKER_ALIASES[m] || m);
 }
+// ══ v0.9.2053 — THE ONE MAKER-NAME RULE ══════════════════════════════════════
+// Mike's MTH audit (2026-10-29): the reader wrote the maker as "M.T.H.", "Mike's
+// Train House", "RailKing" or "Premier", the Photo Inbox's own maker check said
+// "a different brand", and the add became a hand-made entry announcing that
+// 20-20169-3 "isn't in the catalog". The app had THREE maker-name rules — the
+// aliases above, the Google Photo ID cleaner (wizard-photos.js) and the inbox's
+// first-word check (photo-inbox.js) — and each knew different spellings. This is
+// the one list now; all three ask it.
+//   [the words that name the maker, its key (what two names compare on), the
+//    name shown]. ORDER MATTERS — the first match wins, so "Williams by
+//    Bachmann" is Williams and "K-Line by Lionel" is K-Line. The first thirteen
+//    are the Photo ID cleaner's list as it was, in its order.
+const RR_MAKER_WORDS = [
+  [/american\s+flyer|a\.\s?c\.\s?gilbert/i, 'american flyer', 'American Flyer'],
+  [/m\.\s?t\.\s?h|\bmth\b|mike'?s\s+train\s+house|tinplate\s+traditions|rail\s?king\b/i, 'mth', 'MTH'],
+  [/\batlas\b/i, 'atlas', 'Atlas O'],
+  [/k[\s\-]?line\b/i, 'k-line', 'K-Line'],
+  [/\blionel\b/i, 'lionel', 'Lionel'],
+  [/\bweaver\b|quality\s+craft|bev-?bel/i, 'weaver', 'Weaver'],
+  [/\bwilliams\b/i, 'williams', 'Williams'],
+  [/\bmarx\b/i, 'marx', 'Marx'],
+  [/\brmt\b|ready\s*made\s*toys/i, 'rmt', 'RMT'],
+  [/\bmenards\b/i, 'menards', 'Menards'],
+  [/\b3rd\s*rail\b|sunset\s+models|golden\s+gate\s+depot/i, '3rd rail', '3rd Rail'],
+  [/\busa\s*trains\b|charles\s+ro/i, 'usa trains', 'USA Trains'],
+  [/\blgb\b|lehmann/i, 'lgb', 'LGB'],
+  // the other makers the catalog has eras for
+  [/\bbachmann\b/i, 'bachmann', 'Bachmann'],
+  [/m[aä]rkl[ií]n|maerklin/i, 'marklin', 'Marklin'],
+  [/\bkato\b/i, 'kato', 'Kato'],
+  [/micro[\s\-]?trains/i, 'micro-trains', 'Micro-Trains'],
+  [/american\s+models/i, 'american models', 'American Models'],
+  [/s[\s\-]?helper/i, 's-helper service', 'S-Helper Service'],
+  [/t[\s\-]?reproductions/i, 't-reproductions', 'T-Reproductions'],
+  [/aristo[\s\-]?craft/i, 'aristo-craft', 'Aristo-Craft'],
+  [/\baccucraft\b/i, 'accucraft', 'Accucraft']
+];
+// Words that sit where a maker goes but name a product LINE or nothing at all.
+// "Premier" is MTH's top line AND Atlas's — it can never settle a brand, so it
+// counts as no maker information rather than as a different maker.
+const RR_MAKER_LINE_WORDS = /^(premier( line)?|legacy|vision ?line|trainmaster|tmcc|conventional classics|proto-?sound( \d(\.\d)?)?|master ?line|o scale|o gauge|scale|traditional( line)?|other|unknown|other \/ unknown|n\/a|none)$/i;
+function _rrMakerHit(s) {
+  var raw = String(s == null ? '' : s).trim();
+  if (!raw) return null;
+  var tries = [raw, rrMakerNorm(raw)];
+  for (var t = 0; t < tries.length; t++) {
+    for (var i = 0; i < RR_MAKER_WORDS.length; i++) if (RR_MAKER_WORDS[i][0].test(tries[t])) return RR_MAKER_WORDS[i];
+  }
+  return null;
+}
+// The maker's key ('mth', 'lionel', …) — '' when the words name no maker the app knows.
+function rrMakerKey(s) { var h = _rrMakerHit(s); return h ? h[1] : ''; }
+// The maker's name as the app shows it ('MTH', 'Atlas O', …) — '' when unknown.
+function rrMakerName(s) { var h = _rrMakerHit(s); return h ? h[2] : ''; }
+// Do these two maker names agree? Nothing to compare = agree (no conflict).
+// Two known makers compare on their keys. A product-line word ("Premier") is no
+// information. Anything else unknown keeps the old loose rule (one name contains
+// the other's first word), so an unlisted maker still disagrees with Lionel.
+function rrMakerSame(a, b) {
+  var ra = String(a == null ? '' : a).trim(), rb = String(b == null ? '' : b).trim();
+  if (!ra || !rb) return true;
+  var ka = rrMakerKey(ra), kb = rrMakerKey(rb);
+  if (ka && kb) return ka === kb;
+  if ((!ka && RR_MAKER_LINE_WORDS.test(ra)) || (!kb && RR_MAKER_LINE_WORDS.test(rb))) return true;
+  var la = ra.toLowerCase(), lb = rb.toLowerCase();
+  var aw = la.split(/\s+/)[0], bw = lb.split(/\s+/)[0];
+  return la.indexOf(bw) >= 0 || lb.indexOf(aw) >= 0;
+}
 function _rrWordRe(list) {
   var alts = list.map(function (w) { return String(w).replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s+'); });
   return new RegExp('(?:^|[^a-z0-9])(?:' + alts.join('|') + ')(?=$|[^a-z0-9])', 'i');
@@ -1618,6 +1686,10 @@ try {
   window.RR_MAKER_ALIASES    = RR_MAKER_ALIASES;
   window.RR_PRESORT_WORDS    = RR_PRESORT_WORDS;
   window.rrMakerNorm         = rrMakerNorm;
+  window.RR_MAKER_WORDS      = RR_MAKER_WORDS;         // v0.9.2053: the one maker-name rule
+  window.rrMakerKey          = rrMakerKey;
+  window.rrMakerName         = rrMakerName;
+  window.rrMakerSame         = rrMakerSame;
   window.rrPreSortReasons    = rrPreSortReasons;
   window.RR_TYPE_WORDS       = RR_TYPE_WORDS;          // v0.9.1715
   window.rrTypeFromDescription = rrTypeFromDescription;
@@ -3814,6 +3886,43 @@ const RR_PHONE = { maxWidth: 640, shortHeight: 500 };
 // v0.9.2043: the word on the photo while a crop is being saved to Drive
 // (Brad: "a rotate arrow with the word 'updating' in the top right of the picture").
 const RR_PHOTO_UPDATING_LABEL = 'Updating\u2026';
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+// v0.9.2053 \u2014 THE PHOTO INBOX \u2192 ADD SCREEN ROAD (Mike, mkcaruso, 2026-10-29,
+// iPhone, MTH 20-20169-3; AUDIT_2026-10-29_MIKE_INBOX_ADD.md). Every word and
+// number the eight fixes need, in one place.
+//
+// (1) The reader only GUESSED the number: the card's box is empty and the guess
+//     is a chip. The big Add button used to take the no-number road silently
+//     (an empty Add screen talking about paper and mock-ups). It asks now.
+//     {num} is filled in with the guess.
+const RR_INBOX_GUESS = {
+  title: 'Add it as {num}?',
+  ask: 'The photo reader thinks this is {num}, but it isn\u2019t sure.\nCheck the number on your item.',
+  yes: 'Yes, it\u2019s {num}',
+  no: 'It\u2019s something else',
+  manyTitle: 'Which number is it?',
+  many: 'The photo reader found more than one possible number. Tap the one on your item, or add it with no number.',
+  manyYes: 'Add with no number',
+  manyNo: 'Go back',
+  cardLine: 'The photo reader isn\u2019t sure of the number \u2014 check it against your item, then tap \u201cuse this\u201d or type it below.'
+};
+// (2) A hold an Add screen puts on its photos says WHICH opening of the app
+//     made it and keeps a "still here" mark fresh while the screen is open. A
+//     hold from an earlier opening whose mark has gone quiet longer than this
+//     is let go at once (the iPhone restarted the app mid-add).
+const RR_ADD_HOLD_BEAT_MS = 60 * 1000;          // how often an open Add screen refreshes its mark
+const RR_ADD_HOLD_QUIET_MS = 3 * 60 * 1000;     // a mark this quiet, from another opening, is gone
+// (5) What an add from the inbox carries, kept through an Item Type change and
+//     handed over by the inbox \u2014 ONE list, read by both.
+const RR_INBOX_CARRY_KEYS = ['_addPhotoDriveId', '_addPhotoDriveIds', '_addPhotoViews', '_addPhotoRoles', '_addPhotoKind',
+  '_fromInbox', '_pinStagedNum', '_pinSetStagedNums', '_pinSetStagedFiles', '_alsoListForSale', '_noNumberEntry'];
+// (7) An add from the inbox whose number is not in the catalog YET because the
+//     full catalog is still loading waits this long for it, then says so.
+const RR_CATALOG_WAIT_MS = 20 * 1000;
+const RR_CATALOG_WAIT_TEXT = {
+  waiting: 'Looking it up in the catalog\u2026',
+  gaveUp: 'The catalog didn\u2019t finish loading \u2014 enter {num} by hand, or close this and try again in a moment.'
+};
 function rrIsPhone() {
   try {
     if (window.innerWidth <= RR_PHONE.maxWidth) return true;

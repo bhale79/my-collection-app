@@ -1774,7 +1774,23 @@ function rrDashedKin(num) {
   if (!n) return out;
   var bare = n.indexOf('-') < 0 && n.indexOf('–') < 0;
   try {
+    // v0.9.2053 (Mike's MTH audit): the loaded catalogue AND the full-catalogue
+    // index. An MTH row is in the full index while the phone is on Lionel, and
+    // the family finder used to look only at the loaded era — so "20-20169"
+    // found nothing and the add became a hand-made entry.
     var rows = (typeof state !== 'undefined' && state && state.masterData) || [];
+    try {
+      var _allIdx = (typeof state !== 'undefined' && state && state.masterByItemAll) || null;
+      if (_allIdx && typeof _allIdx.forEach === 'function') {
+        var _more = [];
+        _allIdx.forEach(function (bucket) { if (bucket && bucket.length) for (var b = 0; b < bucket.length; b++) _more.push(bucket[b]); });
+        if (_more.length) rows = rows.concat(_more);
+      }
+    } catch (eAll) {}
+    var hasExact = false;
+    for (var x = 0; x < rows.length; x++) {
+      if (rows[x] && String(rows[x].itemNum || '').replace(/\s+/g, '') === n) { hasExact = true; break; }
+    }
     // v0.9.1885 — 6014 -> X6014 : THE LETTER STAMPED ON THE CAR. Brad's Baby
     // Ruth boxcar (2026-10-05) is lettered X6014; the reader offered 6014
     // (Chun King, Frisco, Wix Filters) and the "pick the one you have" list
@@ -1798,6 +1814,17 @@ function rrDashedKin(num) {
         if (rp && String(rp.itemNum || '').replace(/\s+/g, '') === n) { plainEras[String(rp._era || '')] = 1; anyPlain = true; }
       }
     }
+    // v0.9.2053 — MTH writes its numbers NN-NNNNN(-N). A reader that lost the
+    // dashes gives 2020169; with no row of its own, its MTH spelling's family
+    // is offered (never chosen — the human picks, as everywhere here).
+    var mthForm = (bare && !hasExact && /^\d{7}$/.test(n)) ? n.slice(0, 2) + '-' + n.slice(2) : '';
+    // v0.9.2053 — the PARENT of a dashed number is what comes before its LAST
+    // dash (20-20169-3 -> 20-20169; 3376-160 -> 3376, unchanged). An MTH-shaped
+    // NN-NNNNN has no parent: "20" is MTH's category code, and it used to point
+    // at an unrelated catalogue's No. 20.
+    var lastCut = bare ? -1 : Math.max(n.lastIndexOf('-'), n.lastIndexOf('–'));
+    var parent = (lastCut > 0 && !/^\d{2}-\d{4,5}$/.test(n)) ? n.slice(0, lastCut) : '';
+    var push = function (raw) { seen[String(raw)] = 1; out.push(String(raw)); };
     for (var i = 0; i < rows.length; i++) {
       var raw = rows[i] && rows[i].itemNum;
       if (!raw) continue;
@@ -1807,18 +1834,28 @@ function rrDashedKin(num) {
         // 3376 -> 3376-160 : the relatives that hide behind a plain number
         if (s.length > n.length && s.slice(0, n.length) === n) {
           var c = s.charAt(n.length);
-          if (c === '-' || c === '–') { seen[String(raw)] = 1; out.push(String(raw)); }
+          if (c === '-' || c === '–') push(raw);
         }
         else if (anyPlain && s.length === n.length + 1 && s.slice(1) === n && /^[A-Za-z]$/.test(s.charAt(0))
                  && plainEras[String(rows[i]._era || '')]) {
-          seen[String(raw)] = 1; out.push(String(raw));
+          push(raw);
+        }
+        // 2020169 -> 20-20169 and its family (MTH, dashes lost)
+        else if (mthForm && (s === mthForm || (s.length > mthForm.length && s.slice(0, mthForm.length) === mthForm && s.charAt(mthForm.length) === '-'))) {
+          push(raw);
         }
       } else {
         // 3376-160 -> 3376 : the reverse, so a dashed number names its parent.
         // Deliberately the PARENT only, not every cousin — someone who typed
         // the specific number has already been specific.
-        var cut = n.search(/[-–]/);
-        if (cut > 0 && s === n.slice(0, cut)) { seen[String(raw)] = 1; out.push(String(raw)); }
+        if (parent && s === parent) { push(raw); continue; }
+        // v0.9.2053: 20-20169 -> 20-20169-1 / -2 / -3. A dashed number with NO
+        // row of its own is a family name, exactly like a plain 3376 — offer
+        // its children. (One that has a row of its own was specific already.)
+        if (!hasExact && s.length > n.length && s.slice(0, n.length) === n) {
+          var c2 = s.charAt(n.length);
+          if (c2 === '-' || c2 === '–') push(raw);
+        }
       }
     }
   } catch (e) {}
