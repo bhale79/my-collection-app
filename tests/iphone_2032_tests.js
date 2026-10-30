@@ -215,12 +215,22 @@ async function notice(pg) {
 function cssVhOnly(files) {
   const bad = [];
   Object.keys(files).forEach(f => {
-    const src = files[f];
-    const re = /([a-z-]+):\s*([^;{}]*?\b\d+(?:\.\d+)?vh\b[^;{}]*?);/g; let m;
+    let src = files[f];
+    // v0.9.2060 (sweep A2): a page (index.html) is read for its style attributes and <style> blocks. Its
+    // scripts are blanked and its CSS comments blanked BEFORE the scan — an accept="image/*" would
+    // otherwise open a "comment" that hides every height after it (it hid all 12 at first).
+    const isPage = /\.html$/.test(f);
+    if (isPage) {
+      const blank = t => t.replace(/[^\n]/g, ' ');
+      src = src.replace(/<script[\s\S]*?<\/script>/gi, blank)
+               .replace(/<style[\s\S]*?<\/style>/gi, blk => blk.replace(/\/\*[\s\S]*?\*\//g, blank));
+    }
+    // a declaration also ends at a style attribute's closing quote (index.html)
+    const re = /([a-z-]+):\s*([^;{}"]*?\b\d+(?:\.\d+)?vh\b[^;{}"]*?)(;|(?="))/g; let m;
     while ((m = re.exec(src))) {
-      const pre = src.slice(0, m.index); if (pre.lastIndexOf('/*') > pre.lastIndexOf('*/')) continue;
+      const pre = src.slice(0, m.index); if (!isPage && pre.lastIndexOf('/*') > pre.lastIndexOf('*/')) continue;
       const after = src.slice(m.index + m[0].length, m.index + m[0].length + 200).replace(/^\s+/, '');
-      if (after.indexOf(m[1] + ':') === 0 && after.split(';')[0].indexOf('dvh') >= 0) continue;
+      if (after.indexOf(m[1] + ':') === 0 && after.split(/[;"]/)[0].indexOf('dvh') >= 0) continue;
       bad.push(f + ':' + (pre.split('\n').length));
     }
   });
@@ -245,7 +255,7 @@ function typedOnce(files, literal) {
   return Object.keys(files).filter(f => files[f].split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n').indexOf(literal) >= 0);
 }
 const CSS_FILES = {}, JS_FILES = {};
-fs.readdirSync(APP).forEach(f => { if (/\.css$/.test(f)) CSS_FILES[f] = read(f); if (/\.js$/.test(f) && !/^tests-/.test(f)) JS_FILES[f] = read(f); });
+fs.readdirSync(APP).forEach(f => { if (/\.css$/.test(f) || /\.html$/.test(f)) CSS_FILES[f] = read(f); if (/\.js$/.test(f) && !/^tests-/.test(f)) JS_FILES[f] = read(f); });   // v0.9.2060 (sweep A2): the page's own style attributes too
 
 (async () => {
   const ex = '/opt/pw-browsers/chromium';
@@ -296,7 +306,8 @@ fs.readdirSync(APP).forEach(f => { if (/\.css$/.test(f)) CSS_FILES[f] = read(f);
     const stray = strayWidthChecks(JS_FILES);
     ok('D3 no stray phone-by-width check in app/*.js (every decision asks rrIsPhone)', stray.length === 0, stray.join(', '));
     const vh = cssVhOnly(CSS_FILES);
-    ok('D4 no vh-only height in app/*.css (every one carries its dvh twin)', vh.length === 0, vh.join(', '));
+    ok('D4 no vh-only height in app/*.css or app/*.html (every one carries its dvh twin)', vh.length === 0, vh.join(', '));
+    ok('D4b the scan really reads index.html (it holds the 12 list boxes fixed in v0.9.2060)', !!CSS_FILES['index.html'] && (CSS_FILES['index.html'].match(/max-height:calc\(100dvh - \d+px\)/g) || []).length >= 12);
     const once = typedOnce(JS_FILES, 'permission was not granted');
     ok('D5 the Google words are typed once (config.js)', once.length === 1 && once[0] === 'config.js' || (once.length === 2 && once.indexOf('migration-config.js') >= 0), once.join(', '));
     ok('D6 RR_PHONE is the live numbers: narrow ' + RR_PHONE.maxWidth + ', short ' + RR_PHONE.shortHeight, RR_PHONE.maxWidth > 300 && RR_PHONE.shortHeight > 300 && RR_PHONE.shortHeight < RR_PHONE.maxWidth);
@@ -358,6 +369,10 @@ fs.readdirSync(APP).forEach(f => { if (/\.css$/.test(f)) CSS_FILES[f] = read(f);
     // P6/P7: the scans on planted copies
     const vh = cssVhOnly({ 'x.css': '.a { max-height: 70vh; overflow: auto; } .b { max-height: 70vh; max-height: 70dvh; } /* 100vh in a comment */' });
     ok('P6 PLANTED a vh-only height: D4 can fail (and a comment is not an offender)', vh.length === 1, JSON.stringify(vh));
+    const vh2 = cssVhOnly({ 'x.html': '<input accept="image/*"><script>var s = "height:70vh";</script><style>/* height: 50vh */</style><div style="overflow-y:auto;max-height:calc(100vh - 240px);border:0"></div><div style="max-height:calc(100vh - 240px);max-height:calc(100dvh - 240px)"></div><div style="height:70vh"></div>' });
+    const idxOld = CSS_FILES['index.html'].replace(/;max-height:calc\(100dvh - (\d+)px\)/g, '');
+    ok('P6c PLANTED the real index.html without its 12 twins: D4 finds all 12', cssVhOnly({ 'index.html': idxOld }).length === 12, JSON.stringify(cssVhOnly({ 'index.html': idxOld })));
+    ok('P6b PLANTED vh-only heights in style attributes: D4 can fail (mid-attribute and at the closing quote, after an accept="image/*"; a twinned one, a script and a CSS comment are fine)', vh2.length === 2, JSON.stringify(vh2));
     const stray = strayWidthChecks({ 'x.js': "const isMobile = window.innerWidth <= 640;", 'y.js': "// const isMobile = window.innerWidth <= 640;\nvar a = rrIsPhone();", 'z.js': "var p = window.matchMedia('(max-width: 640px)').matches;" });
     ok('P7 PLANTED stray width checks: D3 can fail (a comment is not an offender)', stray.length === 2 && stray.indexOf('x.js') >= 0 && stray.indexOf('z.js') >= 0, JSON.stringify(stray));
     const pr = phoneRules(APPCSS.replace(PHONE_Q, '(max-width: 640px)'));
