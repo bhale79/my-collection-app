@@ -1994,7 +1994,10 @@ function rrFsPriceFill() {
       '</div>' +
     '</div>';
   document.body.appendChild(ov);
-  ov.addEventListener('click', function (ev) { if (ev.target === ov) ov.remove(); });
+  // v0.9.2042: a stray click outside used to close this and lose every price
+  // typed (`ev.target` — the dismiss_guard scan only knew `e.target`). Now the
+  // one rule: an outside click does nothing; Cancel, × and device Back close.
+  try { if (window.rrDismissGuard) window.rrDismissGuard(ov); } catch (eG) {}
   var first = ov.querySelector('input[data-fsfill]');
   if (first) setTimeout(function () { first.focus(); }, 40);
 }

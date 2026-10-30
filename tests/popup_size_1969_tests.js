@@ -137,7 +137,11 @@ const step2 = (pg, allYes) => pg.evaluate(async (args) => {
   const noHead = planted(CSS, '  .cd-col.cd-2up .cd-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; }', '', 'no one-line head');
   r = await open(browser, { w: 1536, h: 737, css: noHead });
   m = await step2(r.pg, true);
-  T('X-S2 PLANTED: the "View on …" button back on its own line → caught (it sits under the name, and the step scrolls)', !(m.link && m.link.t < m.name.b) && m.over > 0, { over: m.over, name: m.name, link: m.link });
+  // v0.9.2045 RE-AIM: "…and the step scrolls" dropped. v0.9.2043 gave the Add box
+  // more room, so the planted layout no longer scrolls (measured: over 0 at
+  // 1536x737 and at 1280x720) and the check could not fail. S2's own rule —
+  // the button on the name's line — is what this proves it can catch.
+  T('X-S2 PLANTED: the "View on …" button back on its own line → caught (it sits under the name, S2 fails)', !!m.link && !!m.name && !(m.link.t < m.name.b && m.link.l > m.name.r - 4), { over: m.over, name: m.name, link: m.link });
   await r.ctx.close();
 
   await browser.close();

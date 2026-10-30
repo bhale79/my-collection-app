@@ -10,10 +10,9 @@
 //  · the bench has + Add task / + Add part, three filter chips (All ·
 //    Waiting on parts · Ready to work, remembered per device) and a third
 //    tab, History;
-//  · ONE save path per thing: the Workbench cards drive the SAME writers
-//    the Maintenance card uses (_maintAddChore, _maintPartsPopup →
-//    _maintPopAddWanted / _maintBinUse), pointed at the picked unit through
-//    _target() — no second copy of the sheet-writing code;
+//  · ONE save path per thing: v0.9.2042 — + Add task / + Add part ask
+//    "which item?", open THAT copy's Maintenance card and press the card's
+//    own buttons (the same pop-ups, the same writers) — no second door;
 //  · "waiting" = a linked part still on order; anything else is ready;
 //  · History = everything not an open task, newest first;
 //  · the item picker lists OWNED copies by inventoryId, boxes excluded.
@@ -94,16 +93,50 @@ const popup = fnBody('window._maintPartsPopup = function (taskId, taskName)');
 const addWanted = fnBody('window._maintPopAddWanted = async function (taskId)');
 const binUse = fnBody('async function _maintBinUseRun(binId, taskId)');   // v0.9.2038: the work behind the guarded button
 const popSearch = fnBody('window._maintPopSearch = function ()');
-ok('_target() = the Workbench pick when set, else the Maintenance card\'s item', /function _target\(\) \{\s*if \(_wbTarget && _wbTarget\.item\) return _wbTarget;\s*return \{ item: _panelItem, invId: String\(window\._maintPanelInvId \|\| ''\) \};/.test(src));
+// v0.9.2042 ([stated] Brad: "the work bench add a task and add a part should look
+// just like the maintenance buttons versions … ask that first then switch to the
+// item page maintenance deal" → "yes"): ONE target — the card's item. The
+// Workbench's second door (_wbTarget, its step-2 card, "for which job?") is gone.
+ok('_target() = the Maintenance card\'s item, and nothing else', /function _target\(\) \{\s*return \{ item: _panelItem, invId: String\(window\._maintPanelInvId \|\| ''\) \};\s*\}/.test(src));
+ok('…the Workbench\'s private target is gone from the code', !/_wbTarget\s*(=|&&|\)|\.)/.test(src) && !/_wbPartFor/.test(src) && !/Add a part — for which job\?/.test(src));
 ok('_maintAddChore writes the task for _target(), not _panelItem', /var tg = _target\(\);/.test(addChore) && !/_panelItem/.test(addChore) && /_t\(tg\.invId \|\| ''\), _t\(String\(tg\.item\.itemNum \|\| ''\)\)/.test(addChore));
-ok('…and closes the Workbench card when it came from there (v1858: with "+ Add a part for it" the card goes but the target stays for the Need-a-part that follows)',
-   /if \(_wbTarget\) \{ if \(andPart\) \{[^}]*\.remove\(\); _wbBuild\(\); \} else _wbCloseCard\(\); \}/.test(addChore));
+ok('…and redraws the bench after the save (the bench may be the page underneath)', /_maintRenderTasks\(\)/.test(addChore) && /_wbBuild\(\)/.test(src.slice(src.indexOf('async function _maintAddChoreRun(andPart)'), src.indexOf('async function _maintAddChoreRun(andPart)') + 6000)));
 ok('_maintPartsPopup, _maintPopAddWanted, _maintBinUse and _maintPopSearch all go through _target()', [popup, addWanted, binUse, popSearch].every(b => /var tg = _target\(\);/.test(b) && !/_panelItem/.test(b)));
 ok('a part added with no task is filed for the UNIT (blank task id, "from the Workbench")', /taskId \? 'for Workbench task' : 'from the Workbench'/.test(addWanted) && /taskId: taskId \|\| ''/.test(addWanted) && /_maintPopSaveWanted\(fields, taskId/.test(addWanted) && /_partsAppendRow\(fields\)/.test(fnBody('async function _maintPopSaveWanted(fields, taskId, retry)'))   /* v0.9.1753: the row goes through the one builder/appender; v0.9.1756: via the popup's ONE save path */);
-ok('the chore picker is ONE helper, used by the card and by the Workbench card', (src.match(/_choreFormHtml\('_maintAddChore\(\)'\)/g) || []).length === 2 && /function _choreFormHtml\(addJs\)/.test(src));
-ok('opening the Maintenance card resets the Workbench target', /_panelItem = item;\s*\n\s*window\._maintPanelInvId = [^\n]*\n\s*_wbTarget = null;/.test(src));
-ok('the Workbench pick is keyed by inventoryId and resolved through findMaster', /window\._wbPicked = function \(invId\) \{[\s\S]*?_wbOwned\(\)\.find\(function \(x\) \{ return x\.invId === String\(invId\); \}\)[\s\S]*?findMaster\(o\.itemNum, o\.variation, _opd\)/.test(src));   // v0.9.1821: through the picked copy
-ok('a part for a unit with open tasks first asks which job (or none)', /Add a part — for which job\?/.test(src) && /_wbPartFor\(\\'\\'\)/.test(src));
+ok('the chore picker is ONE helper, built ONCE — in the card\'s own Add-a-task pop-up', (src.match(/_choreFormHtml\('_maintAddChore\(\)'\)/g) || []).length === 1 && /function _choreFormHtml\(addJs\)/.test(src));
+ok('the Workbench pick is keyed by inventoryId and opens THAT copy\'s card (_wbOpen by inventoryId)', /window\._wbPicked = function \(invId\) \{[\s\S]*?_wbOwned\(\)\.find\(function \(x\) \{ return x\.invId === String\(invId\); \}\)[\s\S]*?window\._wbOpen\(o\.invId, o\.itemNum, '', purpose\);/.test(src));
+
+section('v0.9.2042 — + Add task / + Add part open the card\'s OWN pop-ups (run)');
+function flow(code, pickedInv, purpose, panelInvOverride) {
+  const calls = [];
+  const env = { state: { personalData: { a: { owned: true, itemNum: '2338', variation: '', inventoryId: 'i2' }, b: { owned: true, itemNum: '84631', variation: '', inventoryId: 'i1' } }, maintLog: [] },
+    findMaster: (n) => MASTER[String(n)] || null, _isBoxItemNum: () => false, _partsChooser: null, _esc: s => String(s),
+    setTimeout: (f) => f(), document: { getElementById: (id) => (id === 'maint-overlay' ? {} : null) } };
+  env.window = { _maintShowGrp: (g) => calls.push('grp:' + g) };
+  env.window._maintOpenPanel = (idx, num, v, inv) => { calls.push('open:' + num + '@' + inv); env._panel.item = { itemNum: num }; env.window._maintPanelInvId = panelInvOverride || inv; };
+  env.window._maintAddTaskPopup = () => calls.push('addTask:' + env.window._maintPanelInvId);
+  env.window._maintPartsPopup = (t, name) => calls.push('needPart:' + JSON.stringify(t) + ':' + name);
+  env._panel = { item: null };
+  const body = 'var _wbPurpose = ' + JSON.stringify(purpose) + ', _wbPickQ = "";\n'
+    + grab('function _wbOwned()') + '\n' + code + '\nreturn window;';
+  const names = Object.keys(env);
+  const w = new Function(...names, body).apply({}, names.map(n => env[n]));
+  w._wbPicked(pickedInv);
+  return calls;
+}
+const FLOW = grab('function _wbThenAdd(purpose, invId)').replace(/_panelItem/g, '_panel.item') + '\n'
+  + 'window._wbPicked = ' + grab('window._wbPicked = function (invId)').replace('window._wbPicked = ', '').replace(/^function \(invId\)/, 'function (invId)') + ';\n'
+  + 'window._wbOpen = ' + grab('window._wbOpen = function (invId, itemNum, focusTaskId, thenAdd)').replace('window._wbOpen = ', '') + ';';
+const T1 = flow(FLOW, 'i1', 'task');
+ok('+ Add task → pick No. 84631 → ITS card opens on "Work on it", then the card\'s own Add-a-task pop-up', T1.join(' ') === 'open:84631@i1 grp:work addTask:i1', T1.join(' '));
+const T2 = flow(FLOW, 'i2', 'part');
+ok('+ Add part → pick No. 2338 → its card, then the card\'s own Need-a-part (no job, named like the card\'s button)', T2.join(' ') === 'open:2338@i2 grp:work needPart:"":No. 2338', T2.join(' '));
+const T3 = flow(FLOW, 'i1', 'task', 'i2');
+ok('PLANTED: the card that opened is another copy → no pop-up is pressed on it', T3.indexOf('addTask:i2') < 0 && T3.indexOf('addTask:i1') < 0, T3.join(' '));
+const noCheck = FLOW.replace("    if (String(window._maintPanelInvId || '') !== String(invId || '')) return;\n", '');
+ok('PLANTED: …and without the copy check it WOULD press it on the wrong item (the check is load-bearing)', noCheck !== FLOW && flow(noCheck, 'i1', 'task', 'i2').indexOf('addTask:i2') >= 0);
+const noThen = FLOW.replace('      if (thenAdd) _wbThenAdd(thenAdd, _openInv);', '');
+ok('PLANTED: the step-2 press left out → the card opens but no pop-up (the first check would fail)', noThen !== FLOW && flow(noThen, 'i1', 'task').join(' ') === 'open:84631@i1 grp:work');
 
 section('The page: buttons, filter chips, History tab');
 const build = fnBody('function _wbBuild()');

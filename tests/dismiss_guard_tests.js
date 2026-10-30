@@ -246,7 +246,9 @@ ok('every guarded overlay offers Cancel / Done / Close / ✕', trapped.length ==
 // v0.9.2027: 55 — Help → Terms and what they mean (rr-terms, tutorial.js rrTermsOpen).
 // v0.9.2038: 57 — the Maintenance panel (maint-overlay) and Need a part
 // (maint-parts-pop, maintenance.js): the device Back button closes them now (C21).
-ok('57 guarded call sites, and ONE helper behind them', sites === 57, String(sites));
+// v0.9.2042: 58 — "Asking prices" fill-in (rr-fsfill, app-pages.js rrFsPriceFill),
+// which closed on an outside click since v0.9.1541 and lost the typed prices.
+ok('58 guarded call sites, and ONE helper behind them', sites === 58, String(sites));
 
 // nobody double-wires BackStack any more — the guard does it, once
 let dbl = 0;
@@ -322,6 +324,66 @@ ok('no overlay with typed fields hand-rolls its own backdrop dismissal',
 // promise v1786 made, and this one is the promise it should have made.
 ok('NOTHING closes on a backdrop click any more — one rule, no exceptions',
    READONLY.length === 0, READONLY.length + ': ' + READONLY.join(', '));
+
+// ── v0.9.2042: THE ONE EXCEPTION, AND A WIDER NET ────────────────────────
+//
+// [stated] Brad, on the Lionel Service Manual viewer: "be able to click outside
+// of the box to close. sometimes its long and you have to go all the way down
+// to close it" → "yes" — for read-only viewers, and that viewer only so far.
+// It lives in ONE named helper (maintenance.js _smOutsideCloses) so it can be
+// counted. The Parts diagrams pop-up beside Need-a-part does not get it.
+//
+// The scan above reads ONE line and ONE spelling (`e.target`). Building this
+// exception found a form it had missed since v0.9.1541: the "Asking prices"
+// fill-in screen wrote `ev.target === ov` and lost every typed price on a
+// stray click. So this net takes every name an event goes by (e / ev / evt /
+// event) and looks four lines on for the removal.
+function backdropClosers(dir, files) {
+  const hits = [];
+  files.forEach(function (f) {
+    const lines = fs.readFileSync(path.join(dir, f), 'utf8').split('\n');
+    lines.forEach(function (ln, i) {
+      if (/^\s*(\/\/|\*|<!--)/.test(ln)) return;
+      const m = ln.match(/\b(?:e|ev|evt|event)\.target\s*===\s*([A-Za-z_$][\w$]*)/);
+      if (!m) return;
+      const win = lines.slice(i, i + 4).join('\n');
+      if (new RegExp('\\b' + m[1].replace(/\$/g, '\\$') + '\\.remove\\(\\)').test(win)) hits.push(f + ':' + (i + 1));
+    });
+  });
+  return hits;
+}
+{
+  const MAINT = fs.readFileSync(path.join(APPDIR, 'maintenance.js'), 'utf8');
+  const hd = MAINT.indexOf('  function _smOutsideCloses(ov) {');
+  const helperLine = hd < 0 ? -1 : MAINT.slice(0, hd).split('\n').length;
+  const closers = backdropClosers(APPDIR, SCANNED);
+  const inHelper = c => { const p = c.split(':'); return p[0] === 'maintenance.js' && +p[1] > helperLine && +p[1] < helperLine + 12; };
+  ok('the wider net finds exactly ONE backdrop close — inside the viewer\'s helper',
+     hd > 0 && closers.length === 1 && inHelper(closers[0]), closers.join(', '));
+  const calls = [];
+  SCANNED.forEach(function (f) {
+    fs.readFileSync(path.join(APPDIR, f), 'utf8').split('\n').forEach(function (ln, i) {
+      if (/_smOutsideCloses\(/.test(ln) && !/function _smOutsideCloses/.test(ln)) calls.push(f + ':' + (i + 1) + ' ' + ln.trim());
+    });
+  });
+  ok('…and ONE overlay uses it: the service-manual viewer, nothing else',
+     calls.length === 1 && /_smOutsideCloses\(document\.getElementById\('maint-sm-viewer'\)\)/.test(calls[0]), calls.join(' | '));
+  const viewer = MAINT.slice(MAINT.indexOf('window._smOpenViewer = function'), hd);
+  ok('…which has nothing to type in (read-only)', viewer.length > 200 && !/<input|<select|<textarea/.test(viewer));
+  ok('…and is still guarded, so device Back closes it too', /rrDismissGuard\(document\.getElementById\('maint-sm-viewer'\)\)/.test(viewer));
+  const dg = MAINT.slice(MAINT.indexOf("var DG_ID = 'maint-diagrams-pop';"), MAINT.indexOf('window._maintPopSearch = function'));
+  ok('…the Parts diagrams pop-up does NOT close on an outside click', dg.length > 500 && !/_smOutsideCloses/.test(dg));
+  // planted: the price form's spelling, and a removal on the next line
+  const os = require('os');
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dg-plant-'));
+  fs.writeFileSync(path.join(tmpDir, 'a.js'), "  ov.addEventListener('click', function (ev) { if (ev.target === ov) ov.remove(); });\n");
+  fs.writeFileSync(path.join(tmpDir, 'b.js'), "x.addEventListener('click', function (evt) {\n  if (evt.target === box)\n    box.remove();\n});\n");
+  const pa = backdropClosers(tmpDir, ['a.js']), pb = backdropClosers(tmpDir, ['b.js']);
+  fs.rmSync(tmpDir, { recursive: true, force: true });
+  ok('PLANTED: the "Asking prices" spelling (ev.target) — the one-line scan misses it, the wide net catches it',
+     pa.length === 1 && !DISMISSALS.some(d => d.re.test("  ov.addEventListener('click', function (ev) { if (ev.target === ov) ov.remove(); });")));
+  ok('PLANTED: a removal split onto a later line is caught', pb.length === 1);
+}
 
 // ── v0.9.1791: THE SHARED HELPER, which is where fourteen of them HID ────
 //

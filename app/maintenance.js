@@ -1012,41 +1012,126 @@
     if (e === 'mod_s') return 'af';
     return null;
   }
-  function _tzDiagram(item, eraKey) {
+  // v0.9.2042 ([stated] Brad, 2026-10-29, on No. 224 — a 2-6-2 steam engine
+  // whose Trainz button opened the 200-series Alco diesel: "we need to work on
+  // items that have the same item number"). Maker + era is not enough inside one
+  // era: postwar 224 is both a 1945 Prairie and a 1960 Alco, and 66 numbers in
+  // Trainz's list point at more than one diagram. So the KIND has to agree too:
+  // the item's kind is its type bucket (getTypeBucket, type-groups.js — the ONE
+  // classifier), the diagram's kinds are read off its title (_tzTitleKinds). A
+  // title whose kind can't be told (a "Launcher", an "Excavator") is never
+  // ruled out. EVERY diagram of the right kind is offered, not only the first:
+  // 221 has a 1946 and a 1947 version, 726 an Early and a Late.
+  var _TZ_BUCKET_KIND = {
+    'Steam Locomotive': 'steam', 'Diesel Locomotive': 'diesel', 'Electric Locomotive': 'electric',
+    'Motorized Unit': 'motorized', 'Trolley': 'motorized', 'Tender': 'tender',
+    'Boxcar': 'car', 'Caboose': 'car', 'Flatcar': 'car', 'Gondola': 'car', 'Hopper': 'car', 'Intermodal': 'car',
+    'Operating Freight': 'car', 'Passenger Car': 'car', 'Stock Car': 'car', 'Tank Car': 'car', 'Vat Car': 'car',
+    'Transformer/Power': 'transformer', 'Track': 'track', 'Accessory': 'accessory'
+  };
+  function _tzItemKind(item) {
+    var b = '';
+    try { b = (typeof getTypeBucket === 'function') ? String(getTypeBucket(item) || '') : ''; } catch (eB) { b = ''; }
+    return _TZ_BUCKET_KIND[b] || null;     // a set, paper, a tool — no kind to hold the diagram to
+  }
+  // every kind a title names — "264 Lumber Platform & 6264 Lumber Car" is both
+  // an accessory and a car. An empty list = can't tell → never ruled out.
+  function _tzTitleKinds(e) {
+    var t = (String(e.t || '') + ' ' + String(e.h || '').replace(/-/g, ' ')).toLowerCase();
+    var k = [];
+    if (/transformer/.test(t)) k.push('transformer');
+    if (/\btender\b/.test(t) && !/\blocomotive|\bloco\b/.test(t)) k.push('tender');
+    if (/turnout|remote control track|track set|super o component/.test(t)) k.push('track');
+    if (/section gang|inspection car|ballast tamper|tie jector|snowplow|maintenance car|motorized|trolley|handcar|\brdc\b|budd|fire fighting car|burro crane|track cleaning car/.test(t)) k.push('motorized');
+    if (/\bsteam\b|\b\d \d \d\b|\d-\d-\d|turbine|hudson|berkshire|prairie|scout locomotive/.test(t)) k.push('steam');
+    if (/\belectric\b|gg[ -]?1|ep[ -]?5|boxcab|little joe|rectifier/.test(t)) k.push('electric');
+    if (/diesel|\balco\b|\bf[ -]?3|\bgp[ -]?\d|\bnw[ -]?2\b|switcher|trainmaster|\bsd[ -]?\d|\bsw[ -]?\d|\bu\d\d[bc]?\b|\brs[ -]?\d\b|\bes44|\bac\d{4}/.test(t)) k.push('diesel');
+    if (/\bcars?\b|caboose|boxcar|hopper|gondola|flatcar|passenger|coach|observation/.test(t)) k.push('car');
+    if (/signal|station|tower|gate|beacon|loader|unloader|bridge|derrick|ramp|sawmill|flasher|culvert|icing|dispatch|transfer table|news stand|gate man|circuit breaker|block control|code transmitter|controller|air whistle|platform|mail bag|shed|shop|house|stand|diner|loading dock|windmill|lamp|mill|crane|flagman|elevator/.test(t)) k.push('accessory');
+    return k;
+  }
+  // kinds that share a diagram: a tender's parts are on its engine's sheet; the
+  // powered units (diesel, electric — Trainz files the 2329 Rectifier on the
+  // GP-7 sheet — and motorized units) overlap; a motorized unit is often a
+  // "car" in a title (Track Cleaning Car); a circuit breaker or controller is
+  // filed under power and accessories both; an operating car and its platform
+  // share a sheet (3656 Stock Car & Corral, 264, the 2306 Icing Station + car).
+  var _TZ_KIN = { 'steam|tender': 1, 'diesel|electric': 1, 'diesel|motorized': 1, 'electric|motorized': 1, 'car|motorized': 1, 'accessory|transformer': 1, 'accessory|car': 1 };
+  function _tzKindsAgree(a, b) {
+    if (!a || !b || a === b) return true;
+    return !!_TZ_KIN[[a, b].sort().join('|')];
+  }
+  function _tzFits(itemKind, e) {
+    var ks = _tzTitleKinds(e);
+    if (!itemKind || !ks.length) return true;
+    return ks.some(function (k) { return _tzKindsAgree(itemKind, k); });
+  }
+  // a number that a title shows as something else: a size ("44 Ton", "175
+  // Watt"), a year ("1950 Model", "- 1946 Version", "(1947-1949)"), a gauge (O27)
+  function _tzJunkKey(k, title) {
+    var t = String(title || '');
+    if (/^O27$/i.test(k)) return true;
+    if (new RegExp('\\b' + k + '[ -]?(ton|watt)\\b', 'i').test(t)) return true;
+    if (/^(19\d\d){2}$/.test(k)) return true;
+    if (/^19\d\d$/.test(k) && new RegExp(k + '\\s*(model|version|\\((early|late)\\))|\\(' + k + '|' + k + '\\s*-\\s*\\d{4}|\\d{4}\\s*-\\s*' + k, 'i').test(t)) return true;
+    return false;
+  }
+  function _tzDiagrams(item, eraKey) {
     var list = window.TRAINZ_DIAGRAMS;
-    if (!list || !list.length || !item) return null;
+    if (!list || !list.length || !item) return [];
     if (eraKey === undefined) {
       try { eraKey = (typeof _itemEraKey === 'function') ? _itemEraKey(item) : (item._era || item.era || null); } catch (eE) { eraKey = null; }
     }
     var fam = _tzItemFamily(eraKey);
-    if (!fam) return null;
+    if (!fam) return [];
     if (!_tzLookup) {
       _tzLookup = { af: {}, prewar: {}, modern: {}, postwar: {} };
       list.forEach(function (e) {
         var f = _tzFamily(e);
         e.n.split('|').forEach(function (k) {
-          if (!k) return;
-          if (new RegExp('\\b' + k + '[ -]ton\\b', 'i').test(String(e.t || ''))) return;   // "44 Ton" is a size
-          if (_tzLookup[f][k] == null) _tzLookup[f][k] = e;
+          if (!k || _tzJunkKey(k, e.t)) return;
+          var b = _tzLookup[f][k] || (_tzLookup[f][k] = []);
+          if (b.indexOf(e) < 0) b.push(e);
         });
       });
     }
     var map = _tzLookup[fam];
     var raw = String(item.itemNum || '').trim().toUpperCase().replace(/^X/, '');
     var n = raw.replace(/[^A-Z0-9]/g, '');
-    if (!n) return null;
-    var tries = [n];
+    if (!n) return [];
+    var tries = [n], dashedJoin = false;
     if (fam === 'modern' || fam === 'af') {
       if (/^6\d{4,}$/.test(n)) tries.push(n.slice(1));          // 618860 -> 18860
       else if (/^\d{4,}$/.test(n)) tries.push('6' + n);         // 18860 -> 618860
     } else if (/^[0-9A-Z]+-\d+$/.test(raw)) {
       tries.push(raw.replace(/-\d+$/, '').replace(/[^A-Z0-9]/g, ''));   // 3562-25 -> 3562
+      // v0.9.2042: the dash run together ("64-15" → 6415, "6827-100" →
+      // 6827100) is tried first, but must be the SAME kind exactly — Trainz
+      // spells 6827-100 that way, while 64-15 (a lamp) is not the 6415 tank car.
+      dashedJoin = true;
     }
     var base = n.replace(/[A-Z]+$/, '');
     if (base && base !== n) tries.push(base);                 // 2343C -> 2343 (after exact)
-    for (var i = 0; i < tries.length; i++) if (map[tries[i]]) return map[tries[i]];
-    return null;
+    var kind = _tzItemKind(item);
+    // a part of another item — a lamp, a parts packet, a contactor (2026-58,
+    // 3424-94, 145C) — matched through its BASE number gets the base item's
+    // sheet whatever it is: that sheet is where its parts are. Its OWN number
+    // (an exact match) must still be the same kind: 64-15, a lamp, is not the
+    // 6415 tank car.
+    var partOf = (kind === 'accessory' || kind === 'track' || kind === 'transformer' || !kind);
+    for (var i = 0; i < tries.length; i++) {
+      var viaBase = (tries[i] !== n) && !((fam === 'modern' || fam === 'af') && i === 1);
+      var strict = (i === 0 && dashedJoin);
+      var hits = (map[tries[i]] || []).filter(function (e) {
+        if (strict) { var ks = _tzTitleKinds(e); return !kind || !ks.length || ks.indexOf(kind) >= 0; }
+        return (viaBase && partOf) || _tzFits(kind, e);
+      });
+      if (hits.length) return hits;
+    }
+    return [];
   }
+  // the first of them — for the "Covers" suggestion, which wants one family
+  function _tzDiagram(item, eraKey) { return _tzDiagrams(item, eraKey)[0] || null; }
 
   // ── v0.9.1690: Maerklin's own spare-parts index (marklin-parts-config.js).
   // Maerklin keys everything by article number and never re-uses one, so this
@@ -1294,11 +1379,17 @@
   // one sheet in the viewer: its caption, the picture, a tap opens the full
   // scan in Google Drive (zoom there). A picture that will not load says so
   // and keeps the Drive link — never a blank gap.
-  function _smPageHtml(u, caption) {
+  // v0.9.2042 ([stated] Brad, the LOC 2328 viewer: "can we keep the top header
+  // … from scrolling so you always see the top?" → "yes"): in the full-screen
+  // viewer (pinned = true) a sheet's own line — its name and "Open full scan"
+  // — stays under the header while that sheet is on screen, and the next
+  // sheet's line takes its place. The Parts diagrams pop-up is unchanged.
+  var _SM_PIN_CAP = 'position:sticky;top:0;z-index:1;background:var(--bg);padding:0.3rem 0;';
+  function _smPageHtml(u, caption, pinned) {
     var t = _smThumb(u);
     var open = 'window.open(\'' + rrJsArg(u) + '\',\'_blank\')';
     return '<div style="margin:0 0 1.1rem">'
-      + '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;margin-bottom:0.35rem">'
+      + '<div class="sm-page-cap" style="' + (pinned ? _SM_PIN_CAP : '') + 'display:flex;justify-content:space-between;align-items:center;gap:0.5rem;margin-bottom:0.35rem">'
       +   '<div style="font-size:0.85rem;font-weight:700;color:var(--text)">' + _esc(caption) + '</div>'
       +   '<button onclick="' + open + '" ' + _btnQuiet('sm') + '>Open full scan →</button>'
       + '</div>'
@@ -1308,11 +1399,11 @@
          : '')
       + '</div>';
   }
-  function _smViewerBody(sec) {
+  function _smViewerBody(sec, pinned) {
     var o = _smOrder(sec.hits), h = '';
     function one(x) {
-      h += _smPageHtml(x.r.u, _smLabel(x).replace(sec.sec + ' · ', ''));
-      if (x.r.b) h += _smPageHtml(x.r.b, _smLabel(x).replace(sec.sec + ' · ', '') + ' · back of sheet');
+      h += _smPageHtml(x.r.u, _smLabel(x).replace(sec.sec + ' · ', ''), pinned);
+      if (x.r.b) h += _smPageHtml(x.r.b, _smLabel(x).replace(sec.sec + ' · ', '') + ' · back of sheet', pinned);
     }
     o.newest.forEach(one);
     if (o.older.length) {
@@ -1334,16 +1425,48 @@
     if (where === 'pop' && _dgShowSection(num, secName, kind, hits)) return;
     var old = document.getElementById('maint-sm-viewer'); if (old) old.remove();
     var close = "document.getElementById('maint-sm-viewer').remove()";
+    // v0.9.2042 ([stated] Brad: "keep the top header … from scrolling so you
+    // always see the top" → "yes"): the card no longer scrolls as one piece.
+    // The header (number, section, help line, ✕) is pinned at the top and only
+    // #maint-sm-body scrolls under it — the Parts diagrams pop-up's layout.
+    // On a phone the card's height leaves room for the backdrop's 2rem above
+    // and below and its own padding (a plain .rr-card's 92dvh ran 17px past
+    // an 800-tall phone); a computer's size comes from app.css's one table.
     var html = '<div id="maint-sm-viewer" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100040;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem">'
-      + _cardOpen(900)
-      + _cardHead('No. ' + _esc(num) + ' · Lionel Service Manual' + (kind === 's' ? ' · closest similar item' : ''), _esc(secName) + ' — ' + _smSheetCount(hits), close)
-      + '<div style="font-size:0.75rem;color:var(--text-dim);margin:-0.4rem 0 0.9rem">Scroll for every sheet. Tap a page to open the full scan in Google Drive and zoom in.</div>'
-      + _smViewerBody({ sec: secName, hits: hits })
-      + _cardFoot('<button onclick="' + close + '" ' + _btnSecondary() + '>Close</button>')
+      + _cardOpen(900).replace('class="rr-card maint-card"', 'class="rr-card rr-card-flex maint-card" id="maint-sm-card"').replace('margin-bottom:2rem', 'margin-bottom:0;max-height:calc(100dvh - 7.5rem)')
+      + '<div id="maint-sm-head" style="flex:none">'
+      +   _cardHead('No. ' + _esc(num) + ' · Lionel Service Manual' + (kind === 's' ? ' · closest similar item' : ''), _esc(secName) + ' — ' + _smSheetCount(hits), close)
+      +   '<div style="font-size:0.75rem;color:var(--text-dim);margin:-0.4rem 0 0.9rem">Scroll for every sheet. Tap a page to open the full scan in Google Drive and zoom in.</div>'
+      + '</div>'
+      + '<div id="maint-sm-body" style="flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-right:0.25rem">'
+      +   _smViewerBody({ sec: secName, hits: hits }, true)
+      +   _cardFoot('<button onclick="' + close + '" ' + _btnSecondary() + '>Close</button>')
+      + '</div>'
       + '</div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
     try { if (window.rrDismissGuard) window.rrDismissGuard(document.getElementById('maint-sm-viewer')); } catch (eG) {}
+    _smOutsideCloses(document.getElementById('maint-sm-viewer'));
   };
+  // v0.9.2042 — THE ONE EXCEPTION to "never close if you pick outside"
+  // (v0.9.1790). [stated] Brad, on this viewer: "be able to click outside of
+  // the box to close. sometimes its long and you have to go all the way down
+  // to close it" → "yes", agreed for read-only viewers only. This one has
+  // nothing to type and nothing to lose. The click must START on the dark
+  // backdrop as well as end there: a press inside the sheets that is dragged
+  // out (selecting, scrolling with a mouse) leaves it open. The Parts diagrams
+  // pop-up beside Need-a-part does NOT get this. dismiss_guard_tests.js pins
+  // this as the only caller.
+  function _smOutsideCloses(ov) {
+    if (!ov || ov._rrOutsideCloses) return;
+    ov._rrOutsideCloses = true;
+    var downOnBackdrop = false;
+    ov.addEventListener('pointerdown', function (e) { downOnBackdrop = (e.target === ov); });
+    ov.addEventListener('click', function (e) {
+      var both = downOnBackdrop && e.target === ov;
+      downOnBackdrop = false;
+      if (both) ov.remove();
+    });
+  }
   // the scanned sheets: memory → this device's copy → the master tab
   function _smCacheGet() {
     try {
@@ -2039,10 +2162,10 @@
       }
     }
     // ── Trainz exploded diagram, when their library has this item ──
-    var tzd = _tzDiagram(item, eraKey);
-    if (tzd) {
+    // v0.9.2042: every diagram of the right kind, one button each (221: 1946 + 1947)
+    _tzDiagrams(item, eraKey).forEach(function (tzd) {
       h += '<div style="margin-top:0.5rem"><button onclick="window.open(\'https://www.trainz.com/pages/parts-diagram/' + _esc(tzd.h) + '\',\'_blank\')" ' + linkBtn + '>Trainz diagram: ' + _esc(tzd.t) + ' →</button></div>';
-    }
+    });
     // ── always: Google (with MODEL words) + supplier dropdown ──
     var mw = _modelWords(item);
     // v0.9.1838 (N5): the number the way the catalogs spell it (rrSearchNumber:
@@ -2075,7 +2198,6 @@
     if (!item) { if (typeof showToast === 'function') showToast('Could not find this item.', 3000, true); return; }
     _panelItem = item;
     window._maintPanelInvId = String(invId == null ? '' : invId);   // phase 2 hook
-    _wbTarget = null;   // v0.9.1751: the card's item is the target from here on
 
     // (the route, the LCCA / Atlas hits and the label are worked out inside
     // _maintDiagramLinksHtml since v0.9.1857 — the panel has no copy of them)
@@ -2555,12 +2677,14 @@
     if (box) box.style.display = (v === '__custom') ? '' : 'none';
     if (box && v === '__custom') { var i = box.querySelector('input'); if (i) i.focus(); }
   };
-  // v0.9.1751: WHO the task/part is for. Normally the Maintenance card's
-  // item (_panelItem + its inventoryId). The Workbench's own "+ Add task" /
-  // "+ Add part" cards set _wbTarget after the item picker, and every writer
-  // below asks _target() instead of reaching for the panel — ONE save path
-  // for a task and one for a part, whichever door you came in.
-  var _wbTarget = null;
+  // v0.9.1751: WHO the task/part is for — every writer below asks _target().
+  // v0.9.2042 ([stated] Brad: "the work bench add a task and add a part should
+  // look just like the maintenance buttons versions … ask that first then
+  // switch to the item page maintenance deal" → "yes"): there is ONE target
+  // now, the Maintenance card's item. The Workbench's + Add task / + Add part
+  // ask "which item?", open THAT item's Maintenance card and press the card's
+  // own button (_wbPicked) — the Workbench's private second door (_wbTarget,
+  // its own step-2 card and "for which job?") is gone.
   // v0.9.2038 (Workbench check 2026-10-28, A1): ONE guard against a double tap.
   // "+ Add task", "+ Add to Parts Wanted" / "+ Want it", the bin's "Use one" /
   // "Use it for…" and − / + had none: two quick taps wrote two task rows, two
@@ -2575,7 +2699,6 @@
     try { return await fn(); } finally { delete _busy[key]; }
   }
   function _target() {
-    if (_wbTarget && _wbTarget.item) return _wbTarget;
     return { item: _panelItem, invId: String(window._maintPanelInvId || '') };
   }
   // the service lines — the built-ins, then the custom ones (each with a ×),
@@ -2641,8 +2764,8 @@
       + '</div>'
       + '<div style="font-size:0.7rem;color:var(--text-dim);margin-top:0.45rem">“+ Add a part for it” saves the task, then opens Need a part for that job.</div>';
   }
-  // v0.9.1858: the Maintenance card's "+ Add task" opens this pop-up; the
-  // Workbench's step 2 shows the same body inside its own card.
+  // v0.9.1858: the Maintenance card's "+ Add task" opens this pop-up — and
+  // since v0.9.2042 the Workbench's + Add task opens the SAME one (_wbPicked).
   window._maintAddTaskPopup = function () {
     var tg = _target();
     if (!tg.item) return;
@@ -2705,10 +2828,6 @@
       await _loadLog(); _wbBadge(); _maintRenderTasks();
       if (customIn) customIn.value = '';
       var pop = (document.getElementById ? document.getElementById('maint-addtask-pop') : null); if (pop) pop.remove();
-      // came in through the Workbench card → close it, redraw the bench. With
-      // "+ Add a part for it" the card goes but the TARGET stays, so the Need-a-
-      // part pop-up that follows is for this item (the _wbPartFor way).
-      if (_wbTarget) { if (andPart) { var _wc = document.getElementById('wb-card'); if (_wc) _wc.remove(); _wbBuild(); } else _wbCloseCard(); }
       // v0.9.1858: the ticked parts, one column-M write each (the ONE writer).
       // v0.9.2038 (A11): each one is counted — a part that did not go on the
       // task is SAID, not folded into "(2 parts on it)".
@@ -3324,11 +3443,10 @@
     var ok = await _maintPartSetTask(partId, taskId);
     if (!ok) return;
     var pop = document.getElementById('maint-parts-pop'); if (pop) pop.remove();
-    if (_wbTarget) _wbCloseCard();
     if (typeof showToast === 'function') showToast('✓ On the task — the card shows it');
   };
   function _maintPickerHtml(tg, taskId) {
-    if (!taskId) return '';   // from the bench's + Add part with no job picked: nothing to attach to
+    if (!taskId) return '';   // + Add a part (no job): nothing to attach to
     var pk = _maintPickerParts(tg, taskId);
     if (!pk.onHand.length && !pk.wanted.length) return '';
     var line = function (e, verb) {
@@ -3354,17 +3472,16 @@
     var old = document.getElementById('maint-parts-pop'); if (old) old.remove();
     var IN = 'flex:1;min-width:150px;padding:0.45rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem';
     var linkBtn = _btn('blue');
-    // v0.9.1751: from the Workbench's + Add part card there may be no task
-    // yet — the part is wanted for the UNIT (the bench folds it onto the
-    // unit's one open task, or shows it as its own "Part wanted" row).
-    var closeJs = _wbTarget ? '_wbCloseCard()' : "document.getElementById('maint-parts-pop').remove()";
+    // v0.9.1751: with no task the part is wanted for the UNIT (the bench folds
+    // it onto the unit's one open task, or shows it as its own row).
+    var closeJs = "document.getElementById('maint-parts-pop').remove()";
     // v0.9.1855 (Brad: "it brought up the need a part page but it was behind
     // the service page"): the task card sits at 100020; this popup sat at 9650,
     // UNDER it. One layer above the card, and the chooser it can open sits
     // above this (app-pages.js). tests/maint_layers_tests.js holds the order.
     var html = '<div id="maint-parts-pop" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100030;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem">'
       + _cardOpen(520)
-      + _cardHead(_esc(taskName), _wbTarget ? 'Add a part' : 'Need a part', closeJs)
+      + _cardHead(_esc(taskName), 'Need a part', closeJs)
       // v0.9.1859 ([stated] Brad: "on this page, would like to be able to click
       // the parts diagram for it so we need that button here as well"): the
       // diagrams sit FIRST — under a 214-line catalog they were never seen.
@@ -3395,9 +3512,8 @@
       + '</div>'
       + '</div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
-    // v0.9.2038 (C21): Back closes Need a part — through the same close as its ✕
-    // (from the Workbench card that is _wbCloseCard, which also clears the target).
-    try { if (window.rrDismissGuard) window.rrDismissGuard(document.getElementById('maint-parts-pop'), _wbTarget ? function () { _wbCloseCard(); var pp = document.getElementById('maint-parts-pop'); if (pp) pp.remove(); } : null); } catch (eG2) {}
+    // v0.9.2038 (C21): Back closes Need a part — the same as its ✕.
+    try { if (window.rrDismissGuard) window.rrDismissGuard(document.getElementById('maint-parts-pop')); } catch (eG2) {}
     window._maintBinCheck(taskId);   // v0.9.1752: the bin's loose spares show at once; typing narrows them
     var pi = document.getElementById('maint-pop-part'); if (pi) pi.focus();
   };
@@ -3586,7 +3702,6 @@
       if (typeof buildPartsPage === 'function') await buildPartsPage();
       var pop = document.getElementById('maint-parts-pop'); if (pop) pop.remove();
       _maintRenderTasks(); _wbBadge();
-      if (_wbTarget) _wbCloseCard();
       if (typeof showToast === 'function') showToast(taskId ? '✓ Added to Parts Wanted — linked to this task' : '✓ Added to Parts Wanted for No. ' + String(tg.item && tg.item.itemNum || ''));
       return true;
     } finally { delete _busy.saveWanted; }
@@ -3909,7 +4024,6 @@
       if (typeof buildPartsPage === 'function') await buildPartsPage();
       var pop = document.getElementById('maint-parts-pop'); if (pop) pop.remove();
       _maintRenderTasks(); _wbBadge();
-      if (_wbTarget) _wbCloseCard();
       if (typeof showToast === 'function') {
         if (!counted) showToast(BIN_COUNT_MISSED, 6000, true);
         else showToast(taskId ? '✓ Pulled one from the bin — it’s on the task, ready to install' : '✓ Pulled one from the bin — it’s spoken for this item, ready to install');
@@ -4503,10 +4617,12 @@
 
   // ── v0.9.1751: + Add task / + Add part from the bench itself ──
   // Step 1 is always "which item?" — your owned copies, keyed by inventoryId
-  // (the unit), never a row or index. Step 2 is the SAME picker the card
-  // uses (_choreFormHtml → _maintAddChore) or the SAME "Need a part" pop-up
-  // (_maintPartsPopup → _maintPopAddWanted / _maintBinUse), pointed at the
-  // picked unit through _wbTarget.
+  // (the unit), never a row or index.
+  // v0.9.2042 ([stated] Brad: "should look just like the maintenance buttons
+  // versions … ask that first then switch to the item page maintenance deal"
+  // → "yes"): step 2 opens THAT copy's Maintenance card on "Work on it" (as a
+  // bench row does) and presses the card's OWN + Add task / + Add a part —
+  // the same pop-ups, not look-alikes. Closing them leaves you on the card.
   var _wbPurpose = 'task';
   var _wbPickQ = '';
   function _wbOwned() {
@@ -4525,7 +4641,7 @@
   window._wbCloseCard = function () {
     var c = document.getElementById('wb-card'); if (c) c.remove();
     var p = document.getElementById('maint-parts-pop'); if (p) p.remove();
-    _wbTarget = null; _wbPickQ = '';
+    _wbPickQ = '';
     _wbBuild();
   };
   function _wbOverlay(inner, maxW) {
@@ -4548,8 +4664,8 @@
       + _cardOpen(maxW || 520) + inner + '</div></div>');
     rrDismissGuard(document.getElementById('wb-card'));   // v0.9.1789 (wires BackStack too)
   }
-  window._wbAddTask = function () { _wbPurpose = 'task'; _wbTarget = null; _wbPick(); };
-  window._wbAddPart = function () { _wbPurpose = 'part'; _wbTarget = null; _wbPick(); };
+  window._wbAddTask = function () { _wbPurpose = 'task'; _wbPick(); };
+  window._wbAddPart = function () { _wbPurpose = 'part'; _wbPick(); };
   window._wbPickSearch = function (v) { _wbPickQ = String(v || ''); _wbPick(true); };
   function _wbPick(keepFocus) {
     var all = _wbOwned();
@@ -4570,38 +4686,21 @@
   window._wbPicked = function (invId) {
     var o = _wbOwned().find(function (x) { return x.invId === String(invId); });
     if (!o) return;
-    var _opd = (state.personalData || {})[o.invId] || Object.values(state.personalData || {}).find(function (x) { return x && String(x.inventoryId || '') === o.invId; }) || null;
-    var item = (typeof findMaster === 'function') ? findMaster(o.itemNum, o.variation, _opd) : null;   // v0.9.1821: the picked copy
-    if (!item) {
-      var k = Object.keys(state.personalData || {}).find(function (kk) { var p = state.personalData[kk]; return p && String(p.inventoryId || '') === o.invId; });
-      item = k ? state.personalData[k] : { itemNum: o.itemNum, variation: o.variation };
-    }
-    _wbTarget = { item: item, invId: o.invId };
-    var plain = 'No. ' + o.itemNum + (o.road ? ' · ' + o.road : '');   // the pop-up escapes its own header
-    var ctx = _esc(plain);
-    if (_wbPurpose === 'task') {
-      _wbOverlay(_cardHead(ctx + ' · Step 2 of 2', 'Add a task', '_wbCloseCard()')
-        + _choreFormHtml('_maintAddChore()')
-        + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.6rem">It lands on the bench and on the item’s Maintenance card.</div>');
-      return;
-    }
-    // a part: tie it to one of the unit's open tasks, or to the unit itself
-    var open = (state.maintLog || []).filter(function (l) { return l.type === 'chore' && l.status === 'open' && l.invId === o.invId; });
-    if (!open.length) { var c0 = document.getElementById('wb-card'); if (c0) c0.remove(); window._maintPartsPopup('', plain); return; }
-    _wbOverlay(_cardHead(ctx + ' · Step 2 of 3', 'Add a part — for which job?', '_wbCloseCard()')
-      + open.map(function (l) {
-          return '<div onclick="_wbPartFor(\'' + rrJsArg(l.id) + '\')" style="padding:0.5rem 0.3rem;border-bottom:1px solid var(--border);cursor:pointer" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'"><b>' + _esc(l.text) + '</b> <span style="color:var(--text-dim);font-size:0.76rem">since ' + _esc(l.dateAdded) + '</span></div>';
-        }).join('')
-      + '<div onclick="_wbPartFor(\'\')" style="padding:0.5rem 0.3rem;cursor:pointer;color:var(--text-dim)" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">Not for a particular job — just a part this item needs</div>');
-  };
-  window._wbPartFor = function (taskId) {
-    if (!_wbTarget) return;
+    var purpose = _wbPurpose;
     var c = document.getElementById('wb-card'); if (c) c.remove();
-    var l = taskId ? (state.maintLog || []).find(function (x) { return x.id === taskId; }) : null;
-    window._maintPartsPopup(taskId || '', 'No. ' + String(_wbTarget.item.itemNum || '') + (l ? ' · ' + l.text : ''));
+    _wbPickQ = '';
+    window._wbOpen(o.invId, o.itemNum, '', purpose);
   };
+  // the card's OWN buttons, pressed for you once the card is the picked copy's
+  // (never another item's — the card is checked by inventoryId first)
+  function _wbThenAdd(purpose, invId) {
+    if (!document.getElementById('maint-overlay') || !_panelItem) return;
+    if (String(window._maintPanelInvId || '') !== String(invId || '')) return;
+    if (purpose === 'task') window._maintAddTaskPopup();
+    else if (purpose === 'part') window._maintPartsPopup('', 'No. ' + String(_panelItem.itemNum || ''));
+  }
   // click a Workbench row -> that item's Maintenance card, straight to Work on it
-  window._wbOpen = function (invId, itemNum, focusTaskId) {
+  window._wbOpen = function (invId, itemNum, focusTaskId, thenAdd) {
     var pd = null;
     if (invId && state.personalData) {
       var k = Object.keys(state.personalData).find(function (kk) { var p = state.personalData[kk]; return p && String(p.inventoryId || '') === String(invId); });
@@ -4630,8 +4729,12 @@
     }
     var num = String((pd && pd.itemNum) || itemNum || '');
     var variation = pd ? String(pd.variation || '') : '';
-    window._maintOpenPanel(-1, num, variation, invId || (pd && pd.inventoryId) || '');
-    setTimeout(function () { if (typeof window._maintShowGrp === 'function') window._maintShowGrp('work'); }, 30);
+    var _openInv = invId || (pd && pd.inventoryId) || '';
+    window._maintOpenPanel(-1, num, variation, _openInv);
+    setTimeout(function () {
+      if (typeof window._maintShowGrp === 'function') window._maintShowGrp('work');
+      if (thenAdd) _wbThenAdd(thenAdd, _openInv);   // v0.9.2042: + Add task / + Add part from the bench
+    }, 30);
     if (focusTaskId) _wbFocusTask(focusTaskId);   // v0.9.1753 (Brad: "take me to the task")
   };
   // v0.9.1753: take the user to one task — used by the Parts Needed page's

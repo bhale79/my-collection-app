@@ -563,7 +563,9 @@ const ONCE = grab(MAINT, 'async function _once(key, fn)');
   const TZCFG = read('trainz-diagrams-config.js');
   const tzRun = (src) => {
     const c = sandbox();
-    load(c, TZCFG + '\nvar _tzLookup = null;\n' + grab(src, 'function _tzFamily(e)') + '\n' + grab(src, 'function _tzItemFamily(eraKey)') + '\n' + grab(src, 'function _tzDiagram(item, eraKey)'));
+    // v0.9.2042: the matcher grew a kind check and returns every right diagram (_tzDiagrams)
+    load(c, TZCFG + '\nvar _tzLookup = null;\n' + grab(src, 'function _tzFamily(e)') + '\n' + grab(src, 'function _tzItemFamily(eraKey)') + '\n'
+      + ['var _TZ_BUCKET_KIND = {', 'function _tzItemKind(item)', 'function _tzTitleKinds(e)', 'var _TZ_KIN = {', 'function _tzKindsAgree(a, b)', 'function _tzFits(itemKind, e)', 'function _tzJunkKey(k, title)', 'function _tzDiagrams(item, eraKey)', 'function _tzDiagram(item, eraKey)'].map(sig => grab(src, sig) + (sig.indexOf('var ') === 0 ? ';' : '')).join('\n'));
     return (num, era) => { const e = c._tzDiagram({ itemNum: num }, era); return e ? e.t : null; };
   };
   section('B14 · a Trainz diagram is matched by maker + era + number');
@@ -576,7 +578,7 @@ const ONCE = grab(MAINT, 'async function _once(key, fn)');
     ok('postwar 44 → the Launcher, not the "44 Ton" Switcher', /Launcher/.test(tz('44', 'pw') || ''), tz('44', 'pw'));
     ok('postwar 6822 → never the MPC 6-6822', !/MPC/.test(tz('6822', 'pw') || ''), tz('6822', 'pw'));
     ok('…while the postwar GP-7 2338, a modern 6-18860 and Lionel\'s American Flyer 6-48114 still find theirs', /2338/.test(tz('2338', 'pw') || '') && !!tz('6-48114', 'mod_s') && /American Flyer/.test(tz('6-48114', 'mod_s')));
-    const old = plant(plant(MAINT, "    if (!fam) return null;\n    if (!_tzLookup) {", "    if (!fam) fam = 'postwar';\n    if (!_tzLookup) {"),
+    const old = plant(plant(MAINT, "    if (!fam) return [];\n    if (!_tzLookup) {", "    if (!fam) fam = 'postwar';\n    if (!_tzLookup) {"),
       'var map = _tzLookup[fam];', 'var map = Object.assign({}, _tzLookup.af, _tzLookup.modern, _tzLookup.prewar, _tzLookup.postwar);');
     const p = tzRun(old);
     ok('PLANTED: number-only (the old matcher) → Gilbert 350 gets a Lionel diagram', p('350', 'af_gilbert') !== null, p('350', 'af_gilbert'));
@@ -641,7 +643,7 @@ const ONCE = grab(MAINT, 'async function _once(key, fn)');
       c._partsChooser = (t, sub, opts) => { chooser = opts; };
       c.findMaster = () => null; c._itemEraKey = (p) => p._e; c.ERAS = { pw: { label: 'Lionel Postwar' }, marx: { label: 'Marx' } };
       c._esc = s => String(s == null ? '' : s);
-      load(c, grab(src, 'window._wbOpen = function (invId, itemNum, focusTaskId)'));
+      load(c, grab(src, 'window._wbOpen = function (invId, itemNum, focusTaskId, thenAdd)'));
       c._wbOpen('', '54', '');
       return { opened, chooser };
     };

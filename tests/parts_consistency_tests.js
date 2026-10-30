@@ -123,7 +123,7 @@ ok('the old boilerplate notes ("for Workbench task") are hidden — the live lab
 ok('"For NNNN" is a link that opens the Maintenance card on the part\'s task when the copy is owned', /_partsOpenCard\(\\'' \+ esc\(p\.forInv\)/.test(render) && /esc\(p\.taskId\)/.test(render));
 ok('the road name resolves through the OWNED row (era-aware), only by bare number when there is none', /findMaster\(_pdFor\.itemNum, _pdFor\.variation, _pdFor\)/.test(render));
 ok('_partsOpenCard → _wbOpen(inv, num, taskId)', /window\._wbOpen\(inv, num, taskId \|\| ''\)/.test(grabFrom(pages, 'function _partsOpenCard(')));
-const wbOpen = grabFrom(maint, 'window._wbOpen = function (invId, itemNum, focusTaskId)');
+const wbOpen = grabFrom(maint, 'window._wbOpen = function (invId, itemNum, focusTaskId, thenAdd)');
 ok('_wbOpen takes the task to land on and scrolls/flashes it', wbOpen.length > 0 && /_wbFocusTask\(focusTaskId\)/.test(wbOpen) && /scrollIntoView/.test(grabFrom(maint, 'function _wbFocusTask(')));
 
 section('C · Installed on the Parts Needed page: take me to the task, or ask');

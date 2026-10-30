@@ -110,6 +110,10 @@ const step2 = (pg, opts) => pg.evaluate(async (opts) => {
 }, opts);
 
 const fits = m => m.over <= 0 && m.side <= 0 && m.next && m.next.b <= m.vh;
+// v0.9.2045: a revealed box sits ON its question's line, to the right of the
+// label (Error Item → the error box, Instr. Sheet → the sheet-number box).
+const inRow = (box, q) => !!box && !!q && box.t < q.b && box.b > q.t && box.l >= q.r - 2;
+const boxesInRow = m => inRow(m.errBox, m.qs[4]) && inRow(m.sheetBox, m.qs[2]);
 const twoCols = m => {
   if (!m.split || !m.left || !m.right || !m.cond || !m.box || !m.isc || m.qs.some(x => !x)) return false;
   const leftOk = [m.cond, m.box, m.isc].every(s => s.l >= m.left.l - 1 && s.r <= m.left.r + 1) && m.cond.b <= m.box.t + 2 && m.box.b <= m.isc.t + 2;
@@ -129,6 +133,7 @@ const twoCols = m => {
     T('L1 ' + w + 'x' + h + ': every answer given (All Original No, the rest Yes) — nothing to scroll, Next on screen',
       fits(m) && m.data.orig === 'No' && m.data.box === 'Yes' && m.data.is === 'Yes' && m.data.mb === 'Yes' && m.data.err === 'Yes', { over: m.over, side: m.side, next: m.next, data: m.data });
     if (w === 1536) {
+      T('L1b the revealed boxes sit on their questions\' lines (error box beside Error Item, sheet-number box beside Instr. Sheet)', boxesInRow(m), { err: m.errBox, sheet: m.sheetBox, qs: m.qs });
       T('L2 sliders stacked on the left (Condition, Box Condition, Instruction Sheet Condition), questions stacked on the right', twoCols(m), m);
       T('L3 Error Item Yes: Yes is lit (not No) and the error box shows', m.errYesLit && !m.errNoLit && !!m.errBox, { yes: m.errYesLit, no: m.errNoLit, box: m.errBox });
       T('page errors', r.errs.length === 0, r.errs);
@@ -163,7 +168,12 @@ const twoCols = m => {
   await x.ctx.close();
   x = await open(browser, { w: 1536, h: 737, wiz: planted(WIZ, "    if (lbl && lbl.nextSibling) q.insertBefore(rev, lbl.nextSibling); else q.appendChild(rev);\n  });", '  });', 'boxes in row') });
   m = await step2(x.pg, { answer: true });
-  T('X-L1 PLANTED: the revealed boxes back under their questions → every answer scrolls again (caught)', !fits(m), { over: m.over });
+  // v0.9.2045 RE-AIM. This asked "does step 2 scroll again?". v0.9.2043 gave the
+  // Add box more room (94%), so the planted layout now fits even at 1280x720 and
+  // the check could no longer fail — a planted offender that is not caught proves
+  // nothing. It now asks the layout question itself (L1b): the boxes are back
+  // UNDER their questions, not beside them.
+  T('X-L1 PLANTED: the revealed boxes back under their questions → caught (L1b fails)', !boxesInRow(m), { err: m.errBox, sheet: m.sheetBox, qs: m.qs, over: m.over });
   await x.ctx.close();
   x = await open(browser, { w: 1536, h: 737, hnd: planted(HND, "  if (_bxBtns.length) {", '  if (false) {', 'box buttons by neighbour') });
   m = await step2(x.pg, { answer: true, toggles: true });

@@ -61,8 +61,12 @@ section('A · the Tasks box: the tasks and the button, nothing else');
 const tasksSec = maint.slice(maint.indexOf("sec('Tasks for this item',"), maint.indexOf("sec('Parts for this item',"));
 ok('the box is "+ Add task" (opening the pop-up) + the task list', /_maintAddTaskPopup\(\)/.test(tasksSec) && /id="maint-tasks"/.test(tasksSec));
 ok('…no dropdown, no − button, no picker inline', !/_choreFormHtml/.test(tasksSec) && !/maint-chore-pick/.test(tasksSec) && !/_maintDelChore/.test(tasksSec));
-ok('the pop-up and the Workbench\'s step 2 show the SAME body (_choreFormHtml, twice, nowhere else)',
-   (maint.match(/_choreFormHtml\('_maintAddChore\(\)'\)/g) || []).length === 2
+// v0.9.2042 ([stated] Brad: the Workbench's add buttons "should look just like
+// the maintenance buttons versions" → "yes"): the Workbench no longer has a
+// step-2 card of its own — it opens the item's card and THIS pop-up — so the
+// body is built in ONE place now (was twice).
+ok('the pop-up is the ONLY place the task body is built (_choreFormHtml once; the Workbench opens this pop-up)',
+   (maint.match(/_choreFormHtml\('_maintAddChore\(\)'\)/g) || []).length === 1
    && /window\._maintAddTaskPopup = function \(\) \{[\s\S]{0,900}?_choreFormHtml\('_maintAddChore\(\)'\)/.test(maint));
 ok('the old dropdown handler is gone', !/_maintChorePickChange/.test(maint));
 

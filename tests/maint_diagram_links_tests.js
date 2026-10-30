@@ -58,6 +58,8 @@ function build(src, item, opts) {
     _makerName: () => opts.maker || 'Lionel',
     _marklinParts: () => opts.marklin || null,
     _tzDiagram: () => (opts.tz === undefined ? { h: 'lionel-2028-2328-2337-2338-2339-2346-2348-2329-parts-list-and-exploded-view-parts-diagram', t: 'Lionel 2028 2328 2337 2338 2339 GP-7, 2346 2348 GP-9 2329 Re' } : opts.tz),
+    // v0.9.2042: the panel draws EVERY right diagram (_tzDiagrams, a list)
+    _tzDiagrams: () => (opts.tz === undefined ? [{ h: 'lionel-2028-2328-2337-2338-2339-2346-2348-2329-parts-list-and-exploded-view-parts-diagram', t: 'Lionel 2028 2328 2337 2338 2339 GP-7, 2346 2348 GP-9 2329 Re' }] : (opts.tz ? [].concat(opts.tz) : [])),
     _modelWords: () => 'GP-7 diesel',
     rrSearchNumber: () => item.itemNum,
     _lionelBoxNum: n => n,
