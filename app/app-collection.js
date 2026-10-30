@@ -215,12 +215,12 @@ function showNonItemDetailPage(type, key) {
     +   '<div style="display:flex;align-items:flex-start;gap:1rem;flex-wrap:wrap">'
     +     '<div style="flex:1;min-width:0">'
     +       '<div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.25rem">'
-    +         '<span style="font-family:var(--font-head);font-size:1.6rem;color:var(--t-accent);letter-spacing:0.03em">' + pageTitle + '</span>'
+    +         '<span style="font-family:var(--font-head);font-size:1.6rem;color:var(--t-accent);letter-spacing:0.03em">' + rrEsc(pageTitle) + '</span>'
     +         (isForSale ? '<span style="font-size:1rem;color:var(--gold);font-family:var(--font-head);letter-spacing:0.02em">— on the sale list for ' + fsPrice + '</span>' : '')
-    +         (typeBadge ? '<span class="tag">' + typeBadge + '</span>' : '')
-    +         (year ? '<span style="font-size:0.82rem;color:var(--text-dim)">' + year + '</span>' : '')
+    +         (typeBadge ? '<span class="tag">' + rrEsc(typeBadge) + '</span>' : '')
+    +         (year ? '<span style="font-size:0.82rem;color:var(--text-dim)">' + rrEsc(year) + '</span>' : '')
     +       '</div>'
-    +       (subtitle ? '<div style="font-size:1.05rem;color:var(--text);margin-bottom:0.2rem">' + subtitle + '</div>' : '')
+    +       (subtitle ? '<div style="font-size:1.05rem;color:var(--text);margin-bottom:0.2rem">' + rrEsc(subtitle) + '</div>' : '')
     +     '</div>'
     +     '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.4rem;flex-shrink:0">'
     +       '<span class="owned-badge ' + (isForSale ? 'forsale' : 'yes') + '" style="font-size:0.85rem">' + (isForSale ? '🏷️ For Sale' : '✓ In Collection') + '</span>'
@@ -262,8 +262,8 @@ function showNonItemDetailPage(type, key) {
     html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0.6rem 1.5rem">'
          + fields.map(function(d) {
              return '<div style="display:flex;justify-content:space-between;padding:0.35rem 0;border-bottom:1px solid var(--border)">'
-                  +   '<span style="font-size:0.78rem;color:var(--text-dim);font-weight:600">' + d.label + '</span>'
-                  +   '<span style="font-size:0.85rem;color:var(--text);text-align:right">' + d.val + '</span>'
+                  +   '<span style="font-size:0.78rem;color:var(--text-dim);font-weight:600">' + rrEsc(d.label) + '</span>'
+                  +   '<span style="font-size:0.85rem;color:var(--text);text-align:right">' + rrEsc(d.val) + '</span>'
                   + '</div>';
            }).join('')
          + '</div>';
@@ -273,7 +273,7 @@ function showNonItemDetailPage(type, key) {
   if (notes) {
     html += '<div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border)">'
          +   '<div style="font-size:0.78rem;color:var(--text-dim);font-weight:600;margin-bottom:0.3rem">Notes</div>'
-         +   '<div style="font-size:0.85rem;color:var(--text);line-height:1.6;white-space:pre-wrap;word-break:break-word">' + notes + '</div>'
+         +   '<div style="font-size:0.85rem;color:var(--text);line-height:1.6;white-space:pre-wrap;word-break:break-word">' + rrEsc(notes) + '</div>'
          + '</div>';
   }
   html += '</div>';
@@ -1178,8 +1178,8 @@ function showItemDetailPage(idx, copyInvId, opts) {
   // (white/cream in the light theme), so the conductor watermark can't bleed
   // through the text. The box only renders when there is text to protect.
   var _descInner = `
-        ${it.description ? `<div style="font-size:0.85rem;color:var(--text-mid);line-height:1.5"><strong style="color:var(--text)">Description:</strong> ${it.description}</div>` : ''}
-        ${it.varDesc ? `<div style="font-size:0.85rem;color:var(--text-mid);line-height:1.5;margin-top:0.3rem;white-space:pre-line"><strong style="color:var(--text)">Variation Description:</strong> ${it.varDesc}</div>` : ''}
+        ${it.description ? `<div style="font-size:0.85rem;color:var(--text-mid);line-height:1.5"><strong style="color:var(--text)">Description:</strong> ${rrEsc(it.description)}</div>` : ''}
+        ${it.varDesc ? `<div style="font-size:0.85rem;color:var(--text-mid);line-height:1.5;margin-top:0.3rem;white-space:pre-line"><strong style="color:var(--text)">Variation Description:</strong> ${rrEsc(it.varDesc)}</div>` : ''}
         ${(function(){ var _u = (typeof _itemExternalLinkURL==='function')?_itemExternalLinkURL(it):(it.refLink||''); return _u ? `<a href="${_u}" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent2);text-decoration:none;display:inline-flex;align-items:center;gap:0.3rem;margin-top:0.4rem">View on ${(typeof _externalSiteLabel === "function" ? _externalSiteLabel(_u) : "External")} <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>` : ''; })()}`;
   var _descBlock = _descInner.trim()
     ? `<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:0.75rem 0.9rem;margin-top:0.5rem">${_descInner}</div>`
@@ -1217,15 +1217,15 @@ function showItemDetailPage(idx, copyInvId, opts) {
     <div style="display:flex;align-items:flex-start;gap:1rem;flex-wrap:wrap">
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.25rem">
-          <span style="font-family:var(--font-head);font-size:1.6rem;color:var(--t-accent);letter-spacing:0.03em">${_wantMode ? ('Wanted: ' + (_wantHeading || (it.itemNum + (_wantPartner ? ' with a ' + _wantPartner : '')))) : (!String(it.itemNum||'').trim() ? String((pd && (pd.yourDescription || pd.description)) || it.description || 'No item number').split(' ').slice(0, 8).join(' ') : (String(it.itemNum||'').indexOf(' ')===-1 ? 'No. ' + it.itemNum + (it.poweredDummy === 'P' ? '-P' : it.poweredDummy === 'D' ? '-D' : '') : it.itemNum))}</span>${typeof window._noNumTag==='function' ? window._noNumTag(it.itemNum) : ''}
+          <span style="font-family:var(--font-head);font-size:1.6rem;color:var(--t-accent);letter-spacing:0.03em">${rrEsc(_wantMode ? ('Wanted: ' + (_wantHeading || (it.itemNum + (_wantPartner ? ' with a ' + _wantPartner : '')))) : (!String(it.itemNum||'').trim() ? String((pd && (pd.yourDescription || pd.description)) || it.description || 'No item number').split(' ').slice(0, 8).join(' ') : (String(it.itemNum||'').indexOf(' ')===-1 ? 'No. ' + it.itemNum + (it.poweredDummy === 'P' ? '-P' : it.poweredDummy === 'D' ? '-D' : '') : it.itemNum)))}</span>${typeof window._noNumTag==='function' ? window._noNumTag(it.itemNum) : ''}
           ${isForSale ? `<span style="font-size:1rem;color:var(--gold);font-family:var(--font-head);letter-spacing:0.02em">— on the sale list for <span id="fs-price-span">${_fsPrice}</span></span> <a href="javascript:_fsEditPrice()" style="font-size:0.78rem;color:var(--accent2);text-decoration:none;font-weight:700">edit</a>` : ''}
-          ${it.variation ? `<span${typeof rrTermAttrs === 'function' ? rrTermAttrs('variation') : ''} style="font-size:0.9rem;color:var(--text-dim);background:var(--surface2);border-radius:6px;padding:0.15rem 0.6rem">Var. ${it.variation}</span>` : ''}
-          ${it.itemType ? `<span class="tag">${rrTypeWord(it.itemType)}</span>` : ''}
-          ${it.yearProd ? `<span style="font-size:0.82rem;color:var(--text-dim)">${it.yearProd}</span>` : ''}
+          ${it.variation ? `<span${typeof rrTermAttrs === 'function' ? rrTermAttrs('variation') : ''} style="font-size:0.9rem;color:var(--text-dim);background:var(--surface2);border-radius:6px;padding:0.15rem 0.6rem">Var. ${rrEsc(it.variation)}</span>` : ''}
+          ${it.itemType ? `<span class="tag">${rrEsc(rrTypeWord(it.itemType))}</span>` : ''}
+          ${it.yearProd ? `<span style="font-size:0.82rem;color:var(--text-dim)">${rrEsc(it.yearProd)}</span>` : ''}
           ${(typeof rrCatalogStatusChip === 'function') ? rrCatalogStatusChip(it) : ''}
           ${(typeof alsoSoldAsChipHTML === 'function') ? alsoSoldAsChipHTML(it, { size: 'lg' }) : ''}
         </div>
-        <div style="font-size:1.05rem;color:var(--text);margin-bottom:0.2rem">${it.roadName || ''}</div>
+        <div style="font-size:1.05rem;color:var(--text);margin-bottom:0.2rem">${rrEsc(it.roadName || '')}</div>
         ${_isPhoneDetail ? '' : _descBlock + _maintSlot}
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.4rem;flex-shrink:0">
@@ -1327,7 +1327,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
   let details = [
     { id: 'condition', label: 'Condition', val: cond ? `<span class="condition-pip ${condClass}"></span> ${cond}/10` : null },
     { id: 'allOriginal', label: 'All Original', val: pd && pd.allOriginal && pd.allOriginal !== 'Unknown' ? pd.allOriginal : null },
-    { id: 'notOriginal', label: 'Not Original', val: pd && pd.notOriginalDesc ? pd.notOriginalDesc : null },
+    { id: 'notOriginal', label: 'Not Original', val: pd && pd.notOriginalDesc ? rrEsc(pd.notOriginalDesc) : null },
     { id: 'hasBox', label: 'Has Box', val: pd ? (pd.hasBox === 'Yes' ? '\u2705 Yes' + (pd.boxCond ? ` (${pd.boxCond}/10)` : '') : pd.hasBox === 'No' ? 'No' : null) : null },
     { id: 'pricePaidItem', label: 'Price Paid (Item)', val: pd && pd.priceItem ? _currencySymbol() + parseFloat(pd.priceItem).toLocaleString() : null },
     { id: 'pricePaidBox', label: 'Price Paid (Box)', val: pd && pd.priceBox ? _currencySymbol() + parseFloat(pd.priceBox).toLocaleString() : null },
@@ -1341,16 +1341,16 @@ function showItemDetailPage(idx, copyInvId, opts) {
         if (!pd || !pd.purchasedFrom) return null;
         var _ct = (state.contactsData || []).find(function (x) { return x.id === pd.purchasedFrom; });
         if (!_ct && typeof window._ctLoadContacts === 'function' && !(state.contactsData || []).length) { try { window._ctLoadContacts(); } catch (e) {} }
-        return _ct ? (_ct.name + (_ct.business ? ' — ' + _ct.business : '')) : 'a saved contact';
+        return _ct ? rrEsc(_ct.name + (_ct.business ? ' — ' + _ct.business : '')) : 'a saved contact';
       })() },
     // v0.9.1506 (Session 81, Task #25): the import's testimony fields. Blank
     // for anything not imported, so non-importers see zero change (the
     // .filter(d => d.val) below drops empty rows).
-    { id: 'yourGrade', label: 'Your Grade', val: pd && pd.yourGrade ? pd.yourGrade : null },
+    { id: 'yourGrade', label: 'Your Grade', val: pd && pd.yourGrade ? rrEsc(pd.yourGrade) : null },
     { id: 'yourDescription', label: 'Your Description', val: pd && pd.yourDescription ? String(pd.yourDescription).replace(/</g,'&lt;') : null },
     { id: 'imported', label: 'Imported', val: pd && pd.importBatch ? '\u2705 Yes' : null },
-    { id: 'yearMade', label: 'Year Made', val: pd && pd.yearMade ? pd.yearMade : null },
-    { id: 'location', label: 'Location', val: pd && pd.location ? pd.location : null },
+    { id: 'yearMade', label: 'Year Made', val: pd && pd.yearMade ? rrEsc(pd.yearMade) : null },
+    { id: 'location', label: 'Location', val: pd && pd.location ? rrEsc(pd.location) : null },
     // v0.9.1514 (Phase 2): every enabled user field, in one loop, from the
     // single RR_USER_FIELDS definition. Blank values are dropped by the
     // .filter(d => d.val) below, so a user who enables nothing sees nothing.
@@ -1362,7 +1362,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
                val: f.show ? (String(f.show(pd) || '').replace(/</g, '&lt;') || null)
                            : ((pd && pd[f.key]) ? String(pd[f.key]).replace(/</g, '&lt;') : null) };
     })),
-    { id: 'inventoryId', label: 'Inventory ID', val: pd && pd.inventoryId ? pd.inventoryId : null },
+    { id: 'inventoryId', label: 'Inventory ID', val: pd && pd.inventoryId ? rrEsc(pd.inventoryId) : null },
     { id: 'instructionSheet', label: 'Instruction Sheet', val: pd ? (((groupMembers && groupMembers.some(function(m){return m._isIS;})) || (state.isData && Object.values(state.isData).some(function(_is){ return _is && _is.linkedItem === it.itemNum; }))) ? '\u2705 Yes' : 'No') : null },
     { id: 'errorItem', label: 'Error Item', val: pd ? ((pd.isError === 'Yes') ? '\u26a0\ufe0f Yes' + (pd.errorDesc ? ' \u2014 ' + String(pd.errorDesc).replace(/</g,'&lt;') : '') : 'No') : null },
   ];
@@ -1467,7 +1467,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
   if ((pd && pd.notes) || _wmNotes) {
     html += `<div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border)">
       <div style="font-size:0.78rem;color:var(--text-dim);font-weight:600;margin-bottom:0.3rem">Notes</div>
-      <div style="font-size:0.85rem;color:var(--text);line-height:1.6;white-space:pre-wrap;word-break:break-word">${pd && pd.notes ? pd.notes : _wmNotes}</div>
+      <div style="font-size:0.85rem;color:var(--text);line-height:1.6;white-space:pre-wrap;word-break:break-word">${rrEsc(pd && pd.notes ? pd.notes : _wmNotes)}</div>
     </div>`;
   }
 
@@ -1681,7 +1681,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
           if (!files.length) return;
           var fid = (String(lead.photoItem || '').match(/folders\/([a-zA-Z0-9_-]+)/) || [])[1] || '';
           if (!fid) { if (typeof showToast === 'function') showToast('This group has no photo folder yet \u2014 add a regular photo first.', 4000, true); return; }
-          var okCount = 0;
+          var okCount = 0, _gMiss = 0;
           for (var i = 0; i < files.length; i++) {
             try {
               var ext = (String(files[i].name || '').split('.').pop() || 'jpg').toLowerCase().slice(0, 5);
@@ -1690,9 +1690,10 @@ function showItemDetailPage(idx, copyInvId, opts) {
                 : (String(lead.itemNum || 'group') + ' SET ' + Date.now())) + '.' + ext;
               await driveUploadPhoto(files[i], name, fid);
               okCount++;
-            } catch (eU) { console.warn('[group photo]', eU); }
+            } catch (eU) { _gMiss++; console.warn('[group photo]', eU); }
           }
-          if (typeof showToast === 'function') showToast(okCount ? ('\u2713 ' + okCount + (okCount === 1 ? ' group photo added' : ' group photos added')) : 'Upload failed \u2014 try again', 3500, !okCount);
+          // v0.9.2048 (C17): some-but-not-all says how many did NOT go up (it used to say only the good news)
+          if (typeof showToast === 'function') showToast(okCount ? ('\u2713 ' + okCount + (okCount === 1 ? ' group photo added' : ' group photos added') + (_gMiss ? ' \u2014 ' + _gMiss + ' did not upload, add ' + (_gMiss === 1 ? 'it' : 'them') + ' again' : '')) : 'Upload failed \u2014 try again', _gMiss ? 6000 : 3500, !!_gMiss);
           if (okCount) rrDetailRepaint(300);   // v0.9.1765: by identity, not by remembered position
         };
         inp.click();
@@ -4800,8 +4801,8 @@ function openISDetail(rowKey) {
   closeBtn.onclick=()=>overlay.remove();
   box.appendChild(closeBtn);
   box.innerHTML += `
-    <div style="font-family:var(--font-head);font-size:1rem;color:var(--t-sea);margin-bottom:0.15rem">📋 Sheet # ${it.sheetNum}</div>
-    <div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:1.25rem">Instruction Sheet${it.linkedItem?' for Item No. '+it.linkedItem:''}</div>
+    <div style="font-family:var(--font-head);font-size:1rem;color:var(--t-sea);margin-bottom:0.15rem">📋 Sheet # ${rrEsc(it.sheetNum)}</div>
+    <div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:1.25rem">Instruction Sheet${it.linkedItem?' for Item No. '+rrEsc(it.linkedItem):''}</div>
     <div style="display:flex;flex-direction:column;gap:0.5rem;font-size:0.85rem">
       ${[
         ['Sheet #',       it.sheetNum||'—'],
@@ -4811,9 +4812,9 @@ function openISDetail(rowKey) {
         ['Notes',         it.notes||'—'],
       ].map(([l,v])=>`<div style="display:flex;gap:0.75rem;padding:0.45rem 0;border-bottom:1px solid var(--border)">
         <span style="color:var(--text-dim);min-width:110px;flex-shrink:0">${l}</span>
-        <span>${v}</span>
+        <span>${rrEsc(v)}</span>
       </div>`).join('')}
-      ${it.photoLink?`<div style="margin-top:0.75rem"><a href="${it.photoLink}" target="_blank" rel="noopener" style="font-size:0.82rem;color:var(--t-sea);text-decoration:none">📷 View Photos ↗</a></div>`:''}
+      ${it.photoLink?`<div style="margin-top:0.75rem"><a href="${rrEsc(it.photoLink)}" target="_blank" rel="noopener" style="font-size:0.82rem;color:var(--t-sea);text-decoration:none">📷 View Photos ↗</a></div>`:''}
     </div>`;
   overlay.appendChild(box);
   document.body.appendChild(overlay);
@@ -5492,6 +5493,7 @@ function _checkWantPartners(itemNum, variation, priority, maxPrice, notes, mfr) 
     overlay.remove();
     if (!selected.length) return;
     let added = 0;
+    const _wpFailed = []; let _wpErr = null;   // v0.9.2048 (C17)
     for (const c of selected) {
       try {
         // v0.9.1840: the partner's own catalog row (found with the want's maker as
@@ -5516,8 +5518,11 @@ function _checkWantPartners(itemNum, variation, priority, maxPrice, notes, mfr) 
           };
         }
         added++;
-      } catch(e) { console.warn('[WantPartner] Failed to add', c.itemNum, e); }
+      } catch(e) { _wpFailed.push(c.itemNum); _wpErr = e; console.warn('[WantPartner] Failed to add', c.itemNum, e); }
     }
+    // v0.9.2048 (C17): a partner that did not save is SAID (it was console-only; if every one
+    // failed, nothing showed at all). Told first, so the "Added" message below carries it too.
+    if (_wpFailed.length) rrSaveMissed(_wpErr, 'the Want List entry for ' + _wpFailed.join(', '));
     if (added) {
       _cachePersonalData();
       showToast('✓ Added ' + added + ' partner' + (added > 1 ? 's' : '') + ' to Want List');

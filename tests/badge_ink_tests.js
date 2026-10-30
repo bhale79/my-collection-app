@@ -121,8 +121,10 @@ const mfr = grab(browse, '_mfrBadge');
 ok('maker badge letters come from rrInkOn(fill)', /color:' \+ rrInkOn\(col\)/.test(mfr) && !/;color:#fff;/.test(mfr));
 {
   // run the REAL _mfrBadge: Lionel (var(--accent)) and MTH (#e74c3c)
-  const run = (m) => new Function('window', '_manufacturerOfItem', 'rrInkOn', grab(browse, '_mfrBadge') + '\nreturn _mfrBadge({});')(
-    { WHAT_I_COLLECT: { MANUFACTURERS: { lionel: { label: 'Lionel', color: 'var(--accent)' }, mth: { label: 'MTH', color: '#e74c3c' } } } }, () => m, W.rrInkOn);
+  // v0.9.2048: the badge escapes its label (rrEsc, app.js) — the REAL one is handed in
+  const rrEsc = new Function(grab(APP('app.js'), 'rrEsc') + '\nreturn rrEsc;')();
+  const run = (m) => new Function('window', '_manufacturerOfItem', 'rrInkOn', 'rrEsc', grab(browse, '_mfrBadge') + '\nreturn _mfrBadge({});')(
+    { WHAT_I_COLLECT: { MANUFACTURERS: { lionel: { label: 'Lionel', color: 'var(--accent)' }, mth: { label: 'MTH', color: '#e74c3c' } } } }, () => m, W.rrInkOn, rrEsc);
   ok('Lionel badge → var(--ink-on-accent)', /color:var\(--ink-on-accent\)/.test(run('lionel')), run('lionel'));
   ok('MTH badge → the better of the two inks', /color:var\(--ink-(dark|light)\)/.test(run('mth')));
 }

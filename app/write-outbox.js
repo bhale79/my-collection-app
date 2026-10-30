@@ -572,6 +572,66 @@
   window.rrSaveError = rrSaveError;
   window.rrIsSignInError = rrIsSignInError;
 
+  // ── v0.9.2048 (known-problems sweep, C17) — what a save could not do ──
+  // A save that goes through but loses a piece on the way (a photo that did
+  // not upload, the instruction sheet saved alongside an item) used to write
+  // that to the console only — the person was told "saved" and never knew.
+  //   rrPhotoMissed(err, where, n) — from every photo upload's catch. n = how
+  //     many photos that failure cost (1 for one upload; the photos not yet
+  //     sent when a whole folder could not be made). Misses in one save are
+  //     added up and told once, in RR_PHOTO_MISSED's words (config.js).
+  //   rrSaveMissed(err, what) — a side piece of a save that did not save,
+  //     told in rrSaveError's words.
+  // Either shows at once. And because showToast REPLACES whatever toast is up,
+  // the save's own "✓ saved" a moment later would wipe it — so the next
+  // ordinary toast within 15 seconds carries the words on its end
+  // (rrSaveCarryTake, asked by showToast): "✓ 3376 saved! But 1 photo did not
+  // upload. …". Each note is carried once.
+  var _rrPhotoMissN = 0, _rrPhotoMissT = null, _rrCarry = [];
+  function _rrAfter() { return (typeof RR_PHOTO_MISSED !== 'undefined' && RR_PHOTO_MISSED && RR_PHOTO_MISSED.after) || ' But '; }
+  function _rrPhotoMissWords(c) {
+    var W = (typeof RR_PHOTO_MISSED !== 'undefined' && RR_PHOTO_MISSED) || { one: '1 photo did not upload.', many: '{n} photos did not upload.' };
+    return c === 1 ? W.one : W.many.replace('{n}', String(c));
+  }
+  function _rrCarryPush(text) { _rrCarry.push({ text: String(text), at: Date.now() }); }
+  function _rrPhotoMissFlush() {
+    if (_rrPhotoMissT) { clearTimeout(_rrPhotoMissT); _rrPhotoMissT = null; }
+    if (!_rrPhotoMissN) return '';
+    var w = _rrPhotoMissWords(_rrPhotoMissN); _rrPhotoMissN = 0;
+    return w;
+  }
+  function rrPhotoMissed(err, where, n) {
+    try { console.warn('[photo upload] ' + (where || 'photo') + ' did not upload:', err); } catch (e) {}
+    n = (n == null) ? 1 : Math.max(0, parseInt(n, 10) || 0);
+    if (!n) return;
+    _rrPhotoMissN += n;
+    if (_rrPhotoMissT) clearTimeout(_rrPhotoMissT);
+    _rrPhotoMissT = setTimeout(function () {
+      _rrPhotoMissT = null;
+      var w = _rrPhotoMissFlush(); if (!w) return;
+      _rrCarryPush(w);
+      if (typeof showToast === 'function') showToast(w, 7000, true);
+    }, 900);
+  }
+  function rrSaveMissed(err, what) {
+    var w = rrSaveError(err, what);
+    _rrCarryPush(w);
+    if (typeof showToast === 'function') showToast(w, 7000, true);
+  }
+  // Asked by showToast for an ordinary (not error) message: the words to add
+  // to its end, or ''.
+  function rrSaveCarryTake() {
+    var now = Date.now(), parts = [];
+    var pending = _rrPhotoMissFlush(); if (pending) parts.push(pending);
+    _rrCarry.forEach(function (c) { if (now - c.at < 15000) parts.push(c.text); });
+    _rrCarry = [];
+    if (!parts.length) return '';
+    return parts.map(function (t) { return _rrAfter() + t.charAt(0).toLowerCase() + t.slice(1); }).join('');
+  }
+  window.rrPhotoMissed = rrPhotoMissed;
+  window.rrSaveMissed = rrSaveMissed;
+  window.rrSaveCarryTake = rrSaveCarryTake;
+
   // ── v0.9.1409 — a write that SUCCEEDED makes a queued write to the same
   // cells stale. sheetsUpdate calls this the moment a PUT lands, so a later
   // correction that goes straight through still clears an earlier queued

@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2062';
+const APP_VERSION = 'v0.9.2064';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -3816,6 +3816,21 @@ if (typeof window !== 'undefined') { window.RR_INSTALL_HELP = RR_INSTALL_HELP; w
 // shipping carton; it does). Words only: the type a row STORES stays
 // 'Master Carton' (reports, filters and older rows read it); rrTypeWord shows
 // a stored type in words.
+// v0.9.2048 (known-problems sweep, C17): the words for a photo that did not
+// upload while the rest of a save went through. Before, ten save paths caught
+// that failure and only wrote it to the console — the item saved, the person
+// was told "saved", and the photo was simply not there. One set of words; the
+// one helper rrPhotoMissed (write-outbox.js) shows them, once per save.
+// They show the moment the miss is known, and again on the end of the save's
+// own "saved" message ("✓ 3376 saved! But 1 photo did not upload. …"), which
+// would otherwise replace them. They never say "saved" themselves: the rest
+// of the save may still fail, and then its own error is what shows.
+const RR_PHOTO_MISSED = {
+  one:  '1 photo did not upload. Open the item and add that photo again.',
+  many: '{n} photos did not upload. Open the item and add those photos again.',
+  after: ' But ',
+};
+if (typeof window !== 'undefined') window.RR_PHOTO_MISSED = RR_PHOTO_MISSED;
 const RR_MASTER_CARTON = 'Master Carton / Outside Shipper';
 function rrTypeWord(t) { return String(t || '') === 'Master Carton' ? RR_MASTER_CARTON : String(t || ''); }
 if (typeof window !== 'undefined') { window.RR_MASTER_CARTON = RR_MASTER_CARTON; window.rrTypeWord = rrTypeWord; }

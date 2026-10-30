@@ -1757,6 +1757,24 @@ function _auditCatalogResolution() {
 window._auditCatalogResolution = _auditCatalogResolution;
 window._rebuildMasterIndex = _rebuildMasterIndex;
 
+// v0.9.2048 (known-problems sweep, C16): a catalog list whose read FAILS keeps
+// the copy this device saved last time — however old — instead of emptying.
+// Before this, a failed read (offline at a show, a Google hiccup) on a day-old
+// copy set the Sets / companions / catalog references / instruction-sheet
+// references to [] — in All mode that era's slice vanished for the session
+// (no set completion, no tender pairing) although the old copy sat right there.
+// A read that ANSWERS with an error is a failed read too (_rrListReadOk).
+// Only a tab that does not exist ("Unable to parse range") means "none".
+function _rrKeepCachedList(cacheKey) {
+  try { var a = JSON.parse(localStorage.getItem(cacheKey) || 'null'); return Array.isArray(a) ? a : []; }
+  catch (e) { return []; }
+}
+function _rrListReadOk(res) {
+  if (res && res.error) throw new Error('Sheets read failed: ' + (res.error.message || res.error.status || 'error'));
+  return res;
+}
+function _rrIsMissingTab(e) { return /Unable to parse range/i.test(String((e && e.message) || e || '')); }
+
 async function loadCatalogRefData() {
   // Fetch Catalogs tab from master sheet — used by paper item wizard for searchable picker
   // Columns: A=Catalog ID, B=Year, C=Type, D=Title, E=Has Envelope/Mailer, F=Notes, G=Description
@@ -1772,8 +1790,8 @@ async function loadCatalogRefData() {
   try {
     let res;
     if (!SHEET_TABS.catalogs) { state.catalogRefData = []; return; }
-    try { res = await sheetsGet(state.masterSheetId, SHEET_TABS.catalogs + '!A2:G'); }
-    catch(_) { res = await sheetsGet(state.masterSheetId, 'catalogs!A2:G'); }
+    try { res = _rrListReadOk(await sheetsGet(state.masterSheetId, SHEET_TABS.catalogs + '!A2:G')); }
+    catch(_) { res = _rrListReadOk(await sheetsGet(state.masterSheetId, 'catalogs!A2:G')); }
     const rows = (res && res.values) || [];
     state.catalogRefData = rows
       .filter(r => r[0] && r[3] && r[0] !== 'Catalog ID') // skip header/empty
@@ -1787,8 +1805,8 @@ async function loadCatalogRefData() {
     localStorage.setItem(CACHE_KEY, JSON.stringify(state.catalogRefData));
     localStorage.setItem(CACHE_TS, Date.now().toString());
   } catch(e) {
-    console.warn('loadCatalogRefData:', e);
-    state.catalogRefData = [];
+    console.warn('loadCatalogRefData: read failed — keeping the saved copy', e);
+    state.catalogRefData = _rrKeepCachedList(CACHE_KEY);   // v0.9.2048 (C16)
   }
 }
 
@@ -1810,10 +1828,17 @@ async function loadISRefData() {
     SHEET_TABS.instrSheets,
     'Instruction Sheets',
   ];
-  let res = null;
+  let res = null, _isErr = null;
   for (const tabName of _isTabNames) {
-    try { res = await sheetsGet(state.masterSheetId, tabName + '!A2:F'); break; }
-    catch(_) { /* tab doesn't exist with this name, try next */ }
+    try { res = _rrListReadOk(await sheetsGet(state.masterSheetId, tabName + '!A2:F')); break; }
+    catch(e) { if (!_rrIsMissingTab(e)) _isErr = e; /* a missing tab: try the next name; anything else is a FAILED read */ }
+  }
+  if (!res && _isErr) {
+    // v0.9.2048 (C16): the read FAILED (offline, sign-in, Google) — keep the
+    // saved copy and do NOT cache an empty answer for a day.
+    console.warn('loadISRefData: read failed — keeping the saved copy', _isErr);
+    state.isRefData = _rrKeepCachedList(CACHE_KEY);
+    return;
   }
   if (!res) {
     // Tab doesn't exist yet — cache empty result so we don't retry for 24h
@@ -1837,7 +1862,7 @@ async function loadISRefData() {
     localStorage.setItem(CACHE_KEY, JSON.stringify(state.isRefData));
     localStorage.setItem(CACHE_TS, Date.now().toString());
   } catch(e) {
-    state.isRefData = [];
+    state.isRefData = _rrKeepCachedList(CACHE_KEY);   // v0.9.2048 (C16)
   }
 }
 
@@ -1865,12 +1890,12 @@ async function loadSetData() {
     }
     let res;
     if (!SHEET_TABS.sets) { state.setData = []; return; }
-    try { res = await sheetsGet(state.masterSheetId, SHEET_TABS.sets + '!A2:U'); }
-    catch(_) { res = await sheetsGet(state.masterSheetId, 'Master Set list!A2:U'); }
+    try { res = _rrListReadOk(await sheetsGet(state.masterSheetId, SHEET_TABS.sets + '!A2:U')); }
+    catch(_) { res = _rrListReadOk(await sheetsGet(state.masterSheetId, 'Master Set list!A2:U')); }
     parseSetRows((res && res.values) || []);
     localStorage.setItem(SET_CACHE, JSON.stringify(state.setData));
     localStorage.setItem(SET_TS, Date.now().toString());
-  } catch(e) { console.warn('loadSetData:', e); state.setData = []; }
+  } catch(e) { console.warn('loadSetData: read failed — keeping the saved copy', e); state.setData = _rrKeepCachedList(SET_CACHE); }   // v0.9.2048 (C16)
 }
 
 async function loadCompanionData() {
@@ -1895,12 +1920,12 @@ async function loadCompanionData() {
     }
     let res;
     if (!SHEET_TABS.companions) { state.companionData = []; return; }
-    try { res = await sheetsGet(state.masterSheetId, SHEET_TABS.companions + '!A2:E'); }
-    catch(_) { res = await sheetsGet(state.masterSheetId, 'Companions!A2:E'); }
+    try { res = _rrListReadOk(await sheetsGet(state.masterSheetId, SHEET_TABS.companions + '!A2:E')); }
+    catch(_) { res = _rrListReadOk(await sheetsGet(state.masterSheetId, 'Companions!A2:E')); }
     parseCompanionRows((res && res.values) || []);
     localStorage.setItem(COMP_CACHE, JSON.stringify(state.companionData));
     localStorage.setItem(COMP_TS, Date.now().toString());
-  } catch(e) { console.warn('loadCompanionData:', e); state.companionData = []; }
+  } catch(e) { console.warn('loadCompanionData: read failed — keeping the saved copy', e); state.companionData = _rrKeepCachedList(COMP_CACHE); }   // v0.9.2048 (C16)
 }
 
 function parseCompanionRows(rows) {

@@ -1739,7 +1739,7 @@ function showSoldDetailPage(key) {
   if (sd.notes) {
     html += '<div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border)">'
       + '<div style="font-size:0.78rem;color:var(--text-dim);font-weight:600;margin-bottom:0.3rem">Notes</div>'
-      + '<div style="font-size:0.85rem;color:var(--text);line-height:1.6">' + sd.notes + '</div></div>';
+      + '<div style="font-size:0.85rem;color:var(--text);line-height:1.6">' + rrEsc(sd.notes) + '</div></div>';
   }
   html += '</div>';
 
@@ -2193,7 +2193,7 @@ function buildForSalePage() {
               </div>
               <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${[master.itemType, fs.condition ? 'Cond: '+fs.condition : '', fs.dateListed ? 'Listed: '+_formatDate(fs.dateListed) : ''].filter(Boolean).join(' · ')}</div>
               ${estWorth ? `<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.1rem">Est. Worth: $${parseFloat(estWorth).toLocaleString()}</div>` : ''}
-              ${fs.notes ? `<div style="font-size:0.72rem;color:var(--text-mid);margin-top:0.15rem;font-style:italic">${fs.notes.length > 60 ? fs.notes.substring(0,57)+'…' : fs.notes}</div>` : ''}
+              ${fs.notes ? `<div style="font-size:0.72rem;color:var(--text-mid);margin-top:0.15rem;font-style:italic">${rrEsc(fs.notes.length > 60 ? fs.notes.substring(0,57)+'…' : fs.notes)}</div>` : ''}
             </div>
           </div>
           <div style="text-align:right;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:0.4rem">
@@ -3461,7 +3461,7 @@ function buildSetsPage() {
         + (label ? '<div style="font-size:0.82rem;color:var(--text);margin-top:0.1rem">' + label + '</div>' : '')
         + '</div></div>'
         + '<div style="display:flex;flex-wrap:wrap;gap:0.2rem;margin-bottom:0.55rem">' + _chips(s.items, s.alts, sq) + '</div>'
-        + (s.notes ? '<div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.45rem;font-style:italic">' + s.notes + '</div>' : '')
+        + (s.notes ? '<div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.45rem;font-style:italic">' + rrEsc(s.notes) + '</div>' : '')
         + '<div style="display:flex;gap:0.35rem;flex-wrap:wrap">' + _actions(s, true) + '</div>'
         + '</div>';
     }).join('');
@@ -4138,7 +4138,7 @@ function buildUpgradePage() {
               ${u.targetCondition ? `<span style="font-size:0.75rem;color:var(--t-purple)">→ Target: ${u.targetCondition}</span>` : ''}
               ${_priceVal ? `<span style="font-size:0.75rem;color:var(--accent2);font-family:var(--font-mono)">${_priceLabel}$${parseFloat(_priceVal).toLocaleString()}</span>` : ''}
             </div>
-            ${_wlStripGrp(u.notes) ? `<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${_wlStripGrp(u.notes)}</div>` : ''}
+            ${_wlStripGrp(u.notes) ? `<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${rrEsc(_wlStripGrp(u.notes))}</div>` : ''}
           </div>
           ${!_isWant && hasPhoto ? `<button onclick="event.stopPropagation();_toggleUpgradePhoto('${photoId}','${pd.photoItem.replace(/'/g,"\\'")}')" style="background:none;border:none;font-size:1.1rem;cursor:pointer;flex-shrink:0" title="View my photo">📷</button>` : ''}
         </div>
@@ -4237,7 +4237,7 @@ function buildUpgradePage() {
         <td style="color:var(--t-purple);font-weight:600">${u.targetCondition || '<span class="text-dim">—</span>'}</td>
         <td><span style="color:${pColor};font-weight:500">${u.priority||'Medium'}</span></td>
         <td class="market-val">${_priceVal ? _currencySymbol() + parseFloat(_priceVal).toLocaleString() : '<span class="text-dim">—</span>'}</td>
-        <td style="font-size:0.8rem;color:var(--text-dim);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_wlStripGrp(u.notes||'').replace(/"/g,'&quot;')}">${_wlStripGrp(u.notes) || '<span class="text-dim">—</span>'}</td>
+        <td style="font-size:0.8rem;color:var(--text-dim);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${rrEsc(_wlStripGrp(u.notes||''))}">${_wlStripGrp(u.notes) ? rrEsc(_wlStripGrp(u.notes)) : '<span class="text-dim">—</span>'}</td>
         <td style="white-space:normal">
           ${!_isWant && hasPhoto ? `<button onclick="event.stopPropagation();_toggleUpgradePhoto('${photoId}','${(pd.photoItem||'').replace(/'/g,"\\'")}')" style="padding:0.25rem 0.4rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);margin-right:0.2rem" title="Toggle photo">📷</button>` : ''}
           ${!_isWant ? `<button onclick="event.stopPropagation();_upgradeViewMine('${_ugEntryKey(u)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:var(--bg-card);background:color-mix(in srgb, rgb(139,92,246) 10%, var(--bg-card));color:var(--t-purple);font-family:var(--font-body);font-weight:600;margin-right:0.2rem">View Mine</button>` : ''}
@@ -5061,26 +5061,26 @@ function _renderPartsList() {
     }
     var taskLabel = _partsTaskLabel(p);   // v0.9.1753: the LIVE task link (column M), not the note
     var noteShown = (p.notes && PARTS_COPY.boilerplate.indexOf(String(p.notes).trim()) < 0) ? p.notes : '';
-    var esc = function (s) { return String(s || '').replace(/'/g, "\\'").replace(/"/g, '&quot;'); };
+    var esc = rrJsArg;   // v0.9.2048: the one JS-string escape (backslashes too) — the local copy let a backslash undo its quote
     var thumb = '';
     if (p.photo) {
       var _fid = (p.photo.match(/\/d\/([a-zA-Z0-9_-]+)/) || [])[1];
       if (_fid) { var _imgId = 'partthumb-' + p.row; _thumbs.push({ fid: _fid, id: _imgId });
-        thumb = '<a href="' + p.photo + '" target="_blank" rel="noopener" onclick="event.stopPropagation()" onmousedown="event.preventDefault()" style="flex-shrink:0"><div style="width:48px;height:48px;border-radius:8px;overflow:hidden;background:var(--surface2)"><img id="' + _imgId + '" style="width:100%;height:100%;object-fit:cover"></div></a>'; }
+        thumb = '<a href="' + rrEsc(p.photo) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()" onmousedown="event.preventDefault()" style="flex-shrink:0"><div style="width:48px;height:48px;border-radius:8px;overflow:hidden;background:var(--surface2)"><img id="' + _imgId + '" style="width:100%;height:100%;object-fit:cover"></div></a>'; }
     }
     return '<div' + rrSampleAttrs(p) + ' style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.85rem 1rem;margin-bottom:0.6rem">'
       + '<div style="display:flex;align-items:flex-start;gap:0.6rem;flex-wrap:wrap">'
       + thumb
       + '<div style="flex:1;min-width:0">'
-      + '<div style="font-weight:600;font-size:0.95rem;color:var(--text)">' + (p.description || '—') + rrSampleTag(p) + '</div>'
+      + '<div style="font-weight:600;font-size:0.95rem;color:var(--text)">' + rrEsc(p.description || '—') + rrSampleTag(p) + '</div>'
       + '<div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.2rem">'
-      + (p.partNum ? '<span style="font-family:var(--font-mono);color:var(--accent2)">Part #' + p.partNum + '</span>' : '')
+      + (p.partNum ? '<span style="font-family:var(--font-mono);color:var(--accent2)">Part #' + rrEsc(p.partNum) + '</span>' : '')
       + (p.partNum && forLabel ? ' · ' : '')
       + (forLabel ? ('<' + (_pdFor ? 'a href="#" onclick="event.preventDefault();_partsOpenCard(\'' + esc(p.forInv) + '\',\'' + esc(p.forItem) + '\',\'' + esc(p.taskId) + '\')" title="Open this engine\'s Maintenance card"' : 'span')
-          + ' style="color:var(--t-purple);text-decoration:none">🔗 ' + forLabel + '</' + (_pdFor ? 'a' : 'span') + '>') : '')
+          + ' style="color:var(--t-purple);text-decoration:none">🔗 ' + rrEsc(forLabel) + '</' + (_pdFor ? 'a' : 'span') + '>') : '')
       + (taskLabel ? ' · <span style="color:var(--text-dim)">' + _partsEsc(taskLabel) + '</span>' : '')
       + '</div>'
-      + (noteShown ? '<div style="font-size:0.78rem;color:var(--text-dim);margin-top:0.2rem">' + noteShown + '</div>' : '')
+      + (noteShown ? '<div style="font-size:0.78rem;color:var(--text-dim);margin-top:0.2rem">' + rrEsc(noteShown) + '</div>' : '')
       + '</div>'
       + '<div style="display:flex;gap:0.35rem;flex-wrap:wrap;align-items:center">'
       + (_lc ? ('<span style="padding:0.2rem 0.55rem;border-radius:99px;font-size:0.68rem;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;'
@@ -5287,7 +5287,8 @@ async function savePart(existingId) {
         var _pf = await driveFindOrCreateFolder('Parts', driveCache.photosId);
         var _up = await driveUploadPhoto(window._partPhotoFile, 'part-' + Date.now() + '.jpg', _pf);
         if (_up && _up.id) photoLink = 'https://drive.google.com/file/d/' + _up.id + '/view';
-      } catch (pe) { console.warn('[Parts] photo upload failed', pe && pe.message); }
+        else rrPhotoMissed(new Error('no file id came back'), 'part photo');
+      } catch (pe) { rrPhotoMissed(pe, 'part photo'); }   // v0.9.2048 (C17): was console-only — the part saved without it, unsaid
       window._partPhotoFile = null;
     }
     if (isEdit) {

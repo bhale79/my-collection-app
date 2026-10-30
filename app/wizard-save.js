@@ -269,6 +269,7 @@ async function _quickEntrySaveSet(condition, worth, photoFiles) {
   let photoLink = '';
   const photoKeys = Object.keys(photoFiles || {});
   if (photoKeys.length > 0) {
+    const _pTotal = photoKeys.filter(vk => photoFiles[vk]).length; let _pTried = 0;   // v0.9.2048 (C17)
     try {
       await driveEnsureSetup();
       const folderName = setNum || groupId;
@@ -279,9 +280,9 @@ async function _quickEntrySaveSet(condition, worth, photoFiles) {
         const file = photoFiles[vk];
         if (!file) continue;
         const fname = folderName + ' ' + vk + '.' + (file.name.split('.').pop() || 'jpg');
-        await driveUploadPhoto(file, fname, folderId).catch(e => console.warn(e));
+        await driveUploadPhoto(file, fname, folderId).catch(e => rrPhotoMissed(e, 'QE photo')); _pTried++;
       }
-    } catch(e) { console.warn('QE photo upload:', e); }
+    } catch(e) { rrPhotoMissed(e, 'QE photo folder', _pTotal - _pTried); }
   }
 
   const savedItems = [];
@@ -369,7 +370,7 @@ async function _quickEntrySaveSet(condition, worth, photoFiles) {
       groupId, setId, hasSetBox: d.set_hasBox || 'No', boxCondition: '',
       photoLink, notes: '', quickEntry: true, inventoryId: _msInvId,
     };
-  } catch(e) { console.warn('My Sets row save error:', e); }
+  } catch(e) { rrSaveMissed(e, 'the set\u2019s entry in My Sets'); }   // v0.9.2048 (C17): was console-only — the items saved, the set's own row did not, unsaid
 
   // Quick Entry always closes — no follow-up questions
   localStorage.removeItem('lv_personal_cache');
@@ -595,6 +596,7 @@ async function saveSet() {
   if (d.set_hasBox === 'Yes') {
     const photoObj = d.set_boxPhotos || {};
     if (Object.keys(photoObj).some(k => photoObj[k]?.file)) {
+      const _pTotal = Object.keys(photoObj).filter(k => photoObj[k]?.file).length; let _pTried = 0;   // v0.9.2048 (C17)
       try {
         await driveEnsureSetup();
         const folderName = setNum || groupId || 'SetBox';
@@ -603,9 +605,9 @@ async function saveSet() {
         for (const [viewKey, fileObj] of Object.entries(photoObj)) {
           if (!fileObj?.file) continue;
           const fname = folderName + ' ' + viewKey + '.' + (fileObj.file.name.split('.').pop() || 'jpg');
-          await driveUploadPhoto(fileObj.file, fname, folderId).catch(e => console.warn(e));
+          await driveUploadPhoto(fileObj.file, fname, folderId).catch(e => rrPhotoMissed(e, 'set box photo')); _pTried++;
         }
-      } catch(e) { console.warn('Set box photo upload:', e); }
+      } catch(e) { rrPhotoMissed(e, 'set box photo folder', _pTotal - _pTried); }
     }
   }
 
@@ -638,7 +640,7 @@ async function saveSet() {
       groupId, setId, hasSetBox: d.set_hasBox || 'No', boxCondition: d.set_boxCond || '',
       photoLink: '', notes: d.set_notes || '', quickEntry: false, inventoryId: _msInvId2,
     };
-  } catch(e) { console.warn('My Sets row save error:', e); }
+  } catch(e) { rrSaveMissed(e, 'the set\u2019s entry in My Sets'); }   // v0.9.2048 (C17): was console-only — the items saved, the set's own row did not, unsaid
 
   localStorage.removeItem('lv_personal_cache');
   localStorage.removeItem('lv_personal_cache_ts');
@@ -676,6 +678,7 @@ async function saveInstructionSheet() {
   let photoLink = '';
   const photoObj = d.is_photos || {};
   if (Object.keys(photoObj).some(k => photoObj[k]?.file)) {
+    const _pTotal = Object.keys(photoObj).filter(k => photoObj[k]?.file).length; let _pTried = 0;   // v0.9.2048 (C17)
     try {
       await driveEnsureSetup();
       let parentFolderId;
@@ -699,9 +702,9 @@ async function saveInstructionSheet() {
       for (const [viewKey, fileObj] of Object.entries(photoObj)) {
         if (!fileObj?.file) continue;
         const fname = folderName + ' ' + viewKey + '.' + (fileObj.file.name.split('.').pop() || 'jpg');
-        await driveUploadPhoto(fileObj.file, fname, isFolderId).catch(e => console.warn(e));
+        await driveUploadPhoto(fileObj.file, fname, isFolderId).catch(e => rrPhotoMissed(e, 'instruction sheet photo')); _pTried++;
       }
-    } catch(e) { console.warn('IS photo folder:', e); }
+    } catch(e) { rrPhotoMissed(e, 'instruction sheet photo folder', _pTotal - _pTried); }
   }
 
   // Session 154: a sheet is now a normal My Collection item. Grouped (linked
@@ -775,6 +778,7 @@ async function _saveCatalogFromPaper() {
   const photoObj = d.eph_photos || {};
   const hasPhotos = Object.values(photoObj).some(v => v && v.file);
   if (hasPhotos) {
+    const _pTotal = Object.values(photoObj).filter(v => v && v.file).length; let _pTried = 0;   // v0.9.2048 (C17)
     try {
       await driveEnsureSetup();
       // v0.9.1389 — same split as saveEphemeraItem, one flow over. "Catalog"
@@ -790,9 +794,10 @@ async function _saveCatalogFromPaper() {
         try {
           const fname = folderName + ' ' + viewKey + '.' + (fileObj.file.name.split('.').pop() || 'jpg');
           await driveUploadPhoto(fileObj.file, fname, catFolderId);
-        } catch(e) { console.warn('Photo upload:', e); }
+        } catch(e) { rrPhotoMissed(e, 'catalog photo'); }
+        _pTried++;
       }
-    } catch(e) { console.warn('Drive folder:', e); }
+    } catch(e) { rrPhotoMissed(e, 'catalog photo folder', _pTotal - _pTried); }
   }
 
   // v0.9.795 (Brad's GM50 dwgs): the drivePhotos step uploads AS YOU ADD and
@@ -891,6 +896,7 @@ async function saveEphemeraItem() {
   const photoObj = d.eph_photos || {};
   const hasPhotos = Object.values(photoObj).some(v => v && v.file);
   if (hasPhotos) {
+    const _pTotal = Object.values(photoObj).filter(v => v && v.file).length; let _pTried = 0;   // v0.9.2048 (C17)
     try {
       await driveEnsureSetup();
       // ══ v0.9.1389 — ONE PILE, AND THE ROW POINTS AT IT ═══════════════════
@@ -914,9 +920,10 @@ async function saveEphemeraItem() {
         try {
           const ext = fileObj.file.name.split('.').pop() || 'jpg';
           await driveUploadPhoto(fileObj.file, folderTitle + ' ' + viewKey + '.' + ext, itemFolderId);
-        } catch(e) { console.warn('Photo upload:', e); }
+        } catch(e) { rrPhotoMissed(e, 'paper item photo'); }
+        _pTried++;
       }
-    } catch(e) { console.warn('Drive folder:', e); }
+    } catch(e) { rrPhotoMissed(e, 'paper item photo folder', _pTotal - _pTried); }
   }
 
   // v0.9.795 (Brad's GM50 dwgs): the drivePhotos step uploads AS YOU ADD and
@@ -1272,6 +1279,7 @@ async function _saveScienceConstructionItem(sheetTabName, stateKey) {
   const photoObj = d.photosItem || {};
   const hasPhotos = Object.values(photoObj).some(v => v && v.file);
   if (hasPhotos) {
+    const _pTotal = Object.values(photoObj).filter(v => v && v.file).length; let _pTried = 0;   // v0.9.2048 (C17)
     try {
       await driveEnsureSetup();
       const folderName = itemNum + ' ' + (description || sheetTabName).substring(0, 40);
@@ -1281,9 +1289,9 @@ async function _saveScienceConstructionItem(sheetTabName, stateKey) {
       for (const [viewKey, fileObj] of Object.entries(photoObj)) {
         if (!fileObj || !fileObj.file) continue;
         const ext = fileObj.file.name.split('.').pop() || 'jpg';
-        await driveUploadPhoto(fileObj.file, folderName + ' ' + viewKey + '.' + ext, folderId).catch(e => console.warn(e));
+        await driveUploadPhoto(fileObj.file, folderName + ' ' + viewKey + '.' + ext, folderId).catch(e => rrPhotoMissed(e, 'item photo')); _pTried++;
       }
-    } catch(e) { console.warn('Photo folder:', e); }
+    } catch(e) { rrPhotoMissed(e, 'item photo folder', _pTotal - _pTried); }
   }
 
   const row = [
@@ -2343,7 +2351,7 @@ async function saveWizardItem() {
           });
           _stampSaved(state.personalData[tBoxRow[PERSONAL_FIELD_INDEX.inventoryId]]);
         }
-      } catch(e) { console.warn('Group box row save error:', e); }
+      } catch(e) { rrSaveMissed(e, 'the box'); }   // v0.9.2048 (C17): was console-only — the item saved, its box did not, unsaid
     }
 
     // ── Save instruction sheet if user said they have one ──
@@ -2375,7 +2383,7 @@ async function saveWizardItem() {
           for (const [viewKey, fileObj] of Object.entries(isPhotoObj)) {
             if (!fileObj?.file) continue;
             const fname = isFolderName + ' ' + viewKey + '.' + (fileObj.file.name.split('.').pop() || 'jpg');
-            await driveUploadPhoto(fileObj.file, fname, isFolderId).catch(e => console.warn(e));
+            await driveUploadPhoto(fileObj.file, fname, isFolderId).catch(e => rrPhotoMissed(e, 'instruction sheet photo'));
           }
         }
         // Session 154: an instruction sheet is now a normal grouped item (like
@@ -2407,7 +2415,7 @@ async function saveWizardItem() {
           inventoryId: isInvId, groupId: groupId,
         });
         _stampSaved(state.personalData[isInvId]);
-      } catch(e) { console.warn('IS save error:', e); }
+      } catch(e) { rrSaveMissed(e, 'the instruction sheet'); }   // v0.9.2048 (C17): was console-only — the item saved, its sheet did not, unsaid
     }
 
     // ── Save master box if user said they have one (grouped items only) ──
@@ -2425,7 +2433,7 @@ async function saveWizardItem() {
           for (const [viewKey, fileObj] of Object.entries(mbPhotoObj)) {
             if (!fileObj?.file) continue;
             const fname = mbItemNum + ' ' + viewKey + '.' + (fileObj.file.name.split('.').pop() || 'jpg');
-            await driveUploadPhoto(fileObj.file, fname, mbFolderId).catch(e => console.warn(e));
+            await driveUploadPhoto(fileObj.file, fname, mbFolderId).catch(e => rrPhotoMissed(e, 'master carton photo'));
           }
         }
         // Session 156: mbRow (master box) via buildPersonalRow
@@ -2458,7 +2466,7 @@ async function saveWizardItem() {
           inventoryId: mbInvId, groupId: groupId,
         });
         _stampSaved(state.personalData[mbInvId]);
-      } catch(e) { console.warn('Master box save error:', e); }
+      } catch(e) { rrSaveMissed(e, 'the ' + RR_MASTER_CARTON.toLowerCase()); }   // v0.9.2048 (C17): was console-only
     }
 
     // ── Set mode: record saved item, advance to next item or return to set box steps ──
@@ -2591,7 +2599,7 @@ async function saveWizardItem() {
         if (typeof showToast === 'function') showToast('Listed for sale at $' + (d.forSale_salePrice || '0'), 2800);
         if (typeof buildForSalePage === 'function') buildForSalePage();
       } catch(e) {
-        console.warn('[alsoListForSale] write failed:', e && e.message);
+        rrSaveMissed(e, 'the For Sale listing');   // v0.9.2048 (C17): was console-only — the item saved, the listing did not, unsaid
       }
     }
 

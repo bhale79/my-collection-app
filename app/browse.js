@@ -224,11 +224,11 @@ function _mfrBadge(item) {
     // v0.9.1513: class + title so the badge clips inside its own cell and the
     // full maker is still readable on hover (Brad: "CARARAMA" overran Item #).
     return '<td style="max-width:9rem;overflow:hidden"><span class="mfr-badge" title="'
-         + String(lbl).replace(/"/g, '&quot;') + '" style="display:inline-block;padding:0.13rem 0.5rem;'
+         + rrEsc(lbl) + '" style="display:inline-block;padding:0.13rem 0.5rem;'
          + 'border-radius:10px;background:' + col + ';color:' + rrInkOn(col) + ';'   // v0.9.1851: readable letters on any fill
          + 'font-size:0.62rem;font-weight:700;letter-spacing:0.06em;'
          + 'text-transform:uppercase;white-space:nowrap;line-height:1.2">'
-         + lbl + '</span></td>';
+         + rrEsc(lbl) + '</span></td>';
   } catch(e) { return '<td><span style="color:var(--text-dim);font-size:0.7rem">—</span></td>'; }
 }
 
@@ -5198,11 +5198,11 @@ function _rrBrowseCore(_co) {
           return `<tr onclick="openISDetail(${_isKeyArg})" style="cursor:pointer">
             ${_collGutterSpacerTd()}
             <td style="text-align:center;font-size:1.05rem" title="Instruction Sheet">📋</td>
-            <td><span style="font-family:var(--font-mono);font-size:0.85rem;color:var(--t-sea);font-weight:600">${it.sheetNum}</span></td>
+            <td><span style="font-family:var(--font-mono);font-size:0.85rem;color:var(--t-sea);font-weight:600">${rrEsc(it.sheetNum)}</span></td>
             <td style="text-align:center"><span class="text-dim">—</span></td>
             <td><span class="tag" style="border-color:#16a085;color:var(--t-sea);background:#16a08518">Instr. Sheet</span></td>
             <td style="width:52px"></td>
-            <td><span style="color:var(--text-mid);font-size:0.85rem">For #${it.linkedItem || '—'}</span></td>
+            <td><span style="color:var(--text-mid);font-size:0.85rem">For #${rrEsc(it.linkedItem || '—')}</span></td>
             <td style="font-size:0.82rem;color:var(--gold);white-space:nowrap;text-align:center">${isFinite(_isWorthN) ? _cSymIS + _isWorthN.toLocaleString() : '<span style="color:var(--text-dim)">—</span>'}</td>
             <td style="font-size:0.76rem;color:var(--text-dim);white-space:nowrap;text-align:center">${it.dateAcquired ? ((typeof _formatDate === 'function') ? _formatDate(it.dateAcquired) : it.dateAcquired) : '—'}</td>
             <td class="coll-actions-cell" data-col="actions" onclick="event.stopPropagation()" style="text-align:right;white-space:nowrap">${_isActions}</td>
@@ -5214,10 +5214,10 @@ function _rrBrowseCore(_co) {
         const _isKeyM = "'" + String(it._key || _isKeyByEntry.get(it) || it.row).replace(/'/g, "\\'") + "'";
         return `<tr onclick="openISDetail(${_isKeyM})" style="cursor:pointer">
             ${_collGutterSpacerTd()}
-          <td><span style="font-family:var(--font-mono);font-size:0.85rem;color:var(--t-sea);font-weight:600">${it.sheetNum}</span></td>
+          <td><span style="font-family:var(--font-mono);font-size:0.85rem;color:var(--t-sea);font-weight:600">${rrEsc(it.sheetNum)}</span></td>
           <td><span class="tag" style="border-color:#16a085;color:var(--t-sea);background:#16a08518">Instr. Sheet</span></td>
-          <td>For item #${it.linkedItem || '—'}</td>
-          <td>${it.year || '—'}</td>
+          <td>For item #${rrEsc(it.linkedItem || '—')}</td>
+          <td>${rrEsc(it.year || '—')}</td>
           <td></td><td></td>
           <td><span class="owned-badge badge-owned">✓ Owned</span></td>
           <td>${cond ? `<span class="condition-pip ${condClass}"></span>${cond}` : '<span class="text-dim">—</span>'}</td>
@@ -5266,16 +5266,16 @@ function _rrBrowseCore(_co) {
           ${_ephMfrCell}
           <td style="max-width:170px">
             <span style="min-width:0">
-              <span class="item-num" style="display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom" title="${String(it.itemNum || '').replace(/"/g,'&quot;')}">${(r.tabId === 'catalogs' && typeof _catalogDisplayLabel === 'function') ? _catalogDisplayLabel(it.year, it.catType, it.itemNum) : (it.itemNum || '—')}</span>
-              ${_photoLink ? `<span onclick="event.stopPropagation();openPhotoFolder('${it.itemNum||''}','${_photoLink}')" style="font-size:0.85rem;cursor:pointer" title="Open photo folder">📷</span>` : ''}
+              <span class="item-num" style="display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom" title="${rrEsc(it.itemNum || '')}">${rrEsc((r.tabId === 'catalogs' && typeof _catalogDisplayLabel === 'function') ? _catalogDisplayLabel(it.year, it.catType, it.itemNum) : (it.itemNum || '—'))}</span>
+              ${_photoLink ? `<span onclick="event.stopPropagation();openPhotoFolder('${_rrAttrArg(it.itemNum||'')}','${_rrAttrArg(_photoLink)}')" style="font-size:0.85rem;cursor:pointer" title="Open photo folder">📷</span>` : ''}
             </span>
           </td>
           <td style="text-align:center"><span class="text-dim">—</span></td>
-          <td><span class="tag" style="border-color:${r.color};color:${r.color};background:${r.color}18">${_ephTypeLabel}</span></td>
+          <td><span class="tag" style="border-color:${r.color};color:${r.color};background:${r.color}18">${rrEsc(_ephTypeLabel)}</span></td>
           <td style="width:52px;text-align:center;padding:2px 4px">${_photoLink ? `<span id="${_thumbId}" style="display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:5px;background:var(--surface2);overflow:hidden;color:var(--text-dim);vertical-align:middle"></span>` : ''}</td>
           <td style="font-size:0.85rem">
-            <div style="color:var(--text);font-weight:600;line-height:1.3">${it.title || '—'}</div>
-            ${_ephSub ? `<div style="color:var(--text-dim);font-size:0.78rem;margin-top:1px">${_ephSub}</div>` : ''}
+            <div style="color:var(--text);font-weight:600;line-height:1.3">${rrEsc(it.title || '—')}</div>
+            ${_ephSub ? `<div style="color:var(--text-dim);font-size:0.78rem;margin-top:1px">${rrEsc(_ephSub)}</div>` : ''}
           </td>
           <td style="font-size:0.82rem;color:var(--gold);white-space:nowrap;text-align:center">${_ephWorth}</td>
           <td style="font-size:0.76rem;color:var(--text-dim);white-space:nowrap;width:80px;text-align:center">${_ephDate}</td>
@@ -5292,14 +5292,14 @@ function _rrBrowseCore(_co) {
       return `<tr onclick="openEphemeraDetail('${r.tabId}',${it.row})" style="cursor:pointer">
             ${_collGutterSpacerTd()}
         <td>
-          <div style="font-size:0.88rem;color:var(--text);font-weight:600">${it.title || it.itemNum || '—'}</div>
-          <div style="font-family:var(--font-mono);font-size:0.7rem;color:${r.color};opacity:0.8;margin-top:1px">${it.itemNum || ''}</div>
+          <div style="font-size:0.88rem;color:var(--text);font-weight:600">${rrEsc(it.title || it.itemNum || '—')}</div>
+          <div style="font-family:var(--font-mono);font-size:0.7rem;color:${r.color};opacity:0.8;margin-top:1px">${rrEsc(it.itemNum || '')}</div>
         </td>
-        <td><span class="tag" style="border-color:${r.color};color:${r.color};background:${r.color}18">${_ephTypeBadge}</span></td>
-        <td>${it.description || '—'}</td>
-        <td>${it.year || '—'}</td>
-        <td style="color:var(--text-dim);font-size:0.8rem">${it.itemNumRef || '—'}</td>
-        <td>${it.year || '—'}</td>
+        <td><span class="tag" style="border-color:${r.color};color:${r.color};background:${r.color}18">${rrEsc(_ephTypeBadge)}</span></td>
+        <td>${rrEsc(it.description || '—')}</td>
+        <td>${rrEsc(it.year || '—')}</td>
+        <td style="color:var(--text-dim);font-size:0.8rem">${rrEsc(it.itemNumRef || '—')}</td>
+        <td>${rrEsc(it.year || '—')}</td>
         <td><span class="owned-badge badge-owned">✓ Owned</span></td>
         <td class="market-val">${val}${_ephActions}</td>
       </tr>`;
@@ -5423,7 +5423,7 @@ function _rrBrowseCore(_co) {
     const marketVal  = item.marketVal && !isNaN(_mv) ? _currencySymbol() + _mv.toLocaleString() : '';
 
     if (isMobile) {
-      const _escVar = (item.variation||'').replace(/'/g,"\\'");
+      const _escVar = rrJsArg(item.variation||'');   // v0.9.2048: the one handler escape
       const _pdKey = findPDKey(_displayItemNum(item), item.variation);
       const _pdRow = pd && pd.row ? pd.row : 0;
       const _isQE = pd && pd.quickEntry;
@@ -5454,11 +5454,11 @@ function _rrBrowseCore(_co) {
           ${_inShareMode ? '<input type="checkbox" id="share-cb-' + _shareKey + '" ' + (_isShareSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _shareKey + '\')" style="width:1.1rem;height:1.1rem;accent-color:#2ecc71;flex-shrink:0">' : ''}
           <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:nowrap">
-              <span class="browse-card-num" style="white-space:nowrap">${_displayItemNum(item)}${item.variation ? ' <span style="font-size:0.72rem;color:var(--text-dim)">' + item.variation + '</span>' : ''}</span>${rrSampleTag(item)}${_noNumTag(item.itemNum)}${(typeof eraBadgeHTML === 'function' && window.ERA_BADGES && window.ERA_BADGES.showInBrowse) ? eraBadgeHTML(item._tab) : ''}${(typeof lineBadgeHTML === 'function') ? lineBadgeHTML(item) : ''}
+              <span class="browse-card-num" style="white-space:nowrap">${rrEsc(_displayItemNum(item))}${item.variation ? ' <span style="font-size:0.72rem;color:var(--text-dim)">' + rrEsc(item.variation) + '</span>' : ''}</span>${rrSampleTag(item)}${_noNumTag(item.itemNum)}${(typeof eraBadgeHTML === 'function' && window.ERA_BADGES && window.ERA_BADGES.showInBrowse) ? eraBadgeHTML(item._tab) : ''}${(typeof lineBadgeHTML === 'function') ? lineBadgeHTML(item) : ''}
               <span style="display:flex;gap:0.2rem;align-items:center">${_statusIcons}</span>
             </div>
-            ${item.roadName ? `<div class="browse-card-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.roadName}</div>` : ''}
-            <div class="browse-card-sub" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${[(typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(item) : item.itemType), item.yearProd].filter(Boolean).join(' · ')}</div>
+            ${item.roadName ? `<div class="browse-card-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${rrEsc(item.roadName)}</div>` : ''}
+            <div class="browse-card-sub" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${rrEsc([(typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(item) : item.itemType), item.yearProd].filter(Boolean).join(' · '))}</div>
             ${(typeof rrCatalogStatusChip === 'function') ? rrCatalogStatusChip(item, { block: true }) : ''}
           </div>
           ${marketVal ? `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.25rem;flex-shrink:0">
@@ -5481,7 +5481,7 @@ function _rrBrowseCore(_co) {
       // ── My Collection view: Item # | Description | Actions (3 clean columns) ──
       const _isQuick = pd && pd.quickEntry;
       const _groupId = pd && pd.groupId ? pd.groupId : '';
-      const _escVar = (item.variation||'').replace(/'/g,"\'");
+      const _escVar = rrJsArg(item.variation||'');   // v0.9.2048: was "\\'" written as "\'" — it escaped nothing, so an apostrophe in a variation killed Sold / Remove / For Sale / Upgrade
       const _dispNum = _displayItemNum(item);
       const _descParts = [item.roadName, item.itemType].filter(Boolean);
       // v0.9.720/721 (Brad): show the real DESCRIPTION — road·type was echoing
@@ -5489,8 +5489,8 @@ function _rrBrowseCore(_co) {
       const _descFull  = (item._personalOnly && item.description) ? item.description
         : ([item.roadName, item.description].filter(Boolean).join(' — ') || _descParts.join(' · ') || '—');
       const _descShort = _descFull.length > 110 ? _descFull.substring(0, 108) + '…' : _descFull;   // v0.9.938: column is wide now
-      const _varText   = item.variation ? ` <span style="font-size:0.72rem;color:var(--text-dim);background:var(--surface2);padding:1px 5px;border-radius:4px;margin-left:3px">${item.variation}</span>` : '';
-      const _typeText = (typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(item) : item.itemType) || '<span style="color:var(--text-dim)">—</span>';
+      const _varText   = item.variation ? ` <span style="font-size:0.72rem;color:var(--text-dim);background:var(--surface2);padding:1px 5px;border-radius:4px;margin-left:3px">${rrEsc(item.variation)}</span>` : '';
+      const _typeText = rrEsc((typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(item) : item.itemType) || '') || '<span style="color:var(--text-dim)">—</span>';
       const _ewNum = pd && pd.userEstWorth ? parseFloat(pd.userEstWorth) : NaN;
       const _estWorth = isFinite(_ewNum) ? _currencySymbol() + _ewNum.toLocaleString() : '<span style="color:var(--text-dim)">—</span>';
       // Phase 3: per-copy detection — direct inventoryId lookup only.
@@ -5514,11 +5514,11 @@ function _rrBrowseCore(_co) {
       if (_inShareModeD) { if (!window._shareDataMap) window._shareDataMap = {}; window._shareDataMap[_shareKeyD] = { itemNum: item.itemNum, variation: item.variation||'', pd: pd, master: item }; }
       // Smart buttons based on per-copy list status
       const _fsBtn = _isThisCopyFS
-        ? `<button onclick="event.stopPropagation();_removeForSaleFromCollection('${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:#e67e22;color:#fff;font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Remove from For Sale list">Unlist</button>`
-        : `<button onclick="event.stopPropagation();collectionActionForSale(${globalIdx},'${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0},'${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:var(--t-orange);font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Add to For Sale list">For Sale</button>`;
+        ? `<button onclick="event.stopPropagation();_removeForSaleFromCollection('${rrJsArg(_myInvId)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:#e67e22;color:#fff;font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Remove from For Sale list">Unlist</button>`
+        : `<button onclick="event.stopPropagation();collectionActionForSale(${globalIdx},'${rrJsArg(_dispNum)}','${_escVar}',${pd && pd.row ? pd.row : 0},'${rrJsArg(_myInvId)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:var(--t-orange);font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Add to For Sale list">For Sale</button>`;
       const _upgBtn = _isThisCopyUG
-        ? `<button onclick="event.stopPropagation();_removeUpgradeFromCollection('${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:#8b5cf6;color:#fff;font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Remove from Upgrade list">Un-Upg.</button>`
-        : `<button onclick="event.stopPropagation();showAddToUpgradeModal('${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0},'${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:var(--bg-card);background:color-mix(in srgb, rgb(139,92,246) 10%, var(--bg-card));color:var(--t-purple);font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Add to Upgrade list">Upgrade</button>`;
+        ? `<button onclick="event.stopPropagation();_removeUpgradeFromCollection('${rrJsArg(_myInvId)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:#8b5cf6;color:#fff;font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Remove from Upgrade list">Un-Upg.</button>`
+        : `<button onclick="event.stopPropagation();showAddToUpgradeModal('${rrJsArg(_dispNum)}','${_escVar}',${pd && pd.row ? pd.row : 0},'${rrJsArg(_myInvId)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:var(--bg-card);background:color-mix(in srgb, rgb(139,92,246) 10%, var(--bg-card));color:var(--t-purple);font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Add to Upgrade list">Upgrade</button>`;
       const _inTagModeD = typeof rrTagActive === 'function' && rrTagActive();
       // v0.9.1555: while tagging, a row click ticks it — the same gesture as
       // the checkbox, so nobody opens an item by accident mid-sweep.
@@ -5548,7 +5548,7 @@ function _rrBrowseCore(_co) {
           return _out.replace('<td', '<td data-col="mfr"');
         })();
         _cells.num = `<td data-col="num" style="max-width:170px;overflow:hidden">
-          <span class="item-num" style="display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom" title="${String(_displayItemNum(item)).replace(/"/g,'&quot;')}">${_displayItemNum(item)}</span>${rrSampleTag(item)}${_noNumTag(item.itemNum)}
+          <span class="item-num" style="display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom" title="${rrEsc(_displayItemNum(item))}">${rrEsc(_displayItemNum(item))}</span>${rrSampleTag(item)}${_noNumTag(item.itemNum)}
           <div class="rr-num-badges" style="margin-top:1px;line-height:1.25">
             ${(typeof eraBadgeHTML === 'function' && window.ERA_BADGES && window.ERA_BADGES.showInBrowse) ? eraBadgeHTML(item._tab) : ''}${(typeof lineBadgeHTML === 'function') ? lineBadgeHTML(item) : ''}
             ${(function(){
@@ -5565,17 +5565,17 @@ function _rrBrowseCore(_co) {
               var _co = (typeof _ownedCompanions === 'function') ? _ownedCompanions(pd) : []; if (_co.length) {
               var _gcfg = (typeof groupConfigLabel === 'function') ? groupConfigLabel(_dispNum, _co) : '';
               var _lbl = _gcfg === 'Engine + Tender' ? 'Engine + Tender' : (_gcfg && _gcfg !== 'Set' ? _gcfg + ' Set' : '🔗 ' + _co.join(' '));
-              return '<span style="font-size:0.7rem;color:var(--accent3);font-weight:600" title="Grouped: ' + _dispNum + ' + ' + _co.join(', ') + '">🔗 ' + _lbl + '</span>';
+              return '<span style="font-size:0.7rem;color:var(--accent3);font-weight:600" title="Grouped: ' + rrEsc(_dispNum + ' + ' + _co.join(', ')) + '">🔗 ' + _lbl + '</span>';
             } return _groupId ? '<span style="font-size:0.6rem;color:var(--accent3)" title="Grouped">🔗</span>' : ''; })()}
             ${_isQuick ? '<span onclick="event.stopPropagation();completeQuickEntry(\''+_rrAttrArg(item.itemNum)+'\',\''+_escVar+'\','+globalIdx+',\''+(pd.inventoryId||'')+'\')" style="font-size:0.72rem;background:#2ecc71;color:#fff;border-radius:4px;padding:1px 5px;cursor:pointer;font-weight:700" title="Complete this Quick Entry">⚡</span>' : ''}
             ${pd && pd.photoItem ? '<span style="font-size:0.78rem;opacity:0.75" title="Has photo">📷</span>' : ''}
             ${_statusBadges}
           </div>
         </td>`;
-        _cells['var'] = `<td data-col="var" style="white-space:nowrap;text-align:center">${item.variation ? '<span style="font-size:0.78rem;color:var(--text-mid)">' + item.variation + '</span>' : '<span style="color:var(--text-dim)">—</span>'}</td>`;
-        _cells.type = `<td data-col="type" style="font-size:0.78rem;color:var(--text-dim)">${_typeText}${(pd && pd.subType) ? '<div style="font-size:0.66rem;opacity:0.8;margin-top:1px">' + pd.subType + '</div>' : ''}</td>`;
+        _cells['var'] = `<td data-col="var" style="white-space:nowrap;text-align:center">${item.variation ? '<span style="font-size:0.78rem;color:var(--text-mid)">' + rrEsc(item.variation) + '</span>' : '<span style="color:var(--text-dim)">—</span>'}</td>`;
+        _cells.type = `<td data-col="type" style="font-size:0.78rem;color:var(--text-dim)">${_typeText}${(pd && pd.subType) ? '<div style="font-size:0.66rem;opacity:0.8;margin-top:1px">' + rrEsc(pd.subType) + '</div>' : ''}</td>`;
         _cells.photo = `<td data-col="photo" style="text-align:center;padding:2px 4px"><div id="thumb-${_rrRowDomKey(item)}" class="rr-row-thumb"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div></td>`;
-        _cells.desc = `<td data-col="desc" style="color:var(--text-mid);font-size:0.85rem" title="${(_descFull||'').replace(/"/g,'&quot;')}">${_descFull}${(typeof rrCatalogStatusChip === 'function') ? rrCatalogStatusChip(item, { block: true }) : ''}</td>`;
+        _cells.desc = `<td data-col="desc" style="color:var(--text-mid);font-size:0.85rem" title="${rrEsc(_descFull)}">${rrEsc(_descFull)}${(typeof rrCatalogStatusChip === 'function') ? rrCatalogStatusChip(item, { block: true }) : ''}</td>`;
         _cells.worth = (function(){
           // v0.9.1569 (Brad's decision, 2026-08-23): the folded group row's
           // Worth is the SUM of the pieces' Est. Worth — and the cell says
@@ -5605,9 +5605,9 @@ function _rrBrowseCore(_co) {
         })()}
         <td class="coll-actions-cell" data-col="actions" style="text-align:right">
           ${!_inShareModeD ? `${_fsBtn}
-          <button onclick="event.stopPropagation();collectionActionSold(${globalIdx},'${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0},'${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:var(--t-green);font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Mark as sold / add to Sold list">Sold</button>
+          <button onclick="event.stopPropagation();collectionActionSold(${globalIdx},'${rrJsArg(_dispNum)}','${_escVar}',${pd && pd.row ? pd.row : 0},'${rrJsArg(_myInvId)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:var(--t-green);font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Mark as sold / add to Sold list">Sold</button>
           ${_upgBtn}
-          <button onclick="event.stopPropagation();removeCollectionItem('${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0},'${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--t-red);font-family:var(--font-body)">Remove</button>` : ''}
+          <button onclick="event.stopPropagation();removeCollectionItem('${rrJsArg(_dispNum)}','${_escVar}',${pd && pd.row ? pd.row : 0},'${rrJsArg(_myInvId)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--t-red);font-family:var(--font-body)">Remove</button>` : ''}
         </td>
       </tr>`;
     } else {
@@ -5616,7 +5616,7 @@ function _rrBrowseCore(_co) {
       const _vdMax = window.innerWidth > 1500 ? 90 : window.innerWidth > 1200 ? 64 : window.innerWidth > 900 ? 44 : 28;
       const vdShort = item.varDesc ? (typeof varShortLabel === 'function' ? varShortLabel(item.varDesc, _vdMax) : (item.varDesc.length > _vdMax ? item.varDesc.substring(0,_vdMax)+'…' : item.varDesc)) : '';
       const vdCell = vdShort
-        ? `<span style="cursor:pointer;border-bottom:1px dashed var(--border);color:var(--text-mid)" onclick="event.stopPropagation();showVarDescPopup(${globalIdx})">${vdShort}</span>`
+        ? `<span style="cursor:pointer;border-bottom:1px dashed var(--border);color:var(--text-mid)" onclick="event.stopPropagation();showVarDescPopup(${globalIdx})">${rrEsc(vdShort)}</span>`
         : '<span class="text-dim">—</span>';
       const _isErrCar = pd && pd.isError === 'Yes';
       const _isQuick = pd && pd.quickEntry;
@@ -5626,17 +5626,17 @@ function _rrBrowseCore(_co) {
       return `<tr onclick="browseRowClick(event, ${globalIdx})" style="cursor:pointer${_isQuick ? ';opacity:0.78' : ''}" title="${_isErrCar ? '⚠ Error car: ' + (pd.errorDesc||'see notes') : _isQuick ? '⚡ Quick Entry — details not yet filled in' : ''}">
         ${_mfrBadge(item)}
         <td>
-          <span class="item-num">${_displayItemNum(item)}${_isErrCar ? '<sup style="color:var(--t-accent);font-size:0.65rem">*</sup>' : ''}${_isQuick ? '<span onclick="event.stopPropagation();completeQuickEntry(\''+_rrAttrArg(item.itemNum)+'\',\''+_rrAttrArg(item.variation||'')+'\','+globalIdx+',\''+(pd.inventoryId||'')+'\')" style="font-size:0.6rem;background:#2ecc71;color:#fff;border-radius:3px;padding:1px 4px;vertical-align:middle;font-weight:600;cursor:pointer" title="Complete this Quick Entry">⚡</span>' : ''}</span>${_noNumTag(item.itemNum)}${_eraBadgeHtml}${_lineBadgeHtml}
+          <span class="item-num">${rrEsc(_displayItemNum(item))}${_isErrCar ? '<sup style="color:var(--t-accent);font-size:0.65rem">*</sup>' : ''}${_isQuick ? '<span onclick="event.stopPropagation();completeQuickEntry(\''+_rrAttrArg(item.itemNum)+'\',\''+_rrAttrArg(item.variation||'')+'\','+globalIdx+',\''+(pd.inventoryId||'')+'\')" style="font-size:0.6rem;background:#2ecc71;color:#fff;border-radius:3px;padding:1px 4px;vertical-align:middle;font-weight:600;cursor:pointer" title="Complete this Quick Entry">⚡</span>' : ''}</span>${_noNumTag(item.itemNum)}${_eraBadgeHtml}${_lineBadgeHtml}
           ${_itemExternalLinkHTML(item)}
           <span id="cam-${_rrRowDomKey(item)}" style="margin-left:5px;font-size:0.85rem;cursor:pointer;display:none" onclick="event.stopPropagation();openPhotoFolder('${_rrAttrArg(item.itemNum)}','${_rrAttrArg(pd&&pd.photoItem?pd.photoItem:'')}')" title="Open photo folder">📷</span>
         </td>
-        <td><span class="tag">${(typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(item) : item.itemType) || '—'}</span></td>
+        <td><span class="tag">${rrEsc((typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(item) : item.itemType) || '—')}</span></td>
         ${_browseCellFields(item).map(function (f) {
           // v0.9.1916: ONE field map for the cells AND the sorter (_browseCellFields).
-          if (f === 'description') return `<td>${item.description || '<span class="text-dim">—</span>'}${_statusHtml}</td>`;
+          if (f === 'description') return `<td>${item.description ? rrEsc(item.description) : '<span class="text-dim">—</span>'}${_statusHtml}</td>`;
           if (f === 'varDesc') return `<td>${vdCell}</td>`;
           if (f === 'msrp') return `<td class="text-dim">${item.msrp ? _currencySymbol() + parseFloat(String(item.msrp).replace(/[^0-9.]/g,'')).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) : '—'}</td>`;
-          return `<td>${item[f] || '<span class="text-dim">—</span>'}</td>`;
+          return `<td>${item[f] ? rrEsc(item[f]) : '<span class="text-dim">—</span>'}</td>`;
         }).join('')}
         <td class="text-dim">${item.yearProd || '—'}</td>
         <td>${_browseOwnedCell(_bdg, globalIdx)}</td>
@@ -5674,11 +5674,11 @@ function _rrBrowseCore(_co) {
         if (r._divider) return '<div style="font-size:0.72rem;font-weight:600;letter-spacing:0.1em;color:'+r.color+';text-transform:uppercase;padding:0.6rem 0 0.2rem;border-top:2px solid '+r.color+'33;margin-top:0.5rem">'+r.label+'</div>';
         const it = r.item;
         const val = it.estValue ? '$'+parseFloat(it.estValue).toLocaleString() : '';
-        return '<div class="browse-card" onclick="openEphemeraDetail(\"'+r.tabId+'\",'+it.row+')" style="border-left:3px solid '+r.color+';cursor:pointer">'
+        return '<div class="browse-card" onclick="openEphemeraDetail(\''+_rrAttrArg(r.tabId)+'\','+_rrAttrArg(it.row)+')" style="border-left:3px solid '+r.color+';cursor:pointer">'
           +'<div class="browse-card-row"><span style="font-size:0.9rem">'+r.emoji+'</span>'
-          +'<span class="browse-card-num" style="color:'+r.color+'">'+it.title+'</span>'
+          +'<span class="browse-card-num" style="color:'+r.color+'">'+rrEsc(it.title || it.itemNum || '—')+'</span>'
           +'<span class="owned-badge badge-owned" style="margin-left:auto">✓</span></div>'
-          +'<div class="browse-card-sub">'+r.label+(it.year?' · '+it.year:'')+(val?' · '+val:'')+'</div>'
+          +'<div class="browse-card-sub">'+r.label+(it.year?' · '+rrEsc(it.year):'')+(val?' · '+val:'')+'</div>'
           +'</div>';
       }).join('');
     }

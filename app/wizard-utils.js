@@ -154,6 +154,12 @@ function appPrompt(message, defaultValue, opts) {
 window.appPrompt = appPrompt;
 
 function showToast(msg, duration, isError) {
+  // v0.9.2048 (C17): what this save could not do (a photo, a side piece) rides
+  // on the end of the save's own message, so "✓ saved" can never hide it (write-outbox.js).
+  if (!isError && typeof window !== 'undefined' && typeof window.rrSaveCarryTake === 'function') {
+    const _miss = window.rrSaveCarryTake();
+    if (_miss) { msg = String(msg) + _miss; isError = true; duration = Math.max(duration || 0, 7000); }
+  }
   let t = document.getElementById('toast');
   if (t) t.remove();
   t = document.createElement('div');

@@ -3817,6 +3817,7 @@
           var folder = await driveFindOrCreateFolder('Parts', driveCache.photosId);
           var up = await driveUploadPhoto(pf.files[0], 'bin-' + Date.now() + '.jpg', folder);
           if (up && up.id) photo = 'https://drive.google.com/file/d/' + up.id + '/view';
+          else rrPhotoMissed(new Error('no file id came back'), 'parts bin photo');   // v0.9.2048 (C17)
         }
         var sale = document.getElementById('binf-sale'); var forSale = sale && sale.checked ? 'Yes' : '';
         // v0.9.2038 (A5): the typed words (description, where, topics, notes) go up as text; prices stay numbers
