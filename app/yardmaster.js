@@ -1467,6 +1467,12 @@
   // with no Variation Details is held exactly as before. A tab that leaves
   // Variation blank (RMT O) stays blank unless a number needs telling apart. ONE identity rule:
   // _ymVarKey; ONE style rule: _ymVarStyle; ONE next-value rule: _ymNextVar.
+  // v0.9.2046 ([stated] Brad "yes" 2026-10-30): a brand-new number that comes
+  // ONCE gets a variation only when the tab's OWN single rows carry one
+  // (_ymSinglesVaried). The old test — "the tab numbers its variations" — gave
+  // all 40 new Micro-Trains N rows Variation "1" (master 2.64): that tab numbers
+  // the numbers it has several of, but its 5,072 single rows leave it blank.
+  // PW - Science / PW - Other number their single rows too, so they keep 1, 2, 3.
   function _ymVarKey(dd) {
     return String((dd && dd.varDesc) || '').replace(/\s+/g, ' ').trim().toLowerCase();
   }
@@ -1477,6 +1483,17 @@
       if (/^[A-Z]{1,2}$/.test(v)) letters++; else if (/^\d+$/.test(v)) digits++;
     });
     return letters > digits ? 'letters' : (digits ? 'digits' : 'none');   // 'none' = the tab leaves Variation blank
+  }
+  function _ymSinglesVaried(vals, numIdx, varIdx) {
+    var count = {}, filled = {};
+    (vals || []).slice(1).forEach(function (r) {
+      var n = _ymCommitKey(r && r[numIdx]); if (!n) return;
+      count[n] = (count[n] || 0) + 1;
+      if (String((r && r[varIdx]) == null ? '' : r[varIdx]).trim()) filled[n] = 1;
+    });
+    var withVar = 0, blank = 0;
+    Object.keys(count).forEach(function (n) { if (count[n] === 1) { if (filled[n]) withVar++; else blank++; } });
+    return withVar > blank;   // most of the tab's one-of-a-kind numbers carry a variation
   }
   function _ymNextVar(style, used) {
     if (style !== 'letters') {
@@ -1548,6 +1565,7 @@
           if (vdIdx >= 0) { var vk = _ymVarKey({ varDesc: r[vdIdx] }); if (vk) e.keys[vk] = 1; }
         });
         var style = varIdx >= 0 ? _ymVarStyle(vals, varIdx) : '';
+        var singlesVaried = varIdx >= 0 && style === 'digits' && _ymSinglesVaried(vals, numIdx, varIdx);
         // v0.9.1628: the first cut counted the HEADER on this side only —
         // one short every time, a false alarm AFTER the rows had landed.
         var fresh = [], rowsBefore = vals.slice(1).filter(function (r) { return String((r[numIdx] || '')).trim(); }).length;
@@ -1581,7 +1599,7 @@
               if (dd !== distinct[0]) { heldTwice.push(dd); return; }
             }
             var row = dd, vNew = given;
-            if (canVary && !given && (existing[k] || many || style === 'digits')) vNew = _ymNextVar(style, ex.used);
+            if (canVary && !given && (existing[k] || many || singlesVaried)) vNew = _ymNextVar(style, ex.used);
             if (vNew !== given) { row = Object.assign({}, dd, { variation: vNew }); if (existing[k]) newVars++; }
             else if (existing[k]) newVars++;
             if (vNew) ex.used[vNew] = 1;

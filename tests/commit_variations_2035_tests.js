@@ -73,7 +73,10 @@ function makeVault() {
     ['254E', 'Electric Locomotive', 'Electric', 'B', 'pea green, orange stripe', '', 'COTT', 'R0000006']];
   const sci = [PH.slice(),
     ['205', 'Science Set', 'Junior Microscope Set', '1', 'catalog price $5.00', '', 'COTT', 'S0000001'],
-    ['205', 'Science Set', 'Junior Microscope Set', '2', 'catalog price $6.00', '', 'COTT', 'S0000002']];
+    ['205', 'Science Set', 'Junior Microscope Set', '2', 'catalog price $6.00', '', 'COTT', 'S0000002'],
+    // v0.9.2046: the live tab's single rows are numbered too (200 of 200) — that is what numbers a new single
+    ['206', 'Science Set', 'Chemistry Set', '1', '', '', 'COTT', 'S0000003'],
+    ['207', 'Science Set', 'Physics Set', '1', '', '', 'COTT', 'S0000004']];
   const rmt = [['Item Number', 'Item Type', 'Road Name', 'Description', 'Variation', 'Variation Description', 'Reference Link', 'Source'],
     ['RMT-5', 'Hopper', 'Reading', 'hopper', '', '', '', 'RMT site'],
     ['RMT-6', 'Hopper', 'Erie', 'hopper', '', '', '', 'RMT site']];
@@ -187,7 +190,7 @@ const varOf = (v, tab, vd) => { const r = v.tabs[tab].slice(1).find(x => (x[4] |
   const s3 = varOf(v, 'Lionel PW - Science', 'catalog price $7.50');
   ok('number tab (PW - Science): 205 has 1 and 2 → the new one is 3', s3 && s3[3] === '3', JSON.stringify(s3));
   const s2105 = rowsOf(v, 'Lionel PW - Science', '2105');
-  ok('number tab: a brand-new number gets 1, like every row there', s2105.length === 1 && s2105[0][3] === '1', JSON.stringify(s2105));
+  ok('number tab whose single rows are numbered: a brand-new number gets 1, like every row there', s2105.length === 1 && s2105[0][3] === '1', JSON.stringify(s2105));
   const r1 = rowsOf(v, 'RMT O', 'RMT-1');
   ok('blank-variation tab (RMT O): a new single row stays blank', r1.length === 1 && r1[0][4] === '', JSON.stringify(r1));
   const r5 = rowsOf(v, 'RMT O', 'RMT-5');
@@ -216,7 +219,7 @@ const varOf = (v, tab, vd) => { const r = v.tabs[tab].slice(1).find(x => (x[4] |
   const o2 = await runCommit(SRC.replace(k2, "    return 'digits';"));
   const o2a = varOf(o2.v, 'Lionel Pre-War', 'Painted light gray sides; apple green inserts');
   ok('planted offender (every tab numbered) → a Pre-War variation lands as "1", and the suite sees it', o2a && o2a[3] === '1', JSON.stringify(o2a));
-  const k3 = "if (canVary && !given && (existing[k] || many || style === 'digits')) vNew = _ymNextVar(style, ex.used);";
+  const k3 = "if (canVary && !given && (existing[k] || many || singlesVaried)) vNew = _ymNextVar(style, ex.used);";
   ok('planted: the assignment line exists once', SRC.split(k3).length === 2);
   const o3 = await runCommit(SRC.replace(k3, ''));
   const o3d = varOf(o3.v, 'Lionel Pre-War', 'Red body, silver roof, serif lettering');
