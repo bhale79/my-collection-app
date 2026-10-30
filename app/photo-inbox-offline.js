@@ -271,6 +271,9 @@
       if (ids.indexOf(r.id) === -1) continue;
       r.itemNum = String(itemNum || '');
       r.invId = String(invId || '');
+      // v0.9.2058 (collections rule 2): a paired photo remembers WHICH
+      // collection's item it belongs to, and is only ever filed there.
+      try { r.sheetId = (typeof state !== 'undefined' && state && state.personalSheetId) || ''; } catch (eS) {}
       if (r.itemNum && !r.view) { r.view = first ? 'RSV' : 'EXTRA'; first = false; }
       await _stagePut(r);
     }
@@ -396,6 +399,11 @@
 
   // ── a paired record drains straight to its item ──────────────────
   async function _stageFileToItem(r) {
+    // v0.9.2058: paired while ANOTHER collection was open — kept (never
+    // uploaded into this collection's folder), retried when that one is open.
+    if (r.sheetId && state.personalSheetId && String(r.sheetId) !== String(state.personalSheetId)) {
+      throw new Error('kept for its own collection');
+    }
     if (!r.upLink) {
       var f = _stageFileOf(r);   // v0.9.2030: from the stored bytes
       if (!f) { r.unreadable = true; throw new Error('UNREADABLE'); }
@@ -411,7 +419,9 @@
       var ks = Object.keys(state.personalData || {});
       for (var i = 0; i < ks.length; i++) {
         var row = state.personalData[ks[i]];
-        if (row && String(row.inventoryId || '') === String(r.invId)) { pd = row; break; }
+        // v0.9.2058: the number may have moved on (two devices handed out the same one) — rrInvIdNow follows it
+        var _want = (typeof rrInvIdNow === 'function') ? rrInvIdNow(r.invId, r.sheetId || state.personalSheetId) : String(r.invId);
+        if (row && String(row.inventoryId || '') === String(_want)) { pd = row; break; }
       }
     } catch (e) {}
     if (!pd) throw new Error('row for ' + r.itemNum + ' not loaded yet');   // kept — retried next drain

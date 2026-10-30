@@ -1587,8 +1587,8 @@ async function rrRemoveSetGroup(groupId) {
     } catch (e) { console.warn('[setGroup] delete failed:', e); }
   }
   try {
-    localStorage.removeItem('lv_personal_cache');
-    localStorage.removeItem('lv_personal_cache_ts');
+    localStorage.removeItem((typeof rrPersonalCacheKey === 'function' ? rrPersonalCacheKey('') : 'lv_personal_cache'));
+    localStorage.removeItem((typeof rrPersonalCacheKey === 'function' ? rrPersonalCacheKey('ts') : 'lv_personal_cache_ts'));
   } catch (e) {}
   return removed;
 }

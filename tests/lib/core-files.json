@@ -12,7 +12,8 @@
     "app/backup.js",
     "app/photo-inbox-offline.js",
     "app/vault.js",
-    "app/scan-shelve.js"
+    "app/scan-shelve.js",
+    "app/collections.js"
   ],
   "mutable": [
     "tests/color-budget.json"

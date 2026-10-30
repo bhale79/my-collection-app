@@ -140,7 +140,7 @@ function localStateOf(src, store) {
   T('L1 a list written before v1937 (no stamp) is offered to the merge, scored 0 — never silently overwritten', st.local[K] === B && st.stamps[K] === '0' && !st.met[K], st);
   const st2 = localStateOf(DRIVE, { lv_saved_locations: B, lv_saved_locations__at: '77', lv_saved_locations__met: '1' });
   T('L2 a list that has met the account keeps its stamp and is marked met', st2.stamps[K] === '77' && st2.met[K] === true, st2);
-  T('L3 the sync hands both to the merge', /rrPrefsMerge\(st\.local, st\.stamps, got\.prefs, Date\.now\(\), \(window\.RR_PREF_UNION \|\| \{\}\), st\.met\)/.test(DRIVE));
+  T('L3 the sync hands both to the merge', /rrPrefsMerge\(st\.local, st\.stamps, got\.prefs, Date\.now\(\), \(window\.RR_PREF_UNION \|\| \{\}\), st\.met(, \(window\.RR_PREF_ALWAYS_UNION \|\| \{\}\))?\)/.test(DRIVE));
 }
 
 // ── P1/P2 planted, Node side ─────────────────────────────────────────────────

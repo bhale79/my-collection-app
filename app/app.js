@@ -1930,21 +1930,34 @@ function nextInventoryId() {
   // at or below the highest ever handed out — protects against a stale/partial
   // in-memory snapshot that would otherwise reuse a number (caused 1931290 to
   // collide with 8359 at inventoryId 97).
-  try { var _hwm = parseInt(localStorage.getItem('lv_inv_hwm')); if (!isNaN(_hwm) && _hwm > max) max = _hwm; } catch (e) {}
+  // v0.9.2058 (TRR Pro release 4): the watermark is kept PER COLLECTION —
+  // rrInvHwmKey() is lv_inv_hwm for the home collection, exactly as before.
+  var _hwmKey = _rrInvHwmKeyNow();
+  try { var _hwm = parseInt(localStorage.getItem(_hwmKey)); if (!isNaN(_hwm) && _hwm > max) max = _hwm; } catch (e) {}
   var next = String(max + 1);
   _issuedInvIds[next] = true;
-  try { localStorage.setItem('lv_inv_hwm', next); } catch (e) {}
+  try { localStorage.setItem(_hwmKey, next); } catch (e) {}
+  // …and a number handed out here is checked against the SHEET before and
+  // after its row is written (collections.js rrInvGuardBefore / After), so two
+  // phones on one account can no longer give two items the same number.
+  try { if (typeof rrNoteMinted === 'function') rrNoteMinted(next); } catch (e) {}
   return next;
 }
+function _rrInvHwmKeyNow() { return (typeof rrInvHwmKey === 'function') ? rrInvHwmKey() : 'lv_inv_hwm'; }
+// A switch of collection starts a fresh "handed out this session" list: the
+// switch waited for every save, so nothing in it is still on its way.
+function rrResetIssuedInvIds() { _issuedInvIds = {}; }
+if (typeof window !== 'undefined') window.rrResetIssuedInvIds = rrResetIssuedInvIds;
 // Raise the persistent inventory-ID watermark from all loaded lists. Monotonic —
 // only ever increases. Called after personal data loads so the watermark knows
 // the true global max even when only part of the collection is in memory.
 function _seedInvHwm() {
   try {
-    var max = parseInt(localStorage.getItem('lv_inv_hwm')); if (isNaN(max)) max = 0;
+    var _hk = _rrInvHwmKeyNow();
+    var max = parseInt(localStorage.getItem(_hk)); if (isNaN(max)) max = 0;
     var scan = function (obj) { Object.values(obj || {}).forEach(function (r) { var id = parseInt(r && r.inventoryId); if (!isNaN(id) && id > max) max = id; }); };
     scan(state.personalData); scan(state.isData); scan(state.scienceData); scan(state.constructionData); scan(state.mySetsData); scan(state.forSaleData); scan(state.upgradeData); scan(state.wantData);
-    localStorage.setItem('lv_inv_hwm', String(max));
+    localStorage.setItem(_hk, String(max));
   } catch (e) {}
 }
 if (typeof window !== 'undefined') window._seedInvHwm = _seedInvHwm;
@@ -3805,7 +3818,7 @@ function buildApp() {
       if (document.visibilityState !== 'visible') return;
       try {
         if (!state.personalSheetId || typeof _loadPersonalFromSheets !== 'function') return;
-        var _ts = parseInt(localStorage.getItem('lv_personal_cache_ts') || '0');
+        var _ts = parseInt(localStorage.getItem((typeof rrPersonalCacheKey === 'function' ? rrPersonalCacheKey('ts') : 'lv_personal_cache_ts')) || '0');
         if (Date.now() - _ts < 5 * 60 * 1000) return;
         if (window._fgRefreshing) return;
         window._fgRefreshing = true;
@@ -4023,8 +4036,8 @@ async function forceRefreshData() {
         : "Couldn't reach Google Sheets — your collection is unchanged. Check your connection or sign-in and try again.", 5000, true);
       return;
     }
-    localStorage.removeItem('lv_personal_cache');
-    localStorage.removeItem('lv_personal_cache_ts');
+    localStorage.removeItem((typeof rrPersonalCacheKey === 'function' ? rrPersonalCacheKey('') : 'lv_personal_cache'));
+    localStorage.removeItem((typeof rrPersonalCacheKey === 'function' ? rrPersonalCacheKey('ts') : 'lv_personal_cache_ts'));
     _cachePersonalData();
     resetFilters();
     buildDashboard();

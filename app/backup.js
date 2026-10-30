@@ -265,7 +265,7 @@ async function backupRestore(backupId, opts) {
   }
 
   // Step D: Point the app at the new sheet
-  state.personalSheetId = newPersonalId;
+  rrSetHomeSheet(newPersonalId, 'restore');   // v0.9.2058: the ONE writer (collections.js)
   localStorage.setItem('lv_personal_id', newPersonalId);
   if (typeof driveWriteConfig === 'function') {
     try {
@@ -292,8 +292,8 @@ async function backupRestore(backupId, opts) {
   // so the reload comes only from the new sheet, which then rewrites the cache
   // fresh. Same keys app-collection.js and app-data.js already remove elsewhere.
   try {
-    localStorage.removeItem('lv_personal_cache');
-    localStorage.removeItem('lv_personal_cache_ts');
+    localStorage.removeItem((typeof rrPersonalCacheKey === 'function' ? rrPersonalCacheKey('') : 'lv_personal_cache'));
+    localStorage.removeItem((typeof rrPersonalCacheKey === 'function' ? rrPersonalCacheKey('ts') : 'lv_personal_cache_ts'));
   } catch (e) { /* private-mode storage; the reload below still fetches fresh */ }
 
   onProgress(BACKUP_UI_TEXT.restoreReloading);

@@ -2452,7 +2452,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
   // Drive as two devices and checks they land on ONE folder.
   ok('the finder looks in the root AND every era folder',
      /async function _driveItemFolderAnywhere\(itemNum\)/.test(dv) &&
-     /return \[driveCache\.photosId\]\.concat/.test(dv));
+     // v0.9.2058: the root is the OPEN collection's photo folder (_rrPhotoRoot — home = driveCache.photosId)
+     /const _root = _rrPhotoRoot\(\);[\s\S]{0,120}return \[_root\]\.concat/.test(dv));
   ok('ensure-folder reuses an existing folder before creating a second one',
      /folderId = await _driveItemFolderAnywhere\(key\)/.test(dv) &&
      dv.indexOf('_driveItemFolderAnywhere(key)') < dv.indexOf('folderId = await driveFindOrCreateFolder(key, parentId)'));
@@ -2486,7 +2487,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   // (driveTidyPhotoFolders). Same moves, same paging; a folder no step can
   // place now goes to Other Items instead of staying loose.
   ok('the tidy-up MOVES folders, so ids and every stored link survive',
-     /addParents=' \+ destId \+\s*\n?\s*'&removeParents=' \+ driveCache\.photosId/.test(dv) &&
+     /addParents=' \+ destId \+\s*\n?\s*'&removeParents=' \+ _tidyRoot/.test(dv) && /const _tidyRoot = _rrPhotoRoot\(\);/.test(dv) &&   // v0.9.2058: the open collection's folder
      /the folder id is unchanged/.test(dv));
   ok('main folders are destinations, never things to move',
      /if \(mainNames\[f\.name\]\) continue;/.test(dv));
@@ -3393,7 +3394,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
       });
       // The reason it matters: the sign-in fallback trusts this key blindly.
       ok('…which is exactly the key the sign-in fallback trusts',
-         /state\.personalSheetId = localStorage\.getItem\('lv_personal_id'\)/.test(auth));
+         // v0.9.2058: through the ONE writer of the home sheet (collections.js rrSetHomeSheet)
+         /rrSetHomeSheet\(localStorage\.getItem\('lv_personal_id'\), 'sign-in'\)/.test(auth));
     })();
 
     // ── BLOCKER 2: a failed create must store NOTHING ──
@@ -10144,7 +10146,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('…it moves that copy\'s own folder',
        /copies\.find\(function \(f\) \{ return String\(f\.name\) === String\(inventoryId\); \}\)/.test(mts));
     ok('…into a matching item folder on the sold side, not loose',
-       /driveFindOrCreateFolder\(key, driveCache\.soldPhotosId\)/.test(mts));
+       /driveFindOrCreateFolder\(key, _rrSoldPhotoRoot\(\)\)/.test(mts));   // v0.9.2058: the open collection's sold folder (home = driveCache.soldPhotosId)
     // v0.9.1268 (R7): these two used to assert that the item FOLDER was moved —
     // once when it was the last copy, once when there were no copies at all.
     // That is the exact behaviour R7 removed: moving the folder meant naming the
@@ -11036,8 +11038,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // v2007 82→83, v2009 83→84, v2010 84→85, v2011 85→86, v2012 86→87, v2013 87→88 (the Photo Inbox pieces — the split).
       // v2020 88→89 (scan-shelve.js — Scan to Shelve, owners only).
       // v2038 89→90 (store-links.js — the last stop for every outgoing link, store codes; folded from the Trainz chat's v2039).
-      ok('every ?v= mark in app/index.html matches it — all 90, none stale',
-         stamps.length === 90 && stamps.every(t => t === '?v=' + build),
+      // v2058 90→91 (collections.js — TRR Pro release 4, the collections foundation).
+      ok('every ?v= mark in app/index.html matches it — all 91, none stale',
+         stamps.length === 91 && stamps.every(t => t === '?v=' + build),
          stamps.length + ' stamps; strays: ' + stamps.filter(t => t !== '?v=' + build).slice(0, 3).join(','));
       ok('the service worker cache name moved too (build + 10, the fixed offset)',
          new RegExp("const CACHE_NAME = 'mca-v" + (build + 10) + "';").test(rd('app/sw.js')),
@@ -12038,7 +12041,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // answer the era) and read the REAL RR_PHOTO_HOME lifted from config.js.
       return new Function('driveEnsureSetup', 'driveCache', 'driveRequest', 'ERAS',
                           'driveEraFolderNameFor', '_driveEraFolders', 'driveFindOrCreateFolder', 'console',
-                          '_rrPhotoHome', '_driveEnsureHomePath', 'RR_PHOTO_HOME', '_RR_HOME_SEP',
+                          '_rrPhotoHome', '_driveEnsureHomePath', 'RR_PHOTO_HOME', '_RR_HOME_SEP', '_rrPhotoRoot',
         src + 'return ' + fnName + ';'
       )(async function () {}, { photosId: 'PHOTOS', itemFolders: {} }, stubReq, ERAS_STUB,
         function () { return 'Lionel Postwar'; },
@@ -12047,7 +12050,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
         { warn() {}, error() {}, log() {} },
         function () { return { path: ['Lionel Postwar'], why: 'era' }; },
         async function () { return 'ERA_PW'; },
-        RR_PHOTO_HOME_LIFTED, ' \u203a ');
+        RR_PHOTO_HOME_LIFTED, ' \u203a ',
+        function () { return 'PHOTOS'; });   // v0.9.2058: the open collection's photo folder (home = driveCache.photosId)
     }
 
     const MIG_END = '// The tidy-up on its own:';
@@ -15883,11 +15887,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
         const st = {};
         const fn = new Function(
           'document', 'localStorage', 'sessionStorage', 'state', 'MASTER_SHEET_ID',
-          '_buildBetaGate', '_buildAuthScreen', '_buildAppShell', 'showApp', 'showLoading', 'called',
+          '_buildBetaGate', '_buildAuthScreen', '_buildAppShell', 'showApp', 'showLoading', 'called', 'rrSetHomeSheet',
           isBeta + '\n' + auth37.slice(sliceA, sliceB) + '\n return _rrShowFirstScreen;'
         )(doc, store(localSeed), store(sessionSeed), st, 'MASTER123',
           () => called.push('gate'), () => called.push('auth'), () => called.push('shell'),
-          () => called.push('showApp'), () => called.push('showLoading'), called);
+          () => called.push('showApp'), () => called.push('showLoading'), called,
+          // v0.9.2058: the ONE writer of the home sheet (collections.js) — at home it sets the live sheet
+          id => { st.personalSheetId = id ? String(id) : null; return st.personalSheetId; });
         // Catch a THROW rather than letting it take the whole suite down with
         // it. The mutation drill found this: removing the JSON.parse guard
         // made _rrShowFirstScreen throw, the suite died mid-run, and "no FAIL
@@ -16656,8 +16662,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
       {
         const ct = rd40('contacts.js');
         ok('240 the contacts delete goes through the guarded writer',
-           /rrVerifiedRowUpdate\(state\.personalSheetId, TAB, row,/.test(ct) &&
-           !/return sheetsUpdate\(state\.personalSheetId,\s*\n?\s*TAB \+ '!A'/.test(ct),
+           // v0.9.2058: Contacts write the HOME collection's sheet (_ctSheet)
+           /rrVerifiedRowUpdate\(_ctSheet\(\), TAB, row,/.test(ct) &&
+           !/return sheetsUpdate\((state\.personalSheetId|_ctSheet\(\)),\s*\n?\s*TAB \+ '!A'/.test(ct),
            'contacts is blanking rows raw again');
 
         // The whole fix turns on WHICH cell it compares. Column A is the

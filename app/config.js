@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2066';
+const APP_VERSION = 'v0.9.2067';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -2898,6 +2898,19 @@ if (typeof window !== 'undefined') window.RR_LOC_SPOTS = RR_LOC_SPOTS;
 var RR_SHELVE = {
   feature: 'scan_shelve',
   placesKey: 'lv_sticker_places',
+  // v0.9.2058 (TRR Pro release 4 — [stated] Brad "yes" 2026-10-29 20:06 CT,
+  // PLAN_2026-10-29_SHELF_IDS.md): every place / spot gets a PERMANENT ID, kept
+  // in its OWN account setting — never inside the saved-locations list, so an
+  // older app on another device that rewrites that list cannot wipe the IDs.
+  // { id: {loc, spot, at, retired?} }. One reader (rrPlaceIds), one writer
+  // (_shPlaceIdsSave), scan-shelve.js. A removed place keeps its ID, retired —
+  // never reused, like inventory numbers.
+  placeIdsKey: 'lv_place_ids',
+  // Shelf labels printed from now on: RR2:P:<id>:<place>:<spot> — the ID first,
+  // the name too, so a label scanned on a device that has not heard of the ID
+  // yet still works by name. RR1 labels keep working exactly as before.
+  codePrefix2: 'RR2',
+  placeIdLen: 6,
   scanEveryMs: 300,        // how often the camera frame is read
   sameCodeQuietMs: 2500,   // the same sticker held in view is one scan, not ten
   // v0.9.2023 (Release 2 — printed labels): the app's own codes say what they
@@ -3041,6 +3054,59 @@ const RR_MOVE_LOG = {
   },
 };
 if (typeof window !== 'undefined') window.RR_MOVE_LOG = RR_MOVE_LOG;
+// ── v0.9.2058 — COLLECTIONS, THE FOUNDATION (TRR Pro release 4; design agreed
+// with Brad 2026-10-28, "Section 1" + "Section 4 — safety rules"). INVISIBLE:
+// a regular customer has only the HOME collection and nothing changes for
+// them. What lands now is the plumbing every later collections release stands
+// on, owned by ONE file (collections.js):
+//   1 one "current collection" — the sheet every screen reads and writes is
+//     set ONLY by collections.js (guard test: nothing else assigns it);
+//   2 waiting saves carry their sheet (the outbox already did; the offline
+//     photo pairing now does too);
+//   3 the device's stored copy is kept per collection;
+//   4 switching waits for saves (quietMs with nothing being written, no
+//     screen open over the app);
+//   5 photos go to the collection's own photo folder;
+//   + the full ID (7-45; the home collection shows the plain 45) built by ONE
+//     function; numbering checked against the SHEET before and after each new
+//     row (two phones can no longer hand out the same number).
+// Home keeps every key it has always had, so nothing on a device is moved.
+var RR_COLLECTIONS = {
+  homeKey: 'home',
+  currentKey: 'lv_current_collection',   // DEVICE setting: each device remembers its own last collection
+  cacheKey: 'lv_personal_cache',         // the stored copy; another collection's is cacheKey + '@' + key
+  hwmKey: 'lv_inv_hwm',                  // highest number handed out; another collection's is hwmKey + '@' + key
+  keySep: '@',
+  fullIdSep: '-',                        // 7-45
+  quietMs: 1500,                         // a switch needs this long with nothing being written
+  switchWaitMs: 20000,                   // …and gives up (asks to try again) after this
+  // Where a NEW inventory number is born, and the column it sits in (0 = A).
+  // The number check reads exactly these columns, so a new row can never take
+  // a number that is already on one of these tabs.
+  birthTabs: [
+    { tab: 'My Collection',      field: 'inventoryId' },   // column from PERSONAL_SCHEMA, never typed here
+    { tab: 'Instruction Sheets', col: 6 },
+    { tab: 'Science Sets',       col: 13 },
+    { tab: 'Construction Sets',  col: 13 },
+    { tab: 'My Sets',            col: 13 },
+  ],
+  // Tabs that only REPEAT a number born above (a listing, a sale). Read for
+  // the highest number — a sold item's number is never handed out again —
+  // never treated as a clash.
+  echoTabs: [
+    { tab: 'Sold',              col: 8 },
+    { tab: 'For Sale',          col: 8 },
+    { tab: 'Want-Upgrade List', col: 6 },
+  ],
+  maxReadBacks: 3,                       // a clash found after saving is fixed at most this many times
+  words: {
+    opening: 'Opening {name}…',
+    busy: 'Still saving — the switch waits until it is done. Try again in a moment.',
+    unknown: 'That collection is not on this device yet.',
+    renumbered: 'Item #{old} was also used by another device — this one is now #{now}.',
+  },
+};
+if (typeof window !== 'undefined') window.RR_COLLECTIONS = RR_COLLECTIONS;
 window.rrSavedLocations = function () {
   try {
     var raw = (typeof _prefGet === 'function') ? _prefGet(RR_LOCATIONS_KEY, '[]') : localStorage.getItem(RR_LOCATIONS_KEY);
@@ -3113,6 +3179,42 @@ window.rrSavedReportsUnion = function (accountText, deviceText) {
 window.RR_PREF_UNION = {
   lv_saved_locations: function (a, d) { return window.rrLocationsUnion(a, d); },
   lv_saved_reports:   function (a, d) { return window.rrSavedReportsUnion(a, d); },
+};
+// v0.9.2058 — the permanent shelf IDs (RR_SHELVE.placeIdsKey) are COMBINED every
+// time two devices meet, not only the first (drive.js rrPrefsMerge `always`):
+// an id one phone printed on a label is never dropped by another phone's write.
+// Per id: kept if either side has it; retired if either side retired it (an id
+// is never reused); the newer name wins (`at`). Canonical (sorted) output.
+window.rrPlaceIdsUnion = function (accountText, deviceText) {
+  var rd = function (t) { try { var o = JSON.parse(t || '{}'); return (o && typeof o === 'object' && !Array.isArray(o)) ? o : null; } catch (e) { return null; } };
+  var A = rd(accountText) || {}, D = rd(deviceText) || {};
+  var out = {};
+  Object.keys(A).concat(Object.keys(D)).sort().forEach(function (id) {
+    if (out[id]) return;
+    var a = A[id], d = D[id];
+    var ok = function (e) { return e && typeof e === 'object' && e.loc; };
+    if (!ok(a) && !ok(d)) return;
+    var pick = !ok(a) ? d : !ok(d) ? a : ((Number(d.at) || 0) > (Number(a.at) || 0) ? d : a);
+    var e = { loc: String(pick.loc), spot: String(pick.spot || ''), at: Math.max(Number(ok(a) && a.at) || 0, Number(ok(d) && d.at) || 0) };
+    if ((ok(a) && a.retired) || (ok(d) && d.retired)) e.retired = true;
+    out[id] = e;
+  });
+  return window.rrPlaceIdsText(out);
+};
+// ONE canonical text for the map (sorted ids, fixed field order) — the writer
+// and the merge both use it, so equal maps are equal text.
+window.rrPlaceIdsText = function (o) {
+  var out = {};
+  Object.keys(o || {}).sort().forEach(function (id) {
+    var e = o[id]; if (!e || !e.loc) return;
+    var x = { loc: String(e.loc), spot: String(e.spot || ''), at: Number(e.at) || 0 };
+    if (e.retired) x.retired = true;
+    out[id] = x;
+  });
+  return JSON.stringify(out);
+};
+window.RR_PREF_ALWAYS_UNION = {
+  lv_place_ids: function (a, d) { return window.rrPlaceIdsUnion(a, d); },
 };
 // The details belonging to ONE location. An unknown or blank location returns
 // every detail the user has — a suggestion list that vanishes the moment you

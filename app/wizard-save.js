@@ -373,8 +373,8 @@ async function _quickEntrySaveSet(condition, worth, photoFiles) {
   } catch(e) { rrSaveMissed(e, 'the set\u2019s entry in My Sets'); }   // v0.9.2048 (C17): was console-only — the items saved, the set's own row did not, unsaid
 
   // Quick Entry always closes — no follow-up questions
-  localStorage.removeItem('lv_personal_cache');
-  localStorage.removeItem('lv_personal_cache_ts');
+  localStorage.removeItem((typeof rrPersonalCacheKey === 'function' ? rrPersonalCacheKey('') : 'lv_personal_cache'));
+  localStorage.removeItem((typeof rrPersonalCacheKey === 'function' ? rrPersonalCacheKey('ts') : 'lv_personal_cache_ts'));
   d._saveComplete = true;
   if (failedItems.length) {
     // Say what did NOT save, and keep it on screen long enough to read.
@@ -642,8 +642,8 @@ async function saveSet() {
     };
   } catch(e) { rrSaveMissed(e, 'the set\u2019s entry in My Sets'); }   // v0.9.2048 (C17): was console-only — the items saved, the set's own row did not, unsaid
 
-  localStorage.removeItem('lv_personal_cache');
-  localStorage.removeItem('lv_personal_cache_ts');
+  localStorage.removeItem((typeof rrPersonalCacheKey === 'function' ? rrPersonalCacheKey('') : 'lv_personal_cache'));
+  localStorage.removeItem((typeof rrPersonalCacheKey === 'function' ? rrPersonalCacheKey('ts') : 'lv_personal_cache_ts'));
   wizard.data._saveComplete = true;
   showToast('\u2713 ' + (setNum || 'Set') + ' complete \u2014 ' + saved.length + ' item' + (saved.length !== 1 ? 's' : '') + ' in your collection!');
   _doCloseWizard();
@@ -2735,8 +2735,8 @@ async function saveWizardItem() {
 
     // ── Background sync: bust cache and re-fetch from Sheets to get real row numbers ──
     // Longer delay on mobile to give Sheets time to propagate
-    localStorage.removeItem('lv_personal_cache');
-    localStorage.removeItem('lv_personal_cache_ts');
+    localStorage.removeItem((typeof rrPersonalCacheKey === 'function' ? rrPersonalCacheKey('') : 'lv_personal_cache'));
+    localStorage.removeItem((typeof rrPersonalCacheKey === 'function' ? rrPersonalCacheKey('ts') : 'lv_personal_cache_ts'));
     const _syncDelay = window.IS_MOBILE_UA ? 3000 : 1500;   // v0.9.699
     setTimeout(async function() {
       try {

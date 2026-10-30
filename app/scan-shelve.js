@@ -18,6 +18,9 @@
 //   rrShelveSaveLocation(key, place)         the ONLY place a scan writes Location / Location Detail
 //   rrShelveCode(code)         THE door every scan goes through — camera or the typed box
 //   rrShelveOpen(mode)         the camera screen ('shelve', or pairing one item / one place)
+//   rrPlaceIds / _shPlaceIdsSave           v0.9.2058: the ONLY reader / writer of the permanent
+//                              shelf IDs (lv_place_ids — its own account setting); rrPlaceIdFor
+//                              makes one, rrPlaceIdRetire retires one, rrPlaceIdRename renames
 // Every word is in config.js RR_SHELVE.words. A sticker means ONE thing: one
 // item or one place; moving it always asks first.
 // ═══════════════════════════════════════════════════════════════════════════
@@ -77,11 +80,25 @@ function _shSheetTag() {
 function rrStickerAppCodeItem(pd) {
   return pd && pd.inventoryId ? RR_SHELVE.codePrefix + ':I:' + _shSheetTag() + ':' + encodeURIComponent(String(pd.inventoryId)) : '';
 }
+// v0.9.2058: a shelf label carries the place's PERMANENT ID first and its name
+// too — RR2:P:<id>:<place>:<spot>. Printing a place gives it its ID (once).
+// If an ID cannot be made, the old name-only RR1 label is printed instead.
 function rrStickerAppCodePlace(p) {
-  return p && p.loc ? RR_SHELVE.codePrefix + ':P:' + encodeURIComponent(String(p.loc).trim()) + ':' + encodeURIComponent(String(p.spot || '').trim()) : '';
+  if (!p || !p.loc) return '';
+  var loc = encodeURIComponent(String(p.loc).trim()), spot = encodeURIComponent(String(p.spot || '').trim());
+  var id = rrPlaceIdFor(p);
+  if (id) return (RR_SHELVE.codePrefix2 || 'RR2') + ':P:' + id + ':' + loc + ':' + spot;
+  return RR_SHELVE.codePrefix + ':P:' + loc + ':' + spot;
 }
 function rrStickerParseApp(code) {
-  var c = rrStickerNorm(code), pre = RR_SHELVE.codePrefix + ':';
+  var c = rrStickerNorm(code), pre = RR_SHELVE.codePrefix + ':', pre2 = (RR_SHELVE.codePrefix2 || 'RR2') + ':';
+  try {
+    if (c.indexOf(pre2) === 0) {
+      var q = c.slice(pre2.length).split(':');
+      if (q[0] === 'P' && q.length === 4 && q[1]) return { kind: 'place', id: q[1], loc: decodeURIComponent(q[2]), spot: decodeURIComponent(q[3]) };
+      return null;
+    }
+  } catch (e) { return null; }
   if (c.indexOf(pre) !== 0) return null;
   var parts = c.slice(pre.length).split(':');
   try {
@@ -90,10 +107,97 @@ function rrStickerParseApp(code) {
   } catch (e) {}
   return null;
 }
+
+// ── v0.9.2058 — PERMANENT SHELF IDs ([stated] Brad "yes" 2026-10-29) ─────────
+// { id: {loc, spot, at, retired?} } in ITS OWN account setting (placeIdsKey).
+// THE reader:
+function rrPlaceIds() {
+  try {
+    var raw = (typeof rrPrefRead === 'function') ? rrPrefRead(RR_SHELVE.placeIdsKey) : localStorage.getItem(RR_SHELVE.placeIdsKey);
+    var o = JSON.parse(raw || '{}');
+    return (o && typeof o === 'object' && !Array.isArray(o)) ? o : {};
+  } catch (e) { return {}; }
+}
+// THE writer (canonical text, so two devices that agree never rewrite it).
+function _shPlaceIdsSave(o) {
+  var v = (typeof rrPlaceIdsText === 'function') ? rrPlaceIdsText(o) : JSON.stringify(o || {});
+  if (typeof rrPrefWrite === 'function') rrPrefWrite(RR_SHELVE.placeIdsKey, v); else localStorage.setItem(RR_SHELVE.placeIdsKey, v);
+}
+function _shPlaceIdNorm(s) { return String(s == null ? '' : s).trim().toLowerCase(); }
+// The live (not retired) ID of a place, or ''.
+function rrPlaceIdFind(place) {
+  if (!place || !String(place.loc || '').trim()) return '';
+  var all = rrPlaceIds(), L = _shPlaceIdNorm(place.loc), S = _shPlaceIdNorm(place.spot);
+  var ids = Object.keys(all).sort();
+  for (var i = 0; i < ids.length; i++) {
+    var e = all[ids[i]];
+    if (e && !e.retired && _shPlaceIdNorm(e.loc) === L && _shPlaceIdNorm(e.spot) === S) return ids[i];
+  }
+  return '';
+}
+// The place's ID — made (once, and kept for ever) when it has none.
+function rrPlaceIdFor(place) {
+  var have = rrPlaceIdFind(place);
+  if (have) return have;
+  if (!place || !String(place.loc || '').trim()) return '';
+  var all = rrPlaceIds(), id = '', len = RR_SHELVE.placeIdLen || 6;
+  for (var t = 0; t < 50 && (!id || all[id]); t++) {
+    id = '';
+    for (var i = 0; i < len; i++) id += 'abcdefghijkmnpqrstuvwxyz23456789'.charAt(Math.floor(Math.random() * 32));
+  }
+  if (!id || all[id]) return '';
+  all[id] = { loc: String(place.loc).trim(), spot: String(place.spot || '').trim(), at: Date.now() };
+  _shPlaceIdsSave(all);
+  return id;
+}
+function rrPlaceById(id) {
+  var e = rrPlaceIds()[String(id || '')];
+  return (e && e.loc) ? { loc: e.loc, spot: e.spot || '', retired: !!e.retired } : null;
+}
+// A place removed in Storage Locations: its ID (and a location's, every spot
+// inside it) is RETIRED — kept, never reused, never matched again.
+function rrPlaceIdRetire(loc, spot) {
+  var all = rrPlaceIds(), hit = 0, L = _shPlaceIdNorm(loc), whole = (spot == null || spot === '');
+  Object.keys(all).forEach(function (id) {
+    var e = all[id];
+    if (!e || e.retired || _shPlaceIdNorm(e.loc) !== L) return;
+    if (!whole && _shPlaceIdNorm(e.spot) !== _shPlaceIdNorm(spot)) return;
+    e.retired = true; e.at = Date.now(); hit++;
+  });
+  if (hit) _shPlaceIdsSave(all);
+  return hit;
+}
+// For the rename that Storage Locations will offer: the ID keeps its place,
+// the name changes — every printed label keeps working. `to` without a spot
+// renames a whole location (every spot inside it moves with it).
+function rrPlaceIdRename(from, to) {
+  if (!from || !to || !String(to.loc || '').trim()) return 0;
+  var all = rrPlaceIds(), hit = 0, L = _shPlaceIdNorm(from.loc);
+  var wholeLoc = (from.spot == null);
+  Object.keys(all).forEach(function (id) {
+    var e = all[id];
+    if (!e || e.retired || _shPlaceIdNorm(e.loc) !== L) return;
+    if (!wholeLoc && _shPlaceIdNorm(e.spot) !== _shPlaceIdNorm(from.spot)) return;
+    e.loc = String(to.loc).trim();
+    if (!wholeLoc) e.spot = String(to.spot || '').trim();
+    e.at = Date.now(); hit++;
+  });
+  if (hit) _shPlaceIdsSave(all);
+  return hit;
+}
 function rrStickerFind(code) {
   var c = rrStickerNorm(code);
   if (!c) return null;
   var app = rrStickerParseApp(c);
+  if (app && app.kind === 'place' && app.id) {
+    // v0.9.2058: the ID first — its CURRENT name (a renamed shelf keeps working).
+    // Unknown here (another device made it and it has not synced) or retired:
+    // the name printed on the label, exactly like an RR1 label.
+    var byId = rrPlaceById(app.id);
+    if (byId && !byId.retired) return { kind: 'place', place: { loc: byId.loc, spot: byId.spot || '' }, printed: true, placeId: app.id };
+    if (app.loc) return { kind: 'place', place: { loc: app.loc, spot: app.spot || '' }, printed: true, placeId: app.id };
+    return null;
+  }
   if (app && app.kind === 'place' && app.loc) return { kind: 'place', place: { loc: app.loc, spot: app.spot || '' }, printed: true };
   if (app && app.kind === 'item') {
     if (app.tag !== _shSheetTag()) return { kind: 'foreign', printed: true };
@@ -189,6 +293,7 @@ function rrStickerClearPlace(place) {
 // A place removed in Storage Locations takes its stickers with it (and a
 // location, the stickers of every spot inside it).
 function rrStickerForgetPlace(loc, spot) {
+  try { rrPlaceIdRetire(loc, spot); } catch (eR) {}   // v0.9.2058: its permanent ID is retired, never reused
   var all = rrStickerPlaces(), hit = false;
   var n = function (s) { return String(s || '').trim().toLowerCase(); };
   Object.keys(all).forEach(function (k) {
@@ -907,7 +1012,9 @@ function rrShelveLabelEntries(kind, list) {
     var num = String(pd.itemNum || '');
     var name = rrShelveItemName(pd);
     if (num && name.indexOf(num) === 0) name = name.slice(num.length).replace(/^[\s—–-]+/, '');
-    return { code: rrStickerAppCodeItem(pd), title: num, lines: [name, '#' + pd.inventoryId].filter(Boolean) };
+    // v0.9.2058: the number on the label is the FULL ID (7-45; plain 45 at home) — ONE function, collections.js
+    var _fid = (typeof rrFullId === 'function') ? rrFullId(pd.inventoryId) : String(pd.inventoryId || '');
+    return { code: rrStickerAppCodeItem(pd), title: num, lines: [name, _fid ? '#' + _fid : ''].filter(Boolean) };
   }).filter(function (e) { return e && e.code; });
 }
 // One QR drawn as filled squares (runs of dark modules merged per row), with
@@ -1096,5 +1203,7 @@ if (typeof window !== 'undefined') {
     rrShelveItemsAt: rrShelveItemsAt, rrShelveWhatsHere: rrShelveWhatsHere,
     rrShelveCheckSort: rrShelveCheckSort, rrShelveCheckResult: rrShelveCheckResult,
     rrMoveLogRow: rrMoveLogRow, rrMoveLogAdd: rrMoveLogAdd, rrMoveLogFor: rrMoveLogFor, rrShelveHistory: rrShelveHistory,
+    rrPlaceIds: rrPlaceIds, rrPlaceIdFind: rrPlaceIdFind, rrPlaceIdFor: rrPlaceIdFor, rrPlaceById: rrPlaceById,   // v0.9.2058
+    rrPlaceIdRetire: rrPlaceIdRetire, rrPlaceIdRename: rrPlaceIdRename,
   });
 }

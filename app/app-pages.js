@@ -5284,7 +5284,7 @@ async function savePart(existingId) {
     if (window._partPhotoFile) {
       try {
         await driveEnsureSetup();
-        var _pf = await driveFindOrCreateFolder('Parts', driveCache.photosId);
+        var _pf = await driveFindOrCreateFolder('Parts', (typeof _rrPhotoRoot === 'function') ? _rrPhotoRoot() : driveCache.photosId);   // v0.9.2058: the open collection's photo folder (Parts Needed is a list of the collection)
         var _up = await driveUploadPhoto(window._partPhotoFile, 'part-' + Date.now() + '.jpg', _pf);
         if (_up && _up.id) photoLink = 'https://drive.google.com/file/d/' + _up.id + '/view';
         else rrPhotoMissed(new Error('no file id came back'), 'part photo');

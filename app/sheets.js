@@ -532,6 +532,12 @@ async function sheetsAppend(spreadsheetId, range, values) {
   // returned, same contract as before (v0.9.1196 callers store it). If the
   // response ever lacks a parsable range, return 0 — the honest "row
   // unknown", which every downstream guard already treats as do-not-write.
+  // v0.9.2058 (TRR Pro release 4): a number this device has just handed out is
+  // checked against every number on the sheet first — a clash takes the next
+  // free number (collections.js). Never blocks the save: a check that cannot
+  // run leaves the row exactly as it was.
+  let _rrInvPlan = null;
+  try { if (typeof rrInvGuardBefore === 'function') _rrInvPlan = await rrInvGuardBefore(spreadsheetId, range, values); } catch (eG) { _rrInvPlan = null; }
   const body = JSON.stringify({ majorDimension: 'ROWS', values: rrSheetCells(values) });   // v0.9.2044: the one cell rule
   const appendRange = `${tabName}!A3:A`;   // anchor the table below the two header rows
   try {
@@ -551,6 +557,10 @@ async function sheetsAppend(spreadsheetId, range, values) {
     const _rm = _ur.match(/![A-Z]+(\d+)/);
     const firstRow = _rm ? parseInt(_rm[1], 10) : 0;
     console.log('[Sheets] Appended', values.length, 'row(s) at', _ur || '(range not reported)');
+    // v0.9.2058: …and read back — the NEWER of two rows with one number moves on.
+    if (_rrInvPlan && typeof rrInvGuardAfter === 'function') {
+      try { await rrInvGuardAfter(spreadsheetId, _rrInvPlan, firstRow); } catch (eA) {}
+    }
     return firstRow;
   } catch (e) {
     // An append names a TABLE, not a row, so it is the one write that stays
@@ -1056,3 +1066,13 @@ async function sheetsDeleteRow(spreadsheetId, sheetName, rowNumber, expected) {
   }
 }
 
+// ── v0.9.2058 (TRR Pro release 4, collections rule 4): every write is COUNTED,
+// so switching collection waits until nothing is being written (collections.js
+// rrSwitchQuiet). Wrapped here, where the writers are born, so no caller has to
+// remember. Without collections.js (a test sandbox) they stay as they are.
+if (typeof rrTrackWrites === 'function') {
+  sheetsUpdate = rrTrackWrites(sheetsUpdate);
+  sheetsAppend = rrTrackWrites(sheetsAppend);
+  sheetsClear = rrTrackWrites(sheetsClear);
+  sheetsDeleteRow = rrTrackWrites(sheetsDeleteRow);
+}

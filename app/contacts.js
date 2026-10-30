@@ -16,6 +16,13 @@
 (function () {
   'use strict';
 
+  // v0.9.2058 (TRR Pro release 4): Contacts belong to the BUSINESS, not to one
+  // collection — always read and written in the HOME collection's sheet
+  // (collections.js rrHomeSheet). For a regular customer that is the one sheet.
+  function _ctSheet() {
+    return (typeof rrHomeSheet === 'function' && rrHomeSheet()) || (typeof state !== 'undefined' && state && state.personalSheetId) || null;
+  }
+
   var TAB = (typeof rrFeatureTab === 'function' ? rrFeatureTab : String)('Contacts');   // v0.9.1861: registered where it is born (config.js RR_FEATURE_TABS); String when config.js is not loaded (a test sandbox)
   // v0.9.764 (Brad): + Mailing Address, Website. Columns K/L appended (tab is
   // created on first save, so widening now costs nothing). "Store name" = the
@@ -641,22 +648,22 @@
       // expired OAuth token used to make addSheet fail SILENTLY, then the
       // header write threw and every contact save died with "Could not save".
       var _tr = (typeof _withTokenRetry === 'function') ? _withTokenRetry : function (fn) { return fn(); };
-      var metaRes = await _tr(function () { return fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + '?fields=sheets.properties', { headers: { Authorization: 'Bearer ' + accessToken } }); });
+      var metaRes = await _tr(function () { return fetch('https://sheets.googleapis.com/v4/spreadsheets/' + _ctSheet() + '?fields=sheets.properties', { headers: { Authorization: 'Bearer ' + accessToken } }); });
       var meta = await metaRes.json();
       if (meta.error) throw new Error(meta.error.message || 'could not read spreadsheet');
       var has = (meta.sheets || []).some(function (s) { return s.properties.title === TAB; });
       if (!has) {
-        var addRes = await _tr(function () { return fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + ':batchUpdate', {
+        var addRes = await _tr(function () { return fetch('https://sheets.googleapis.com/v4/spreadsheets/' + _ctSheet() + ':batchUpdate', {
           method: 'POST', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
           body: JSON.stringify({ requests: [{ addSheet: { properties: { title: TAB } } }] }),
         }); });
         var addJson = await addRes.json();
         if (addJson.error && String(addJson.error.message || '').indexOf('already exists') < 0) throw new Error(addJson.error.message || 'could not create Contacts tab');
-        await sheetsUpdate(state.personalSheetId, TAB + '!A1:Q1', [HEADERS]);
+        await sheetsUpdate(_ctSheet(), TAB + '!A1:Q1', [HEADERS]);
       } else {
         // v0.9.767: tab predates the M/N/O columns — write those headers (idempotent).
         // v0.9.1179: Q joins the same idempotent back-fill.
-        try { await sheetsUpdate(state.personalSheetId, TAB + '!M1:Q1', [['Home Phone', 'Cell Phone', 'Title', 'Person Photo Link', 'Preferred Vendor']]); } catch (e2) {}
+        try { await sheetsUpdate(_ctSheet(), TAB + '!M1:Q1', [['Home Phone', 'Cell Phone', 'Title', 'Person Photo Link', 'Preferred Vendor']]); } catch (e2) {}
       }
       _tabEnsured = true;
       return true;
@@ -697,7 +704,7 @@
     // v0.9.827 (TODO-003): offline — the phone snapshot already has them.
     if (window._offlineMode) { return state.contactsData || []; }
     try {
-      var r = await sheetsGet(state.personalSheetId, TAB + '!A2:Q');
+      var r = await sheetsGet(_ctSheet(), TAB + '!A2:Q');
       state.contactsData = _ctParseRows(r && r.values);
       return state.contactsData;
     } catch (e) { state.contactsData = state.contactsData || []; return state.contactsData; }
@@ -956,7 +963,7 @@
   // treats "nothing to compare" as "do not block", so those delete exactly as
   // they do today — the guard tightens the new case without breaking the old.
   async function _ctBlankRow(row, expectId) {
-    return rrVerifiedRowUpdate(state.personalSheetId, TAB, row,
+    return rrVerifiedRowUpdate(_ctSheet(), TAB, row,
       TAB + '!A' + row + ':' + String.fromCharCode(64 + HEADERS.length) + row,
       [HEADERS.map(function () { return ''; })],
       { num: expectId || '' }, 'contact list');
@@ -1275,13 +1282,14 @@
         // wrong person. Delete has checked since v1292 (_ctBlankRow); the
         // edit now goes through the same verified writer. A refusal has
         // already told the user; the form stays open with their words.
+        // v0.9.2058 (collections): contacts always go to the HOME sheet (_ctSheet).
         if (row) {
-          if (!(await rrVerifiedRowUpdate(state.personalSheetId, TAB, row, TAB + '!A' + row + ':Q' + row, [rowVals], { num: c.id || '' }, 'contact list'))) {
+          if (!(await rrVerifiedRowUpdate(_ctSheet(), TAB, row, TAB + '!A' + row + ':Q' + row, [rowVals], { num: c.id || '' }, 'contact list'))) {
             this.textContent = '✓ Save Contact'; this.disabled = false;
             return;
           }
         }
-        else await sheetsAppend(state.personalSheetId, TAB + '!A:Q', [rowVals]);
+        else await sheetsAppend(_ctSheet(), TAB + '!A:Q', [rowVals]);
         window._ctClose('ct-modal');
         showToast('✓ ' + name + ' saved to Contacts');
         try { await _load(); window._ctRenderList(); } catch (e3) { console.warn('[contact list refresh]', e3); }

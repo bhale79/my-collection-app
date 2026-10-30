@@ -795,8 +795,8 @@ async function createPersonalSheet() {
     console.error('[setup] sheet creation failed:', _why);
     throw new Error('Could not create your collection sheet (' + _why + '). Nothing was saved — please try signing in again.');
   }
-  state.personalSheetId = data.spreadsheetId;
-  localStorage.setItem('lv_personal_id', state.personalSheetId);
+  rrSetHomeSheet(data.spreadsheetId, 'set-up');   // v0.9.2058: the ONE writer (collections.js)
+  localStorage.setItem('lv_personal_id', data.spreadsheetId);
 
   // 3. Write headers and create all tabs
   await sheetsSetupUpdate(state.personalSheetId, PERSONAL_TAB + '!A1:A1', [['My Collection']]);

@@ -379,7 +379,7 @@ function _rrShowFirstScreen() {
     // Returning user — skip beta gate, they already have access
     if (gate) gate.style.display = 'none';
     try { state.user = JSON.parse(savedUser); } catch (e) {}
-    state.personalSheetId = savedPersonalId;
+    rrSetHomeSheet(savedPersonalId, 'sign-in');   // v0.9.2058: the ONE writer (collections.js)
     showApp();
     showLoading();
     return 'app';
@@ -509,7 +509,7 @@ function _enterOfflineMode() {
   var savedUser = null;
   try { savedUser = localStorage.getItem('lv_user'); } catch (e) {}
   var snap = null;
-  try { snap = localStorage.getItem('lv_personal_cache'); } catch (e) {}
+  try { snap = localStorage.getItem((typeof rrPersonalCacheKey === 'function' ? rrPersonalCacheKey('') : 'lv_personal_cache')); } catch (e) {}
   if (!savedUser || !snap) {
     // First-time user or no snapshot — nothing useful to show offline.
     if (typeof _showOfflineBanner === 'function') _showOfflineBanner();
@@ -517,7 +517,7 @@ function _enterOfflineMode() {
   }
   window._offlineMode = true;
   try { state.user = JSON.parse(savedUser); } catch (e) {}
-  state.personalSheetId = localStorage.getItem('lv_personal_id');
+  rrSetHomeSheet(localStorage.getItem('lv_personal_id'), 'sign-in');   // v0.9.2058: the ONE writer (collections.js)
   state.masterSheetId = MASTER_SHEET_ID;
   var _bg = document.getElementById('beta-gate');   if (_bg) _bg.style.display = 'none';
   var _as = document.getElementById('auth-screen'); if (_as) _as.style.display = 'none';
@@ -949,7 +949,7 @@ function onTokenReceived(resp) {
   driveReadConfig().then(async config => {
     if (config && config.personalSheetId) {
       // Always use Drive config as source of truth
-      state.personalSheetId = config.personalSheetId;
+      rrSetHomeSheet(config.personalSheetId, 'sign-in');   // v0.9.2058: the ONE writer (collections.js)
       localStorage.setItem('lv_personal_id', config.personalSheetId);
       if (config.vaultId)      { driveCache.vaultId = config.vaultId;           localStorage.setItem('lv_vault_id', config.vaultId); }
       if (config.photosId)     { driveCache.photosId = config.photosId;         localStorage.setItem('lv_photos_id', config.photosId); }
@@ -959,7 +959,7 @@ function onTokenReceived(resp) {
       // Config file not found — try searching Drive by sheet name
       const foundId = await driveFindPersonalSheet();
       if (foundId) {
-        state.personalSheetId = foundId;
+        rrSetHomeSheet(foundId, 'sign-in');   // v0.9.2058: the ONE writer (collections.js)
         localStorage.setItem('lv_personal_id', foundId);
         // Write config so future loads are faster
         // v0.9.1266 (R2): this used to write {personalSheetId} on its own, and
@@ -973,7 +973,7 @@ function onTokenReceived(resp) {
         return;
       }
       // No config and no sheet found — check localStorage before creating anything new
-      state.personalSheetId = localStorage.getItem('lv_personal_id');
+      rrSetHomeSheet(localStorage.getItem('lv_personal_id'), 'sign-in');   // v0.9.2058: the ONE writer (collections.js)
       if (!state.personalSheetId) {
         // No sheet found anywhere — create one for this new user
         createPersonalSheet().then(loadAllData).catch(e => {
@@ -993,7 +993,7 @@ function onTokenReceived(resp) {
     // Drive read failed — try searching by sheet name
     const foundId = await driveFindPersonalSheet();
     if (foundId) {
-      state.personalSheetId = foundId;
+      rrSetHomeSheet(foundId, 'sign-in');   // v0.9.2058: the ONE writer (collections.js)
       localStorage.setItem('lv_personal_id', foundId);
       // v0.9.1266 (R2) — same as the branch above. This one is reached after
       // driveReadConfig has already thrown, which is exactly when we know the
@@ -1004,7 +1004,7 @@ function onTokenReceived(resp) {
       return;
     }
     // Fall back to localStorage
-    state.personalSheetId = localStorage.getItem('lv_personal_id');
+    rrSetHomeSheet(localStorage.getItem('lv_personal_id'), 'sign-in');   // v0.9.2058: the ONE writer (collections.js)
     if (!state.personalSheetId) {
       // No sheet found anywhere — create one for this new user
       createPersonalSheet().then(loadAllData).catch(e => {

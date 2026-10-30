@@ -439,11 +439,40 @@ async function driveEnsureSetup() {
 // so the next call tries again instead of being answered from a failure.
 let _driveEraFolderCache = null;
 const _RR_HOME_SEP = ' \u203a ';   // "Paper › Drawings" — the path of a main folder, as a key and as words
+
+// ── v0.9.2058 (TRR Pro release 4, collections rule 5): photos go to the OPEN
+// collection's own photo folder. Home answers exactly what it always did —
+// driveCache.photosId / soldPhotosId — so nothing changes for a regular
+// customer. Every item-photo path below asks _rrPhotoRoot(), never the cache
+// directly (guard test). The folder caches are kept PER collection
+// (rrDriveUseRoot, called by collections.js on a switch), so an item number
+// that exists in two collections can never be filed into the other's folder.
+function _rrPhotoRoot() {
+  if (typeof rrIsHome === 'function' && !rrIsHome() && typeof rrPhotoRootId === 'function') return rrPhotoRootId();
+  return driveCache.photosId;
+}
+function _rrSoldPhotoRoot() {
+  if (typeof rrIsHome === 'function' && !rrIsHome() && typeof rrSoldPhotoRootId === 'function') return rrSoldPhotoRootId();
+  return driveCache.soldPhotosId;
+}
+let _rrFolderCacheKey = 'home';
+const _rrFolderCaches = {};
+function rrDriveUseRoot(collKey) {
+  const k = String(collKey || 'home');
+  _rrFolderCaches[_rrFolderCacheKey] = { items: driveCache.itemFolders, eras: _driveEraFolderCache };
+  const got = _rrFolderCaches[k] || { items: {}, eras: null };
+  driveCache.itemFolders = got.items;
+  _driveEraFolderCache = got.eras;
+  _rrFolderCacheKey = k;
+}
+if (typeof window !== 'undefined') window.rrDriveUseRoot = rrDriveUseRoot;
+
 async function _driveEraFolders(force) {
   if (_driveEraFolderCache && !force) return _driveEraFolderCache;
   const out = {};
-  if (!driveCache.photosId) return (_driveEraFolderCache = out);   // no photos folder yet: genuinely empty
-  const q = encodeURIComponent("mimeType='application/vnd.google-apps.folder' and '" + driveCache.photosId + "' in parents and trashed=false");
+  const _root = _rrPhotoRoot();
+  if (!_root) return (_driveEraFolderCache = out);   // no photos folder yet: genuinely empty
+  const q = encodeURIComponent("mimeType='application/vnd.google-apps.folder' and '" + _root + "' in parents and trashed=false");
   const res = await driveRequest('GET', '/files?q=' + q + '&fields=files(id,name)&pageSize=200');
   const labels = {};
   try {
@@ -622,7 +651,9 @@ function rrPhotoHomeFor(itemNum, eraHint) { return _rrPhotoHome(itemNum, eraHint
 async function _driveEnsureHomePath(path) {
   if (!Array.isArray(path) || !path.length) throw new Error('A photo folder must go inside a main folder');
   const homes = await _driveEraFolders();
-  let parent = driveCache.photosId, key = '';
+  let parent = _rrPhotoRoot(), key = '';
+  // v0.9.2058: no photo folder for this collection = refuse; never a folder at the top of My Drive.
+  if (!parent) throw new Error('Photos folder not ready');
   for (let i = 0; i < path.length; i++) {
     key = key ? key + _RR_HOME_SEP + path[i] : path[i];
     if (!homes[key]) {
@@ -668,10 +699,11 @@ async function _driveEnsureHomePath(path) {
 // second home gets made.
 async function _driveItemFolderAnywhere(itemNum) {
   const name = String(itemNum || '').trim();
-  if (!name || !driveCache.photosId) return null;
+  const _root = _rrPhotoRoot();
+  if (!name || !_root) return null;
 
   const parentsOf = function (eras) {
-    return [driveCache.photosId].concat(Object.keys(eras).map(function (k) { return eras[k]; }));
+    return [_root].concat(Object.keys(eras).map(function (k) { return eras[k]; }));
   };
   const lookIn = async function (parents) {
     const parentQ = parents.map(function (p) { return "'" + p + "' in parents"; }).join(' or ');
@@ -699,7 +731,10 @@ async function _driveItemFolderAnywhere(itemNum) {
 async function driveEnsureItemFolder(itemNum, eraHint) {
   await driveEnsureSetup();
   const key = String(itemNum);
-  if (driveCache.itemFolders[key]) return driveCache.itemFolders[key];
+  // v0.9.2058: THIS collection's folder cache, held for the whole call — an
+  // answer that arrives after a switch lands in the collection that asked.
+  const _cache = driveCache.itemFolders;
+  if (_cache[key]) return _cache[key];
   // 1. Already exists somewhere? Use it — never create a second home.
   //
   // v0.9.1264 (finding R6): this line used to be
@@ -724,7 +759,7 @@ async function driveEnsureItemFolder(itemNum, eraHint) {
     const parentId = await _driveEnsureHomePath(rrPhotoHomeFor(key, eraHint));
     folderId = await driveFindOrCreateFolder(key, parentId);
   }
-  driveCache.itemFolders[key] = folderId;
+  _cache[key] = folderId;
   return folderId;
 }
 
@@ -742,13 +777,14 @@ async function driveFindItemFolder(itemNum) {
     const name = String(itemNum || '').trim();
     if (!name || !accessToken) return '';
     await driveEnsureSetup();
-    if (driveCache.itemFolders[name]) return driveFolderLink(driveCache.itemFolders[name]);
-    if (!driveCache.photosId) return '';
+    const _cache = driveCache.itemFolders;   // v0.9.2058: this collection's cache, held for the call
+    if (_cache[name]) return driveFolderLink(_cache[name]);
+    if (!_rrPhotoRoot()) return '';
     // v0.9.1125: searches the root AND every era folder, so a migrated folder
     // is still found. Still find-only — it never creates anything.
     const id = await _driveItemFolderAnywhere(name);
     if (!id) return '';
-    driveCache.itemFolders[name] = id;
+    _cache[name] = id;
     return driveFolderLink(id);
   } catch (e) { console.warn('[Drive] item folder lookup:', itemNum, e && e.message); return ''; }
 }
@@ -795,7 +831,8 @@ async function driveTidyPhotoFolders(opts) {
   const dryRun = !!opts.dryRun;
   const onProgress = typeof opts.onProgress === 'function' ? opts.onProgress : function () {};
   await driveEnsureSetup();
-  if (!driveCache.photosId) throw new Error('Photos folder not ready');
+  const _tidyRoot = _rrPhotoRoot();
+  if (!_tidyRoot) throw new Error('Photos folder not ready');
 
   // Every folder sitting at the top level right now.
   // v0.9.1261 (audit 2026-08-02, finding 2): this listing decides what gets
@@ -806,7 +843,7 @@ async function driveTidyPhotoFolders(opts) {
   const kids = [];
   let pageToken = '', listComplete = true, guard = 0;
   do {
-    const q = encodeURIComponent("mimeType='application/vnd.google-apps.folder' and '" + driveCache.photosId + "' in parents and trashed=false");
+    const q = encodeURIComponent("mimeType='application/vnd.google-apps.folder' and '" + _tidyRoot + "' in parents and trashed=false");
     let res;
     try {
       res = await driveRequest('GET', '/files?q=' + q + '&fields=nextPageToken,files(id,name)&pageSize=200' + (pageToken ? '&pageToken=' + pageToken : ''));
@@ -906,7 +943,7 @@ async function driveTidyPhotoFolders(opts) {
       // addParents/removeParents is a MOVE — the folder id is unchanged, so
       // every stored link keeps working.
       await driveRequest('PATCH', '/files/' + p.id + '?addParents=' + destId +
-                                  '&removeParents=' + driveCache.photosId + '&fields=id');
+                                  '&removeParents=' + _tidyRoot + '&fields=id');
       driveCache.itemFolders[p.name] = p.id;
       result.moved++;
     } catch (e) {
@@ -1404,16 +1441,17 @@ async function driveUploadItemPhoto(file, itemNum, viewAbbr, inventoryId, fileLa
   // _photoFileName is the ONE place this format lives (the cleanup tool in
   // tools.js reuses it via window._photoFileName).
   const fileName = _photoFileName(itemNum, viewAbbr, inventoryId, fileLabel) + '.' + ext;
+  const _cache = driveCache.itemFolders;   // v0.9.2058: this collection's cache, held for the call
   const itemFolderId = await driveEnsureItemFolder(itemNum);
   // If inventoryId provided, create a subfolder for this specific copy
   let folderId = itemFolderId;
   if (inventoryId) {
     const invKey = itemNum + '/' + inventoryId;
-    if (driveCache.itemFolders[invKey]) {
-      folderId = driveCache.itemFolders[invKey];
+    if (_cache[invKey]) {
+      folderId = _cache[invKey];
     } else {
       folderId = await driveFindOrCreateFolder(String(inventoryId), itemFolderId);
-      driveCache.itemFolders[invKey] = folderId;
+      _cache[invKey] = folderId;
     }
   }
   console.log('[Drive] Folder ready:', folderId, inventoryId ? '(inv subfolder)' : '(root)', 'Uploading...');
@@ -1542,7 +1580,7 @@ async function driveMoveToSold(itemNum, inventoryId) {
   // be its own small lie.
   let _soldItemFolder = null;
   async function soldFolder() {
-    if (!_soldItemFolder) _soldItemFolder = await driveFindOrCreateFolder(key, driveCache.soldPhotosId);
+    if (!_soldItemFolder) _soldItemFolder = await driveFindOrCreateFolder(key, _rrSoldPhotoRoot());
     return _soldItemFolder;
   }
 
@@ -1851,9 +1889,15 @@ const PREFS_RETIRED = ['rr_crop_flash'];
 // COMBINED the first time the two meet, so neither device's list is thrown
 // away; from then on the ordinary newest-wins rule below applies, so a removal
 // made on one device sticks on the other.
-function rrPrefsMerge(local, stamps, remote, now, unions, met) {
+// v0.9.2058 — `always` ({key: combine(accountText, deviceText)}, config.js
+// RR_PREF_ALWAYS_UNION): a MAP two devices may each add to at any time (the
+// permanent shelf IDs). Newest-wins would let one device's write drop an id
+// the other just printed on a label, so these are COMBINED on every meeting,
+// not only the first. The combine must be canonical (same text for the same
+// map) so two devices that agree stop writing.
+function rrPrefsMerge(local, stamps, remote, now, unions, met, always) {
   local = local || {}; stamps = stamps || {}; remote = remote || {};
-  unions = unions || {}; met = met || {};
+  unions = unions || {}; met = met || {}; always = always || {};
   const apply = {}, push = {};
   const keys = {};
   Object.keys(local).forEach(function (k) { keys[k] = 1; });
@@ -1861,6 +1905,15 @@ function rrPrefsMerge(local, stamps, remote, now, unions, met) {
 
   Object.keys(keys).forEach(function (k) {
     const r = remote[k];
+    if (typeof always[k] === 'function') {
+      const hasA = Object.prototype.hasOwnProperty.call(local, k);
+      if (!r) { if (hasA) push[k] = { v: local[k], t: (Number(stamps[k]) || 0) > 0 ? Number(stamps[k]) : now }; return; }
+      if (!hasA) { apply[k] = r.v; apply[k + PREF_AT_SUFFIX] = String(r.t); return; }
+      const both = String(always[k](r.v, local[k]));
+      if (both !== String(local[k])) { apply[k] = both; apply[k + PREF_AT_SUFFIX] = String(now); }
+      if (both !== String(r.v)) push[k] = { v: both, t: now };
+      return;
+    }
     if (typeof unions[k] === 'function' && !met[k]) {
       const MET = '__met';
       const hasL = Object.prototype.hasOwnProperty.call(local, k);
@@ -2002,7 +2055,7 @@ window.rrPrefsSync = async function () {
     if (!got.ok) return false;                       // read failed: never write
     const dropped = _prefsRetire(got.prefs);         // v0.9.1830: retired keys leave both sides first
     const st = _prefsLocalState();
-    const m = rrPrefsMerge(st.local, st.stamps, got.prefs, Date.now(), (window.RR_PREF_UNION || {}), st.met);
+    const m = rrPrefsMerge(st.local, st.stamps, got.prefs, Date.now(), (window.RR_PREF_UNION || {}), st.met, (window.RR_PREF_ALWAYS_UNION || {}));
     // v0.9.1836: the Collector's Market / photo-ID ticket is ONE per account
     // now. When the merge hands this device a different one, vault.js is told
     // so the old ticket's data goes and the reads label follows the new one.
@@ -2573,4 +2626,12 @@ function rrThumbFill(hostId, folderLink, numFallback, size) {
 if (typeof window !== 'undefined') {
   window.rrThumbCellHTML = rrThumbCellHTML;
   window.rrThumbFill = rrThumbFill;
+}
+
+// v0.9.2058 (collections rule 4): every Drive request is COUNTED, so a switch
+// of collection waits until none is out — a folder lookup that answers after
+// a switch must never land in the other collection's folder cache.
+if (typeof rrTrackWrites === 'function') {
+  driveRequest = rrTrackWrites(driveRequest);
+  driveUploadFile = rrTrackWrites(driveUploadFile);
 }

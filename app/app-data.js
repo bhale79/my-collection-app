@@ -2011,7 +2011,8 @@ if (typeof window !== 'undefined') window._rrHeaderishRow = _rrHeaderishRow;
 
 async function loadPersonalData() {
   if (!state.personalSheetId) {
-    state.personalSheetId = localStorage.getItem('lv_personal_id');
+    // v0.9.2058: through the ONE writer of the home sheet (collections.js).
+    rrSetHomeSheet(localStorage.getItem('lv_personal_id'), 'load');
   }
   if (!state.personalSheetId) {
     // ── v0.9.1450 (Cooper's report #1f1ooqx4y3): after weeks away, the
@@ -2029,17 +2030,17 @@ async function loadPersonalData() {
   // Want-Upgrade combined tab introduced new state.wantData/upgradeData shapes
   // with a listType field).
   const _PERSONAL_CACHE_VER = (typeof PERSONAL_CACHE_VER !== 'undefined' ? PERSONAL_CACHE_VER : 'wu1');
-  const _pcacheVer = localStorage.getItem('lv_personal_cache_ver') || '';
+  const _pcacheVer = localStorage.getItem((typeof rrPersonalCacheKey === 'function' ? rrPersonalCacheKey('ver') : 'lv_personal_cache_ver')) || '';
   if (_pcacheVer !== _PERSONAL_CACHE_VER) {
     // Old cache predates the current schema — drop it so we fetch fresh.
-    localStorage.removeItem('lv_personal_cache');
-    localStorage.removeItem('lv_personal_cache_ts');
-    localStorage.setItem('lv_personal_cache_ver', _PERSONAL_CACHE_VER);
+    localStorage.removeItem((typeof rrPersonalCacheKey === 'function' ? rrPersonalCacheKey('') : 'lv_personal_cache'));
+    localStorage.removeItem((typeof rrPersonalCacheKey === 'function' ? rrPersonalCacheKey('ts') : 'lv_personal_cache_ts'));
+    localStorage.setItem((typeof rrPersonalCacheKey === 'function' ? rrPersonalCacheKey('ver') : 'lv_personal_cache_ver'), _PERSONAL_CACHE_VER);
     console.log('[Cache] Personal cache version mismatch, cleared (was', JSON.stringify(_pcacheVer), 'now', _PERSONAL_CACHE_VER + ')');
   }
   // Use cached personal data for instant load (2 hour TTL)
-  const _pcache = localStorage.getItem('lv_personal_cache');
-  const _ptime  = parseInt(localStorage.getItem('lv_personal_cache_ts') || '0');
+  const _pcache = localStorage.getItem((typeof rrPersonalCacheKey === 'function' ? rrPersonalCacheKey('') : 'lv_personal_cache'));
+  const _ptime  = parseInt(localStorage.getItem((typeof rrPersonalCacheKey === 'function' ? rrPersonalCacheKey('ts') : 'lv_personal_cache_ts')) || '0');
   const _PAGE_TTL    = 2 * 60 * 60 * 1000; // 2 hours
   const _BG_REFRESH  = 5 * 60 * 1000;      // background refresh throttle: 5 min
   // v0.9.826 (TODO-003): ALWAYS restore the last-saved snapshot first —
@@ -2092,6 +2093,8 @@ async function loadPersonalData() {
       if (_ugKeys.some(function(k){ return k.indexOf('|') >= 0; })) {
         state.upgradeData = _reKeyByInv(state.upgradeData);
       }
+      // v0.9.2058: the copy just restored belongs to THIS collection's sheet.
+      try { if (typeof rrMarkDataSheet === 'function') rrMarkDataSheet(state.personalSheetId); } catch (eM) {}
       // v0.9.836 (BUG-006, Brad's phone-still-shows-it): a COLD page load
       // always background-refreshes, whatever the snapshot's age — reloading
       // is how users ask "check again" after changing things on another
@@ -2123,10 +2126,12 @@ async function loadPersonalData() {
         // These are small lookup tables; if the cache has stale (or empty)
         // entries from a failed prior fetch, we need fresh data immediately
         // so badges render correctly on first paint.
+        var _p3bSheet = state.personalSheetId;   // v0.9.2058: the answer belongs to THIS sheet
         Promise.all([
-          sheetsGet(state.personalSheetId, 'For Sale!A3:J').catch(() => null),
-          sheetsGet(state.personalSheetId, 'Want-Upgrade List!A3:I').catch(() => null),
+          sheetsGet(_p3bSheet, 'For Sale!A3:J').catch(() => null),
+          sheetsGet(_p3bSheet, 'Want-Upgrade List!A3:I').catch(() => null),
         ]).then(function(results) {
+          if (typeof rrLoadIsStale === 'function' && rrLoadIsStale(_p3bSheet)) return;   // another collection is open now
           var fsRes = results[0];
           var ugRes = results[1];
           var changed = false;
@@ -2216,9 +2221,9 @@ async function loadPersonalData() {
             // OLD personalData — re-stamping the freshness timestamp here reset
             // the 5-minute clock on every reload, so frequent refreshers NEVER
             // hit the full re-fetch. Snapshot the data, keep the old clock.
-            var _p3bTs = localStorage.getItem('lv_personal_cache_ts');
+            var _p3bTs = localStorage.getItem((typeof rrPersonalCacheKey === 'function' ? rrPersonalCacheKey('ts') : 'lv_personal_cache_ts'));
             _cachePersonalData();
-            if (_p3bTs) localStorage.setItem('lv_personal_cache_ts', _p3bTs);
+            if (_p3bTs) localStorage.setItem((typeof rrPersonalCacheKey === 'function' ? rrPersonalCacheKey('ts') : 'lv_personal_cache_ts'), _p3bTs);
             if (typeof buildDashboard === 'function') buildDashboard();
             if (typeof renderBrowse === 'function') renderBrowse();
           }
@@ -2300,6 +2305,8 @@ function _pdLoadBanner(kind) {
 }
 
 function _cachePersonalData() {
+  // v0.9.2058: never save one collection's lists under another's key.
+  try { if (typeof rrDataIsCurrent === 'function' && !rrDataIsCurrent()) return; } catch (eC) {}
   try {
     const _snap = {
       personalData: state.personalData,
@@ -2316,8 +2323,8 @@ function _cachePersonalData() {
       contactsData: state.contactsData || [],  // v0.9.827: offline snapshot
       userDefinedTabs: state.userDefinedTabs || [], // Audit M2: persist user-defined tabs
     };
-    localStorage.setItem('lv_personal_cache', JSON.stringify(_snap));
-    localStorage.setItem('lv_personal_cache_ts', Date.now().toString());
+    localStorage.setItem((typeof rrPersonalCacheKey === 'function' ? rrPersonalCacheKey('') : 'lv_personal_cache'), JSON.stringify(_snap));
+    localStorage.setItem((typeof rrPersonalCacheKey === 'function' ? rrPersonalCacheKey('ts') : 'lv_personal_cache_ts'), Date.now().toString());
   } catch(e) {
     // Audit M8: surface localStorage quota errors. iOS Safari and quota-limited
     // browsers fail silently here — Brad has reported "the app keeps re-fetching
@@ -2447,6 +2454,9 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     sheetsGet(sheetId, 'For Sale!A3:J').catch((e) => { console.warn('[For Sale load failed]', e && e.message); return {values:[], _failed:true}; }),
     sheetsGet(sheetId, 'Want-Upgrade List!A3:I').catch((e) => { console.warn('[Want-Upgrade load failed]', e && e.message); return {values:[], _failed:true}; }),
   ]);
+  // v0.9.2058 (collections, rule 3): the collection changed while this read
+  // was out — its answer is another collection's lists. Drop it.
+  if (typeof rrLoadIsStale === 'function' && rrLoadIsStale(sheetId)) { console.warn('[Personal load] collection changed during the read — answer dropped'); return; }
   // v0.9.1946 (Brad's ghost No. 115, 2026-10-14): sheetsGet hands back
   // Google's reply without checking it, so an ERROR reply ({error: …}) looked
   // like an empty list. That is half of why the commits below refused to
@@ -2479,7 +2489,8 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     // v0.9.827 (Brad): Parts + Contacts join the offline snapshot — small
     // lists you want at a train show (part numbers, dealer phone numbers).
     sheetsGet(sheetId, 'Parts Needed!A3:M').catch((e) => { console.warn('[Parts Needed load failed]', e && e.message); return {values:[], _failed:true}; }),
-    sheetsGet(sheetId, 'Contacts!A2:P').catch((e) => { console.warn('[Contacts load failed]', e && e.message); return {values:[], _failed:true}; }),
+    // v0.9.2058: Contacts always come from the HOME collection (shared by the business).
+    sheetsGet((typeof rrHomeSheet === 'function' && rrHomeSheet()) || sheetId, 'Contacts!A2:P').catch((e) => { console.warn('[Contacts load failed]', e && e.message); return {values:[], _failed:true}; }),
   ]);
   // Defaults — overwritten once the secondary promise resolves below
   let catRes={values:[]}, paperRes={values:[]}, mockRes={values:[]},
@@ -2703,6 +2714,8 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   // inv-id hardening (v0.9.634): re-seed the inventory-ID watermark from the
   // freshly-loaded personal data so nextInventoryId() can never reuse a number.
   if (typeof _seedInvHwm === 'function') _seedInvHwm();
+  // v0.9.2058: the lists in memory are THIS sheet's now (collections rule 3).
+  try { if (typeof rrMarkDataSheet === 'function') rrMarkDataSheet(sheetId); } catch (eM) {}
   // v0.9.1946 (Brad's ghost No. 115): these three used to keep the OLD list
   // whenever the new one came back empty — a guard against a read that went
   // wrong. But Sold, For Sale and the Want list are emptied on purpose: take
@@ -2761,6 +2774,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
 
   // Kick off secondary parsing asynchronously — does not block function return.
   _secondaryFetch.then(async function(results) {
+    if (typeof rrLoadIsStale === 'function' && rrLoadIsStale(sheetId)) return;   // v0.9.2058: another collection is open now
     const [catRes2, paperRes2, mockRes2, otherRes2, isRes2, sciRes2, conRes2, mySetsRes2, partsRes2, contactsRes2] = results;
     isRes = isRes2; catRes = catRes2; paperRes = paperRes2; mockRes = mockRes2;
     otherRes = otherRes2; sciRes = sciRes2; conRes = conRes2; mySetsRes = mySetsRes2;
@@ -3032,6 +3046,11 @@ window._rrOfflineAppendDrain = async function () {
     var _drainP = rrOutboxDrainAppends(function (entry) {
       try {
         if (invIdx < 0) return false;
+        // v0.9.2058 (collections, rule 2): a waiting row for ANOTHER collection's
+        // sheet cannot be judged against this one's lists — `have` and the
+        // numbers above are the open collection's. Send it exactly as queued;
+        // its own sheet's duplicate guard is the number check on the way in.
+        if (entry && entry.args && entry.args.sheetId && state.personalSheetId && String(entry.args.sheetId) !== String(state.personalSheetId)) return false;
         var row = entry && entry.args && entry.args.values && entry.args.values[0];
         if (!row) return false;
         var iv = row[invIdx];

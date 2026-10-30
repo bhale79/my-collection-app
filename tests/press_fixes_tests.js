@@ -50,7 +50,8 @@ ok('the loader reports the result of THIS load', /window\._plLastFailed = _plFai
 ok('forceRefreshData no longer wipes the five stores before reading',
    !/state\.personalData = \{\};\s*\n\s*state\.soldData = \{\};/.test(frd) && /const _before = \{ personal: state\.personalData/.test(frd), '');
 ok('…the cache is only dropped and rewritten AFTER a clean read',
-   frd.indexOf("localStorage.removeItem('lv_personal_cache')") > frd.indexOf('if (window._plLastFailed) {'), '');
+   // v0.9.2058: the key comes from rrPersonalCacheKey (one per collection; home = lv_personal_cache)
+   frd.indexOf("localStorage.removeItem((typeof rrPersonalCacheKey === 'function' ? rrPersonalCacheKey('') : 'lv_personal_cache'))") > frd.indexOf('if (window._plLastFailed) {'), '');
 ok('…a failed read puts every store back and says so, and never says ✓ Synced',
    /state\.personalData = _before\.personal; state\.soldData = _before\.sold;/.test(frd) &&
    /your collection is unchanged/.test(frd) && frd.indexOf("showToast('✓ Synced from Google Sheet')") > frd.indexOf('return;'), '');

@@ -410,9 +410,10 @@ const RRONCE = 'var _rrOnceBusy = {};\n' + grab(UTILS, 'function rrOnce(key, fn,
     ok('rrRowStillIs earlier in the same function → fine', P("async function f(row){ if (!(await rrRowStillIs(S, T, row, n))) return; await sheetsUpdate(S, T + '!A' + row + ':Q' + row, [v]); }").length === 0);
     ok('the guarded writers themselves are not hits', P("async function rrVerifiedRowUpdate(s,t,r,range,v){ await sheetsUpdate(s, range, v); }\nasync function g(row){ await sheetsUpdate(S, T + '!A' + row + ':Q' + row, [v]); }").length === 1);
     ok('a header write (row 1, no variable) is not a row write', P("async function f(){ await sheetsUpdate(S, T + '!A1:Q1', [h]); }").length === 0);
-    ok('the contact Save goes through rrVerifiedRowUpdate with the contact\'s own id', /rrVerifiedRowUpdate\(state\.personalSheetId, TAB, row, TAB \+ '!A' \+ row \+ ':Q' \+ row, \[rowVals\], \{ num: c\.id \|\| '' \}, 'contact list'\)/.test(CONTACTS));
-    ok('…and a refusal leaves the form open with the Save button back', /if \(!\(await rrVerifiedRowUpdate\(state\.personalSheetId, TAB, row[\s\S]{0,200}this\.textContent = '✓ Save Contact'; this\.disabled = false;\s*return;/.test(CONTACTS));
-    ok('PLANTED: the old contact write (sheetsUpdate by row) → the scan catches it', scanRowWrite(plant(CONTACTS, "if (!(await rrVerifiedRowUpdate(state.personalSheetId, TAB, row, TAB + '!A' + row + ':Q' + row, [rowVals], { num: c.id || '' }, 'contact list'))) {", "if (!(await sheetsUpdate(state.personalSheetId, TAB + '!A' + row + ':Q' + row, [rowVals]))) {"), 'contacts.js').length === 1);
+    // v0.9.2067 (collections): the contact save names the HOME sheet through _ctSheet(), not state.personalSheetId.
+    ok('the contact Save goes through rrVerifiedRowUpdate with the contact\'s own id', /rrVerifiedRowUpdate\(_ctSheet\(\), TAB, row, TAB \+ '!A' \+ row \+ ':Q' \+ row, \[rowVals\], \{ num: c\.id \|\| '' \}, 'contact list'\)/.test(CONTACTS));
+    ok('…and a refusal leaves the form open with the Save button back', /if \(!\(await rrVerifiedRowUpdate\(_ctSheet\(\), TAB, row[\s\S]{0,200}this\.textContent = '✓ Save Contact'; this\.disabled = false;\s*return;/.test(CONTACTS));
+    ok('PLANTED: the old contact write (sheetsUpdate by row) → the scan catches it', scanRowWrite(plant(CONTACTS, "if (!(await rrVerifiedRowUpdate(_ctSheet(), TAB, row, TAB + '!A' + row + ':Q' + row, [rowVals], { num: c.id || '' }, 'contact list'))) {", "if (!(await sheetsUpdate(_ctSheet(), TAB + '!A' + row + ':Q' + row, [rowVals]))) {"), 'contacts.js').length === 1);
   }
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');

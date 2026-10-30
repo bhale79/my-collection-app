@@ -264,9 +264,9 @@ function buildPrefsPage() {
 
   const u = state.user || {};
   const sheetId = state.personalSheetId || '';
-  const cacheTs = parseInt(localStorage.getItem('lv_personal_cache_ts') || '0');
+  const cacheTs = parseInt(localStorage.getItem((typeof rrPersonalCacheKey === 'function' ? rrPersonalCacheKey('ts') : 'lv_personal_cache_ts')) || '0');
   const cacheDateStr = cacheTs ? new Date(cacheTs).toLocaleString() : 'Not cached';
-  const cacheSize = (() => { try { return (JSON.stringify(JSON.parse(localStorage.getItem('lv_personal_cache')||'{}')).length / 1024).toFixed(1) + ' KB'; } catch(e) { return '—'; } })();
+  const cacheSize = (() => { try { return (JSON.stringify(JSON.parse(localStorage.getItem((typeof rrPersonalCacheKey === 'function' ? rrPersonalCacheKey('') : 'lv_personal_cache'))||'{}')).length / 1024).toFixed(1) + ' KB'; } catch(e) { return '—'; } })();
 
   // v0.9.1865: opts.disabled greys the switch out (it cannot be clicked);
   // opts.checked overrides what the stored value says — for a switch that
