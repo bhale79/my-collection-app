@@ -53,10 +53,12 @@ ok('the offline banner pads under the status bar',
 // so a bar that comes back has to come back with its safe-area padding.
 ok('onboarding.js pins no bar to the top edge (the return bar is gone)',
    !/position:fixed;top:0/.test(ONB) && !/onboarding-return-bar/.test(ONB));
+// v0.9.2055 (sweep A1): the home-bar room is read ONCE, as --rr-safe-b in app.css's
+// :root; every bottom-pinned bar adds it (the whole-app rule is home_bar_2055_tests).
 ok('the report-draft restore bar clears the home indicator',
-   /bottom:0;padding:0\.85rem 1rem max\(0\.85rem, env\(safe-area-inset-bottom, 0px\)\);/.test(ERR));
-ok('the bottom nav still has its v0.9.1053 inset (regression pin)',
-   /env\(safe-area-inset-bottom\)/.test(CSS));
+   /bottom:0;padding:0\.85rem 1rem calc\(0\.85rem \+ var\(--rr-safe-b, 0px\)\);/.test(ERR));
+ok('the bottom nav still has its v0.9.1053 inset (regression pin, now through --rr-safe-b)',
+   /:root \{ --rr-safe-b: env\(safe-area-inset-bottom, 0px\); \}/.test(CSS) && /height: calc\(68px \+ var\(--rr-safe-b\)\)/.test(CSS));
 
 console.log('\n== The contract that makes insets exist at all ==');
 ok('viewport-fit=cover is still declared (removing it would "fix" this by undoing the look Brad chose)',

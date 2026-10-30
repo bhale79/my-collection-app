@@ -123,7 +123,7 @@ function _renderShareBar() {
   var count = Object.keys(_shareItems).length;
   var bar = document.createElement('div');
   bar.id = 'share-bottom-bar';
-  bar.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:900;background:var(--surface2);border-top:1px solid var(--border);padding:0.75rem 1rem;display:flex;align-items:center;justify-content:space-between;gap:0.75rem;box-shadow:0 -4px 16px rgba(0,0,0,0.3)';
+  bar.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:900;background:var(--surface2);border-top:1px solid var(--border);padding:0.75rem 1rem;padding-bottom:calc(0.75rem + var(--rr-safe-b, 0px));display:flex;align-items:center;justify-content:space-between;gap:0.75rem;box-shadow:0 -4px 16px rgba(0,0,0,0.3)';
 
   bar.innerHTML =
     '<div style="display:flex;align-items:center;gap:0.6rem">' +

@@ -2595,7 +2595,7 @@
       var pill = document.createElement('button');
       pill.id = 'pin-owned-pill';
       pill.innerHTML = '\u2190 Back to your photo';
-      pill.style.cssText = 'position:fixed;bottom:1.1rem;left:50%;transform:translateX(-50%);'
+      pill.style.cssText = 'position:fixed;bottom:calc(1.1rem + var(--rr-safe-b, 0px));left:50%;transform:translateX(-50%);'
         + 'z-index:8000;padding:0.7rem 1.3rem;border-radius:999px;border:none;'
         + 'background:var(--accent);color:var(--cream);font-weight:700;font-size:0.9rem;'
         + 'cursor:pointer;box-shadow:0 4px 18px var(--scrim);font-family:var(--font-body)';

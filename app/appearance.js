@@ -492,7 +492,7 @@
     + '.rrap-wbtn{font-family:var(--font-head);font-size:0.62rem;letter-spacing:0.05em;padding:7px 12px;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text)}'
     + '.rrap-go{background:var(--accent);border-color:var(--accent);color:var(--text);font-weight:600}'
     // the Preview bar — lives OUTSIDE #rrap, so it carries its own paper vars
-    + '#rrap-prevbar{position:fixed;left:50%;bottom:1.1rem;transform:translateX(-50%);z-index:100050;'
+    + '#rrap-prevbar{position:fixed;left:50%;bottom:calc(1.1rem + var(--rr-safe-b, 0px));transform:translateX(-50%);z-index:100050;'
     +   'display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;justify-content:center;max-width:94vw;'
     +   'background:var(--p-panel);color:var(--p-ink);border:1px solid var(--p-line-hi);border-radius:14px;'
     +   'padding:0.6rem 0.85rem;box-shadow:0 10px 34px rgba(0,0,0,0.4);font-family:var(--font-body)}'

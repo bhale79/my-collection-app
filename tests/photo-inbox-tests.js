@@ -10742,7 +10742,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('an empty outbox shows nothing at all',
        /if \(!n\) \{ if \(el\) el\.remove\(\); return; \}/.test(ob));
     ok('a non-empty one shows a badge, not a modal that interrupts an add',
-       /rr-outbox-badge/.test(ob) && /position: fixed; left: 1rem; bottom: 1rem/.test(rd('app.css')));
+       /rr-outbox-badge/.test(ob) && /position: fixed; left: 1rem; bottom: calc\(1rem \+ var\(--rr-safe-b\)\)/.test(rd('app.css')));   // v0.9.2055 (A1): + the home-bar room
     ok('the panel says the sheet does not have them, which is the honest wording',
        /your Google Sheet does not yet/.test(ob));
     ok('…and explains why removals are never re-run',

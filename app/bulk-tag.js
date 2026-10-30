@@ -400,7 +400,7 @@ function rrTagBar() {
     document.body.appendChild(bar);
   }
   bar.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:9760;background:var(--surface);'
-    + 'border-top:2px solid var(--accent);padding:0.6rem 0.9rem;display:flex;flex-wrap:wrap;gap:0.5rem;'
+    + 'border-top:2px solid var(--accent);padding:0.6rem 0.9rem;padding-bottom:calc(0.6rem + var(--rr-safe-b, 0px));display:flex;flex-wrap:wrap;gap:0.5rem;'
     + 'align-items:center;font-family:var(--font-body);box-shadow:0 -4px 18px rgba(0,0,0,0.35)';
   var n = Object.keys(_rrTag.sel).length;
   var conf = rrTagConflicts().length;

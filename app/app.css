@@ -73,6 +73,14 @@
     input, select, textarea { font-size: 16px !important; }
   }
 
+  /* v0.9.2055 (known-problems sweep, A1): THE home-bar room — the strip an
+     iPhone / iPad keeps at the bottom of the screen for its home bar (34 px on a
+     modern iPhone, 0 on a computer). It is read HERE and nowhere else: every
+     bar or pill pinned to the bottom of the window adds var(--rr-safe-b) to its
+     bottom or its bottom padding, so its buttons never sit on the home bar
+     (a tap there goes to the phone, not the app). Guard:
+     tests/home_bar_2055_tests.js. */
+  :root { --rr-safe-b: env(safe-area-inset-bottom, 0px); }
   :root {
     /* My Collection App — Lionel Box Palette */
     --bg:        #0f1220;
@@ -999,7 +1007,7 @@
   /* v0.9.1544: the sideways scrollbar, pinned to the bottom of the window for
      as long as the list is on screen. Same bar, somewhere you can reach it. */
   #rr-hscroll {
-    position: fixed; bottom: 0; z-index: 60; overflow-x: auto; overflow-y: hidden;
+    position: fixed; bottom: var(--rr-safe-b); z-index: 60; overflow-x: auto; overflow-y: hidden;
     height: 18px; background: var(--surface); border-top: 1px solid var(--border);
     display: none; scrollbar-color: var(--accent) var(--surface2); scrollbar-width: auto;
   }
@@ -1262,7 +1270,7 @@
      A badge, not a modal. A write that did not land is usually recoverable,
      and interrupting an add to announce it would be its own kind of rude —
      but it must never be invisible, which is the whole bug this fixes. */
-  #rr-outbox-badge { position: fixed; left: 1rem; bottom: 1rem; z-index: 9000;
+  #rr-outbox-badge { position: fixed; left: 1rem; bottom: calc(1rem + var(--rr-safe-b)); z-index: 9000;
     padding: 0.5rem 0.9rem; border-radius: 999px; cursor: pointer;
     border: 1.5px solid var(--warn, var(--accent2)); background: var(--surface);
     color: var(--accent2); font-family: var(--font-body); font-weight: 700;
@@ -1797,10 +1805,10 @@
 
     /* Fix safe areas for notched phones */
     .mobile-nav {
-      padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
-      height: calc(68px + env(safe-area-inset-bottom));
+      padding-bottom: max(0.5rem, var(--rr-safe-b));
+      height: calc(68px + var(--rr-safe-b));
     }
-    .main { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }   /* v0.9.1053 — see above */
+    .main { padding-bottom: calc(92px + var(--rr-safe-b)); }   /* v0.9.1053 — see above */
     .main {
       padding-top: 0.75rem;
       padding-left: max(0.75rem, env(safe-area-inset-left));
@@ -1876,7 +1884,7 @@
     position: fixed; inset: 0; z-index: 9500;
     background: rgba(0,0,0,0.55);
     display: none; align-items: flex-end; justify-content: center;
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-bottom: var(--rr-safe-b);
   }
   #photo-picker-sheet.open { display: flex; }
   #photo-picker-inner {

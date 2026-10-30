@@ -1536,7 +1536,7 @@ function _rrShowReconnect() {
     if (!appEl || !appEl.classList.contains('active')) return;   // never over sign-in
     var bar = document.createElement('div');
     bar.id = 'rr-reconnect-bar';
-    bar.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:100011;' +
+    bar.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + var(--rr-safe-b, 0px));z-index:100011;' +
       'display:flex;align-items:center;gap:0.7rem;padding:0.55rem 0.85rem;border-radius:10px;' +
       'background:var(--surface);border:1px solid var(--accent);font-family:var(--font-body);' +
       'font-size:0.83rem;color:var(--text);max-width:calc(100vw - 2rem)';

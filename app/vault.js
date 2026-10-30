@@ -920,7 +920,7 @@ function vaultShowToast(message) {
   const toast = document.createElement('div');
   toast.id = 'vault-toast';
   toast.style.cssText = `
-    position:fixed;bottom:30px;left:50%;transform:translateX(-50%);
+    position:fixed;bottom:calc(30px + var(--rr-safe-b, 0px));left:50%;transform:translateX(-50%);
     background:var(--surface);border:1px solid var(--border);
     color:var(--text);font-family:var(--font-body);font-size:0.86rem;
     padding:12px 22px;border-radius:10px;z-index:99999;
@@ -1411,7 +1411,7 @@ function _subTrialBar(r) {
     : 'Your free trial ends ' + when + ' — then your card is charged ' + price + '.';
   var b = document.createElement('div');
   b.id = 'sub-banner';
-  b.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:9997;background:var(--surface);border-top:2px solid var(--accent);padding:0.6rem 1rem;display:flex;align-items:center;justify-content:center;gap:0.9rem;flex-wrap:wrap;font-family:var(--font-body);font-size:0.9rem;color:var(--text);box-shadow:0 -2px 12px rgba(0,0,0,0.35)';
+  b.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:9997;background:var(--surface);border-top:2px solid var(--accent);padding:0.6rem 1rem;padding-bottom:calc(0.6rem + var(--rr-safe-b, 0px));display:flex;align-items:center;justify-content:center;gap:0.9rem;flex-wrap:wrap;font-family:var(--font-body);font-size:0.9rem;color:var(--text);box-shadow:0 -2px 12px rgba(0,0,0,0.35)';
   var txt = document.createElement('span');
   txt.textContent = msg;
   b.appendChild(txt);

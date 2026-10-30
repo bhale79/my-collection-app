@@ -301,7 +301,7 @@
     var _why = _stageReasonOf(r);   // v0.9.2030
     var ov = document.createElement('div');
     ov.id = 'stage-review-ov';
-    ov.style.cssText = 'position:fixed;inset:0;z-index:100060;background:rgba(0,0,0,0.9);display:flex;flex-direction:column;padding:max(0.8rem,env(safe-area-inset-top)) 0.9rem max(0.8rem,env(safe-area-inset-bottom))';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:100060;background:rgba(0,0,0,0.9);display:flex;flex-direction:column;padding:max(0.8rem,env(safe-area-inset-top)) 0.9rem max(0.8rem,var(--rr-safe-b, 0px))';
     ov.innerHTML =
       '<div style="display:flex;align-items:center;justify-content:space-between;color:#fff;margin-bottom:0.5rem">'
       + '<strong style="font-size:0.95rem">Photo waiting to upload</strong>'

@@ -1176,7 +1176,7 @@ window._wizPeekDetail = function () {
     var pill = document.createElement('button');
     pill.id = 'wiz-return-pill';
     pill.innerHTML = '\u2190 Back to your ' + (wizard.tab === 'sold' ? 'sale' : 'listing');
-    pill.style.cssText = 'position:fixed;bottom:1.1rem;left:50%;transform:translateX(-50%);z-index:8000;padding:0.7rem 1.3rem;border-radius:999px;border:none;background:var(--accent,#e8401c);color:#fff;font-weight:700;font-size:0.9rem;cursor:pointer;box-shadow:0 4px 18px rgba(0,0,0,0.45);font-family:var(--font-body)';
+    pill.style.cssText = 'position:fixed;bottom:calc(1.1rem + var(--rr-safe-b, 0px));left:50%;transform:translateX(-50%);z-index:8000;padding:0.7rem 1.3rem;border-radius:999px;border:none;background:var(--accent,#e8401c);color:#fff;font-weight:700;font-size:0.9rem;cursor:pointer;box-shadow:0 4px 18px rgba(0,0,0,0.45);font-family:var(--font-body)';
     pill.onclick = function () {
       pill.remove();
       var m = document.getElementById('wizard-modal');
@@ -7121,7 +7121,7 @@ window._rrOwnedOpen = function (invId, src) {
     var pill = document.createElement('button');
     pill.id = 'wiz-return-pill';
     pill.innerHTML = '\u2190 Back to adding your item';
-    pill.style.cssText = 'position:fixed;bottom:1.1rem;left:50%;transform:translateX(-50%);z-index:8000;padding:0.7rem 1.3rem;border-radius:999px;border:none;background:var(--accent,#e8401c);color:#fff;font-weight:700;font-size:0.9rem;cursor:pointer;box-shadow:0 4px 18px rgba(0,0,0,0.45);font-family:var(--font-body)';
+    pill.style.cssText = 'position:fixed;bottom:calc(1.1rem + var(--rr-safe-b, 0px));left:50%;transform:translateX(-50%);z-index:8000;padding:0.7rem 1.3rem;border-radius:999px;border:none;background:var(--accent,#e8401c);color:#fff;font-weight:700;font-size:0.9rem;cursor:pointer;box-shadow:0 4px 18px rgba(0,0,0,0.45);font-family:var(--font-body)';
     pill.onclick = function () {
       pill.remove();
       var m = document.getElementById('wizard-modal');

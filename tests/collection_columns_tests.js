@@ -96,7 +96,7 @@ ok('the inner panel no longer scrolls vertically',
    'two vertical scrollbars is what hid the sideways one');
 ok('...in the stylesheet either', /browse-table-wrap \{ overflow-x: auto; overflow-y: visible; \}/.test(css));
 ok('the wrap\u2019s own sideways bar is hidden', /browse-table-wrap \{ scrollbar-width: none; \}/.test(css));
-ok('a pinned sideways bar exists instead', /#rr-hscroll \{[\s\S]{0,200}position: fixed; bottom: 0/.test(css));
+ok('a pinned sideways bar exists instead', /#rr-hscroll \{[\s\S]{0,200}position: fixed; bottom: var\(--rr-safe-b\)/.test(css));   // v0.9.2055 (A1): above the home bar
 ok('...and it is visible, not hairline', /#rr-hscroll::-webkit-scrollbar \{ height: 14px; \}/.test(css));
 ok('the bar is a REAL scrollbar over a spacer, not a drawing',
    /bar\.firstChild\.style\.width = wrap\.scrollWidth/.test(js));

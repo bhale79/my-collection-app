@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2064';
+const APP_VERSION = 'v0.9.2065';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -3251,7 +3251,7 @@ const _RSV_PLACEHOLDER_PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHgA
       if (!document.body || document.getElementById('rr-err-banner')) return;
       var b = document.createElement('div');
       b.id = 'rr-err-banner';
-      b.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#7a1f1f;color:#fff;font:14px/1.4 sans-serif;padding:10px 14px;text-align:center;cursor:pointer';
+      b.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#7a1f1f;color:#fff;font:14px/1.4 sans-serif;padding:10px 14px;padding-bottom:calc(10px + var(--rr-safe-b, 0px));text-align:center;cursor:pointer';
       b.textContent = 'Something went wrong. Tap to reload.';
       b.addEventListener('click', function () { location.reload(); });
       document.body.appendChild(b);
@@ -3440,7 +3440,7 @@ window._rrShowUpdateBar = function (netApp) {
     // landed at its narrowest (189 px at 360, the sentence on two lines).
     // max-content asks for the one-row width and max-width clamps it to the
     // screen — the sentence gets a whole line, the buttons a whole row.
-    bar.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:100010;' +
+    bar.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + var(--rr-safe-b, 0px));z-index:100010;' +
       'display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:0.55rem 0.7rem;padding:0.6rem 0.85rem;border-radius:10px;' +
       'background:var(--surface);border:1px solid var(--accent2);box-sizing:border-box;width:max-content;' +
       'font-family:var(--font-body);font-size:0.83rem;color:var(--text);max-width:calc(100vw - 2rem)';

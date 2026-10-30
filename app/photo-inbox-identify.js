@@ -703,7 +703,7 @@
     if (!ov) {
       ov = document.createElement('div');
       ov.id = 'qc-ov';
-      ov.style.cssText = 'position:fixed;inset:0;background:var(--bg,#10132a);z-index:10000;display:flex;flex-direction:column;padding:max(0.8rem,env(safe-area-inset-top)) 0.9rem max(0.8rem,env(safe-area-inset-bottom))';
+      ov.style.cssText = 'position:fixed;inset:0;background:var(--bg,#10132a);z-index:10000;display:flex;flex-direction:column;padding:max(0.8rem,env(safe-area-inset-top)) 0.9rem max(0.8rem,var(--rr-safe-b, 0px))';
       document.body.appendChild(ov);
       var inp = document.createElement('input');
       inp.type = 'file'; inp.id = 'qc-file'; inp.accept = 'image/*';
@@ -1018,7 +1018,7 @@
     var old = document.getElementById('qc-review-ov'); if (old) old.remove();
     var ov = document.createElement('div');
     ov.id = 'qc-review-ov';
-    ov.style.cssText = 'position:fixed;inset:0;z-index:100005;background:rgba(0,0,0,0.92);display:flex;flex-direction:column;padding:max(0.8rem,env(safe-area-inset-top)) 0.9rem max(0.8rem,env(safe-area-inset-bottom))';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:100005;background:rgba(0,0,0,0.92);display:flex;flex-direction:column;padding:max(0.8rem,env(safe-area-inset-top)) 0.9rem max(0.8rem,var(--rr-safe-b, 0px))';
     ov.innerHTML =
       '<div style="display:flex;align-items:center;justify-content:space-between;color:#fff;margin-bottom:0.5rem">' +
         '<strong style="font-size:0.95rem">Item ' + r.group + '</strong>' +

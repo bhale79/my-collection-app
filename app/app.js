@@ -3014,7 +3014,7 @@ function _catalogPillShow() {
   if (!pill) {
     pill = document.createElement('div');
     pill.id = 'cat-loading-pill';
-    pill.style.cssText = 'position:fixed;bottom:1.1rem;left:50%;transform:translateX(-50%);z-index:9998;background:var(--surface2,#222);border:1px solid var(--border,#444);border-radius:20px;padding:0.5rem 1rem;font-size:0.82rem;color:var(--text-mid,#ccc);box-shadow:0 4px 16px rgba(0,0,0,0.35);display:flex;align-items:center;gap:0.5rem;max-width:90vw';
+    pill.style.cssText = 'position:fixed;bottom:calc(1.1rem + var(--rr-safe-b, 0px));left:50%;transform:translateX(-50%);z-index:9998;background:var(--surface2,#222);border:1px solid var(--border,#444);border-radius:20px;padding:0.5rem 1rem;font-size:0.82rem;color:var(--text-mid,#ccc);box-shadow:0 4px 16px rgba(0,0,0,0.35);display:flex;align-items:center;gap:0.5rem;max-width:90vw';
     document.body.appendChild(pill);
   }
   var le = (typeof state !== 'undefined' && state.loading) ? state.loading.allEras : null;
@@ -3043,7 +3043,7 @@ function _catalogStallBanner(show) {
     b = document.createElement('div');
     b.id = 'cat-stall-banner';
     b.onclick = function() { location.reload(); };
-    b.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#7a1f1f;color:#fff;font:600 0.9rem/1.4 sans-serif;padding:0.85rem 1rem;text-align:center;cursor:pointer';
+    b.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#7a1f1f;color:#fff;font:600 0.9rem/1.4 sans-serif;padding:0.85rem 1rem;padding-bottom:calc(0.85rem + var(--rr-safe-b, 0px));text-align:center;cursor:pointer';
     b.textContent = '\u26A0\uFE0F Your catalog is taking a while to load \u2014 tap here to refresh.';
     document.body.appendChild(b);
   } else if (b && b.parentNode) {
@@ -3905,7 +3905,7 @@ function _showPreloadPill(total) {
   if (existing) existing.remove();
   var pill = document.createElement('div');
   pill.id = 'preload-status-pill';
-  pill.style.cssText = 'position:fixed;bottom:18px;right:18px;z-index:1000;'
+  pill.style.cssText = 'position:fixed;bottom:calc(18px + var(--rr-safe-b, 0px));right:18px;z-index:1000;'
     + 'background:var(--surface);color:var(--text-dim);'
     + 'border:1px solid var(--border);border-radius:18px;'
     + 'padding:0.45rem 0.85rem;font-size:0.78rem;font-family:var(--font-body);'
