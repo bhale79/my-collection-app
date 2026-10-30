@@ -793,7 +793,7 @@
         _qc.recent.slice().reverse().map(function (r, i) {
           var realIdx = _qc.recent.length - 1 - i;
           return '<div onclick="_qcReview(' + realIdx + ')" style="flex-shrink:0;width:62px;height:62px;border-radius:9px;overflow:hidden;position:relative;border:2px solid ' + (r.group === _qc.group ? '#2980b9' : 'var(--border)') + ';cursor:pointer">' +
-            '<img src="' + r.url + '" class="rr-fit" style="width:100%;height:100%;display:block" alt="">' +
+            '<img src="' + r.url + '"' + (r.driveId ? ' data-rrfid="' + rrEsc(r.driveId) + '"' : '') + ' class="rr-fit" style="width:100%;height:100%;display:block" alt="">' +   // v0.9.2049: names the photo for the "Updating…" painter
             '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.55);color:#fff;font-size:0.55rem;text-align:center;padding:0 2px">Item ' + r.group + '</div>' +
             '</div>';
         }).join('') + '</div>';

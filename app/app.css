@@ -3403,14 +3403,15 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
    the item page's photo while a crop is being saved to Drive. Drawn by
    _buildPhotoGallery (app-collection.js) from rrPhotoIsSaving (photo-crop.js). */
 .rr-photo-updating {
-  position: absolute; top: 8px; right: 8px; z-index: 2;
-  display: none; align-items: center; gap: 6px;
+  position: absolute; z-index: 5; transform: translateX(-100%);   /* v0.9.2049: top/left set by _rrBusyPaint at the picture's corner */
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
   padding: 4px 10px; border-radius: 999px;
   background: rgba(0,0,0,0.6); color: #fff;
   font-size: 0.8rem; font-weight: 600; line-height: 1.2;
   pointer-events: none;
 }
-.rr-photo-updating.on { display: inline-flex; }
+.rr-photo-updating.rr-upd-compact { padding: 3px 6px; }   /* a small thumbnail: the arrow alone, the word on hover */
+.rr-photo-updating.rr-upd-compact .rr-upd-word { display: none; }
 .rr-photo-updating .rr-upd-arrow { display: inline-block; font-size: 1rem; animation: rr-upd-spin 1s linear infinite; }
 @keyframes rr-upd-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .rr-photo-updating .rr-upd-arrow { animation: none; } }

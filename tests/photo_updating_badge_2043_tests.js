@@ -91,7 +91,7 @@ async function cropAndApply(pg) {
   // ── U1 · crop → Apply ─────────────────────────────────────────────────────
   console.log('\n== U1 · the item page ✂ → Apply ==');
   let D = L.makeDrive(), S = await setup(browser, D);
-  T('U1a before any crop: the badge exists on the photo and is hidden', (await S.pg.evaluate(() => __badge())).found && !(await S.pg.evaluate(() => __badge())).shown, await S.pg.evaluate(() => __badge()));
+  T('U1a before any crop: no badge on the photo', !(await S.pg.evaluate(() => __badge())).shown, await S.pg.evaluate(() => __badge()));
   S.hold.on = true;
   const up = await cropAndApply(S.pg);
   await heldOne(S);
@@ -125,7 +125,7 @@ async function cropAndApply(pg) {
   T('U2a the redrawn photo shows "Updating…" again', B.shown && /Updating…/.test(B.text), B);
   S.hold.release();
   T('U2b and it goes when Drive answers', await waitFor(S.pg, () => !__badge().shown && window.__toasts.some(t => /Photo updated/.test(t))));
-  T('U2c the old gallery\'s listener let go of itself (one live badge on the page)', (await S.pg.evaluate(() => document.querySelectorAll('.rr-photo-updating').length)) === 1);
+  T('U2c after the save no badge is left anywhere on the page (v0.9.2049: badges exist only while a photo saves)', (await S.pg.evaluate(() => document.querySelectorAll('.rr-photo-updating').length)) === 0);
   T('U2d no page errors', S.errs.length === 0, S.errs);
   await S.pg.close();
 
@@ -179,7 +179,7 @@ async function cropAndApply(pg) {
   console.log('\n== U6 · the source rules ==');
   const words = (AC + read('photo-crop.js')).match(/'Updating\\u2026'|'Updating…'/g) || [];
   T('U6a the word is defined once, in config.js (RR_PHOTO_UPDATING_LABEL)', /const RR_PHOTO_UPDATING_LABEL = 'Updating\\u2026';/.test(CFG), null);
-  T('U6b the gallery reads it from config (its own copy is only the guard for a missing config)', /RR_PHOTO_UPDATING_LABEL/.test(AC) && words.length <= 1, words);
+  T('U6b the ONE painter (photo-crop.js) reads it from config, its own copy is only the guard for a missing config, and the gallery holds no copy', /RR_PHOTO_UPDATING_LABEL/.test(read('photo-crop.js')) && words.length <= 1 && !/Updating/.test(AC.replace(/\/\/[^\n]*/g, '')), words);
   T('U6c reduced motion stops the spin', /@media \(prefers-reduced-motion: reduce\) \{ \.rr-photo-updating \.rr-upd-arrow \{ animation: none; \} \}/.test(CSS));
   T('U6d the badge never takes a click meant for the photo', /\.rr-photo-updating \{[^}]*pointer-events: none;/.test(CSS));
 
@@ -194,14 +194,13 @@ async function cropAndApply(pg) {
     T('P1 a crop that never marks the photo: no badge during the save — U1b would fail', !p1, await S.pg.evaluate(() => __badge()));
     S.hold.release(); await S.pg.close();
   }
-  // P2 · the gallery forgets to ask when it draws → a redraw drops the badge
-  files = L.planted(T, 'app-collection.js', "    syncBusy();   // v0.9.2043\n", "", 'P2 no sync on draw');
+  // P2 · v0.9.2049: the gallery forgets to NAME its picture → the one painter cannot find it
+  files = L.planted(T, 'app-collection.js', "    heroImg.setAttribute('data-rrfid', p.id || '');   // v0.9.2043/2049: names the photo for the \"Updating…\" painter\n", "", 'P2 picture not named');
   if (files) {
     D = L.makeDrive(); S = await setup(browser, D, files);
     S.hold.on = true;
-    await cropAndApply(S.pg);
-    await S.pg.evaluate(() => __draw());
-    T('P2 a gallery that does not ask on draw loses the badge on a redraw — U2a would fail', !(await S.pg.evaluate(() => __badge())).shown);
+    const p2 = await cropAndApply(S.pg);
+    T('P2 a gallery that does not name its picture gets no badge — U1b would fail', !p2 && !(await S.pg.evaluate(() => __badge())).shown);
     S.hold.release(); await S.pg.close();
   }
   // P3 · the mark is never cleared → the arrow would spin forever

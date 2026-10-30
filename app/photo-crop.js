@@ -1335,6 +1335,83 @@ function _rrPhotoSavingMark(fileId, on) {
   else if (_rrPhotoSaving[fileId] > 1) _rrPhotoSaving[fileId]--;
   else delete _rrPhotoSaving[fileId];
   try { document.dispatchEvent(new CustomEvent('rr-photo-saving', { detail: { id: fileId, saving: rrPhotoIsSaving(fileId) } })); } catch (e) {}
+  _rrBusyPaint();
+}
+
+// ── THE ONE PAINTER of the "Updating…" badge (v0.9.2049) ─────────────────────
+// [stated] Brad 2026-10-29 "yes": the badge on the Add-wizard thumbnails and the
+// Photo Inbox too, not only the item page. Rather than a copy per screen, any
+// <img> that names its Drive photo by one of these attributes gets the badge on
+// its own top-right corner while that photo is mid-save — the item page's big
+// photo (data-rrfid, app-collection.js), the Add wizard's thumbnail (data-rrfid,
+// _photoCropStart), the Photo Inbox tiles / review picture / strip (data-fid,
+// data-rvfid, data-rvbig, data-ppfid) and Quick Capture's strip (data-rrfid).
+// A screen that draws a photo marks it; it never draws the badge itself.
+// While any photo is saving the painter looks again every RR_BUSY_TICK_MS, so a
+// screen that redraws mid-save gets its badge back; when the last save ends the
+// badges go and the looking stops. The badge is placed in the picture's
+// positioned ancestor (its offsetParent) — no screen's own layout is touched.
+var RR_PHOTO_ID_ATTRS = ['data-rrfid', 'data-fid', 'data-rvfid', 'data-rvbig', 'data-ppfid'];
+var RR_BUSY_TICK_MS = 300;
+var RR_BUSY_COMPACT_UNDER_PX = 140;   // a picture narrower than this gets the arrow alone (the word on hover)
+var _rrBusyTimer = null;
+function _rrBusyBadgesFor(img) {
+  return (img && img.__rrBusy && img.__rrBusy.isConnected) ? img.__rrBusy : null;
+}
+function _rrBusyPlace(img, b) {
+  var op = img.offsetParent;
+  if (!op) { b.style.display = 'none'; return; }
+  if (b.parentNode !== op) op.appendChild(b);
+  var ir = img.getBoundingClientRect(), orc = op.getBoundingClientRect();
+  if (ir.width < 2 || ir.height < 2) { b.style.display = 'none'; return; }
+  // the PICTURE's drawn rectangle: a contained picture sits centred with bands
+  var nw = img.naturalWidth, nh = img.naturalHeight, offX = 0, offY = 0;
+  var fit = '';
+  try { fit = getComputedStyle(img).objectFit; } catch (e) {}
+  if ((fit === 'contain' || fit === 'scale-down') && nw > 0 && nh > 0) {
+    var k = Math.min(ir.width / nw, ir.height / nh);
+    offX = Math.max(0, (ir.width - nw * k) / 2); offY = Math.max(0, (ir.height - nh * k) / 2);
+  }
+  // the box's units are the ancestor's own (pop-ups can be zoomed — --rr-pop-zoom)
+  var z = (op.offsetWidth > 0) ? (orc.width / op.offsetWidth) : 1;
+  if (!(z > 0)) z = 1;
+  var drawnW = ir.width - 2 * offX;
+  b.classList.toggle('rr-upd-compact', drawnW / z < RR_BUSY_COMPACT_UNDER_PX);
+  b.style.display = '';
+  b.style.top = Math.round((ir.top - orc.top) / z - op.clientTop + op.scrollTop + offY / z + 6) + 'px';
+  b.style.left = Math.round((ir.right - orc.left) / z - op.clientLeft + op.scrollLeft - offX / z - 6) + 'px';
+}
+function _rrBusyMake() {
+  var b = document.createElement('div');
+  b.className = 'rr-photo-updating';
+  b.setAttribute('role', 'status');
+  b.setAttribute('aria-live', 'polite');
+  var word = (typeof RR_PHOTO_UPDATING_LABEL === 'string') ? RR_PHOTO_UPDATING_LABEL : 'Updating\u2026';
+  b.title = word;
+  b.innerHTML = '<span class="rr-upd-arrow" aria-hidden="true">\u21bb</span><span class="rr-upd-word"></span>';
+  b.querySelector('.rr-upd-word').textContent = word;
+  return b;
+}
+function _rrBusyPaint() {
+  if (typeof document === 'undefined') return;
+  var ids = Object.keys(_rrPhotoSaving);
+  // badges whose photo is no longer saving (or whose picture left the page) go
+  document.querySelectorAll('.rr-photo-updating[data-rr-busy-id]').forEach(function (b) {
+    var img = b.__rrImg;
+    var keep = img && img.isConnected && rrPhotoIsSaving(b.getAttribute('data-rr-busy-id'))
+      && RR_PHOTO_ID_ATTRS.some(function (a) { return img.getAttribute(a) === b.getAttribute('data-rr-busy-id'); });
+    if (!keep) { if (img && img.__rrBusy === b) img.__rrBusy = null; b.remove(); }
+  });
+  ids.forEach(function (id) {
+    var sel = RR_PHOTO_ID_ATTRS.map(function (a) { return 'img[' + a + '="' + String(id).replace(/["\\]/g, '') + '"]'; }).join(',');
+    document.querySelectorAll(sel).forEach(function (img) {
+      var b = _rrBusyBadgesFor(img);
+      if (!b) { b = _rrBusyMake(); b.setAttribute('data-rr-busy-id', id); b.__rrImg = img; img.__rrBusy = b; }
+      _rrBusyPlace(img, b);
+    });
+  });
+  if (ids.length && !_rrBusyTimer) _rrBusyTimer = setInterval(_rrBusyPaint, RR_BUSY_TICK_MS);
+  if (!ids.length && _rrBusyTimer) { clearInterval(_rrBusyTimer); _rrBusyTimer = null; }
 }
 
 // ══ Open the crop screen on a photo that lives in Drive ═════════════════════
@@ -1481,6 +1558,12 @@ function _photoCropStart(file, stepId, viewKey, itemNum, srcUrl) {
       }
       // The File in hand: cropped at capture (it carries its original and box),
       // or the photo exactly as uploaded (then it IS the original).
+      // v0.9.2049: the thumbnail names its Drive photo, so the ONE painter puts
+      // "Updating…" on it while the crop saves (RR_PHOTO_ID_ATTRS above).
+      try {
+        var _zt = document.querySelector('.photo-drop-zone[data-view="' + viewKey + '"][data-sid="' + stepId + '"] img');
+        if (_zt) _zt.setAttribute('data-rrfid', fileId);
+      } catch (eZT) {}
       var mem = (file && file._rrOriginal) ? { original: file._rrOriginal, box: file._rrCropBox || null }
               : (file ? { original: file, box: null, single: true } : null);
       await _cropOpenDriveFile(fileId, {
@@ -1508,6 +1591,8 @@ if (typeof window !== 'undefined') {
   window._cropOpenDriveFile = _cropOpenDriveFile;
   window.rrPhotoIsSaving = rrPhotoIsSaving;          // v0.9.2043
   window._rrPhotoSavingMark = _rrPhotoSavingMark;
+  window._rrBusyPaint = _rrBusyPaint;               // v0.9.2049
+  window.RR_PHOTO_ID_ATTRS = RR_PHOTO_ID_ATTRS;
   window._cropRestoreOriginal = _cropRestoreOriginal;
   window._cropApplyCaptured = _cropApplyCaptured;
   window._cropProtectOriginal = _cropProtectOriginal;
