@@ -1452,7 +1452,8 @@ function _doCloseWizard() {
   try {
     var _wd = (wizard && wizard.data) || {};
     if (!_wd._saveComplete && _wd._pinStagedNum && typeof window.rrPinDropStaged === 'function')
-      window.rrPinDropStaged(_wd._pinStagedNum);
+      window.rrPinDropStaged(_wd._pinStagedNum,   // v0.9.2050: a real number's note too — this add's photos only
+        (_wd._addPhotoDriveIds && _wd._addPhotoDriveIds.length) ? _wd._addPhotoDriveIds : (_wd._addPhotoDriveId ? [_wd._addPhotoDriveId] : []));
   } catch (eNn) {}
   // v0.9.697: single-chokepoint cache snapshot (Brad's "says it saves but it
   // doesn't"): many save paths updated the sheet + in-memory state but never

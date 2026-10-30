@@ -979,6 +979,8 @@
     // saying yes twice is how the same picture makes two items. Ask, with
     // the claim named, before anything is staged again.
     try {
+      // v0.9.2050: release abandoned holds first — only a REAL unfinished save warns
+      try { if (typeof _pinSweepStaleClaims === 'function') _pinSweepStaleClaims(); } catch (eSw8) {}
       var _nm8 = _pinNoteFileMap();
       var _dupNum = '';
       for (var _g8 = 0; _g8 < gs.length && !_dupNum; _g8++) {
@@ -1546,17 +1548,31 @@
     }, 100);
   };
 
-  // A numberless add that is CANCELLED must not leave its staging note behind.
-  // A note keyed by a real item number is harmless — it arms itself if that
-  // number is ever added. A "__nonum__…" key can never match anything, so
-  // without this it would sit in localStorage forever holding photos that stay
-  // in the inbox looking untouched. Called from _doCloseWizard on cancel.
-  window.rrPinDropStaged = function (key) {
+  // An add from the inbox that is CANCELLED must not leave its staging note behind.
+  // Called from _doCloseWizard when the Add screen closes WITHOUT a save.
+  // v0.9.1387: a "__nonum__…" key can never match anything — always dropped.
+  // v0.9.2050 (Mike, 2026-10-29: "Photos get uploaded but I get message that the
+  // app hasn't finished saving them"): a note keyed by a REAL number used to be
+  // kept on purpose ("it arms itself if that number is ever added"), and that is
+  // what held his photos for a week — every retry said "Photos already spoken
+  // for … an add … that has not finished saving" when nothing was saving. Now
+  // that note goes too, but ONLY when its photos are this add's photos
+  // (fileIds = wizard.data._addPhotoDriveIds), so another add's note is never
+  // touched. STAGED notes only — an armed (PENDING_KEY) note belongs to a saved
+  // item and is never dropped here. The photos themselves stay in the inbox.
+  window.rrPinDropStaged = function (key, fileIds) {
     try {
       var k = String(key || '');
-      if (k.indexOf(NONUM_PREFIX) !== 0) return;    // only ever our own scratch keys
       var stage = JSON.parse(localStorage.getItem(SETSTAGE_KEY) || '{}');
       if (!(k in stage)) return;
+      if (k.indexOf(NONUM_PREFIX) !== 0) {
+        var ids = {}; (fileIds || []).forEach(function (id) { if (id) ids[id] = 1; });
+        var notes = (typeof _pendList === 'function') ? _pendList(stage[k]) : [stage[k]];
+        var mine = notes.some(function (rec) {
+          return rec && rec.files && rec.files.some(function (f) { return f && ids[f.id]; });
+        });
+        if (!mine) return;                          // not this add's photos — leave it
+      }
       delete stage[k];
       localStorage.setItem(SETSTAGE_KEY, JSON.stringify(stage));
     } catch (e) { console.warn('[Inbox] could not drop the staged note', e && e.message); }
@@ -2076,8 +2092,22 @@
   // It runs BEFORE the early return below on purpose. With no pending notes
   // that return fires first, and abandoned STAGING — the exact case here —
   // would never be swept.
+  // v0.9.2050 (Mike): a STAGED note belongs to an Add screen that is open right
+  // now — a save arms it (moves it to PENDING_KEY) before the screen closes. So
+  // a staged note older than this, with no Add screen open in this tab, is an
+  // add that was abandoned (closed before this release, or the app was closed
+  // mid-add): its hold on the photos is released at once instead of after a
+  // week. 30 minutes leaves a wide margin for an add left open in another tab.
+  var RR_STAGED_ABANDON_MS = 30 * 60 * 1000;
+  function _pinWizardOpen() {
+    try { var m = document.getElementById('wizard-modal'); return !!(m && m.classList.contains('open')); } catch (e) { return false; }
+  }
   function _pinSweepStaleClaims() {
     var now = _rrNowMs(), WEEK = 604800000;
+    // typeof guards: the claim tests run this function on its own; without the
+    // helpers it behaves as before (an Add screen counts as open — nothing extra released)
+    var wizOpen = (typeof _pinWizardOpen === 'function') ? _pinWizardOpen() : true;
+    var abandonMs = (typeof RR_STAGED_ABANDON_MS === 'number') ? RR_STAGED_ABANDON_MS : WEEK;
     [SETSTAGE_KEY, PENDING_KEY].forEach(function (storeKey) {
       var store;
       try { store = JSON.parse(localStorage.getItem(storeKey) || '{}'); } catch (e) { return; }
@@ -2093,6 +2123,12 @@
             console.log('[Inbox] released photos from a claim that never completed:', num,
                         '(photos stay in the inbox)');
             return;                                  // drop the NOTE, never the photos
+          }
+          if (storeKey === SETSTAGE_KEY && !wizOpen && (now - rec.ts) > abandonMs) {
+            dirty = true;                            // v0.9.2050: an abandoned add's hold
+            console.log('[Inbox] released photos held by an add that was never saved:', num,
+                        '(photos stay in the inbox)');
+            return;
           }
           kept.push(rec);
         });
