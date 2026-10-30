@@ -603,6 +603,10 @@ async function _vaultItemsToSend() {
       // Market rows still need a condition; a not-in-master row goes anyway so
       // the catalog review can see it.
       if (!pd.condition && inMaster) continue;
+      // v0.9.2061: a number the app made (a box / sheet / carton piece, a
+      // paper item, an older section number) is not a catalog item, so it
+      // never goes to the catalog review. rrIsAppMadeNumber (config.js).
+      if (!inMaster && rrIsAppMadeNumber(itemNum)) continue;
       const item = {
         item_num:     itemNum,
         variation:    variation,

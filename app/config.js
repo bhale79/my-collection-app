@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2067';
+const APP_VERSION = 'v0.9.2068';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -2803,6 +2803,34 @@ const RR_PHOTO_HOME = {
   TIDY_EVERY_HOURS: 24,           // at most once a day per collection
 };
 if (typeof window !== 'undefined') window.RR_PHOTO_HOME = RR_PHOTO_HOME;
+// v0.9.2061 — A NUMBER THE APP MADE ITSELF is not a catalog item. 75 community
+// submissions (2026-10-30) were all the app's own numbers: box / sheet /
+// carton pieces (6-36814-BOX), paper items (DWG-1957-386, OTH-…) and older
+// section numbers (8058-CON). The Collector's Market send asked "is it in the
+// catalog?" of every owned row, so each one was filed for catalog review.
+// [stated] Brad "ship it". The shapes are EXACTLY the ones the app writes —
+// TIGHTER than RR_PHOTO_HOME's photo-folder guesses, because the live catalog
+// holds real items of the looser shapes (8150-J, 8054-NB, 8375-X, and
+// CAT-ELLIOT-ROWLAND-CATAL-001), and a real item must never be held back:
+//   a piece:   anything ending -BOX / -IS / -MBOX     (RR_PHOTO_HOME.PART_SUFFIX)
+//   paper:     CODE-NNN or CODE-<year>-NNN            (generatePaperItemNum;
+//              CODE from RR_PHOTO_HOME.PAPER_CODE; SM-0204 service pages)
+//   a section: 80yy-CON … 83yy-USR                    (generateEphemeraItemNum;
+//              only its own endings, below)
+// tests/app_made_numbers_2061_tests.js proves both makers' codes are listed
+// here, so a new paper type or ending cannot slip past.
+const RR_APP_SECTION_ENDINGS = ['CON', 'ADV', 'DLR', 'OTH', 'PAP', 'MU', 'USR'];
+function rrIsAppMadeNumber(itemNum) {
+  const H = RR_PHOTO_HOME;
+  const n = String(itemNum == null ? '' : itemNum).trim().toUpperCase();
+  if (!n) return false;
+  if (H.PART_SUFFIX.test(n)) return true;
+  const p = /^([A-Z]{2,3})-(?:[^-\s]{1,8}-)?(\d{3,4})$/.exec(n);
+  if (p && Object.prototype.hasOwnProperty.call(H.PAPER_CODE, p[1])) return true;
+  const s = /^8[0-3]\d\d-([A-Z]+)$/.exec(n);
+  return !!(s && RR_APP_SECTION_ENDINGS.indexOf(s[1]) >= 0);
+}
+if (typeof window !== 'undefined') window.rrIsAppMadeNumber = rrIsAppMadeNumber;
 // ═══════════════════════════════════════════════════════════════
 // FEATURE TABS — the ONE registry (v0.9.1861)
 // Brad, 2026-10-02, a "Deleted Rowss" chip in My Collection listing two
