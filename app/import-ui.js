@@ -100,7 +100,7 @@ function rrImportOpen() {
     // v0.9.2024 (Brad): "take the beta tag off" — Import is open to every
     // user, so its title carries no BETA badge (recording_mode_beta_tests).
     '<div id="imp-title">Import a Spreadsheet</div>' +
-    '<button id="imp-close" onclick="rrImportClose()">✕</button></div>' +
+    '<button aria-label="Close" id="imp-close" onclick="rrImportClose()">✕</button></div>' +
     '<div id="imp-body"></div></div>';
   document.body.appendChild(ov);
   _impInjectCss();

@@ -343,7 +343,7 @@ async function uiBackupList() {
       '<div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border,#ddd);' +
         'display:flex;align-items:center;justify-content:space-between">' +
         '<strong style="font-size:1.05rem">Your Backups</strong>' +
-        '<button onclick="document.getElementById(\'backup-list-modal\').remove()" ' +
+        '<button aria-label="Close" onclick="document.getElementById(\'backup-list-modal\').remove()" ' +
           'style="background:none;border:none;color:var(--text,#111);' +
           'font-size:1.5rem;cursor:pointer;line-height:1;padding:0 0.25rem">×</button>' +
       '</div>' +
@@ -419,7 +419,7 @@ async function uiTrashList() {
     '<div style="background:var(--surface);color:var(--text);border-radius:12px;max-width:680px;width:100%;max-height:85vh;max-height:85dvh;display:flex;flex-direction:column;border:1.5px solid var(--border)">' +
       '<div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">' +
         '<strong style="font-size:1.05rem">Recently Removed</strong>' +
-        '<button onclick="document.getElementById(\'trash-list-modal\').remove()" style="background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;line-height:1;padding:0 0.25rem">\u00d7</button>' +
+        '<button aria-label="Close" onclick="document.getElementById(\'trash-list-modal\').remove()" style="background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;line-height:1;padding:0 0.25rem">\u00d7</button>' +
       '</div>' +
       '<div id="trash-list-body" style="padding:1rem 1.25rem;overflow:auto;flex:1">' +
         '<div style="text-align:center;color:var(--text-dim);padding:2rem 0">Loading\u2026</div>' +

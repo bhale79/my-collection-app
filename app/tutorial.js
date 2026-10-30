@@ -406,10 +406,11 @@ function tutCheckAutoLaunch() {
   var DELAY = 1500;
 
   var _tipFor = null;   // v0.9.2027: the element the tip on screen belongs to
+  var _holdWords = null; // v0.9.2063: the words of a symbol-only button held on a phone (already made safe), else null
   function _show(target) {
     _clearTip();
     _tipFor = target;
-    var text = target.getAttribute('data-ctip');
+    var text = _holdWords != null ? _holdWords : target.getAttribute('data-ctip');
     if (!text) return;
 
     var rect = target.getBoundingClientRect();
@@ -417,6 +418,7 @@ function tutCheckAutoLaunch() {
     tip.id = 'conductor-tip';
     // v0.9.2027: a defined word's tip also shows on a phone (tutorial.css)
     if (target.hasAttribute('data-term')) tip.classList.add('ctip-term');
+    if (_holdWords != null) tip.classList.add('ctip-held');   // v0.9.2063: a held symbol button's words show on a phone too
     tip.innerHTML =
       '<img src="./img/conductor-pointing.png" id="ctip-img">' +
       '<div id="ctip-bubble"><div id="ctip-tail"></div>' + text + '</div>';
@@ -460,6 +462,7 @@ function tutCheckAutoLaunch() {
     if (!target) return;
     if (target === _active) return;
     _active = target;
+    _holdWords = null;
     if (_timer) clearTimeout(_timer);
     _timer = setTimeout(function() { _show(target); }, DELAY);
   });
@@ -491,12 +494,27 @@ function tutCheckAutoLaunch() {
   // second shows the same conductor tip; lifting the finger leaves it up, and
   // the next touch anywhere puts it away. Only words marked data-term (from
   // rrTermAttrs, config.js) — buttons keep their tap. HOLD_MS is the wait.
-  var HOLD_MS = 500, _holdT = null, _heldTip = false, _holdXY = null, _swallowUntil = 0, _lastTouchAt = 0;
+  //
+  // v0.9.2063 (known-problems sweep A3) — a button that shows ONLY A SYMBOL
+  // (▲ ✂ 📷 × 📅 …) keeps its words in title (a resting mouse) and aria-label
+  // (a screen reader). A phone shows neither, so the same press and hold works
+  // on it: hold half a second and the conductor says what it does; lifting the
+  // finger does not press it. A quick tap presses it as always. rrSymbolOnly /
+  // rrControlWords (a11y.js) are the ONE test of "only a symbol" and "its words"
+  // — tests/symbol_words_2063_tests.js holds every symbol button to them.
+  var HOLD_MS = 500, _holdT = null, _heldTip = false, _holdXY = null, _swallowUntil = 0, _lastTouchAt = 0, _holdEl = null;
   document.addEventListener('touchstart', function (e) {
     var tgt = e.target && e.target.closest ? e.target.closest('[data-term][data-ctip]') : null;
     if (document.getElementById('conductor-tip') && !_holdT) _clearTip();
     if (_holdT) { clearTimeout(_holdT); _holdT = null; }
+    _holdWords = null; _holdEl = null;
+    if (!tgt) {
+      var sym = (window.RR_SYMBOL_CONTROL && e.target && e.target.closest) ? e.target.closest(window.RR_SYMBOL_CONTROL) : null;
+      var w = (sym && !sym.disabled && !sym.hasAttribute('onpointerdown') && window.rrSymbolOnly(sym)) ? window.rrControlWords(sym) : '';
+      if (w) { tgt = sym; _holdWords = w.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+    }
     if (!tgt) return;
+    _holdEl = tgt;
     var t0 = e.touches && e.touches[0];
     _holdXY = t0 ? [t0.clientX, t0.clientY] : null; _lastTouchAt = Date.now();
     _holdT = setTimeout(function () { _holdT = null; _show(tgt); _heldTip = true; }, HOLD_MS);
@@ -514,9 +532,14 @@ function tutCheckAutoLaunch() {
     }
   }, { capture: true });
   document.addEventListener('contextmenu', function (e) {
-    if (Date.now() - _lastTouchAt < 1500 && e.target && e.target.closest && e.target.closest('[data-term]')) e.preventDefault();   // a phone's long-press menu, not a desktop right-click
+    if (Date.now() - _lastTouchAt < 1500 && e.target && e.target.closest && (e.target.closest('[data-term]') || (_holdEl && _holdEl.contains(e.target)))) e.preventDefault();   // a phone's long-press menu, not a desktop right-click
+  }, true);
+  // v0.9.2063: a held symbol does not get selected as text while its words show
+  document.addEventListener('selectstart', function (e) {
+    if ((_holdT || _heldTip) && _holdEl && e.target && _holdEl.contains(e.target.nodeType === 3 ? e.target.parentNode : e.target)) e.preventDefault();
   }, true);
 })();
+
 
 
 // ── v0.9.2027 — Help → Terms and what they mean: every word in RR_TERMS
@@ -589,7 +612,7 @@ function openHelpHub(opts) {
     '<div id="help-hub-panel" style="background:var(--surface);border-radius:16px;max-width:460px;width:100%;margin:auto;box-shadow:0 12px 40px rgba(0,0,0,0.5);font-family:var(--font-body)">'
     + '<div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">'
     +   '<strong style="font-size:1.1rem;color:var(--text)">📖 Help Center</strong>'
-    +   '<button type="button" onclick="' + X + '" style="background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;line-height:1;padding:0 0.25rem">×</button>'
+    +   '<button aria-label="Close" type="button" onclick="' + X + '" style="background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;line-height:1;padding:0 0.25rem">×</button>'
     + '</div>'
     + '<div style="padding:0.4rem 1.25rem 1.25rem;max-height:74vh;max-height:74dvh;overflow-y:auto">'
     // v0.9.1987 (Brad): the tour is the one guided walkthrough left; the ten
@@ -850,7 +873,7 @@ function _rrGuidePhotos() {
     +   (small ? '' : '<button type="button" id="rr-guide-dock" title="Park it on the left or right"'
         + ' style="background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-dim);'
         + 'font-size:0.68rem;font-family:var(--font-body);font-weight:700;cursor:pointer;padding:0.2rem 0.45rem">Dock</button>')
-    +   '<button type="button" id="rr-guide-x" style="background:none;border:none;color:var(--text);'
+    +   '<button aria-label="Close the guide" type="button" id="rr-guide-x" style="background:none;border:none;color:var(--text);'
         + 'font-size:1.35rem;cursor:pointer;line-height:1;padding:0 0.3rem">×</button>'
     + '</div>'
     + '<div id="rr-guide-scroll" style="flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;'

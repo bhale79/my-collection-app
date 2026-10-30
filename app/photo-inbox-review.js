@@ -539,7 +539,7 @@
       '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1rem;width:100%;max-width:420px;max-height:80vh;max-height:80dvh;overflow-y:auto">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem">' +
           '<strong style="color:var(--text);font-size:0.95rem">Which photo is the ' + (sl ? sl.label : viewKey) + '?</strong>' +
-          '<button onclick="document.getElementById(\'pin-rv-slotpick\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer">✕</button>' +
+          '<button aria-label="Close" onclick="document.getElementById(\'pin-rv-slotpick\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer">✕</button>' +
         '</div>' +
         '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:0.45rem">' +
           files.map(function (f) {
@@ -1117,7 +1117,7 @@
           '<div style="flex:1;min-width:0;font-family:var(--font-head);font-weight:700;font-size:1rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _pinRvTitle(n) + '</div>' +
           _pinRvPosHtml() +
           _pinRvNavHtml('next') +
-          '<button onclick="_pinCloseReview()" style="background:none;border:none;color:var(--text-dim);font-size:1.35rem;line-height:1;cursor:pointer;padding:0.1rem 0.3rem;margin-left:0.25rem">✕</button>' +
+          '<button aria-label="Close" onclick="_pinCloseReview()" style="background:none;border:none;color:var(--text-dim);font-size:1.35rem;line-height:1;cursor:pointer;padding:0.1rem 0.3rem;margin-left:0.25rem">✕</button>' +
         '</div>' +
         (_wide2 ? _wideBody2 : (_wide ? _wideBody : _stripHtml + _controlsHtml)) +
       '</div>';

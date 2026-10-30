@@ -3668,6 +3668,7 @@
     var close = function () { try { if (url) URL.revokeObjectURL(url); } catch (e) {} try { ov.remove(); } catch (e2) {} if (window.BackStack) BackStack.pop('pin-zoom'); };
     if (window.BackStack) BackStack.push('pin-zoom', function () { try { ov.remove(); } catch (e) {} });
     var xBtn = document.createElement('button');
+    xBtn.setAttribute('aria-label', 'Close');   // v0.9.2063: a symbol-only button says what it does (a11y.js)
     xBtn.textContent = '✕';
     xBtn.style.cssText = 'position:fixed;top:12px;right:14px;z-index:2;background:rgba(0,0,0,0.55);border:none;color:#fff;font-size:1.6rem;line-height:1;cursor:pointer;border-radius:8px;padding:0.1rem 0.6rem';
     xBtn.onclick = function (e) { e.stopPropagation(); close(); };

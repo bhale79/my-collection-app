@@ -2346,8 +2346,8 @@ function _dashEdSpot(type, entry, i, total) {
     return '<div style="' + base + ';border:1.5px dashed var(--border,#2a3a5c);color:var(--text-dim,#888)"' + dnd + '>Empty<br>spot ' + (i + 1) + '</div>';
   }
   var arrows = '<div style="display:flex;gap:0.5rem">'
-    + (i > 0 ? '<button onclick="_dashEdMove(\'' + type + '\',' + i + ',-1)" style="background:none;border:1px solid var(--border,#2a3a5c);border-radius:5px;color:var(--text-mid,#bbb);cursor:pointer;font-size:0.7rem;padding:0 0.35rem">◀</button>' : '')
-    + (i < total - 1 ? '<button onclick="_dashEdMove(\'' + type + '\',' + i + ',1)" style="background:none;border:1px solid var(--border,#2a3a5c);border-radius:5px;color:var(--text-mid,#bbb);cursor:pointer;font-size:0.7rem;padding:0 0.35rem">▶</button>' : '')
+    + (i > 0 ? '<button aria-label="Move this card back one spot" onclick="_dashEdMove(\'' + type + '\',' + i + ',-1)" style="background:none;border:1px solid var(--border,#2a3a5c);border-radius:5px;color:var(--text-mid,#bbb);cursor:pointer;font-size:0.7rem;padding:0 0.35rem">◀</button>' : '')
+    + (i < total - 1 ? '<button aria-label="Move this card forward one spot" onclick="_dashEdMove(\'' + type + '\',' + i + ',1)" style="background:none;border:1px solid var(--border,#2a3a5c);border-radius:5px;color:var(--text-mid,#bbb);cursor:pointer;font-size:0.7rem;padding:0 0.35rem">▶</button>' : '')
     + '</div>';
   return '<div draggable="true" ondragstart="_dashEdDragStart(event,\'' + type + '\',' + i + ')"' + dnd
     + ' style="' + base + ';border:1.5px solid #2980b9;background:rgba(41,128,185,0.10);color:var(--text,#eee);cursor:grab">'
@@ -2456,7 +2456,7 @@ function _dashEdRender() {
   box.innerHTML =
     '<div style="display:flex;align-items:center;justify-content:space-between">'
     + '<strong style="font-size:1.05rem;color:var(--text,#eee);font-family:var(--font-head,sans-serif);letter-spacing:0.04em">✎ EDIT DASHBOARD</strong>'
-    + '<button onclick="_dashEdClose()" style="background:none;border:none;color:var(--text-dim,#888);font-size:1.3rem;cursor:pointer;line-height:1">×</button></div>'
+    + '<button aria-label="Close" onclick="_dashEdClose()" style="background:none;border:none;color:var(--text-dim,#888);font-size:1.3rem;cursor:pointer;line-height:1">×</button></div>'
     + '<div style="font-size:0.78rem;color:var(--text-dim,#888);margin-top:0.2rem">Check a card to add it, uncheck to remove. Drag tiles between spots (or use ◀ ▶) to arrange. Nothing changes until you Save.</div>'
     + '<div id="dash-ed-warn" style="display:none;font-size:0.78rem;color:var(--t-red);font-weight:600;margin-top:0.4rem"></div>'
     + '<div style="' + sec + '">Small cards — top row (' + _dEd.s.filter(Boolean).length + ' of ' + _dEd.s.length + ')</div>' + spots('s', _dEd.s)

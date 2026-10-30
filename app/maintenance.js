@@ -1845,7 +1845,7 @@
       var on = String(v) === String(pick || '');
       return '<button type="button" data-fav="' + _esc(v) + '" onclick="_favPick(\'' + rrJsArg(prefKey) + '\',\'' + rrJsArg(selectId) + '\',\'' + rrJsArg(v) + '\')" style="' + LINE + (on ? ';border-color:var(--accent);font-weight:700' : '') + '">'
         + '<span>' + (on ? '✓ ' : '') + _esc(t) + '</span>'
-        + (removable ? '<span onclick="event.stopPropagation();_maintDelFav(\'' + rrJsArg(prefKey) + '\',\'' + rrJsArg(selectId) + '\',\'' + rrJsArg(v) + '\')" title="Take this one off the list" style="color:var(--text-dim);font-size:0.8rem;padding:0 0.2rem">&#x2715;</span>' : '')
+        + (removable ? '<span role="button" onclick="event.stopPropagation();_maintDelFav(\'' + rrJsArg(prefKey) + '\',\'' + rrJsArg(selectId) + '\',\'' + rrJsArg(v) + '\')" title="Take this one off the list" style="color:var(--text-dim);font-size:0.8rem;padding:0 0.2rem">&#x2715;</span>' : '')
         + '</button>';
     };
     return '<div style="display:flex;flex-direction:column;gap:0.35rem">'
@@ -2710,7 +2710,7 @@
       var custom = CHORES.indexOf(ch) < 0;
       h += '<button type="button" data-chore="' + _esc(ch) + '" data-on="0" onclick="_maintChoreChoose(this)" style="' + LINE + '">'
         +   '<span>' + _esc(ch) + '</span>'
-        +   (custom ? '<span onclick="event.stopPropagation();_maintDelChore(\'' + rrJsArg(ch) + '\')" title="Take this one off the list" style="color:var(--text-dim);font-size:0.8rem;padding:0 0.2rem">&#x2715;</span>' : '')
+        +   (custom ? '<span role="button" onclick="event.stopPropagation();_maintDelChore(\'' + rrJsArg(ch) + '\')" title="Take this one off the list" style="color:var(--text-dim);font-size:0.8rem;padding:0 0.2rem">&#x2715;</span>' : '')
         + '</button>';
     });
     h += '<button type="button" data-chore="__custom" data-on="0" onclick="_maintChoreChoose(this)" style="' + LINE + '"><span>Something else…</span></button>';
@@ -4247,9 +4247,9 @@
         +   _binFitsHtml(b)
         + '</div>'
         + '<div style="display:flex;gap:0.35rem;align-items:center;flex-wrap:wrap">'
-        +   '<button onclick="_maintBinQty(\'' + rrJsArg(b.id) + '\',-1)" ' + small + '>−</button>'
+        +   '<button aria-label="One fewer in this bin" onclick="_maintBinQty(\'' + rrJsArg(b.id) + '\',-1)" ' + small + '>−</button>'
         +   '<span style="min-width:2.2rem;text-align:center;font-weight:700;color:var(--text)">×' + b.qty + '</span>'
-        +   '<button onclick="_maintBinQty(\'' + rrJsArg(b.id) + '\',1)" ' + small + '>+</button>'
+        +   '<button aria-label="One more in this bin" onclick="_maintBinQty(\'' + rrJsArg(b.id) + '\',1)" ' + small + '>+</button>'
         +   '<button onclick="_maintBinEdit(\'' + rrJsArg(b.id) + '\')" ' + _btn('blue', 'sm') + '>Edit</button>'
         +   '<button onclick="_maintBinRemove(\'' + rrJsArg(b.id) + '\')" ' + _btn('red', 'sm') + '>Remove</button>'
         + '</div></div>';

@@ -699,7 +699,7 @@ function _buildWizardModal() {
         // v0.9.1970: Item Type on a computer's wide box (see _syncWizKindBar)
         '<div id="wizard-kind-side" class="wiz-kind-side" style="display:none"></div>' +
         '<button type="button" class="wiz-hero-photo" id="wiz-hero-photo" title="Tap to see the full photo" style="display:none"></button>' +
-        '<button class="btn-close" onclick="closeWizard()">&#x2715;</button>' +
+        '<button aria-label="Close" class="btn-close" onclick="closeWizard()">&#x2715;</button>' +
       '</div>' +
       // v0.9.1033: id so the keyboard-open compact mode can hide the whole
       // progress strip, not just the bar inside it.
@@ -855,12 +855,12 @@ function _buildWizardModal() {
       '<div id="identify-panel">'
       +   '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">'
       +     '<div style="font-family:var(--font-head);font-size:1.05rem;color:var(--text);letter-spacing:0.04em">Photo ID</div>'
-      +     '<button onclick="closeIdentify()" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer;line-height:1">\u2715</button>'
+      +     '<button aria-label="Close" onclick="closeIdentify()" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer;line-height:1">\u2715</button>'
       +   '</div>'
       +   '<div id="id-photo-area" style="margin-bottom:0.85rem">'
       +     '<div id="id-photo-preview" style="display:none;position:relative;border-radius:10px;overflow:hidden;border:1.5px solid var(--accent2);background:#000;text-align:center;margin-bottom:0.4rem">'
       +       '<img id="id-photo-img" style="max-width:100%;max-height:180px;display:block;margin:0 auto">'
-      +       '<button id="id-photo-clear" type="button" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.7);border:1px solid var(--border);color:#fff;border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:0.9rem">\u2715</button>'
+      +       '<button aria-label="Remove this photo" id="id-photo-clear" type="button" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.7);border:1px solid var(--border);color:#fff;border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:0.9rem">\u2715</button>'
       +     '</div>'
       +     '<div id="id-photo-buttons" style="display:flex;gap:0.4rem">' + _photoButtons + '</div>'
       +     '<input type="file" id="id-file-camera" accept="image/*" capture="environment" style="display:none">'
@@ -2923,7 +2923,7 @@ function renderWizardStep() {
           '<input type="date" id="manual-date" value="' + (d.datePurchased || '') + '"' +
             ' onchange="wizard.data.datePurchased=this.value"' +
             ' style="width:100%;padding:0.55rem 2.5rem 0.55rem 0.7rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-body);font-size:0.88rem;box-sizing:border-box;color-scheme:dark">' +
-          '<button type="button" onclick="event.preventDefault();event.stopPropagation();document.getElementById(&quot;manual-date&quot;).showPicker();" style="position:absolute;right:0.4rem;cursor:pointer;font-size:1rem;color:var(--accent2);background:none;border:none;padding:0.3rem;line-height:1;touch-action:manipulation">\uD83D\uDCC5</button>' +
+          '<button aria-label="Open calendar" type="button" onclick="event.preventDefault();event.stopPropagation();document.getElementById(&quot;manual-date&quot;).showPicker();" style="position:absolute;right:0.4rem;cursor:pointer;font-size:1rem;color:var(--accent2);background:none;border:none;padding:0.3rem;line-height:1;touch-action:manipulation">\uD83D\uDCC5</button>' +
           '</div>' +
         '</div>' +
         '<div>' +
@@ -3561,7 +3561,7 @@ function renderWizardStep() {
       + '<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Date Purchased</div>'
       + '<div style="position:relative;display:flex;align-items:center">'
       + '<input type="date" id="bpvDate" value="' + (_bpv.purchaseDate || '') + '" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 2.5rem 0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box;color-scheme:dark" oninput="wizard.data.purchaseDate=this.value">'
-      + '<button type="button" onclick="event.preventDefault();event.stopPropagation();document.getElementById(&quot;bpvDate&quot;).showPicker();" style="position:absolute;right:0.4rem;cursor:pointer;font-size:1rem;color:var(--accent2);background:none;border:none;padding:0.3rem;line-height:1;touch-action:manipulation">\uD83D\uDCC5</button>'
+      + '<button aria-label="Open calendar" type="button" onclick="event.preventDefault();event.stopPropagation();document.getElementById(&quot;bpvDate&quot;).showPicker();" style="position:absolute;right:0.4rem;cursor:pointer;font-size:1rem;color:var(--accent2);background:none;border:none;padding:0.3rem;line-height:1;touch-action:manipulation">\uD83D\uDCC5</button>'
       + '</div></div>';
 
     _bpvHtml += '<div style="margin-bottom:0.75rem">'
@@ -3897,7 +3897,7 @@ function renderWizardStep() {
       +   '<input type="date" id="pe-date" value="' + da + '"'
       +   ' style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.6rem 2.5rem 0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;color-scheme:dark"'
       +   ' oninput="wizard.data.eph_dateAcquired=this.value">'
-      +   '<button type="button" onclick="event.preventDefault();event.stopPropagation();document.getElementById(&quot;pe-date&quot;).showPicker();" style="position:absolute;right:0.4rem;cursor:pointer;font-size:1rem;color:var(--accent2);background:none;border:none;padding:0.3rem;line-height:1;touch-action:manipulation">\uD83D\uDCC5</button>'
+      +   '<button aria-label="Open calendar" type="button" onclick="event.preventDefault();event.stopPropagation();document.getElementById(&quot;pe-date&quot;).showPicker();" style="position:absolute;right:0.4rem;cursor:pointer;font-size:1rem;color:var(--accent2);background:none;border:none;padding:0.3rem;line-height:1;touch-action:manipulation">\uD83D\uDCC5</button>'
       +   '</div>'
       + '</div>'
       + '<div>'
@@ -4323,7 +4323,7 @@ function renderWizardStep() {
           const chip = document.createElement('div');
           chip.style.cssText = 'display:flex;align-items:center;gap:0.3rem;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:0.25rem 0.6rem 0.25rem 0.75rem';
           chip.innerHTML = `<span style="font-family:var(--font-mono);font-size:0.82rem;color:var(--t-accent);font-weight:600">${n}</span>
-            <button onclick="window._setRemoveEntered('${n}')" style="border:none;background:none;color:var(--text-dim);cursor:pointer;font-size:0.9rem;line-height:1;padding:0">×</button>`;
+            <button aria-label="Remove this number" onclick="window._setRemoveEntered('${n}')" style="border:none;background:none;color:var(--text-dim);cursor:pointer;font-size:0.9rem;line-height:1;padding:0">×</button>`;
           listWrap.appendChild(chip);
         });
         body.appendChild(listWrap);
@@ -5172,7 +5172,7 @@ function renderWizardStep() {
         <button id="extra-photo-go" style="padding:0.4rem 0.8rem;border-radius:7px;border:none;
           background:#1e3a5f;color:white;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;
           white-space:nowrap">Add Photo</button>
-        <button id="extra-photo-cancel" style="padding:0.4rem 0.6rem;border-radius:7px;border:1px solid var(--border);
+        <button aria-label="Cancel" id="extra-photo-cancel" style="padding:0.4rem 0.6rem;border-radius:7px;border:1px solid var(--border);
           background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.82rem;cursor:pointer">✕</button>`;
 
       // Replace button with inline form
@@ -6267,7 +6267,7 @@ function renderWizardStep() {
         + '<input type="date" id="cd-sc-date" value="' + _scDate + '"'
         + ' style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.5rem 2.5rem 0.5rem 0.65rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;color-scheme:dark"'
         + ' oninput="wizard.data.dateAcquired=this.value">'
-        + '<button type="button" onclick="event.preventDefault();event.stopPropagation();document.getElementById(&quot;cd-sc-date&quot;).showPicker();" style="position:absolute;right:0.4rem;cursor:pointer;font-size:1rem;color:var(--accent2);background:none;border:none;padding:0.3rem;line-height:1;touch-action:manipulation">\uD83D\uDCC5</button>'
+        + '<button aria-label="Open calendar" type="button" onclick="event.preventDefault();event.stopPropagation();document.getElementById(&quot;cd-sc-date&quot;).showPicker();" style="position:absolute;right:0.4rem;cursor:pointer;font-size:1rem;color:var(--accent2);background:none;border:none;padding:0.3rem;line-height:1;touch-action:manipulation">\uD83D\uDCC5</button>'
         + '</div></div>';
       _cdHtml += '<div><div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.25rem">Notes</div>'
         + '<textarea rows="2" placeholder="e.g. Complete set, all pieces present"'
@@ -6471,7 +6471,7 @@ function renderWizardStep() {
       var _pvDateVal = _pvD.datePurchased || _pvToday;
       if (!_pvD.datePurchased && _pvToday) { wizard.data.datePurchased = _pvToday; }   // default so a blank date saves as today
       _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">' + (_pvIsSetLoco ? 'Date Set Purchased' : 'Date Purchased') + '</div>';
-      _pvHtml += '<div style="position:relative;display:flex;align-items:center"><input type="date" value="' + _pvDateVal + '" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 2.5rem 0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box;color-scheme:dark" oninput="wizard.data.datePurchased=this.value" id="pvDate"><button type="button" onclick="event.preventDefault();event.stopPropagation();document.getElementById(&quot;pvDate&quot;).showPicker();" style="position:absolute;right:0.4rem;cursor:pointer;font-size:1rem;color:var(--accent2);background:none;border:none;padding:0.3rem;line-height:1;touch-action:manipulation">📅</button></div></div>';
+      _pvHtml += '<div style="position:relative;display:flex;align-items:center"><input type="date" value="' + _pvDateVal + '" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 2.5rem 0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box;color-scheme:dark" oninput="wizard.data.datePurchased=this.value" id="pvDate"><button aria-label="Open calendar" type="button" onclick="event.preventDefault();event.stopPropagation();document.getElementById(&quot;pvDate&quot;).showPicker();" style="position:absolute;right:0.4rem;cursor:pointer;font-size:1rem;color:var(--accent2);background:none;border:none;padding:0.3rem;line-height:1;touch-action:manipulation">📅</button></div></div>';
     }
 
     // Location (if enabled)

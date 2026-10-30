@@ -782,7 +782,7 @@ function openEphemeraDetail(tabId, rowKey) {
           <div style="font-size:0.65rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.2rem">${labels[tabId]}</div>
           <div style="font-weight:600;font-size:1rem">${item.title}</div>
         </div>
-        <button onclick="this.closest('.modal-overlay').remove()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:1.4rem;line-height:1">✕</button>
+        <button aria-label="Close" onclick="this.closest('.modal-overlay').remove()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:1.4rem;line-height:1">✕</button>
       </div>
       <div style="padding:1rem 1.25rem">
         ${fields.map(([label, val]) => val && val !== '—' ? `
@@ -1060,6 +1060,7 @@ function showVarDescPopup(idx) {
   const box = document.createElement('div');
   box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:520px;width:100%;padding:1.5rem;position:relative';
   const closeBtn = document.createElement('button');
+  closeBtn.setAttribute('aria-label', 'Close');   // v0.9.2063: a symbol-only button says what it does (a11y.js)
   closeBtn.textContent = '✕';
   closeBtn.style.cssText = 'position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer';
   closeBtn.onclick = function() { overlay.remove(); };
@@ -1089,6 +1090,7 @@ function showWantDesc(idx) {
   const box = document.createElement('div');
   box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:520px;width:100%;padding:1.5rem;position:relative';
   const closeBtn = document.createElement('button');
+  closeBtn.setAttribute('aria-label', 'Close');   // v0.9.2063: a symbol-only button says what it does (a11y.js)
   closeBtn.textContent = '✕';
   closeBtn.style.cssText = 'position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer';
   closeBtn.onclick = function() { overlay.remove(); };
@@ -1297,7 +1299,7 @@ function wantFindOnEbay(itemNum, roadName, variation) {   // v0.9.1838: the vari
           <span style="font-size:1.3rem">🛒</span>
           <span class="rr-card-title" style="margin-bottom:0;padding-right:0">Search eBay</span>
         </div>
-        <button onclick="document.getElementById('ebay-search-modal').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer;line-height:1">✕</button>
+        <button aria-label="Close" onclick="document.getElementById('ebay-search-modal').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer;line-height:1">✕</button>
       </div>
 
       <div style="background:var(--surface2);border-radius:8px;padding:0.6rem 0.8rem;margin-bottom:1rem;font-family:var(--font-mono);font-size:0.85rem;color:var(--gold)">
@@ -1979,7 +1981,7 @@ function rrFsPriceFill() {
     'display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.45);font-family:var(--font-body)">' +
       '<div style="padding:0.9rem 1.1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">' +
         '<strong style="font-size:1.02rem;color:var(--text)">Asking prices \u2014 ' + list.length.toLocaleString() + ' to fill in</strong>' +
-        '<button onclick="document.getElementById(\'rr-fsfill\').remove()" style="background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;line-height:1">\u00d7</button>' +
+        '<button aria-label="Close" onclick="document.getElementById(\'rr-fsfill\').remove()" style="background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;line-height:1">\u00d7</button>' +
       '</div>' +
       '<div style="padding:0.6rem 1.1rem;font-size:0.8rem;color:var(--text-dim);border-bottom:1px solid var(--border)">' +
         'Type a price and press Tab to move down. Leave anything blank and it simply stays on the list \u2014 ' +
@@ -3578,6 +3580,7 @@ function showSetDetail(setNum) {
 
   // Close button
   const closeBtn = document.createElement('button');
+  closeBtn.setAttribute('aria-label', 'Close');   // v0.9.2063: a symbol-only button says what it does (a11y.js)
   closeBtn.textContent = '✕';
   closeBtn.style.cssText = 'position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer;z-index:1';
   closeBtn.onclick = () => overlay.remove();
@@ -3717,7 +3720,7 @@ function _buildContactModal() {
   d.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;align-items:center;justify-content:center;padding:1.25rem';
   d.innerHTML =
     '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:420px;width:100%;padding:1.75rem;position:relative">' +
-      '<button onclick="document.getElementById(\'contact-modal\').style.display=\'none\';if(window.BackStack)BackStack.pop(\'contact-modal\')" style="position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer">&#x2715;</button>' +
+      '<button aria-label="Close" onclick="document.getElementById(\'contact-modal\').style.display=\'none\';if(window.BackStack)BackStack.pop(\'contact-modal\')" style="position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer">&#x2715;</button>' +
       '<div style="font-family:var(--font-head);font-size:1.2rem;color:var(--t-accent);margin-bottom:0.4rem">&#x1F4EC; Contact Us</div>' +
       '<p style="font-size:0.88rem;color:var(--text);line-height:1.65;margin-bottom:1rem">' +
         'Found an error in the catalog or set list? Have a suggestion? We\'d love to hear from you.' +
@@ -4349,7 +4352,7 @@ function pickItemForUpgrade() {
   rrDismissGuard(overlay);   // v0.9.1785
   overlay.innerHTML =
     '<div class="rr-card rr-card-flex" style="max-height:80dvh">'
-    + '<button onclick="document.getElementById(\'upgrade-pick-modal\').remove()" style="position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer">\u2715</button>'
+    + '<button aria-label="Close" onclick="document.getElementById(\'upgrade-pick-modal\').remove()" style="position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer">\u2715</button>'
     // v0.9.1139 (Brad): the purple "Add to Upgrade List" row said the same thing
     // as the line beneath it, in a colour no other modal heading uses. Dropped \u2014
     // the instruction IS the heading now, at heading size and weight, in cream
@@ -4448,7 +4451,7 @@ function showAddToUpgradeModal(itemNum, variation, pdRow, invId, groupMode) {
 
   overlay.innerHTML = `
     <div class="rr-card">
-      <button onclick="document.getElementById('upgrade-add-modal').remove()" style="position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer">✕</button>
+      <button aria-label="Close" onclick="document.getElementById('upgrade-add-modal').remove()" style="position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer">✕</button>
       <!-- v0.9.1139: matched to the picker — cream, not purple. This one KEEPS
            its title text, because unlike the picker there is no instruction line
            to promote, and the item number below it does not say what you are

@@ -2487,7 +2487,7 @@ function _rrDetailFieldsPicker() {
   box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:460px;width:100%;max-height:88vh;max-height:88dvh;overflow:auto;padding:1.1rem';
   box.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem">' +
     '<strong style="font-size:1.05rem;color:var(--text)">Choose your detail fields</strong>' +
-    '<button onclick="document.getElementById(\'df-overlay\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.4rem;cursor:pointer;line-height:1">&times;</button></div>' +
+    '<button aria-label="Close" onclick="document.getElementById(\'df-overlay\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.4rem;cursor:pointer;line-height:1">&times;</button></div>' +
     '<div style="font-size:0.8rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.7rem">' +
     'Tick what you want on the Details card. Drag the ☰ handle to reorder. A ticked field with nothing entered shows a dash, so you can see what’s missing.</div>' +
     '<div id="df-list"></div>' +
@@ -2742,6 +2742,7 @@ function showOwnedItemMenu(idx, pdKey) {
   box.style.cssText = 'background:var(--surface);border:1px solid rgba(46,204,113,0.35);border-radius:16px;max-width:420px;width:100%;padding:1.75rem;position:relative';
 
   const closeBtn = document.createElement('button');
+  closeBtn.setAttribute('aria-label', 'Close');   // v0.9.2063: a symbol-only button says what it does (a11y.js)
   closeBtn.textContent = '✕';
   closeBtn.style.cssText = 'position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer';
   closeBtn.onclick = function() { overlay.remove(); };
@@ -2823,6 +2824,7 @@ function _showSpecialOwnedMenu(idx, item, ownedItems) {
   const box = document.createElement('div');
   box.style.cssText = 'background:var(--surface);border:1px solid rgba(46,204,113,0.35);border-radius:16px;max-width:420px;width:100%;padding:1.75rem;position:relative';
   const closeBtn = document.createElement('button');
+  closeBtn.setAttribute('aria-label', 'Close');   // v0.9.2063: a symbol-only button says what it does (a11y.js)
   closeBtn.textContent = '✕';
   closeBtn.style.cssText = 'position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer';
   closeBtn.onclick = function() { overlay.remove(); };
@@ -3641,7 +3643,7 @@ function showPickFromCollectionForSale() {
   const hdr = document.createElement('div');
   hdr.style.cssText = 'padding:1rem 1.25rem;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:space-between';
   hdr.innerHTML = '<div style="font-family:var(--font-head);font-size:1rem;color:var(--t-orange)">List from Collection</div>'
-    + '<button onclick="document.getElementById(\'pick-fs-overlay\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer">✕</button>';
+    + '<button aria-label="Close" onclick="document.getElementById(\'pick-fs-overlay\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer">✕</button>';
   box.appendChild(hdr);
 
   // Search
@@ -4068,7 +4070,7 @@ function showItemPanel(idx, pdKey, mode) {
     + '<div style="font-size:0.82rem;color:var(--text-mid);margin-top:2px">' + (item.roadName || item.itemType || '') + (item.yearProd ? ' · ' + item.yearProd : '') + '</div>'
     + ((typeof rrCatalogStatusChip === 'function') ? rrCatalogStatusChip(item, { block: true }) : '')   // v0.9.1873
     + '</div>'
-    + '<button id="item-panel-close-btn" style="background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer;flex-shrink:0">✕</button>'
+    + '<button aria-label="Close" id="item-panel-close-btn" style="background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer;flex-shrink:0">✕</button>'
     + '</div>';
   box.appendChild(header);
   // Wire close btn now that header is in memory
@@ -4494,6 +4496,7 @@ function showItemPanel(idx, pdKey, mode) {
         setTimeout(function() { if (inp) inp.focus(); }, 30);
 
         const doneBtn = document.createElement('button');
+        doneBtn.setAttribute('aria-label', 'Done');   // v0.9.2063: a symbol-only button says what it does (a11y.js)
         doneBtn.textContent = '✓';
         doneBtn.style.cssText = 'margin-left:0.4rem;padding:0.3rem 0.6rem;border-radius:6px;border:1px solid #2980b9;background:#2980b9;color:#fff;cursor:pointer;font-size:0.85rem;flex-shrink:0';
         doneBtn.onclick = function() {
@@ -4504,6 +4507,7 @@ function showItemPanel(idx, pdKey, mode) {
         };
 
         const cancelInp = document.createElement('button');
+        cancelInp.setAttribute('aria-label', 'Cancel');   // v0.9.2063: a symbol-only button says what it does (a11y.js)
         cancelInp.textContent = '✕';
         cancelInp.style.cssText = 'margin-left:0.25rem;padding:0.3rem 0.5rem;border-radius:6px;border:1px solid var(--border);background:none;color:var(--text-dim);cursor:pointer;font-size:0.85rem;flex-shrink:0';
         cancelInp.onclick = function() { editingKey = null; renderFields(null); };
@@ -4797,6 +4801,7 @@ function openISDetail(rowKey) {
   const box = document.createElement('div');
   box.style.cssText = 'background:var(--surface);border:1px solid rgba(22,160,133,0.4);border-radius:16px;max-width:460px;width:100%;padding:1.75rem;position:relative;max-height:88vh;max-height:88dvh;overflow-y:auto';
   const closeBtn = document.createElement('button');
+  closeBtn.setAttribute('aria-label', 'Close');   // v0.9.2063: a symbol-only button says what it does (a11y.js)
   closeBtn.innerHTML='✕'; closeBtn.style.cssText='position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer';
   closeBtn.onclick=()=>overlay.remove();
   box.appendChild(closeBtn);
@@ -5105,6 +5110,7 @@ function showRefItemPopup(type, idx) {
   });
   // Close button
   var closeBtn = document.createElement('button');
+  closeBtn.setAttribute('aria-label', 'Close');   // v0.9.2063: a symbol-only button says what it does (a11y.js)
   closeBtn.style.cssText = 'position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer';
   closeBtn.textContent = '✕';
   closeBtn.onclick = function() { overlay.remove(); };

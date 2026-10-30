@@ -308,7 +308,7 @@
     ov.innerHTML =
       '<div style="display:flex;align-items:center;justify-content:space-between;color:#fff;margin-bottom:0.5rem">'
       + '<strong style="font-size:0.95rem">Photo waiting to upload</strong>'
-      + '<button onclick="document.getElementById(\'stage-review-ov\').remove()" style="background:none;border:none;color:#bbb;font-size:1.5rem;line-height:1;cursor:pointer;padding:0.2rem 0.4rem">✕</button>'
+      + '<button aria-label="Close" onclick="document.getElementById(\'stage-review-ov\').remove()" style="background:none;border:none;color:#bbb;font-size:1.5rem;line-height:1;cursor:pointer;padding:0.2rem 0.4rem">✕</button>'
       + '</div>'
       + '<div style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center">'
       +   (u ? '<img src="' + u + '" style="max-width:100%;max-height:100%;border-radius:10px" alt="">' : '<div style="color:#888">Preview unavailable</div>')
@@ -358,7 +358,7 @@
       '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1rem;width:100%;max-width:480px;max-height:80vh;max-height:80dvh;display:flex;flex-direction:column">'
       + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem">'
       +   '<strong style="color:var(--text);font-size:0.95rem">Attach to which item?</strong>'
-      +   '<button onclick="document.getElementById(\'stage-pick-ov\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer">✕</button>'
+      +   '<button aria-label="Close" onclick="document.getElementById(\'stage-pick-ov\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer">✕</button>'
       + '</div>'
       + '<input id="stage-pick-q" placeholder="Type an item number or words from the name…" style="padding:0.6rem 0.7rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.9rem;margin-bottom:0.55rem">'
       + '<div id="stage-pick-list" style="flex:1;overflow-y:auto;min-height:0"></div>'
@@ -661,7 +661,7 @@
     ov.innerHTML = '<div class="rr-card">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.85rem">' +
         '<div style="font-family:var(--font-head);font-weight:700;font-size:1rem;color:var(--text)">Add photos from…</div>' +
-        '<button onclick="' + X + '" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;line-height:1;cursor:pointer;padding:0.1rem 0.3rem">✕</button>' +
+        '<button aria-label="Close" onclick="' + X + '" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;line-height:1;cursor:pointer;padding:0.1rem 0.3rem">✕</button>' +
       '</div>' +
       '<div style="display:flex;flex-direction:column;gap:0.6rem">' + sources + '</div>' +
     '</div>';

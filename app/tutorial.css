@@ -161,6 +161,8 @@
   #conductor-tip { display: none !important; }
   /* v0.9.2027: a defined word's tip (press and hold) does show on a phone */
   #conductor-tip.ctip-term { display: flex !important; }
+  /* v0.9.2063: so does a symbol-only button's words, held on a phone (tutorial.js) */
+  #conductor-tip.ctip-held { display: flex !important; }
 }
 /* v0.9.2027: a defined word — the dotted line says "rest on me" */
 [data-term] { text-decoration: underline dotted; text-decoration-thickness: 1px; text-underline-offset: 3px; cursor: help;

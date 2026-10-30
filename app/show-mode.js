@@ -124,7 +124,7 @@
       + '<div style="display:flex;align-items:center;justify-content:space-between">'
       +   '<div style="min-width:0"><div style="font-family:var(--font-head,sans-serif);font-size:1.25rem;color:var(--text,#fff);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">🎪 ' + _esc(s.name) + '</div>'
       +   '<div style="font-size:0.75rem;color:var(--text-dim,#777)">' + _esc(s.date) + '</div></div>'
-      +   '<button onclick="_smExit()" style="padding:0.45rem 0.8rem;border-radius:9px;border:1.5px solid var(--border,#333);background:var(--surface2,#26262e);color:var(--text-mid,#aaa);cursor:pointer;font-family:var(--font-body,sans-serif);flex-shrink:0">✕</button>'
+      +   '<button aria-label="Leave Show Mode" onclick="_smExit()" style="padding:0.45rem 0.8rem;border-radius:9px;border:1.5px solid var(--border,#333);background:var(--surface2,#26262e);color:var(--text-mid,#aaa);cursor:pointer;font-family:var(--font-body,sans-serif);flex-shrink:0">✕</button>'
       + '</div>'
       + _tile('sm-research', '🔍', 'Research', 'Is it a good price? Do I own it? Photo, number, or words')
       + _tile('sm-hunt', '⭐', 'The Hunt', 'Your want list with max prices — check them off as you find them')
@@ -164,7 +164,7 @@
             + (name ? ' <span style="font-size:0.78rem;color:var(--text-mid,#aaa)">' + _esc(name) + '</span>' : '')
             + (price ? '<span style="display:block;font-size:0.75rem;color:var(--t-green)">max $' + Number(price).toLocaleString() + (w.priority ? ' · ' + _esc(w.priority) : '') + '</span>' : '')
             + '</div>'
-            + '<button data-sm-research="' + _esc(w.itemNum) + '" style="padding:0.4rem 0.55rem;border-radius:7px;border:1px solid #3498db;background:var(--bg-card);background:color-mix(in srgb, rgb(52,152,219) 10%, var(--bg-card));color:var(--t-info);cursor:pointer;font-size:0.78rem">🔍</button>'
+            + '<button aria-label="Research this item" data-sm-research="' + _esc(w.itemNum) + '" style="padding:0.4rem 0.55rem;border-radius:7px;border:1px solid #3498db;background:var(--bg-card);background:color-mix(in srgb, rgb(52,152,219) 10%, var(--bg-card));color:var(--t-info);cursor:pointer;font-size:0.78rem">🔍</button>'
             + (isFound
               ? '<span style="font-size:0.78rem;color:var(--t-green);font-weight:700">✓ found</span>'
               : '<button data-sm-found="' + _esc(w.itemNum) + '" style="padding:0.4rem 0.6rem;border-radius:7px;border:1px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:var(--t-green);cursor:pointer;font-size:0.78rem;font-weight:700">Found it</button>')

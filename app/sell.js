@@ -814,7 +814,7 @@ async function openSalesShareModal() {
     '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.25rem 1.25rem 1.5rem;width:100%;max-width:480px;margin:auto">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">' +
         '<div style="font-family:var(--font-head);font-size:1.2rem;color:var(--text)">Share my For Sale list</div>' +
-        '<button onclick="document.getElementById(\'sell-modal\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.4rem;cursor:pointer;line-height:1">✕</button>' +
+        '<button aria-label="Close" onclick="document.getElementById(\'sell-modal\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.4rem;cursor:pointer;line-height:1">✕</button>' +
       '</div>' +
       // Live link section
       '<div style="border:1px solid var(--border);border-radius:10px;padding:0.85rem;margin-bottom:0.9rem">' +

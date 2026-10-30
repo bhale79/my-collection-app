@@ -485,7 +485,7 @@ function _openCollColumnsModal() {
   box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:460px;width:100%;max-height:88vh;max-height:88dvh;overflow:auto;padding:1.1rem';
   box.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem">' +
     '<strong style="font-size:1.05rem;color:var(--text)">Choose your columns</strong>' +
-    '<button onclick="document.getElementById(\'cc-overlay\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.4rem;cursor:pointer;line-height:1">&times;</button></div>' +
+    '<button aria-label="Close" onclick="document.getElementById(\'cc-overlay\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.4rem;cursor:pointer;line-height:1">&times;</button></div>' +
     '<div style="font-size:0.8rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.7rem">' +
     'Tick what you want to see. Drag the \u2630 handle to reorder. Maker and Item # always come first.</div>' +
     '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0.2rem;opacity:0.65;font-size:0.82rem;color:var(--text-dim)">' +
@@ -5267,7 +5267,7 @@ function _rrBrowseCore(_co) {
           <td style="max-width:170px">
             <span style="min-width:0">
               <span class="item-num" style="display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom" title="${rrEsc(it.itemNum || '')}">${rrEsc((r.tabId === 'catalogs' && typeof _catalogDisplayLabel === 'function') ? _catalogDisplayLabel(it.year, it.catType, it.itemNum) : (it.itemNum || '—'))}</span>
-              ${_photoLink ? `<span onclick="event.stopPropagation();openPhotoFolder('${_rrAttrArg(it.itemNum||'')}','${_rrAttrArg(_photoLink)}')" style="font-size:0.85rem;cursor:pointer" title="Open photo folder">📷</span>` : ''}
+              ${_photoLink ? `<span role="button" onclick="event.stopPropagation();openPhotoFolder('${_rrAttrArg(it.itemNum||'')}','${_rrAttrArg(_photoLink)}')" style="font-size:0.85rem;cursor:pointer" title="Open photo folder">📷</span>` : ''}
             </span>
           </td>
           <td style="text-align:center"><span class="text-dim">—</span></td>
@@ -5441,7 +5441,7 @@ function _rrBrowseCore(_co) {
                          + (_isThisCopyUG ? '<span title="This copy on Upgrade list" style="font-size:0.8rem;color:var(--t-purple)">↑</span>' : '')
                          + (_isGrouped ? '<span title="Grouped item" style="font-size:0.8rem">🔗</span>' : '')
                          + (_isQE ? '<span title="Quick Entry — details incomplete" style="font-size:0.8rem">⚡</span>' : '')
-                         + (_hasPhoto ? '<span title="Has photo" style="font-size:0.8rem" onclick="event.stopPropagation();openPhotoFolder(\''+_rrAttrArg(item.itemNum)+'\',\''+_rrAttrArg(_hasPhoto||'')+'\',\''+_rrAttrArg(_myInvIdM||'')+'\')">📷</span>' : '');
+                         + (_hasPhoto ? '<span role="button" title="Has photo" style="font-size:0.8rem" onclick="event.stopPropagation();openPhotoFolder(\''+_rrAttrArg(item.itemNum)+'\',\''+_rrAttrArg(_hasPhoto||'')+'\',\''+_rrAttrArg(_myInvIdM||'')+'\')">📷</span>' : '');
       // v0.9.921 (chunk 2): share keys are per-copy identity — use inventoryId
       // (stable) instead of row number (shifts when sheet rows change). Items
       // without an owned copy / legacy rows keep the composite fallback.
@@ -5567,7 +5567,7 @@ function _rrBrowseCore(_co) {
               var _lbl = _gcfg === 'Engine + Tender' ? 'Engine + Tender' : (_gcfg && _gcfg !== 'Set' ? _gcfg + ' Set' : '🔗 ' + _co.join(' '));
               return '<span style="font-size:0.7rem;color:var(--accent3);font-weight:600" title="Grouped: ' + rrEsc(_dispNum + ' + ' + _co.join(', ')) + '">🔗 ' + _lbl + '</span>';
             } return _groupId ? '<span style="font-size:0.6rem;color:var(--accent3)" title="Grouped">🔗</span>' : ''; })()}
-            ${_isQuick ? '<span onclick="event.stopPropagation();completeQuickEntry(\''+_rrAttrArg(item.itemNum)+'\',\''+_escVar+'\','+globalIdx+',\''+(pd.inventoryId||'')+'\')" style="font-size:0.72rem;background:#2ecc71;color:#fff;border-radius:4px;padding:1px 5px;cursor:pointer;font-weight:700" title="Complete this Quick Entry">⚡</span>' : ''}
+            ${_isQuick ? '<span role="button" onclick="event.stopPropagation();completeQuickEntry(\''+_rrAttrArg(item.itemNum)+'\',\''+_escVar+'\','+globalIdx+',\''+(pd.inventoryId||'')+'\')" style="font-size:0.72rem;background:#2ecc71;color:#fff;border-radius:4px;padding:1px 5px;cursor:pointer;font-weight:700" title="Complete this Quick Entry">⚡</span>' : ''}
             ${pd && pd.photoItem ? '<span style="font-size:0.78rem;opacity:0.75" title="Has photo">📷</span>' : ''}
             ${_statusBadges}
           </div>
@@ -5626,9 +5626,9 @@ function _rrBrowseCore(_co) {
       return `<tr onclick="browseRowClick(event, ${globalIdx})" style="cursor:pointer${_isQuick ? ';opacity:0.78' : ''}" title="${_isErrCar ? '⚠ Error car: ' + (pd.errorDesc||'see notes') : _isQuick ? '⚡ Quick Entry — details not yet filled in' : ''}">
         ${_mfrBadge(item)}
         <td>
-          <span class="item-num">${rrEsc(_displayItemNum(item))}${_isErrCar ? '<sup style="color:var(--t-accent);font-size:0.65rem">*</sup>' : ''}${_isQuick ? '<span onclick="event.stopPropagation();completeQuickEntry(\''+_rrAttrArg(item.itemNum)+'\',\''+_rrAttrArg(item.variation||'')+'\','+globalIdx+',\''+(pd.inventoryId||'')+'\')" style="font-size:0.6rem;background:#2ecc71;color:#fff;border-radius:3px;padding:1px 4px;vertical-align:middle;font-weight:600;cursor:pointer" title="Complete this Quick Entry">⚡</span>' : ''}</span>${_noNumTag(item.itemNum)}${_eraBadgeHtml}${_lineBadgeHtml}
+          <span class="item-num">${rrEsc(_displayItemNum(item))}${_isErrCar ? '<sup style="color:var(--t-accent);font-size:0.65rem">*</sup>' : ''}${_isQuick ? '<span role="button" onclick="event.stopPropagation();completeQuickEntry(\''+_rrAttrArg(item.itemNum)+'\',\''+_rrAttrArg(item.variation||'')+'\','+globalIdx+',\''+(pd.inventoryId||'')+'\')" style="font-size:0.6rem;background:#2ecc71;color:#fff;border-radius:3px;padding:1px 4px;vertical-align:middle;font-weight:600;cursor:pointer" title="Complete this Quick Entry">⚡</span>' : ''}</span>${_noNumTag(item.itemNum)}${_eraBadgeHtml}${_lineBadgeHtml}
           ${_itemExternalLinkHTML(item)}
-          <span id="cam-${_rrRowDomKey(item)}" style="margin-left:5px;font-size:0.85rem;cursor:pointer;display:none" onclick="event.stopPropagation();openPhotoFolder('${_rrAttrArg(item.itemNum)}','${_rrAttrArg(pd&&pd.photoItem?pd.photoItem:'')}')" title="Open photo folder">📷</span>
+          <span role="button" id="cam-${_rrRowDomKey(item)}" style="margin-left:5px;font-size:0.85rem;cursor:pointer;display:none" onclick="event.stopPropagation();openPhotoFolder('${_rrAttrArg(item.itemNum)}','${_rrAttrArg(pd&&pd.photoItem?pd.photoItem:'')}')" title="Open photo folder">📷</span>
         </td>
         <td><span class="tag">${rrEsc((typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(item) : item.itemType) || '—')}</span></td>
         ${_browseCellFields(item).map(function (f) {
@@ -5874,13 +5874,13 @@ function _rrBrowseCore(_co) {
     paginEl.innerHTML = '';
   } else {
     let btns = '';
-    if (state.currentPage > 1) btns += `<button class="page-btn" onclick="goPage(${state.currentPage-1})">‹</button>`;
+    if (state.currentPage > 1) btns += `<button aria-label="Previous page" class="page-btn" onclick="goPage(${state.currentPage-1})">‹</button>`;
     const range = [1, ...Array.from({length: pages}, (_,i)=>i+1).filter(p => Math.abs(p - state.currentPage) <= 2), pages];
     [...new Set(range)].filter(p => p >= 1).sort((a,b)=>a-b).forEach((p, i, arr) => {
       if (i > 0 && arr[i-1] < p - 1) btns += `<span style="padding:0 4px;color:var(--text-dim)">…</span>`;
       btns += `<button class="page-btn ${p === state.currentPage ? 'active' : ''}" onclick="goPage(${p})">${p}</button>`;
     });
-    if (state.currentPage < pages) btns += `<button class="page-btn" onclick="goPage(${state.currentPage+1})">›</button>`;
+    if (state.currentPage < pages) btns += `<button aria-label="Next page" class="page-btn" onclick="goPage(${state.currentPage+1})">›</button>`;
     paginEl.innerHTML = btns;
   }
   // v0.9.985 (perf): render finished — remember what it was built from, so an
@@ -5913,7 +5913,7 @@ function _rrFilterSheetOpen() {
   ov.innerHTML = '<div id="rr-filter-panel" style="background:var(--surface);border-radius:16px 16px 0 0;width:100%;max-height:85dvh;overflow-y:auto;padding:0.9rem 0.9rem 1.1rem">'
     + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.7rem">'
     +   '<strong style="font-family:var(--font-head);font-size:0.95rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--text)">Filters</strong>'
-    +   '<button onclick="_rrFilterSheetClose()" style="background:none;border:none;color:var(--text-dim);font-size:1.5rem;line-height:1;cursor:pointer;padding:0 0.3rem">\u00d7</button>'
+    +   '<button aria-label="Close" onclick="_rrFilterSheetClose()" style="background:none;border:none;color:var(--text-dim);font-size:1.5rem;line-height:1;cursor:pointer;padding:0 0.3rem">\u00d7</button>'
     + '</div>'
     + '<div id="rr-filter-slot"></div>'
     + '<button onclick="_rrFilterSheetClose()" style="width:100%;margin-top:0.9rem;padding:0.75rem;border-radius:10px;border:none;background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-weight:700;font-size:0.95rem;cursor:pointer">Show results</button>'

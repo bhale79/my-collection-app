@@ -1064,7 +1064,7 @@ function _openUserFieldsModal() {
   box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:560px;width:100%;max-height:88vh;max-height:88dvh;overflow:auto;padding:1.1rem';
   var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">' +
     '<strong style="font-size:1.05rem;color:var(--text)">Extra Columns</strong>' +
-    '<button onclick="document.getElementById(\'uf-modal-overlay\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.4rem;cursor:pointer;line-height:1">&times;</button></div>' +
+    '<button aria-label="Close" onclick="document.getElementById(\'uf-modal-overlay\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.4rem;cursor:pointer;line-height:1">&times;</button></div>' +
     '<div style="font-size:0.82rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.9rem">' +
     'Switch on only what you use. Anything you turn on appears when adding an item, on the item page, and in the edit screen \u2014 and can be filled in by a spreadsheet import. Turning one off hides it; nothing you have already written is deleted.</div>';
   (window.RR_USER_FIELDS || []).forEach(function (f) {
@@ -1352,7 +1352,7 @@ function _openLocationsModal(opts){
     '<div style="background:var(--surface);border-radius:14px;max-width:480px;width:100%;max-height:85vh;max-height:85dvh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.4);font-family:var(--font-body)">'
     + '<div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">'
     +   '<strong style="font-size:1.05rem;color:var(--text)">Storage Locations</strong>'
-    +   '<button id="loc-close" style="background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;line-height:1">&times;</button>'
+    +   '<button aria-label="Close" id="loc-close" style="background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;line-height:1">&times;</button>'
     + '</div>'
     + '<div style="padding:1rem 1.25rem;overflow:auto;flex:1">'
     // v0.9.2020: Scan to Shelve sits here ([stated] Brad: "have this feature listed in preferences under the location manager")
@@ -1447,7 +1447,7 @@ function _openSubTypesModal(){
     '<div style="background:var(--surface);border-radius:14px;max-width:480px;width:100%;max-height:85vh;max-height:85dvh;display:flex;flex-direction:column;box-shadow:0 12px 40px var(--scrim);font-family:var(--font-body)">'
     + '<div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">'
     +   '<strong style="font-size:1.05rem;color:var(--text)">Sub Types</strong>'
-    +   '<button id="st-close" style="background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;line-height:1">&times;</button>'
+    +   '<button aria-label="Close" id="st-close" style="background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;line-height:1">&times;</button>'
     + '</div>'
     + '<div style="padding:1rem 1.25rem;overflow:auto;flex:1">'
     +   '<div style="font-size:0.82rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.85rem">' + ((typeof rrFieldHelp === 'function') ? rrFieldHelp('subType') : '') + ' They are offered as tap-chips when you add an item, so you stop typing them.</div>'
@@ -1529,7 +1529,7 @@ function _uiShowVersionHistoryHelp() {
       '<div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border,#ddd);' +
         'display:flex;align-items:center;justify-content:space-between">' +
         '<strong style="font-size:1.05rem">How to Undo a Mistake</strong>' +
-        '<button onclick="document.getElementById(\'vh-help-modal\').remove()" ' +
+        '<button aria-label="Close" onclick="document.getElementById(\'vh-help-modal\').remove()" ' +
           'style="background:none;border:none;color:var(--text,#111);' +
           'font-size:1.5rem;cursor:pointer;line-height:1;padding:0 0.25rem">×</button>' +
       '</div>' +

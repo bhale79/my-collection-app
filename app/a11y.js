@@ -31,6 +31,32 @@
 
   var A11Y_CLICKABLE = 'tr[onclick], .pref-section-title';
 
+  // ══ v0.9.2063 (known-problems sweep A3) — A BUTTON THAT SHOWS ONLY A SYMBOL ══
+  // (× ▲ ✂ 📷 ✏️ 📅 ‹ › + − ?) says what it does. Its words are written ONCE
+  // where the button is built — aria-label or title — and the stamp below
+  // copies them to the other: title is what a resting mouse shows, aria-label
+  // is what a screen reader says. A phone shows neither, so tutorial.js's
+  // press and hold shows the same words in the conductor's bubble.
+  // RR_SYMBOL_CONTROL: what counts as a button (links are left out — a held
+  // link opens the phone's own link menu). rrSymbolOnly(el): its text has
+  // something in it, but no letter or number. rrControlWords(el): its words —
+  // aria-label, else title, else its data-ctip tip as plain text; '' if none.
+  // tests/symbol_words_2063_tests.js holds every symbol button to these.
+  var RR_SYMBOL_CONTROL = 'button, [role="button"], [onclick]:not(a)';
+  var A11Y_SYMBOL_HALF = 'button[title]:not([aria-label]), button[aria-label]:not([title]), [role="button"][title]:not([aria-label]), [role="button"][aria-label]:not([title]), button[data-ctip]:not([aria-label])';
+  function rrSymbolOnly(el) {
+    if (!el) return false;
+    var t = String(el.textContent || '').replace(/\s+/g, '');
+    return t !== '' && !/[A-Za-z0-9]/.test(t);
+  }
+  function rrControlWords(el) {
+    if (!el || !el.getAttribute) return '';
+    var c = [el.getAttribute('aria-label'), el.getAttribute('title'), String(el.getAttribute('data-ctip') || '').replace(/<[^>]*>/g, ' ')];
+    for (var i = 0; i < c.length; i++) { var w = String(c[i] || '').replace(/\s+/g, ' ').trim(); if (/[A-Za-z0-9]/.test(w)) return w; }
+    return '';
+  }
+  window.RR_SYMBOL_CONTROL = RR_SYMBOL_CONTROL; window.rrSymbolOnly = rrSymbolOnly; window.rrControlWords = rrControlWords;
+
   function _stamp(root) {
     try {
       (root || document).querySelectorAll(A11Y_CLICKABLE).forEach(function (el) {
@@ -38,6 +64,15 @@
         if (el.closest && el.closest('[aria-hidden="true"]')) return;
         el.setAttribute('tabindex', '0');
         if (!el.hasAttribute('role')) el.setAttribute('role', 'button');
+      });
+    } catch (e) { /* never let this break a render */ }
+    try {   // v0.9.2063: a symbol button's words — both halves (see above)
+      (root || document).querySelectorAll(A11Y_SYMBOL_HALF).forEach(function (el) {
+        if (!rrSymbolOnly(el)) return;
+        var w = rrControlWords(el);
+        if (!w) return;
+        if (!el.hasAttribute('aria-label')) el.setAttribute('aria-label', w);
+        if (!el.hasAttribute('title') && !el.hasAttribute('data-ctip')) el.setAttribute('title', w);   // a data-ctip button already has the conductor's tip
       });
     } catch (e) { /* never let this break a render */ }
   }

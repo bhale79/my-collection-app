@@ -514,17 +514,17 @@
         when = '<span style="color:#7ec3ef;font-weight:700">' + rrEsc(_pinEraLabel(_m0.era)) + '</span> · ' + when;
       }
       var _crop = PIN._selectMode ? ''
-        : '<div onclick="event.stopPropagation();_pinTileCrop(\'' + g.key + '\')" title="Crop / Rotate" style="position:absolute;right:6px;bottom:26px;width:24px;height:24px;border-radius:7px;background:rgba(0,0,0,0.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.8rem;cursor:pointer">✂</div>';
+        : '<div role="button" onclick="event.stopPropagation();_pinTileCrop(\'' + g.key + '\')" title="Crop / Rotate" style="position:absolute;right:6px;bottom:26px;width:24px;height:24px;border-radius:7px;background:rgba(0,0,0,0.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.8rem;cursor:pointer">✂</div>';
       // v0.9.1439 (Brad): "it would be nice to make a copy of a picture." The
       // real use is one photo showing two items — copy it, then crop each copy
       // to its own item. Deliberate, labelled, and undoable by discarding.
       var _copy = (PIN._selectMode || g.files.length > 1) ? ''
-        : '<div onclick="event.stopPropagation();_pinTileCopy(\'' + g.key + '\')" title="Make a copy of this photo" style="position:absolute;right:34px;bottom:26px;width:24px;height:24px;border-radius:7px;background:rgba(0,0,0,0.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.78rem;cursor:pointer">⧉</div>';
+        : '<div role="button" onclick="event.stopPropagation();_pinTileCopy(\'' + g.key + '\')" title="Make a copy of this photo" style="position:absolute;right:34px;bottom:26px;width:24px;height:24px;border-radius:7px;background:rgba(0,0,0,0.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.78rem;cursor:pointer">⧉</div>';
       // v0.9.1057: grouping had no undo. Photos could be put together and never
       // taken apart, so one wrong tick was permanent. Only on stacks, only out
       // of select mode.
       var _ungroup = (PIN._selectMode || g.files.length < 2) ? ''
-        : '<div onclick="event.stopPropagation();_pinConfirmUngroup(\'' + g.key + '\')" title="Split this group apart" style="position:absolute;left:6px;bottom:26px;width:24px;height:24px;border-radius:7px;background:rgba(0,0,0,0.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.9rem;cursor:pointer">⊟</div>';
+        : '<div role="button" onclick="event.stopPropagation();_pinConfirmUngroup(\'' + g.key + '\')" title="Split this group apart" style="position:absolute;left:6px;bottom:26px;width:24px;height:24px;border-radius:7px;background:rgba(0,0,0,0.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.9rem;cursor:pointer">⊟</div>';
       return '<div class="pin-tile" data-key="' + g.key + '"' + rrSampleAttrs(g) + ' onclick="' + _tileClick + '(\'' + g.key + '\')" style="position:relative;border-radius:10px;overflow:hidden;cursor:pointer;background:var(--surface2,#26262e);aspect-ratio:var(--rr-photo-tile-ratio);border:3px solid ' + (isSel ? '#2980b9' : 'transparent') + '">' +
         // v0.9.1871: a sample's picture is built into the app, not on Drive — src, and no data-fid for the Drive loader below
         '<img loading="lazy" ' + (rrIsSample(g) ? 'src="' + rrEsc(g._rrSample.photo) + '" title="' + rrEsc(g._rrSample.alt) + '"' : 'data-fid="' + _pinCoverFid(g) + '"') + ' class="rr-fit" style="width:100%;height:100%;object-position:center;display:block'

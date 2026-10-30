@@ -109,7 +109,7 @@ function rrTagOpen(preField, preValue, prePair) {
     '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:420px;width:100%;padding:1.1rem;font-family:var(--font-body)">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">'
     +   '<strong style="font-size:1.02rem;color:var(--text)">Fill in a column</strong>'
-    +   '<button onclick="document.getElementById(\'rr-tag-setup\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.4rem;cursor:pointer;line-height:1">&times;</button>'
+    +   '<button aria-label="Close" onclick="document.getElementById(\'rr-tag-setup\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.4rem;cursor:pointer;line-height:1">&times;</button>'
     + '</div>'
     + '<div style="font-size:0.8rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.7rem">'
     +   'Pick the column, say what goes in it, then tick the items it applies to.</div>'
