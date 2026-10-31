@@ -81,7 +81,7 @@ const pstate = { personalData: {
   d: { inventoryId: '', itemNum: '671', owned: true },                            // no unit identity → not pickable
   e: { inventoryId: 'i8', itemNum: '6464-BOX', owned: true },                      // a box
 } };
-const ownedFn = new Function('state', 'findMaster', '_isBoxItemNum', grab('function _wbOwned()') + '\nreturn _wbOwned;')(
+const ownedFn = new Function('state', 'findMaster', '_isBoxItemNum', grab('function _wbRowOf(pd)') + '\n' + grab('function _wbOwned()') + '\nreturn _wbOwned;')(   // 2026-10-31: + the row each copy is filed under
   pstate, (n) => MASTER[String(n)] || null, (n) => /BOX/.test(String(n)));
 const owned = ownedFn();
 ok('only OWNED copies with an inventoryId, boxes left out', owned.map(o => o.invId).join(',') === 'i2,i1', JSON.stringify(owned));
@@ -117,8 +117,8 @@ function flow(code, pickedInv, purpose, panelInvOverride) {
   env.window._maintAddTaskPopup = () => calls.push('addTask:' + env.window._maintPanelInvId);
   env.window._maintPartsPopup = (t, name) => calls.push('needPart:' + JSON.stringify(t) + ':' + name);
   env._panel = { item: null };
-  const body = 'var _wbPurpose = ' + JSON.stringify(purpose) + ', _wbPickQ = "";\n'
-    + grab('function _wbOwned()') + '\n' + code + '\nreturn window;';
+  const body = 'var _wbPurpose = ' + JSON.stringify(purpose) + ', _wbPickQ = "", _wbPickAll = null;\n'
+    + grab('function _wbRowOf(pd)') + '\n' + grab('function _wbOwned()') + '\n' + code + '\nreturn window;';   // 2026-10-31: _wbOwned files each copy's row (the filters)
   const names = Object.keys(env);
   const w = new Function(...names, body).apply({}, names.map(n => env[n]));
   w._wbPicked(pickedInv);

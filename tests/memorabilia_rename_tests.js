@@ -212,7 +212,7 @@ const LIVE = ['Instruction Sheets', 'Science Sets', 'Construction Sets', 'My Set
   T('G7  app.js no longer carries its own copy of the section list', !/const EPHEMERA_TABS = \[/.test(stripComments(SRC('app.js'), false)));
   T('G8  browse.js builds its section tables from the definition, not by hand',
     /EPHEMERA_TABS\.forEach\(function \(t\) \{ _SEC_TYPES\[t\.id\] = t\.reads; \}\);/.test(br) &&
-    /const _typeSection = function\(it\) \{ return ephSectionOfType\(it\.itemType\); \};/.test(br) &&
+    /function _rrTypeSectionOf\(it\) \{ return ephSectionOfType\(it\.itemType\); \}/.test(br) && /const _typeSection = _rrTypeSectionOf;/.test(br) &&   // 2026-10-31: the one decider moved above _rrBrowseCore (shared with the Workbench filters)
     /EPHEMERA_TABS\.forEach\(function \(t\) \{ _ephLabels\[t\.id\] = t\.single; _ephEmojis\[t\.id\] = t\.emoji; _ephTypeMap\[t\.single\] = t\.id; \}\);/.test(br) &&
     /_chipMeta\[t\.id\] = \{ label: t\.emoji \+ ' ' \+ t\.label, color: _chipColors\[t\.id\] \};/.test(br));
   T('G9  the Type list\'s section options come from the definition (value = single, text = emoji + label)',
@@ -339,7 +339,7 @@ const LIVE = ['Instruction Sheets', 'Science Sets', 'Construction Sets', 'My Set
 
     // ── I (browser half) ─────────────────────────────────────────────────
     section('I · planted offenders — the real file replaced by the old code');
-    const brOld = br.replace('if (_typeSection(item) !== _tfSec) return false;', 'return false;');
+    const brOld = br.replace('if (_rrTypeSectionOf(item) !== _tfSec) return false;', 'return false;');   // 2026-10-31: the line now lives in rrChipRowPasses
     T('I1  offender "hide the rows the option names" changed browse.js', brOld !== br);
     const O1 = await runList({ 'browse.js': brOld });
     T('I1  …and E8 goes red on it (Memorabilia option → nothing)', O1.allMem.rows.length === 0 && O1.errs.length === 0, O1.allMem.rows);

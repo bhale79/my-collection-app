@@ -71,7 +71,7 @@ section('D · browse.js reads through the ONE reader');
 ok('the personal-row check calls _scalesOfGauge', /_scalesOfGauge\(pd\.gauge\)/.test(BROWSE));
 ok('the old spelling table (\'standard\': \'std\') is gone', BROWSE.indexOf("'standard': 'std'") < 0);
 ok('the catalog check calls _scalesOfItem and tests membership',
-  /_scalesOfItem\(item\)/.test(BROWSE) && /_itmScales\.indexOf\(_stp3b\.scale\) < 0/.test(BROWSE));
+  /_scalesOfItem\(item\)/.test(BROWSE) && /_itmScales\.indexOf\(ch\.scale\) < 0/.test(BROWSE));   // 2026-10-31: rrChipRowPasses (ch = the chips)
 // run the catalog check's rule the way browse.js now does
 const shows = (gauge, chip) => F.all({ _era: 'prewar', gauge }).indexOf(chip) >= 0;
 ok('a "Standard & O" lamp shows under O AND under Standard, not under HO',

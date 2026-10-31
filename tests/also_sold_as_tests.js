@@ -76,7 +76,7 @@ section('C · every maker filter asks rrRowAlsoSoldBy after its own test');
 // Each site: the file, the filter's own test (an anchor that exists today), and
 // how far after it the Also Sold As question must appear.
 const SITES = [
-  ['browse.js — Master Catalog maker chip', 'browse', '_itmMfr !== _stp3b.manufacturer', 160],
+  ['browse.js — Master Catalog maker chip', 'browse', '_itmMfr !== ch.manufacturer', 160],   // 2026-10-31: the chip rule now lives in rrChipRowPasses (ch = the chips)
   ['wizard-suggestions.js — Add-screen list', 'sugg', 'String(_mMfr).toLowerCase() !== String(_effMfr).toLowerCase()', 200],
   ['wizard.js — part-number narrowing', 'wiz', 'if (_rm !== _pfM && _tab.indexOf(_pfM) !== 0', 200],
   ['wizard.js — right-maker row swap', 'wiz', 'if (_rm && _rm.indexOf(_fm) < 0', 200],

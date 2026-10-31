@@ -3949,6 +3949,265 @@ function renderMasterSubTab(tabKey) {
   if (typeof rrReapplyTableSort === 'function' && !(state.filters && state.filters.owned)) rrReapplyTableSort(tabKey + '-tbody');   // v0.9.1916: keep the clicked column's order
 }
 
+// ═══ THE FOUR FILTERS — ONE RULE, TWO SCREENS (2026-10-31, maintenance chat) ═══
+// [stated] Brad: the Workbench's "which item?" picker "need filters here for
+// manufacter, scale, era, type" → "yes" (and: no second copy of the rules).
+// What My Collection's list asks of a row for the Manufacturer / Scale / Era
+// chips and the Type filter now lives HERE, moved out of _rrBrowseCore's row
+// test word for word, and BOTH the list and the Workbench picker
+// (maintenance.js _wbPick) ask it. Nothing about the rules changed in the move:
+// the guards that were `state.filters.owned`, `_currentEra === 'all'` and the
+// chip state are now the caller's `mode.owned`, `mode.allEra` and `ch`.
+//   item — the catalog row (or the typed-in copy's own row, rrPersonalOnlyRow)
+//   pd   — the owned copy (may be null)
+//   ch   — { manufacturer, scale, era } ('any' = no filter) or null
+//   type — the Type filter value ('' = none)
+// workbench_filters_tests proves the Workbench and the list agree, filter by
+// filter, on every shape of copy.
+function _rrTypeSectionOf(it) { return ephSectionOfType(it.itemType); }
+// which section a Type-filter VALUE names — a section's `single` ("Paper Item",
+// "Memorabilia"), exactly as the Type list offers it — or ''.
+function _rrSectionOfTypeValue(tf) {
+  const t = String(tf || '').toLowerCase();
+  for (let i = 0; i < EPHEMERA_TABS.length; i++) if (EPHEMERA_TABS[i].single.toLowerCase() === t) return EPHEMERA_TABS[i].id;
+  return '';
+}
+function rrChipRowPasses(item, pd, ch, type, mode) {
+  mode = mode || {};
+  // v0.9.1509 (Brad, S81 live test): in MY COLLECTION view the chips are
+  // STRICT — an item with UNKNOWN maker or period no longer shows under a
+  // specific maker/era chip. Reverses v1161/v1425's "unknown shows
+  // everywhere" FOR THE OWNED VIEW ONLY (catalog browse keeps the old
+  // behavior): imports can create hundreds of unknowns at once, and Texaco
+  // planes under "Lionel · Postwar" is noise, not safety. The way back:
+  // the "Any" chips, search, and the Needs-details pill.
+  if (mode.owned && ch) {
+    if (ch.manufacturer && ch.manufacturer !== 'any') {
+      var _sMfr = ((typeof _manufacturerOfItem === 'function' && _manufacturerOfItem(item)) || (pd && pd.manufacturer) || '').toLowerCase();
+      if (!_sMfr) return false;
+    }
+    if (ch.era && ch.era !== 'any') {
+      var _sPer = (typeof _itemEraPeriod === 'function') ? _itemEraPeriod(item) : null;
+      if (!_sPer && !(pd && pd.yearMade)) return false;
+    }
+    // v0.9.1511 (Brad's N-scale 3474 under the O Gauge chip): the row's
+    // OWN gauge cell outranks any derived scale. Normalize the common
+    // spellings; an O-27 item still counts as O.
+    // v0.9.1805: read through _scalesOfGauge (app.js), the ONE gauge reader.
+    // v0.9.1878 (the filter audit): THE ONE scale rule for My Collection, here.
+    // v1511 only ever VETOED — the catalog check further down still ran, so
+    // his N-gauge 3474 on an O catalog row showed under neither chip; and a
+    // row with no gauge anywhere showed under EVERY chip ("N Scale" listing
+    // his paper items and a dealer sign). Now: the row's own gauge decides
+    // when it has one, else the catalog's; no scale at all → only under Any
+    // Scale — strict, like Maker and Era have been since v1509.
+    if (ch.scale && ch.scale !== 'any') {
+      var _ownG = (pd && pd.gauge && typeof _scalesOfGauge === 'function') ? _scalesOfGauge(pd.gauge) : [];
+      var _rowScales = _ownG.length ? _ownG : ((typeof _scalesOfItem === 'function') ? _scalesOfItem(item) : []);
+      var _cNorm = String(ch.scale).trim().toLowerCase();
+      if (_rowScales.map(function (s) { return String(s).toLowerCase(); }).indexOf(_cNorm) < 0) return false;
+    }
+  }
+  // v0.9.1509: "Needs details" filter — items missing maker, type, or (for
+  // manual rows) a year. Set by the pill injected in collection view.
+  // v0.9.1512 My maker · v0.9.1521 Group / Sub Type ("he collects 6464 cars,
+  // mint cars… I want to see all my Disney cars") · v0.9.1509 Needs details:
+  // all per-copy now — see _copyPasses above (v0.9.1820).
+  if (type) {
+    const _tl = String(type).toLowerCase();
+    const _tfSec = _rrSectionOfTypeValue(_tl);
+    if (_tfSec) {
+      // v0.9.1843 (found on Brad's 26 paper items while renaming the fourth
+      // section): the Type list's section options — "📄 Paper Items",
+      // "📦 Memorabilia" — name TYPED rows, which have lived in the one
+      // inventory since v0.9.990 and are offered since v0.9.1321; but this
+      // test still hid EVERY train-store row for them, the rows they named
+      // included, and the old buckets they then showed have been empty
+      // since v0.9.990. Measured live: "Paper Items" → 0 rows, the bucket
+      // word "Paper" → 26. A section option keeps that section's rows.
+      if (_rrTypeSectionOf(item) !== _tfSec) return false;
+    } else {
+      // A user's own tab, an instruction sheet, or a catalog sub-type
+      // (e.g. "Advance") — none of these has train-store rows: hide them all.
+      const _isEphFilter = (state.userDefinedTabs||[]).some(t=>String(t.label||'').toLowerCase()===_tl)
+        || _tl === 'instruction sheet'
+        || Object.values(state.ephemeraData.catalogs||{}).some(it=>(it.catType||'').toLowerCase()===_tl);
+      if (_isEphFilter) return false;
+      // Session 118 Phase C: compare against bucket label (Steam, Diesel, Boxcar...) instead of raw itemType.
+      var _bucketLabel = (typeof getTypeBucketLabel === 'function') ? getTypeBucketLabel(item) : item.itemType;
+      if (_bucketLabel !== type) return false;
+    }
+  }
+  // Step 3b: chip-state-aware filter (only relevant in 'all' meta-era mode).
+  if (mode.allEra && ch) {
+    if (ch.manufacturer && ch.manufacturer !== 'any') {
+      var _itmMfr = '';
+      if (typeof _manufacturerOfItem === 'function') _itmMfr = (_manufacturerOfItem(item) || '').toLowerCase();
+      if (!_itmMfr && item._tab) {
+        var _tlc = String(item._tab).toLowerCase();
+        if (_tlc.indexOf('lionel') === 0)     _itmMfr = 'lionel';
+        else if (_tlc.indexOf('atlas') === 0) _itmMfr = 'atlas';
+        else if (_tlc.indexOf('mth') === 0)   _itmMfr = 'mth';
+      }
+      // v0.9.1935: a product carrying the chosen maker's name counts too ("Also Sold As").
+      if (_itmMfr !== ch.manufacturer && !(typeof rrRowAlsoSoldBy === 'function' && rrRowAlsoSoldBy(item, ch.manufacturer))) return false;
+    }
+    if (ch.scale && ch.scale !== 'any' && !mode.owned) {
+      // v0.9.1805: a "Standard & O" item carries TWO scales and matches either.
+      var _itmScales = (typeof _scalesOfItem === 'function') ? _scalesOfItem(item) : [];
+      // Session 154: exclude items that don't DEFINITIVELY match the chosen
+      // scale — including items of unknown scale (e.g. pre-war rows with a
+      // blank gauge field). Previously `_itmScale && ...` let those leak into
+      // every scale filter (pre-war items appearing under "HO Scale").
+      // v0.9.1878: catalog browse only — My Collection's rule (own gauge
+      // first, else the catalog's, unknown only under Any) lives above.
+      if (_itmScales.indexOf(ch.scale) < 0) return false;
+    }
+    if (ch.era && ch.era !== 'any') {
+      // S151: chip era is a time period (prewar/postwar/modern).
+      var _itmPeriod = (typeof _itemEraPeriod === 'function') ? _itemEraPeriod(item) : null;
+      // v0.9.1161 (Brad chose "show under every period"): hide only on a KNOWN
+      // mismatch. A maker whose era genuinely spans periods — Marx 1927-2004,
+      // Other O Brands — has no period at all when the row carries no printed
+      // production year, and `null !== 'modern'` was excluding those rows from
+      // ALL THREE period chips. An item Brad owns could be absent from a list
+      // with nothing to explain why. Unknown now shows everywhere instead of
+      // nowhere; a real year still wins, so filling years narrows it properly.
+      if (_itmPeriod && _itmPeriod !== ch.era) return false;
+    }
+  }
+  return true;
+}
+// The "Also in your collection" makers (Ertl, Pittman… — on a copy, not in the
+// catalog's list): a question about the COPY's own Manufacturer cell. Asked by
+// the list's per-copy test (_copyPasses) and by the Workbench picker.
+function rrCopyMakerIs(pd, maker) {
+  var _omp = pd && pd.manufacturer ? String(pd.manufacturer).trim().toLowerCase() : '';
+  return _omp === String(maker || '').trim().toLowerCase();
+}
+// v0.9.985 (perf), moved here 2026-10-31 so the Workbench can build a typed-in
+// copy's row the same way: indexed replacement for masterData.find(...) — same
+// answer (variation match within the same item number, else the first row
+// with that number), O(1) via the masterByItem index.
+function _rrMbiFind(num, variation, needType) {
+  const bucket = (state.masterByItem && state.masterByItem.get(String(num == null ? '' : num).trim())) || [];
+  if (!bucket.length) return undefined;
+  if (needType) { for (let i = 0; i < bucket.length; i++) { if (bucket[i].itemType) return bucket[i]; } return undefined; }
+  if (variation) { for (let j = 0; j < bucket.length; j++) { if (String(bucket[j].variation || '') === String(variation)) return bucket[j]; } return undefined; }
+  return bucket[0];
+}
+// The row My Collection draws for an owned copy that has no catalog row of its
+// own (a typed-in item, a -P with no row…). Moved out of _rrBrowseCore word for
+// word 2026-10-31 so the Workbench picker filters the SAME row the list does.
+function rrPersonalOnlyRow(pd) {
+  const _mbiFind = _rrMbiFind;
+  // Infer type from item number suffix for personal-only items
+  let _poType = pd.itemType || '';
+  const _num = (pd.itemNum || '').toUpperCase();
+  if (!_poType) {
+    if (_num.endsWith('-MBOX'))      _poType = 'Master Carton';
+    else if (_num.endsWith('-BOX'))  _poType = 'Box';
+    else if (_num.endsWith('-IS'))   _poType = 'Instruction Sheet';
+    else if (_num.endsWith('-P'))    _poType = 'Powered Unit';
+    else if (_num.endsWith('-T'))    _poType = 'Dummy Unit';
+  }
+  // Strip suffix to find the base item for description/roadName
+  // v0.9.718: manual entries get NO catalog enrichment (identity is theirs).
+  const _pdIsManual = String(pd.era || '') === 'Manual';
+  const _baseNum = pd.itemNum.replace(/-(P|T|BOX|MBOX)$/i, '');
+  const _baseItem = (!_pdIsManual && _baseNum !== pd.itemNum)
+    ? (_mbiFind(_baseNum, pd.variation)
+       || findMaster(_baseNum, pd.variation || '', pd))   // v0.9.1796: never number-only — the row says whose it is
+    : null;
+  // Fallback: if no suffix match, still try to find master entry by item number alone
+  // (handles cases like 2426W saved with no variation but master has variations)
+  const _masterFallback = (_baseItem || _pdIsManual) ? null
+    : (_mbiFind(pd.itemNum, pd.variation)
+       || findMaster(pd.itemNum, '', pd));
+  const _refItem = _baseItem || _masterFallback;
+  return {
+    itemNum: pd.itemNum, variation: pd.variation || '',
+    manufacturer: pd.manufacturer || '',
+    itemType: (function () {
+      if (!pd.itemType && _poType) return _poType;   // suffix-derived (-BOX/-IS/-P/-T) synthetic types
+      // v0.9.798 (Brad): the CATALOG decides Item Type whenever this number
+      // exists in the master — a stored personal type (like a stuck "Paper"
+      // on 217C / 6464-425) only applies to true off-catalog items. TYPE
+      // ONLY: identity fields keep v0.9.718's no-enrichment rule.
+      var _tm = null;
+      // v0.9.987 (Brad): MANUAL entries keep THEIR OWN type — the catalog
+      // override below (v0.9.798) was for catalog-matched rows with a
+      // stuck personal type, but a manual item that happens to share a
+      // number with a catalog item (e.g. "4C") must not lose its edited
+      // type. v0.9.718 rule: a manual entry's identity is its own.
+      if (!_pdIsManual) {
+        try { _tm = (typeof findMaster === 'function') ? (findMaster(pd.itemNum, pd.variation || '', pd) || (_baseNum !== pd.itemNum ? findMaster(_baseNum, pd.variation || '', pd) : null)) : null; } catch (eT) {}
+        // v0.9.801: variation-blind fallback — the type is the same across
+        // every variation, so ANY master row with this number settles it
+        // (findMaster can return null when the variation column is blank).
+        if (!_tm) { try { _tm = _mbiFind(pd.itemNum, '', true) || null; } catch (eT2) {} }
+      }
+      if (_tm && _tm.itemType) return _tm.itemType;
+      return _poType || (_refItem ? _refItem.itemType : '');
+    })(),
+    roadName: pd.roadName || (_refItem ? _refItem.roadName : ''),
+    // v0.9.1528: two fields the type bucketer reads that were never here.
+    // _personalOnly stops the by-number overrides (which exist to correct
+    // OUR catalog) from overruling a type the owner set on their own row;
+    // subType is what the user calls it more narrowly, and the bucketer
+    // reads it when the type itself is vague.
+    _personalOnly: true,
+    _pd: pd,   // v0.9.1820: the REAL record — _rrPdForRow hands this back, so no field can be "not on the list" again (v1392, v1425, and Group on a manual item)
+    subType: pd.subType || '',
+    description: _refItem ? _refItem.description : (pd.description || pd.notes || ''),   // v0.9.718: manual rows carry their own description
+    // v0.9.2030 (a York customer's card read "Other · 46212"): the year
+    // slot is the YEAR MADE — a typed-in item's own, else its reference
+    // row's. It used to show the purchase DATE here, raw (a Sheets serial).
+    yearProd: String(pd.yearMade || '').trim() || (_refItem ? _refItem.yearProd : ''),
+    marketVal: _refItem ? _refItem.marketVal : '',
+    varDesc: _refItem ? _refItem.varDesc : '',
+    refLink: _refItem ? _refItem.refLink : '',
+    // Carry through collection-status fields so icons/actions work for personal-only items
+    owned: pd.owned, row: pd.row,
+    quickEntry: pd.quickEntry, groupId: pd.groupId || '',
+    matchedTo: pd.matchedTo || '', setId: pd.setId || '',
+    photoItem: pd.photoItem || '', userEstWorth: pd.userEstWorth || '',
+    condition: pd.condition || '', inventoryId: pd.inventoryId || '',
+    // ── v0.9.1392 (Brad: "shows in the my collection, but not the recent
+    // additions") ────────────────────────────────────────────────────────
+    // ROOT CAUSE, not the cell. A personal-only row IS its own pd —
+    // _rrPdForRow returns the item itself for these — so every pd-derived
+    // cell reads whatever is copied here, and the dates were never on the
+    // list. His paper items therefore printed "—" no matter what the sheet
+    // held: measured live, the object reaching the date cell had 21 keys,
+    // row 194, and no dateAdded at all, while state.personalData held the
+    // same row with dateAdded 46241.
+    //
+    // v0.9.1391 fixed the four date READERS to agree on one precedence.
+    // This makes sure they are handed something to read.
+    dateAdded: pd.dateAdded || '', datePurchased: pd.datePurchased || '',
+    dateAcquired: pd.dateAcquired || '', _savedAt: pd._savedAt || 0,
+    // ── v0.9.1425 (Brad: two 1960s paper items sat under the Modern chip) ──
+    // The TWIN of the v0.9.1392 date bug directly above, and the same root
+    // cause: this object is a hand-copied subset of pd, so any field left
+    // off the list is invisible to everything downstream. yearMade was off
+    // it, so _itemEraPeriod saw no year, returned null, and a null period
+    // shows under EVERY era chip — his ~1967 billboard appeared as Modern.
+    // Measured live: the pd records classify as 'postwar' correctly; only
+    // the copy handed to the filter was blind. eraPeriod rides along too.
+    yearMade: pd.yearMade || '', eraPeriod: pd.eraPeriod || '',
+    // ── v0.9.1579 (Brad: Menards O buildings under the G/One Gauge
+    // chip) — STRIKE THREE of the v1392/v1425 disease: gauge was never
+    // on this hand-copied list, so the v1511 own-gauge-outranks-all
+    // rule and _scaleOfItem were both blind for personal-only rows,
+    // and every manual item fell into "unknown scale shows under every
+    // scale chip". Measured live: pd held gauge 'O'; the copy held
+    // nothing. filter_bar_tests pins this field on the list now.
+    gauge: pd.gauge || '',
+    _personalOnly: true
+  };
+}
+
 function renderBrowse() { return _rrBrowseCore(null); }
 // ── v0.9.1798: ONE LIST, TWO USES ──────────────────────────────────────────
 // Brad: the number beside a picker option must be what picking it SHOWS, with
@@ -4050,14 +4309,10 @@ function _rrBrowseCore(_co) {
   // v0.9.990 (Phase 3): Mock-Up and the fourth section (Memorabilia) route
   // to their sections too. Plain 'Other' stays a TRAIN type (manual-add
   // off-catalog oddballs). v0.9.1843: ONE decider — ephSectionOfType.
-  const _typeSection = function(it) { return ephSectionOfType(it.itemType); };
+  const _typeSection = _rrTypeSectionOf;   // 2026-10-31: moved above _rrBrowseCore
   // v0.9.1843: which section a Type-filter VALUE names — a section's `single`
   // ("Paper Item", "Memorabilia"), exactly as the Type list offers it — or ''.
-  const _sectionOfFilter = function (tf) {
-    const t = String(tf || '').toLowerCase();
-    for (let i = 0; i < EPHEMERA_TABS.length; i++) if (EPHEMERA_TABS[i].single.toLowerCase() === t) return EPHEMERA_TABS[i].id;
-    return '';
-  };
+  const _sectionOfFilter = _rrSectionOfTypeValue;   // 2026-10-31: moved above _rrBrowseCore
   if (!_co && typeof _renderCrossEraSearchBanner === 'function') _renderCrossEraSearchBanner(search);
 
   // Session 117: master-browse view in All mode + no search = 30K+ rows. Show
@@ -4120,13 +4375,7 @@ function _rrBrowseCore(_co) {
   // scans below — same answer (variation match within the same item number,
   // else the first row with that number), but O(1) via the masterByItem index
   // instead of a full-catalog walk per personal-only item.
-  const _mbiFind = function(num, variation, needType) {
-    const bucket = (state.masterByItem && state.masterByItem.get(String(num == null ? '' : num).trim())) || [];
-    if (!bucket.length) return undefined;
-    if (needType) { for (let i = 0; i < bucket.length; i++) { if (bucket[i].itemType) return bucket[i]; } return undefined; }
-    if (variation) { for (let j = 0; j < bucket.length; j++) { if (String(bucket[j].variation || '') === String(variation)) return bucket[j]; } return undefined; }
-    return bucket[0];
-  };
+  const _mbiFind = _rrMbiFind;   // 2026-10-31: moved above _rrBrowseCore
   // v0.9.1120 (Brad's 1562W): an owned item saved WITHOUT a variation must
   // light up exactly ONE catalog row — its best identity match — instead of
   // whichever blank-variation lookalikes happen to share the number (2444's
@@ -4303,113 +4552,7 @@ function _rrBrowseCore(_co) {
       if (_boxish) return false;
       return !(typeof _grpFoldActive === 'function' ? _grpFoldActive() : true);
     })
-    .map(pd => {
-      // Infer type from item number suffix for personal-only items
-      let _poType = pd.itemType || '';
-      const _num = (pd.itemNum || '').toUpperCase();
-      if (!_poType) {
-        if (_num.endsWith('-MBOX'))      _poType = 'Master Carton';
-        else if (_num.endsWith('-BOX'))  _poType = 'Box';
-        else if (_num.endsWith('-IS'))   _poType = 'Instruction Sheet';
-        else if (_num.endsWith('-P'))    _poType = 'Powered Unit';
-        else if (_num.endsWith('-T'))    _poType = 'Dummy Unit';
-      }
-      // Strip suffix to find the base item for description/roadName
-      // v0.9.718: manual entries get NO catalog enrichment (identity is theirs).
-      const _pdIsManual = String(pd.era || '') === 'Manual';
-      const _baseNum = pd.itemNum.replace(/-(P|T|BOX|MBOX)$/i, '');
-      const _baseItem = (!_pdIsManual && _baseNum !== pd.itemNum)
-        ? (_mbiFind(_baseNum, pd.variation)
-           || findMaster(_baseNum, pd.variation || '', pd))   // v0.9.1796: never number-only — the row says whose it is
-        : null;
-      // Fallback: if no suffix match, still try to find master entry by item number alone
-      // (handles cases like 2426W saved with no variation but master has variations)
-      const _masterFallback = (_baseItem || _pdIsManual) ? null
-        : (_mbiFind(pd.itemNum, pd.variation)
-           || findMaster(pd.itemNum, '', pd));
-      const _refItem = _baseItem || _masterFallback;
-      return {
-        itemNum: pd.itemNum, variation: pd.variation || '',
-        manufacturer: pd.manufacturer || '',
-        itemType: (function () {
-          if (!pd.itemType && _poType) return _poType;   // suffix-derived (-BOX/-IS/-P/-T) synthetic types
-          // v0.9.798 (Brad): the CATALOG decides Item Type whenever this number
-          // exists in the master — a stored personal type (like a stuck "Paper"
-          // on 217C / 6464-425) only applies to true off-catalog items. TYPE
-          // ONLY: identity fields keep v0.9.718's no-enrichment rule.
-          var _tm = null;
-          // v0.9.987 (Brad): MANUAL entries keep THEIR OWN type — the catalog
-          // override below (v0.9.798) was for catalog-matched rows with a
-          // stuck personal type, but a manual item that happens to share a
-          // number with a catalog item (e.g. "4C") must not lose its edited
-          // type. v0.9.718 rule: a manual entry's identity is its own.
-          if (!_pdIsManual) {
-            try { _tm = (typeof findMaster === 'function') ? (findMaster(pd.itemNum, pd.variation || '', pd) || (_baseNum !== pd.itemNum ? findMaster(_baseNum, pd.variation || '', pd) : null)) : null; } catch (eT) {}
-            // v0.9.801: variation-blind fallback — the type is the same across
-            // every variation, so ANY master row with this number settles it
-            // (findMaster can return null when the variation column is blank).
-            if (!_tm) { try { _tm = _mbiFind(pd.itemNum, '', true) || null; } catch (eT2) {} }
-          }
-          if (_tm && _tm.itemType) return _tm.itemType;
-          return _poType || (_refItem ? _refItem.itemType : '');
-        })(),
-        roadName: pd.roadName || (_refItem ? _refItem.roadName : ''),
-        // v0.9.1528: two fields the type bucketer reads that were never here.
-        // _personalOnly stops the by-number overrides (which exist to correct
-        // OUR catalog) from overruling a type the owner set on their own row;
-        // subType is what the user calls it more narrowly, and the bucketer
-        // reads it when the type itself is vague.
-        _personalOnly: true,
-        _pd: pd,   // v0.9.1820: the REAL record — _rrPdForRow hands this back, so no field can be "not on the list" again (v1392, v1425, and Group on a manual item)
-        subType: pd.subType || '',
-        description: _refItem ? _refItem.description : (pd.description || pd.notes || ''),   // v0.9.718: manual rows carry their own description
-        // v0.9.2030 (a York customer's card read "Other · 46212"): the year
-        // slot is the YEAR MADE — a typed-in item's own, else its reference
-        // row's. It used to show the purchase DATE here, raw (a Sheets serial).
-        yearProd: String(pd.yearMade || '').trim() || (_refItem ? _refItem.yearProd : ''),
-        marketVal: _refItem ? _refItem.marketVal : '',
-        varDesc: _refItem ? _refItem.varDesc : '',
-        refLink: _refItem ? _refItem.refLink : '',
-        // Carry through collection-status fields so icons/actions work for personal-only items
-        owned: pd.owned, row: pd.row,
-        quickEntry: pd.quickEntry, groupId: pd.groupId || '',
-        matchedTo: pd.matchedTo || '', setId: pd.setId || '',
-        photoItem: pd.photoItem || '', userEstWorth: pd.userEstWorth || '',
-        condition: pd.condition || '', inventoryId: pd.inventoryId || '',
-        // ── v0.9.1392 (Brad: "shows in the my collection, but not the recent
-        // additions") ────────────────────────────────────────────────────────
-        // ROOT CAUSE, not the cell. A personal-only row IS its own pd —
-        // _rrPdForRow returns the item itself for these — so every pd-derived
-        // cell reads whatever is copied here, and the dates were never on the
-        // list. His paper items therefore printed "—" no matter what the sheet
-        // held: measured live, the object reaching the date cell had 21 keys,
-        // row 194, and no dateAdded at all, while state.personalData held the
-        // same row with dateAdded 46241.
-        //
-        // v0.9.1391 fixed the four date READERS to agree on one precedence.
-        // This makes sure they are handed something to read.
-        dateAdded: pd.dateAdded || '', datePurchased: pd.datePurchased || '',
-        dateAcquired: pd.dateAcquired || '', _savedAt: pd._savedAt || 0,
-        // ── v0.9.1425 (Brad: two 1960s paper items sat under the Modern chip) ──
-        // The TWIN of the v0.9.1392 date bug directly above, and the same root
-        // cause: this object is a hand-copied subset of pd, so any field left
-        // off the list is invisible to everything downstream. yearMade was off
-        // it, so _itemEraPeriod saw no year, returned null, and a null period
-        // shows under EVERY era chip — his ~1967 billboard appeared as Modern.
-        // Measured live: the pd records classify as 'postwar' correctly; only
-        // the copy handed to the filter was blind. eraPeriod rides along too.
-        yearMade: pd.yearMade || '', eraPeriod: pd.eraPeriod || '',
-        // ── v0.9.1579 (Brad: Menards O buildings under the G/One Gauge
-        // chip) — STRIKE THREE of the v1392/v1425 disease: gauge was never
-        // on this hand-copied list, so the v1511 own-gauge-outranks-all
-        // rule and _scaleOfItem were both blind for personal-only rows,
-        // and every manual item fell into "unknown scale shows under every
-        // scale chip". Measured live: pd held gauge 'O'; the copy held
-        // nothing. filter_bar_tests pins this field on the list now.
-        gauge: pd.gauge || '',
-        _personalOnly: true
-      };
-    });
+    .map(rrPersonalOnlyRow);   // 2026-10-31: moved above _rrBrowseCore word for word (the Workbench builds the same row)
   // Session 117: master browse in All Collection mode pulls items from EVERY
   // era's items tab — not just the SHEET_TABS.items fallback (which would be PW only).
   // Empty-state gate above prevents rendering all 30K+ rows when no search is active.
@@ -4501,10 +4644,7 @@ function _rrBrowseCore(_co) {
     if (_qf === 'quick' && !pd.quickEntry) return false;
     if (_qf === 'complete' && pd.quickEntry) return false;
     if (state.filters.imported === 'imported' && !pd.importBatch) return false;
-    if (state.filters.ownMaker) {
-      var _omp = pd.manufacturer ? String(pd.manufacturer).trim().toLowerCase() : '';
-      if (_omp !== String(state.filters.ownMaker).trim().toLowerCase()) return false;
-    }
+    if (state.filters.ownMaker && !rrCopyMakerIs(pd, state.filters.ownMaker)) return false;   // 2026-10-31: one rule, shared with the Workbench
     if (state.filters.subCollection) {
       var _sc2 = pd.subCollection ? String(pd.subCollection).trim().toLowerCase() : '';
       if (_sc2 !== String(state.filters.subCollection).trim().toLowerCase()) return false;
@@ -4578,108 +4718,9 @@ function _rrBrowseCore(_co) {
         if (!_cps.some(_copyPasses)) return false;
       }
     }
-    // v0.9.1509 (Brad, S81 live test): in MY COLLECTION view the chips are
-    // STRICT — an item with UNKNOWN maker or period no longer shows under a
-    // specific maker/era chip. Reverses v1161/v1425's "unknown shows
-    // everywhere" FOR THE OWNED VIEW ONLY (catalog browse keeps the old
-    // behavior): imports can create hundreds of unknowns at once, and Texaco
-    // planes under "Lionel · Postwar" is noise, not safety. The way back:
-    // the "Any" chips, search, and the Needs-details pill.
-    if (state.filters.owned && _stp3b) {
-      if (_stp3b.manufacturer && _stp3b.manufacturer !== 'any') {
-        var _sMfr = ((typeof _manufacturerOfItem === 'function' && _manufacturerOfItem(item)) || (pd && pd.manufacturer) || '').toLowerCase();
-        if (!_sMfr) return false;
-      }
-      if (_stp3b.era && _stp3b.era !== 'any') {
-        var _sPer = (typeof _itemEraPeriod === 'function') ? _itemEraPeriod(item) : null;
-        if (!_sPer && !(pd && pd.yearMade)) return false;
-      }
-      // v0.9.1511 (Brad's N-scale 3474 under the O Gauge chip): the row's
-      // OWN gauge cell outranks any derived scale. Normalize the common
-      // spellings; an O-27 item still counts as O.
-      // v0.9.1805: read through _scalesOfGauge (app.js), the ONE gauge reader.
-      // v0.9.1878 (the filter audit): THE ONE scale rule for My Collection, here.
-      // v1511 only ever VETOED — the catalog check further down still ran, so
-      // his N-gauge 3474 on an O catalog row showed under neither chip; and a
-      // row with no gauge anywhere showed under EVERY chip ("N Scale" listing
-      // his paper items and a dealer sign). Now: the row's own gauge decides
-      // when it has one, else the catalog's; no scale at all → only under Any
-      // Scale — strict, like Maker and Era have been since v1509.
-      if (_stp3b.scale && _stp3b.scale !== 'any') {
-        var _ownG = (pd && pd.gauge && typeof _scalesOfGauge === 'function') ? _scalesOfGauge(pd.gauge) : [];
-        var _rowScales = _ownG.length ? _ownG : ((typeof _scalesOfItem === 'function') ? _scalesOfItem(item) : []);
-        var _cNorm = String(_stp3b.scale).trim().toLowerCase();
-        if (_rowScales.map(function (s) { return String(s).toLowerCase(); }).indexOf(_cNorm) < 0) return false;
-      }
-    }
-    // v0.9.1509: "Needs details" filter — items missing maker, type, or (for
-    // manual rows) a year. Set by the pill injected in collection view.
-    // v0.9.1512 My maker · v0.9.1521 Group / Sub Type ("he collects 6464 cars,
-    // mint cars… I want to see all my Disney cars") · v0.9.1509 Needs details:
-    // all per-copy now — see _copyPasses above (v0.9.1820).
-    if (type) {
-      const _tl = String(type).toLowerCase();
-      const _tfSec = _sectionOfFilter(_tl);
-      if (_tfSec) {
-        // v0.9.1843 (found on Brad's 26 paper items while renaming the fourth
-        // section): the Type list's section options — "📄 Paper Items",
-        // "📦 Memorabilia" — name TYPED rows, which have lived in the one
-        // inventory since v0.9.990 and are offered since v0.9.1321; but this
-        // test still hid EVERY train-store row for them, the rows they named
-        // included, and the old buckets they then showed have been empty
-        // since v0.9.990. Measured live: "Paper Items" → 0 rows, the bucket
-        // word "Paper" → 26. A section option keeps that section's rows.
-        if (_typeSection(item) !== _tfSec) return false;
-      } else {
-        // A user's own tab, an instruction sheet, or a catalog sub-type
-        // (e.g. "Advance") — none of these has train-store rows: hide them all.
-        const _isEphFilter = (state.userDefinedTabs||[]).some(t=>String(t.label||'').toLowerCase()===_tl)
-          || _tl === 'instruction sheet'
-          || Object.values(state.ephemeraData.catalogs||{}).some(it=>(it.catType||'').toLowerCase()===_tl);
-        if (_isEphFilter) return false;
-        // Session 118 Phase C: compare against bucket label (Steam, Diesel, Boxcar...) instead of raw itemType.
-        var _bucketLabel = (typeof getTypeBucketLabel === 'function') ? getTypeBucketLabel(item) : item.itemType;
-        if (_bucketLabel !== type) return false;
-      }
-    }
-    // Step 3b: chip-state-aware filter (only relevant in 'all' meta-era mode).
-    if (_currentEra === 'all' && _stp3b) {
-      if (_stp3b.manufacturer && _stp3b.manufacturer !== 'any') {
-        var _itmMfr = '';
-        if (typeof _manufacturerOfItem === 'function') _itmMfr = (_manufacturerOfItem(item) || '').toLowerCase();
-        if (!_itmMfr && item._tab) {
-          var _tlc = String(item._tab).toLowerCase();
-          if (_tlc.indexOf('lionel') === 0)     _itmMfr = 'lionel';
-          else if (_tlc.indexOf('atlas') === 0) _itmMfr = 'atlas';
-          else if (_tlc.indexOf('mth') === 0)   _itmMfr = 'mth';
-        }
-        // v0.9.1935: a product carrying the chosen maker's name counts too ("Also Sold As").
-        if (_itmMfr !== _stp3b.manufacturer && !(typeof rrRowAlsoSoldBy === 'function' && rrRowAlsoSoldBy(item, _stp3b.manufacturer))) return false;
-      }
-      if (_stp3b.scale && _stp3b.scale !== 'any' && !state.filters.owned) {
-        // v0.9.1805: a "Standard & O" item carries TWO scales and matches either.
-        var _itmScales = (typeof _scalesOfItem === 'function') ? _scalesOfItem(item) : [];
-        // Session 154: exclude items that don't DEFINITIVELY match the chosen
-        // scale — including items of unknown scale (e.g. pre-war rows with a
-        // blank gauge field). Previously `_itmScale && ...` let those leak into
-        // every scale filter (pre-war items appearing under "HO Scale").
-        // v0.9.1878: catalog browse only — My Collection's rule (own gauge
-        // first, else the catalog's, unknown only under Any) lives above.
-        if (_itmScales.indexOf(_stp3b.scale) < 0) return false;
-      }
-      if (_stp3b.era && _stp3b.era !== 'any') {
-        // S151: chip era is a time period (prewar/postwar/modern).
-        var _itmPeriod = (typeof _itemEraPeriod === 'function') ? _itemEraPeriod(item) : null;
-        // v0.9.1161 (Brad chose "show under every period"): hide only on a KNOWN
-        // mismatch. A maker whose era genuinely spans periods — Marx 1927-2004,
-        // Other O Brands — has no period at all when the row carries no printed
-        // production year, and `null !== 'modern'` was excluding those rows from
-        // ALL THREE period chips. An item Brad owns could be absent from a list
-        // with nothing to explain why. Unknown now shows everywhere instead of
-        // nowhere; a real year still wins, so filling years narrows it properly.
-        if (_itmPeriod && _itmPeriod !== _stp3b.era) return false;
-      }
-    }
+    // The Manufacturer / Scale / Era chips and the Type filter: ONE rule, shared
+    // with the Workbench picker — rrChipRowPasses, above _rrBrowseCore.
+    if (!rrChipRowPasses(item, pd, _stp3b, type, { owned: !!state.filters.owned, allEra: _currentEra === 'all' })) return false;
     if (road && item.roadName !== road) return false;
     if (search) {
       // v0.9.1506 (Session 81): imported items are searchable by the words THEY

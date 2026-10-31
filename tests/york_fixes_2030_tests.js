@@ -200,7 +200,7 @@ async function scenario(pg) {
     ['P4 Google’s reason dropped (old)', plant('drive.js', "    return { error: 'session', status: sRes.status, reason: _reason };", "    return { error: 'session', status: sRes.status };"), r => r.cPick.reason === 'FAILED_PRECONDITION' && /hasn’t been set up/.test(r.cWords)],
     ['P5 the Add steps’ route shows "(400)" (old)', plant('drive.js', '  var _words = rrGPhotosErrorWords(res);', "  var _words = '';"), r => r.cErrText === r.cWords],
     ['P6 the steam names unknown (old)', plant('type-groups.js', 'k-?4s?|m-?1[ab]?|t-?1|ac-?(?:9|12)|class a|porter|tank engine|best friend of charleston|j-?1a?|j-?3a|y-?6b|', ''), r => r.d.k4 === 'Steam Locomotive'],
-    ['P7 the card shows the purchase date (old)', plant('browse.js', "        yearProd: String(pd.yearMade || '').trim() || (_refItem ? _refItem.yearProd : ''),", "        yearProd: pd.datePurchased || (_refItem ? _refItem.yearProd : ''),"), r => r.eNoSerial === true],
+    ['P7 the card shows the purchase date (old)', plant('browse.js', "    yearProd: String(pd.yearMade || '').trim() || (_refItem ? _refItem.yearProd : ''),", "    yearProd: pd.datePurchased || (_refItem ? _refItem.yearProd : ''),")   /* 2026-10-31: the row builder moved to rrPersonalOnlyRow (4 spaces in) */, r => r.eNoSerial === true],
   ];
   for (const [name, served, check] of plants) {
     const o = await openApp(browser, served);

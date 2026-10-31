@@ -4509,8 +4509,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
       if (a < 0 || b < 0) throw new Error('§132 marker moved in ' + file);
       return src.slice(a, b).split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
     };
+    // 2026-10-31: the chip rule moved into rrChipRowPasses (shared with the Workbench); ch = the chips
     const brwBlk = codeOf('app/browse.js', 'Step 3b: chip-state-aware filter',
-                                           'if (road && item.roadName');
+                                           '// The "Also in your collection" makers');
     // v0.9.1711: the Want List page's copy of this rule went with the legacy
     // renderer (_buildWantPageLegacy, unreachable since v0.9.1348). The LIVE
     // copy is the one v0.9.1348 moved to the merged Upgrade page — pin that.
@@ -4518,9 +4519,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
                                                '// Type filter');
 
     ok('the browse chip filter hides a row only on a KNOWN period mismatch',
-       /if \(_itmPeriod && _itmPeriod !== _stp3b\.era\) return false;/.test(brwBlk));
+       /if \(_itmPeriod && _itmPeriod !== ch\.era\) return false;/.test(brwBlk) && brwBlk.length < 4000);
     ok('…and the old form that hid every unknown period is gone',
-       !/if \(_itmPeriod !== _stp3b\.era\) return false;/.test(brwBlk));
+       !/if \(_itmPeriod !== ch\.era\) return false;/.test(brwBlk));
     ok('the Want list (now the merged Upgrade page) uses the SAME rule, so one item cannot behave two ways',
        /if \(_uPeriod && _uPeriod !== _ue\) return false;/.test(wantBlk));
     ok('…and a hand-typed want with no catalog match is no longer dropped outright',

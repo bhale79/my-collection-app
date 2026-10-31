@@ -4631,6 +4631,39 @@
   // the same pop-ups, not look-alikes. Closing them leaves you on the card.
   var _wbPurpose = 'task';
   var _wbPickQ = '';
+  var _wbPickAll = null;   // the owned list, built ONCE each time the picker opens (not on every keystroke)
+  // ── 2026-10-31: Manufacturer / Scale / Era / Type on the "which item?" step ──
+  // [stated] Brad: "need filters here for manufacter, scale, era, type" → "yes".
+  // NO second copy of the rules: each copy is asked the SAME question My
+  // Collection's list asks (rrChipRowPasses, and rrCopyMakerIs for the makers
+  // the catalog does not know — browse.js), of the SAME row the list files it
+  // under (_wbRowOf). An option is offered only when picking it shows at least
+  // one item, and its number is what picking it shows (the v0.9.1798 / v1878
+  // rule of My Collection's pickers). The last choices are kept on this device.
+  var _WB_F_KEY = 'lv_wb_pick_filters';
+  var _WB_F_LEVELS = ['manufacturer', 'scale', 'era', 'type'];
+  function _wbFiltersNone() { return { manufacturer: 'any', scale: 'any', era: 'any', type: '' }; }
+  var _wbF = (function () {
+    var f = _wbFiltersNone();
+    try { var s = JSON.parse(localStorage.getItem(_WB_F_KEY) || 'null'); if (s && typeof s === 'object') _WB_F_LEVELS.forEach(function (l) { if (typeof s[l] === 'string') f[l] = s[l]; }); } catch (e) {}
+    return f;
+  })();
+  function _wbFSave() { try { localStorage.setItem(_WB_F_KEY, JSON.stringify(_wbF)); } catch (e) {} }
+  function _wbFOn(l) { return l === 'type' ? !!_wbF.type : (_wbF[l] && _wbF[l] !== 'any'); }
+  // The row My Collection files a copy under: its catalog row when the copy sits
+  // on one (findMaster — the one resolver; a Row ID answers first), else the
+  // typed-in copy's own row, built by the SAME builder the list uses
+  // (rrPersonalOnlyRow, browse.js). A catalog row whose shown number is not the
+  // copy's (a 2343-P against the 2343 row) is not its row: My Collection draws
+  // that copy on its own row too.
+  function _wbRowOf(pd) {
+    var m = null;
+    if (String(pd.era || '') !== 'Manual' && typeof findMaster === 'function') { try { m = findMaster(pd.itemNum, pd.variation, pd); } catch (e) { m = null; } }
+    if (m && typeof _displayItemNum === 'function' && _displayItemNum(m) !== String(pd.itemNum)) m = null;
+    if (m) return m;
+    try { if (typeof rrPersonalOnlyRow === 'function') return rrPersonalOnlyRow(pd); } catch (e2) {}
+    return pd;
+  }
   function _wbOwned() {
     var out = [];
     Object.keys(state.personalData || {}).forEach(function (k) {
@@ -4639,15 +4672,67 @@
       if (typeof _isBoxItemNum === 'function' && _isBoxItemNum(pd.itemNum)) return;
       var m = (typeof findMaster === 'function') ? findMaster(pd.itemNum, pd.variation, pd) : null;   // v0.9.1821
       out.push({ invId: String(pd.inventoryId), itemNum: String(pd.itemNum), variation: String(pd.variation || ''),
-                 road: String((m && m.roadName) || pd.roadName || ''), desc: String((m && m.description) || pd.description || '') });
+                 road: String((m && m.roadName) || pd.roadName || ''), desc: String((m && m.description) || pd.description || ''),
+                 pd: pd, row: _wbRowOf(pd) });
     });
     out.sort(function (a, b) { return a.itemNum.localeCompare(b.itemNum, undefined, { numeric: true }) || a.variation.localeCompare(b.variation); });
+    return out;
+  }
+  // Does copy o pass the filters f? `skip` leaves one level out (to count its
+  // options). The question is rrChipRowPasses's, asked as My Collection asks it.
+  function _wbPasses(o, f, skip) {
+    var mf = skip === 'manufacturer' ? 'any' : (f.manufacturer || 'any');
+    var own = mf.indexOf('own:') === 0;
+    if (own && !(typeof rrCopyMakerIs === 'function' && rrCopyMakerIs(o.pd, mf.slice(4)))) return false;
+    var ch = { manufacturer: own ? 'any' : mf, scale: skip === 'scale' ? 'any' : (f.scale || 'any'), era: skip === 'era' ? 'any' : (f.era || 'any') };
+    var ty = skip === 'type' ? '' : (f.type || '');
+    if (ch.manufacturer === 'any' && ch.scale === 'any' && ch.era === 'any' && !ty) return true;
+    return (typeof rrChipRowPasses === 'function') ? rrChipRowPasses(o.row, o.pd, ch, ty, { owned: true, allEra: true }) : true;
+  }
+  function _wbSearchHit(o, q) { return !q || (o.itemNum + ' ' + o.road + ' ' + o.desc + ' ' + o.variation).toLowerCase().indexOf(q) >= 0; }
+  // The choices for one level: only what picking would show (with the other
+  // three filters and the search kept), each with its number; "Any …" first
+  // with the number the level shows when left open; a choice already picked
+  // stays on the list even at 0, so the way back is always there.
+  function _wbOptions(level, all, q) {
+    var base = all.filter(function (o) { return _wbSearchHit(o, q) && _wbPasses(o, _wbF, level); });
+    var cand = [];
+    var WIC = (typeof window !== 'undefined' && window.WHAT_I_COLLECT) || {};
+    if (level === 'manufacturer') {
+      var MFs = WIC.MANUFACTURERS || {}, known = {};
+      Object.keys(MFs).forEach(function (k) { known[String(MFs[k].label || k).toLowerCase()] = 1; known[k] = 1; cand.push({ id: k, label: (typeof _phLabelFor === 'function') ? _phLabelFor('manufacturer', k) : k }); });
+      var ownSeen = {};
+      all.forEach(function (o) {   // the makers on your copies the catalog does not know (Ertl, Pittman…)
+        var m = o.pd && o.pd.manufacturer ? String(o.pd.manufacturer).trim() : '';
+        if (m && !known[m.toLowerCase()] && !ownSeen[m.toLowerCase()]) { ownSeen[m.toLowerCase()] = 1; cand.push({ id: 'own:' + m, label: m }); }
+      });
+    } else if (level === 'scale') {
+      Object.keys(WIC.SCALES || {}).forEach(function (k) { cand.push({ id: k, label: (typeof _phLabelFor === 'function') ? _phLabelFor('scale', k) : k }); });
+    } else if (level === 'era') {
+      ((typeof _ERA_PERIODS !== 'undefined' && _ERA_PERIODS) || ['prewar', 'postwar', 'modern']).forEach(function (k) { cand.push({ id: k, label: (typeof _phLabelFor === 'function') ? _phLabelFor('era', k) : k }); });
+    } else {
+      var seenT = {};
+      all.forEach(function (o) {
+        var t = ''; try { t = (typeof getTypeBucketLabel === 'function') ? getTypeBucketLabel(o.row) : (o.row && o.row.itemType) || ''; } catch (e) {}
+        if (t && !seenT[t]) { seenT[t] = 1; cand.push({ id: t, label: t }); }
+      });
+      cand.sort(function (a, b) { return a.label.localeCompare(b.label); });
+    }
+    var cur = _wbF[level] || (level === 'type' ? '' : 'any');
+    var out = [{ id: level === 'type' ? '' : 'any', label: { manufacturer: 'Any manufacturer', scale: 'Any scale', era: 'Any era', type: 'Any type' }[level], n: base.length }];
+    cand.forEach(function (c) {
+      var f = {}; f[level] = c.id;
+      var n = base.filter(function (o) { return _wbPasses(o, Object.assign({}, _wbFiltersNone(), f)); }).length;
+      if (n > 0 || c.id === cur) out.push({ id: c.id, label: c.label, n: n });
+    });
+    if (_wbFOn(level) && !out.some(function (o) { return o.id === cur; })) out.push({ id: cur, label: cur.replace(/^own:/, ''), n: 0 });
     return out;
   }
   window._wbCloseCard = function () {
     var c = document.getElementById('wb-card'); if (c) c.remove();
     var p = document.getElementById('maint-parts-pop'); if (p) p.remove();
     _wbPickQ = '';
+    _wbPickAll = null;
     _wbBuild();
   };
   function _wbOverlay(inner, maxW) {
@@ -4670,24 +4755,53 @@
       + _cardOpen(maxW || 520) + inner + '</div></div>');
     rrDismissGuard(document.getElementById('wb-card'));   // v0.9.1789 (wires BackStack too)
   }
-  window._wbAddTask = function () { _wbPurpose = 'task'; _wbPick(); };
-  window._wbAddPart = function () { _wbPurpose = 'part'; _wbPick(); };
-  window._wbPickSearch = function (v) { _wbPickQ = String(v || ''); _wbPick(true); };
-  function _wbPick(keepFocus) {
-    var all = _wbOwned();
+  window._wbAddTask = function () { _wbPurpose = 'task'; _wbPickAll = null; _wbPick(); };
+  window._wbAddPart = function () { _wbPurpose = 'part'; _wbPickAll = null; _wbPick(); };
+  window._wbPickSearch = function (v) { _wbPickQ = String(v || ''); _wbPick('caret'); };
+  window._wbPickFilter = function (level, v) {
+    if (_WB_F_LEVELS.indexOf(level) < 0) return;
+    _wbF[level] = String(v == null ? '' : v) || (level === 'type' ? '' : 'any');
+    _wbFSave();
+    _wbPick('none');
+  };
+  window._wbPickClear = function () { _wbF = _wbFiltersNone(); _wbFSave(); _wbPick('none'); };
+  // focus: undefined = first open (cursor in the search box), 'caret' = typing
+  // (cursor stays at the end), 'none' = a filter was changed (no keyboard pop-up)
+  function _wbPick(focus) {
+    if (!_wbPickAll) _wbPickAll = _wbOwned();
+    var all = _wbPickAll;
     var q = _wbPickQ.trim().toLowerCase();
-    var list = q ? all.filter(function (o) { return (o.itemNum + ' ' + o.road + ' ' + o.desc + ' ' + o.variation).toLowerCase().indexOf(q) >= 0; }) : all;
+    var list = all.filter(function (o) { return _wbSearchHit(o, q) && _wbPasses(o, _wbF); });
+    var anyF = _WB_F_LEVELS.some(_wbFOn);
     var IN = 'width:100%;box-sizing:border-box;padding:0.5rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.88rem;margin-bottom:0.6rem';
+    var SEL = 'width:100%;min-width:0;box-sizing:border-box;padding:0.42rem 0.5rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem';
+    var selects = _WB_F_LEVELS.map(function (l) {
+      var cur = _wbF[l] || (l === 'type' ? '' : 'any');
+      var opts = _wbOptions(l, all, q).map(function (o) {
+        return '<option value="' + _esc(o.id) + '"' + (o.id === cur ? ' selected' : '') + '>' + _esc(o.label) + ' (' + o.n + ')</option>';
+      }).join('');
+      var name = { manufacturer: 'Manufacturer', scale: 'Scale', era: 'Era', type: 'Type' }[l];
+      return '<select id="wb-f-' + l + '" aria-label="' + name + '" title="' + name + '" onchange="_wbPickFilter(\'' + rrJsArg(l) + '\', this.value)" style="' + SEL + (_wbFOn(l) ? ';border-color:var(--accent);font-weight:600' : '') + '">' + opts + '</select>';
+    }).join('');
+    // Long numbers (a dealer promo filed under its whole title) wrap inside
+    // their own column instead of pushing the list sideways and squeezing the
+    // description into a sliver (Brad's screenshot, 2026-10-31).
     var lines = list.slice(0, 60).map(function (o) {
       return '<div onclick="_wbPicked(\'' + rrJsArg(o.invId) + '\')" style="display:flex;gap:0.6rem;align-items:baseline;padding:0.45rem 0.3rem;border-bottom:1px solid var(--border);cursor:pointer" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
-        + '<b style="white-space:nowrap">' + _esc(o.itemNum) + '</b>'
-        + '<span style="color:var(--text);font-size:0.85rem;min-width:0">' + _esc(o.road) + (o.desc ? ' <span style="color:var(--text-dim)">' + _esc(o.desc).slice(0, 60) + '</span>' : '') + (o.variation ? ' <span style="color:var(--text-dim);font-size:0.72rem">var. ' + _esc(o.variation) + '</span>' : '') + '</span>'
+        + '<b class="wb-pick-num" style="flex:0 0 auto;max-width:42%;overflow-wrap:anywhere">' + _esc(o.itemNum) + '</b>'
+        + '<span style="flex:1 1 0;color:var(--text);font-size:0.85rem;min-width:0;overflow-wrap:anywhere">' + _esc(o.road) + (o.desc ? ' <span style="color:var(--text-dim)">' + _esc(o.desc.slice(0, 60)) + '</span>' : '') + (o.variation ? ' <span style="color:var(--text-dim);font-size:0.72rem">var. ' + _esc(o.variation) + '</span>' : '') + '</span>'
         + '</div>';
-    }).join('') || '<div style="color:var(--text-dim);font-size:0.85rem;padding:0.6rem 0">' + (all.length ? 'Nothing in your collection matches that.' : 'Your collection is empty — add an item first.') + '</div>';
+    }).join('') || '<div style="color:var(--text-dim);font-size:0.85rem;padding:0.6rem 0">' + (all.length ? ('Nothing in your collection matches ' + (anyF && q ? 'those filters and that search.' : anyF ? 'those filters.' : 'that.')) : 'Your collection is empty — add an item first.') + '</div>';
     _wbOverlay(_cardHead('The Workbench · Step 1 of 2', _wbPurpose === 'part' ? 'Add a part — for which item?' : 'Add a task — for which item?', '_wbCloseCard()')
+      + '<div id="wb-pick-filters" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0.4rem;margin-bottom:0.45rem">' + selects + '</div>'
+      + '<div id="wb-pick-showing" style="display:flex;justify-content:space-between;gap:0.5rem;font-size:0.76rem;color:var(--text-dim);margin-bottom:0.45rem">'
+      +   '<span>Showing ' + list.length + ' of ' + all.length + '</span>'
+      +   (anyF ? '<a href="#" onclick="event.preventDefault();_wbPickClear()" style="color:var(--t-accent)">Clear filters</a>' : '')
+      + '</div>'
       + '<input id="wb-pick-q" type="search" value="' + _esc(_wbPickQ) + '" placeholder="Item number or road name…" oninput="_wbPickSearch(this.value)" style="' + IN + '">'
-      + '<div style="max-height:50vh;max-height:50dvh;overflow-y:auto">' + lines + (list.length > 60 ? '<div style="color:var(--text-dim);font-size:0.76rem;padding:0.5rem 0.3rem">' + (list.length - 60) + ' more — keep typing to narrow it down.</div>' : '') + '</div>');
-    var qi = document.getElementById('wb-pick-q'); if (qi) { qi.focus(); if (keepFocus) qi.setSelectionRange(qi.value.length, qi.value.length); }
+      + '<div id="wb-pick-list" style="max-height:50vh;max-height:50dvh;overflow-y:auto;overflow-x:hidden">' + lines + (list.length > 60 ? '<div style="color:var(--text-dim);font-size:0.76rem;padding:0.5rem 0.3rem">' + (list.length - 60) + ' more — keep typing, or pick a filter, to narrow it down.</div>' : '') + '</div>');
+    var qi = document.getElementById('wb-pick-q');
+    if (qi && focus !== 'none') { qi.focus(); if (focus === 'caret') qi.setSelectionRange(qi.value.length, qi.value.length); }
   }
   window._wbPicked = function (invId) {
     var o = _wbOwned().find(function (x) { return x.invId === String(invId); });
@@ -4695,6 +4809,7 @@
     var purpose = _wbPurpose;
     var c = document.getElementById('wb-card'); if (c) c.remove();
     _wbPickQ = '';
+    _wbPickAll = null;
     window._wbOpen(o.invId, o.itemNum, '', purpose);
   };
   // the card's OWN buttons, pressed for you once the card is the picked copy's
