@@ -6497,10 +6497,6 @@ function renderWizardStep() {
     // v0.9.1588: the user's own columns (custom + enabled optionals),
     // right where the manual flow offers them — before Notes.
     _pvHtml += _wizUserFieldsHtml(_pvD);
-    // 2026-10-31 (Command IDs, [stated] Brad 16:02 CT "i think the add
-    // "command id" button be on all modern items"): the small button, every
-    // Modern item; ignored, it changes nothing and never blocks a save.
-    if (typeof rrCmdIdWizHtml === 'function') _pvHtml += rrCmdIdWizHtml(_pvD);
 
     // Notes
     // In two columns Notes takes the empty right-hand slot when the fields
@@ -6510,6 +6506,11 @@ function renderWizardStep() {
       + ((typeof rrEnabledUserFields === 'function') ? rrEnabledUserFields().length : 0);
     _pvHtml += '<div class="wiz-pv-notes' + (_pvCells % 2 ? '' : ' wiz-pv-full') + '" style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Notes (optional)</div>';
     _pvHtml += '<textarea id="pv-notes" placeholder="e.g. Purchased at train show, minor rust on trucks, runs well" style="width:100%;min-height:60px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data.notes=this.value">' + rrEsc(_pvD.notes) + '</textarea></div>';
+    // 2026-10-31 (Command IDs, [stated] Brad 16:02 CT "i think the add
+    // "command id" button be on all modern items"): the small button, every
+    // Modern item, on a full-width row of its own after Notes (so the two-
+    // column pairing above is untouched); ignored, it changes nothing.
+    if (typeof rrCmdIdWizHtml === 'function') { var _cmdH = rrCmdIdWizHtml(_pvD); if (_cmdH) _pvHtml += '<div class="wiz-pv-full">' + _cmdH + '</div>'; }
     
     _pvHtml += '</div>';
     body.innerHTML = _pvHtml;

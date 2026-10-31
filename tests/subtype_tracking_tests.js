@@ -231,7 +231,8 @@ async function open(browser, planted) {
   T('SRC: lv_subtype_enabled is never written raw — _prefSet only (it follows the account)', raw('lv_subtype_enabled'), []);
   T('SRC: the saved list is written in ONE place (config.js, rrSaveSubTypes → _prefSet)', [raw('lv_saved_subtypes'), (code(rd('config.js')).match(/_prefSet\(RR_SUBTYPES_KEY/g) || []).length], [[], 1]);
   T('SRC: look-sync does not carry the switch as well — one route per key', /lv_subtype_enabled/.test(rd('look-sync.js')), false);
-  T('SRC: the import’s write loop reads RR_USER_FIELDS, not a hand list', /\(window\.RR_USER_FIELDS \|\| \[\]\)\.map\(function \(f\) \{ return f\.key; \}\)\s*\n\s*\.forEach/.test(rd('import-ui.js')) && !/\['locationDetail', 'shipper', 'subCollection', 'custom1'/.test(rd('import-ui.js')), true);
+  T('SRC: the import’s write loop reads RR_USER_FIELDS, not a hand list',   // 2026-10-31: now a forEach over the fields (the Command IDs are cleaned by their own rule)
+    /\(window\.RR_USER_FIELDS \|\| \[\]\)\.forEach\(function \(f\) \{\s*\n\s*var k = f\.key;\s*\n\s*if \(!it\[k\]\) return;/.test(rd('import-ui.js')) && !/\['locationDetail', 'shipper', 'subCollection', 'custom1'/.test(rd('import-ui.js')), true);
   T('SRC: the import’s auto-enable goes through _ufToggle', /_ufToggle\(f\.key, true, \{ quiet: true \}\)/.test(rd('import-ui.js')), true);
   T('SRC: the edit panel offers the saved list and the manual-only box steps aside', /suggest === 'subtypes' && typeof rrSavedSubTypes === 'function'/.test(rd('app-collection.js')) && /&& !_rrSubTypeIsUserField\(\) \? \[\{ label: 'Sub Type'/.test(rd('app-collection.js')), true);
   T('SRC: the paper sections’ own sub types are untouched (their save still writes _uniSubType)', /subType: _uniSubType,/.test(rd('wizard-save.js')), true);
