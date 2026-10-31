@@ -3899,6 +3899,8 @@ function buildUpgradePage() {
   // Sync filter dropdown with state
   var _wfDrop = document.getElementById('wishlist-filter-dropdown');
   if (_wfDrop && _wfDrop.value !== _wf) _wfDrop.value = _wf;
+  // The Gift list button (gift-list.js) — owner-only beta; draws nothing for anyone else.
+  if (typeof rrGiftPaintButton === 'function') rrGiftPaintButton();
 
   const wantTotal = Object.keys(state.wantData || {}).length;
   const upgradeTotal = Object.keys(state.upgradeData || {}).length;

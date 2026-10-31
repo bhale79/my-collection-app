@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2082';
+const APP_VERSION = 'v0.9.2083';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -4505,3 +4505,31 @@ const RR_SAFE_SAVE = {
   blank: '(blank)',
 };
 if (typeof window !== 'undefined') window.RR_SAFE_SAVE = RR_SAFE_SAVE;
+
+// ══ THE GIFT WISH LIST — Stage 1, owner-only beta (gift-list.js) ══════════
+// [stated] Brad 2026-10-31: turn the Want list into a birthday / Christmas
+// wish list the collector gives his wife — the items, about what they cost,
+// where to buy them; he checks every link before it goes out; owner-only for
+// now. Every setting the gift list uses lives HERE (feedback_centralized_config).
+//   feature          the switch name — rrFeatureOn(feature): owners always,
+//                    recording mode never, others when the beta list says so
+//   headers          the "Gift List" tab's row 1 (the tab name itself is
+//                    registered where it is born, in gift-list.js)
+//   maxLinks         store links one item can carry
+//   disclosure       [stated] Brad 07:03 CT "yes" — shown only when a link
+//                    carries a store code (RR_AFFILIATE)
+//   suggestedStores  OFFERED as "+ Trainz" — never added on their own
+//                    ([stated] Brad 2026-10-27: Trainz prelisted for the user
+//                    to select is fine; "plastered over every button" is not)
+const RR_GIFT = {
+  feature: 'giftlist',
+  headers: ['Item Number', 'Variation', 'On Gift List', 'About Price', 'Store 1', 'Link 1', 'Checked 1',
+            'Store 2', 'Link 2', 'Checked 2', 'Notes'],
+  maxLinks: 2,
+  title: 'Gift ideas',
+  footer: 'Made with The Rail Roster.',
+  disclosure: 'Some links on this list may earn The Rail Roster a small commission, at no extra cost to you.',
+  suggestedStores: [{ name: 'Trainz', site: 'trainz.com' }],
+  mailUrlMax: 7500,
+};
+if (typeof window !== 'undefined') window.RR_GIFT = RR_GIFT;

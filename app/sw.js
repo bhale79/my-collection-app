@@ -4,7 +4,7 @@
 // fetches fresh copies in the background for next load.
 // NEVER caches Google API, OAuth, or Sheets calls.
 
-const CACHE_NAME = 'mca-v2092';
+const CACHE_NAME = 'mca-v2093';
 
 // ── v0.9.1214: the version stamp has to survive as far as the cache ──
 // Brad, on v1213: "im reset twice and it still looks the same." He was
@@ -117,6 +117,7 @@ const SHELL_FILES = [
   './vendor/qrcode-generator-2.0.4.js',   // v0.9.2023: the QR maker for printed labels (self-hosted, MIT)
   './sheet-builder.js',
   './sell.js',
+  './gift-list.js',   // the gift wish list (owner-only beta)
   './backup.js',
   './barcode.js',
   './photo-crop.js',

@@ -250,7 +250,8 @@ ok('every guarded overlay offers Cancel / Done / Close / ✕', trapped.length ==
 // which closed on an outside click since v0.9.1541 and lost the typed prices.
 // v0.9.2071: 59 — the collections screens (rr-coll-menu / rr-coll-new / rr-coll-details,
 // collections-ui.js _dialog): one guarded helper call for all three.
-ok('59 guarded call sites, and ONE helper behind them', sites === 59, String(sites));
+// giftlist: 60 — the Gift list screen (gift-ov, gift-list.js rrGiftOpen): Back closes it, an outside tap does not.
+ok('60 guarded call sites, and ONE helper behind them', sites === 60, String(sites));
 
 // nobody double-wires BackStack any more — the guard does it, once
 let dbl = 0;

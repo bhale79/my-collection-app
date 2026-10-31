@@ -11041,8 +11041,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // v2038 89→90 (store-links.js — the last stop for every outgoing link, store codes; folded from the Trainz chat's v2039).
       // v2058 90→91 (collections.js — TRR Pro release 4, the collections foundation).
       // v2071 91→92 (collections-ui.js). v2077 92→94 (collections-move.js, collections-inbox.js).
-      ok('every ?v= mark in app/index.html matches it — all 94, none stale',
-         stamps.length === 94 && stamps.every(t => t === '?v=' + build),
+      // giftlist 94→95 (gift-list.js — the Gift wish list, Stage 1, owner-only beta).
+      ok('every ?v= mark in app/index.html matches it — all 95, none stale',
+         stamps.length === 95 && stamps.every(t => t === '?v=' + build),
          stamps.length + ' stamps; strays: ' + stamps.filter(t => t !== '?v=' + build).slice(0, 3).join(','));
       ok('the service worker cache name moved too (build + 10, the fixed offset)',
          new RegExp("const CACHE_NAME = 'mca-v" + (build + 10) + "';").test(rd('app/sw.js')),
