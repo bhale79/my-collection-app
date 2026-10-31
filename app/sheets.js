@@ -320,9 +320,14 @@ function _rrTabIdentity(tab) {
     if (tab === 'For Sale' && typeof FOR_SALE_HEADERS !== 'undefined') headers = FOR_SALE_HEADERS;
     else if (tab === 'Sold' && typeof SOLD_HEADERS !== 'undefined') headers = SOLD_HEADERS;
     else if (tab === 'Want-Upgrade List' && typeof WISHLIST_HEADERS !== 'undefined') headers = WISHLIST_HEADERS;
+    // Pro release 10: the Invoices tab names one invoice by its Invoice ID.
+    // The tab's name and headers live with the invoice code; asked, not copied.
+    else if (typeof rrInvTabName === 'function' && tab === rrInvTabName() &&
+             typeof RR_COLL_INVOICE !== 'undefined') headers = RR_COLL_INVOICE.headers;
     if (!headers) return null;
     let i = headers.indexOf('Inventory ID');
     if (i < 0) i = headers.indexOf('Upgrading Inventory ID');
+    if (i < 0) i = headers.indexOf('Invoice ID');
     return (i < 0) ? null : { idx: i, col: colLetter(i) };
   } catch (e) {
     return null;
@@ -926,6 +931,11 @@ if (typeof window !== 'undefined') window.rrTrashList = rrTrashList;
 async function rrTrashRestore(archiveRow) {
   if (typeof state === 'undefined' || !state || !state.personalSheetId) return { ok: false, reason: 'not signed in' };
   if (_rrOfflineNow()) return { ok: false, reason: 'offline' };
+  // TRR Pro release 7A: the put-back writes on raw fetch, so it asks the door itself.
+  if (typeof rrSheetWriteRefused === 'function') {
+    const _shut = await rrSheetWriteRefused(state.personalSheetId);
+    if (_shut) { try { if (typeof rrArchiveDoorTell === 'function') rrArchiveDoorTell(_shut); } catch (eT) {} return { ok: false, reason: 'archived' }; }
+  }
   try {
     // Re-read the archive line rather than trusting the list on screen.
     const got = await sheetsGet(state.personalSheetId, "'" + RR_TRASH_TAB + "'!A" + archiveRow + ':BZ' + archiveRow);
@@ -1075,4 +1085,14 @@ if (typeof rrTrackWrites === 'function') {
   sheetsAppend = rrTrackWrites(sheetsAppend);
   sheetsClear = rrTrackWrites(sheetsClear);
   sheetsDeleteRow = rrTrackWrites(sheetsDeleteRow);
+}
+// ── TRR Pro release 7A: an ARCHIVED collection is read only — refused HERE,
+// at the four writers, whatever screen asks (collections.js rrWriteDoor: the
+// one answer, read fresh from the collections list). Outermost, so a refused
+// write is never recorded for a retry. Without collections.js nothing changes.
+if (typeof rrWriteDoor === 'function') {
+  sheetsUpdate = rrWriteDoor(sheetsUpdate);
+  sheetsAppend = rrWriteDoor(sheetsAppend);
+  sheetsClear = rrWriteDoor(sheetsClear);
+  sheetsDeleteRow = rrWriteDoor(sheetsDeleteRow);
 }

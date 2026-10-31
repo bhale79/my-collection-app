@@ -207,6 +207,9 @@ function rrStickerFind(code) {
       // v0.9.2077 (TRR Pro release 6): another collection's label — say whose
       var other = _shCollOfTag(app.tag);
       if (other) return { kind: 'otherColl', coll: other, inv: app.inv, printed: true };
+      // TRR Pro release 7A: a DELETED collection's label — where the item went, or when it was deleted
+      var gone = (typeof rrArchiveLabelFind === 'function') ? rrArchiveLabelFind(app.tag, app.inv) : null;
+      if (gone) return gone;
       return { kind: 'foreign', printed: true };
     }
     var pdAll = state.personalData || {};
@@ -238,15 +241,20 @@ function rrShelveMovedTo(inv) {
   for (var k in tr) {
     var p = tr[k];
     if (!p || String(p.inventoryId) !== String(inv)) continue;
+    // TRR Pro release 7A: returned to the client (archive's "Mark returned")
+    var ret = (typeof rrArchiveReturnedDate === 'function') ? rrArchiveReturnedDate(p.transferredTo) : '';
+    if (ret) return { kind: 'moved', inv: String(inv), pd: p, dest: null, newInv: '', printed: true, returned: ret };
     var m = String(p.transferredTo || '').match(/ as (\d+(?:-\d+)?) on \d{4}-\d{2}-\d{2} \[m:/);
-    var dest = null, newInv = '';
+    var dest = null, newInv = '', destDeleted = null;
     if (m && typeof rrParseFullId === 'function') {
       var f = rrParseFullId(m[1]);
       newInv = f.invId;
       var all = (typeof rrCollections === 'function') ? rrCollections() : [];
       dest = all.filter(function (c) { return f.number ? c.number === f.number : c.home; })[0] || null;
+      // release 7A: it went to a collection that has since been deleted
+      if (!dest && f.number && typeof rrArchiveDeletedByNumber === 'function') destDeleted = rrArchiveDeletedByNumber(f.number);
     }
-    return { kind: 'moved', inv: String(inv), pd: p, dest: dest, newInv: newInv, printed: true };
+    return { kind: 'moved', inv: String(inv), pd: p, dest: dest, newInv: newInv, printed: true, destDeleted: destDeleted };
   }
   return null;
 }
@@ -470,6 +478,12 @@ var _sh = null;   // { mode, item, place, last, stream, stop, busy, seen }
 function rrShelveOpen(mode) {
   if (!rrShelveOn()) return;
   mode = mode || { kind: 'shelve' };
+  // TRR Pro release 7A: an archived collection is read only — the shelf CHECK
+  // (which never writes) still opens; scanning to shelve and pairing do not.
+  if (mode.kind !== 'check' && typeof rrCollectionIsArchived === 'function' && rrCollectionIsArchived()) {
+    try { if (typeof rrArchiveDoorTell === 'function') rrArchiveDoorTell(rrCurrentCollection()); } catch (e) {}
+    return;
+  }
   // v0.9.2041 (TRR Pro release 3): Scan to Shelve fills in Location, so it
   // switches Track Storage Location on through that switch's own door (the
   // same one Preferences uses) instead of sending the person to find it.
@@ -624,6 +638,7 @@ async function rrShelveCode(code, opts) {
       _shFollow(f, c);
       return false;
     }
+    if (f && f.kind === 'deletedColl') { _shStatus(f.text); return false; }   // release 7A: a deleted collection's label
     if (f && f.kind === 'foreign') { _shStatus(_shW('foreign')); return false; }
     if (f && f.kind === 'missing') { _shStatus(_shW('missing', { inv: f.inv })); return false; }
     if (mode.kind === 'check') return _shCheckCode(f);      // v0.9.2041: never asks, never writes
@@ -653,8 +668,24 @@ function _shCollLabel(c) {
   if (c.home) return (typeof RR_COLL_MOVE !== 'undefined' && RR_COLL_MOVE.inbox.home) || 'My Collection';
   return (typeof rrCollectionLabel === 'function') ? rrCollectionLabel(c) : String(c.number);
 }
+function _shAW(k, vars) {
+  var w = (typeof RR_COLL_ARCHIVE !== 'undefined' && RR_COLL_ARCHIVE.words && RR_COLL_ARCHIVE.words[k]) || k;
+  Object.keys(vars || {}).forEach(function (v) { w = w.split('{' + v + '}').join(String(vars[v])); });
+  return w;
+}
 function _shMovedWords(f) {
+  // TRR Pro release 7A: a label of a deleted collection, forwarded; returned; moved into one deleted since
+  if (f.deletedFrom) {
+    var to = f.dest ? ((typeof rrFullId === 'function') ? rrFullId(f.newInv, f.dest) : f.newInv) : (f.fwd && f.fwd.id) || f.newInv;
+    return _shAW('labelForward', { id: f.oldId || f.inv, label: f.dest ? _shCollLabel(f.dest) : ((f.fwd && f.fwd.label) || ''), to: to, name: f.deletedFrom.name || '' });
+  }
   var here = (typeof rrFullId === 'function') ? rrFullId(f.inv) : f.inv;
+  if (f.returned) return _shAW('labelReturned', { id: here, date: f.returned });
+  if (!f.dest && f.destDeleted) {
+    var dd = f.destDeleted, when = '';
+    try { when = rrToday(new Date(Number(dd.deletedAt))); } catch (e) {}
+    return _shAW('movedDeleted', { old: here, label: dd.number + ' \u2013 ' + (dd.name || ''), id: dd.number + '-' + f.newInv, date: when });
+  }
   if (!f.dest) return _shMW('movedGone', { old: here });
   return _shMW('moved', { old: here, label: _shCollLabel(f.dest), id: (typeof rrFullId === 'function') ? rrFullId(f.newInv, f.dest) : f.newInv });
 }
@@ -671,12 +702,16 @@ function _shFollow(f, code) {
   var close = function () { var d = document.getElementById('rr-shelve-ask'); if (d) d.remove(); };
   if (f.kind === 'otherColl') {
     var name = f.coll.home ? _shCollLabel(f.coll) : (f.coll.name || _shCollLabel(f.coll));
+    var fid = (typeof rrFullId === 'function') ? rrFullId(f.inv, f.coll) : f.inv;
+    // TRR Pro release 7A: an archived collection's label opens it read only
+    var shut = !f.coll.home && typeof rrCollectionIsArchived === 'function' && rrCollectionIsArchived(f.coll.key);
     var d = _shDialog('<div style="font-size:0.95rem;line-height:1.45;margin:0.2rem 1.6rem 0.5rem 0">' +
-      _shEsc(_shMW('otherColl', { id: (typeof rrFullId === 'function') ? rrFullId(f.inv, f.coll) : f.inv, label: _shCollLabel(f.coll), name: name })) + '</div>' +
-      '<button data-sh-go style="' + _SH_BTN + ';font-weight:700">' + _shEsc(_shMW('switchTo', { name: name })) + '</button>');
+      _shEsc(shut ? _shAW('labelArchived', { id: fid, label: _shCollLabel(f.coll) }) : _shMW('otherColl', { id: fid, label: _shCollLabel(f.coll), name: name })) + '</div>' +
+      '<button data-sh-go style="' + _SH_BTN + ';font-weight:700">' + _shEsc(shut ? _shAW('openReadOnly') : _shMW('switchTo', { name: name })) + '</button>');
     d.querySelector('[data-sh-go]').addEventListener('click', async function () {
       close(); rrShelveClose();
       if (!(await _shGoTo(f.coll))) return;
+      if (shut) { if (typeof _openOwnedByInvId === 'function') _openOwnedByInvId(f.inv); return; }   // release 7A: read only — the item itself
       rrShelveOpen(mode);                 // the same screen, in the label's collection…
       try { await rrShelveCode(code); } catch (e) {}   // …and the label read again there
     });

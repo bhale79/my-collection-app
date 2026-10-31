@@ -259,12 +259,23 @@ async function driveFindOrCreateFolder(name, parentId) {
   _folderInflight[_fk] = _fp;
   try { return await _fp; } finally { delete _folderInflight[_fk]; }
 }
+// TRR Pro release 7A: every folder found or made here is remembered with its
+// parent (rrNoteFolderParent, collections.js), so the photo door can tell
+// whose folder a photo is going into; and a NEW folder inside an archived
+// collection is refused (finding one is only a read, and stays allowed).
 async function _driveFindOrCreateFolderNow(name, parentId) {
   const q = encodeURIComponent(`name='${name}' and mimeType='application/vnd.google-apps.folder' and '${parentId}' in parents and trashed=false`);
   const res = await driveRequest('GET', `/files?q=${q}&fields=files(id,name)&spaces=drive`);
   // v0.9.1261: the `if (res.error)` check that used to be here is gone.
   // driveRequest raises now, so a failed search never reaches this line.
-  if (res.files && res.files.length > 0) return res.files[0].id;
+  if (res.files && res.files.length > 0) { if (typeof rrNoteFolderParent === 'function') rrNoteFolderParent(res.files[0].id, parentId); return res.files[0].id; }
+  if (typeof rrFolderWriteRefused === 'function') {
+    const _shut = await rrFolderWriteRefused(parentId);
+    if (_shut) {
+      try { if (typeof rrArchiveDoorTell === 'function') rrArchiveDoorTell(_shut); } catch (eT) {}
+      const _er = new Error('archived'); _er.rrArchived = _shut.key; throw _er;
+    }
+  }
   const created = await driveRequest('POST', '/files?fields=id', {
     name, mimeType: 'application/vnd.google-apps.folder', parents: [parentId],
   });
@@ -272,6 +283,7 @@ async function _driveFindOrCreateFolderNow(name, parentId) {
     console.error('[Drive] Folder create failed:', name, created);
     throw new Error('Could not create Drive folder: ' + name);
   }
+  if (typeof rrNoteFolderParent === 'function') rrNoteFolderParent(created.id, parentId);
   return created.id;
 }
 
@@ -495,11 +507,11 @@ async function _driveEraFolders(force) {
   // joined with _RR_HOME_SEP — an era label can hold a "/" (Lionel MPC/Modern).
   labels[RR_PHOTO_HOME.PAPER] = 'paper';
   labels[RR_PHOTO_HOME.OTHER] = 'other';
-  (res.files || []).forEach(function (f) { if (labels[f.name]) out[f.name] = f.id; });
+  (res.files || []).forEach(function (f) { if (labels[f.name]) { out[f.name] = f.id; if (typeof rrNoteFolderParent === 'function') rrNoteFolderParent(f.id, _root); } });
   if (out[RR_PHOTO_HOME.PAPER]) {
     const q2 = encodeURIComponent("mimeType='application/vnd.google-apps.folder' and '" + out[RR_PHOTO_HOME.PAPER] + "' in parents and trashed=false");
     const res2 = await driveRequest('GET', '/files?q=' + q2 + '&fields=files(id,name)&pageSize=200');
-    (res2.files || []).forEach(function (f) { out[RR_PHOTO_HOME.PAPER + _RR_HOME_SEP + f.name] = f.id; });
+    (res2.files || []).forEach(function (f) { out[RR_PHOTO_HOME.PAPER + _RR_HOME_SEP + f.name] = f.id; if (typeof rrNoteFolderParent === 'function') rrNoteFolderParent(f.id, out[RR_PHOTO_HOME.PAPER]); });
   }
   return (_driveEraFolderCache = out);
 }
@@ -744,7 +756,8 @@ async function driveEnsureItemFolder(itemNum, eraHint) {
   // v0.9.2058: THIS collection's folder cache, held for the whole call — an
   // answer that arrives after a switch lands in the collection that asked.
   const _cache = driveCache.itemFolders;
-  if (_cache[key]) return _cache[key];
+  const _root7 = (typeof _rrPhotoRoot === 'function') ? _rrPhotoRoot() : null;   // release 7A: an item folder belongs under THIS collection's photos
+  if (_cache[key]) { if (typeof rrNoteFolderParent === 'function') rrNoteFolderParent(_cache[key], _root7); return _cache[key]; }
   // 1. Already exists somewhere? Use it — never create a second home.
   //
   // v0.9.1264 (finding R6): this line used to be
@@ -770,6 +783,7 @@ async function driveEnsureItemFolder(itemNum, eraHint) {
     folderId = await driveFindOrCreateFolder(key, parentId);
   }
   _cache[key] = folderId;
+  if (typeof rrNoteFolderParent === 'function') rrNoteFolderParent(folderId, _root7);
   return folderId;
 }
 
@@ -2644,4 +2658,12 @@ if (typeof window !== 'undefined') {
 if (typeof rrTrackWrites === 'function') {
   driveRequest = rrTrackWrites(driveRequest);
   driveUploadFile = rrTrackWrites(driveUploadFile);
+}
+// TRR Pro release 7A: an ARCHIVED collection's photos are read only — a photo
+// going INTO one of its folders is refused here, whatever screen asks
+// (collections.js rrFolderDoor: the one answer). The argument is the folder.
+if (typeof rrFolderDoor === 'function') {
+  driveUploadFile = rrFolderDoor(driveUploadFile, 2);
+  driveUploadPhoto = rrFolderDoor(driveUploadPhoto, 2);
+  driveMoveFileToFolder = rrFolderDoor(driveMoveFileToFolder, 2);
 }

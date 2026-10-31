@@ -34,7 +34,7 @@ function stripComments(src) {
 }
 
 // ── G · source guards ──────────────────────────────────────────────────────
-const TRANSFER_READERS = ['app-data.js', 'collections-move.js', 'scan-shelve.js', 'app.js'];
+const TRANSFER_READERS = ['app-data.js', 'collections-move.js', 'scan-shelve.js', 'app.js', 'collections-archive.js'];   // + release 7A: Mark returned writes it, the delete's forwarding list reads it
 function transferReaders(files) {
   return files.filter(([f, s]) => /\.transferredTo\b|transferredTo\s*\]|'transferredTo'/.test(stripComments(s)) && !TRANSFER_READERS.includes(f)).map(([f]) => f);
 }
@@ -53,7 +53,8 @@ function guards() {
   T('G1 "Transferred To" is decided in ONE place — THE row reader (plus the mover that writes it and the label that forwards)', tr.length === 0, tr);
   T('G1b PLANTED: browse.js reading pd.transferredTo → caught', transferReaders([['browse.js', read('browse.js') + '\nif (pd.transferredTo) {}']]).length === 1);
   const data = read('app-data.js');
-  T('G1c the reader keeps a moved row OUT of personalData (aside in transferredData)', /if \(String\(_rec\.transferredTo \|\| ''\)\.trim\(\)\) \{[^}]*newTransferred\[key\] = _rec; return; \}/.test(data) && /state\.transferredData = newTransferred;/.test(data));
+  // (release 8: the question "moved out?" is ONE function, rrRecordMovedOut, beside the row reader)
+  T('G1c the reader keeps a moved row OUT of personalData (aside in transferredData)', /if \(rrRecordMovedOut\(_rec\)\) \{[^}]*newTransferred\[key\] = _rec; return; \}/.test(data) && /function rrRecordMovedOut\(rec\) \{ return !!String\(\(rec && rec\.transferredTo\) \|\| ''\)\.trim\(\); \}/.test(data) && /state\.transferredData = newTransferred;/.test(data));
   const up = inboxUploadsElsewhere(all);
   T('G2 every Photo Inbox upload goes through driveUploadFile — the ONE door that stamps the collection', up.length === 0, up);
   T('G2b PLANTED: an inbox piece posting to Drive itself → caught', inboxUploadsElsewhere([['photo-inbox-grid.js', 'fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart")']]).length === 1);

@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2087';
+const APP_VERSION = 'v0.9.2088';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -3175,7 +3175,7 @@ var RR_COLL_UI = {
     all: 'All Collections',
     allSoon: 'coming in a later release',
     newBtn: '+ New collection',
-    archived: 'Archived ({n})',
+    archived: '{heading} ({n})',   // release 7A: the heading is one business setting (RR_COLL_ARCHIVE.headings)
     items: '{n} items',
     item1: '1 item',
     none: 'No collection matches.',
@@ -3287,6 +3287,312 @@ var RR_COLL_MOVE = {
   },
 };
 if (typeof window !== 'undefined') window.RR_COLL_MOVE = RR_COLL_MOVE;
+
+// ── TRR Pro RELEASE 7A: ARCHIVE, UN-ARCHIVE, DELETE, RECENTLY DELETED
+// (PLAN_2026-10-31_TRR_PRO_R7.md; [stated] Brad 2026-10-31 07:26 CT "yes").
+// On the same switch as Release 5 (RR_COLL_UI.feature). Every word and setting
+// here; the actions and screens are collections-archive.js; the read-only door
+// is collections.js (rrWriteDoor / rrFolderDoor).
+var RR_COLL_ARCHIVE = {
+  doorFreshMs: 60 * 1000,         // the door re-reads the collections list when its copy is older than this
+  refreshMs: 5 * 60 * 1000,       // …and the screens ask again this often (and on coming back to the app)
+  restoreDays: 30,                // Google empties the Drive trash after 30 days
+  backupReason: 'before-return',  // the sheet is backed up before items are marked returned
+  headingKey: 'lv_coll_archived_name',   // ACCOUNT setting: what the archived heading is called
+  headings: ['Archived', 'Past Auctions', 'Past Clients'],
+  headingMax: 30,
+  // What must be settled before a collection is archived, in order. Each id has
+  // its checker in collections-archive.js (_CHECKS). Release 10 adds 'invoices'.
+  checks: ['moves', 'handover', 'invoices', 'unsold'],   // 'handover': release 7B · 'invoices': release 10
+  // The ways in to add, edit, sell, scan and move — hidden while an archived
+  // collection is open (a body class + one stylesheet). Anything not listed is
+  // still refused at the door, with the readOnly words.
+  readOnlyHide: [
+    "[onclick*=\"startWizardFor(\"]", "[onclick*=\"pickItemForUpgrade(\"]", "[onclick*=\"showAddPartModal(\"]",
+    "[onclick*=\"rrShelveOpen(\"]", "[onclick*=\"rrShelvePairItem(\"]", "[onclick*=\"rrShelveRemoveItemSticker(\"]",
+    "[onclick*=\"collectionActionSold(\"]", "[onclick*=\"collectionActionForSale(\"]",
+    "[onclick*=\"_collectionSold(\"]", "[onclick*=\"_collectionForSale(\"]", "[onclick*=\"_collectionUpgrade(\"]",
+    "[onclick*=\"showItemDetailPage_edit(\"]", "[onclick*=\"rrMoveOpen(\"]", "[onclick*=\"rrMoveManyOpen(\"]",
+    "[onclick*=\"rrAddPieceOpen(\"]", "[onclick*=\"rrAddPieceStart(\"]", "[onclick*=\"openEphemeraEdit(\"]",
+    "[onclick*=\"ephemeraDelete(\"]", "[onclick*=\"ephemeraSold(\"]", "[onclick*=\"ephemeraForSale(\"]",
+    "[onclick*=\"ephemeraAddPhotos(\"]", "[onclick*=\"rrTableEdit(\"]", "[onclick*=\"rrTableAddMenu(\"]",
+    "[onclick*=\"rrSaleReturned(\"]", "[onclick*=\"moveWantToCollection(\"]", "[onclick*=\"removePart(\"]",
+  ],
+  words: {
+    // the door
+    readOnly: '{label} is archived — it is read only. Un-archive it from its Details to change anything.',
+    banner: '{heading} – {name} is read only',
+    unarchive: 'Un-archive',
+    // the details card
+    statusArchived: 'Archived',
+    archivedOn: 'archived {date}',
+    archiveBtn: 'Archive this collection…',
+    deleteBtn: 'Delete this collection…',
+    readOnlyDetails: 'Read only while archived. Un-archive it to change anything.',
+    homeNo: 'My Collection cannot be archived or deleted.',
+    openFirst: 'Open {label} first, then archive it from its Details.',
+    // archiving
+    archiveTitle: 'Archive {label}',
+    archiveIntro: 'An archived collection is kept, read only. Nothing is deleted and nothing moves in Google Drive. You can un-archive it any time.',
+    checking: 'Checking what is still open…',
+    checkFailed: 'Could not check — check your connection and try again. Nothing changed.',
+    checkMoves: 'Unfinished moves in or out of this collection ({n}) — finish them first.',
+    checkUnsold: '{n} still here — not sold and not moved.',
+    unsoldMove: 'Move them…',
+    unsoldReturn: 'Mark returned to the client',
+    unsoldAnyway: 'Archive anyway',
+    nothingOpen: 'Nothing is left open.',
+    archiveGo: 'Archive',
+    archiveDone: '✓ {label} is archived — read only.',
+    archiveFailed: 'Could not archive — check your connection and try again. Nothing changed.',
+    unarchived: '✓ {label} is active again.',
+    unarchiveFailed: 'Could not un-archive — check your connection and try again.',
+    item1: '1 item',
+    itemsN: '{n} items',
+    // marking returned
+    returnAsk: 'Mark {n} as returned to the client? Each one is hidden like a moved item — never deleted — and the Movement Log gets a line. The sheet is backed up first.',
+    returnOk: 'Mark returned',
+    returnMark: 'Returned to client on {date}',
+    returnHow: 'Returned to client',
+    returnTo: 'Client',
+    returnDone: '{n} marked returned to the client.',
+    returnFailed: 'Stopped part way ({n} marked). Nothing was lost — press Mark returned again to finish.',
+    returnOffline: 'Marking returned needs a connection — try again when you are back online.',
+    // the archived heading (one business setting)
+    headingBtn: 'Name this list…',
+    headingTitle: 'What should the archived list be called?',
+    headingOwn: 'Your own name',
+    headingSave: 'Save',
+    headingSaved: '✓ Saved',
+    // deleting
+    deleteTitle: 'Delete {label}',
+    deleteOnlyArchived: 'Archive it first — only an archived collection can be deleted.',
+    deleteWhat: 'This puts the collection’s folder in your Google Drive trash: its sheet ({items}) and all its photos. Google empties the trash after 30 days — until then, Restore brings it back.',
+    deleteKeep: 'Kept: its number (never used again), where every item moved out of it went, and any backups.',
+    deleteType: 'Type the collection’s name ({name}) to confirm',
+    deleteGo: 'Delete',
+    deleteWrong: 'That is not the collection’s name — nothing was deleted.',
+    deleteDone: '{label} is in the Drive trash. Restore it from Collections → Recently deleted.',
+    deleteFailed: 'Could not delete — check your connection and try again. Nothing was deleted.',
+    deleteOffline: 'Deleting needs a connection — try again when you are back online.',
+    counting: 'counting…',
+    // recently deleted
+    recentlyDeleted: 'Recently deleted ({n})',
+    deletedOn: 'deleted {date}',
+    restoreBtn: 'Restore',
+    restoreHelp: 'A deleted collection can be restored for 30 days.',
+    restored: '✓ {label} is back, under {heading}.',
+    restoreGone: 'Google has already emptied it from the Drive trash — {label} cannot be restored.',
+    restoreFailed: 'Could not restore — check your connection and try again.',
+    // labels and the Photo Inbox
+    labelArchived: '{id} is in {label}, which is archived (read only).',
+    openReadOnly: 'Open it (read only)',
+    labelDeleted: '{id} — {name} was deleted on {date}.',
+    labelForward: '{id} was moved to {label} as {to} before {name} was deleted.',
+    labelReturned: '{id} was returned to the client on {date}.',
+    movedDeleted: '{old} moved to {label} as {id} — that collection was deleted on {date}.',
+  },
+};
+if (typeof window !== 'undefined') window.RR_COLL_ARCHIVE = RR_COLL_ARCHIVE;
+
+// ── TRR Pro RELEASE 7B (part 1): HAND OVER A COLLECTION TO ITS CLIENT
+// (PLAN_2026-10-31_TRR_PRO_R7B.md; design agreed 2026-10-28 "Hand over to
+// client — good"; [stated] Brad 2026-10-31 08:28 CT "yes" to one Google
+// ownership request per file). Google moves ownership ONE FILE AT A TIME — the
+// sheet, every folder, every photo — and a personal Gmail account must accept
+// (Drive: select all the requests, accept once). Nothing changes until they
+// do. Every word and setting here; the engine and screens are
+// collections-handover.js.
+var RR_COLL_HANDOVER = {
+  batch: 20,                // requests sent between two saves of where it got to (a stop part way carries on)
+  emailFirstOnly: true,     // Google's email goes with the FIRST request (the sheet) only — not one per photo
+  logHow: 'Handed over to the client',
+  words: {
+    logItem: 'The whole collection',
+    btn: 'Hand over to the client…',
+    title: 'Hand over {label}',
+    intro: 'The client becomes the owner of this collection’s Google sheet and every photo. Google asks them to accept: they get one email, open Google Drive → Shared with me, select all the requests and accept them at once. Nothing changes until they do, and nothing is deleted.',
+    needClient: 'Pick the client in Details first — with an email address in Contacts.',
+    needEmail: '{name} has no email address in Contacts — add one first.',
+    archivedFirst: 'Un-archive it first — an archived collection is read only.',
+    movesFirst: 'Finish the unfinished moves in or out of it first.',
+    openFirst: 'Open {label} first, then hand it over from its Details.',
+    to: 'To: {name} ({email})',
+    step1: '1. The finished report (recommended)',
+    reportBtn: 'Make the PDF report…',
+    step2: '2. The ownership requests',
+    counting: 'Counting the files…',
+    count: '{n} files: the sheet, its folders and every photo.',
+    after: 'When they have accepted:',
+    keep: 'Keep my access — it stays in my list as a linked collection',
+    remove: 'Remove it from my list (my access is taken away)',
+    send: 'Send the requests',
+    sending: 'Sending {n} of {total}…',
+    sent: 'Requests sent to {name} for {n} files. They accept them in Google Drive.',
+    sentSome: 'Sent {n} of {total}; {bad} were refused by Google. Press Send again to retry.',
+    refused: 'Google refused the hand-over ({why}). Nothing was changed.',
+    failed: 'Stopped part way — check your connection and press Send again; it carries on.',
+    offline: 'Handing over needs a connection — try again when you are back online.',
+    waiting: 'Waiting for {name} to accept — {n} of {total} accepted',
+    checkBtn: 'Check now',
+    checking: 'Checking…',
+    cancelBtn: 'Cancel the hand-over',
+    cancelAsk: 'Take back the ownership requests? {name} keeps nothing; the collection stays yours as it is.',
+    cancelOk: 'Take them back',
+    cancelled: 'The hand-over was cancelled.',
+    accepted: '{name} accepted everything.',
+    keepBtn: 'Keep it as a linked collection',
+    removeBtn: 'Remove it from my list',
+    removeAsk: 'Remove {label} from your list and take away your access? It belongs to {name} now.',
+    removeOk: 'Remove it',
+    removing: 'Taking away access — {n} of {total}…',
+    linked: 'Linked — owned by {name}',
+    linkedDone: '✓ {label} is a linked collection now (owned by {name}).',
+    removed: '✓ {label} was handed over and removed from your list.',
+    unlinkBtn: 'Unlink…',
+    linkedNoDelete: 'A linked collection belongs to the client — Unlink it instead.',
+    labelHanded: '{id} — {name} was handed over to the client on {date}.',
+    pendingCheck: 'A hand-over is waiting for the client — finish or cancel it first.',
+  },
+};
+if (typeof window !== 'undefined') window.RR_COLL_HANDOVER = RR_COLL_HANDOVER;
+
+// ── TRR Pro RELEASE 8: THE ALL COLLECTIONS VIEW, THE EXPORT SNAPSHOT, THE
+// BUSINESS SUMMARY (BUILD_PLAN_2026-10-28_TRR_PRO.md Release 8; [stated] Brad
+// 2026-10-28 "yes" to a live combined view + an export snapshot, not a second
+// stored sheet; 2026-10-31 09:39 CT "build all the releases"). Every word and
+// setting here; the screen is collections-all.js.
+var RR_COLL_ALL = {
+  pageSize: 200,                 // rows drawn at once (More shows the next lot)
+  freshMs: 2 * 60 * 1000,        // a read younger than this is reused; Refresh reads again
+  exportTitle: 'The Rail Roster – All Collections {stamp}',
+  words: {
+    title: 'All Collections',
+    tabItems: 'Items',
+    tabSummary: 'Summary',
+    search: 'Find an item, number, place…',
+    allColl: 'Every collection',
+    withArchived: 'Include archived collections',
+    sortBy: 'Sort by',
+    sorts: { coll: 'Collection', num: 'Item number', value: 'Value (high to low)', place: 'Location' },
+    reading: 'Reading every collection…',
+    readFailed: 'Could not read {label} — check your connection. The others are shown.',
+    showing: 'Showing {n} of {total}',
+    more: 'Show more',
+    none: 'Nothing matches.',
+    openHint: 'Tap an item to open it in its own collection.',
+    refresh: 'Refresh',
+    export: 'Export all collections',
+    exporting: 'Making the snapshot sheet…',
+    exported: 'The snapshot is in Google Drive, in The Rail Roster › Collections.',
+    exportOpen: 'Open the snapshot',
+    exportFailed: 'Could not make the snapshot — check your connection and try again.',
+    snapNote: 'A snapshot of every collection, taken {when}. Edits made here do NOT go back to the app — change items in the app.',
+    snapItems: 'All Items',
+    snapSummary: 'Summary',
+    // the item columns (screen + snapshot)
+    cId: 'ID', cColl: 'Collection', cItem: 'Item', cNum: 'Item number', cMaker: 'Maker', cCond: 'Condition', cValue: 'Value', cPlace: 'Location', cLabel: 'Label',
+    // the summary columns
+    sColl: 'Collection', sItems: 'Items', sValue: 'Value', sLabelled: 'Labelled', sShelved: 'Shelved', sPhoto: 'With a photo', sLast: 'Last opened', sTodo: 'To do',
+    todo: '{label} to label · {shelf} to shelve · {photo} to photograph',
+    total: 'All collections',
+    archivedTag: 'archived',
+    yes: 'Yes',
+  },
+};
+if (typeof window !== 'undefined') window.RR_COLL_ALL = RR_COLL_ALL;
+
+// ── TRR Pro RELEASE 10: INVOICES (BUILD_PLAN_2026-10-28_TRR_PRO.md Release
+// 10; [stated] Brad 2026-10-28 "not worried about" auction extras — the
+// invoice stays simple; 2026-10-31 09:39 CT "build all the releases").
+// From the Sold list; the buyer from Contacts; numbered, never reused; the
+// business's own header, tax, shipping and terms; a PDF; an email ready to
+// send (the person's own mail program — the app asks Google for no new
+// permission); Paid / Unpaid; VOID, never deleted; one live invoice per sold
+// item; never the collection's client. The Invoices tab lives in the HOME
+// sheet (the sheet is backed up before the tab is added). Every word and
+// setting here; the screens are collections-invoice.js.
+var RR_COLL_INVOICE = {
+  // the tab's name is born where it is registered (collections-invoice.js: rrFeatureTab('Invoices'))
+  backupReason: 'before-invoices',
+  settingsKey: 'lv_inv_business',   // ACCOUNT setting: the business header, default tax rate, terms
+  // the tab's columns, in order — a new one goes at the END
+  headers: ['Invoice No', 'Date', 'Status', 'Buyer', 'Items', 'Subtotal', 'Tax rate %', 'Tax', 'Shipping', 'Total', 'Terms', 'Paid on', 'Void reason', 'Created by', 'Collections', 'Invoice ID', 'Lines (app data)'],
+  note: 'Made by The Rail Roster. Never delete a row — void an invoice in the app instead; its number is never used again.',
+  status: { unpaid: 'Unpaid', paid: 'Paid', void: 'Void' },
+  words: {
+    btn: 'Invoices',
+    title: 'Invoices',
+    what: 'invoices',   // "Your invoices changed somewhere else — nothing was written."
+    newBtn: '+ New invoice',
+    settingsBtn: 'Invoice settings…',
+    none: 'No invoices yet.',
+    filterAll: 'All',
+    showing: '{n} invoices',
+    // a new invoice
+    newTitle: 'New invoice',
+    pickItems: 'Sold items in {label} (not on an invoice yet)',
+    noItems: 'Every sold item here is already on an invoice — or nothing is sold yet.',
+    onInvoice: 'already on invoice {no}',
+    buyer: 'Buyer (from your Contacts)',
+    buyerNone: '— pick the buyer —',
+    taxRate: 'Tax rate %',
+    shipping: 'Shipping',
+    terms: 'Terms',
+    make: 'Make the invoice',
+    needItems: 'Tick at least one sold item.',
+    needBuyer: 'Pick the buyer first.',
+    made: '✓ Invoice {no} made — the PDF is saved; the email is ready to send.',
+    failed: 'Could not make the invoice — check your connection and try again. Nothing was saved.',
+    taken: '{items} is already on invoice {no} — void that one first.',
+    offline: 'Invoices need a connection — try again when you are back online.',
+    // one invoice
+    invTitle: 'Invoice {no}',
+    pdf: 'Download the PDF',
+    email: 'Email it…',
+    emailSubject: 'Invoice {no} from {business}',
+    emailBody: 'Hello {name},\n\nPlease find invoice {no} for {total} attached.\n\nThank you,\n{business}',
+    emailHint: 'Your mail program opens with the message ready — attach the PDF that was just saved.',
+    markPaid: 'Mark paid',
+    paidOn: 'Paid on {date}',
+    voidBtn: 'Void…',
+    voidAsk: 'Void invoice {no}? It stays in the list marked Void (never deleted), its number is never used again, and its items can go on a new invoice.',
+    voidReason: 'Why? (optional)',
+    voidOk: 'Void it',
+    voided: 'Invoice {no} is void.',
+    saved: '✓ Saved',
+    saveFailed: 'Could not save — check your connection and try again.',
+    // settings
+    setTitle: 'Invoice settings',
+    setName: 'Business name',
+    setAddress: 'Address',
+    setPhone: 'Phone',
+    setEmail: 'Email',
+    setTax: 'Tax rate % (default)',
+    setTerms: 'Terms (default)',
+    setTermsDefault: 'Payment due on receipt.',
+    setSave: 'Save',
+    // the PDF
+    pdfInvoice: 'INVOICE',
+    pdfNo: 'Invoice No. {no}',
+    pdfDate: 'Date: {date}',
+    pdfBillTo: 'Bill to',
+    pdfItem: 'Item',
+    pdfId: 'ID',
+    pdfPrice: 'Price',
+    pdfSubtotal: 'Subtotal',
+    pdfTax: 'Tax ({rate}%)',
+    pdfShipping: 'Shipping',
+    pdfTotal: 'Total',
+    pdfPaid: 'PAID {date}',
+    pdfVoid: 'VOID',
+    pdfFile: 'Invoice-{no}-{date}.pdf',
+    pdfLoading: 'The PDF maker is still loading — try again in a moment.',
+    // archive's check (RR_COLL_ARCHIVE.checks)
+    archiveCheck: '{n} invoice(s) for this collection not marked paid — mark them paid in Invoices, or archive anyway.',
+  },
+};
+if (typeof window !== 'undefined') window.RR_COLL_INVOICE = RR_COLL_INVOICE;
 window.rrSavedLocations = function () {
   try {
     var raw = (typeof _prefGet === 'function') ? _prefGet(RR_LOCATIONS_KEY, '[]') : localStorage.getItem(RR_LOCATIONS_KEY);

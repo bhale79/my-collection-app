@@ -602,6 +602,8 @@
   // the wizard, so a list that is off can never take an item, even through a
   // button the stylesheet below does not know about.
   function rrAddAllowed(tab) {
+    // release 7A: an archived collection takes nothing (the words of the door)
+    if (_current && rrCollectionIsArchived(_current)) { _toldAt = 0; _doorTell(_reg[_current]); return false; }
     if (rrPageAllowed(tab)) return true;
     var def = rrListForPage(tab === 'want' ? 'upgrade' : tab);
     try { if (typeof showToast === 'function') showToast(_uw('addOff', { list: def ? def.word : tab }), 3500); } catch (e) {}
@@ -621,6 +623,14 @@
         document.head.appendChild(st);
       }
       L.forEach(function (d) { document.body.classList.toggle('rr-list-off-' + d.key, !rrListOn(d.key)); });
+      // release 7A: an archived collection hides the ways in to add, edit, sell,
+      // scan and move (RR_COLL_ARCHIVE.readOnlyHide). The door refuses the rest.
+      if (!document.getElementById('rr-coll-archived-css')) {
+        var hide = (_A().readOnlyHide || []).map(function (sel) { return 'body.rr-coll-archived ' + sel; }).join(',\n');
+        var st2 = document.createElement('style'); st2.id = 'rr-coll-archived-css'; st2.textContent = hide ? hide + ' { display: none !important; }' : '';
+        document.head.appendChild(st2);
+      }
+      document.body.classList.toggle('rr-coll-archived', !!(_current && rrCollectionIsArchived(_current)));
     } catch (e) {}
   }
 
@@ -650,7 +660,7 @@
   //   notes, createdAt, lastOpenedAt, itemCount, at} } }
   // Every change READS the file fresh, changes it and writes it back, so two
   // devices' changes to different collections never undo each other.
-  var _fileId = null, _fileData = null;
+  var _fileId = null, _fileData = null, _fileReadAt = 0;
   function _emptyFile() { return { v: 1, next: 1, items: {} }; }
   function _tok() { try { return (typeof accessToken !== 'undefined') ? accessToken : root.accessToken; } catch (e) { return root.accessToken; } }
   async function _tracked(fn) {
@@ -676,7 +686,7 @@
       try { j = await r.json(); } catch (e) { j = null; }
       var d = (j && typeof j === 'object' && j.items && typeof j.items === 'object') ? j : _emptyFile();
       d.next = Math.max(1, Number(d.next) || 1);
-      _fileData = d;
+      _fileData = d; _fileReadAt = Date.now();
       return { ok: true, data: d };
     } catch (e) { return { ok: false, data: null }; }
   }
@@ -701,7 +711,7 @@
         if (!c.ok) throw new Error('collections list create failed: HTTP ' + c.status);
         try { var cj = await c.json(); _fileId = cj && cj.id ? cj.id : null; } catch (e) {}
       }
-      _fileData = d;
+      _fileData = d; _fileReadAt = Date.now();
       return d;
     });
   }
@@ -720,16 +730,169 @@
     Object.keys(d.items || {}).forEach(function (k) { var x = Number(d.items[k].number) || 0; if (x >= n) n = x + 1; });
     return n;
   }
+  // TRR Pro release 7A: an ARCHIVED collection is listed too (it opens,
+  // read only); a deleted one is not.
+  // release 7B: a LINKED collection (handed over, the business kept access) is listed and works as ever.
+  function _listable(e) { return !!e && (e.status === 'active' || e.status === 'archived' || e.status === 'linked') && !!e.sheetId; }
   function _registerEntry(e) {
-    if (!e || e.status !== 'active' || !e.sheetId) return false;
+    if (!_listable(e)) return false;
     try { rrRegisterCollection(e); return true; } catch (er) { console.warn('[Collections] not listed:', e.key, er && er.message); return false; }
   }
-  // At start: read the list, list every active collection on this device.
+  // At start: read the list, list every active (and archived) collection on this device.
   async function rrCollectionsLoad() {
     var got = await rrCollectionsFileRead();
     if (!got.ok) return null;
-    Object.keys(got.data.items || {}).forEach(function (k) { _registerEntry(got.data.items[k]); });
+    rrCollectionsSync(got.data);
     return _copy(got.data);
+  }
+  // This device's list made to match the list file: new and changed ones
+  // listed (an archive or un-archive from another device lands here), deleted
+  // ones forgotten — never the open one (the screens move off it). One the
+  // file does not mention at all is left as it is.
+  function rrCollectionsSync(d) {
+    if (!d || !d.items) return;
+    Object.keys(d.items).forEach(function (k) { _registerEntry(d.items[k]); });
+    Object.keys(_reg).forEach(function (k) { if (d.items[k] && !_listable(d.items[k]) && k !== _current) delete _reg[k]; });
+  }
+
+  // ── release 7A: ARCHIVED = READ ONLY, held at ONE door ────────────────────
+  // THE one answer to "may this sheet / this folder be written?" The sheet
+  // writers (sheets.js) and the photo writers (drive.js) are wrapped by
+  // rrWriteDoor / rrFolderDoor below, so no screen has to remember. The answer
+  // comes from the list file — freshly read when it is older than a minute and
+  // the target is a collection this device thinks is still active, so another
+  // device's archive is honoured here even before this device repaints.
+  // Home is never archived; a sheet or folder that is no collection's is never
+  // refused (a customer without collections never reaches the list file here).
+  function _A() { return (typeof RR_COLL_ARCHIVE !== 'undefined' && RR_COLL_ARCHIVE) || root.RR_COLL_ARCHIVE || { words: {} }; }
+  function _aw(k, vars) {
+    var w = String((_A().words || {})[k] || '');
+    Object.keys(vars || {}).forEach(function (v) { w = w.split('{' + v + '}').join(String(vars[v])); });
+    return w;
+  }
+  function _entries() {
+    if (_fileData && _fileData.items) return Object.keys(_fileData.items).map(function (k) { return _fileData.items[k]; });
+    return Object.keys(_reg).map(function (k) { return _reg[k]; });
+  }
+  function _closed(e) { return !!e && (e.status === 'archived' || e.status === 'deleted'); }
+  function rrCollectionIsArchived(key) {
+    var k = (key === undefined) ? _current : key;
+    if (!k || k === _homeKey()) return false;
+    var e = (_fileData && _fileData.items && _fileData.items[k]) || _reg[k];
+    return _closed(e);
+  }
+  function _entryForSheet(sid) {
+    var s = String(sid || ''); if (!s) return null;
+    var all = _entries();
+    for (var i = 0; i < all.length; i++) if (all[i] && String(all[i].sheetId || '') === s) return all[i];
+    return null;
+  }
+  var _parents = {};   // folder id -> its parent, as drive.js learns them
+  function rrNoteFolderParent(id, parent) { if (id && parent && String(id) !== String(parent)) _parents[String(id)] = String(parent); }
+  function _entryForFolder(fid) {
+    var roots = {};
+    _entries().forEach(function (e) { if (e) [e.folderId, e.photoRootId, e.soldPhotoRootId].forEach(function (r) { if (r) roots[String(r)] = e; }); });
+    var x = String(fid || ''), seen = {};
+    for (var i = 0; x && i < 16 && !seen[x]; i++) {
+      if (roots[x]) return roots[x];
+      seen[x] = true; x = _parents[x] || '';
+    }
+    return null;
+  }
+  async function _doorFresh(force) {
+    var fresh = (_A().doorFreshMs != null) ? Number(_A().doorFreshMs) : 60000;
+    if (!force && Date.now() - _fileReadAt < fresh) return;
+    if (!_online()) return;   // nothing to ask: what this device knows stands (archive never deletes)
+    var got = await rrCollectionsFileRead();
+    if (got && got.ok) rrCollectionsSync(got.data);
+  }
+  async function _refusedBy(find, id) {
+    var e = find(id);
+    if (!e) return null;
+    if (!_closed(e)) {
+      try { await _doorFresh(false); } catch (eF) {}
+      e = find(id);
+    }
+    return _closed(e) ? e : null;
+  }
+  async function rrSheetWriteRefused(sid) {
+    if (!sid) return null;
+    var h = rrHomeSheet();
+    if (h && String(h) === String(sid)) return null;
+    return _refusedBy(_entryForSheet, sid);
+  }
+  // A folder this device has not seen made (a photo link read from the sheet,
+  // say): while any collection is archived or deleted, Drive is asked for its
+  // parents — up to the collection's own folder or The Rail Roster's — so a
+  // photo can never slip into an archived collection by a road nobody noted.
+  // A customer with nothing archived never pays for this.
+  function _anyClosed() { return _entries().some(_closed); }
+  async function _learnUp(fid) {
+    var dc = null; try { dc = (typeof driveCache !== 'undefined') ? driveCache : root.driveCache; } catch (e) { dc = root.driveCache; }
+    var stop = {};
+    if (dc) [dc.vaultId, dc.photosId, dc.soldPhotosId].forEach(function (x) { if (x) stop[String(x)] = true; });
+    var x = String(fid);
+    for (var i = 0; x && i < 10; i++) {
+      if (stop[x] || _entryForFolder(x)) return;
+      var p = _parents[x];
+      if (!p) {
+        try { var r = await driveRequest('GET', '/files/' + x + '?fields=parents'); p = r && r.parents && r.parents[0]; } catch (e) { return; }
+        if (!p) return;
+        rrNoteFolderParent(x, p);
+      }
+      x = String(p);
+    }
+  }
+  async function rrFolderWriteRefused(fid) {
+    if (!fid) return null;
+    if (!_entryForFolder(fid) && _anyClosed()) { try { await _learnUp(fid); } catch (e) {} }
+    return _refusedBy(_entryForFolder, fid);
+  }
+  var _toldAt = 0;
+  function _doorTell(e) {
+    if (Date.now() - _toldAt < 3000) return;
+    _toldAt = Date.now();
+    try { if (typeof showToast === 'function') showToast(_aw('readOnly', { label: rrCollectionLabel(e) }), 5000, true); } catch (er) {}
+  }
+  function _doorError(e) { var er = new Error('archived'); er.rrArchived = e ? e.key : true; return er; }
+  // fn(sheetId, …) — a set-up write (headers, sheetsSetupUpdate) still passes:
+  // it shapes the sheet, it never changes what is in it.
+  function rrWriteDoor(fn) {
+    if (typeof fn !== 'function' || fn._rrDoor) return fn;
+    var w = async function (sid) {
+      var opts = arguments[3];
+      if (!(opts && typeof opts === 'object' && opts.setup)) {
+        var e = await rrSheetWriteRefused(sid);
+        if (e) { _doorTell(e); throw _doorError(e); }
+      }
+      return fn.apply(this, arguments);
+    };
+    w._rrDoor = true; w._rrInner = fn;
+    return w;
+  }
+  // fn(…, folderId at argument `at`, …)
+  function rrFolderDoor(fn, at) {
+    if (typeof fn !== 'function' || fn._rrDoor) return fn;
+    var w = async function () {
+      var e = await rrFolderWriteRefused(arguments[at]);
+      if (e) { _doorTell(e); throw _doorError(e); }
+      return fn.apply(this, arguments);
+    };
+    w._rrDoor = true; w._rrInner = fn;
+    return w;
+  }
+  // Ask the list file again (start, coming back to the app, every few minutes,
+  // before a switch). Returns what changed for the open collection:
+  // '' | 'archived' | 'active' | 'deleted'.
+  async function rrCollectionsRefresh() {
+    var before = _current ? ((_fileData && _fileData.items && _fileData.items[_current]) || {}).status || '' : '';
+    var got = await rrCollectionsFileRead();
+    if (!got || !got.ok) return '';
+    rrCollectionsSync(got.data);
+    if (!_current) return '';
+    var e = got.data.items[_current];
+    var now = e ? (e.status || '') : 'deleted';
+    return (now !== before) ? now : '';
   }
   function _fill(tpl, n, name) { return String(tpl).split('{n}').join(String(n)).split('{name}').join(String(name)); }
 
@@ -842,6 +1005,7 @@
   async function rrUpdateCollection(key, patch) {
     var c = _reg[key];
     if (!c) return { ok: false, why: 'unknown' };
+    if (rrCollectionIsArchived(key)) { _toldAt = 0; _doorTell(c); return { ok: false, why: 'archived', msg: _aw('readOnly', { label: rrCollectionLabel(c) }) }; }   // release 7A: read only
     patch = patch || {};
     var clean = {};
     if (patch.name != null) { var nm = String(patch.name).trim().slice(0, _U().nameMax || 60); if (!nm) return { ok: false, why: 'name', msg: _uw('nameNeeded') }; clean.name = nm; }
@@ -902,12 +1066,17 @@
     // v0.9.2077 (release 6)
     rrNoteMintedFor: rrNoteMintedFor, rrSheetNumbers: rrSheetNumbers, rrLocalHwmFor: rrLocalHwmFor, rrBumpHwmFor: rrBumpHwmFor,
     rrHoldSwitch: rrHoldSwitch,
+    // release 7A
+    rrCollectionsSync: rrCollectionsSync, rrCollectionsRefresh: rrCollectionsRefresh, rrCollectionIsArchived: rrCollectionIsArchived,
+    rrSheetWriteRefused: rrSheetWriteRefused, rrFolderWriteRefused: rrFolderWriteRefused, rrNoteFolderParent: rrNoteFolderParent,
+    rrWriteDoor: rrWriteDoor, rrFolderDoor: rrFolderDoor,
+    rrArchiveDoorTell: function (e) { _doorTell(e); },
   };
   Object.keys(api).forEach(function (k) { root[k] = api[k]; });
   // test hook: forget everything this file holds (never called by the app)
   root._rrCollectionsReset = function () {
     _reg = {}; _current = null; _homeSheet = null; _inFlight = 0; _lastWriteEnd = 0; _switching = false; _holds = 0;
     _minted = {}; _remap = {}; _readCache = {}; _tabsCache = {};
-    _fileId = null; _fileData = null; _making = false;
+    _fileId = null; _fileData = null; _fileReadAt = 0; _making = false; _parents = {}; _toldAt = 0;
   };
 })(typeof window !== 'undefined' ? window : globalThis);

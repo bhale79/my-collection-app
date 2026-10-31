@@ -43,8 +43,14 @@
   function _on() { try { return typeof rrCollUiOn === 'function' && rrCollUiOn(); } catch (e) { return false; } }
   function _colls() {
     var all = (typeof rrCollections === 'function') ? rrCollections() : [];
-    return all.filter(function (c) { return c && (c.home || (c.status || 'active') === 'active'); });
+    return all.filter(function (c) { return c && (c.home || (c.status || 'active') === 'active' || c.status === 'linked'); });   // release 7B: linked works like active
   }
+  // TRR Pro release 7A: an archived (or deleted) collection takes no photos —
+  // a photo tagged for one counts as untagged, so it asks which collection.
+  function _curArchived() {
+    try { return typeof rrCollectionIsArchived === 'function' && rrCollectionIsArchived(); } catch (e) { return false; }
+  }
+  function _live(t) { return (t && _colls().some(function (c) { return c.key === t; })) ? t : ''; }
 
   // More than one collection to choose between (only then is anything shown or asked).
   function rrInboxCollOn() { return _on() && _colls().length > 1; }
@@ -52,23 +58,24 @@
   function rrInboxUploadTag() {
     if (!_on()) return '';
     var c = (typeof rrCurrentCollection === 'function') ? rrCurrentCollection() : null;
+    if (_curArchived()) return '';   // release 7A: never tagged for an archived collection
     return (c && c.key) || '';
   }
   function rrInboxCollLabel(key) {
     if (!key) return rrInboxWord('none');
     var c = (typeof rrCollectionByKey === 'function') ? rrCollectionByKey(key) : null;
-    if (!c || c.home) return c ? rrInboxWord('home') : String(key);
+    if (!c || c.home) return c ? rrInboxWord('home') : rrInboxWord('none');   // release 7A: a deleted collection's tag reads as none
     return (typeof rrCollectionLabel === 'function') ? rrCollectionLabel(c) : String(c.number);
   }
   function _fileColl(f) { return ((f && f._meta) || {}).coll || ''; }
   function _tags(groups) {
     var out = [];
-    (groups || []).forEach(function (g) { (g.files || []).forEach(function (f) { var t = _fileColl(f); if (out.indexOf(t) < 0) out.push(t); }); });
+    (groups || []).forEach(function (g) { (g.files || []).forEach(function (f) { var t = _live(_fileColl(f)); if (out.indexOf(t) < 0) out.push(t); }); });
     return out;
   }
   function _fileIds(groups, onlyUntagged) {
     var ids = [];
-    (groups || []).forEach(function (g) { (g.files || []).forEach(function (f) { if (f && f.id && (!onlyUntagged || !_fileColl(f))) ids.push(f.id); }); });
+    (groups || []).forEach(function (g) { (g.files || []).forEach(function (f) { if (f && f.id && (!onlyUntagged || !_live(_fileColl(f)))) ids.push(f.id); }); });
     return ids;
   }
   function _selGroups() {
@@ -119,6 +126,7 @@
   // `needsAsk` is decided WITHOUT waiting, so when nothing has to be asked the
   // add opens exactly as it always did.
   function _needsAsk(groups) {
+    if (_on() && _curArchived() && groups && groups.length) return true;   // release 7A: never into an archived collection
     if (!rrInboxCollOn() || !groups || !groups.length) return false;
     var cur = rrCurrentCollection();
     var t = _tags(groups);

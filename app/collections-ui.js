@@ -37,6 +37,9 @@
     if (typeof rrEsc === 'function') return rrEsc(s);
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
   }
+  // A value inside an on-click, QUOTED: rrJsArg makes it safe, the quotes make it a
+  // string — without them rrCollChoose(c7…) asked for a variable and the tap did nothing.
+  function _arg(v) { return "'" + (typeof rrJsArg === 'function' ? rrJsArg(v) : String(v == null ? '' : v).replace(/[\\']/g, '\\$&').replace(/[&<>"]/g, '')) + "'"; }
   function toast(m, ms, bad) { try { if (typeof showToast === 'function') showToast(m, ms || 3500, !!bad); } catch (e) {} }
   function phone() { try { return typeof rrIsPhone === 'function' && rrIsPhone(); } catch (e) { return false; } }
 
@@ -72,6 +75,7 @@
     if (_booted) { rrCollUiPaint(); return; }
     _booted = true;
     try { _data = await rrCollectionsLoad(); } catch (e) { _data = null; }
+    try { if (typeof rrArchiveWatch === 'function') rrArchiveWatch(); } catch (e) {}   // release 7A: other devices' archive / delete
     try {
       var k = (typeof rrRememberedCollectionKey === 'function') ? rrRememberedCollectionKey() : 'home';
       var cur = rrCurrentCollection();
@@ -85,6 +89,7 @@
   function rrCollUiPaint() {
     var slot = (typeof document !== 'undefined') && document.getElementById('rr-coll-slot');
     if (!slot) return;
+    try { if (typeof rrInvPaintSoldButton === 'function') rrInvPaintSoldButton(); } catch (eI) {}   // release 10: Invoices on the Sold page (Pro only)
     if (!rrCollUiOn()) { slot.innerHTML = ''; rrCollHeaderPaint(); return; }
     var c = rrCurrentCollection();
     slot.innerHTML = '<button id="rr-coll-btn" type="button" aria-haspopup="true" onclick="rrCollMenuOpen()" title="' + esc(W('title')) + '" ' +
@@ -111,7 +116,7 @@
       '<span style="flex:1"></span>' +
       (p && (p.cellPhone || p.phone) ? '<a href="tel:' + esc(String(p.cellPhone || p.phone).replace(/[^0-9+]/g, '')) + '" style="' + btn + '">' + esc(W('clientCall')) + '</a>' : '') +
       (p && p.email ? '<a href="mailto:' + esc(p.email) + '" style="' + btn + '">' + esc(W('clientEmail')) + '</a>' : '') +
-      '<button type="button" onclick="rrCollDetailsOpen(' + (typeof rrJsArg === 'function' ? rrJsArg(c.key) : "'" + c.key + "'") + ')" style="' + btn + '">' + esc(W('details')) + '</button>' +
+      '<button type="button" onclick="rrCollDetailsOpen(' + _arg(c.key) + ')" style="' + btn + '">' + esc(W('details')) + '</button>' +
       '<button type="button" onclick="rrCollHeaderFold()" aria-expanded="' + (open ? 'true' : 'false') + '" style="' + btn + '">' + esc(open ? W('clientLess') : W('clientMore')) + '</button>' +
       '</div>';
     var more = '';
@@ -132,7 +137,9 @@
       if (c.notes) rows.push(esc(c.notes));
       more = rows.length ? '<div style="margin-top:0.4rem;display:grid;gap:0.15rem;font-size:0.85rem;color:var(--text)">' + rows.map(function (r) { return '<div>' + r + '</div>'; }).join('') + '</div>' : '';
     }
-    var html = line + more;
+    // release 7A: an archived collection says so, with Un-archive right there
+    var banner = (typeof rrArchiveBannerHtml === 'function') ? rrArchiveBannerHtml(c) : '';
+    var html = line + banner + more;
     var el = old || document.createElement('div');
     el.id = 'rr-coll-header';
     el.setAttribute('role', 'region');
@@ -188,6 +195,13 @@
       '<div id="rr-coll-list"></div>';
     _dialog('rr-coll-menu', html, phone());
     rrCollMenuFilter('');
+    // release 7A: ask the list again — another device may have archived, deleted or restored one
+    try {
+      if (typeof rrArchiveRefresh === 'function') rrArchiveRefresh().then(function () {
+        var s = document.getElementById('rr-coll-search');
+        if (document.getElementById('rr-coll-list')) rrCollMenuFilter(s ? s.value : '');
+      });
+    } catch (e) {}
   }
   function rrCollMenuFilter(q) {
     var box = document.getElementById('rr-coll-list'); if (!box) return;
@@ -198,18 +212,22 @@
       return (String(e.number) + ' ' + String(e.name) + ' ' + _clientName(e)).toLowerCase().indexOf(n) >= 0;
     };
     var all = _entries();
-    var active = all.filter(function (e) { return e.status === 'active' && match(e); })
+    var active = all.filter(function (e) { return (e.status === 'active' || e.status === 'linked') && match(e); })   // release 7B: linked works like active
       .sort(function (a, b) { return (Number(b.lastOpenedAt) || 0) - (Number(a.lastOpenedAt) || 0); });
     var making = all.filter(function (e) { return e.status === 'creating' && match(e); });
     var archived = all.filter(function (e) { return e.status === 'archived'; });
     var row = function (key, label, sub, isCur) {
-      return '<button type="button" onclick="rrCollChoose(' + (typeof rrJsArg === 'function' ? rrJsArg(key) : "'" + key + "'") + ')" style="' + _ROW + (isCur ? ';border-color:var(--accent);border-width:2px' : '') + '">' +
+      return '<button type="button" onclick="rrCollChoose(' + _arg(key) + ')" style="' + _ROW + (isCur ? ';border-color:var(--accent);border-width:2px' : '') + '">' +
         '<span style="flex:1;min-width:0"><span style="display:block;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(label) + '</span>' +
         (sub ? '<span style="display:block;font-size:0.8rem;color:var(--text-dim)">' + esc(sub) + '</span>' : '') + '</span>' +
         (isCur ? '<span aria-hidden="true">✓</span>' : '') + '</button>';
     };
     var html = '';
-    html += '<div style="' + _ROW + ';cursor:default;opacity:0.6" aria-disabled="true"><span style="flex:1">' + esc(W('all')) + '</span><span style="font-size:0.78rem">' + esc(W('allSoon')) + '</span></div>';
+    // release 8: All Collections — every item of every collection, the summary, the export
+    if (typeof rrAllOpen === 'function') html += '<button type="button" data-coll-all onclick="rrAllOpen()" style="' + _ROW + ';font-weight:700">' + esc(W('all')) + '</button>';
+    // release 10: the business's invoices (every collection, one numbering)
+    if (!n && typeof rrInvOpen === 'function') html += '<button type="button" data-coll-inv onclick="rrInvOpen()" style="' + _ROW + '">' + esc((typeof RR_COLL_INVOICE !== 'undefined' && RR_COLL_INVOICE.words.btn) || '') + '</button>';
+    else html += '<div style="' + _ROW + ';cursor:default;opacity:0.6" aria-disabled="true"><span style="flex:1">' + esc(W('all')) + '</span><span style="font-size:0.78rem">' + esc(W('allSoon')) + '</span></div>';
     if (!n || W('home').toLowerCase().indexOf(n) >= 0) html += row('home', W('home'), '', cur && cur.home);
     active.forEach(function (e) {
       var cnt = (e.itemCount == null) ? '' : (Number(e.itemCount) === 1 ? W('item1') : W('items', { n: e.itemCount }));
@@ -217,7 +235,7 @@
     });
     making.forEach(function (e) {
       html += '<div style="' + _ROW + ';cursor:default"><span style="flex:1">' + esc(e.number + ' – ' + e.name) + '</span>' +
-        '<button type="button" onclick="rrCollFinish(' + (typeof rrJsArg === 'function' ? rrJsArg(e.key) : "'" + e.key + "'") + ', this)" style="' + _BTN + ';min-height:36px;padding:0.3rem 0.7rem;font-size:0.85rem">' + esc(W('finish')) + '</button></div>';
+        '<button type="button" onclick="rrCollFinish(' + _arg(e.key) + ', this)" style="' + _BTN + ';min-height:36px;padding:0.3rem 0.7rem;font-size:0.85rem">' + esc(W('finish')) + '</button></div>';
     });
     if (n && !active.length && !making.length) html += '<div style="padding:0.8rem 0.2rem;color:var(--text-dim)">' + esc(W('none')) + '</div>';
     html += '<button type="button" onclick="rrCollNewOpen()" style="' + _ROW + ';justify-content:center;font-weight:700;color:var(--t-link)">' + esc(W('newBtn')) + '</button>';
@@ -226,7 +244,9 @@
       html += '<button type="button" onclick="rrMoveManyOpen()" style="' + _ROW + ';justify-content:center">' + esc((typeof RR_COLL_MOVE !== 'undefined' && RR_COLL_MOVE.words.manyBtn) || '') + '</button>';
     }
     if (typeof rrMoveUnfinishedHtml === 'function') { try { html += rrMoveUnfinishedHtml(); } catch (eU) {} }
-    if (archived.length) html += '<details style="margin-top:0.5rem"><summary style="cursor:pointer;min-height:40px;padding:0.4rem 0.2rem">' + esc(W('archived', { n: archived.length })) + '</summary></details>';
+    // release 7A: the archived heading (its name is one business setting) and Recently deleted
+    if (typeof rrArchiveMenuHtml === 'function') html += rrArchiveMenuHtml(all, match, cur && cur.key);
+    else if (archived.length) html += '<details style="margin-top:0.5rem"><summary style="cursor:pointer;min-height:40px;padding:0.4rem 0.2rem">' + esc(W('archived', { heading: 'Archived', n: archived.length })) + '</summary></details>';
     box.innerHTML = html;
   }
   function rrCollChoose(key) {
@@ -322,8 +342,11 @@
     var lists = U().lists || [];
     var types = U().fieldTypes || [];
     var lab = function (t, forId) { return '<label style="display:block;font-size:0.85rem;margin:0.75rem 0 0.25rem"' + (forId ? ' for="' + forId + '"' : '') + '>' + esc(t) + '</label>'; };
+    // release 7A: an archived collection's card is read only, with Un-archive / Delete at its foot
+    var arch = (typeof rrCollectionIsArchived === 'function') && rrCollectionIsArchived(c.key);
+    var statusWords = (arch && typeof rrArchiveStatusWords === 'function') ? rrArchiveStatusWords(c) : W('active');
     var html = '<div style="font-family:var(--font-head);font-size:1.2rem;font-weight:700;margin:0.2rem 2.2rem 0.4rem 0">' + esc(W('detailsTitle', { label: _label(c) })) + '</div>' +
-      '<div style="font-size:0.85rem;color:var(--text-dim)">' + esc(W('number')) + ' ' + esc(c.number) + ' · ' + esc(W('status')) + ': ' + esc(W('active')) +
+      '<div style="font-size:0.85rem;color:var(--text-dim)">' + esc(W('number')) + ' ' + esc(c.number) + ' · ' + esc(W('status')) + ': ' + esc(statusWords) +
       (c.createdAt ? ' · ' + esc(W('started')) + ' ' + esc(_day(c.createdAt)) : '') +
       (c.itemCount != null ? ' · ' + esc(Number(c.itemCount) === 1 ? W('item1') : W('items', { n: c.itemCount })) : '') + '</div>' +
       lab(W('newName'), 'rr-coll-d-name') + '<input id="rr-coll-d-name" maxlength="' + (U().nameMax || 60) + '" value="' + esc(c.name) + '" style="' + _INP + '">' +
@@ -338,9 +361,12 @@
       '<div style="font-size:0.8rem;color:var(--text-dim)">' + esc(W('fieldsHelp')) + '</div>' +
       '<div id="rr-coll-d-fields"></div>' +
       lab(W('notes'), 'rr-coll-d-notes') + '<textarea id="rr-coll-d-notes" rows="3" style="' + _INP + '">' + esc(c.notes) + '</textarea>' +
-      '<div style="margin-top:1rem;display:flex;justify-content:flex-end"><button type="button" id="rr-coll-d-save" onclick="rrCollDetailsSave(' + (typeof rrJsArg === 'function' ? rrJsArg(c.key) : "'" + c.key + "'") + ', this)" style="' + _BTN + '">' + esc(W('save')) + '</button></div>';
-    _dialog('rr-coll-details', html, phone());
+      (arch ? '' : '<div style="margin-top:1rem;display:flex;justify-content:flex-end"><button type="button" id="rr-coll-d-save" onclick="rrCollDetailsSave(' + _arg(c.key) + ', this)" style="' + _BTN + '">' + esc(W('save')) + '</button></div>') +
+      ((typeof rrHandOverDetailsHtml === 'function') ? rrHandOverDetailsHtml(c) : '') +   // release 7B: hand over / linked
+      ((typeof rrArchiveDetailsHtml === 'function') ? rrArchiveDetailsHtml(c) : '');
+    var dlg = _dialog('rr-coll-details', html, phone());
     _paintFields(c, types);
+    if (arch && dlg) { try { dlg.querySelectorAll('input, select, textarea').forEach(function (el) { el.disabled = true; }); dlg.querySelectorAll('#rr-coll-d-fields button').forEach(function (el) { el.remove(); }); } catch (e) {} }
   }
   function _paintFields(c, types) {
     var box = document.getElementById('rr-coll-d-fields'); if (!box) return;

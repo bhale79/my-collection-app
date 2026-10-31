@@ -16,6 +16,10 @@
     "app/collections.js",
     "app/collections-ui.js",
     "app/collections-move.js",
+    "app/collections-archive.js",
+    "app/collections-handover.js",
+    "app/collections-all.js",
+    "app/collections-invoice.js",
     "app/collections-inbox.js"
   ],
   "mutable": [

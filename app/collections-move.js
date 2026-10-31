@@ -42,7 +42,9 @@
     if (typeof rrEsc === 'function') return rrEsc(s);
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
   }
-  function jsArg(s) { return (typeof rrJsArg === 'function') ? rrJsArg(s) : JSON.stringify(String(s)); }
+  // A value inside an on-click, QUOTED: rrJsArg makes it safe, the quotes make it a
+  // string (the bare value was read as a variable and the tap did nothing).
+  function jsArg(s) { return "'" + (typeof rrJsArg === 'function' ? rrJsArg(s) : String(s == null ? '' : s).replace(/[\\']/g, '\\$&').replace(/[&<>"]/g, '')) + "'"; }
   function toast(m, ms, bad) { try { if (typeof showToast === 'function') showToast(m, ms || 3500, !!bad); } catch (e) {} }
   function st() { try { return (typeof state !== 'undefined' && state) || root.state || {}; } catch (e) { return root.state || {}; } }
   function _clone(o) { return JSON.parse(JSON.stringify(o)); }
@@ -68,7 +70,10 @@
 
   // ── who may move, and where to ─────────────────────────────────────────
   function rrMoveOn() {
-    try { return typeof rrCollUiOn === 'function' && rrCollUiOn() && rrMoveTargets().length > 0; } catch (e) { return false; }
+    try {
+      if (typeof rrCollectionIsArchived === 'function' && rrCollectionIsArchived()) return false;   // release 7A: read only
+      return typeof rrCollUiOn === 'function' && rrCollUiOn() && rrMoveTargets().length > 0;
+    } catch (e) { return false; }
   }
   // Every active collection except the open one (home included when another is open).
   function rrMoveTargets() {
@@ -77,7 +82,7 @@
     return all.filter(function (c) {
       if (!c || !c.sheetId) return false;
       if (cur && c.key === cur.key) return false;
-      return c.home || (c.status || 'active') === 'active';
+      return c.home || (c.status || 'active') === 'active' || c.status === 'linked';   // release 7B: linked works like active
     });
   }
 
@@ -162,6 +167,13 @@
   async function rrMoveRun(m) {
     if (_running) { toast(W('busy'), 4000, true); return { ok: false, why: 'busy' }; }
     if (_offline()) { toast(W('offline'), 4500, true); return { ok: false, why: 'offline' }; }
+    // TRR Pro release 7A: never into or out of an archived collection — asked
+    // fresh, so another device's archive stops a move BEFORE its first step.
+    if (typeof rrCollectionIsArchived === 'function') {
+      try { if (typeof rrCollectionsRefresh === 'function') await rrCollectionsRefresh(); } catch (eR) {}
+      var shut = [m.from, m.to].filter(function (k) { return k && rrCollectionIsArchived(k); })[0];
+      if (shut) { try { if (typeof rrArchiveDoorTell === 'function') rrArchiveDoorTell(rrCollectionByKey(shut) || { key: shut }); } catch (eT) {} return { ok: false, why: 'archived' }; }
+    }
     _running = true;
     try { if (typeof rrHoldSwitch === 'function') rrHoldSwitch(true); } catch (e) {}
     try {
@@ -415,7 +427,7 @@
     var map = st().personalData || {}, key = '';
     for (var k in map) if (map[k] === pd) { key = k; break; }
     if (!key) return '';
-    return '<button id="detail-move-item" type="button" onclick="rrMoveOpen([' + esc(jsArg(key)) + '])" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">' + esc(W('moveBtn')) + '</button>';
+    return '<button id="detail-move-item" type="button" onclick="rrMoveOpen([' + jsArg(key) + '])" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">' + esc(W('moveBtn')) + '</button>';
   }
 
   var _pending = null;   // { keys }
@@ -511,7 +523,7 @@
     return '<div style="margin-top:0.7rem;font-weight:700">' + esc(W('unfinished', { n: list.length })) + '</div>' + list.map(function (mv) {
       return '<div style="' + _ROW + ';cursor:default"><span style="flex:1;font-size:0.86rem">' +
         esc(W('unfinishedLine', { n: ((mv.items || []).length === 1 ? W('one') : W('itemsN', { n: (mv.items || []).length })), from: mv.fromLabel, to: mv.toLabel, step: W('step.' + (mv.step || 'start')) })) + '</span>' +
-        '<button type="button" onclick="rrMoveFinish(' + esc(jsArg(mv.id)) + ', this)" style="' + _BTN + ';min-height:36px;padding:0.3rem 0.7rem;font-size:0.85rem">' + esc(W('finish')) + '</button></div>';
+        '<button type="button" onclick="rrMoveFinish(' + jsArg(mv.id) + ', this)" style="' + _BTN + ';min-height:36px;padding:0.3rem 0.7rem;font-size:0.85rem">' + esc(W('finish')) + '</button></div>';
     }).join('');
   }
   function rrMoveFinish(id, btn) {

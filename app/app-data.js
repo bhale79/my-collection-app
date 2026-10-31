@@ -2386,6 +2386,26 @@ function rrPersonalRecordFromRow(r, rowNum) {
   if (typeof ephCanonType === 'function') obj.itemType = ephCanonType(obj.itemType);
   return obj;
 }
+// TRR Pro release 8: the loader's three questions about a My Collection row,
+// each in ONE place, so a screen that reads ANOTHER collection's sheet (the
+// All Collections view) holds exactly the items that collection's own list
+// holds. v0.9.1509: a row with no number but an Inventory ID is a real item.
+function rrPersonalRowHasItem(r) {
+  if (!r) return false;
+  const n = PERSONAL_FIELD_INDEX.itemNum, i = PERSONAL_FIELD_INDEX.inventoryId;
+  return !!(r[n] || (i !== undefined && r[i]));
+}
+// v0.9.2077: a row moved to another collection (or, release 7A, returned to
+// the client) says so in Transferred To — never deleted, never held here.
+function rrRecordMovedOut(rec) { return !!String((rec && rec.transferredTo) || '').trim(); }
+// The record a list holds for a sheet row, or null (a header row, a junk row,
+// a row moved out). THE answer for reading a collection that is not open.
+function rrHeldRecordFromRow(r, rowNum) {
+  if (!r || (typeof _rrHeaderishRow === 'function' && _rrHeaderishRow(r))) return null;
+  if (!rrPersonalRowHasItem(r)) return null;
+  const rec = rrPersonalRecordFromRow(r, rowNum);
+  return rrRecordMovedOut(rec) ? null : rec;
+}
 function rrPersonalRecordFromWrittenRow(row, rowNum) {
   const cells = (row || []).map(v => (typeof v === 'string' && v.charAt(0) === "'") ? v.slice(1) : v);
   return rrPersonalRecordFromRow(cells, rowNum);
@@ -2405,6 +2425,7 @@ function rrSavedRecord(writtenRow, rowNum, fill) {
 }
 if (typeof window !== 'undefined') {
   window.rrPersonalRecordFromRow = rrPersonalRecordFromRow;
+  window.rrPersonalRowHasItem = rrPersonalRowHasItem; window.rrRecordMovedOut = rrRecordMovedOut; window.rrHeldRecordFromRow = rrHeldRecordFromRow;   // TRR Pro release 8
   window.rrPersonalRecordFromWrittenRow = rrPersonalRecordFromWrittenRow;
   window.rrSavedRecord = rrSavedRecord;
 }
@@ -2524,8 +2545,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     // Sale list). A blank number used to mean a junk row; since the importer,
     // a numberless row with an inventoryId is a legitimate item. Rows with
     // NEITHER number NOR inventoryId are still skipped as junk.
-    const _invIdColEarly = PERSONAL_FIELD_INDEX.inventoryId;
-    if (!r[itemNumCol] && !(_invIdColEarly !== undefined && r[_invIdColEarly])) return;
+    if (!rrPersonalRowHasItem(r)) return;   // TRR Pro release 8: the rule lives in ONE place (below the row reader)
     const rowNum = idx + 3;
     const invIdCol = PERSONAL_FIELD_INDEX.inventoryId;
     const varCol = PERSONAL_FIELD_INDEX.variation;
@@ -2566,7 +2586,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     // never deleted — it says where it went in "Transferred To". It is kept
     // out of every list, count, report and share HERE, at THE row reader, and
     // held aside so an old label can say where the item went (scan-shelve.js).
-    if (String(_rec.transferredTo || '').trim()) { _rec.owned = false; _rec.status = 'Transferred'; newTransferred[key] = _rec; return; }
+    if (rrRecordMovedOut(_rec)) { _rec.owned = false; _rec.status = 'Transferred'; newTransferred[key] = _rec; return; }
     newPersonal[key] = _rec;
   });
 
