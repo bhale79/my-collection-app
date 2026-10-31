@@ -3627,8 +3627,13 @@
     // above the Need-a-part card (100030), under the parts chooser (100035)
     // and the app's confirm boxes — tests/maint_layers_tests.js holds the order
     el.style.cssText = 'position:fixed;top:0;bottom:0;right:0;z-index:100032;display:flex;align-items:flex-start;justify-content:center;padding:2rem 1rem;'
-      + (side ? 'width:50vw;pointer-events:none' : 'left:0;background:rgba(0,0,0,0.6)');
-    el.innerHTML = _cardOpen(600).replace('class="rr-card maint-card"', 'class="rr-card rr-card-flex maint-card" id="maint-dg-card"').replace('margin-bottom:2rem', 'margin-bottom:0;pointer-events:auto')
+      + (side ? 'width:50vw;box-sizing:border-box;pointer-events:none' : 'left:0;background:rgba(0,0,0,0.6)');
+    // 2026-10-30 ([stated] Brad "yes"): padding sat OUTSIDE the widths (the
+    // app's global border-box reset has never applied — app.css note): the
+    // right-half wrapper (50vw + its 2 x 1rem) reached 32 px past the middle,
+    // so the card crossed into Need-a-part's half. border-box on the wrapper
+    // (and on the card, for its own padding) keeps it inside its half.
+    el.innerHTML = _cardOpen(600).replace('class="rr-card maint-card"', 'class="rr-card rr-card-flex maint-card" id="maint-dg-card"').replace('margin-bottom:2rem', 'margin-bottom:0;pointer-events:auto;box-sizing:border-box')
       + '<div id="maint-dg-head" style="' + (side ? 'cursor:move;touch-action:none;' : '') + '">'
       +   _cardHead('No. ' + _esc(String(tg.item.itemNum || '')), 'Parts diagrams', '_maintDiagramsClose()')
       + '</div>'

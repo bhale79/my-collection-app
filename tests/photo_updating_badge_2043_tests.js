@@ -121,6 +121,11 @@ async function cropAndApply(pg) {
   S.hold.on = true;
   await cropAndApply(S.pg);
   await S.pg.evaluate(() => __draw());   // what rrFlushRepaints / a sync does to the page
+  // 2026-10-30 ([stated] Brad "yes"): the redrawn photo has to load before the
+  // badge sits on it — measured ~0.3 s here. The check read the page at once
+  // and went red on live main with nothing wrong in the app; it now waits up
+  // to 3 s for the badge (and still fails if it never comes back).
+  await waitFor(S.pg, () => __badge().shown, null, 3000);
   B = await S.pg.evaluate(() => __badge());
   T('U2a the redrawn photo shows "Updating…" again', B.shown && /Updating…/.test(B.text), B);
   S.hold.release();

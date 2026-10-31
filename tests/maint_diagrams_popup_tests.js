@@ -98,7 +98,7 @@ function harness(src) {
 }
 async function open(browser, src, opts) {
   opts = opts || {};
-  const page = await browser.newPage({ viewport: opts.phone ? { width: 400, height: 800 } : { width: 1600, height: 900 } });
+  const page = await browser.newPage({ viewport: opts.vp || (opts.phone ? { width: 400, height: 800 } : { width: 1600, height: 900 }) });
   const errs = []; page.on('pageerror', e => errs.push(String(e)));
   await page.setContent(PAGE);
   await page.evaluate(m => { window.IS_MOBILE_UA = m; }, !!opts.phone);
@@ -130,6 +130,16 @@ const text = (page, sel) => page.evaluate(s => (document.querySelector(s) || {})
     ok('Need-a-part\'s own card is inside the left half', (await rect(p, '#maint-parts-pop .rr-card')).r <= 800 + 1);
     ok('the half where Need-a-part sits is not covered — its typing box takes a click', await p.evaluate(() => { const r = document.getElementById('maint-pop-part').getBoundingClientRect(); const e = document.elementFromPoint(r.left + 5, r.top + 5); return e && e.id === 'maint-pop-part'; }));
     ok('guarded once (a stray tap never closes it; device Back does)', await p.evaluate(() => window.__guard.n) === 1);
+    // 2026-10-30 ([stated] Brad "yes"): measured with ALL of app.css (this
+    // page used to get only the first ~2000 lines — a closing style tag in the
+    // file ended it), the pop-up ran 16–32 px over the middle at every
+    // computer size. Each common window size: both halves, a gap between.
+    for (const [w, h] of [[1200, 800], [1366, 768], [1536, 737], [1920, 1080], [2560, 1440]]) {
+      const q = await open(browser, maint, { vp: { width: w, height: h } });
+      const c = await rect(q, '#maint-dg-card'), n = await rect(q, '#maint-parts-pop .rr-card');
+      await q.close();
+      ok(w + 'x' + h + ': the pop-up stays in the right half, Need-a-part in the left', c && n && c.l >= w / 2 - 1 && c.r <= w + 1 && n.r <= w / 2 + 1, JSON.stringify({ card: c, needAPart: n }));
+    }
 
     section('C · what it lists');
     const list = await text(p, '#maint-dg-body');
@@ -194,6 +204,15 @@ const text = (page, sel) => page.evaluate(s => (document.querySelector(s) || {})
     }
     await caught('H1 Need-a-part left in the middle (no shift) is caught',
       maint.replace('    _dgShiftPop(side);\n', ''), async q => (await rect(q, '#maint-parts-pop')).r > 801);
+    {
+      const noBox = maint.replace("'width:50vw;box-sizing:border-box;pointer-events:none'", "'width:50vw;pointer-events:none'");
+      if (noBox === maint) ok('H1b (the plant did not apply)', false);
+      else {
+        const q = await open(browser, noBox, { vp: { width: 1200, height: 800 } });
+        const c = await rect(q, '#maint-dg-card'); await q.close();
+        ok('H1b the right half\'s padding left outside its width (the old way) → the pop-up crosses the middle (caught)', c.l < 600 - 1, JSON.stringify(c));
+      }
+    }
     await caught('H2 saved videos let back in is caught',
       maint.replace("return String(d.type || '') !== 'video';", 'return true;'), async q => /reassemble step by step/.test(await text(q, '#maint-dg-body')));
     await caught('H3 a section opening the full-screen viewer on top is caught',

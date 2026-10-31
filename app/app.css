@@ -1,6 +1,24 @@
-<style>
+/* 2026-10-30 — THIS FILE IS CSS, NOT HTML ([stated] Brad "yes", 2026-10-30).
+   It used to start with an HTML opening style tag and had a closing style
+   tag two-thirds of the way down — left over from when these rules lived inside index.html. A
+   browser reading a .css file treats a stray tag as junk and THROWS AWAY THE
+   RULE RIGHT AFTER IT. That cost two rules for months (measured in Chromium):
+     1. the global reset just below — so it NEVER applied, and the whole app
+        was built and checked without it;
+     2. the Insurance report's print block (hide the sidebar, menus, buttons
+        and help on paper) — so a printed report carried the app's chrome.
+   Both tags are gone. The reset stays OFF on purpose: switching it on now
+   would move every screen (box-sizing alone changes the size of every padded
+   box), and nothing has ever been laid out with it. The print block is back.
+   tests/css_rules_kept_tests.js loads every stylesheet in a real browser and
+   fails if the browser drops a single rule — a stray tag can't hide again.
+   Never write the closing tag's letters anywhere in this file, not even in a
+   comment: a test or page that pastes this file into a style element stops
+   reading at them. */
   /* ── Reset & Variables ─────────────────────────────────────── */
+  /* (dormant since day one — see the note above; do not switch on casually)
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  */
 
   /* v0.9.1138 (Brad: "the black numbers need to be cream") — a <button> does
      NOT inherit colour from its parent. Browsers force `color: buttontext`,
@@ -347,8 +365,8 @@
   .main .filter-btn:hover, .main .chip:hover { background: #e8ddc0; }
 
   /* v0.9.1931 (Brad: "why is there a scroll bar again"): margin:0 HERE. The
-     global reset at the top of this file never reaches the page (the stray
-     <style> on line 1 swallows that first rule), so the browser's own 8px body
+     global reset at the top of this file never reaches the page (it is
+     dormant on purpose — the note at the top), so the browser's own 8px body
      margin survived: #app is 100vh tall, the page was 16px taller than the
      window, and a SECOND scroll bar sat outside the dashboard's own. */
   html, body { margin: 0; height: 100%; font-family: var(--font-body); background: var(--bg); color: var(--text); font-size: 16px; }
@@ -460,8 +478,8 @@
                 radial-gradient(ellipse at 80% 80%, #2a1008 0%, transparent 50%);
   }
   /* NOTE: these five set box-sizing explicitly on purpose. The global reset
-     at the top of this file is not reaching the page (see the stray <style>
-     on line 1), so width:100% + padding would otherwise overflow on phones. */
+     at the top of this file is dormant on purpose (the note at the top), so
+     width:100% + padding would otherwise overflow on phones. */
   #auth-screen, .auth-wrap, .auth-brand, .auth-card, .auth-feature { box-sizing: border-box; }
   .auth-wrap {
     display: flex; align-items: center; justify-content: center;
@@ -2013,9 +2031,10 @@
     .dash-desktop-actions { display: none !important; }
     #dash-greeting { display: none !important; }
   }
-</style>
 
 /* ── Insurance report print styles (Session 112) ── */
+/* (dropped by the browser until the stray closing style tag above it was removed —
+   see the note at the top of this file) */
 /* When the user prints, hide app chrome and show just the report content. */
 @media print {
   .sidebar, .mobile-nav, .tut-help-widget, #tut-help-widget,
