@@ -4079,7 +4079,7 @@ function buildUpgradePage() {
     if (tableEl) tableEl.style.display = 'none';
     if (cardsEl) cardsEl.style.display = 'flex';
     cardsEl.innerHTML = entries.map(u => {
-      const pd = Object.values(state.personalData).find(p => p.owned && rrSameNum(p.itemNum, u.itemNum) && rrSameVar(p.variation, u.variation));
+      const pd = _wuOwnedCopy(u);   // v0.9.2076: the copy this entry points at (its inventoryId), not the first of the number
       const master = u._master || findMaster(u.itemNum, '', u);   // v0.9.1871: a tour sample carries its catalog row
       const name = master ? (master.roadName || '') : '';  // Road Name column shows ONLY roadName — itemType fallback removed (was lying about road name)
       // v0.9.1348 — the variation description on phones too. Same four
@@ -4094,8 +4094,9 @@ function buildUpgradePage() {
       const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
       const pColor = priorityColor[u.priority] || 'var(--text-dim)';
       const escVar = (u.variation||'').replace(/'/g,"\\'");
-      const photoId = `upgphoto-m-${u.itemNum}-${u.variation||''}`.replace(/[^a-zA-Z0-9-]/g,'_');
+      const photoId = 'upgphoto-m-' + _wuPhotoKey(u);   // v0.9.2076: one box per ENTRY — two copies of one number no longer share a box
       const hasPhoto = pd && !!pd.photoItem;
+      if (hasPhoto) _wuPhotoCopies[photoId] = pd;
       // List Type chip — Want gets sky-blue, Upgrade gets purple.
       const _isWant = u.listType === 'Want';
       const _ltColor = _isWant ? '#3b82f6' : '#8b5cf6';
@@ -4143,9 +4144,9 @@ function buildUpgradePage() {
             </div>
             ${_wlStripGrp(u.notes) ? `<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${rrEsc(_wlStripGrp(u.notes))}</div>` : ''}
           </div>
-          ${!_isWant && hasPhoto ? `<button onclick="event.stopPropagation();_toggleUpgradePhoto('${photoId}','${pd.photoItem.replace(/'/g,"\\'")}')" style="background:none;border:none;font-size:1.1rem;cursor:pointer;flex-shrink:0" title="View my photo">📷</button>` : ''}
+          ${!_isWant && hasPhoto ? `<button onclick="event.stopPropagation();_toggleUpgradePhoto('${photoId}')" style="background:none;border:none;font-size:1.1rem;cursor:pointer;flex-shrink:0" title="View my photo">📷</button>` : ''}
         </div>
-        ${!_isWant ? `<div id="${photoId}" style="display:none;margin-top:0.5rem"><img src="${pd && pd.photoItem ? pd.photoItem : ''}" style="max-width:100%;max-height:180px;border-radius:8px;object-fit:contain" onerror="this.parentElement.style.display='none'"></div>` : ''}
+        ${!_isWant ? `<div id="${photoId}" style="display:none;margin-top:0.5rem"><div id="${photoId}-pic"></div></div>` : ''}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;margin-top:0.6rem">
           ${!_isWant ? `<button onclick="event.stopPropagation();_upgradeViewMine('${_ugEntryKey(u)}')" style="min-width:0;padding:0.45rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #8b5cf6;background:var(--bg-card);background:color-mix(in srgb, rgb(139,92,246) 10%, var(--bg-card));color:var(--t-purple);font-family:var(--font-body);font-weight:600">View Mine</button>` : ''}
           <button onclick="event.stopPropagation();wantFindOnEbay('${u.itemNum}','${_escName}','${escVar}')" style="min-width:0;padding:0.45rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 12%, var(--bg-card));color:var(--t-orange);font-family:var(--font-body);font-weight:600">eBay</button>
@@ -4164,7 +4165,7 @@ function buildUpgradePage() {
     if (cardsEl) cardsEl.style.display = 'none';
     tbody.innerHTML = entries.map((u, idx) => {
       const _isWant = u.listType === 'Want';
-      const pd = _isWant ? null : Object.values(state.personalData).find(p => p.owned && rrSameNum(p.itemNum, u.itemNum) && rrSameVar(p.variation, u.variation));
+      const pd = _isWant ? null : _wuOwnedCopy(u);   // v0.9.2076: the copy this entry points at
       const master = u._master || findMaster(u.itemNum, '', u);   // v0.9.1871: a tour sample carries its catalog row
       const name = master ? (master.roadName || '') : '';  // Road Name column shows ONLY roadName — itemType fallback removed (was lying about road name)
       // v0.9.1348 — Variation + Variation Description, carried over from the
@@ -4191,7 +4192,8 @@ function buildUpgradePage() {
       const escVar = (u.variation||'').replace(/'/g,"\\'");
       const escName = (name||'').replace(/'/g,"\\'");
       const hasPhoto = pd && !!pd.photoItem;
-      const photoId = `upgphoto-d-${idx}`;
+      const photoId = 'upgphoto-d-' + _wuPhotoKey(u);   // v0.9.2076: by entry, never by position
+      if (hasPhoto) _wuPhotoCopies[photoId] = pd;
       const _ltColor = _isWant ? '#3b82f6' : '#8b5cf6';
       const _ltBg    = _isWant ? 'rgba(59,130,246,0.12)' : 'rgba(139,92,246,0.12)';
       const _priceVal = _isWant ? u.expectedPrice : u.maxPrice;
@@ -4242,7 +4244,7 @@ function buildUpgradePage() {
         <td class="market-val">${_priceVal ? _currencySymbol() + parseFloat(_priceVal).toLocaleString() : '<span class="text-dim">—</span>'}</td>
         <td style="font-size:0.8rem;color:var(--text-dim);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${rrEsc(_wlStripGrp(u.notes||''))}">${_wlStripGrp(u.notes) ? rrEsc(_wlStripGrp(u.notes)) : '<span class="text-dim">—</span>'}</td>
         <td style="white-space:normal">
-          ${!_isWant && hasPhoto ? `<button onclick="event.stopPropagation();_toggleUpgradePhoto('${photoId}','${(pd.photoItem||'').replace(/'/g,"\\'")}')" style="padding:0.25rem 0.4rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);margin-right:0.2rem" title="Toggle photo">📷</button>` : ''}
+          ${!_isWant && hasPhoto ? `<button onclick="event.stopPropagation();_toggleUpgradePhoto('${photoId}')" style="padding:0.25rem 0.4rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);margin-right:0.2rem" title="Toggle photo">📷</button>` : ''}
           ${!_isWant ? `<button onclick="event.stopPropagation();_upgradeViewMine('${_ugEntryKey(u)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:var(--bg-card);background:color-mix(in srgb, rgb(139,92,246) 10%, var(--bg-card));color:var(--t-purple);font-family:var(--font-body);font-weight:600;margin-right:0.2rem">View Mine</button>` : ''}
           <button onclick="event.stopPropagation();wantFindOnEbay('${u.itemNum}','${escName}','${escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 12%, var(--bg-card));color:var(--t-orange);font-family:var(--font-body);margin-right:0.2rem">eBay</button>
           <button onclick="event.stopPropagation();wantSearchOtherSites('${u.itemNum}','${escName}','${escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 12%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);margin-right:0.2rem">Search</button>
@@ -4254,19 +4256,76 @@ function buildUpgradePage() {
             : `<button onclick="event.stopPropagation();removeUpgradeItem('${_ugEntryKey(u)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--t-red);font-family:var(--font-body)">Remove</button>`}
         </td>
       </tr>
-      ${!_isWant ? `<tr id="${photoId}-row"${rrSampleAttrs(u)} style="display:none"><td colspan="${_WU_COLS.length + 1}" style="padding:0.5rem 1rem;background:var(--surface2)"><img src="${pd && pd.photoItem ? pd.photoItem : ''}" style="max-height:160px;border-radius:6px;object-fit:contain" onerror="this.parentElement.parentElement.style.display='none'"></td></tr>` : ''}`;
+      ${!_isWant ? `<tr id="${photoId}-row"${rrSampleAttrs(u)} style="display:none"><td colspan="${_WU_COLS.length + 1}" style="padding:0.5rem 1rem;background:var(--surface2)"><div id="${photoId}-pic"></div></td></tr>` : ''}`;
     }).join('') || '<tr><td colspan="' + (_WU_COLS.length + 1) + '" class="ui-empty">No items on want/upgrade list</td></tr>';
   }
 }
 
-function _toggleUpgradePhoto(id, photoUrl) {
-  // Mobile: toggle inline div; desktop: toggle row
-  const el = document.getElementById(id);
-  const rowEl = document.getElementById(id + '-row');
-  const target = el || rowEl;
+// ── v0.9.2076 — THE 📷 SHOWS YOUR COPY'S PHOTO ─────────────────────────────
+// The 📷 on an Upgrade entry put pd.photoItem — the item's Drive photo FOLDER
+// link — into an <img src>. A folder link is never a picture, so the 📷 opened
+// an empty box on every device; on an iPhone the box's own onerror then threw
+// ("null is not an object") once the list had redrawn under it.
+// Now the box is filled the way the collection list and the dashboard fill
+// theirs: _thumbFor (dashboard.js) finds the folder's first photo once per copy
+// and remembers it on the device; loadDriveThumb (drive.js) paints it. The copy
+// is the one the entry points at — its inventoryId — not whichever copy of the
+// number came first (the number-only first-find class).
+function _wuOwnedCopy(u) {
+  if (!u || !state || !state.personalData) return null;
+  var all = Object.values(state.personalData);
+  if (u.inventoryId) {
+    var mine = all.find(function (p) { return p && p.owned && String(p.inventoryId || '') === String(u.inventoryId); });
+    if (mine) return mine;
+  }
+  return all.find(function (p) { return p && p.owned && rrSameNum(p.itemNum, u.itemNum) && rrSameVar(p.variation, u.variation); }) || null;
+}
+// One box per entry (its _ugEntryKey), so two copies of one number on the list
+// each open their own photo.
+function _wuPhotoKey(u) { return String(_ugEntryKey(u)).replace(/[^A-Za-z0-9_-]/g, '_'); }
+// The copy each open-able box belongs to, written as the list is drawn.
+var _wuPhotoCopies = {};
+
+function _toggleUpgradePhoto(id) {
+  // Phone: the box under the card; computer: the row under the table row.
+  const target = document.getElementById(id) || document.getElementById(id + '-row');
   if (!target) return;
   const showing = target.style.display !== 'none';
   target.style.display = showing ? 'none' : '';
+  if (!showing) _wuPaintPhoto(id);
+}
+
+// Fill a box once. A lookup that fails leaves the box ready to try again on
+// the next tap; a list that redraws while we look simply gets a fresh box.
+function _wuPaintPhoto(id) {
+  var host = document.getElementById(id + '-pic');
+  if (!host) return;
+  var st = host.getAttribute('data-wu-pic');
+  if (st === 'done' || st === 'busy') return;
+  var pd = _wuPhotoCopies[id];
+  var say = function (msg) {
+    if (!host.isConnected) return;
+    host.removeAttribute('data-wu-pic');
+    host.innerHTML = '<span style="font-size:0.78rem;color:var(--text-dim)">' + msg + '</span>';
+  };
+  if (!pd || typeof _thumbFor !== 'function') { say('No photo found for this item yet.'); return; }
+  host.setAttribute('data-wu-pic', 'busy');
+  host.innerHTML = '<span style="font-size:0.78rem;color:var(--text-dim)">Loading your photo…</span>';
+  Promise.resolve(_thumbFor(pd)).then(function (fid) {
+    if (!host.isConnected) return;
+    if (!fid) {
+      var off = window._offlineMode || (typeof navigator !== 'undefined' && navigator.onLine === false);
+      say(off ? 'This photo is not saved on this device yet.' : 'No photo found in this item\'s photo folder yet.');
+      return;
+    }
+    var img = document.createElement('img');
+    img.alt = 'My ' + (pd.itemNum || 'item');
+    img.style.cssText = 'display:block;max-width:100%;max-height:180px;border-radius:8px;object-fit:contain';
+    host.innerHTML = '';
+    host.appendChild(img);
+    host.setAttribute('data-wu-pic', 'done');
+    if (typeof loadDriveThumb === 'function') loadDriveThumb(fid, img, host, null, 'hi');
+  }).catch(function () { say('Could not reach your photos just now — tap 📷 again to try again.'); });
 }
 
 // Phase 3: signature is now (ugKey). The entry has the itemNum + inventoryId
