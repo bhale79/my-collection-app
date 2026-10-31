@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2070';
+const APP_VERSION = 'v0.9.2073';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -4093,6 +4093,23 @@ function rrToday(d) {
   return t.getFullYear() + '-' + p(t.getMonth() + 1) + '-' + p(t.getDate());
 }
 if (typeof window !== 'undefined') window.rrToday = rrToday;
+
+// ── v0.9.2073 (known-problems sweep, A8): THE one way a 📅 button opens its
+// date box's calendar. input.showPicker() does not exist on iPhones before
+// iOS 16.4 (nor in older desktop browsers) — calling it threw, and the 📅
+// did nothing. Where it exists it is used; where it is missing or refused,
+// the date box is focused and clicked, which is how an older iPhone opens its
+// date wheel (still inside the tap, so Safari allows it).
+// tests/date_button_2073_tests.js fails on any other call to showPicker.
+function rrOpenDatePicker(elOrId) {
+  var el = (typeof elOrId === 'string') ? (typeof document !== 'undefined' && document.getElementById(elOrId)) : elOrId;
+  if (!el) return false;
+  try { if (typeof el.showPicker === 'function') { el.showPicker(); return true; } } catch (e) {}
+  try { el.focus(); } catch (e) {}
+  try { el.click(); } catch (e) {}
+  return false;
+}
+if (typeof window !== 'undefined') window.rrOpenDatePicker = rrOpenDatePicker;
 
 // ═══════════════════════════════════════════════════════════════
 // v0.9.2034 — THE SCALE / GAUGE LIST (Melissa, 2026-10-27, typing in a Bowser

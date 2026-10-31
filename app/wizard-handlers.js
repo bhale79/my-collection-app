@@ -456,7 +456,7 @@ function _confirmEdit(key) {
   // Date fields
   if (window._cfDate && window._cfDate.indexOf(key) >= 0) {
     valEl.innerHTML = '<div style="display:flex;align-items:center;gap:0.3rem">'
-      + '<div style="position:relative;display:flex;align-items:center;flex:1"><input id="confirm-input-' + key + '" type="date" value="' + (curVal || '') + '" style="width:100%;background:var(--bg);border:1px solid var(--accent);border-radius:5px;padding:0.3rem 2.2rem 0.3rem 0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;color-scheme:dark"><span role="button" aria-label="Open calendar" onclick="event.preventDefault();event.stopPropagation();document.getElementById(&quot;confirm-input-' + key + '&quot;).showPicker()" style="position:absolute;right:0.4rem;cursor:pointer;font-size:0.95rem;color:var(--accent2);background:none;border:none;padding:0.3rem;line-height:1;touch-action:manipulation">📅</span></div>'
+      + '<div style="position:relative;display:flex;align-items:center;flex:1"><input id="confirm-input-' + key + '" type="date" value="' + (curVal || '') + '" style="width:100%;background:var(--bg);border:1px solid var(--accent);border-radius:5px;padding:0.3rem 2.2rem 0.3rem 0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;color-scheme:dark"><span role="button" aria-label="Open calendar" onclick="event.preventDefault();event.stopPropagation();rrOpenDatePicker(&quot;confirm-input-' + key + '&quot;)" style="position:absolute;right:0.4rem;cursor:pointer;font-size:0.95rem;color:var(--accent2);background:none;border:none;padding:0.3rem;line-height:1;touch-action:manipulation">📅</span></div>'
       + _cfOkBtn(key) + '</div>';
     btnEl.style.display = 'none';
     return;
