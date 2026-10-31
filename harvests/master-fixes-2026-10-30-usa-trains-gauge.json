@@ -1,0 +1,77 @@
+{
+ "what": "Master Version 2.70 — the 7 USA Trains G rows added in Master Version 2.66 (R13044, R1410B, R19119B, R22600X, R22604, R22622, RPHC-3-SUN) carried the crawl's gauge word \"G\"; every other row of the tab (2,243) says \"G Scale\". Gauge cells only, nothing else changed.",
+ "stated": "Brad (2026-10-30): \"yes\" to changing the 7 cells to \"G Scale\" as Master Version 2.70",
+ "masterVersion": "2.70",
+ "date": "2026-10-30",
+ "planReadAt": "Sheets API read of USA Trains G (public key) right before this record: Gauge = column I, Row ID = column W; 2,243 'G Scale' + 7 'G'",
+ "cellFormat": "[tab, item number (column A), column header, old, new, sheet row as a hint, Row ID of the row]",
+ "counts": {
+  "cells": 7,
+  "rowsAdded": 0
+ },
+ "cells": [
+  [
+   "USA Trains G",
+   "R13044",
+   "Gauge",
+   "G",
+   "G Scale",
+   2245,
+   "A5VX22AEK6"
+  ],
+  [
+   "USA Trains G",
+   "R1410B",
+   "Gauge",
+   "G",
+   "G Scale",
+   2246,
+   "X84ZCKFM67"
+  ],
+  [
+   "USA Trains G",
+   "R19119B",
+   "Gauge",
+   "G",
+   "G Scale",
+   2247,
+   "GADHNKUAN6"
+  ],
+  [
+   "USA Trains G",
+   "R22600X",
+   "Gauge",
+   "G",
+   "G Scale",
+   2248,
+   "BX2HJS89BH"
+  ],
+  [
+   "USA Trains G",
+   "R22604",
+   "Gauge",
+   "G",
+   "G Scale",
+   2249,
+   "SSNWTBES59"
+  ],
+  [
+   "USA Trains G",
+   "R22622",
+   "Gauge",
+   "G",
+   "G Scale",
+   2250,
+   "U9VX9G5MSG"
+  ],
+  [
+   "USA Trains G",
+   "RPHC-3-SUN",
+   "Gauge",
+   "G",
+   "G Scale",
+   2251,
+   "H3VUGPNRQP"
+  ]
+ ]
+}
