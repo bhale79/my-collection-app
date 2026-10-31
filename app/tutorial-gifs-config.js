@@ -37,6 +37,8 @@ const TUTORIAL_GIFS = {
   sections: [
     { id: 'adding',  title: 'Adding to your collection' },
     { id: 'selling', title: 'Selling and sharing' },
+    { id: 'reports', title: 'Reports' },
+    { id: 'help',    title: 'Getting help' },
   ],
 
   demos: [
@@ -55,6 +57,15 @@ const TUTORIAL_GIFS = {
     { id: 'share-for-sale',    section: 'selling', file: 'share-for-sale',    length: '1:32',
       title: 'Share your for-sale list',
       description: 'Pick the items, choose what to show, and email them as picture cards.' },
+    { id: 'already-own-check', section: 'adding',  file: 'already-own-check', length: '0:31',
+      title: 'See if you already own it',
+      description: 'Start adding a number you already have, and the app shows you the one in your collection.' },
+    { id: 'reports-overview',  section: 'reports', file: 'reports-overview',  length: '1:14',
+      title: 'The Reports page',
+      description: 'An insurance list and show lists ready to print or save as a PDF, and your own custom reports.' },
+    { id: 'report-a-problem',  section: 'help',    file: 'report-a-problem',  length: '1:17',
+      title: 'Report a problem',
+      description: 'Tell us what went wrong, add screenshots, and see exactly what is sent before you send it.' },
   ],
 };
 
