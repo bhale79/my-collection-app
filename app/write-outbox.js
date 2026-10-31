@@ -628,8 +628,17 @@
     if (!parts.length) return '';
     return parts.map(function (t) { return _rrAfter() + t.charAt(0).toLowerCase() + t.slice(1); }).join('');
   }
+  // v0.9.2072: a plain notice that must survive the save's own "✓ saved" toast
+  // (the inbox photos that stayed in the inbox) — shown now and carried onto
+  // the end of the next ordinary message, exactly like rrSaveMissed.
+  function rrSaveNotice(text) {
+    if (!text) return;
+    _rrCarryPush(text);
+    if (typeof showToast === 'function') showToast(String(text), 7000, true);
+  }
   window.rrPhotoMissed = rrPhotoMissed;
   window.rrSaveMissed = rrSaveMissed;
+  window.rrSaveNotice = rrSaveNotice;
   window.rrSaveCarryTake = rrSaveCarryTake;
 
   // ── v0.9.1409 — a write that SUCCEEDED makes a queued write to the same

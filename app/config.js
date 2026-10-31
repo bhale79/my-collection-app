@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2079';
+const APP_VERSION = 'v0.9.2080';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -4047,6 +4047,17 @@ const RR_PHOTO_MISSED = {
   after: ' But ',
 };
 if (typeof window !== 'undefined') window.RR_PHOTO_MISSED = RR_PHOTO_MISSED;
+// v0.9.2072 (PLAN_2026-10-30_INBOX_PAPER_SAVES.md): photos an add brought from the
+// Photo Inbox that could not go with the item (offline, or a move that failed)
+// stay in the inbox — said on the end of the save's own "saved" message, the
+// same way RR_PHOTO_MISSED is. {n} is the count.
+const RR_INBOX_PHOTOS_STAYED = {
+  offlineOne:  'Its photo from the Photo Inbox stayed in the inbox — you’re offline. Nothing was lost.',
+  offlineMany: 'Its {n} photos from the Photo Inbox stayed in the inbox — you’re offline. Nothing was lost.',
+  failedOne:   '1 photo from the Photo Inbox could not be moved and stayed in the inbox. Nothing was lost.',
+  failedMany:  '{n} photos from the Photo Inbox could not be moved and stayed in the inbox. Nothing was lost.'
+};
+if (typeof window !== 'undefined') window.RR_INBOX_PHOTOS_STAYED = RR_INBOX_PHOTOS_STAYED;
 const RR_MASTER_CARTON = 'Master Carton / Outside Shipper';
 function rrTypeWord(t) { return String(t || '') === 'Master Carton' ? RR_MASTER_CARTON : String(t || ''); }
 if (typeof window !== 'undefined') { window.RR_MASTER_CARTON = RR_MASTER_CARTON; window.rrTypeWord = rrTypeWord; }

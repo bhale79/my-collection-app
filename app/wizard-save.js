@@ -197,6 +197,43 @@ function _rrAddToGroupRepaint(d) {
   } catch (e) {}
 }
 
+// ══ v0.9.2072 — INBOX PHOTOS FOR A ROW OUTSIDE THE COLLECTION TAB ══════════
+// PLAN_2026-10-30_INBOX_PAPER_SAVES.md. An add that started in the Photo Inbox
+// holds its photos until a save arms them, and the background mover then files
+// them into the saved row — but it only reads the Collection. A paper Catalog
+// and a Science / Construction Set save to their OWN tabs, so their inbox
+// photos never moved. These saves file the held photos themselves, in two
+// steps so a failed save never strands a photo outside the inbox:
+//   _rrInboxPhotosPrep  BEFORE the row is written: the folder the item's photos
+//                       live in (folderFn gives its id; called only when there
+//                       is something to file and a connection) — its link goes
+//                       on the row when the row has none of its own.
+//   _rrInboxPhotosFile  AFTER the row is saved: the photos move there, the hold
+//                       is let go, and anything that could not move stays in
+//                       the Photo Inbox and is SAID (RR_INBOX_PHOTOS_STAYED).
+function _rrInboxHoldIds(d) {
+  if (!d || !d._pinStagedNum) return [];
+  return (d._addPhotoDriveIds && d._addPhotoDriveIds.length) ? d._addPhotoDriveIds : (d._addPhotoDriveId ? [d._addPhotoDriveId] : []);
+}
+async function _rrInboxPhotosPrep(d, folderFn) {
+  const ids = _rrInboxHoldIds(d);
+  if (!ids.length || typeof rrPinFileHoldNow !== 'function') return null;
+  const offline = !!(window._offlineMode || (typeof navigator !== 'undefined' && navigator.onLine === false));
+  let fid = '';
+  if (!offline) { try { fid = await folderFn(); } catch (eF) { console.warn('[Save] inbox photo folder:', eF); fid = ''; } }
+  return { ids: ids, fid: fid || '', link: (fid && typeof driveFolderLink === 'function') ? driveFolderLink(fid) : '' };
+}
+async function _rrInboxPhotosFile(d, prep, num) {
+  if (!prep) return;
+  const r = await rrPinFileHoldNow(d._pinStagedNum, prep.ids, prep.fid, num);
+  const left = (r && r.total) ? (r.total - r.moved) : 0;
+  if (left > 0 && typeof rrSaveNotice === 'function' && typeof RR_INBOX_PHOTOS_STAYED !== 'undefined') {
+    const W = RR_INBOX_PHOTOS_STAYED;
+    const t = r.offline ? (left === 1 ? W.offlineOne : W.offlineMany) : (left === 1 ? W.failedOne : W.failedMany);
+    rrSaveNotice(t.split('{n}').join(String(left)));
+  }
+}
+
 function _stampSaved(obj) {
   if (obj && typeof obj === 'object') obj._savedAt = Date.now();
   return obj;
@@ -743,6 +780,18 @@ async function saveInstructionSheet() {
       inventoryId: isStandaloneInvId, groupId: resolvedGroupId || '',
     });
     _stampSaved(state.personalData[isStandaloneInvId]);
+    // v0.9.2072 (PLAN_2026-10-30_INBOX_PAPER_SAVES.md): an Instruction Sheet is a
+    // Collection row like a train, so an add from the Photo Inbox hands its
+    // photos over the same way: hold checked, re-keyed to the sheet's number,
+    // armed — the background mover files them into this row. It never did.
+    try {
+      if (d._pinStagedNum) {
+        if (typeof rrPinEnsureStaged === 'function')
+          rrPinEnsureStaged(d._pinStagedNum, (d._addPhotoDriveIds && d._addPhotoDriveIds.length) ? d._addPhotoDriveIds : [d._addPhotoDriveId]);
+        if (typeof rrPinRekeyStaged === 'function') rrPinRekeyStaged(d._pinStagedNum, _isItemNum);
+        if (typeof rrPinSetPhotoSaved === 'function') rrPinSetPhotoSaved(_isItemNum);
+      }
+    } catch (ePhIS) {}
     showToast('✓ Instruction Sheet ' + (sheetNum || _isItemNum) + ' saved!');
     d._saveComplete = true;   // v0.9.689: closeWizard's discard-guard must not fire after a real save
     closeWizard();
@@ -809,6 +858,13 @@ async function _saveCatalogFromPaper() {
     if (_upl) photoFolderLink = _upl;
   }
 
+  // v0.9.2072: photos this add brought from the Photo Inbox go into the same
+  // per-number folder (the Catalogs tab is never read by the background mover):
+  // the folder now, the move once the row is saved; the row points at the folder
+  // when it had no link of its own.
+  const _inboxCat = await _rrInboxPhotosPrep(d, async function () { await driveEnsureSetup(); return driveEnsureItemFolder(itemNum); });
+  if (!photoFolderLink && _inboxCat && _inboxCat.link) photoFolderLink = _inboxCat.link;
+
   // Build row matching Catalogs tab layout: ItemID, Type, Year, HasMailer, Condition, PricePaid, EstValue, DateAcq, Notes, PhotoLink
   const row = [
     itemNum,
@@ -825,6 +881,7 @@ async function _saveCatalogFromPaper() {
   try {
     await ensureEphemeraSheets(state.personalSheetId);
     await sheetsAppend(state.personalSheetId, 'Catalogs!A:J', [row]);
+    await _rrInboxPhotosFile(d, _inboxCat, itemNum);   // v0.9.2072: the row is saved — now the photos move
     // Reload catalog data from sheet
     if (!state.ephemeraData) state.ephemeraData = {};
     if (!state.ephemeraData.catalogs) state.ephemeraData.catalogs = {};
@@ -863,6 +920,7 @@ async function _saveCatalogFromPaper() {
       _stampSaved(state.ephemeraData.catalogs[newKey]);
     }
     showToast('✓ ' + title + ' saved!');
+    d._saveComplete = true;   // v0.9.2072: a real save — the close must not treat it as abandoned
     _doCloseWizard();
     buildDashboard();
     populateFilters();
@@ -1294,6 +1352,17 @@ async function _saveScienceConstructionItem(sheetTabName, stateKey) {
     } catch(e) { rrPhotoMissed(e, 'item photo folder', _pTotal - _pTried); }
   }
 
+  // v0.9.2072: photos this add brought from the Photo Inbox go into this
+  // item's folder (the Science / Construction tabs are never read by the
+  // background mover): the folder now, the move once the row is saved; the row
+  // points at it when it had no link.
+  const _inboxSc = await _rrInboxPhotosPrep(d, async function () {
+    await driveEnsureSetup();
+    if (!driveCache.vaultId) driveCache.vaultId = await driveFindOrCreateFolder('The Rail Roster - My Collection', 'root');
+    return driveFindOrCreateFolder(itemNum + ' ' + (description || sheetTabName).substring(0, 40), driveCache.vaultId);
+  });
+  if (!photoLink && _inboxSc && _inboxSc.link) photoLink = _inboxSc.link;
+
   const row = [
     itemNum,           // A: Item Number
     variation,         // B: Variation
@@ -1314,6 +1383,7 @@ async function _saveScienceConstructionItem(sheetTabName, stateKey) {
 
   await ensureEphemeraSheets(state.personalSheetId);
   await sheetsAppend(state.personalSheetId, sheetTabName + '!A:O', [row]);
+  await _rrInboxPhotosFile(d, _inboxSc, itemNum);   // v0.9.2072: the row is saved — now the photos move
 
   // Update local state
   const newKey = Date.now();

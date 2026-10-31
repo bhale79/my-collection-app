@@ -149,7 +149,9 @@ ok('S1 closing an unsaved set add lets go of its holds', /!_wd\._saveComplete &&
 ok('S2 "Yes, Delete All" on a part-saved set lets go of its armed notes too', /rrRemoveSetGroup\(groupId\);[\s\S]{0,500}rrPinReleaseSetHolds\(wizard\.data\._pinSetStagedFiles, true\)/.test(grab(WZ, 'async function _confirmSetCancel()')));
 const manual = grab(WS, 'async function _saveManualEntry()');
 ok('S3 the HAND-MADE save checks, re-keys and ARMS the inbox hold (Mike\'s first report)', /rrPinEnsureStaged\(d\._pinStagedNum[\s\S]{0,300}rrPinRekeyStaged\(d\._pinStagedNum, displayId\)[\s\S]{0,120}rrPinSetPhotoSaved\(displayId\)/.test(manual));
-ok('S4 the catalog and paper saves run the safety net before arming', (WS.match(/rrPinEnsureStaged\(d\._pinStagedNum/g) || []).length === 3);
+// v0.9.2072: was a COUNT of 3 — the Instruction Sheet save joined, so each save is named instead
+const _netFirst = h => /rrPinEnsureStaged\(d\._pinStagedNum[\s\S]*?rrPinSetPhotoSaved\(/.test(grab(WS, h));
+ok('S4 every Collection save that arms the inbox hold runs the safety net first', ['async function saveWizardItem()', 'async function saveEphemeraItem()', 'async function _saveManualEntry()', 'async function saveInstructionSheet()'].every(_netFirst));
 ok('S5 the set add tells its Add screen which holds are its own', /_pinSetStagedNums: Object\.keys\(stage0 \|\| \{\}\), _pinSetStagedFiles: _setHoldIds/.test(TOOLS));
 ok('S6 every hold the inbox writes carries its opening (single, no-number, set, and the safety net\'s)', /stage1\[num\] = _pinHoldMark\(\{ link: link/.test(TOOLS) && /stage\[key\] = _pinHoldMark\(\{ link: ''/.test(TOOLS) && /stage0\[n1\] = _pinHoldMark\(\{ link: ''/.test(TOOLS) && /stage\[k\] = _pinHoldMark\(\{ link: ''/.test(TOOLS));
 const CARRY = (CFG.match(/const RR_INBOX_CARRY_KEYS = \[([\s\S]*?)\];/) || [])[1] || '';

@@ -57,7 +57,8 @@ async function open(b, o, keepHolds) {
       yearProd: '2011', variation: v, varDesc: vd, _era: 'mth_o', _tab: 'MTH O', manufacturer: 'MTH', category: 'Premier' });
     const R = [mk('1', 'Hi-Rail Wheels / w/Proto-Sound 3.0', 'Dash-8 Diesel Engine'), mk('2', 'Scale Wheels / w/Proto-Sound 3.0', 'Dash-8 Diesel Engine'),
                mk('3', 'w/Proto-Sound 3.0', 'Dash-8 Diesel Engine (Non-Powered)'),
-               { itemNum: '1303', itemType: 'Accessory', roadName: '', description: 'Girder Bridge', gauge: 'O', variation: '1', _era: 'atlas', _tab: 'Atlas O', manufacturer: 'Atlas' }];
+               { itemNum: '1303', itemType: 'Accessory', roadName: '', description: 'Girder Bridge', gauge: 'O', variation: '1', _era: 'atlas', _tab: 'Atlas O', manufacturer: 'Atlas' }]
+              .concat(o.extraRows || []);   // v0.9.2072: a road may bring its own catalog rows (a Science Set)
     const idx = new Map(); state.masterData.concat(R).forEach(r => { const k = r.itemNum; if (!idx.has(k)) idx.set(k, []); idx.get(k).push(r); });
     if (o.catalog !== 'loading') {
       // the full-catalog index is complete (the normal state a few seconds after start)

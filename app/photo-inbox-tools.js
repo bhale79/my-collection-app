@@ -2338,6 +2338,78 @@
     });
   }
 
+  // ══ v0.9.2072 — THE ONE MOVER ══════════════════════════════════════════════
+  // A photo note's files go from the inbox folder into an item's folder, each
+  // renamed the way every filed inbox photo is named: "<number> RSV|SET|ADD
+  // <time>.<ext>". It used to live inside _flushPending only; the saves whose
+  // rows live OUTSIDE the Collection tab (a paper Catalog, a Science or
+  // Construction Set — PLAN_2026-10-30_INBOX_PAPER_SAVES.md) file their inbox
+  // photos at save time through rrPinFileHoldNow, and both use THIS loop.
+  // Returns { moved, failed }; a file that cannot move stays in the inbox.
+  async function _pinMoveNoteFiles(rec, num) {
+    var mv = 0, moved = 0, failed = 0;
+    for (var fi = 0; fi < rec.files.length; fi++) {
+      var file = rec.files[fi]; mv++;
+      var ext = (String(file.name || '').split('.').pop() || 'jpg').toLowerCase().slice(0, 5);
+      try {
+        await driveMoveFileToFolder(file.id, rec.fromFid, rec.toFid);
+        moved++;
+        // v0.9.935 (Brad): the photo shown in the wizard's RSV slot files as
+        // the Right Side View, so detail pages/thumbnails treat it as primary.
+        // v0.9.1565: the group's together-shot files with the lead as its
+        // SET photo — the detail hero looks for the literal token ' SET '
+        // (app-collection isSet()), and ' ADD ' made inbox-filed set
+        // photos invisible to it. Role rides on the note since v1562.
+        var _fRole = String((file && file.role) || '');
+        var _vTag = (rec.rsvFid && file.id === rec.rsvFid) ? ' RSV '
+                  : (_fRole === 'together' ? ' SET ' : ' ADD ');
+        try { await driveRequest('PATCH', '/files/' + file.id, { name: num + _vTag + ((rec.ts || new Date().getTime()) + mv) + '.' + ext }); } catch (eRn) {}
+      } catch (eMv) { failed++; console.warn('[Inbox] photo move skipped (removed?):', file.id, eMv); }
+    }
+    return { moved: moved, failed: failed };
+  }
+  // ── v0.9.2072: file an Add screen's held inbox photos NOW, into toFid ──────
+  // For a save whose row the background mover can never find (it reads the
+  // Collection only). key / fileIds = the Add screen's hold (_pinStagedNum,
+  // _addPhotoDriveIds); num = the number the item saved under. The hold is let
+  // go either way — moved photos left the inbox, the rest stay there and are
+  // free. Offline (or no folder) nothing moves and every photo stays in the
+  // inbox. Returns { total, moved, failed, offline }.
+  window.rrPinFileHoldNow = async function (key, fileIds, toFid, num) {
+    var out = { total: 0, moved: 0, failed: 0, offline: false };
+    try {
+      var k = String(key || '').trim();
+      var ids = (fileIds || []).filter(Boolean);
+      if (!k || !ids.length) return out;
+      if (typeof window.rrPinEnsureStaged === 'function') window.rrPinEnsureStaged(k, ids);
+      var stage = JSON.parse(localStorage.getItem(SETSTAGE_KEY) || '{}');
+      var files = [], rsv = '', ts = 0, fromFid = '';
+      _pendList(stage[k]).forEach(function (rec) {
+        if (!rec || !rec.files || !rec.files.some(function (f) { return f && ids.indexOf(f.id) >= 0; })) return;
+        rec.files.forEach(function (f) { if (f && f.id && !files.some(function (g) { return g.id === f.id; })) files.push(f); });
+        rsv = rsv || rec.rsvFid || ''; ts = ts || rec.ts || 0; fromFid = fromFid || rec.fromFid || '';
+      });
+      out.total = files.length;
+      if (!files.length) return out;
+      if (_pinOffline() || !toFid) {
+        // offline = no connection; online with no folder = Drive refused it.
+        // Either way nothing moves; the message says which.
+        out.offline = _pinOffline(); out.failed = files.length;
+      } else {
+        if (!fromFid) fromFid = await _folder();
+        var r = await _pinMoveNoteFiles({ files: files, fromFid: fromFid, toFid: toFid, rsvFid: rsv, ts: ts }, String(num || k));
+        out.moved = r.moved; out.failed = r.failed;
+      }
+      if (typeof window.rrPinDropStaged === 'function') window.rrPinDropStaged(k, ids);
+      try { _pinRefresh(); } catch (eR) {}
+    } catch (e) {
+      console.warn('[Inbox] filing the held photos failed — they stay in the inbox:', e && e.message);
+      out.failed = out.total - out.moved;
+      try { if (typeof window.rrPinDropStaged === 'function') window.rrPinDropStaged(key, fileIds); } catch (eD) {}
+    }
+    return out;
+  };
+
   async function _flushPending() {
     try { _pinSweepStaleClaims(); } catch (eSw) {}
     var pend;
@@ -2451,24 +2523,7 @@
         // so the retry introduced below re-tries ONLY the sheet write. Without
         // it, holding the note back would re-walk every file on every build.
         if (rec && typeof rec === 'object' && !rec.moved && rec.files && rec.files.length && rec.fromFid && rec.toFid) {
-          var mv = 0;
-          for (var fi = 0; fi < rec.files.length; fi++) {
-            var file = rec.files[fi]; mv++;
-            var ext = (String(file.name || '').split('.').pop() || 'jpg').toLowerCase().slice(0, 5);
-            try {
-              await driveMoveFileToFolder(file.id, rec.fromFid, rec.toFid);
-              // v0.9.935 (Brad): the photo shown in the wizard's RSV slot files as
-              // the Right Side View, so detail pages/thumbnails treat it as primary.
-              // v0.9.1565: the group's together-shot files with the lead as its
-              // SET photo — the detail hero looks for the literal token ' SET '
-              // (app-collection isSet()), and ' ADD ' made inbox-filed set
-              // photos invisible to it. Role rides on the note since v1562.
-              var _fRole = String((file && file.role) || '');
-              var _vTag = (rec.rsvFid && file.id === rec.rsvFid) ? ' RSV '
-                        : (_fRole === 'together' ? ' SET ' : ' ADD ');
-              try { await driveRequest('PATCH', '/files/' + file.id, { name: num + _vTag + ((rec.ts || new Date().getTime()) + mv) + '.' + ext }); } catch (eRn) {}
-            } catch (eMv) { console.warn('[Inbox] deferred photo move skipped (removed?):', file.id, eMv); }
-          }
+          await _pinMoveNoteFiles(rec, num);   // v0.9.2072: the ONE mover (also used by rrPinFileHoldNow)
           // Remember the move survived, so a held-back note never repeats it.
           rec.moved = true;
           try {
