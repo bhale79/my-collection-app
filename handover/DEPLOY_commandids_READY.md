@@ -37,7 +37,17 @@ Tests (new): `tests/command_ids_tests.js` (Node, 45 checks incl. 9 planted offen
 Tests (pins updated for the three new end columns / one more script / the import loop's new shape / the vat-car line): `photo-inbox-tests.js`, `row_id_collection_tests.js`, `scan_shelve_2020_tests.js`, `subtype_tracking_tests.js`, `vat_car_tests.js`.
 
 ## Test results
-GATE_RESULTS_PLACEHOLDER
+One full run of the final app/ and tests/ files: `node tests/run-all.js --all --receipt handover/receipt_commandids.json`
+(receipt in this folder: tier **full+browser**, 368 suites, nothing changed during the run).
+
+- **363 green, 5 red.** The receipt therefore says **NOT passed**. None of the five reds comes from this change:
+  - `photo_closer_1950_tests.js`, `photo_choices_1951_tests.js`, `picture_box_1955_tests.js`: the photo number reader needs an online text-reading engine, and this cloud machine's network blocks it. All three fail **the same way on a clean copy of main 57a00ff** (checked).
+  - `safari-walk.js`: Safari's engine (WebKit) could not be downloaded here (network blocked). It fails the same way on clean main (checked).
+  - `site_files_tests.js`: the new `handover/` folder had to be listed as private in `.github/site-files.txt`. That line was added after the run and this suite now passes (18/18). The file is outside app/ and tests/, so the receipt's fingerprints still match.
+- The new suites: command_ids_tests 45/45, command_ids_page_tests 43/43 (computer + iPhone), command_ids_add_report_tests 22/22. Every planted offender turns its own check red.
+- All 201 quick-tier suites are green.
+
+**For the shipping chat:** app.js and wizard-save.js are core files. On Brad's PC, where the photo reader and WebKit work, run the full gate once (`node tests/run-all.js --all --receipt …`) to get a PASSED receipt before shipping.
 
 ## Brad to try by hand (after it ships — one TEST_QUEUE line)
 1. Open a real Modern engine → tap "＋ Add command ID" → type your TMCC number → Save. The number shows big.
