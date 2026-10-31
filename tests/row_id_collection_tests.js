@@ -133,7 +133,7 @@ async function run(browser, planted) {
   T('B1 Collection by Type: the motor car and the A unit are engines, the two boxcars freight',
     o.breakdown && o.breakdown.Engines === 2 && o.breakdown.Freight === 2 && o.breakdown.Other === 0, o.breakdown);
   console.log('\n== C · saving ==');
-  T('C1 Master Row ID was appended at the END (column rule) — only later appends follow it (v2020: Sticker Code)', o.save.rowIdHeader === 'Master Row ID' && o.save.afterRowId === 'stickerCode' && o.save.lastField === 'stickerCode', o.save);
+  T('C1 Master Row ID was appended at the END (column rule) — only later appends follow it (v2020: Sticker Code)', o.save.rowIdHeader === 'Master Row ID' && o.save.afterRowId === 'stickerCode,transferredTo,transferredFrom' && o.save.lastField === 'transferredFrom', o.save);   // v2077: Transferred To / From (TRR Pro release 6) appended after Sticker Code
   T('C2 a save that knows the row writes its Row ID — and the catalog description follows the ID',
     o.save.idGiven === 'BBBBBBBBBB' && o.save.descFollowsId === 'Box Car (O gauge)' && o.save.keyGiven === 'prewar|800|', o.save);
   T('C3 a stored key with no ID records the row the app shows today (the first — the motor car)', o.save.keyOnly === 'MMMMMMMMMM', o.save);

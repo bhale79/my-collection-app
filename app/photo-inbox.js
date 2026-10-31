@@ -340,6 +340,7 @@
           '<span id="pin-selinfo" style="font-size:0.78rem;color:var(--text-dim)"></span>' +
           '<button id="pin-idsel-btn" onclick="_pinIdentifySelected()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Read these</button>' +
           '<button id="pin-assign-btn" onclick="_pinReview(null)" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Combine \u2192 one item\u2026</button>' +
+          '<button id="pin-coll-btn" onclick="rrInboxRetagOpen()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">' + ((typeof rrInboxWord === 'function') ? rrInboxWord('retagBtn') : 'Collection') + '</button>' +   // v0.9.2077 (the word is the app's own, RR_COLL_MOVE)
           '<button id="pin-discard-btn" onclick="_pinDiscard()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--t-red);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Discard</button>' +
           // v0.9.1352 (Brad): the Reader audit is gone, which left a \u22ef menu
           // holding one row. Refresh is now a plain button. FOUR status
@@ -474,7 +475,7 @@
   // items off a wall the fast way through is not photo by photo — it is "show
   // me the forty it was confident about" and rubber-stamp them, then "show me
   // the ones it could not read" and do those properly.
-  var _pinFilter = { status: '', era: '', kind: '' };
+  var _pinFilter = { status: '', era: '', kind: '', coll: '' };   // coll: v0.9.2077
 
   function _pinStatusOf(f) {
     var m = (f && f._meta) || {};
@@ -782,24 +783,26 @@
     if (_pinFilter.status && _pinStatusOf(f) !== _pinFilter.status) return false;
     if (_pinFilter.era && m.era !== _pinFilter.era) return false;
     if (_pinFilter.kind && (m.kind || 'single') !== _pinFilter.kind) return false;
+    if (_pinFilter.coll && (m.coll || '-') !== _pinFilter.coll) return false;   // v0.9.2077: '-' = no collection
     return true;
   }
   function _pinVisibleGroups() {
-    if (!_pinFilter.status && !_pinFilter.era && !_pinFilter.kind) return PIN._groups;
+    if (!_pinFilterActive()) return PIN._groups;
     return PIN._groups.filter(_pinGroupPasses);
   }
-  function _pinFilterActive() { return !!(_pinFilter.status || _pinFilter.era || _pinFilter.kind); }
+  function _pinFilterActive() { return !!(_pinFilter.status || _pinFilter.era || _pinFilter.kind || _pinFilter.coll); }
 
   // Counts so a chip can say what is behind it before you tap.
   function _pinCounts() {
-    var st = {}, era = {}, kind = {};
+    var st = {}, era = {}, kind = {}, coll = {};
     PIN._groups.forEach(function (g) {
       var f = _pinReadFile(g) || g.files[0], m = (f && f._meta) || {};
       var s2 = _pinStatusOf(f); st[s2] = (st[s2] || 0) + 1;
       if (m.era) era[m.era] = (era[m.era] || 0) + 1;
       var k = m.kind || 'single'; kind[k] = (kind[k] || 0) + 1;
+      var c = m.coll || '-'; coll[c] = (coll[c] || 0) + 1;   // v0.9.2077
     });
-    return { status: st, era: era, kind: kind };
+    return { status: st, era: era, kind: kind, coll: coll };
   }
 
   window._pinSetFilter = function (which, val) {
@@ -807,7 +810,7 @@
     _render();
   };
   window._pinClearFilters = function () {
-    _pinFilter = { status: '', era: '', kind: '' };
+    _pinFilter = { status: '', era: '', kind: '', coll: '' };
     _render();
   };
   if (typeof window !== 'undefined') {
@@ -842,6 +845,11 @@
     if (opts.length > before) { groups.push('<optgroup label="Maker &amp; era">' + opts.slice(before).join('') + '</optgroup>'); before = opts.length; }
     Object.keys(c.kind).forEach(function (k) { if (k !== 'single') opt('kind', k, _pinKindLabel(k), c.kind[k]); });
     if (opts.length > before) { groups.push('<optgroup label="Groups">' + opts.slice(before).join('') + '</optgroup>'); before = opts.length; }
+    // v0.9.2077 (TRR Pro release 6): by collection — only when there is more than one
+    if (typeof rrInboxCollOn === 'function' && rrInboxCollOn()) {
+      Object.keys(c.coll).forEach(function (k) { opt('coll', k, rrInboxCollLabel(k === '-' ? '' : k), c.coll[k]); });
+      if (opts.length > before) { groups.push('<optgroup label="' + rrEsc(rrInboxWord('filterGroup')) + '">' + opts.slice(before).join('') + '</optgroup>'); before = opts.length; }
+    }
     if (!groups.length) { el.style.display = 'none'; return; }
     var active = _pinFilterActive();
     el.style.cssText = 'display:inline-flex;align-items:center;gap:0.3rem';
@@ -1455,6 +1463,9 @@
       // forth"): the photo's place in its group, written when he drags. 0
       // means never ordered — listing order stands, as it always has.
       ord:  parseInt(ap.rrOrd, 10) || 0,
+      // v0.9.2077 (TRR Pro release 6): which COLLECTION the photo is for —
+      // stamped when it is added (drive.js, collections-inbox.js); '' = none.
+      coll: ap.rrColl || '',
     };
     // Filename fallback — but NEVER for a photo the user explicitly split apart.
     // Quick Capture names phone photos "INBOX 3 g<id> …", so before v0.9.1132
@@ -1473,7 +1484,7 @@
   // and deletes any whose value is null, so only what changed goes over.
   async function _pinMetaSet(fileId, patch) {
     if (!fileId || !patch) return false;
-    var map = { era:'rrEra', grp:'rrGrp', kind:'rrKind', role:'rrRole', type:'rrType', num:'rrNum', stat:'rrStat', conf:'rrConf', ord:'rrOrd', view:'rrView', rt:'rrRt', rej:'rrRej', crop:'rrCrop' };   // ord: v0.9.1283, drag order · type: v0.9.1297 · view: v0.9.1433
+    var map = { era:'rrEra', grp:'rrGrp', kind:'rrKind', role:'rrRole', type:'rrType', num:'rrNum', stat:'rrStat', conf:'rrConf', ord:'rrOrd', view:'rrView', rt:'rrRt', rej:'rrRej', crop:'rrCrop', coll:'rrColl' };   // coll: v0.9.2077   // ord: v0.9.1283, drag order · type: v0.9.1297 · view: v0.9.1433
     var props = { rrV: _PIN_META_V };
     Object.keys(patch).forEach(function (k) {
       if (!map[k]) return;

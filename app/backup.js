@@ -108,8 +108,12 @@ async function _backupGetFolderId() {
 // ── 4. PUBLIC API ─────────────────────────────────────────────
 
 // Manual snapshot. Returns { id, name } on success, throws on failure.
-async function backupCreate(label) {
-  if (!state || !state.personalSheetId) {
+// v0.9.2077: `sheetId` backs up a sheet that is NOT the open one (a move
+// writes into another collection's sheet; the Movement Log tab is added to
+// it). Left out = the open sheet, exactly as before.
+async function backupCreate(label, sheetId) {
+  const _sid = sheetId || (state && state.personalSheetId);
+  if (!state || !_sid) {
     throw new Error(BACKUP_UI_TEXT.notSignedIn);
   }
 
@@ -122,7 +126,7 @@ async function backupCreate(label) {
   // Drive's copy endpoint: POST /files/{id}/copy with metadata in body
   const copied = await driveRequest(
     'POST',
-    '/files/' + state.personalSheetId + '/copy?fields=id,name,createdTime,size',
+    '/files/' + _sid + '/copy?fields=id,name,createdTime,size',
     { name: name, parents: [folderId] }
   );
 
@@ -140,9 +144,9 @@ async function backupCreate(label) {
 
 // Auto snapshot — called by the app before destructive ops.
 // `reason` becomes part of the filename label, e.g. "before-import".
-async function backupCreateAuto(reason) {
+async function backupCreateAuto(reason, sheetId) {
   const label = BACKUP_UI_TEXT.autoLabelPrefix + (reason || 'unknown');
-  return backupCreate(label);
+  return backupCreate(label, sheetId);
 }
 
 // List all backups in the Backups folder, newest first.

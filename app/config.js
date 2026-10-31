@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2081';
+const APP_VERSION = 'v0.9.2082';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -3072,7 +3072,7 @@ const RR_MOVE_LOG = {
   note: 'Every move of an item, newest at the bottom. Lines are only ever added \u2014 never edit or delete them.',
   backupReason: 'before-movement-log',
   okKey: 'rr_movelog_sheets_v1',      // sheets on this device whose Movement Log is known to exist (so an offline move still queues its line)
-  how: { scan: 'Scan to Shelve', undo: 'Scan to Shelve \u2014 undo', check: 'Shelf check' },
+  how: { scan: 'Scan to Shelve', undo: 'Scan to Shelve \u2014 undo', check: 'Shelf check', transfer: 'Moved between collections' },   // transfer: v0.9.2077
   words: {
     history: 'Movement history',
     historyTitle: 'Where {item} has been',
@@ -3221,6 +3221,72 @@ var RR_COLL_UI = {
   },
 };
 if (typeof window !== 'undefined') window.RR_COLL_UI = RR_COLL_UI;
+
+// ── v0.9.2077 — TRR Pro RELEASE 6: MOVING ITEMS, LABELS THAT FOLLOW, THE
+// PHOTO INBOX TAG (PLAN_2026-10-30_TRR_PRO_R6.md; [stated] Brad 2026-10-30
+// 22:05 CT "yes"). On the same switch as Release 5 (RR_COLL_UI.feature).
+// Every word and setting here; the move itself is collections-move.js.
+var RR_COLL_MOVE = {
+  // the steps of one move, in order — a move remembers the step it does next
+  steps: ['start', 'added', 'checked', 'photos', 'marked', 'logged'],
+  backupReason: 'before-move',
+  markRe: /\[m:([A-Za-z0-9_-]+):([^\]]*)\]/,   // [m:<move>:<old inventory id>] — the move's own tag in the two columns + the log line
+  appCodeRe: /^RR1:I:/,                       // an app-printed item code (cleared on a move — the old label forwards)
+  words: {
+    moveBtn: 'Move to another collection\u2026',
+    title: 'Move to another collection',
+    pick: 'Move to which collection?',
+    one: '1 item',
+    pieces: '{n} pieces go together (the whole group)',
+    go: 'Move',
+    cancel: 'Cancel',
+    moving: 'Moving {n} to {label}\u2026',
+    done: 'Moved {n} to {label} (now {ids}).',
+    doneOne: 'Moved to {label} \u2014 now {ids}.',
+    failed: 'The move stopped part way. Nothing was lost \u2014 it is waiting under Unfinished moves in the Collections menu.',
+    finished: 'The move is finished.',
+    saleOff: '{label} has For Sale switched off. Move it and take it off your For Sale list?',
+    saleOffOk: 'Move and take it off For Sale',
+    none: 'There is no other collection to move to \u2014 make one first with + New collection.',
+    offline: 'Moving needs a connection \u2014 try again when you are back online.',
+    busy: 'A move is already running \u2014 wait for it to finish.',
+    nothing: 'Tick the items to move first.',
+    manyBtn: 'Move items\u2026',
+    manyTitle: 'Move items from {label}',
+    manySearch: 'Find an item',
+    next: 'Next',
+    unfinished: 'Unfinished moves ({n})',
+    finish: 'Finish',
+    unfinishedLine: '{n} from {from} to {to} \u2014 stopped at: {step}',
+    itemsN: '{n} items',
+    // what the move does NEXT from each remembered step (collections-move.js _STEP)
+    step: { start: 'adding to the new collection', added: 'checking what was added', checked: 'moving the photos',
+            photos: 'marking the old rows', marked: 'writing the Movement Log', logged: 'finishing' },
+    toMark: 'To {label} as {id} on {date} [m:{move}:{inv}]',
+    fromMark: 'From {label} as {id} on {date} [m:{move}:{inv}]',
+    logHow: 'Moved between collections',
+    // labels that follow the item (Scan to Shelve)
+    otherColl: 'This is {id} in {label}. Switch to {name}?',
+    switchTo: 'Switch to {name}',
+    moved: '{old} moved to {label} as {id}.',
+    movedGone: '{old} was moved out of this collection.',
+    openIt: 'Open it',
+    reprint: 'Print a new label',
+  },
+  inbox: {
+    home: 'My Collection',
+    none: 'No collection',
+    filterGroup: 'Collection',
+    retagBtn: 'Collection\u2026',
+    retagTitle: 'Which collection are these photos for?',
+    retagDone: '{n} photos are now in {label}.',
+    askTitle: 'Which collection is this photo for?',
+    switchAsk: 'This photo is for {label}. Switch to {name} to add it?',
+    switchBtn: 'Switch to {name}',
+    cancel: 'Cancel',
+  },
+};
+if (typeof window !== 'undefined') window.RR_COLL_MOVE = RR_COLL_MOVE;
 window.rrSavedLocations = function () {
   try {
     var raw = (typeof _prefGet === 'function') ? _prefGet(RR_LOCATIONS_KEY, '[]') : localStorage.getItem(RR_LOCATIONS_KEY);

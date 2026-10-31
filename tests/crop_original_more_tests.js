@@ -65,7 +65,8 @@ const RULES = {
     const c = code(pi);
     return /orig: \(file && file\._rrOriginal\) \|\| null, box: \(file && file\._rrCropBox\) \|\| null/.test(c)
       // v0.9.2030: the staged photo is rebuilt from stored bytes (_uf) before the upload
-      && /driveUploadFile\(_stageReattach\(r, (?:r\.blob|_uf)\), r\.name, fid\)/.test(c)
+      // v2077: a 4th argument may carry the photo's collection tag (TRR Pro release 6)
+      && /driveUploadFile\(_stageReattach\(r, (?:r\.blob|_uf)\), r\.name, fid(?:, [^)]*)?\)/.test(c)
       && /_stageReattach\(r, f\);[^\n]*\n\s*var link = await driveUploadItemPhoto\(f,/.test(c);
   },
   // every ✂ on a photo that lives in Drive opens the Drive-aware screen
@@ -108,7 +109,7 @@ T('OFFENDER 2: a writer that protects AFTER the write fails S2', swapped !== PC 
 T('OFFENDER 3: a DELETE in the writer fails S3', RULES.noDelete(PC.replace("if (r.ok) {", "if (r.ok) { await driveRequest('DELETE', '/files/' + fileId + '/revisions/r2');")) === false);
 T('OFFENDER 4: crop-first without the original fails S4', RULES.captureCarries(PC.replace("cropped._rrOriginal = file; cropped._rrCropBox = box || null;", "")) === false);
 T('OFFENDER 5: a creator that uploads the crop as the file fails S5', RULES.creatorsKeep(DRV.replace("if (file && file._rrOriginal) return _rrUploadKeepingOriginal(file, function (orig) { return driveUploadPhoto(orig, fileName, folderId); });   // v0.9.1872\n", "")) === false);
-T('OFFENDER 6: an offline store that drops the original fails S6', RULES.offlineCarries(PI.replace("driveUploadFile(_stageReattach(r, _uf), r.name, fid)", "driveUploadFile(_uf, r.name, fid)")) === false);
+T('OFFENDER 6: an offline store that drops the original fails S6', RULES.offlineCarries(PI.replace("driveUploadFile(_stageReattach(r, _uf), r.name, fid", "driveUploadFile(_uf, r.name, fid")) === false);   // v2077: the call carries a 4th argument now
 T('OFFENDER 7: an inbox crop that opens the plain screen fails S7', RULES.entryPoints(PC, PI.replace("await window._cropOpenDriveFile(fid, {", "await window._openCropper(fid, {"), AC) !== true);
 T('OFFENDER 8: a box kept as fractions fails S9', RULES.boxIsPixels(PC.replace("p.length !== 6", "p.length !== 5")) === false);
 

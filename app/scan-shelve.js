@@ -72,8 +72,11 @@ function _shItemKeyByCode(code) {
 // ── v0.9.2023: the app's own printed codes ─────────────────────────────────
 // A short tag of THIS collection's sheet, so a label printed for one collection
 // never names an item in another (inventory numbers repeat across sheets).
-function _shSheetTag() {
-  var id = String((state && state.personalSheetId) || ''), h = 2166136261;
+function _shSheetTag() { return _shSheetTagOf(state && state.personalSheetId); }
+// v0.9.2077: the tag of ANY collection's sheet — a label from another
+// collection is recognised, not just refused.
+function _shSheetTagOf(sheetId) {
+  var id = String(sheetId || ''), h = 2166136261;
   for (var i = 0; i < id.length; i++) { h ^= id.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
   return ('000000' + h.toString(36)).slice(-6);
 }
@@ -200,15 +203,51 @@ function rrStickerFind(code) {
   }
   if (app && app.kind === 'place' && app.loc) return { kind: 'place', place: { loc: app.loc, spot: app.spot || '' }, printed: true };
   if (app && app.kind === 'item') {
-    if (app.tag !== _shSheetTag()) return { kind: 'foreign', printed: true };
+    if (app.tag !== _shSheetTag()) {
+      // v0.9.2077 (TRR Pro release 6): another collection's label — say whose
+      var other = _shCollOfTag(app.tag);
+      if (other) return { kind: 'otherColl', coll: other, inv: app.inv, printed: true };
+      return { kind: 'foreign', printed: true };
+    }
     var pdAll = state.personalData || {};
     for (var ik in pdAll) { var ip = pdAll[ik]; if (ip && ip.owned && String(ip.inventoryId) === String(app.inv)) return { kind: 'item', key: ik, pd: ip, printed: true }; }
+    // v0.9.2077: moved to another collection — the old row says where
+    var moved = rrShelveMovedTo(app.inv);
+    if (moved) return moved;
     return { kind: 'missing', inv: app.inv, printed: true };
   }
   var key = _shItemKeyByCode(c);
   if (key) return { kind: 'item', key: key, pd: state.personalData[key] };
   var pl = rrStickerPlaces()[c];
   if (pl && pl.loc) return { kind: 'place', place: { loc: pl.loc, spot: pl.spot || '' } };
+  return null;
+}
+// v0.9.2077 — labels that follow the item ([stated] agreed 2026-10-28,
+// Section 5). Which registered collection a label's sheet tag belongs to.
+function _shCollOfTag(tag) {
+  if (!tag || typeof rrCollections !== 'function') return null;
+  var all = rrCollections();
+  for (var i = 0; i < all.length; i++) if (all[i] && all[i].sheetId && _shSheetTagOf(all[i].sheetId) === tag) return all[i];
+  return null;
+}
+// A copy moved out of THIS collection: where it went ({kind:'moved'}), from
+// the old row's "Transferred To" — "To 8 – Smith as 8-12 on 2026-10-31 [m:…]".
+// The full ID's number names the collection (numbers never change or repeat).
+function rrShelveMovedTo(inv) {
+  var tr = (state && state.transferredData) || {};
+  for (var k in tr) {
+    var p = tr[k];
+    if (!p || String(p.inventoryId) !== String(inv)) continue;
+    var m = String(p.transferredTo || '').match(/ as (\d+(?:-\d+)?) on \d{4}-\d{2}-\d{2} \[m:/);
+    var dest = null, newInv = '';
+    if (m && typeof rrParseFullId === 'function') {
+      var f = rrParseFullId(m[1]);
+      newInv = f.invId;
+      var all = (typeof rrCollections === 'function') ? rrCollections() : [];
+      dest = all.filter(function (c) { return f.number ? c.number === f.number : c.home; })[0] || null;
+    }
+    return { kind: 'moved', inv: String(inv), pd: p, dest: dest, newInv: newInv, printed: true };
+  }
   return null;
 }
 function rrStickerCodeForPlace(place) {
@@ -359,7 +398,8 @@ async function _shMoveEnsure(sid) {
       if (!meta || !Array.isArray(meta.sheets)) return false;           // a failed read is not "missing" — never create on a guess
       if (meta.sheets.some(function (sh) { return sh.properties && sh.properties.title === _SH_MOVE_TAB; })) { _shMoveRemember(sid); return true; }
       // the sheet is backed up BEFORE it gains a tab — no backup, no new tab
-      await backupCreateAuto(RR_MOVE_LOG.backupReason);
+      // (v0.9.2077: THIS sheet — a move adds the tab to a collection that is not open)
+      await backupCreateAuto(RR_MOVE_LOG.backupReason, sid);
       await _withTokenRetry(function () { return fetch('https://sheets.googleapis.com/v4/spreadsheets/' + sid + ':batchUpdate', {
         method: 'POST', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
         body: JSON.stringify({ requests: [{ addSheet: { properties: { title: _SH_MOVE_TAB, tabColor: { red: 0.36, green: 0.42, blue: 0.75 } } } }] })
@@ -383,13 +423,25 @@ function rrMoveLogRow(pd, from, to, how, when, who) {
           name(from), name(to), String(who || ''), (RR_MOVE_LOG.how[how] || RR_MOVE_LOG.how.scan)];
 }
 async function rrMoveLogAdd(pd, from, to, how) {
-  var sid = state.personalSheetId;
-  if (!sid || !pd) return false;
+  if (!pd) return false;
+  var who = (state.user && (state.user.email || state.user.name)) || '';
+  return rrMoveLogAddTo(state.personalSheetId, rrMoveLogRow(pd, from, to, how, new Date(), who));
+}
+// v0.9.2077: one line into ANY collection's Movement Log (a move between
+// collections writes a line on both sides). Still only ever ADDS a line.
+async function rrMoveLogAddTo(sid, line) {
+  if (!sid || !line) return false;
   var ok = _shMoveKnown(sid) || ((typeof _rrOfflineNow !== 'function' || !_rrOfflineNow()) && await _shMoveEnsure(sid));
   if (!ok) return false;
-  var who = (state.user && (state.user.email || state.user.name)) || '';
-  await sheetsAppend(sid, _SH_MOVE_TAB + '!A:H', [rrMoveLogRow(pd, from, to, how, new Date(), who)]);
+  await sheetsAppend(sid, _SH_MOVE_TAB + '!A:H', [line]);
   return true;
+}
+// v0.9.2077: the lines of a sheet's Movement Log (raw) — a move reads them to
+// never write its own line twice.
+async function rrMoveLogLines(sid) {
+  if (!sid) return [];
+  var res = await sheetsGet(sid, _SH_MOVE_TAB + '!A3:H');
+  return (res && res.values) || [];
 }
 // The item page's history: this copy's lines, newest first.
 async function rrMoveLogFor(pd) {
@@ -397,7 +449,7 @@ async function rrMoveLogFor(pd) {
   var inv = String(pd.inventoryId || '');
   var bare = function (v) { return String(v == null ? '' : v).replace(/^'/, '').trim(); };
   return ((res && res.values) || []).filter(function (r) { return inv && bare(r[1]) === inv; })
-    .map(function (r) { return { when: bare(r[0]), from: bare(r[4]), to: bare(r[5]), who: bare(r[6]), how: bare(r[7]) }; }).reverse();
+    .map(function (r) { return { when: bare(r[0]), from: bare(r[4]), to: bare(r[5]), who: bare(r[6]), how: bare(r[7]).replace(/\s*\[m:[^\]]*\]/, '') }; }).reverse();   // v0.9.2077: a move's own tag is not for reading
 }
 async function rrShelveHistory(key) {
   var pd = state.personalData[key]; if (!pd) return null;
@@ -565,6 +617,13 @@ async function rrShelveCode(code, opts) {
       return false;
     }
     var f = rrStickerFind(c);
+    // v0.9.2077: a label from another collection, or of a copy moved away —
+    // the shelf check only reports it; Scan to Shelve offers to follow it.
+    if (f && (f.kind === 'otherColl' || f.kind === 'moved')) {
+      if (mode.kind === 'check') { _shStatus(f.kind === 'moved' ? _shMovedWords(f) : _shW('foreign')); return false; }
+      _shFollow(f, c);
+      return false;
+    }
     if (f && f.kind === 'foreign') { _shStatus(_shW('foreign')); return false; }
     if (f && f.kind === 'missing') { _shStatus(_shW('missing', { inv: f.inv })); return false; }
     if (mode.kind === 'check') return _shCheckCode(f);      // v0.9.2041: never asks, never writes
@@ -582,6 +641,70 @@ async function rrShelveCode(code, opts) {
   } finally {
     if (_sh) _sh.busy = false;
   }
+}
+// v0.9.2077 — following a label to the collection it belongs to now.
+function _shMW(k, vars) {
+  var w = (typeof RR_COLL_MOVE !== 'undefined' && RR_COLL_MOVE.words && RR_COLL_MOVE.words[k]) || k;
+  Object.keys(vars || {}).forEach(function (v) { w = w.split('{' + v + '}').join(String(vars[v])); });
+  return w;
+}
+function _shCollLabel(c) {
+  if (!c) return '';
+  if (c.home) return (typeof RR_COLL_MOVE !== 'undefined' && RR_COLL_MOVE.inbox.home) || 'My Collection';
+  return (typeof rrCollectionLabel === 'function') ? rrCollectionLabel(c) : String(c.number);
+}
+function _shMovedWords(f) {
+  var here = (typeof rrFullId === 'function') ? rrFullId(f.inv) : f.inv;
+  if (!f.dest) return _shMW('movedGone', { old: here });
+  return _shMW('moved', { old: here, label: _shCollLabel(f.dest), id: (typeof rrFullId === 'function') ? rrFullId(f.newInv, f.dest) : f.newInv });
+}
+async function _shGoTo(coll) {
+  var cur = (typeof rrCurrentCollection === 'function') ? rrCurrentCollection() : null;
+  if (cur && coll && cur.key === coll.key) return true;
+  var go = (typeof rrCollSwitchTo === 'function') ? rrCollSwitchTo : null;
+  if (!go) return false;
+  var r = await go(coll.key, {});
+  return !!(r && r.ok);
+}
+function _shFollow(f, code) {
+  var mode = _sh && _sh.mode;
+  var close = function () { var d = document.getElementById('rr-shelve-ask'); if (d) d.remove(); };
+  if (f.kind === 'otherColl') {
+    var name = f.coll.home ? _shCollLabel(f.coll) : (f.coll.name || _shCollLabel(f.coll));
+    var d = _shDialog('<div style="font-size:0.95rem;line-height:1.45;margin:0.2rem 1.6rem 0.5rem 0">' +
+      _shEsc(_shMW('otherColl', { id: (typeof rrFullId === 'function') ? rrFullId(f.inv, f.coll) : f.inv, label: _shCollLabel(f.coll), name: name })) + '</div>' +
+      '<button data-sh-go style="' + _SH_BTN + ';font-weight:700">' + _shEsc(_shMW('switchTo', { name: name })) + '</button>');
+    d.querySelector('[data-sh-go]').addEventListener('click', async function () {
+      close(); rrShelveClose();
+      if (!(await _shGoTo(f.coll))) return;
+      rrShelveOpen(mode);                 // the same screen, in the label's collection…
+      try { await rrShelveCode(code); } catch (e) {}   // …and the label read again there
+    });
+    return;
+  }
+  var html = '<div style="font-size:0.95rem;line-height:1.45;margin:0.2rem 1.6rem 0.5rem 0">' + _shEsc(_shMovedWords(f)) + '</div>';
+  if (f.dest) {
+    html += '<button data-sh-open style="' + _SH_BTN + ';font-weight:700">' + _shEsc(_shMW('openIt')) + '</button>' +
+      '<button data-sh-print style="' + _SH_BTN + '">' + _shEsc(_shMW('reprint')) + '</button>';
+  }
+  var d2 = _shDialog(html);
+  var keyOf = function () {
+    var pd = state.personalData || {};
+    for (var k in pd) if (pd[k] && pd[k].owned && String(pd[k].inventoryId) === String(f.newInv)) return k;
+    return '';
+  };
+  var open = d2.querySelector('[data-sh-open]'), print = d2.querySelector('[data-sh-print]');
+  if (open) open.addEventListener('click', async function () {
+    close(); rrShelveClose();
+    if (!(await _shGoTo(f.dest))) return;
+    if (typeof _openOwnedByInvId === 'function') _openOwnedByInvId(f.newInv);
+  });
+  if (print) print.addEventListener('click', async function () {
+    close(); rrShelveClose();
+    if (!(await _shGoTo(f.dest))) return;
+    var k = keyOf();
+    if (k) rrShelvePrintOpen('items', [k]);
+  });
 }
 async function _shSavePair() {
   var key = _sh.item, place = _sh.place, pd = state.personalData[key];
@@ -1202,7 +1325,8 @@ if (typeof window !== 'undefined') {
     rrShelveLabelTpl: rrShelveLabelTpl, rrShelveSetLabelSize: rrShelveSetLabelSize,                 // v0.9.2041
     rrShelveItemsAt: rrShelveItemsAt, rrShelveWhatsHere: rrShelveWhatsHere,
     rrShelveCheckSort: rrShelveCheckSort, rrShelveCheckResult: rrShelveCheckResult,
-    rrMoveLogRow: rrMoveLogRow, rrMoveLogAdd: rrMoveLogAdd, rrMoveLogFor: rrMoveLogFor, rrShelveHistory: rrShelveHistory,
+    rrShelveMovedTo: rrShelveMovedTo, _shSheetTagOf: _shSheetTagOf,
+    rrMoveLogRow: rrMoveLogRow, rrMoveLogAdd: rrMoveLogAdd, rrMoveLogAddTo: rrMoveLogAddTo, rrMoveLogLines: rrMoveLogLines, rrMoveLogFor: rrMoveLogFor, rrShelveHistory: rrShelveHistory,
     rrPlaceIds: rrPlaceIds, rrPlaceIdFind: rrPlaceIdFind, rrPlaceIdFor: rrPlaceIdFor, rrPlaceById: rrPlaceById,   // v0.9.2058
     rrPlaceIdRetire: rrPlaceIdRetire, rrPlaceIdRename: rrPlaceIdRename,
   });

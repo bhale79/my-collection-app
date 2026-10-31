@@ -216,6 +216,16 @@ async function driveUploadFile(file, name, folderId, extraMeta) {
     else throw new Error('Not signed in — please sign in and try again');
   }
   const metadata = Object.assign({ name, parents: [folderId], mimeType: file.type }, extraMeta || {});
+  // v0.9.2077 (TRR Pro release 6): a Photo Inbox photo carries the collection
+  // it was added in — THE one place every inbox upload passes. A photo staged
+  // offline brings the collection it was taken in (photo-inbox-offline.js).
+  try {
+    if (/^INBOX /.test(String(name || '')) && typeof rrInboxUploadTag === 'function') {
+      const _ap = Object.assign({}, metadata.appProperties || {});
+      if (!_ap.rrColl) { const _t = rrInboxUploadTag(); if (_t) _ap.rrColl = _t; }
+      if (_ap.rrColl) metadata.appProperties = _ap;
+    }
+  } catch (eTag) {}
   const form = new FormData();
   form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
   form.append('file', file);

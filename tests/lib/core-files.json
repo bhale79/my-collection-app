@@ -14,7 +14,9 @@
     "app/vault.js",
     "app/scan-shelve.js",
     "app/collections.js",
-    "app/collections-ui.js"
+    "app/collections-ui.js",
+    "app/collections-move.js",
+    "app/collections-inbox.js"
   ],
   "mutable": [
     "tests/color-budget.json"

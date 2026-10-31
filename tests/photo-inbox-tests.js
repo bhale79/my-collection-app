@@ -7296,7 +7296,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // v2020: stickerCode (Sticker Code — Scan to Shelve) appended after masterRowId.
     ok('...appended at the END, never mid-schema',
        fields.slice(fields.indexOf('masterKey') + 1).join(',') ===
-         'eraPeriod,importBatch,yourGrade,yourDescription,locationDetail,shipper,subCollection,stockPhotoLink,masterRowId,stickerCode',
+         // v2077: transferredTo, transferredFrom (TRR Pro release 6 — moving items) appended after stickerCode.
+         'eraPeriod,importBatch,yourGrade,yourDescription,locationDetail,shipper,subCollection,stockPhotoLink,masterRowId,stickerCode,transferredTo,transferredFrom',
        fields.slice(fields.indexOf('masterKey') + 1).join(','));
 
     // The wizard passes the CONFIRMED match; buildPersonalRow has the fallback.
@@ -11039,9 +11040,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // v2020 88→89 (scan-shelve.js — Scan to Shelve, owners only).
       // v2038 89→90 (store-links.js — the last stop for every outgoing link, store codes; folded from the Trainz chat's v2039).
       // v2058 90→91 (collections.js — TRR Pro release 4, the collections foundation).
-      // v2071 91→92 (collections-ui.js).
-      ok('every ?v= mark in app/index.html matches it — all 92, none stale',
-         stamps.length === 92 && stamps.every(t => t === '?v=' + build),
+      // v2071 91→92 (collections-ui.js). v2077 92→94 (collections-move.js, collections-inbox.js).
+      ok('every ?v= mark in app/index.html matches it — all 94, none stale',
+         stamps.length === 94 && stamps.every(t => t === '?v=' + build),
          stamps.length + ' stamps; strays: ' + stamps.filter(t => t !== '?v=' + build).slice(0, 3).join(','));
       ok('the service worker cache name moved too (build + 10, the fixed offset)',
          new RegExp("const CACHE_NAME = 'mca-v" + (build + 10) + "';").test(rd('app/sw.js')),
@@ -11118,7 +11119,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
     // Run the REAL branch, sliced out of the file, against made-up rows.
     const start = src.indexOf("    const _invId = r[invIdCol] || '';");
-    const end   = src.indexOf('newPersonal[key] = rrPersonalRecordFromRow(r, rowNum);', start);   // v0.9.1941: the record itself is built by the one reader
+    const end   = src.indexOf('const _rec = rrPersonalRecordFromRow(r, rowNum);', start);   // v0.9.1941: the record itself is built by the one reader (v2077: held in _rec — a moved row goes aside)
     ok('the collision branch could be sliced out to run', start > 0 && end > start);
     const body = src.slice(start, end);
     const keyOf = new Function('r', 'rowNum', 'newPersonal', 'invIdCol', 'itemNumCol', 'varCol',

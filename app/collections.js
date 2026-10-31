@@ -233,9 +233,14 @@
     return w;
   }
   function rrWritesInFlight() { return _inFlight; }
+  // v0.9.2077: a move between collections is many writes with gaps between
+  // them — it HOLDS switching for its whole length (collections-move.js).
+  var _holds = 0;
+  function rrHoldSwitch(on) { _holds = Math.max(0, _holds + (on ? 1 : -1)); return _holds; }
   function rrSwitchQuiet(now, quietMs) {
     var t = (now == null) ? Date.now() : now;
     var q = (quietMs == null) ? (_C().quietMs || 1500) : quietMs;
+    if (_holds > 0) return false;
     if (_inFlight > 0) return false;
     if (_lastWriteEnd && t - _lastWriteEnd < q) return false;
     try { if (typeof root._rrBusyNow === 'function' && root._rrBusyNow()) return false; } catch (e) {}
@@ -243,7 +248,7 @@
   }
 
   var _switching = false;
-  var _STATE_LISTS = ['personalData', 'soldData', 'forSaleData', 'wantData', 'upgradeData', 'isData',
+  var _STATE_LISTS = ['personalData', 'transferredData', 'soldData', 'forSaleData', 'wantData', 'upgradeData', 'isData',
                       'scienceData', 'constructionData', 'mySetsData', 'partsData'];
   // contactsData is NOT here: Contacts always come from the HOME collection.
   function _emptyLists(st) {
@@ -339,6 +344,15 @@
     if (!sid || !(n > 0)) return;
     (_minted[sid] = _minted[sid] || {})[String(n)] = true;
   }
+  // v0.9.2077: a number handed out for a sheet that is NOT the open one (a move
+  // adds rows to another collection) — checked by the same guard on its append.
+  function rrNoteMintedFor(sid, id) {
+    var n = parseInt(id, 10);
+    if (!sid || !(n > 0)) return;
+    (_minted[String(sid)] = _minted[String(sid)] || {})[String(n)] = true;
+  }
+  // Every number on a sheet, read fresh (a move picks the next free numbers).
+  async function rrSheetNumbers(sid) { return _readNumbers(String(sid || ''), true); }
   function _isMinted(sid, id) { return !!(_minted[sid] && _minted[sid][String(id)]); }
   function _unMint(sid, id) { if (_minted[sid]) delete _minted[sid][String(id)]; }
   function rrInvIdNow(id, sheetId) {
@@ -426,15 +440,24 @@
     _readCache[sid] = { at: Date.now(), read: out };
     return out;
   }
-  function _bumpHwm(n) {
+  // v0.9.2077: the watermark of the collection that OWNS the sheet — a move
+  // writes into a collection that is not open, and must neither use nor raise
+  // the open one's watermark.
+  function _hwmKeyFor(sid) {
+    var c = sid ? rrCollectionForSheet(sid) : null;
+    return c ? rrInvHwmKey(c) : rrInvHwmKey();
+  }
+  function _bumpHwm(n, sid) {
     try {
       var ls = _ls(); if (!ls) return;
-      var k = rrInvHwmKey();
+      var k = _hwmKeyFor(sid);
       var h = parseInt(ls.getItem(k), 10);
       if (isNaN(h) || n > h) ls.setItem(k, String(n));
     } catch (e) {}
   }
-  function _localHwm() { try { var ls = _ls(); var h = parseInt(ls && ls.getItem(rrInvHwmKey()), 10); return isNaN(h) ? 0 : h; } catch (e) { return 0; } }
+  function _localHwm(sid) { try { var ls = _ls(); var h = parseInt(ls && ls.getItem(_hwmKeyFor(sid)), 10); return isNaN(h) ? 0 : h; } catch (e) { return 0; } }
+  function rrLocalHwmFor(sid) { return _localHwm(sid); }
+  function rrBumpHwmFor(sid, n) { _bumpHwm(n, sid); }
   function _noteRemap(sid, oldId, newId, tellUser) {
     _remap[sid + '|' + oldId] = String(newId);
     _unMint(sid, oldId);
@@ -476,7 +499,7 @@
       if (!mine.length || !_online()) return null;
       var read = await _readNumbers(sid, false);
       if (!read) return { tab: tab, col: col, idx: bd.idx, rows: mine, ids: mine.map(function (i) { return String(values[i][col]); }) };
-      var next = Math.max(read.max, _localHwm());
+      var next = Math.max(read.max, _localHwm(sid));
       var used = {};
       mine.forEach(function (i) {
         var id = String(values[i][col]);
@@ -485,7 +508,7 @@
           values[i][col] = fresh;
           _noteRemap(sid, id, fresh, false);
           (_minted[sid] = _minted[sid] || {})[fresh] = true;
-          _bumpHwm(next);
+          _bumpHwm(next, sid);
           id = fresh;
         }
         used[id] = true;
@@ -517,12 +540,12 @@
             return (h.idx < plan.idx) || (h.idx === plan.idx && h.row < myRow);
           });
           if (!earlier) continue;
-          var fresh = String(Math.max(read.max, _localHwm()) + 1);
+          var fresh = String(Math.max(read.max, _localHwm(sid)) + 1);
           var L = _colLetter(plan.col);
           var rng = "'" + plan.tab.replace(/'/g, "''") + "'!" + L + myRow;
           if (typeof sheetsUpdate !== 'function') return changed;
           await sheetsUpdate(sid, rng, [[fresh]]);
-          _bumpHwm(Number(fresh));
+          _bumpHwm(Number(fresh), sid);
           _noteRemap(sid, id, fresh, true);
           changed.push({ from: id, to: fresh, row: myRow });
           plan.ids[k] = fresh;
@@ -876,11 +899,14 @@
     rrCollectionsData: rrCollectionsData, rrCollectionsLoad: rrCollectionsLoad,
     rrCreateCollection: rrCreateCollection, rrFinishCollection: rrFinishCollection,
     rrUpdateCollection: rrUpdateCollection, rrTouchCollection: rrTouchCollection,
+    // v0.9.2077 (release 6)
+    rrNoteMintedFor: rrNoteMintedFor, rrSheetNumbers: rrSheetNumbers, rrLocalHwmFor: rrLocalHwmFor, rrBumpHwmFor: rrBumpHwmFor,
+    rrHoldSwitch: rrHoldSwitch,
   };
   Object.keys(api).forEach(function (k) { root[k] = api[k]; });
   // test hook: forget everything this file holds (never called by the app)
   root._rrCollectionsReset = function () {
-    _reg = {}; _current = null; _homeSheet = null; _inFlight = 0; _lastWriteEnd = 0; _switching = false;
+    _reg = {}; _current = null; _homeSheet = null; _inFlight = 0; _lastWriteEnd = 0; _switching = false; _holds = 0;
     _minted = {}; _remap = {}; _readCache = {}; _tabsCache = {};
     _fileId = null; _fileData = null; _making = false;
   };

@@ -513,6 +513,11 @@
       if (_m0.era) {
         when = '<span style="color:#7ec3ef;font-weight:700">' + rrEsc(_pinEraLabel(_m0.era)) + '</span> · ' + when;
       }
+      // v0.9.2077 (TRR Pro release 6): which collection the photo is for —
+      // shown only when the business has more than one.
+      if (typeof rrInboxCollOn === 'function' && rrInboxCollOn()) {
+        when = '<span data-pin-coll style="color:var(--accent2);font-weight:700">' + rrEsc(rrInboxCollLabel(_m0.coll)) + '</span> · ' + when;
+      }
       var _crop = PIN._selectMode ? ''
         : '<div role="button" onclick="event.stopPropagation();_pinTileCrop(\'' + g.key + '\')" title="Crop / Rotate" style="position:absolute;right:6px;bottom:26px;width:24px;height:24px;border-radius:7px;background:rgba(0,0,0,0.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.8rem;cursor:pointer">✂</div>';
       // v0.9.1439 (Brad): "it would be nice to make a copy of a picture." The
@@ -952,6 +957,9 @@
     // is fixed (see _pinReviewDiscard), and this makes the class impossible:
     // no ticks visible, no destructive button.
     if (db) db.style.display = (PIN._selectMode && n) ? '' : 'none';
+    // v0.9.2077 (TRR Pro release 6): put the ticked photos in another collection
+    var cb = document.getElementById('pin-coll-btn');
+    if (cb) cb.style.display = (PIN._selectMode && n && typeof rrInboxCollOn === 'function' && rrInboxCollOn()) ? '' : 'none';
     if (ib) {
       ib.style.display = (PIN._selectMode && n && _pinAr()) ? '' : 'none';   // v0.9.1927: paid — beta feature
       // v0.9.1351: say the COST on the button, not only in the confirm dialog.

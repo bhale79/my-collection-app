@@ -215,7 +215,7 @@ function scan(src) {
   const calls = (ws.match(/rrSavedRecord\(/g) || []).length;
   T('C1b ...all 13 save sites go through rrSavedRecord (main, set member, set QE, box-only, 4 group boxes, IS, master box, standalone IS, paper, manual)', calls >= 13, calls);
   const loadBody = ad.slice(ad.indexOf('async function _loadPersonalFromSheets('), ad.indexOf('async function _loadPersonalFromSheets(') + 40000);
-  T('C2 the start-up load turns rows into records through the same reader', /newPersonal\[key\] = rrPersonalRecordFromRow\(r, rowNum\);/.test(loadBody) && !/obj\[s\.field\] = \(r\[i\]/.test(loadBody), null);
+  T('C2 the start-up load turns rows into records through the same reader', /const _rec = rrPersonalRecordFromRow\(r, rowNum\);[\s\S]{0,700}newPersonal\[key\] = _rec;/.test(loadBody)   /* v2077: held in _rec — a moved row goes aside first */ && !/obj\[s\.field\] = \(r\[i\]/.test(loadBody), null);
   T('C3 the reader is defined ONCE', (ad.match(/^function rrPersonalRecordFromRow\(/gm) || []).length === 1
     && fs.readdirSync(APP).filter(f => f.endsWith('.js') && f !== 'app-data.js').every(f => !/function rrPersonalRecordFromRow\(/.test(fs.readFileSync(path.join(APP, f), 'utf8'))), null);
   const pl = plantedSave();

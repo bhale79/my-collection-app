@@ -2053,6 +2053,7 @@ async function loadPersonalData() {
     try {
       const _pd = JSON.parse(_pcache);
       state.personalData  = _pd.personalData  || {};
+      state.transferredData = _pd.transferredData || {};   // v0.9.2077
       state.soldData      = _pd.soldData      || {};
       state.forSaleData   = _pd.forSaleData   || {};
       state.wantData      = _pd.wantData      || {};
@@ -2312,6 +2313,7 @@ function _cachePersonalData() {
   try {
     const _snap = {
       personalData: state.personalData,
+      transferredData: state.transferredData || {},   // v0.9.2077: an old label forwards offline too
       soldData: state.soldData,
       forSaleData: state.forSaleData,    // Phase 3 — keyed by inventoryId
       wantData: state.wantData,
@@ -2441,6 +2443,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   const newForSale = {};
   const newMySetsData = {};
   const newUpgrade = {};   // v0.9.1946: collected, then committed by the same rule as the other lists
+  const newTransferred = {};   // v0.9.2077: rows moved to another collection (kept out of every list)
 
   // Perf 2026-04-14 (Phase B): split into primary + secondary fetches.
   // Primary tabs (5) are needed immediately for dashboard + list pages.
@@ -2558,7 +2561,13 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
       key = _alt;
     }
     // v0.9.1941: through THE one row reader (rrPersonalRecordFromRow, above) — the same one a save uses.
-    newPersonal[key] = rrPersonalRecordFromRow(r, rowNum);
+    const _rec = rrPersonalRecordFromRow(r, rowNum);
+    // v0.9.2077 (TRR Pro release 6): a row MOVED to another collection is
+    // never deleted — it says where it went in "Transferred To". It is kept
+    // out of every list, count, report and share HERE, at THE row reader, and
+    // held aside so an old label can say where the item went (scan-shelve.js).
+    if (String(_rec.transferredTo || '').trim()) { _rec.owned = false; _rec.status = 'Transferred'; newTransferred[key] = _rec; return; }
+    newPersonal[key] = _rec;
   });
 
   // v0.9.1198: one-time, fire-and-forget — label the new Master Key column in
@@ -2698,7 +2707,9 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   // ── PRIMARY COMMIT — commit collection/sold/forSale/want to state first
   // so the UI can render from fresh primary data while secondary (ephemera,
   // IS, science, construction, mySets) continues loading in the background.
-  if (!collRes._failed && (forceOverwrite || Object.keys(newPersonal).length > 0 || Object.keys(state.personalData).length === 0)) {
+  // v0.9.2077: a collection whose every item was moved away is truly empty —
+  // Google answered, and the moved rows are on the sheet.
+  if (!collRes._failed && (forceOverwrite || Object.keys(newPersonal).length > 0 || Object.keys(newTransferred).length > 0 || Object.keys(state.personalData).length === 0)) {
     // v0.9.1254 (audit finding L): personalData keys are re-minted here from
     // the CURRENT rows. window._poKeys holds key strings captured earlier and
     // is append-only, so after this rebuild an old entry can name a different
@@ -2712,6 +2723,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     // within-session shorthand, so it is rebuilt whenever its subject is.
     try { window._poKeys = []; } catch (e) {}
     state.personalData = newPersonal;
+    state.transferredData = newTransferred;   // v0.9.2077
   }
   // inv-id hardening (v0.9.634): re-seed the inventory-ID watermark from the
   // freshly-loaded personal data so nextInventoryId() can never reuse a number.

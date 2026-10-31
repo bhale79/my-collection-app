@@ -349,7 +349,7 @@ const PLACE = c => 'RR1:P:' + encodeURIComponent(c[0]) + ':' + encodeURIComponen
       const ok = /^var _SH_MOVE_TAB = \(typeof rrFeatureTab/.test(code.trim())
         || /sheetsAppend\(sid, _SH_MOVE_TAB \+ '!A:H'/.test(code)
         || /sheetsUpdate\(sid, _SH_MOVE_TAB \+ '!A1:H2'/.test(code)
-        || /sheetsGet\(state\.personalSheetId, _SH_MOVE_TAB \+ '!A3:H'\)/.test(code)
+        || /sheetsGet\((?:state\.personalSheetId|sid), _SH_MOVE_TAB \+ '!A3:H'\)/.test(code)   // a READ (v2077: of any collection's log)
         || /title === _SH_MOVE_TAB/.test(code)
         || /addSheet: \{ properties: \{ title: _SH_MOVE_TAB/.test(code);
       if (!ok) bad.push(f + ':' + (i + 1) + ' ' + ln.trim());
@@ -381,7 +381,7 @@ const PLACE = c => 'RR1:P:' + encodeURIComponent(c[0]) + ':' + encodeURIComponen
     const rp = await pdfFor(p3, 'roll2x1');
     T('X3 PLANTED: the reader ignores the setting → the roll prints on Letter pages (L2 catches it)', !rp.pages.every(p => p[0] === 2 && p[1] === 1), rp.pages);
     await p3.close();
-    const p4 = await boot(browser, { 'scan-shelve.js': planted(SHELVE, '      await backupCreateAuto(RR_MOVE_LOG.backupReason);\n', '', 'backup first') });
+    const p4 = await boot(browser, { 'scan-shelve.js': planted(SHELVE, '      await backupCreateAuto(RR_MOVE_LOG.backupReason, sid);\n', '', 'backup first')   /* v2077: backs up THIS sheet */ });
     const mp = await mlog(p4, {});
     T('X6 PLANTED: no backup before the tab → M2 catches it (the tab is made with no backup)', mp.calls.some(c => /^addSheet/.test(c)) && !mp.calls.some(c => /^backup/.test(c)), mp.calls);
     await p4.close();

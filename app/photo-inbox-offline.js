@@ -205,6 +205,8 @@
       bytes: bytes, fname: (file && file.name) || 'photo.jpg',
       blob: bytes ? null : file,   // only when the bytes could not be read
       era: era || '', view: view || '', at: Date.now(), tries: 0, lastErr: '',
+      // v0.9.2077: the collection open when the photo was TAKEN (not when it goes up)
+      coll: (typeof rrInboxUploadTag === 'function') ? (rrInboxUploadTag() || '') : '',
       // v0.9.1872: a shot cropped at capture carries its ORIGINAL and box
       // (photo-crop.js _cropFirst). They ride the staged record — IndexedDB
       // keeps the bytes but not properties hung on a File — and
@@ -482,7 +484,7 @@
           }
           var _uf = _stageFileOf(r);   // v0.9.2030: from the stored bytes
           if (!_uf) { r.unreadable = true; throw new Error('UNREADABLE'); }
-          var up = await driveUploadFile(_stageReattach(r, _uf), r.name, fid);   // v0.9.1872: the original rides along
+          var up = await driveUploadFile(_stageReattach(r, _uf), r.name, fid, r.coll ? { appProperties: { rrColl: r.coll } } : undefined);   // v0.9.1872: the original rides along · v0.9.2077: its collection too
           if (!up || !up.id) throw new Error('no id back from Drive');
           var meta = {};
           if (r.era) { meta.era = r.era; meta.stat = 'stamped'; }

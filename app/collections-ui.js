@@ -221,6 +221,11 @@
     });
     if (n && !active.length && !making.length) html += '<div style="padding:0.8rem 0.2rem;color:var(--text-dim)">' + esc(W('none')) + '</div>';
     html += '<button type="button" onclick="rrCollNewOpen()" style="' + _ROW + ';justify-content:center;font-weight:700;color:var(--t-link)">' + esc(W('newBtn')) + '</button>';
+    // v0.9.2077 (release 6): move items from the open collection; moves that stopped part way
+    if (!n && typeof rrMoveOn === 'function' && rrMoveOn()) {
+      html += '<button type="button" onclick="rrMoveManyOpen()" style="' + _ROW + ';justify-content:center">' + esc((typeof RR_COLL_MOVE !== 'undefined' && RR_COLL_MOVE.words.manyBtn) || '') + '</button>';
+    }
+    if (typeof rrMoveUnfinishedHtml === 'function') { try { html += rrMoveUnfinishedHtml(); } catch (eU) {} }
     if (archived.length) html += '<details style="margin-top:0.5rem"><summary style="cursor:pointer;min-height:40px;padding:0.4rem 0.2rem">' + esc(W('archived', { n: archived.length })) + '</summary></details>';
     box.innerHTML = html;
   }
@@ -410,6 +415,8 @@
     rrCollDetailsOpen: rrCollDetailsOpen, rrCollDetailsSave: rrCollDetailsSave,
     rrCollFieldAdd: rrCollFieldAdd, rrCollFieldRemove: rrCollFieldRemove, rrCollFieldType: rrCollFieldType,
     rrAddingToHtml: rrAddingToHtml, rrCollectionClient: rrCollectionClient,
+    // v0.9.2077 (release 6) — the same pop-up and the same switch for the move + inbox screens
+    rrCollDialog: _dialog, rrCollSwitchTo: _switchTo,
   };
   Object.keys(api).forEach(function (k) { root[k] = api[k]; });
   root._rrCollUiReset = function () { _booted = false; _data = null; _headerOpen = null; _fieldDraft = null; };

@@ -293,7 +293,8 @@ const P4 = async pg => pg.evaluate(async () => {
   }
 
   console.log('== X · planted ==');
-  const NOTAG = planted(SHELVE, "    if (app.tag !== _shSheetTag()) return { kind: 'foreign', printed: true };\n", '', 'collection check');
+  // v2077: the check now also recognises another collection's label — planting "no check" turns the whole test off
+  const NOTAG = planted(SHELVE, "    if (app.tag !== _shSheetTag()) {\n", "    if (false) {\n", 'collection check');
   pg = await boot(browser, 'bhale@ipd-llc.com', { 'scan-shelve.js': NOTAG });
   const x3 = await F3(pg);
   T('X-F3 PLANTED: no collection check → another collection\'s label is taken (caught)', x3.found === 'item', x3);

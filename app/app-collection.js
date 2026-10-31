@@ -249,6 +249,7 @@ function showNonItemDetailPage(type, key) {
        +     '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>'
        +     'Add to Upgrade List'
        +   '</button>';
+  if (typeof rrMoveBtnHtml === 'function') html += rrMoveBtnHtml(entry);   // v0.9.2077: '' unless this copy is a My Collection row and moving is on
   html +=   '<button id="detail-remove-item" onclick="_collectionRemove(' + typeArg + ',' + keyArg + ')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">'
        +     '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>'
        +     'Remove from Collection'
@@ -1284,6 +1285,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
       Share
     </button>
+    ${typeof rrMoveBtnHtml === 'function' ? rrMoveBtnHtml(pd) : ''}
     <button id="detail-remove-item" onclick="_removeFromCollectionDetail(${idx},'${rrJsArg(it.itemNum)}','${rrJsArg(it.variation||'')}')" data-ctip="Remove this item from your collection." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:var(--t-danger);font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
       Remove from Collection

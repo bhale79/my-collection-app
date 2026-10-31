@@ -169,6 +169,14 @@ const PERSONAL_SCHEMA = [
   // to the physical copy, so it is carried when the item number changes.
   // Appended at END (column rule).
   { field: 'stickerCode',          header: 'Sticker Code' },
+  // v0.9.2077 (TRR Pro release 6, [stated] Brad 2026-10-30 "yes"): moving an
+  // item to another collection. The OLD row is never deleted — "Transferred
+  // To" says where it went, and THE row reader (app-data.js) keeps such rows
+  // out of every list (state.transferredData, so an old label can forward).
+  // The NEW row's "Transferred From" says where it came from. Written ONLY by
+  // collections-move.js. Appended at END (column rule).
+  { field: 'transferredTo',        header: 'Transferred To' },
+  { field: 'transferredFrom',      header: 'Transferred From' },
 ];
 const PERSONAL_HEADERS = PERSONAL_SCHEMA.map(s => s.header);
 const PERSONAL_FIELD_INDEX = {};
@@ -1959,7 +1967,8 @@ function _seedInvHwm() {
     var _hk = _rrInvHwmKeyNow();
     var max = parseInt(localStorage.getItem(_hk)); if (isNaN(max)) max = 0;
     var scan = function (obj) { Object.values(obj || {}).forEach(function (r) { var id = parseInt(r && r.inventoryId); if (!isNaN(id) && id > max) max = id; }); };
-    scan(state.personalData); scan(state.isData); scan(state.scienceData); scan(state.constructionData); scan(state.mySetsData); scan(state.forSaleData); scan(state.upgradeData); scan(state.wantData);
+    // v0.9.2077: a moved row's number (transferredData) is never handed out again.
+    scan(state.personalData); scan(state.transferredData); scan(state.isData); scan(state.scienceData); scan(state.constructionData); scan(state.mySetsData); scan(state.forSaleData); scan(state.upgradeData); scan(state.wantData);
     localStorage.setItem(_hk, String(max));
   } catch (e) {}
 }
@@ -2019,6 +2028,7 @@ var state = {
   personalSheetId: null,
   masterData: [],      // all rows from master sheet
   personalData: {},    // Phase 3 — keyed by inventoryId -> personal row (owned items)
+  transferredData: {}, // v0.9.2077 — rows moved to another collection (never shown; an old label forwards)
   soldData: {},        // keyed by "itemNum|variation" -> sold row
   forSaleData: {},     // Phase 3 — keyed by inventoryId -> for sale row
   wantData: {},
