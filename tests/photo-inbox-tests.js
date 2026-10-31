@@ -11039,8 +11039,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // v2020 88→89 (scan-shelve.js — Scan to Shelve, owners only).
       // v2038 89→90 (store-links.js — the last stop for every outgoing link, store codes; folded from the Trainz chat's v2039).
       // v2058 90→91 (collections.js — TRR Pro release 4, the collections foundation).
-      ok('every ?v= mark in app/index.html matches it — all 91, none stale',
-         stamps.length === 91 && stamps.every(t => t === '?v=' + build),
+      // v2071 91→92 (collections-ui.js).
+      ok('every ?v= mark in app/index.html matches it — all 92, none stale',
+         stamps.length === 92 && stamps.every(t => t === '?v=' + build),
          stamps.length + ' stamps; strays: ' + stamps.filter(t => t !== '?v=' + build).slice(0, 3).join(','));
       ok('the service worker cache name moved too (build + 10, the fixed offset)',
          new RegExp("const CACHE_NAME = 'mca-v" + (build + 10) + "';").test(rd('app/sw.js')),
@@ -15695,7 +15696,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       {
         const self = fs.readFileSync(p35.join(__dirname, 'photo-inbox-tests.js'), 'utf8');
         const h = self.indexOf("section('199h. The version trio moved together')");
-        const seg = self.slice(h, h + 2200);   // v2007: the section grew by its history line
+        const seg = self.slice(h, h + 2600);   // v2007/v2071: the section grows by a history line per new file
         ok('235 §199h derives the trio — no hardcoded build number to hand-edit',
            h > 0 && !/\?v=\d{4}/.test(seg) && !/mca-v\d{4}/.test(seg) &&
            /parseInt\(_vm\[1\], 10\)/.test(seg) && /build \+ 10/.test(seg),

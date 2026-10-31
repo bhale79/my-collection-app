@@ -342,7 +342,7 @@ async function driveSetupVault() {
   // Save config so other devices can discover these IDs
   if (state.personalSheetId) {
     driveWriteConfig({
-      personalSheetId: state.personalSheetId,
+      personalSheetId: (typeof rrHomeSheet === 'function' ? rrHomeSheet() : state.personalSheetId),   // v0.9.2071: always the HOME sheet
       vaultId: driveCache.vaultId,
       photosId: driveCache.photosId,
       soldPhotosId: driveCache.soldPhotosId,

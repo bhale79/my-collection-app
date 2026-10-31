@@ -4339,6 +4339,7 @@ window._upgPickApply = function () {
 window._upgPickFilter = window._upgPickApply;   // legacy alias
 
 function pickItemForUpgrade() {
+  if (typeof rrAddAllowed === 'function' && !rrAddAllowed('want')) return;   // v0.9.2071: Want/Upgrade off here
   var owned = Object.values(state.personalData || {}).filter(function (p) { return p && p.owned && p.itemNum; });
   if (owned.length === 0) {
     showToast('Your collection is empty — add items first', 3000, true);

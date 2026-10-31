@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2075';
+const APP_VERSION = 'v0.9.2078';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -3135,6 +3135,92 @@ var RR_COLLECTIONS = {
   },
 };
 if (typeof window !== 'undefined') window.RR_COLLECTIONS = RR_COLLECTIONS;
+// ── v0.9.2071 — COLLECTIONS YOU CAN SEE (TRR Pro release 5; design agreed with
+// Brad 2026-10-28, Step 3 Sections 1–2 + 4; [stated] Brad 2026-10-30 17:42 CT
+// "yes" to building it). A Pro feature: rrFeatureOn(RR_COLL_UI.feature) — the
+// owners see it first, a business when the Vault says so; a regular customer
+// never sees any of it. Every word and setting here; the code is
+// collections.js (the list file, making a collection, the list switches) and
+// collections-ui.js (the drop-down, the details card, the client header).
+var RR_COLL_UI = {
+  feature: 'collections',
+  fileName: 'rail-roster-collections.json',     // beside the settings file, in The Rail Roster folder
+  folderName: 'Collections',                    // My Drive › The Rail Roster › Collections › "7 – Hale"
+  photosName: 'Photos',
+  soldPhotosName: 'Sold Photos',
+  sheetTitle: 'The Rail Roster – {n} {name}',
+  folderTitle: '{n} – {name}',
+  nameMax: 60,
+  fieldsKey: 'lv_coll_fields',                  // ACCOUNT setting: the business's own collection fields
+  fieldsMax: 12,
+  fieldTypes: [ { id: 'text', name: 'Words' }, { id: 'date', name: 'Date' }, { id: 'number', name: 'Number' }, { id: 'percent', name: 'Percent' } ],
+  // The lists a collection can switch off (hidden everywhere, never deleted).
+  // page = its page in showPage; hide = what else opens it (hidden by CSS).
+  lists: [
+    { key: 'want',    word: 'Want / Upgrade', page: 'upgrade', hide: ["[onclick*=\"showPage('upgrade'\"]", "[onclick*=\"showPage('want'\"]", "[onclick*=\"_collectionUpgrade(\"]", "[onclick*=\"startWizardFor('want'\"]", "[onclick*=\"pickItemForUpgrade(\"]", "#rs-want", "[data-act=\"want\"]"] },
+    { key: 'parts',   word: 'Parts Needed',   page: 'parts',   hide: ["[onclick*=\"showPage('parts'\"]"] },
+    { key: 'forSale', word: 'For Sale',       page: 'forsale', hide: ["[onclick*=\"showPage('forsale'\"]", "[onclick*=\"_collectionForSale(\"]", "[onclick*=\"startWizardFor('forsale'\"]"] },
+    { key: 'sold',    word: 'Sold',           page: 'sold',    hide: ["[onclick*=\"showPage('sold'\"]", "[onclick*=\"_collectionSold(\"]", "[onclick*=\"startWizardFor('sold'\"]"] },
+  ],
+  // The three ways to start a collection ([stated] agreed 2026-10-28).
+  starts: [
+    { id: 'auction',    name: 'Auction / consignment', help: 'For Sale and Sold on; Want and Parts off.', lists: { want: false, parts: false, forSale: true, sold: true } },
+    { id: 'client',     name: 'Client collection',     help: 'Only the collection itself — every list off.', lists: { want: false, parts: false, forSale: false, sold: false } },
+    { id: 'everything', name: 'Everything on',         help: 'Every list, like your own collection.', lists: { want: true, parts: true, forSale: true, sold: true } },
+  ],
+  words: {
+    home: 'My Collection',
+    title: 'Collections',
+    search: 'Find a collection',
+    all: 'All Collections',
+    allSoon: 'coming in a later release',
+    newBtn: '+ New collection',
+    archived: 'Archived ({n})',
+    items: '{n} items',
+    item1: '1 item',
+    none: 'No collection matches.',
+    opening: 'Opening {name}…',
+    busy: 'Still saving — try again in a moment.',
+    newTitle: 'New collection',
+    newName: 'Name (e.g. Hale)',
+    newStart: 'Start it as',
+    newClient: 'Client (from your Contacts)',
+    newNoClient: '— none —',
+    newNotes: 'Notes',
+    newGo: 'Make the collection',
+    newMaking: 'Making the sheet and photo folder…',
+    newMade: '✓ {label} is ready',
+    newFailed: 'Could not finish making the collection — check your connection. Nothing is lost: open Collections and press Finish setting up.',
+    finish: 'Finish setting up',
+    nameNeeded: 'Type a name first.',
+    details: 'Details',
+    detailsTitle: 'Collection {label}',
+    number: 'Number',
+    status: 'Status',
+    active: 'Active',
+    started: 'Started',
+    lists: 'Lists in this collection',
+    listsHelp: 'A list switched off is hidden everywhere in this collection — nothing in it is deleted.',
+    fields: 'Your fields',
+    fieldsHelp: 'Fields every collection has (Commission %, Auction date, Insurance #…). You name them once; each collection fills them in.',
+    fieldAdd: '+ Add a field',
+    fieldName: 'Field name',
+    fieldRemove: 'Remove this field',
+    notes: 'Notes',
+    save: 'Save',
+    saved: '✓ Saved',
+    saveFailed: 'Could not save — check your connection and try again.',
+    clientCall: 'Call',
+    clientEmail: 'Email',
+    clientNone: 'No client picked',
+    clientMore: 'More',
+    clientLess: 'Less',
+    addingTo: 'Adding to {label}',
+    listOff: '{list} is switched off in this collection — showing My Collection.',
+    addOff: '{list} is switched off in this collection.',
+  },
+};
+if (typeof window !== 'undefined') window.RR_COLL_UI = RR_COLL_UI;
 window.rrSavedLocations = function () {
   try {
     var raw = (typeof _prefGet === 'function') ? _prefGet(RR_LOCATIONS_KEY, '[]') : localStorage.getItem(RR_LOCATIONS_KEY);

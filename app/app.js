@@ -51,6 +51,9 @@ function rrAfterPrefsSync(maxMs) {
 }
 
 async function _maybeRenamePersonalSheet() {
+  // v0.9.2071: only the HOME sheet carries the personal sheet's name — a
+  // collection's sheet keeps its own ("The Rail Roster – 7 Hale").
+  if (typeof rrIsHome === 'function' && !rrIsHome()) return;
   if (!state.personalSheetId || !accessToken) return;
   try {
     // Get current sheet title via Drive API
@@ -4477,6 +4480,15 @@ function showPage(name, clickedEl) {
   // now return null and throw two lines down, so the redirect must come
   // FIRST, before anything reads `name`.
   if (name === 'want') name = 'upgrade';
+  // v0.9.2071 (TRR Pro release 5): a list switched off in the open collection
+  // is never shown — whatever door asked for it. Home has every list.
+  try {
+    if (typeof rrPageAllowed === 'function' && !rrPageAllowed(name)) {
+      var _offDef = (typeof rrListForPage === 'function') ? rrListForPage(name) : null;
+      if (typeof showToast === 'function' && typeof RR_COLL_UI !== 'undefined') showToast(String(RR_COLL_UI.words.listOff).replace('{list}', _offDef ? _offDef.word : name), 3500);
+      name = 'browse'; clickedEl = null;
+    }
+  } catch (eOff) {}
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.querySelectorAll('.mobile-nav-item').forEach(n => n.classList.remove('active'));

@@ -1343,6 +1343,10 @@ async function openWizard(tab) {
     if (typeof rrReadOnlyToast === 'function') rrReadOnlyToast();   // v0.9.1900: one wording (RR_READONLY_TEXT)
     return;
   }
+  // v0.9.2071: a list switched off in this collection — say so BEFORE any
+  // loading, so nothing opens late (renderWizardStep holds the same door for
+  // the paths that do not come through here).
+  if (typeof rrAddAllowed === 'function' && !rrAddAllowed(tab)) return;
   // Session 154: Want lookups span the whole catalog — load every era first
   // (instant if cached) so search isn't capped to the current era.
   if (tab === 'want' && typeof _currentEra !== 'undefined' && _currentEra !== 'all'
@@ -2157,6 +2161,9 @@ function _wizFlowTitle() {
 function _renderAddingBanner() {
   _renderAddingBannerItem();
   var el = document.getElementById('wizard-adding-banner');
+  // v0.9.2071 (TRR Pro release 5, safety rule 6): in a collection other than
+  // home, the Add screen says WHERE the item is going ("Adding to 7 – Hale").
+  try { if (el && typeof rrAddingToHtml === 'function') { var _atH = rrAddingToHtml(); if (_atH) el.insertAdjacentHTML('afterbegin', _atH); } } catch (eAt) {}
   var d = (typeof wizard !== 'undefined' && wizard && wizard.data) || null;
   if (!el || !d || !(d._addToGroupInv || d._addToGroupKey) || wizard.tab !== 'collection' || d.boxOnly) return;
   var copy = (typeof _rrAddToGroupCopy === 'function') ? _rrAddToGroupCopy(d) : null;
@@ -2637,6 +2644,12 @@ if (typeof window !== 'undefined') { window._cfUnitBlocks = _cfUnitBlocks; }
 function renderWizardStep() {
   // v0.9.1587: after this render settles (every branch of it), fix the ring.
   setTimeout(_wizTabOrder, 0);
+  // v0.9.2071 (TRR Pro R5): a list switched off in this collection takes no
+  // items — every add door ends here, so this is the one check (collections.js).
+  if (wizard && wizard.tab && typeof rrAddAllowed === 'function' && !rrAddAllowed(wizard.tab)) {
+    try { _doCloseWizard(); } catch (eOff) {}
+    return;
+  }
   // v0.9.1033: the step is about to be re-rendered, so hand back any field the
   // full-screen focus panel borrowed before its old home is thrown away.
   try { if (typeof _wizFieldFocusClose === 'function') _wizFieldFocusClose(); } catch (eF) {}

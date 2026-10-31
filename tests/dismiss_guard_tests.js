@@ -248,7 +248,9 @@ ok('every guarded overlay offers Cancel / Done / Close / ✕', trapped.length ==
 // (maint-parts-pop, maintenance.js): the device Back button closes them now (C21).
 // v0.9.2042: 58 — "Asking prices" fill-in (rr-fsfill, app-pages.js rrFsPriceFill),
 // which closed on an outside click since v0.9.1541 and lost the typed prices.
-ok('58 guarded call sites, and ONE helper behind them', sites === 58, String(sites));
+// v0.9.2071: 59 — the collections screens (rr-coll-menu / rr-coll-new / rr-coll-details,
+// collections-ui.js _dialog): one guarded helper call for all three.
+ok('59 guarded call sites, and ONE helper behind them', sites === 59, String(sites));
 
 // nobody double-wires BackStack any more — the guard does it, once
 let dbl = 0;

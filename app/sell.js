@@ -604,15 +604,15 @@ if (typeof window !== 'undefined') { window._rrDoShareNow = _rrDoShareNow; windo
 
 // ═══ TIER 2 — LIVE FOR-SALE SHEET ════════════════════════════════
 async function _sellEnsureSheet() {
-  var cached = localStorage.getItem('rr_sell_sheet_id');
+  var cached = localStorage.getItem(_sellSheetKey());
   if (cached) {
     try { var ok = await driveRequest('GET', '/files/' + cached + '?fields=id,trashed'); if (ok && ok.id && !ok.trashed) return cached; } catch (e) {}
   }
-  var q = encodeURIComponent("name='" + _SELL_SHEET_NAME + "' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false");
+  var q = encodeURIComponent("name='" + _sellSheetName() + "' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false");
   var found = await driveRequest('GET', '/files?q=' + q + '&fields=files(id)&spaces=drive');
-  if (found && found.files && found.files.length) { localStorage.setItem('rr_sell_sheet_id', found.files[0].id); return found.files[0].id; }
-  var f = await driveRequest('POST', '/files', { name: _SELL_SHEET_NAME, mimeType: 'application/vnd.google-apps.spreadsheet' });
-  localStorage.setItem('rr_sell_sheet_id', f.id);
+  if (found && found.files && found.files.length) { localStorage.setItem(_sellSheetKey(), found.files[0].id); return found.files[0].id; }
+  var f = await driveRequest('POST', '/files', { name: _sellSheetName(), mimeType: 'application/vnd.google-apps.spreadsheet' });
+  localStorage.setItem(_sellSheetKey(), f.id);
   return f.id;
 }
 // ══ v0.9.1317 — the sales-list review (Brad: "that is garbage") ══════════
@@ -625,6 +625,18 @@ async function _sellEnsureSheet() {
 // Yes/No + optional photo links through the SAME open/track machinery as the
 // share PDF (so Shared Photos can end them). The lookup carries the copy's
 // own identity — era, maker, masterKey — never a bare number.
+// v0.9.2071 (TRR Pro release 5): each collection has its OWN shareable For Sale
+// sheet — its id is a per-collection device setting (rrCollKey) and its name
+// carries the collection's NUMBER only (never its name: a collection is often
+// named for the client, and nothing shared outward carries client details).
+function _sellSheetKey() { return (typeof rrCollKey === 'function') ? rrCollKey('rr_sell_sheet_id') : 'rr_sell_sheet_id'; }
+function _sellSheetName() {
+  try {
+    var c = (typeof rrCurrentCollection === 'function') ? rrCurrentCollection() : null;
+    if (c && !c.home && c.number) return _SELL_SHEET_NAME + ' - collection ' + c.number;
+  } catch (e) {}
+  return _SELL_SHEET_NAME;
+}
 async function _sellSync() {
   var id = await _sellEnsureSheet();
   var fs = Object.values(state.forSaleData || {});
@@ -697,7 +709,7 @@ async function _sellSync() {
 // re-creation of a sheet the user deleted on purpose).
 async function rrSellSheetStartupSync() {
   try {
-    var cached = localStorage.getItem('rr_sell_sheet_id');
+    var cached = localStorage.getItem(_sellSheetKey());
     if (!cached) return;
     var ok = await driveRequest('GET', '/files/' + cached + '?fields=id,trashed');
     if (!ok || !ok.id || ok.trashed) return;

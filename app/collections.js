@@ -96,7 +96,7 @@
       soldPhotoRootId: (dc && dc.soldPhotosId) || null,
     };
   }
-  function _copy(c) { return c ? Object.assign({}, c) : null; }
+  function _copy(c) { return c ? JSON.parse(JSON.stringify(c)) : null; }
 
   function rrCurrentCollection() { return rrIsHome() ? _home() : _copy(_reg[_current]); }
   function rrCollectionByKey(key) {
@@ -140,6 +140,16 @@
       sheetId: sid,
       photoRootId: c.photoRootId ? String(c.photoRootId) : null,
       soldPhotoRootId: c.soldPhotoRootId ? String(c.soldPhotoRootId) : null,
+      // v0.9.2071 (release 5): what the list file says about it
+      folderId: c.folderId ? String(c.folderId) : null,
+      lists: (c.lists && typeof c.lists === 'object') ? Object.assign({}, c.lists) : {},
+      clientId: c.clientId ? String(c.clientId) : '',
+      fields: (c.fields && typeof c.fields === 'object') ? Object.assign({}, c.fields) : {},
+      notes: String(c.notes || ''),
+      status: String(c.status || 'active'),
+      createdAt: Number(c.createdAt) || 0,
+      lastOpenedAt: Number(c.lastOpenedAt) || 0,
+      itemCount: (c.itemCount == null) ? null : Number(c.itemCount),
     };
     return _copy(_reg[key]);
   }
@@ -279,6 +289,7 @@
       try { var ls = _ls(); if (ls) ls.setItem(_C().currentKey || 'lv_current_collection', target.key); } catch (e) {}
       try { if (typeof rrResetIssuedInvIds === 'function') rrResetIssuedInvIds(); } catch (e) {}
       try { if (typeof rrDriveUseRoot === 'function') rrDriveUseRoot(target.key); } catch (e) {}   // the folder caches, per collection
+      try { rrApplyListSwitches(); } catch (e) {}   // v0.9.2071: this collection's lists
       if (opts.load !== false && typeof loadPersonalData === 'function') {
         try { await loadPersonalData(); } catch (e) { console.warn('[Collections] load after switch:', e && e.message); }
       }
@@ -531,6 +542,320 @@
     return changed;
   }
 
+  // ═════════════════════════════════════════════════════════════════════════
+  // v0.9.2071 — RELEASE 5: THE LIST OF COLLECTIONS, MAKING ONE, ITS LISTS
+  // Settings and words: RR_COLL_UI (config.js). Screens: collections-ui.js.
+  // ═════════════════════════════════════════════════════════════════════════
+  function _U() { return (typeof RR_COLL_UI !== 'undefined' && RR_COLL_UI) || root.RR_COLL_UI || { lists: [], starts: [], words: {} }; }
+  function _uw(k, vars) {
+    var w = String((_U().words || {})[k] || '');
+    Object.keys(vars || {}).forEach(function (v) { w = w.split('{' + v + '}').join(String(vars[v])); });
+    return w;
+  }
+  // A DEVICE setting that belongs to the open collection (the shareable For
+  // Sale sheet's id, …): home keeps the plain key, another collection key@c.
+  function rrCollKey(base) { return String(base) + _suffix(); }
+
+  // ── the list switches ───────────────────────────────────────────────────
+  // ONE rule: home has every list; another collection has a list unless its
+  // switch says false. Off = hidden everywhere, never deleted.
+  function rrListOn(listKey, coll) {
+    var c = (coll === undefined) ? rrCurrentCollection() : coll;
+    if (!c || c.home) return true;
+    return !(c.lists && c.lists[listKey] === false);
+  }
+  function rrListForPage(page) {
+    var L = _U().lists || [];
+    for (var i = 0; i < L.length; i++) if (L[i].page === page) return L[i];
+    return null;
+  }
+  // THE door's question (showPage, app.js): may this page open here?
+  function rrPageAllowed(page) {
+    var def = rrListForPage(page === 'want' ? 'upgrade' : page);
+    return !def || rrListOn(def.key);
+  }
+  // THE door for ADDING (wizard.js renderWizardStep, wizard-save.js, the
+  // upgrade picker): every add path — buttons, Research, item cards — ends in
+  // the wizard, so a list that is off can never take an item, even through a
+  // button the stylesheet below does not know about.
+  function rrAddAllowed(tab) {
+    if (rrPageAllowed(tab)) return true;
+    var def = rrListForPage(tab === 'want' ? 'upgrade' : tab);
+    try { if (typeof showToast === 'function') showToast(_uw('addOff', { list: def ? def.word : tab }), 3500); } catch (e) {}
+    return false;
+  }
+  // Hide every way into a list that is off: one stylesheet built from the
+  // list's selectors (RR_COLL_UI.lists[].hide), switched by a class on <body>.
+  function rrApplyListSwitches() {
+    try {
+      if (typeof document === 'undefined' || !document.body) return;
+      var L = _U().lists || [];
+      if (!document.getElementById('rr-list-switch-css')) {
+        var css = L.map(function (d) {
+          return (d.hide || []).map(function (sel) { return 'body.rr-list-off-' + d.key + ' ' + sel; }).join(',\n') + ' { display: none !important; }';
+        }).join('\n');
+        var st = document.createElement('style'); st.id = 'rr-list-switch-css'; st.textContent = css;
+        document.head.appendChild(st);
+      }
+      L.forEach(function (d) { document.body.classList.toggle('rr-list-off-' + d.key, !rrListOn(d.key)); });
+    } catch (e) {}
+  }
+
+  // ── the business's own collection fields (an ACCOUNT setting) ───────────
+  // ONE reader, ONE writer. [{id, name, type}] — values live on each collection.
+  function rrCollFields() {
+    try {
+      var k = _U().fieldsKey || 'lv_coll_fields';
+      var raw = (typeof rrPrefRead === 'function') ? rrPrefRead(k) : (_ls() && _ls().getItem(k));
+      var a = JSON.parse(raw || '[]');
+      return Array.isArray(a) ? a.filter(function (f) { return f && f.id && f.name; }) : [];
+    } catch (e) { return []; }
+  }
+  function rrCollFieldsSave(arr) {
+    var types = (_U().fieldTypes || []).map(function (t) { return t.id; });
+    var out = (Array.isArray(arr) ? arr : []).map(function (f) {
+      return { id: String(f.id || ('f' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5))), name: String(f.name || '').trim().slice(0, 40), type: types.indexOf(f.type) >= 0 ? f.type : 'text' };
+    }).filter(function (f) { return f.name; }).slice(0, _U().fieldsMax || 12);
+    var k = _U().fieldsKey || 'lv_coll_fields';
+    if (typeof rrPrefWrite === 'function') rrPrefWrite(k, JSON.stringify(out)); else if (_ls()) _ls().setItem(k, JSON.stringify(out));
+    return out;
+  }
+
+  // ── the list file: rail-roster-collections.json beside the settings file ──
+  // { v:1, next: <the next number>, items: { key: {key, number, name, status,
+  //   sheetId, folderId, photoRootId, soldPhotoRootId, lists, clientId, fields,
+  //   notes, createdAt, lastOpenedAt, itemCount, at} } }
+  // Every change READS the file fresh, changes it and writes it back, so two
+  // devices' changes to different collections never undo each other.
+  var _fileId = null, _fileData = null;
+  function _emptyFile() { return { v: 1, next: 1, items: {} }; }
+  function _tok() { try { return (typeof accessToken !== 'undefined') ? accessToken : root.accessToken; } catch (e) { return root.accessToken; } }
+  async function _tracked(fn) {
+    _inFlight++;
+    try { return await fn(); } finally { _inFlight = Math.max(0, _inFlight - 1); _lastWriteEnd = Date.now(); }
+  }
+  async function _fileFind() {
+    if (_fileId) return _fileId;
+    var q = encodeURIComponent("name='" + (_U().fileName || 'rail-roster-collections.json') + "' and trashed=false and 'me' in owners");
+    var res = await driveRequest('GET', '/files?q=' + q + '&fields=files(id,name)&spaces=drive');
+    _fileId = (res && res.files && res.files.length) ? res.files[0].id : null;
+    return _fileId;
+  }
+  // { ok, data } — ok:false means the file is THERE and could not be read:
+  // never write then, or collections we cannot see would be replaced.
+  async function rrCollectionsFileRead() {
+    try {
+      var id = await _fileFind();
+      if (!id) return { ok: true, data: _emptyFile() };
+      var r = await _tracked(function () { return fetch('https://www.googleapis.com/drive/v3/files/' + id + '?alt=media', { headers: { Authorization: 'Bearer ' + _tok() } }); });
+      if (!r.ok) return { ok: false, data: null };
+      var j = null;
+      try { j = await r.json(); } catch (e) { j = null; }
+      var d = (j && typeof j === 'object' && j.items && typeof j.items === 'object') ? j : _emptyFile();
+      d.next = Math.max(1, Number(d.next) || 1);
+      _fileData = d;
+      return { ok: true, data: d };
+    } catch (e) { return { ok: false, data: null }; }
+  }
+  async function _fileWrite(d) {
+    var body = JSON.stringify(d);
+    var id = await _fileFind();
+    return _tracked(async function () {
+      if (id) {
+        var w = await fetch('https://www.googleapis.com/upload/drive/v3/files/' + id + '?uploadType=media',
+          { method: 'PATCH', headers: { Authorization: 'Bearer ' + _tok(), 'Content-Type': 'application/json' }, body: body });
+        if (!w.ok) throw new Error('collections list write failed: HTTP ' + w.status);
+      } else {
+        if (typeof driveEnsureSetup === 'function') await driveEnsureSetup();
+        var parent = (typeof driveCache !== 'undefined' && driveCache.vaultId) || null;
+        var meta = { name: _U().fileName || 'rail-roster-collections.json', mimeType: 'application/json' };
+        if (parent) meta.parents = [parent];
+        var form = new FormData();
+        form.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
+        form.append('file', new Blob([body], { type: 'application/json' }));
+        var c = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+          { method: 'POST', headers: { Authorization: 'Bearer ' + _tok() }, body: form });
+        if (!c.ok) throw new Error('collections list create failed: HTTP ' + c.status);
+        try { var cj = await c.json(); _fileId = cj && cj.id ? cj.id : null; } catch (e) {}
+      }
+      _fileData = d;
+      return d;
+    });
+  }
+  // Read fresh → change → write. The change gets the data and may return false
+  // to write nothing. Throws when the file could not be read.
+  async function rrCollectionsFileUpdate(change) {
+    var got = await rrCollectionsFileRead();
+    if (!got.ok) throw new Error('collections list could not be read');
+    var d = got.data;
+    if (change(d) === false) return d;
+    return _fileWrite(d);
+  }
+  function rrCollectionsData() { return _fileData ? _copy(_fileData) : null; }
+  function _nextNumber(d) {
+    var n = Math.max(1, Number(d.next) || 1);
+    Object.keys(d.items || {}).forEach(function (k) { var x = Number(d.items[k].number) || 0; if (x >= n) n = x + 1; });
+    return n;
+  }
+  function _registerEntry(e) {
+    if (!e || e.status !== 'active' || !e.sheetId) return false;
+    try { rrRegisterCollection(e); return true; } catch (er) { console.warn('[Collections] not listed:', e.key, er && er.message); return false; }
+  }
+  // At start: read the list, list every active collection on this device.
+  async function rrCollectionsLoad() {
+    var got = await rrCollectionsFileRead();
+    if (!got.ok) return null;
+    Object.keys(got.data.items || {}).forEach(function (k) { _registerEntry(got.data.items[k]); });
+    return _copy(got.data);
+  }
+  function _fill(tpl, n, name) { return String(tpl).split('{n}').join(String(n)).split('{name}').join(String(name)); }
+
+  // ── making a collection ─────────────────────────────────────────────────
+  // 1. reserve a NUMBER in the list file (read back: if another device took the
+  //    same number first, ours moves on — exactly one of two moves);
+  // 2. the Drive folder "7 – Hale" (with Photos + Sold Photos) under Collections;
+  // 3. its own sheet with every tab, moved into that folder;
+  // 4. the sheet and the folder carry the collection's key + number inside
+  //    themselves (Drive appProperties); then it is listed and ready.
+  // Every id is written to the list the moment it exists, so a failure part
+  // way through is FINISHED later (rrFinishCollection) — never made twice.
+  var _making = false;
+  async function rrCreateCollection(opts) {
+    opts = opts || {};
+    var name = String(opts.name || '').trim().slice(0, _U().nameMax || 60);
+    if (!name) return { ok: false, why: 'name', msg: _uw('nameNeeded') };
+    if (_making) return { ok: false, why: 'busy', msg: _uw('busy') };
+    _making = true;
+    try {
+      var start = (_U().starts || []).filter(function (s) { return s.id === opts.startId; })[0] || (_U().starts || [])[0] || { lists: {} };
+      var key = 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      var now = Date.now();
+      await rrCollectionsFileUpdate(function (d) {
+        var num = _nextNumber(d);
+        d.items[key] = { key: key, number: num, name: name, status: 'creating', startId: start.id || '',
+          lists: Object.assign({}, start.lists || {}), clientId: String(opts.clientId || ''), notes: String(opts.notes || ''),
+          fields: {}, createdAt: now, lastOpenedAt: now, itemCount: 0, at: now };
+        d.next = num + 1;
+      });
+      for (var t = 0; t < 3; t++) {
+        var got = await rrCollectionsFileRead();
+        if (!got.ok) break;
+        var mine = got.data.items[key];
+        if (!mine) throw new Error('the new collection is missing from the list');
+        var clash = Object.keys(got.data.items).some(function (k) {
+          var o = got.data.items[k];
+          return k !== key && Number(o.number) === Number(mine.number) && ((o.createdAt || 0) < mine.createdAt || ((o.createdAt || 0) === mine.createdAt && k < key));
+        });
+        if (!clash) break;
+        await rrCollectionsFileUpdate(function (d) { var n = _nextNumber(d); d.items[key].number = n; d.items[key].at = Date.now(); d.next = n + 1; });
+      }
+      return await rrFinishCollection(key);
+    } catch (e) {
+      console.warn('[Collections] make:', e && e.message);
+      return { ok: false, why: 'failed', msg: _uw('newFailed') };
+    } finally { _making = false; }
+  }
+  async function _setEntry(key, patch) {
+    return rrCollectionsFileUpdate(function (d) {
+      if (!d.items[key]) return false;
+      Object.assign(d.items[key], patch, { at: Date.now() });
+    });
+  }
+  async function rrFinishCollection(key) {
+    var got = await rrCollectionsFileRead();
+    if (!got.ok) return { ok: false, why: 'failed', msg: _uw('newFailed') };
+    var e = got.data.items[key];
+    if (!e) return { ok: false, why: 'unknown', msg: _uw('newFailed') };
+    try {
+      var U = _U();
+      if (typeof driveEnsureSetup === 'function') await driveEnsureSetup();
+      var vault = (typeof driveCache !== 'undefined' && driveCache.vaultId) || null;
+      if (!vault) throw new Error('The Rail Roster folder is not ready');
+      if (!e.folderId) {
+        var parent = await driveFindOrCreateFolder(U.folderName || 'Collections', vault);
+        var fid = await driveFindOrCreateFolder(_fill(U.folderTitle || '{n} – {name}', e.number, e.name), parent);
+        await _setEntry(key, { folderId: fid }); e.folderId = fid;
+      }
+      if (!e.photoRootId) { var p = await driveFindOrCreateFolder(U.photosName || 'Photos', e.folderId); await _setEntry(key, { photoRootId: p }); e.photoRootId = p; }
+      if (!e.soldPhotoRootId) { var sp = await driveFindOrCreateFolder(U.soldPhotosName || 'Sold Photos', e.folderId); await _setEntry(key, { soldPhotoRootId: sp }); e.soldPhotoRootId = sp; }
+      if (!e.sheetId) {
+        var res = await _tracked(function () {
+          return fetch('https://sheets.googleapis.com/v4/spreadsheets', {
+            method: 'POST', headers: { Authorization: 'Bearer ' + _tok(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ properties: { title: _fill(U.sheetTitle || 'The Rail Roster – {n} {name}', e.number, e.name) },
+              sheets: [{ properties: { title: 'My Collection', gridProperties: { rowCount: 1000, columnCount: Math.max(40, (typeof PERSONAL_HEADERS !== 'undefined' ? PERSONAL_HEADERS.length : 40) + 3) } } }] }) });
+        });
+        var data = await res.json().catch(function () { return {}; });
+        if (!res.ok || !data.spreadsheetId) throw new Error('the sheet could not be made (' + ((data.error && data.error.message) || res.status) + ')');
+        await _setEntry(key, { sheetId: data.spreadsheetId }); e.sheetId = data.spreadsheetId;
+        // into the collection's folder (a move — the file keeps its id)
+        try {
+          var cur = await driveRequest('GET', '/files/' + e.sheetId + '?fields=parents');
+          var from = (cur && cur.parents || []).join(',');
+          await driveRequest('PATCH', '/files/' + e.sheetId + '?addParents=' + e.folderId + (from ? '&removeParents=' + from : '') + '&fields=id', {});
+        } catch (eMv) { console.warn('[Collections] sheet move:', eMv && eMv.message); }
+      }
+      if (!e.sheetReady) {
+        if (typeof initPersonalSheet === 'function') await initPersonalSheet(e.sheetId);
+        await _setEntry(key, { sheetReady: true }); e.sheetReady = true;
+      }
+      // the sheet and the folder say whose they are (the app finds them by id, never by name)
+      var props = { appProperties: { rrCollectionKey: key, rrCollectionNumber: String(e.number) } };
+      try { await driveRequest('PATCH', '/files/' + e.sheetId + '?fields=id', props); } catch (eP) {}
+      try { await driveRequest('PATCH', '/files/' + e.folderId + '?fields=id', props); } catch (eP2) {}
+      var fin = await rrCollectionsFileUpdate(function (d) { if (!d.items[key]) return false; d.items[key].status = 'active'; d.items[key].at = Date.now(); });
+      var entry = fin.items[key];
+      _registerEntry(entry);
+      return { ok: true, key: key, collection: rrCollectionByKey(key) };
+    } catch (er) {
+      console.warn('[Collections] finish:', er && er.message);
+      return { ok: false, why: 'failed', key: key, msg: _uw('newFailed') };
+    }
+  }
+
+  // ── changing one ────────────────────────────────────────────────────────
+  // patch: { name, lists, clientId, fields, notes }. A new name renames the
+  // folder AND the sheet (found by id, never by name).
+  async function rrUpdateCollection(key, patch) {
+    var c = _reg[key];
+    if (!c) return { ok: false, why: 'unknown' };
+    patch = patch || {};
+    var clean = {};
+    if (patch.name != null) { var nm = String(patch.name).trim().slice(0, _U().nameMax || 60); if (!nm) return { ok: false, why: 'name', msg: _uw('nameNeeded') }; clean.name = nm; }
+    if (patch.lists) { clean.lists = {}; (_U().lists || []).forEach(function (d) { if (d.key in patch.lists) clean.lists[d.key] = patch.lists[d.key] !== false; }); clean.lists = Object.assign({}, c.lists || {}, clean.lists); }
+    if (patch.clientId != null) clean.clientId = String(patch.clientId);
+    if (patch.fields) clean.fields = Object.assign({}, c.fields || {}, patch.fields);
+    if (patch.notes != null) clean.notes = String(patch.notes);
+    try {
+      if (clean.name && clean.name !== c.name) {
+        var U = _U();
+        await driveRequest('PATCH', '/files/' + c.folderId + '?fields=id', { name: _fill(U.folderTitle || '{n} – {name}', c.number, clean.name) });
+        await driveRequest('PATCH', '/files/' + c.sheetId + '?fields=id', { name: _fill(U.sheetTitle || 'The Rail Roster – {n} {name}', c.number, clean.name) });
+      }
+      var d = await rrCollectionsFileUpdate(function (dd) { if (!dd.items[key]) return false; Object.assign(dd.items[key], clean, { at: Date.now() }); });
+      _registerEntry(d.items[key]);
+      if (_current === key) rrApplyListSwitches();
+      return { ok: true, collection: rrCollectionByKey(key) };
+    } catch (e) {
+      console.warn('[Collections] update:', e && e.message);
+      return { ok: false, why: 'failed', msg: _uw('saveFailed') };
+    }
+  }
+  // When a collection is opened: most-recent-first order + its item count.
+  // Best effort — never in the way of anything.
+  async function rrTouchCollection(key, itemCount) {
+    if (!_reg[key]) return;
+    _reg[key].lastOpenedAt = Date.now();
+    if (itemCount != null) _reg[key].itemCount = itemCount;
+    try {
+      await rrCollectionsFileUpdate(function (d) {
+        if (!d.items[key]) return false;
+        d.items[key].lastOpenedAt = _reg[key].lastOpenedAt;
+        if (itemCount != null) d.items[key].itemCount = itemCount;
+      });
+    } catch (e) {}
+  }
+
   var api = {
     rrIsHome: rrIsHome, rrHomeSheet: rrHomeSheet, rrSetHomeSheet: rrSetHomeSheet,
     rrCurrentCollection: rrCurrentCollection, rrCollectionByKey: rrCollectionByKey,
@@ -544,11 +869,19 @@
     rrPhotoRootId: rrPhotoRootId, rrSoldPhotoRootId: rrSoldPhotoRootId,
     rrNoteMinted: rrNoteMinted, rrInvIdNow: rrInvIdNow,
     rrInvGuardBefore: rrInvGuardBefore, rrInvGuardAfter: rrInvGuardAfter,
+    // v0.9.2071 (release 5)
+    rrCollKey: rrCollKey, rrListOn: rrListOn, rrListForPage: rrListForPage, rrPageAllowed: rrPageAllowed, rrAddAllowed: rrAddAllowed,
+    rrApplyListSwitches: rrApplyListSwitches, rrCollFields: rrCollFields, rrCollFieldsSave: rrCollFieldsSave,
+    rrCollectionsFileRead: rrCollectionsFileRead, rrCollectionsFileUpdate: rrCollectionsFileUpdate,
+    rrCollectionsData: rrCollectionsData, rrCollectionsLoad: rrCollectionsLoad,
+    rrCreateCollection: rrCreateCollection, rrFinishCollection: rrFinishCollection,
+    rrUpdateCollection: rrUpdateCollection, rrTouchCollection: rrTouchCollection,
   };
   Object.keys(api).forEach(function (k) { root[k] = api[k]; });
   // test hook: forget everything this file holds (never called by the app)
   root._rrCollectionsReset = function () {
     _reg = {}; _current = null; _homeSheet = null; _inFlight = 0; _lastWriteEnd = 0; _switching = false;
     _minted = {}; _remap = {}; _readCache = {}; _tabsCache = {};
+    _fileId = null; _fileData = null; _making = false;
   };
 })(typeof window !== 'undefined' ? window : globalThis);

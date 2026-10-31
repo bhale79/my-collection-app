@@ -158,6 +158,7 @@ async function loadAllData() {
       _patchMasterData();
       _inferMissingYears();
       buildApp(); if (typeof _auditCatalogResolution === 'function') setTimeout(_auditCatalogResolution, 1500);
+      try { if (typeof rrCollectionsBoot === 'function') rrCollectionsBoot(); } catch (eCB) {}   // v0.9.2071: Pro collections (off unless switched on)
       try { if (typeof window._rrOfflineAppendDrain === 'function') setTimeout(window._rrOfflineAppendDrain, 2500); } catch (eAD) {}
       _scheduleLookupIndex(6000);   // v0.9.971: full-catalog lookup index (background)
     // v0.9.1535 (Brad: "what about the beta tester sheets, when will they get
@@ -186,7 +187,7 @@ async function loadAllData() {
         // the raw value lets driveWriteConfig tell "I do not know" apart from
         // "erase this" — it drops the unknown and keeps what is on record.
         driveWriteConfig({
-          personalSheetId: state.personalSheetId,
+          personalSheetId: (typeof rrHomeSheet === 'function' ? rrHomeSheet() : state.personalSheetId),   // v0.9.2071: the settings file names the HOME sheet, whatever collection is open
           vaultId: driveCache.vaultId,
           photosId: driveCache.photosId,
           soldPhotosId: driveCache.soldPhotosId,
@@ -205,6 +206,7 @@ async function loadAllData() {
     buildPartnerMap();
     _loadMasterVersion();   // v0.9.1103 — which master sheet is live (fail-silent)
     buildApp(); if (typeof _auditCatalogResolution === 'function') setTimeout(_auditCatalogResolution, 1500);
+      try { if (typeof rrCollectionsBoot === 'function') rrCollectionsBoot(); } catch (eCB) {}   // v0.9.2071: Pro collections (off unless switched on)
     // v0.9.1707: single-era boot has no background era loop to settle after —
     // warm the hidden filter dropdowns once the browser is idle (desktop only).
     try { if (typeof rrWarmStale === 'function') rrWarmStale(); } catch (eWarm) {}
@@ -235,7 +237,7 @@ async function loadAllData() {
     if (state.personalSheetId) {
       // v0.9.1266 (R2) — same as the 'all'-era branch above: no `|| ''`.
       driveWriteConfig({
-        personalSheetId: state.personalSheetId,
+        personalSheetId: (typeof rrHomeSheet === 'function' ? rrHomeSheet() : state.personalSheetId),   // v0.9.2071: the settings file names the HOME sheet, whatever collection is open
         vaultId: driveCache.vaultId,
         photosId: driveCache.photosId,
         soldPhotosId: driveCache.soldPhotosId,
@@ -2940,6 +2942,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     }
     if (contactsRes2 && !contactsRes2._failed && typeof window._ctParseRows === 'function') {
       state.contactsData = window._ctParseRows(contactsRes2.values);
+      try { if (typeof rrCollHeaderPaint === 'function') rrCollHeaderPaint(); } catch (eCH) {}   // v0.9.2071: the client's name arrives with Contacts
     }
     // v0.9.824 (BUG-003): failed fetches keep the previous data.
     if (!isRes._failed) state.isData = newIsData;

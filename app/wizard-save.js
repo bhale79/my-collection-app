@@ -1354,6 +1354,8 @@ async function saveWizardItem() {
   if (typeof document !== 'undefined' && document.getElementById('wiz-coach')) { if (typeof _coachPlaying !== 'undefined') _coachPlaying = false; return; }
   // Guard: prevent any save if a save already completed this wizard session
   if (d._saveComplete) { console.warn('[Save] Blocked — save already completed this wizard session'); return; }
+  // v0.9.2071: backstop — never write to a list switched off in this collection.
+  if (wizard.tab && typeof rrAddAllowed === 'function' && !rrAddAllowed(wizard.tab)) return;
   // Bug 11 (Session 154): make sure any in-flight photo uploads have finished
   // so their Drive URLs are in photosItem before we build the row.
   if (typeof _awaitPhotoUploads === 'function' && (d._photoUploadsInFlight || 0) > 0) {
