@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2086';
+const APP_VERSION = 'v0.9.2087';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -4335,7 +4335,7 @@ const RR_COLL_GROUPS = [
   ['Freight',     ['Boxcar', 'Hopper', 'Tank Car', 'Vat Car', 'Flatcar', 'Gondola', 'Stock Car', 'Intermodal', 'Operating Freight']],   // v0.9.1888: Vat Car
   ['Passenger',   ['Passenger Car', 'Trolley']],   // Session 123: a trolley rides with the passenger cars
   ['Cabooses',    ['Caboose']],
-  ['Accessories', ['Accessory', 'Track', 'Transformer/Power', 'Service Station Tool']],
+  ['Accessories', ['Accessory', 'Track', 'Transformer/Power', 'Service Station Tool', 'Parts']],   // 2026-10-31: the Parts shelf rolls up with Accessories on the dashboard
   ['Sets',        ['Set']]
 ];
 const RR_COLL_GROUP_OTHER = 'Other';

@@ -41,6 +41,7 @@
     { id: 'Motorized Unit',       label: 'Motorized'    },
     { id: 'Operating Freight',    label: 'Operating'    },
     { id: 'Paper / Box / Misc',   label: 'Paper'        },
+    { id: 'Parts',                label: 'Parts'        },   // 2026-10-31 ([stated] Brad "yes"): a part gets its own shelf, so Accessories stays accessories
     { id: 'Passenger Car',        label: 'Passenger'    },
     { id: 'Transformer/Power',    label: 'Power'        },
     { id: 'Science Set',          label: 'Science'      },
@@ -232,6 +233,11 @@
     if (it === 'Trolley') return 'Trolley';
     if (it === 'Interurban' || it === 'Subway Car') return 'Passenger Car';
     if (it === 'Accessory' || it === 'Billboard' || it === 'Electronics' || it === 'Parts/Supplies' || it === 'Dealer Layout') return 'Accessory';
+    // 2026-10-31 ([stated] Brad: "yes" to a Parts shelf of its own): the word "Part" — 3,144 master rows on
+    // 12 tabs (Kato Parts, K-Line O, Marx O, Williams O, RMT O, Bachmann …) — files on Parts, never Accessory
+    // (thousands of small parts would bury the water towers). "Parts/Supplies" stays Accessory (Brad's
+    // supplies-stay-Accessory rule, 2.13).
+    if (it === 'Part' || it === 'Parts') return 'Parts';
     if (it === 'Box' || it === 'Box Reference' || it === 'Form' || it === 'Magazine' || it === 'Salesman Brochure' || it === 'Catalog' || it === 'Service Manual' || it === 'Newsletter' || it === 'Stock Certificate' || it === 'Inspection Tag' || it === 'Wartime Paper' || it === 'Memorabilia' || it === 'Lionel Other' || it === 'Nabisco Promotion' || it === 'Paper') return 'Paper / Box / Misc';
 
     // ── FREIGHT (Freight Car / Rolling Stock) — full body-style logic from Session 118 ──
@@ -314,7 +320,7 @@
   //      (MTH), "Switcher", "Diesel Superbass", "F3 Unit" — sent through the
   //      same words-decide rule as plain "Locomotive"; "Live steam" is Steam.
   // The plain synonyms are in _TYPE_SYNONYMS below. Left as their own word on
-  // purpose: "Part" (parts on item tabs), "Premiums" and merchandise,
+  // purpose: "Premiums" and merchandise ("Part" left this list 2026-10-31: the Parts shelf),
   // "Separate Sale", "MOW Car" — the app shows the word itself, ("Vat Car" left
   // this list in v0.9.1888: it is a bucket now.)
   // which is honest. (v0.9.1877: "Auto Rack" left this list — [stated] Brad:
@@ -325,7 +331,7 @@
     'Engine/Locomotive', 'Operating Car', 'Crane Car', 'Auto Carrier', 'Slag Car', 'Passenger Car', 'Caboose',
     'Science Set', 'Set', 'Set Box', 'Construction Set', 'Test Set', 'Diesel Set', 'Electric Set', 'Track', 'Switches', 'Crossing',
     'Transformer', 'Transformer/Power', 'Service Station Tool', 'Service Tool', 'Trolley', 'Interurban', 'Subway Car',
-    'Accessory', 'Billboard', 'Electronics', 'Parts/Supplies', 'Dealer Layout', 'Box', 'Box Reference', 'Form',
+    'Accessory', 'Billboard', 'Electronics', 'Parts/Supplies', 'Part', 'Parts', 'Dealer Layout', 'Box', 'Box Reference', 'Form',
     'Magazine', 'Salesman Brochure', 'Catalog', 'Service Manual', 'Newsletter', 'Stock Certificate', 'Inspection Tag',
     'Wartime Paper', 'Memorabilia', 'Lionel Other', 'Nabisco Promotion', 'Paper', 'Freight Car', 'Rolling Stock'];
   var _TYPE_CANON = {};

@@ -32,7 +32,7 @@ const MEASURED = [
   ['Lionel PW - Items',          '600',   'Diesel Locomotive', 'NW2 Switcher',                                     'Diesel Locomotive'],
   ['American Flyer S - Gilbert', '600',   'Accessory',         'Crossing Gate with bell',                          'Accessory'],
   ['S-Helper Service S',         '600',   'Caboose',           'Reading Extended Vision Caboose #2',               'Caboose'],
-  ['Marx O',                     '600',   'Part',              '600 O Gauge Track Connector Lockon',               'Part'],
+  ['Marx O',                     '600',   'Part',              '600 O Gauge Track Connector Lockon',               'Parts'],   // 2026-10-31: "Part" files on the new Parts shelf (was the raw word "Part", no shelf)
   ['American Flyer S - Gilbert', '780',   'Set',               'Trestle Set',                                      'Set'],
   ['S-Helper Service S',         '780',   'Hopper',            'Virginian Composite Side Hopper 3-pack',           'Hopper'],
   ['American Flyer S - Gilbert', '900',   'Passenger Car',     'NP Combination Car',                               'Passenger Car'],

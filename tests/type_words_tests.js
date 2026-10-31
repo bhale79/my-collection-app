@@ -66,8 +66,10 @@ T('A16 power: Controller, Control, Command Control', ['Controller', 'Control', '
 T('A17 paper: Packet, Manual, Record, Sales Material, Ephemera, Instruction Sheet, Certificate, Book', ['Packet', 'Manual', 'Record', 'Sales Material', 'Ephemera', 'Instruction Sheet', 'Certificate', 'Book', 'Note Cards', 'Misc Lionel'].every(t => L(t) === 'Paper'));
 // v0.9.1877: "Auto Rack" left this list ([stated] Brad: filed with Intermodal like "Auto Carrier" — A22 below).
 // v0.9.1888: "Vat Car" left it too ([stated] Brad: "vat cars should be their own type" — a bucket, label "Vat"; tests/vat_car_tests.js).
-T('A18 LEFT AS THEIR OWN WORD on purpose: Part, Premiums, T-Shirt, Separate Sale, MOW Car',
-  ['Part', 'Premiums', 'T-Shirt', 'Separate Sale', 'MOW Car'].every(t => L(t) === t));
+// 2026-10-31: "Part" left this list too ([stated] Brad: parts get their own shelf — label "Parts"; tests/parts_shelf_tests.js).
+T('A18 LEFT AS THEIR OWN WORD on purpose: Premiums, T-Shirt, Separate Sale, MOW Car',
+  ['Premiums', 'T-Shirt', 'Separate Sale', 'MOW Car'].every(t => L(t) === t));
+T('A18c Part is a bucket now, label "Parts" (2026-10-31)', L('Part') === 'Parts');
 T('A18b Vat Car is a bucket now, label "Vat" (v0.9.1888)', L('Vat Car') === 'Vat');
 T('A19 what worked before still works: packs, the dash form, the catalog\'s own words, the by-words loco kind',
   L('Boxcar 2-Pack') === 'Boxcar' && L('Flatcar - PS-4 Flatcar') === 'Flatcar' && L('Reefer') === 'Boxcar' && L('Steam Locomotive', 'Hudson') === 'Steam' && L('Steam Locomotive', 'GP-9 diesel') === 'Diesel' && L('Freight Car', 'gondola with canisters') === 'Gondola');

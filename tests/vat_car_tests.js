@@ -50,8 +50,9 @@ function liftImp(s) { const sb = { window: {}, console }; sb.window.window = sb.
 // ── A · the list ─────────────────────────────────────────────────────────────
 section('A · the bucket list');
 const W = liftTG(TG);
-T('A1 24 buckets; Vat Car is the 24th, label "Vat", last (alphabetical by label)',
-  W.TYPE_BUCKETS.length === 24 && W.TYPE_BUCKETS[23].id === 'Vat Car' && W.TYPE_BUCKETS[23].label === 'Vat', W.TYPE_BUCKETS.slice(-2));
+// 2026-10-31: 25 — the Parts shelf joined (tests/parts_shelf_tests.js); Vat is still last.
+T('A1 25 buckets; Vat Car is the last, label "Vat" (alphabetical by label)',
+  W.TYPE_BUCKETS.length === 25 && W.TYPE_BUCKETS[24].id === 'Vat Car' && W.TYPE_BUCKETS[24].label === 'Vat', W.TYPE_BUCKETS.slice(-2));
 T('A2 labels are still in alphabetical order', (function () {
   const l = W.TYPE_BUCKETS.map(b => b.label.toLowerCase()); return l.every((x, i) => i === 0 || l[i - 1] < x);
 })(), W.TYPE_BUCKETS.map(b => b.label));
@@ -138,7 +139,7 @@ const UNDO_TG = [
 for (const [name, from, to] of UNDO_TG) {
   T('E0 the fix "' + name + '" is in type-groups.js exactly once', TG.split(from).length === 2);
   const w2 = liftTG(TG.split(from).join(to));
-  const red = !(TYPED.every(r => w2.getTypeBucket(r) === 'Vat Car') && KLINE.every(r => w2.getTypeBucket(r) === 'Vat Car') && w2.TYPE_BUCKETS.length === 24);
+  const red = !(TYPED.every(r => w2.getTypeBucket(r) === 'Vat Car') && KLINE.every(r => w2.getTypeBucket(r) === 'Vat Car') && w2.TYPE_BUCKETS.length === 25);
   T('E  planted: ' + name + ' → section A/B goes red', red);
 }
 const UNDO_CFG = "  ['Vat Car', /\\bvat car\\b/i],";
