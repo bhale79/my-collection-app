@@ -6,6 +6,9 @@
 // row carries the model in SUB TYPE. The ET44 itself is not on Atlas's page,
 // so the no-match line must say so.
 //
+// v0.9.2075 (Brad, 2026-10-30 "yes"): the 48 sheets Atlas's index lists that the
+// September read missed — exact Sub Types checked against the live master.
+//
 // v0.9.1802 (Brad, 2026-09-26: Atlas parts on the Maintenance page "the same
 // way as MTH"): the diagram list and the matcher moved to
 // app/atlas-diagrams-config.js, which BOTH the "Parts diagram" buttons and
@@ -52,7 +55,7 @@ const lifted = {
   fam: W.atlasFamilies,
 };
 const titles = a => (a || []).map(e => e.t).join(' | ');
-ok('the config loads and exposes the list and the matcher', Array.isArray(DOCS) && DOCS.length === 275 && typeof lifted.all === 'function' && typeof lifted.fam === 'function', String(DOCS && DOCS.length));
+ok('the config loads and exposes the list and the matcher', Array.isArray(DOCS) && DOCS.length === 323 && typeof lifted.all === 'function' && typeof lifted.fam === 'function', String(DOCS && DOCS.length));
 
 section('One list, one matcher — Maintenance and the parts lookup read the same thing');
 ok('maintenance.js no longer carries its own copy of the list', !/var ATLAS_DOCS = \[/.test(src) && !/\{s:'O',m:'gp35'/.test(src));
@@ -113,7 +116,7 @@ ok('O "60\' Single Door Box Car" (auto-parts page, 48 rows) → the single-door 
 ok('O "60\' Double Door Box Car" (74 rows) → the double-door auto-parts sheet only', T("60' Double Door Box Car", 'atlas', '2-Rail') === "O 60' Auto Parts Box Car Double Door");
 ok('O "40\' Wood Refrigerator Car" (238 rows) → the O 40\' Wood Reefer sheet, own rail', T("40' Wood Refrigerator Car", 'atlas', '2-Rail') === "O 40' Wood Reefer (2-Rail)" && T("40' Wood Refrigerator Car", 'atlas', '3-Rail') === "O 40' Wood Reefer (3-Rail)");
 ok('N "45\' Pines Trailers" (149 rows) → the N 45\' Pines Trailer sheet', T("45' Pines Trailers", 'atlas_n') === "N 45' Pines Trailer");
-ok('…the neighbours stay unmatched: O 36\' and Re-Built wood reefers, O 60\' Baggage Car, N 50\' Double Door', [["36' Wood Refrigerator Cars", 'atlas'], ["40' Re-Built Wood Refrigerator Car", 'atlas'], ["60' Baggage Car", 'atlas'], ["50' Double Door Box Car", 'atlas_n']].every(([st, era]) => lifted.all({ subType: st }, era) === null));
+ok('…the neighbours stay unmatched: O 36\' and Re-Built wood reefers, N 50\' Double Door (O 60\' Baggage Car has its own sheet since v0.9.2075)', [["36' Wood Refrigerator Cars", 'atlas'], ["40' Re-Built Wood Refrigerator Car", 'atlas'], ["50' Double Door Box Car", 'atlas_n']].every(([st, era]) => lifted.all({ subType: st }, era) === null));
 ok('a freight car is never matched by a model key (the words are lengths and tons)', DOCS.every(e => !e.st || !e.m));
 ok('no freight-car sheet is reachable by a bare length key like "40" or "50"', DOCS.every(e => !/^(\d{1,3})(\|\d{1,3})*$/.test(e.m)));
 
@@ -221,6 +224,70 @@ const o5 = offCfg("var spelled = ATLAS_SUBTYPE_MODELS[sc + '|' + _sq(item.subTyp
 ok('OFFENDER: stop spelling shorthand out → N "GP-30 & 35" loses the GP-35 sheets again', !!o5 && !/GP-35/.test(titles(o5.atlasDiagramsFor({ subType: 'GP-30 & 35' }, 'atlas_n'))));
 const o6 = offCfg("['HO', 'C-424 & 425',           'C-424, C-425'],", '');
 ok('OFFENDER: drop one row from the list → exactly that Sub Type loses its sheet', !!o6 && !/C425 Locomotive/.test(titles(o6.atlasDiagramsFor({ subType: 'C-424 & 425' }, 'atlas_ho'))) && /DASH 8-40CW/.test(titles(o6.atlasDiagramsFor({ subType: 'DASH 8-40C & 40CW' }, 'atlas_ho'))));
+
+section('v0.9.2075 — the 48 sheets the September read missed (Brad, 2026-10-30 "yes")');
+// Each Sub Type below is a real one on the live master (2026-10-31), with its row count.
+const N75 = [
+  ['atlas', "60' Baggage Car", '2-Rail', "O TM 60' Baggage (2-Rail)"],                 // 29 + 18 "60' Baggage Cars"
+  ['atlas', "60' Baggage Cars", '3-Rail', "O TM 60' Baggage (3-Rail)"],
+  ['atlas', "60' Passenger Coach", '3-Rail', "O TM 60' Coach (3-Rail)"],               // 64 + 34 + 18 + 12 coach rows
+  ['atlas', "60ft Passenger Coach", '2-Rail', "O TM 60' Coach (2-Rail)"],
+  ['atlas', "60' Combine Car", '3-Rail', "O TM 60' Combine (3-Rail)"],
+  ['atlas', "60' RPO Cars", '2-Rail', "O TM 60' RPO (2-Rail)"],
+  ['atlas', '50’6” Box Car', '2-Rail', "O TM 50' 6\" Box Car (2-Rail)"],                // curly quotes, as on the sheet
+  ['atlas', "50' Single-Sheathed Box Car", '3-Rail', "O TM 50' Single Sheathed Box Car (3-Rail)"],
+  ['atlas', 'USRA Double-Sheathed Box Car', '2-Rail', "O 40' USRA Double Sheathed Box Car (2-Rail)"],
+  ['atlas', '40ft USRA Composite Gondola', '3-Rail', "O 40' Composite Gondola (3-Rail)"],
+  ['atlas', '11000 Gallon Tank Car', '2-Rail', 'O 11,000 Gallon Tank Car (2-Rail)'],
+  ['atlas', '40ft Airslide Hopper', '3-Rail', 'O GATX Airslide Covered Hopper (3-Rail)'],
+  ['atlas', 'Front Runner and 45ft Pines Trailer', '2-Rail', 'O Front Runner (2-Rail)'],
+  ['atlas', 'California Zephyr Dome Chair Car', '3-Rail', 'O Streamlined Dome Car'],
+  ['atlas', 'California Zephyr 10-6 Sleeper', '2-Rail', 'O Streamlined Sleeper'],
+  ['atlas', 'Trainman® Extended Vision Caboose', '2-Rail', 'O TM Extended Vision Caboose (2-Rail)'],
+  ['atlas', "Trainman® 62' Short Bulkhead Flat Car", '3-Rail', "O TM 62' Bulkhead Flat Car (2-Rail & 3-Rail)"],
+  ['atlas', "Trainman® 52'6\" Flat Car w/ Load", '2-Rail', "O TM 52' Flat Car w/Pipe Load (2-Rail & 3-Rail)"],
+  ['atlas', 'O-27 Passenger Coach', '3-Rail', 'O Industrial Rail P70 Coach'],
+  ['atlas_ho', 'NRE Genset II', '', 'HO Trainman® Genset Locomotive'],
+  ['atlas_n', 'Pressureaide Centerflow Hopper', '', 'N Centerflow Pressureaide Hopper'],
+  ['atlas_n', 'Beer Can Shorty Tank Car', '', 'N Beer Can Shorty Tank Car'],
+  ['atlas_n', 'Extended Vision Caboose', '', 'N Extended Vision Caboose'],
+  ['atlas_n', "40' GSI Pulpwood Flat Car", '', 'N Pulpwood Flat Car'],
+  ['atlas_n', 'Cupola Caboose', '', 'N Cupola Caboose'],
+  ['atlas_n', 'Ford Tractor Cabs', '', 'N Ford® Tractor Cab'],
+  ['atlas_n', 'Kaolin Tank Car', '', 'N Kaolin Tank Car'],
+  ['atlas_n', 'USRA Single-Sheathed Box Car', '', 'N USRA Single Sheathed Box Car'],
+  ['atlas_n', 'Track Cleaning Car', '', 'N Track Cleaning Car'],
+];
+for (const [era, st, tp, want] of N75) ok(era + ' "' + st + '"' + (tp ? ' ' + tp : '') + ' → ' + want, titles(lifted.all({ subType: st, trackPower: tp }, era)) === want, titles(lifted.all({ subType: st, trackPower: tp }, era)));
+ok('the IR Coach and Combine 2-Pack gets both IR sheets', titles(lifted.all({ subType: 'O-27 Passenger Coach and Combine 2-Pack' }, 'atlas')) === 'O Industrial Rail P70 Coach | O Industrial Rail PB70 Combine');
+const tmHO = titles(lifted.all({ subType: 'Train Master', description: 'UNDECORATED' }, 'atlas_ho'));
+ok('HO Train Master → the Gold and the Silver sheet', tmHO === 'HO Train Master Locomotive - Gold | HO Train Master Locomotive - Silver', tmHO);
+ok('N Train Master → the N TrainMaster sheet', titles(lifted.all({ subType: 'Train Master' }, 'atlas_n')) === 'N TrainMaster Loco');
+const u25 = titles(lifted.all({ subType: 'U25B' }, 'atlas_n'));
+ok('N U25B keeps both its loco sheets and gains the two brush pages', ['N U25B Loco', 'N U25B Loco-Japan', 'N U25B Motor Brush Replacement (A) - Japan', 'N U25B Motor Brush Replacement (B) - Japan'].every(t => u25.split(' | ').indexOf(t) >= 0), u25);
+const rs3 = titles(lifted.all({ subType: 'RS-3 & RSD-4/5' }, 'atlas_ho'));
+ok('HO RS-3 keeps its Japan sheet and gains the HO brush page', /HO RS-3 Locomotive \(Japan\)/.test(rs3) && /HO Motor Brush Replacement \(Japan\)/.test(rs3), rs3);
+ok('kept NARROW where the Sub Type mixes lines: O "Extended Vision Caboose" (Master Line) gets no Trainman sheet', lifted.all({ subType: 'Extended Vision Caboose' }, 'atlas') === null);
+ok('…O "52\'6\" Flat Car w/ Load" gets no Trainman pipe-load sheet', lifted.all({ subType: '52\'6" Flat Car w/ Load' }, 'atlas') === null);
+ok('…O "USRA Single-Sheathed Box Car" (40\') does not get the TM 50\' sheet', lifted.all({ subType: 'USRA Single-Sheathed Box Car' }, 'atlas') === null);
+ok('…O "62\' Short Bulkhead Flat Car" (Master Line numbers only) gets no Trainman sheet', lifted.all({ subType: "62' Short Bulkhead Flat Car" }, 'atlas') === null);
+ok('the two sheets no item can claim yet match nothing (st: [])', ['N Front Runner', 'N Motor Brush Replacement'].every(t => { const e = DOCS.find(x => x.t === t); return e && Array.isArray(e.st) && e.st.length === 0; }));
+ok('the 24 parts sheets Atlas links on shop.atlasrr.com are filed under download.atlasrr.com/partspdfs/ (same bytes, checked 2026-10-30; its 2 kit booklets carry no parts)', DOCS.filter(e => e.u.indexOf('/partspdfs/') === 0).length === 24 && DOCS.every(e => !/^https?:/.test(e.u)));
+const H75 = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'harvests', 'atlas-parts-2026-10-31.json'), 'utf8'));
+const H27 = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'harvests', 'atlas-parts-2026-09-27b.json'), 'utf8'));
+ok('the new tab: 5,822 rows, same 28 columns', H75.rows.length === 5822 && JSON.stringify(H75.header) === JSON.stringify(H27.header));
+ok('every "Parts Lists" address on the new tab is one this file knows', H75.rows.every(r => r[26].split('; ').every(p => U.has(p))), H75.rows.filter(r => !r[26].split('; ').every(p => U.has(p))).map(r => r[0]).slice(0, 5).join());
+const K75 = r => r[8] + '|' + r[0] + '|' + r[7];
+const new75 = new Set(H75.rows.map(K75));
+ok('every row already on the tab is still there with its exact number, scale and NAME', H27.rows.every(r => new75.has(K75(r))), H27.rows.filter(r => !new75.has(K75(r))).map(K75).slice(0, 3).join(' / '));
+const old75 = {}; H27.rows.forEach(r => { old75[K75(r)] = r; });
+ok('…and its Diagrams / Parts Lists only grow (never reordered or cut)', H75.rows.every(r => { const o = old75[K75(r)]; return !o || (r[24].indexOf(o[24]) === 0 && r[26].indexOf(o[26]) === 0); }));
+ok('no two rows the app would merge (number + variation + name)', new Set(H75.rows.map(r => r[0] + '|' + r[10] + '|' + r[7])).size === H75.rows.length);
+ok('no part number with an unreadable digit, no reader note left in a new name', H75.rows.every(r => r[0].indexOf('?') < 0) && H75.rows.filter(r => !old75[K75(r)]).every(r => !/\([^)]*\b(prints|printed|named in the text|truck side|same number)\b/i.test(r[7])));
+const o7 = offCfg("st:['Kaolin Tank Car']", "st:['Kaolin Tank Car X']");
+ok('OFFENDER: misspell one Sub Type → that car loses its sheet', !!o7 && o7.atlasDiagramsFor({ subType: 'Kaolin Tank Car' }, 'atlas_n') === null);
+const o8 = offCfg("{s:'O',m:'',r:'2',t:'O TM 60\\' RPO (2-Rail)',", "{s:'O',m:'',r:'3',t:'O TM 60\\' RPO (2-Rail)',");
+ok('OFFENDER: file a 2-rail sheet as 3-rail → a 2-rail RPO no longer gets the 2-rail sheet', !!o8 && titles(o8.atlasDiagramsFor({ subType: "60' RPO Car", trackPower: '2-Rail' }, 'atlas')) !== "O TM 60' RPO (2-Rail)");
 
 // ── against a full master pull, when one is on this machine ─────────
 section('Against a real master pull, when one is on this machine');
