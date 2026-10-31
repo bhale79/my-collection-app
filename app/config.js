@@ -2521,7 +2521,87 @@ window.RR_USER_FIELDS = [
   { key: 'custom3', label: 'Custom 3', hint: '', pref: 'lv_custom3_enabled', custom: true },
   { key: 'custom4', label: 'Custom 4', hint: '', pref: 'lv_custom4_enabled', custom: true },
   { key: 'custom5', label: 'Custom 5', hint: '', pref: 'lv_custom5_enabled', custom: true },
+  // 2026-10-31 — COMMAND IDs ([stated] Brad, PLAN 2026-10-31 "yes"): the
+  // number this copy answers to on each command-control system. Defined HERE,
+  // once, so My Collection's "+ Add a column", the report builder and the
+  // import pick them up with nothing typed twice. ownCard: 'cmdid' = "shown by
+  // its own card" — the Command ID card on the item page and the "＋ Add
+  // command ID" button on the Add steps are their ONLY way in, so the Add
+  // steps' plain boxes, the Details grid, Update Info and Preferences → Extra
+  // Columns leave them out (rrFieldEnabled / rrUserFieldsForItem below). No
+  // switch (no pref): nothing shows until someone taps the button.
+  //   sys    — the system ('tmcc' / 'dcs' / 'dcc'): the duplicate warning
+  //            compares only within one system, the hint names it
+  //   short  — the words over the big number on the card ("LEGACY / TMCC 12")
+  //   say    — the system in a sentence ("…is also set to TMCC / Legacy 12")
+  //   words  — what a search may start with to mean THIS system ("DCS 12")
+  //   digits — whole number, at most this many digits (DCC long addresses
+  //            pass 9999); a leading zero is ignored ("07" = "7")
+  //   importRe — a spreadsheet heading the import maps here on its own
+  // Listed in the order the card shows them; the sheet's own column order is
+  // PERSONAL_SCHEMA's (app.js), as for every field.
+  { key: 'tmccId', label: 'TMCC / Legacy ID', short: 'LEGACY / TMCC', say: 'TMCC / Legacy', sys: 'tmcc', hint: 'e.g. 12',
+    ownCard: 'cmdid', digits: 5, words: ['tmcc', 'legacy'],
+    importRe: /^(tmcc|legacy|tmcc\s*\/?\s*legacy|legacy\s*\/?\s*tmcc|tmcc\s*or\s*legacy)(\s*(id|#|no\.?|num(ber)?|address|addr\.?))?$/ },
+  { key: 'dcsId', label: 'DCS ID', short: 'DCS', say: 'DCS', sys: 'dcs', hint: 'e.g. 7',
+    ownCard: 'cmdid', digits: 5, words: ['dcs'],
+    importRe: /^(mth\s*)?dcs(\s*(id|#|no\.?|num(ber)?|address|addr\.?))?$/ },
+  { key: 'dccAddress', label: 'DCC Address', short: 'DCC', say: 'DCC', sys: 'dcc', hint: 'e.g. 3 or 1234',
+    ownCard: 'cmdid', digits: 5, words: ['dcc'],
+    importRe: /^dcc(\s*(id|#|no\.?|num(ber)?|address|addr\.?|loco\s*address))?$/ },
 ];
+// ═══════════════════════════════════════════════════════════════
+// COMMAND IDs — 2026-10-31 ([stated] Brad: "a clickable button on the item
+// add and item detail page that when you click it you can add the code …
+// that way its clean until you click it" → "yes"). Every word the card, the
+// Add button, the duplicate warning, the search and the report say is HERE;
+// the fields themselves are the three ownCard entries in RR_USER_FIELDS
+// above. command-ids.js is the only code that draws or writes them.
+// ═══════════════════════════════════════════════════════════════
+window.RR_CMDID = {
+  title: 'Command ID',
+  addBtn: '＋ Add command ID',
+  save: 'Save',
+  cancel: 'Cancel',
+  done: 'Done',
+  change: 'Tap to change',
+  intro: 'The number you key into your remote to run this one. Fill any that apply.',
+  hint: 'Catalog: {say}',
+  bad: '{label} must be a whole number of up to {n} digits.',
+  saved: 'Command ID saved',
+  cleared: 'Command ID cleared',
+  // the duplicate warning — never blocks (some owners keep a spare on purpose)
+  clashTitle: 'Same number twice',
+  clash: 'Your {item} is also set to {sys} {num}. Both will answer the remote.',
+  keepBoth: 'Keep both',
+  changeThis: 'Change this one',
+  clashNote: 'Also on your {item}',
+  // search: "ID 12" means any system; each field's own `words` mean that one
+  searchAny: ['id'],
+  // the ready-made report (report builder)
+  reportName: 'Command ID Report',
+  reportDesc: 'Only the items that have a Command ID — the number each one answers to, sorted by system. Print it and keep it by the controller.',
+  reportFilter: 'Has a Command ID',
+  // WHAT THE CATALOG SAYS IS INSIDE (measured 2026-10-31 on the live master):
+  // Lionel Modern's Control column, Atlas O / Weaver's Track Power, and the
+  // words of any description. First rule per system wins; the first system
+  // found is put first in the boxes. Read from the row's own words — never a
+  // list of item numbers. The hint only SUGGESTS: all three boxes are always
+  // there, and the button is offered on every Modern item whatever this says.
+  hintRules: [
+    { from: 'control',    re: /legacy/i,                              sys: 'tmcc', say: 'Legacy' },
+    { from: 'control',    re: /tmcc/i,                                sys: 'tmcc', say: 'TMCC' },
+    { from: 'control',    re: /command\s*control/i,                   sys: 'tmcc', say: 'Command Control' },
+    { from: 'trackPower', re: /tmcc/i,                                sys: 'tmcc', say: 'TMCC' },
+    { from: 'trackPower', re: /\bdcs\b/i,                             sys: 'dcs',  say: 'DCS' },
+    { from: 'trackPower', re: /\bdcc\b/i,                             sys: 'dcc',  say: 'DCC' },
+    { from: 'words',      re: /proto[-\s]?sound/i,                    sys: 'dcs',  say: 'Proto-Sound — DCS' },
+    { from: 'words',      re: /\bdcs\b/i,                             sys: 'dcs',  say: 'DCS' },
+    { from: 'words',      re: /\blegacy\b/i,                          sys: 'tmcc', say: 'Legacy' },
+    { from: 'words',      re: /\btmcc\b|trainmaster\s+command/i,      sys: 'tmcc', say: 'TMCC' },
+    { from: 'words',      re: /\bdcc\b|\bdecoder\b|\bmts\b/i,         sys: 'dcc',  say: 'DCC' },
+  ],
+};
 // ── v0.9.1867: EVERY user-field setting follows the ACCOUNT ─────────
 // A custom column's name (lv_label_customN) and every field's on/off flag
 // (lv_*_enabled) are account settings now: written through _prefSet, read
@@ -2615,6 +2695,9 @@ window.rrFieldLabel = function (f) {
 // one is off, whatever its own flag says: Location Detail without Location
 // is a tote with no room. (v1867: every flag is read through rrPrefRead.)
 window.rrFieldEnabled = function (f) {
+  // 2026-10-31: a field shown by its own card (the Command IDs) has no switch
+  // and is never "on" — so no plain box asks for it anywhere.
+  if (f && f.ownCard) return false;
   try {
     var own = rrPrefRead(f.pref);   // read first, so the heal happens even while the gate below says no
     if (f.requires && rrPrefRead(f.requires.pref) !== 'true') return false;
@@ -2667,6 +2750,10 @@ window.RR_FIELD_HELP = {
   datePurchased:   'When you bought it.',
   purchasedFrom:   'Who you bought it from — a shop, a show, a person.',
   quantity:        'How many copies this row stands for.',
+  // 2026-10-31: the Command IDs (RR_USER_FIELDS, ownCard 'cmdid')
+  tmccId:          'The number this engine (or car, or accessory) answers to on a Lionel TMCC / Legacy base. Set it on the item page with “＋ Add command ID”.',
+  dcsId:           'The number it answers to on MTH DCS. Set it on the item page with “＋ Add command ID”.',
+  dccAddress:      'The address it answers to on a DCC system (HO, N, G and most other scales). Set it on the item page with “＋ Add command ID”.',
 };
 // The sentence for a field, or '' when there is none. The five custom slots
 // are the only ones whose words depend on the user: a named slot is "your
@@ -3789,6 +3876,7 @@ window.rrEnabledUserFields = function () {
 // values yet) keep rrEnabledUserFields.
 window.rrUserFieldsForItem = function (pd) {
   return (window.RR_USER_FIELDS || []).filter(function (f) {
+    if (f.ownCard) return false;   // 2026-10-31: drawn by its own card (command-ids.js), never as a plain row
     if (window.rrFieldEnabled(f)) return true;
     return !!(pd && pd[f.key] != null && String(pd[f.key]).trim() !== '');
   });

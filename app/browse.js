@@ -335,7 +335,9 @@ function _collColSwitch(id) {
   if (id === 'location') return { pref: 'lv_location_enabled', location: true };
   var c = _COLL_EXTRA_COLS.filter(function (x) { return x.col === id; })[0];
   var f = c ? (window.RR_USER_FIELDS || []).filter(function (x) { return x.key === c.pdKey; })[0] : null;
-  return f ? { pref: f.pref, field: f } : null;
+  // 2026-10-31: a field with no switch (the Command IDs — set only on their
+  // own card) has nothing to flip; adding its column only SHOWS it.
+  return (f && f.pref) ? { pref: f.pref, field: f } : null;
 }
 function _collSwitchIsOn(sw) {
   if (!sw) return false;
@@ -4608,6 +4610,11 @@ function _rrBrowseCore(_co) {
   // the v1204 variation rule), a per-copy filter is answered by EACH copy,
   // a row passes when ANY copy does, and only the passing copies are drawn.
   var _copiesByNum = null;
+  // 2026-10-31 (Command IDs): "ID 12", "DCS 12", "TMCC 12", "Legacy 12",
+  // "DCC 12" is a question about ONE COPY (its own cells) — answered by each
+  // copy like the filters below, so only the copy set to 12 is drawn.
+  // A bare "12" is never one (rrCmdIdQuery, command-ids.js).
+  var _cmdQ = (typeof rrCmdIdQuery === 'function') ? rrCmdIdQuery(state.filters.search || '') : null;
   function _copiesOfRow(it) {
     if (!state.filters.owned || it._personalOnly) return [];
     if (!_copiesByNum) {
@@ -4639,6 +4646,7 @@ function _rrBrowseCore(_co) {
   // catalog row. Everything the old row test asked of `pd` alone.
   function _copyPasses(pd) {
     if (!pd) return false;
+    if (_cmdQ && !rrCmdIdMatches(pd, _cmdQ)) return false;
     if (boxed && pd.hasBox !== 'Yes') return false;
     const _qf = state.filters.quickEntry || '';
     if (_qf === 'quick' && !pd.quickEntry) return false;
@@ -4665,7 +4673,7 @@ function _rrBrowseCore(_co) {
   }
   // Is any per-copy filter switched on? When none is, nothing below changes.
   function _copyFiltersOn() {
-    return !!(boxed || state.filters.quickEntry || state.filters.imported === 'imported' || state.filters.ownMaker
+    return !!(_cmdQ || boxed || state.filters.quickEntry || state.filters.imported === 'imported' || state.filters.ownMaker
       || state.filters.subCollection || state.filters.subType || state.filters.needsDetails === 'needs' || state.filters.group);
   }
 
@@ -4723,6 +4731,11 @@ function _rrBrowseCore(_co) {
     if (!rrChipRowPasses(item, pd, _stp3b, type, { owned: !!state.filters.owned, allEra: _currentEra === 'all' })) return false;
     if (road && item.roadName !== road) return false;
     if (search) {
+      // 2026-10-31 (Command IDs): an ID search ("ID 12", "DCS 12" …) finds
+      // the copies set to that number, whether or not the column is shown —
+      // already asked of each copy above (_cmdQ, a per-copy filter); a row
+      // nobody owns has no ID.
+      if (_cmdQ) return !!(isOwned && pd);
       // v0.9.1506 (Session 81): imported items are searchable by the words THEY
       // wrote — their own description and grade ride the haystack when present.
       // v0.9.1583 (Scott's report #2: "no way to search notes"): his own

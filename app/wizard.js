@@ -2965,6 +2965,8 @@ function renderWizardStep() {
         // v0.9.1514 parity, via the v1588 SHARED renderer (also serves the
         // catalog Purchase & Value step — one source of truth).
         _wizUserFieldsHtml(d) +
+        // 2026-10-31: the "＋ Add command ID" button — every Modern item (command-ids.js)
+        ((typeof rrCmdIdWizHtml === 'function') ? rrCmdIdWizHtml(d) : '') +
       '</div>';
 
   } else if (s.type === 'choice') {
@@ -6495,6 +6497,10 @@ function renderWizardStep() {
     // v0.9.1588: the user's own columns (custom + enabled optionals),
     // right where the manual flow offers them — before Notes.
     _pvHtml += _wizUserFieldsHtml(_pvD);
+    // 2026-10-31 (Command IDs, [stated] Brad 16:02 CT "i think the add
+    // "command id" button be on all modern items"): the small button, every
+    // Modern item; ignored, it changes nothing and never blocks a save.
+    if (typeof rrCmdIdWizHtml === 'function') _pvHtml += rrCmdIdWizHtml(_pvD);
 
     // Notes
     // In two columns Notes takes the empty right-hand slot when the fields
@@ -6700,6 +6706,10 @@ function renderWizardStep() {
       set_num:'Set Number',
       purchasedFrom:'Bought From',   // v0.9.1920: shown as the contact's name, not its code
     };
+    // 2026-10-31: the Command IDs set with "＋ Add command ID" show under their own names
+    (window.RR_USER_FIELDS || []).forEach(function (f) {
+      if (f.ownCard && !_keyLabels[f.key]) _keyLabels[f.key] = (typeof rrFieldLabel === 'function') ? rrFieldLabel(f) : f.label;
+    });
     // v0.9.1920 (Brad, booth camera list #10: "By role"): a diesel set's partner
     // units are named for what they ARE — the same mapping as the photo-step
     // titles (wizard-steps.js _unit2Role): on an AA the second unit is the dummy

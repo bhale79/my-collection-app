@@ -64,6 +64,7 @@ const SHELL_FILES = [
   './drive.js',
   './table-columns.js',   // v0.9.1864: the ONE column editor (My Collection + For Sale)
   './browse.js',
+  './command-ids.js',   // 2026-10-31: Command IDs (TMCC / Legacy, DCS, DCC)
   './service-manual.js',   // v0.9.2005: the Service Manual checklist
   // Session 85 (v0.9.1577): three scripts index.html loads that were never
   // precached — the offline app silently lacked the importer (v1469-era

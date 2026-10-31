@@ -28,32 +28,38 @@
   // (their words file them here). Every screen reads THIS list; the only
   // other seats are the dashboard's freight roll-up (dashboard.js) and the
   // icon map below.
+  // onTrack (2026-10-31, Command IDs): the buckets that RUN on the track —
+  // engines, motorized units, trolleys, every car and tender (and a set, whose
+  // number is its engine's). A Lionel base numbers those apart from
+  // accessories / switches / power, so the Command ID duplicate warning
+  // compares on-track with on-track and everything else with everything else
+  // (rrBucketOnTrack below). Read off THIS list — never a list of item numbers.
   var TYPE_BUCKETS = [
     { id: 'Accessory',            label: 'Accessory'    },
-    { id: 'Boxcar',               label: 'Boxcar'       },
-    { id: 'Caboose',              label: 'Caboose'      },
-    { id: 'Diesel Locomotive',    label: 'Diesel'       },
-    { id: 'Electric Locomotive',  label: 'Electric'     },
-    { id: 'Flatcar',              label: 'Flatcar'      },
-    { id: 'Gondola',              label: 'Gondola'      },
-    { id: 'Hopper',               label: 'Hopper'       },
-    { id: 'Intermodal',           label: 'Intermodal'   },
-    { id: 'Motorized Unit',       label: 'Motorized'    },
-    { id: 'Operating Freight',    label: 'Operating'    },
+    { id: 'Boxcar',               label: 'Boxcar',       onTrack: true },
+    { id: 'Caboose',              label: 'Caboose',      onTrack: true },
+    { id: 'Diesel Locomotive',    label: 'Diesel',       onTrack: true },
+    { id: 'Electric Locomotive',  label: 'Electric',     onTrack: true },
+    { id: 'Flatcar',              label: 'Flatcar',      onTrack: true },
+    { id: 'Gondola',              label: 'Gondola',      onTrack: true },
+    { id: 'Hopper',               label: 'Hopper',       onTrack: true },
+    { id: 'Intermodal',           label: 'Intermodal',   onTrack: true },
+    { id: 'Motorized Unit',       label: 'Motorized',    onTrack: true },
+    { id: 'Operating Freight',    label: 'Operating',    onTrack: true },
     { id: 'Paper / Box / Misc',   label: 'Paper'        },
     { id: 'Parts',                label: 'Parts'        },   // 2026-10-31 ([stated] Brad "yes"): a part gets its own shelf, so Accessories stays accessories
-    { id: 'Passenger Car',        label: 'Passenger'    },
+    { id: 'Passenger Car',        label: 'Passenger',    onTrack: true },
     { id: 'Transformer/Power',    label: 'Power'        },
     { id: 'Science Set',          label: 'Science'      },
     { id: 'Service Station Tool', label: 'Service Tool' },
-    { id: 'Set',                  label: 'Set'          },
-    { id: 'Steam Locomotive',     label: 'Steam'        },
-    { id: 'Stock Car',            label: 'Stock'        },
-    { id: 'Tank Car',             label: 'Tank'         },
-    { id: 'Tender',               label: 'Tender'       },
+    { id: 'Set',                  label: 'Set',          onTrack: true },
+    { id: 'Steam Locomotive',     label: 'Steam',        onTrack: true },
+    { id: 'Stock Car',            label: 'Stock',        onTrack: true },
+    { id: 'Tank Car',             label: 'Tank',         onTrack: true },
+    { id: 'Tender',               label: 'Tender',       onTrack: true },
     { id: 'Track',                label: 'Track'        },
-    { id: 'Trolley',              label: 'Trolley'      },
-    { id: 'Vat Car',              label: 'Vat'          }
+    { id: 'Trolley',              label: 'Trolley',      onTrack: true },
+    { id: 'Vat Car',              label: 'Vat',          onTrack: true }
   ];
 
   // ── v0.9.1845: the by-number override table is RETIRED ──────────────────
@@ -483,6 +489,11 @@
 
   // Expose globally
   window.TYPE_BUCKETS = TYPE_BUCKETS;
+  // Does this bucket run on the track? (onTrack above — one answer)
+  window.rrBucketOnTrack = function (id) {
+    for (var i = 0; i < TYPE_BUCKETS.length; i++) if (TYPE_BUCKETS[i].id === id) return !!TYPE_BUCKETS[i].onTrack;
+    return false;
+  };
   window.rrNormalizeTypeToBucket = _normalizeToBucket;
   window.getTypeBucket = getTypeBucket;
   window.locoKindFromWords = locoKindFromWords;   // v0.9.1742: one reader for every classifier

@@ -73,6 +73,16 @@ var RR_ROW_EXTRA_COLS = [
   { col: 'custom4',       label: 'Custom 4',      pdKey: 'custom4', userField: true },
   { col: 'custom5',       label: 'Custom 5',      pdKey: 'custom5', userField: true },
 ];
+// 2026-10-31 (Command IDs, [stated] Brad 15:51 CT "lets keep it off of the
+// my collection column list unless the user want to add it with add
+// column"): the three IDs are columns a user can ADD — never a default. Made
+// from their ONE definition (RR_USER_FIELDS, ownCard 'cmdid', config.js —
+// loaded before this file), so nothing is typed twice; the label is read when
+// drawn.
+(window.RR_USER_FIELDS || []).forEach(function (f) {
+  if (!f || f.ownCard !== 'cmdid') return;
+  RR_ROW_EXTRA_COLS.push({ col: f.key, get label() { return (typeof rrFieldLabel === 'function') ? rrFieldLabel(f) : f.label; }, pdKey: f.key });
+});
 
 // The value an extra column shows for a personal row, formatted (money gets
 // the currency symbol). One formatter, both tables.

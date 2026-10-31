@@ -35,6 +35,9 @@ if (typeof window!=='undefined'){ window._setWupView=_setWupView; window._wupRet
 function buildReport() {
   const type = document.getElementById('report-type')?.value || 'insurance';
 
+  // 2026-10-31: the ready-made Command ID report — a report-builder report
+  // (command-ids.js holds its definition), so it runs like any saved one.
+  if (type === 'cmdids' && typeof rrCmdIdReportDef === 'function') { buildCustomReport(rrCmdIdReportDef()); return; }
   // Custom saved report
   if (type.startsWith('custom:')) {
     const id = type.replace('custom:','');
@@ -361,6 +364,7 @@ function _repKeepCsv(blob, name) {
 function exportReport() {
   const type = document.getElementById('report-type')?.value || '';
 
+  if (type === 'cmdids' && typeof rrCmdIdReportDef === 'function') { exportCustomReport(rrCmdIdReportDef()); return; }   // 2026-10-31
   if (type.startsWith('custom:')) {
     const id = type.replace('custom:','');
     const def = (state.savedReports||[]).find(r=>r.id===id);
@@ -566,10 +570,12 @@ function _rbUpgradeFilters(f) {
   return f;
 }
 
-function openReportBuilder(editId) {
+// 2026-10-31: `start` (optional) opens the builder ON a ready-made report (the
+// Command ID report's Edit) — a new report, so Save keeps it as your own.
+function openReportBuilder(editId, start) {
   if (typeof _rbSyncSaved === 'function') _rbSyncSaved();
   const existing = editId ? (state.savedReports||[]).find(r=>r.id===editId) : null;
-  _rbState = existing ? JSON.parse(JSON.stringify(existing)) : _rbBlankState();
+  _rbState = existing ? JSON.parse(JSON.stringify(existing)) : (start ? Object.assign(JSON.parse(JSON.stringify(start)), { id: null }) : _rbBlankState());
   if (!_rbState.filters) _rbState.filters = {};
   if (!_rbState.colEnabled) _rbState.colEnabled = {};
   if (!Array.isArray(_rbState.colOrder)) _rbState.colOrder = [];
@@ -782,6 +788,7 @@ function _rbFiltersHTML() {
       <div class="rb-filter-row"><div class="rb-filter-label">Has Box</div><div class="rb-filter-chips">${yne('hasBox')}</div></div>
       <div class="rb-filter-row"><div class="rb-filter-label">All Original</div><div class="rb-filter-chips">${yne('allOriginal')}</div></div>
       <div class="rb-filter-row"><div class="rb-filter-label">Has Photo</div><div class="rb-filter-chips">${yne('hasPhoto')}</div></div>
+      <div class="rb-filter-row"><div class="rb-filter-label">${rrEsc((window.RR_CMDID && RR_CMDID.reportFilter) || 'Has a Command ID')}</div><div class="rb-filter-chips">${yne('hasCmdId')}</div></div>
       <div class="rb-filter-row"><div class="rb-filter-label">Condition (1–10)</div>
         <div class="rb-range">${fld('Min','condMin','min="1" max="10"')} <span class="rb-to">to</span> ${fld('Max','condMax','min="1" max="10"')}</div></div>
       <div class="rb-filter-row"><div class="rb-filter-label">Year Made</div>
@@ -887,6 +894,9 @@ const RB_PREVIEW_ROWS = 25;
 // Oldest → Newest, everything else A → Z.
 function _rbSortKind(key) {
   if (_RB_NUM_KEYS[key]) return 'num';
+  // 2026-10-31: a user field that holds a whole number (the Command IDs —
+  // `digits` on its ONE definition, RR_USER_FIELDS) sorts as a number: 7 before 12.
+  if ((window.RR_USER_FIELDS || []).some(f => f.key === key && f.digits)) return 'num';
   if (_RB_YEAR_KEYS[key]) return 'year';
   if (_RB_DATE_KEYS[key]) return 'date';
   if (key === 'itemNum') return 'catnum';
@@ -1352,6 +1362,9 @@ function _rbRowPasses(row, f, skip) {
   if (f.hasBox && f.hasBox!=='Either' && pd.hasBox!==f.hasBox) return false;
   if (f.allOriginal && f.allOriginal!=='Either' && pd.allOriginal!==f.allOriginal) return false;
   if (f.hasPhoto && f.hasPhoto!=='Either') { const h=!!pd.photoItem; if(f.hasPhoto==='Yes'&&!h) return false; if(f.hasPhoto==='No'&&h) return false; }
+  // 2026-10-31 (Command IDs, [stated] Brad 16:02 CT "the report needs to filter
+  // items that have a command id"): a real filter, usable on any report.
+  if (f.hasCmdId && f.hasCmdId!=='Either') { const h=(typeof rrCmdIdHas==='function') && rrCmdIdHas(pd); if(f.hasCmdId==='Yes'&&!h) return false; if(f.hasCmdId==='No'&&h) return false; }
   if (f.quickEntry && f.quickEntry!=='Include') { const q=!!pd.quickEntry; if(f.quickEntry==='Exclude'&&q) return false; if(f.quickEntry==='Only'&&!q) return false; }
   const num = (v) => parseFloat(String(v == null ? '' : v).replace(/[^0-9.\-]/g, ''));
   const rng = (fMin, fMax, v) => {

@@ -463,6 +463,11 @@ var _IMP_FIELD_LABELS = {
   custom1: 'Custom column 1', custom2: 'Custom column 2',
   custom3: 'Custom column 3', custom4: 'Custom column 4', custom5: 'Custom column 5',
 };
+// 2026-10-31 (Command IDs): the three ID columns are import destinations too,
+// named from their ONE definition (RR_USER_FIELDS, config.js).
+(window.RR_USER_FIELDS || []).forEach(function (f) {
+  if (f && f.ownCard && !_IMP_FIELD_LABELS[f.key]) _IMP_FIELD_LABELS[f.key] = f.label;
+});
 // What each destination column actually means, in plain English. Shown
 // under the dropdown for whatever is selected, and in the "What do these
 // mean?" panel. Brad, testing live: "I had no idea."
@@ -2334,6 +2339,7 @@ function _impAutoEnableFields(mappings) {
   });
   (window.RR_USER_FIELDS || []).forEach(function (f) {
     if (!used[f.key]) return;
+    if (!f.pref) return;   // 2026-10-31: no switch to turn on (the Command IDs show on their own card)
     if (typeof _ufToggle === 'function') _ufToggle(f.key, true, { quiet: true });
     else rrPrefWrite(f.pref, 'true');
     out.fields.push(f.key);
@@ -2428,8 +2434,14 @@ async function _impWrite() {
       // v0.9.1514 (Phase 2): user columns the mapping filled.
       // v0.9.1863: read off the ONE definition, so a new user field (Sub
       // Type) is written without anyone remembering this list.
-      (window.RR_USER_FIELDS || []).map(function (f) { return f.key; })
-        .forEach(function (k) { if (it[k]) fields[k] = String(it[k]).trim(); });
+      (window.RR_USER_FIELDS || []).forEach(function (f) {
+        var k = f.key;
+        if (!it[k]) return;
+        // 2026-10-31: a whole-number field (the Command IDs) is cleaned the one
+        // way (rrCmdIdNorm: "07" = "7"); a cell that is not a number is left out.
+        if (f.digits && typeof rrCmdIdNorm === 'function') { var _n = rrCmdIdNorm(it[k], f); if (_n.ok && _n.v) fields[k] = _n.v; return; }
+        fields[k] = String(it[k]).trim();
+      });
       if (String(it.hasBox || '').trim()) {
         fields.hasBox = /^(y|yes|true|x|1|✓)/i.test(String(it.hasBox).trim()) ? 'Yes' : String(it.hasBox);
       }

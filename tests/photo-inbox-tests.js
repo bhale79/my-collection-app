@@ -7298,7 +7298,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('...appended at the END, never mid-schema',
        fields.slice(fields.indexOf('masterKey') + 1).join(',') ===
          // v2077: transferredTo, transferredFrom (TRR Pro release 6 — moving items) appended after stickerCode.
-         'eraPeriod,importBatch,yourGrade,yourDescription,locationDetail,shipper,subCollection,stockPhotoLink,masterRowId,stickerCode,transferredTo,transferredFrom',
+         // 2026-10-31: dcsId, tmccId, dccAddress (Command IDs) appended after transferredFrom.
+         'eraPeriod,importBatch,yourGrade,yourDescription,locationDetail,shipper,subCollection,stockPhotoLink,masterRowId,stickerCode,transferredTo,transferredFrom,dcsId,tmccId,dccAddress',
        fields.slice(fields.indexOf('masterKey') + 1).join(','));
 
     // The wizard passes the CONFIRMED match; buildPersonalRow has the fallback.

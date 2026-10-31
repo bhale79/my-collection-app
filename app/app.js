@@ -177,6 +177,18 @@ const PERSONAL_SCHEMA = [
   // collections-move.js. Appended at END (column rule).
   { field: 'transferredTo',        header: 'Transferred To' },
   { field: 'transferredFrom',      header: 'Transferred From' },
+  // 2026-10-31 (Command IDs, [stated] Brad "yes" to PLAN 2026-10-31): the
+  // number THIS copy answers to on each command-control system — set by the
+  // owner on their own engine, so it is a fact about the copy, never the
+  // catalog. One column per system, so an engine that runs on two systems
+  // (MTH Proto-Sound 3: DCS and TMCC) needs no "which system" column. The
+  // words people see, the hint, the search words and the duplicate rule live
+  // ONCE in config.js (RR_USER_FIELDS / RR_CMDID); these are the sheet
+  // headings only. Written by command-ids.js (the item page card, the Add
+  // button), the import and a collection move. Appended at END (column rule).
+  { field: 'dcsId',                header: 'DCS ID' },
+  { field: 'tmccId',               header: 'TMCC / Legacy ID' },
+  { field: 'dccAddress',           header: 'DCC Address' },
 ];
 const PERSONAL_HEADERS = PERSONAL_SCHEMA.map(s => s.header);
 const PERSONAL_FIELD_INDEX = {};
