@@ -2660,15 +2660,12 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       // line above. rrAiSetOptOut still lives in Preferences.
       // v0.9.1468 (Brad: "i am trying to pull down the crop and it pulls the
       // whole screen down" → app reload): while THIS screen is open, the
-      // browser's pull-to-refresh is contained. Restored on the way out —
-      // the rest of the app keeps its normal behavior, as Brad chose.
+      // browser's pull-to-refresh is held off. v0.9.2070: that is now done for
+      // EVERY pop-up in one place (back-stack.js, the window rule) — this
+      // screen is a pop-up, so it is covered there; only its own box stays here.
       // v0.9.1472: ask the relay for today's true reads-left the moment the
       // crop screen opens — fills the "checking…" placeholder above.
       try { if (!_rsOnly && _ar && typeof rrAiQuotaRefresh === 'function') rrAiQuotaRefresh(); } catch (eQ) {}   // v0.9.1927: no count to fetch without Auto Read   // v0.9.1913: no reads-left call when Research offers only Lens
-      var _prevObBody = document.body.style.overscrollBehaviorY;
-      var _prevObHtml = document.documentElement.style.overscrollBehaviorY;
-      document.body.style.overscrollBehaviorY = 'contain';
-      document.documentElement.style.overscrollBehaviorY = 'contain';
       d.style.overscrollBehavior = 'contain';
       var img = d.querySelector('#bi-cropimg');
       img.src = canvas.toDataURL('image/jpeg', 0.92);
@@ -2693,11 +2690,8 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         var act = b.getAttribute('data-bi');
         function fin(out) {
           try { if (cropper) cropper.destroy(); } catch (e2) {}
-          // v0.9.1468: give the browser back its pull-to-refresh.
-          try {
-            document.body.style.overscrollBehaviorY = _prevObBody;
-            document.documentElement.style.overscrollBehaviorY = _prevObHtml;
-          } catch (e4) {}
+          // (v0.9.2070: the window's pull-down comes back by itself when this
+          // pop-up goes — back-stack.js.)
           resolve(out);
         }
         // v0.9.678 (Brad): two routes, one crop box — whatever the crop frame

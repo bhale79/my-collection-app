@@ -352,6 +352,9 @@
      margin survived: #app is 100vh tall, the page was 16px taller than the
      window, and a SECOND scroll bar sat outside the dashboard's own. */
   html, body { margin: 0; height: 100%; font-family: var(--font-body); background: var(--bg); color: var(--text); font-size: 16px; }
+  /* v0.9.2070 (sweep A4): while a pop-up is open the window holds still — no
+     bounce, no pull-down reload (back-stack.js puts the class on <html>). */
+  html.rr-pop-open, html.rr-pop-open body { overscroll-behavior: none; }
 
   /* ── Accessibility: minimum font sizes for readability ─────── */
   /* Floor: nothing below 0.75rem (12px) for labels/badges, 0.85rem (13.6px) for body text */
