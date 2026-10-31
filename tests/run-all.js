@@ -79,7 +79,9 @@ const TESTS = __dirname;
 
 const QUICK_EXTRA = ['syntax-check.js', 'color-count.js', 'no-drill-residue.js', 'lookup_canary.js',
                      'layout-check.js', 'help-hub.js', 'help-surfaces.js'];
-const BROWSER = ['photo-viewer.js', 'sw-nav-cache.js'];           // plus guide-*.js
+const BROWSER = ['photo-viewer.js', 'sw-nav-cache.js', 'safari-walk.js'];   // plus guide-*.js
+// safari-walk.js (2026-10-31): the real app at iPhone size in Safari's engine AND
+// Chrome's, screen by screen — nightly and --all, never --fast (~3-4 min).
 const AUDITS = ['button-audit.js', 'phone-audit.js', 'silent-audit.js', 'press-audit.js', 'update-color-budget.js'];
 // Browser suites walk every guide step with real waits; guide-buttons and
 // guide-chaos alone run past ten minutes, so the browser tier is given half

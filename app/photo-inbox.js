@@ -298,8 +298,14 @@
       // scrolled visibly through the strip above it. The negative offset
       // pins the border-box edges together; the bar's own padding-top keeps
       // its contents exactly where they were.
-      '<div id="pin-chrome" style="position:sticky;top:-1.5rem;z-index:5;background:var(--bg);' +
-           'margin:-1.5rem -1.5rem 0;padding:1.5rem 1.5rem 0.55rem;box-shadow:0 6px 10px -8px rgba(0,0,0,0.25)">' +
+      // 2026-10-31 (the Safari walk): the bar reaches .main's edges by reading
+      // .main's OWN padding settings (app.css --rr-main-pt / -pr / -pl). It
+      // used to repeat the computer's 1.5rem, so on a phone (0.75rem) it stuck
+      // out 12px each side and the inbox could be pushed sideways; beside an
+      // iPhone's notch it fell short and photos showed past its ends.
+      '<div id="pin-chrome" style="position:sticky;top:calc(-1 * var(--rr-main-pt, 1.5rem));z-index:5;background:var(--bg);' +
+           'margin:calc(-1 * var(--rr-main-pt, 1.5rem)) calc(-1 * var(--rr-main-pr, 1.5rem)) 0 calc(-1 * var(--rr-main-pl, 1.5rem));' +
+           'padding:var(--rr-main-pt, 1.5rem) var(--rr-main-pr, 1.5rem) 0.55rem var(--rr-main-pl, 1.5rem);box-shadow:0 6px 10px -8px rgba(0,0,0,0.25)">' +
         '<div class="page-title" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.45rem">' +
           '<span>Photo Inbox <span id="pin-count" style="font-size:0.8rem;color:var(--text-dim);font-family:var(--font-body);font-weight:400"></span></span>' +
           '<button id="pin-help-btn" onclick="_pinToggleHelp()" style="padding:0.3rem 0.6rem;border-radius:8px;border:none;background:none;color:var(--text-mid);font-family:var(--font-body);font-size:0.78rem;font-weight:600;cursor:pointer">? How this works</button>' +
