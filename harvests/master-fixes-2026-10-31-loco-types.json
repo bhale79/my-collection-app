@@ -1,0 +1,3149 @@
+{
+ "what": "Master Version 2.73 — the 348 bare \"Locomotive\" Item Types on Lionel MPC-Modern (all from the lionel.com feed 2026-07-18) get the engine's kind: 314 Steam Locomotive, 22 Diesel Locomotive, 11 Electric Locomotive, 1 Motorized Unit. Kind taken from each description's own words (steam name / wheel arrangement, NW2, U36B, ES44AC, Alco PB, BB-1, EP-2, rectifier, boxcab...); 11 rows checked on store pages (Mr. Muffin's, Trainz) or against their sister rows; 6-38429 Jet-Powered Budd RDC = Motorized Unit as 6-38401. Nothing added or removed; one column (Item Type) changes.",
+ "stated": "Brad 2026-10-31 12:11-12:20 CT, one group at a time (decision record _Claude_Work_Files/REVIEW_DECISIONS_LOCO_2026-10-31.md): \"yes\" to every proposal; his own answers 2231690 = \"Steam loco\", 6-28411 = \"Diesel loco\", 6-18516 = \"Diesel\"; final \"yes\" to write Master Version 2.73 12:20 CT",
+ "masterVersion": "2.73",
+ "date": "2026-10-31",
+ "planReadAt": "public CSV export (export?format=csv&gid=1188187255) of Lionel MPC-Modern, 2026-10-31 17:21 UTC, 21,944 data rows; every cell found by Row ID with the expected item number and old value \"Locomotive\" (348/348, 0 skipped); the page re-reads the tab through the Sheets API and checks every old value and Row ID before writing",
+ "cellFormat": "[tab, item number (column A), column header, old, new, sheet row as a hint (filled by the page read), Row ID of the row]",
+ "counts": {
+  "Steam Locomotive": 314,
+  "Diesel Locomotive": 22,
+  "Motorized Unit": 1,
+  "Electric Locomotive": 11
+ },
+ "check": "run through the app's own parseMasterRow / getTypeBucket / checkTab (tools/master-audit): every new type lands on its own shelf; 0 new audit flags",
+ "cells": [
+  [
+   "Lionel MPC-Modern",
+   "2231690",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   16801,
+   "9QUFYNZXMQ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28411",
+   "Item Type",
+   "Locomotive",
+   "Diesel Locomotive",
+   19641,
+   "U525QFQCBB"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38429",
+   "Item Type",
+   "Locomotive",
+   "Motorized Unit",
+   20915,
+   "RT68VXT2SN"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2645090",
+   "Item Type",
+   "Locomotive",
+   "Diesel Locomotive",
+   17879,
+   "AY6GG3G3Q2"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2645100",
+   "Item Type",
+   "Locomotive",
+   "Diesel Locomotive",
+   17880,
+   "3WQQCB3RQA"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-18516",
+   "Item Type",
+   "Locomotive",
+   "Diesel Locomotive",
+   18133,
+   "F68A2ZBTKV"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-18517",
+   "Item Type",
+   "Locomotive",
+   "Diesel Locomotive",
+   18134,
+   "NZRW5FKB47"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2632010",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17560,
+   "HCV6WKERYY"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2632020",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17561,
+   "MVBFZX9KDF"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2632030",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17562,
+   "MKQBAXCG6T"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2632040",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17563,
+   "W523F4H73Q"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2632050",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17564,
+   "GS3ZZT2N87"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-18351",
+   "Item Type",
+   "Locomotive",
+   "Electric Locomotive",
+   18089,
+   "W3ZQ4M2QNP"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-18353",
+   "Item Type",
+   "Locomotive",
+   "Electric Locomotive",
+   18090,
+   "V2KJQTM6RV"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-18364",
+   "Item Type",
+   "Locomotive",
+   "Electric Locomotive",
+   18094,
+   "YJWQRZHYJ4"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-18367",
+   "Item Type",
+   "Locomotive",
+   "Electric Locomotive",
+   18095,
+   "UC76G3V84F"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-18373",
+   "Item Type",
+   "Locomotive",
+   "Electric Locomotive",
+   18098,
+   "8Q8PM8H38V"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-18384",
+   "Item Type",
+   "Locomotive",
+   "Electric Locomotive",
+   18103,
+   "X29S7N5MEP"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-18389",
+   "Item Type",
+   "Locomotive",
+   "Electric Locomotive",
+   18105,
+   "NMRMDGTV4A"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-21268",
+   "Item Type",
+   "Locomotive",
+   "Electric Locomotive",
+   18292,
+   "37T94G4X8B"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-22271",
+   "Item Type",
+   "Locomotive",
+   "Electric Locomotive",
+   18610,
+   "EJ4DK5UH6U"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-22286",
+   "Item Type",
+   "Locomotive",
+   "Electric Locomotive",
+   18616,
+   "SKY3KCVUF3"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28823",
+   "Item Type",
+   "Locomotive",
+   "Electric Locomotive",
+   19788,
+   "22SD7Z4VYD"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2634010",
+   "Item Type",
+   "Locomotive",
+   "Diesel Locomotive",
+   17700,
+   "PXND5H6BNQ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2634020",
+   "Item Type",
+   "Locomotive",
+   "Diesel Locomotive",
+   17701,
+   "E4T6D4DAJ8"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2634030",
+   "Item Type",
+   "Locomotive",
+   "Diesel Locomotive",
+   17702,
+   "T7B9M7Y37H"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2634040",
+   "Item Type",
+   "Locomotive",
+   "Diesel Locomotive",
+   17703,
+   "B96XH7CSFG"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2634050",
+   "Item Type",
+   "Locomotive",
+   "Diesel Locomotive",
+   17704,
+   "65PPX84TS2"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2645180",
+   "Item Type",
+   "Locomotive",
+   "Diesel Locomotive",
+   17888,
+   "9HUADRW7YT"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2645190",
+   "Item Type",
+   "Locomotive",
+   "Diesel Locomotive",
+   17889,
+   "6PJ3Q56V67"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-18775",
+   "Item Type",
+   "Locomotive",
+   "Diesel Locomotive",
+   18146,
+   "W7Y7992G6G"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-82205",
+   "Item Type",
+   "Locomotive",
+   "Diesel Locomotive",
+   21271,
+   "BPSVCGC6QN"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-82244",
+   "Item Type",
+   "Locomotive",
+   "Diesel Locomotive",
+   21273,
+   "WFWUFS8T25"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-82246",
+   "Item Type",
+   "Locomotive",
+   "Diesel Locomotive",
+   21275,
+   "SNP8KPGGXY"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-82248",
+   "Item Type",
+   "Locomotive",
+   "Diesel Locomotive",
+   21277,
+   "TQZE4UA5CH"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-82250",
+   "Item Type",
+   "Locomotive",
+   "Diesel Locomotive",
+   21279,
+   "QJ7MQRFBH6"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-82252",
+   "Item Type",
+   "Locomotive",
+   "Diesel Locomotive",
+   21281,
+   "EXJDRZSHSK"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-82254",
+   "Item Type",
+   "Locomotive",
+   "Diesel Locomotive",
+   21283,
+   "8TSHDU4YBN"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-82256",
+   "Item Type",
+   "Locomotive",
+   "Diesel Locomotive",
+   21284,
+   "CJDUJGEEB9"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-82258",
+   "Item Type",
+   "Locomotive",
+   "Diesel Locomotive",
+   21285,
+   "GDRPMPR2MR"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "1832070",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   16223,
+   "BTHRX9YS2B"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "1931230",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   16358,
+   "PNJ43DDBRU"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "1931490",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   16359,
+   "3HKGM324AC"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2031490",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   16600,
+   "E85D8NEZSN"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2231050",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   16800,
+   "AJ39JAFAQK"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2232140",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   16802,
+   "4W8MYT9WQ2"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2331150",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   16836,
+   "5EQFBJZJD2"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2331240",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   16837,
+   "Z7SNA36QEW"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2431340",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   16890,
+   "M53TUA7K7F"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2431350",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   16891,
+   "MY75DSB4DC"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2431360",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   16892,
+   "NYFUD6F7NN"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2431370",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   16893,
+   "44YP8N2QR2"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2431380",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   16894,
+   "PSUAQCQ8CQ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2431390",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   16895,
+   "32XFWQVYBH"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2431400",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   16896,
+   "TM59EHJEKE"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2431410",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   16897,
+   "DK2U635MAZ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2431420",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   16898,
+   "4DDS6BEKCV"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2431430",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   16899,
+   "U2WJS6ZUE7"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2431440",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   16900,
+   "JQATH58TXF"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2431450",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   16901,
+   "5KTUXPSVYG"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2431460",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   16902,
+   "QAMQ2Z92VJ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2431470",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   16903,
+   "H75UY6JGQM"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2431480",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   16904,
+   "TYCTTEMFGB"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2431501",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   16905,
+   "H9FAH8BFEC"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2431502",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   16906,
+   "UTV9C42UVW"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2431510",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   16907,
+   "MXFFQUF3J8"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2431520",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   16908,
+   "HJPVXCWXKY"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2431530",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   16909,
+   "YABHPXCW4A"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2431540",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   16910,
+   "JB8KQZ3U8B"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2431550",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   16911,
+   "SGJYUD2YKP"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2431560",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   16912,
+   "M2BAXEM4NS"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2501020",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17091,
+   "QHQBXAJEVN"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631010",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17496,
+   "J3MVZQSJNP"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631020",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17497,
+   "AD3ZZQP9DY"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631030",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17498,
+   "VSTKKT372P"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631040",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17499,
+   "C4YQ6MUQZR"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631050",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17500,
+   "76TX6YSRQS"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631060",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17501,
+   "23Y9WG5UBQ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631070",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17502,
+   "EXSJDRZ7JS"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631080",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17503,
+   "RZVS8ECNMV"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631090",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17504,
+   "VP5GKJGSVH"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631100",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17505,
+   "8GB43UE36S"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631110",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17506,
+   "AR6NNB2MFA"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631120",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17507,
+   "65JDYTMXSZ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631130",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17508,
+   "N3DRHHEDBH"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631140",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17509,
+   "J8V4FPZGR8"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631150",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17510,
+   "H56V996ZNS"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631160",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17511,
+   "Z9NXXHQTUR"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631170",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17512,
+   "8HJ6PD89SB"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631180",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17513,
+   "Y8C7D3KW63"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631190",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17514,
+   "S2UWB4UG93"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631200",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17515,
+   "C52TPBF8V7"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631220",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17516,
+   "Q4YC97PGN7"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631230",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17517,
+   "PEH69ACME2"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631240",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17518,
+   "PFWNWC3T57"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631250",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17519,
+   "UQSQB293NC"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631260",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17520,
+   "8BUMW4SRF8"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631270",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17521,
+   "UXCP4MHGG5"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631280",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17522,
+   "DKRAXMY4UB"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631290",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17523,
+   "2K68HGSTF9"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631300",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17524,
+   "9CJ46ZRETP"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631310",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17525,
+   "GJ8U4XBY2E"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631320",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17526,
+   "T4P5AJYG6H"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631330",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17527,
+   "A5P75M6ZAK"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631340",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17528,
+   "KKCGSU56NV"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631350",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17529,
+   "SGRSXT2E3X"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631360",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17530,
+   "D4NBWFN5GW"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631371",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17531,
+   "GG2DSBEX69"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631372",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17532,
+   "GJXPU7ABRH"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631381",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17533,
+   "BBPWHBBSC5"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631382",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17534,
+   "5XFS2X7SD6"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631390",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17535,
+   "NY5TGZ4RCH"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631400",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17536,
+   "VD3PRNVH72"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631410",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17537,
+   "5NV6D2TPSF"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631420",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17538,
+   "TUVFWAUH5U"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631430",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17539,
+   "XE6Y42D42R"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631440",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17540,
+   "3KCR57R23Q"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631450",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17541,
+   "PSH23NGPTA"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631460",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17542,
+   "9WSPVP8NJX"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631470",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17543,
+   "MTAZSA46QE"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631480",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17544,
+   "ZYMZ86DWPP"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631490",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17545,
+   "RN5HVFSCWQ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631500",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17546,
+   "47U9RU532Z"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631510",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17547,
+   "MG2MKT2DEZ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631520",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17548,
+   "ERCYWYNZ33"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631530",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17549,
+   "D7F5RWZZ6J"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631540",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17550,
+   "YBP2RM6C2H"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631550",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17551,
+   "J6NVJ3J6U5"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631560",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17552,
+   "NXDFQ8YHKX"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631570",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17553,
+   "EDWV3KKM2Y"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631580",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17554,
+   "NJXUXGK7WQ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631590",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17555,
+   "957MZ9CSJV"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631600",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17556,
+   "UGS4K25AHQ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631610",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17557,
+   "VGWDTUHHTA"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631620",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17558,
+   "SN2Q88P8TC"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2631630",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17559,
+   "HXH67TCHM3"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2632060",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17565,
+   "KXZUGUKWA9"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2632070",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17566,
+   "SS4UUCKDEF"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2632080",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17567,
+   "HEQCSN3BTJ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2632090",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17568,
+   "P3NCBE4DGW"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2632100",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17569,
+   "XHMESS7N6N"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2645010",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17871,
+   "HWURH9VM4Y"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2645020",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17872,
+   "BZUH3YUFJP"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2645030",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17873,
+   "ZK7F2N4DEN"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2645040",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17874,
+   "WUVSTXJYS9"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2645120",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17882,
+   "DWWP23C4A2"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2645130",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17883,
+   "238E49S8SQ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2645140",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17884,
+   "HPAUDBT7CJ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2645150",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17885,
+   "QGUE6PQVJV"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2645160",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17886,
+   "A79AT7ZH6P"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2731080",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17934,
+   "DHFS74QWBM"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2731100",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17935,
+   "CB97MGQK5H"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2731110",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17936,
+   "VNCURYJJNA"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2731120",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17937,
+   "9Z2FFADHMM"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2731130",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17938,
+   "RF332BJTYB"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2731140",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17939,
+   "8F2DY55UVV"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2731220",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17940,
+   "8RT4UH5BZY"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2731420",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17941,
+   "XUKFT4M2C7"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2731490",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   17942,
+   "6S5TRFTFPK"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-11104",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   18035,
+   "5UZVRJU8BC"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-11150",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   18036,
+   "ZFKFUFBPQR"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-11225",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   18037,
+   "X6HZJNKDK3"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-11233",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   18040,
+   "QK3EG7TDEE"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-11234",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   18041,
+   "SBQEXRPX8Y"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-11235",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   18042,
+   "XM8T9MWB8X"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-11236",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   18043,
+   "MHURC4VNM4"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-11237",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   18044,
+   "G9HN3YY9ZJ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-11238",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   18045,
+   "BE486GXVMT"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-11239",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   18046,
+   "CFQ3G6C3WB"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-11240",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   18047,
+   "66962GGNM2"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-11380",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   18053,
+   "C6HY7V8HJX"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-11383",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   18054,
+   "WR8DCQAKS7"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-11418",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   18055,
+   "CE2E384DB5"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-18696",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   18135,
+   "Q6KBWSRJM9"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-18697",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   18136,
+   "YBZE25AKMD"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-18699",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   18137,
+   "FXJ6GPZPCP"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-18730",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   18138,
+   "WDVZD829MP"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-18732",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   18139,
+   "D8B2MC97DX"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-18741",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   18140,
+   "FV8DXTD2Z8"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-18745",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   18141,
+   "6U3AQK9ZQU"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-18754",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   18143,
+   "XXTZ5BTDPK"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-18771",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   18144,
+   "QXANJQDENY"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-18774",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   18145,
+   "JS5YWNGCZ4"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-21178",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   18260,
+   "6TB99TRDCC"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-21188",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   18263,
+   "XEUD39RWNN"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-21223",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   18274,
+   "JSPY9V5YK9"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-21230",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   18277,
+   "N3S878J74D"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-21274",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   18298,
+   "U4N2CZX2C6"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-21298",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   18308,
+   "E5R6ZRQ8YW"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-21319",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   18318,
+   "9CX3C38FQT"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-21320",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   18319,
+   "W2388EC7UX"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-21582",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   18388,
+   "W4V4ZPS9GZ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-21676",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   18428,
+   "VPXFKVV5NH"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-22105",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   18524,
+   "8TM2K78EEJ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-22138",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   18530,
+   "G6FEUT6XZH"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28018",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19516,
+   "F7576NRSJZ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28066",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19517,
+   "FS6NCZPUKE"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28067",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19518,
+   "H388VENF9C"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28070",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19519,
+   "56N3A5ADQG"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28071",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19520,
+   "FB98WK5VNE"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28072",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19521,
+   "G7S6P6HDG3"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28074",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19522,
+   "UUG74DJ3P8"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28075",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19523,
+   "KZAMRMS47E"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28076",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19524,
+   "U2KZQC3VAS"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28077",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19525,
+   "SN23DG6MRV"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28078",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19526,
+   "APWBPGSY83"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28079",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19527,
+   "XV8DCNEPQC"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28080",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19528,
+   "MFNFQ9Y2AA"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28081",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19529,
+   "HEQ89RPQMW"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28084",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19530,
+   "QDBNUYTXB9"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28085",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19531,
+   "XX6JGKEMZF"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28086",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19532,
+   "JFB8GU7X8J"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28098",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19535,
+   "XPBEXPK3BC"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28612",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19719,
+   "DM55A7ZEEE"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28615",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19721,
+   "24KGRQJ9S2"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28616",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19722,
+   "RTNYMG5ZR9"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28617",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19723,
+   "TNFGVUTSQU"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28625",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19725,
+   "5U2DFBTB2A"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28626",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19726,
+   "R5WRWERM6D"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28627",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19727,
+   "7YEXR52AWZ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28628",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19728,
+   "F836HRZZRJ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28636",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19729,
+   "YCC4WQRFQW"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28637",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19730,
+   "CP2MPAZB5Q"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28638",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19731,
+   "E8Y7U6BH6M"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28639",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19732,
+   "CCXBTMD4U4"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28646",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19733,
+   "GH7X3SRPMJ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28652",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19736,
+   "79RC9P6UW4"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28655",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19737,
+   "732YZW8R2Q"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28656",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19738,
+   "XMEYTS2V65"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28661",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19740,
+   "8EK7NKY7UX"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28662",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19741,
+   "SNH5P2PFYZ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28663",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19742,
+   "4E88UZSND2"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28677",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19746,
+   "DCMXVS9UMN"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28678",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19747,
+   "ND2H2HBD47"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28679",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19748,
+   "DPUYV247F8"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28680",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19749,
+   "UADZFVF4XW"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28681",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19750,
+   "64DX5NV6SE"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28683",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19751,
+   "5XM24CXB8Z"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28684",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19752,
+   "MGXGDJBDP8"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28693",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19753,
+   "2D4CA8JMGP"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28694",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19754,
+   "BMWJDWAZ97"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28699",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19756,
+   "TN3CVWXBZR"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28700",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19757,
+   "MMHH2W79YS"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28701",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19758,
+   "EXSPE78HXJ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28702",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19759,
+   "S3HJDMTHSN"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28704",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19760,
+   "T7BVR6NB29"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28706",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19761,
+   "NBBXZ6VWB9"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28709",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19762,
+   "DBANNB6NV9"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28742",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19763,
+   "D4QNZ2X4JZ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28743",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19764,
+   "9KAZR47EQG"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28744",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19765,
+   "WY8CANZPFF"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28745",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19766,
+   "H8MWWQM75K"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28746",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19767,
+   "52CK6XKH5S"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28747",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19768,
+   "PYVY7U3H94"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28748",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19769,
+   "T4XHS926BU"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28749",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19770,
+   "7RVHCXU5BB"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28750",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19771,
+   "9YGVBHN7GQ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28751",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19772,
+   "GMWFG8CR2Z"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28752",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19773,
+   "MDFAE6D66E"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28753",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19774,
+   "NX9WJ4CY5B"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28754",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19775,
+   "MKY5JS29RP"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28755",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19776,
+   "A79NBUVUHW"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28756",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19777,
+   "M27NSZB3SX"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28757",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19778,
+   "A4QSARBSD7"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28758",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19779,
+   "4P5DN42VGQ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-28759",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   19780,
+   "2QCCHB4WWW"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-30065",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20092,
+   "GEQPHEBM9Q"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38004",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20778,
+   "TUJYH2PJBQ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38005",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20779,
+   "GVJ5WAW8RF"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38009",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20782,
+   "C4NRT5GVCP"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38010",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20783,
+   "A4FTVXYSFG"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38012",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20784,
+   "FDTDWJVA9M"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38013",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20785,
+   "UNGBSXAZG3"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38014",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20786,
+   "YNQ78U2JUR"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38016",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20787,
+   "H4CG6UQ8UJ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38017",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20788,
+   "JKYNF85W37"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38018",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20789,
+   "EV6AFSWHVC"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38019",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20790,
+   "P66CU9UJTQ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38020",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20791,
+   "JVAAHCYHNZ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38021",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20792,
+   "RND4CCTW8T"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38022",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20793,
+   "NPAXYRJ2FP"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38023",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20794,
+   "SNBPZVK4M6"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38024",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20795,
+   "TJKESAB99V"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38025",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20796,
+   "5Q4BV5C8XU"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38026",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20797,
+   "ZDJPPV3CP9"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38027",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20798,
+   "VCTX5N56XC"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38028",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20799,
+   "MFCXVDT2JC"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38029",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20800,
+   "NEXUZVARC3"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38030",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20801,
+   "JW7VR4YUXM"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38031",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20802,
+   "BRRKHJV3BK"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38032",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20803,
+   "2SKZKXFU82"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38036",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20804,
+   "TT9WSKBPGK"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38037",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20805,
+   "U44AHTKV7D"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38040",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20808,
+   "9RFPRPCN7T"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38042",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20809,
+   "4VV7F8BPDY"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38043",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20810,
+   "B5WJNH3NCU"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38044",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20811,
+   "FZ5Q963FZN"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38045",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20812,
+   "AYPB2SM7HG"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38046",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20813,
+   "5YNDFSBU4R"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38047",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20814,
+   "RFBZ2GMB7A"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38048",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20815,
+   "6T3CQK5YCS"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38049",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20816,
+   "RQ7NPVGMDF"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38050",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20817,
+   "RTP5ETCNRC"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38051",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20818,
+   "G62DWD826Z"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38052",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20819,
+   "3ZX7REWM7Y"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38053",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20820,
+   "U2HZKDU5RM"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38055",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20821,
+   "HTGY3W8YHJ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38056",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20822,
+   "QZV4MCYQ5Y"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38057",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20823,
+   "FM4G3E6DPY"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38058",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20824,
+   "CHYR82PDSC"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38060",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20825,
+   "8MNTPKNXZS"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38061",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20826,
+   "23WZJJJWDM"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38062",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20827,
+   "KTTSV93F5F"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38065",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20828,
+   "RHJHKAPNPE"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38066",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20829,
+   "JYUMP7K284"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38067",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20830,
+   "Q64CWCVD83"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38068",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20831,
+   "3YBQAH8QKH"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38070",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20832,
+   "H5R6RSX8K7"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38071",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20833,
+   "F3B2T2JRWQ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38075",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20834,
+   "KNVEFV75HS"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38076",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20835,
+   "S34CB4C4AT"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38077",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20836,
+   "7WN3K7G9NR"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38079",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20837,
+   "NR9UVAVFKR"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38080",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20838,
+   "7AB55EUHCV"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38081",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20839,
+   "RBGPRAN9PD"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38082",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20840,
+   "XYEBX63TTE"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38083",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20841,
+   "8N5JN26PMP"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38085",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20842,
+   "YBHTCSPH47"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38086",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20843,
+   "N9QBEGMAFB"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38088",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20844,
+   "SDPQ2W6PZU"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38089",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20845,
+   "SZURFT3XE7"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38090",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20846,
+   "SKTNR3MGTQ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38091",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20847,
+   "VNZY7JD88V"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38092",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20848,
+   "Y2JQMMDM7S"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38093",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20849,
+   "8BD97JYSP5"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38094",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20850,
+   "R894WDAMTS"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38095",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20851,
+   "CY3BC4PTSW"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38606",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20981,
+   "SAWFGY9X7N"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-38690",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   20982,
+   "V8CKQ2PJ2E"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-58111",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   21251,
+   "VG6P54F9N2"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-82245",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   21274,
+   "WQW6SJ4SZJ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-82247",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   21276,
+   "B38D5JG6JV"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-82415",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   21288,
+   "YD83EG2DHH"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-84960",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   21362,
+   "R8TRA9CFSM"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-84961",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   21363,
+   "EN8E7UR8N6"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-84962",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   21364,
+   "QA48QKSB6D"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-84963",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   21365,
+   "JSZHWZZQ8W"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-85267",
+   "Item Type",
+   "Locomotive",
+   "Steam Locomotive",
+   21372,
+   "HAHP4MX8VX"
+  ]
+ ]
+}
