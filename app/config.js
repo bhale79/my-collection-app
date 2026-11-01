@@ -4608,6 +4608,19 @@ const RR_ADD_FILTERS = {
   eraWords:    { prewar: 'Prewar', postwar: 'Postwar', modern: 'Modern' },
   // the Era filter's own names, for the "No 1511 found for Lionel · Postwar" line
   eraFilterWords: { prewar: 'Pre-War', postwar: 'Postwar', modern: 'Modern' },
+  // 2026-11-01 (Lars typed the set 1467W in the item box and got nowhere;
+  // [stated] Brad 16:11 / 16:12 / 16:25 CT): a Lionel Postwar SET number in
+  // the item box. Its row in the list carries this tag beside the maker · era
+  // tag, then the set's name · year(s) · piece count. {n} = a count.
+  setTag:      'SET',
+  setPieces:   '{n} pieces',
+  setPieceOne: '1 piece',
+  setVersions: '{n} versions',
+  // nothing fits the filters, but the typed number IS a Lionel Postwar set
+  setAsk:      '{num} is a Lionel Postwar set — add it as a set?',
+  setBtn:      'Add as a set',
+  // at most this many set rows join the list for a short number ("1" → 1000s)
+  setRowsMax:  12,
 };
 if (typeof window !== 'undefined') window.RR_ADD_FILTERS = RR_ADD_FILTERS;
 

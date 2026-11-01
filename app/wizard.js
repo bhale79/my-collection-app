@@ -1313,8 +1313,37 @@ function _wizSetKind(kind) {
   }
   if (kind === 'manual' && _carryNum) wizard.data.manualItemNum = _carryNum;
   if (kind === 'manual' && _carryMfr) wizard.data.manualManufacturer = _carryMfr;
-  wizardChooseCategory(kind);
+  // 2026-11-01 (Lars typed the set 1467W in the item box): the SAME carry takes
+  // a Lionel Postwar set number into the set flow, which opens ON that set —
+  // its variant picker when the number has several, its pieces either way.
+  // A number that is not a Postwar set starts the set flow as before.
+  let _carrySet = '';
+  if (kind === 'set' && _carryNum && typeof rrPostwarSetVariants === 'function') {
+    let _tok = _carryNum;
+    try { if (typeof _extractSearchItemNum === 'function') _tok = _extractSearchItemNum(_carryNum.toLowerCase()) || _carryNum; } catch (eT) {}
+    const _sv = rrPostwarSetVariants(_tok);
+    if (_sv.length) _carrySet = _sv[0].setNum;
+  }
+  if (_carrySet) { wizard.data.set_knowsNum = 'Yes'; wizard.data.set_num = _carrySet; }
+  const _chosen = wizardChooseCategory(kind);
+  if (_carrySet) Promise.resolve(_chosen).then(function () { _wizOpenSetOn(_carrySet); });
 }
+// The set flow, opened on one Lionel Postwar set: the "Identify your set" step,
+// then its own _confirmSetMatch — the variant picker for a number with several
+// variants, otherwise straight on to the set's details with its pieces.
+function _wizOpenSetOn(setNum) {
+  try {
+    if (!wizard || wizard.tab !== 'set') return;
+    const _ix = (wizard.steps || []).findIndex(function (st) { return st && st.id === 'set_components'; });
+    if (_ix < 0) return;
+    wizard.data.set_knowsNum = 'Yes';
+    wizard.data.set_num = setNum;
+    wizard.step = _ix;
+    renderWizardStep();
+    if (typeof window._confirmSetMatch === 'function') window._confirmSetMatch(setNum);
+  } catch (e) { console.warn('[set from item box]', e); }
+}
+if (typeof window !== 'undefined') window._wizOpenSetOn = _wizOpenSetOn;
 // v0.9.1039: ONE definition of the Item Type selector. The header (phones)
 // and the in-form bar (desktop) both render this — they cannot drift apart.
 function _wizKindSelectHtml(cur, compact) {

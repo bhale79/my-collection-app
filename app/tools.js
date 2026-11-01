@@ -525,20 +525,11 @@ async function runSetBuilder() {
 
   // Set Builder is strictly Lionel postwar. Make sure the postwar set list is
   // loaded even in "all eras" mode (where the era orchestrator can leave
-  // state.setData empty). Try the fast postwar cache, then the master tab.
-  if (!state.setData || !state.setData.length) {
-    try {
-      var _c = localStorage.getItem('lv_set_cache_pw');
-      if (_c) { var _a = JSON.parse(_c); if (Array.isArray(_a) && _a.length) state.setData = _a; }
-    } catch (e) {}
-  }
+  // state.setData empty) — the ONE loader, rrEnsurePostwarSets (app-data.js):
+  // the fast postwar cache, then the master tab.
   if (!state.setData || !state.setData.length) {
     out.innerHTML = '<div style="color:var(--text-dim);font-size:0.85rem">Loading Lionel postwar set data…</div>';
-    try {
-      var _tab = (typeof SHEET_TABS !== 'undefined' && SHEET_TABS.sets) ? SHEET_TABS.sets : 'Lionel PW - Sets';
-      var _r = await sheetsGet(state.masterSheetId, _tab + '!A2:U');
-      if (_r && _r.values && typeof parseSetRows === 'function') parseSetRows(_r.values);
-    } catch (e) {}
+    try { if (typeof rrEnsurePostwarSets === 'function') await rrEnsurePostwarSets(true); } catch (e) {}
   }
   if (!state.setData || !state.setData.length) {
     out.innerHTML = '<div style="color:var(--text-dim);font-size:0.85rem">Could not load Lionel postwar set data. Tap Sync, then Scan again.</div>';
