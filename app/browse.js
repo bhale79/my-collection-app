@@ -4516,10 +4516,10 @@ function _rrBrowseCore(_co) {
       if (_byIdPd) return _byIdPd;
     }
     var _dn = _displayItemNum(item);
-    if (!_pdNumsExact.has(_dn) && !(_bvSeatByRow && _bvSeatByRow.has(item))) {
+    if (!_pdNumsExact.has(_dn)) {
       if (!_bvAdopt) return null;
       if (!_bvAdopt.get(_dn)
-          && !_bvAdopt.get(_dn + '|v|' + String(item.variation == null ? '' : item.variation).trim().toUpperCase())) return null;
+          && !_bvAdopt.get(_dn + '|v|' + String(item.variation == null ? '' : item.variation).trim().toUpperCase())) return (_bvSeatByRow && _bvSeatByRow.get(item)) || null;   // 2026-10-31: a seat by row (below)
     }
     var _p = findPD(_dn, item.variation);
     if (_p && _p.itemNum !== _dn) _p = null;                     // no -P/-D bleed
