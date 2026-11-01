@@ -1,4 +1,4 @@
-# DEPLOY — Report a problem: the My Collection count check (job B) — READY
+# DEPLOY — Report a problem: the My Collection count check (job B) — IN PROGRESS, NOT READY (full test gate still running; do not ship)
 
 Branch: `build/report-hidden`, built ON TOP of `build/varlink` (job A) — both change `browse.js`, so B
 starts where A ends and the two never collide.
