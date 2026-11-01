@@ -204,21 +204,17 @@ function _rrIsWheelArrangement(t) { return /^\d{1,2}(?:-\d{1,2}){2,}$/.test(Stri
 // matches on the number, not the whole descriptive string. Returns the
 // first token with 2+ digits or a digit-hyphen-digit shape; else the
 // first token (legacy behavior for pure text searches).
-// v0.9.2028 — THE one place the Add list's rail chip gets its words:
-// "<maker> <n>-Rail" (e.g. "Atlas 3-Rail", "Weaver 2-Rail"). The maker comes
-// from the row's own catalog (_rrCatalogRowMaker, catalog-display-config.js);
-// with no maker known it falls back to the bare "3-Rail". No rail number in
-// the row's Track/Power → '' (no chip; Lionel rows leave it blank).
-function rrRailChipLabel(c) {
+// v0.9.2028 — the rail a catalog row runs on ("3-Rail", "2-Rail"), read from
+// its own Track/Power cell; '' when the cell names no rail number (Lionel rows
+// leave it blank). 2026-11-01: the Add list's "Atlas 3-Rail" chip is gone —
+// the maker · era tag below names the maker first and carries the rail, so the
+// rail can never read like the 3rd Rail brand (Brad, 2026-10-25).
+function rrRowRailWord(c) {
   if (!c || !c.trackPower) return '';
   var m = String(c.trackPower).match(/(\d)\s*-?\s*rail/i);
-  if (!m) return '';
-  var rail = m[1] + '-Rail';
-  var maker = '';
-  try { if (typeof _rrCatalogRowMaker === 'function') maker = String(_rrCatalogRowMaker(c) || '').trim(); } catch (e) {}
-  return maker ? maker + ' ' + rail : rail;
+  return m ? m[1] + '-Rail' : '';
 }
-if (typeof window !== 'undefined') window.rrRailChipLabel = rrRailChipLabel;
+if (typeof window !== 'undefined') window.rrRowRailWord = rrRowRailWord;
 
 function _extractSearchItemNum(query) {
   if (!query) return '';
@@ -279,7 +275,7 @@ function updateItemSuggestions(query) {
       const haystack = (pd.itemNum + ' ' + (pd.variation || '') + ' ' + (pd.roadName || '') + ' ' + (pd.description || '')).toLowerCase();
       if (!seen.has(key) && haystack.includes(q)) {
         seen.add(key);
-        candidates.push({ num: pd.itemNum, label: key, sub: '' });
+        candidates.push({ num: pd.itemNum, label: key, sub: '', _owned: pd });
       }
     });
   } else {
@@ -330,18 +326,14 @@ function updateItemSuggestions(query) {
     // scan (250ms debounce, before the 400ms banner lookup), so deleting
     // the word clears it; the Era dropdown still outranks it in the scorer.
     if (_w && _w.data) _w.data._typedSearchPeriod = _typedPeriod;
+    // 2026-11-01: the typed maker word too — the ONE filter test
+    // (_wizRowFitsFilters, wizard.js) reads both, so the banner, Next and the
+    // save honour "lionel 1511" exactly as this list does.
+    if (_w && _w.data) _w.data._typedSearchMfr = _typedMfr;
+    // The filters this scan answers to — read ONCE, asked of every row below.
+    var _fits = (typeof _wizRowFitsFilters === 'function') ? _wizRowFitsFilters : null;
+    var _fset = (typeof _wizAddFilters === 'function') ? _wizAddFilters() : null;
     var _searchParts = qParts.filter(function(p){ return p && !_stopWords.has(p) && !_MFR_WORDS[p] && !_PERIOD_WORDS[p]; });
-    function _periodOfRow(m){
-      var e = (m && m._era) || '';
-      if (e === 'prewar') return 'prewar';
-      if (e === 'pw' || e === 'pw_ho') return 'postwar';
-      // Session 176: any other tagged era (mpc/modern + ALL non-Lionel makers —
-      // Atlas, MTH, Weaver, RMT, etc.) counts as Modern.
-      if (e) return 'modern';
-      var y = parseInt(String((m && m.yearProd) || '').slice(0,4), 10);
-      if (y) { if (y <= 1942) return 'prewar'; if (y <= 1969) return 'postwar'; return 'modern'; }
-      return '';
-    }
 
     // Session 115 fix: era scope guard. If the wizard has a selected era
     // (set at wizard start or via the era pill), restrict suggestions to
@@ -374,34 +366,9 @@ function updateItemSuggestions(query) {
       // Session 119: Type filter compares against tier-1 bucket label
       // (matches browse Phase C). Picking "Steam" correctly includes both
       // Steam Engine and Steam Locomotive items.
-      if (_filterType) {
-        var _bucketLabel = (typeof getTypeBucketLabel === 'function') ? getTypeBucketLabel(m) : String(m.itemType || '').trim();
-        if (_bucketLabel !== _filterType) return;
-      }
-      if (_filterRoad && String(m.roadName || '').trim() !== _filterRoad) return;
-      if (_effMfr) {
-        // Session 171: derive manufacturer robustly (handles rows without _era).
-        var _mMfr = (typeof _manufacturerOfItem === 'function') ? (_manufacturerOfItem(m) || '') : '';
-        if (!_mMfr && typeof ERAS !== 'undefined' && ERAS[m._era]) _mMfr = ERAS[m._era].manufacturer || '';
-        if (!_mMfr && m._tab) {
-          var _tl = String(m._tab).toLowerCase();
-          if (_tl.indexOf('lionel') === 0) _mMfr = 'Lionel';
-          else if (_tl.indexOf('atlas') === 0) _mMfr = 'Atlas';
-          else if (_tl.indexOf('mth') === 0) _mMfr = 'MTH';
-          else if (_tl.indexOf('weaver') === 0) _mMfr = 'Weaver';
-          else if (_tl.indexOf('rmt') === 0) _mMfr = 'RMT';
-        }
-        // Session 173: case-insensitive — _manufacturerOfItem returns lowercase
-        // ('lionel') while typed/dropdown values are capitalized ('Lionel').
-        // v0.9.1935: a product carrying the chosen maker's name counts too ("Also Sold As").
-        if (String(_mMfr).toLowerCase() !== String(_effMfr).toLowerCase()
-            && !(typeof rrRowAlsoSoldBy === 'function' && rrRowAlsoSoldBy(m, _effMfr))) return;
-      }
-      if (_effPeriod && _periodOfRow(m) !== _effPeriod) return;
-      if (_filterScale) {
-        var _mScale = (typeof ERA_SCALE !== 'undefined' && ERA_SCALE[m._era]) || '';
-        if (_mScale !== _filterScale) return;
-      }
+      // 2026-11-01: Manufacturer, Era, Type, Scale and Road — the ONE filter
+      // test (_wizRowFitsFilters, wizard.js). No copy of it lives here.
+      if (_fits && !_fits(m, _fset)) return;
 
       const haystack = ((m.roadName || '') + ' ' + (m.description || '') + ' ' + (m.varDesc || '') + ' ' + (m.itemType || '')).toLowerCase();
 
@@ -413,7 +380,7 @@ function updateItemSuggestions(query) {
         matches = true;
       } else {
         // Text-only search: match anywhere in road name, description, or item type
-        matches = _searchParts.length > 0 ? _searchParts.every(kp => haystack.includes(kp)) : !!(_effMfr || _effPeriod || _filterType || _filterRoad || _filterScale);
+        matches = _searchParts.length > 0 ? _searchParts.every(kp => haystack.includes(kp)) : (_fset ? _wizAnyAddFilter(_fset) : !!(_effMfr || _effPeriod || _filterType || _filterRoad || _filterScale));
       }
 
       if (!matches) return;
@@ -445,6 +412,9 @@ function updateItemSuggestions(query) {
           alsoSoldAs:  m.alsoSoldAs  || '',   // v0.9.1935: the "as Lionel" chip below
           _era:        m._era || '',
           _tab:        m._tab || '',
+          // 2026-11-01: the catalog row itself — a tapped row IS the add's row
+          // (selectSuggestion), and the tag reads its own cells
+          _row:        m,
         });
       }
       });
@@ -537,7 +507,24 @@ function updateItemSuggestions(query) {
     });
   }
 
-  if (candidates.length === 0) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  if (candidates.length === 0) {
+    // 2026-11-01 — nothing fits the filters: say so, right where the list
+    // would be (the three lines, _wizNothingFoundHtml). Only for a NUMBER on
+    // the catalog tabs, once the catalog is in — a search in words, or the
+    // Sold / For Sale pickers (your own copies), keep their quiet empty list.
+    var _nfNum = '';
+    try { _nfNum = String(_extractSearchItemNum(q) || '').trim(); } catch (eNF) {}
+    if (tab !== 'sold' && tab !== 'forsale' && _wizLooksLikeNumber(_nfNum)
+        && !(typeof _catalogReady === 'function' && !_catalogReady())) {
+      var _nfShown = String(query || '').trim().split(/\s+/).filter(function (t) { return t.toLowerCase() === _nfNum.toLowerCase(); })[0] || _nfNum;
+      _suggestionIndex = -1;
+      el.innerHTML = _wizNothingFoundHtml(_nfShown);
+      el.style.display = 'flex';
+      el.style.flexDirection = 'column';
+      return;
+    }
+    el.style.display = 'none'; el.innerHTML = ''; return;
+  }
 
   _suggestionIndex = -1;
   el.innerHTML = '';
@@ -659,9 +646,11 @@ function updateItemSuggestions(query) {
     } catch (eHX) {}
     row.onmouseenter = function() { highlightSuggestion(i); };
     row.dataset.roadName = c.roadName || '';
-    row.onclick = function() { selectSuggestion(c.num, c.roadName || '', c.itemType || ''); };
+    // 2026-11-01: the tapped row rides along — it IS the add's one row
+    var _pick = function () { selectSuggestion(c.num, c.roadName || '', c.itemType || '', c._row ? { row: c._row } : undefined); };
+    row.onclick = _pick;
     row.onkeydown = function(e) {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectSuggestion(c.num, c.roadName || '', c.itemType || ''); }
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); _pick(); }
     };
 
     // ── Line 1 ── item# · road name · reference link (far right)
@@ -676,6 +665,14 @@ function updateItemSuggestions(query) {
     numSpan.textContent = c.num;
     line1.appendChild(numSpan);
 
+    // 2026-11-01 — the maker · era tag, in the SAME spot on every row: right
+    // after the number. ONE helper (rrRowTagHtml) — it replaced the v0.9.2028
+    // "Atlas 3-Rail" chip, never a second chip. On a computer it sits in the
+    // row's one line; on a phone it drops to a small line of its own (app.css,
+    // .rr-row-tag-sug).
+    var _tagHtml = rrRowTagHtml(c._row || c._owned || c, 'rr-row-tag-sug');
+    if (_tagHtml) line1.insertAdjacentHTML('beforeend', _tagHtml);
+
     // Session 115: show itemType next to the number so users can tell
     // apart rows that share an itemNum but differ in kind — e.g. the
     // 773 Accessory vs the 773 Steam Engine at the same item number.
@@ -688,19 +685,6 @@ function updateItemSuggestions(query) {
       line1.appendChild(typeSpan);
     }
 
-    // Session 158: compact rail-type chip so multi-rail catalogs
-    // (Weaver/Atlas/MTH) are distinguishable at a glance. v0.9.2028: the
-    // chip names the maker ("Atlas 3-Rail") — a bare "3-Rail" read like the
-    // 3rd Rail brand (Brad, 2026-10-25). Words come ONLY from rrRailChipLabel.
-    var _railLabel = rrRailChipLabel(c);
-    if (_railLabel) {
-      const railSpan = document.createElement('span');
-      railSpan.style.cssText = 'font-size:0.7rem;font-weight:700;letter-spacing:0.04em;'
-        + 'color:var(--accent2);background:rgba(201,146,42,0.10);border:1px solid rgba(201,146,42,0.35);'
-        + 'padding:0.1rem 0.4rem;border-radius:4px;flex-shrink:0;white-space:nowrap';
-      railSpan.textContent = _railLabel;
-      line1.appendChild(railSpan);
-    }
     // v0.9.2031: a row that only CONTAINS the typed number says so, with its
     // maker — "MTH · contains 66238" — so nobody takes it for the number typed.
     if (_numQ && !rrNumSameAsTyped(c.num, _hlNum) && String(c.num || '').toLowerCase().indexOf(_hlNum) !== 0) {
@@ -918,6 +902,51 @@ function rrRowMakerWord(m) {
   }
   return (typeof _brandLabel === 'function') ? _brandLabel(k) : String(k || '');
 }
+// ── 2026-11-01 — THE MAKER · ERA TAG ([stated] Brad 05:35 CT: "add
+// manufacturer - era to the line selection so we can see if the era or
+// manufactuer matches what we think we are picking....but this needs to be
+// small"). ONE helper builds the words for every place the tag is drawn — each
+// suggestion row, the "ADDING No. …" banner and the step 2 card header — so the
+// three can never disagree. The pieces come only from the existing deciders:
+//   the maker  rrRowMakerWord (above)
+//   the era    _wizPeriodOfRow (wizard.js → _itemEraPeriod, browse.js)
+//   the scale  the row's own Gauge cell, else its catalog's (_wizScaleOfRow)
+//   the rail   rrRowRailWord (the row's Track/Power cell)
+// Lionel says its era (LIONEL · POSTWAR); another maker says its era when the
+// row has a real Pre-War / Postwar one (A.C. GILBERT · POSTWAR), otherwise its
+// scale and rail (ATLAS · O 3-RAIL, AMERICAN MODELS · S) — nearly all of them
+// are Modern, so the era word would tell the collector nothing. Words and the
+// separator: RR_ADD_FILTERS (config.js). Returned in capitals.
+function rrRowTagWords(m) {
+  if (!m) return '';
+  var W = (typeof window !== 'undefined' && window.RR_ADD_FILTERS) || {};
+  var eraW = W.eraWords || {};
+  var maker = '';
+  try { maker = String(rrRowMakerWord(m) || '').trim(); } catch (eM) {}
+  var period = '';
+  try { period = (typeof _wizPeriodOfRow === 'function') ? (_wizPeriodOfRow(m) || '') : ''; } catch (eP) {}
+  var isLionel = maker.toLowerCase().replace(/[^a-z]/g, '') === 'lionel';
+  var second = '';
+  if (period && (isLionel || period !== 'modern')) second = eraW[period] || '';
+  else {
+    var sc = String(m.gauge || '').trim();
+    if (!sc) { try { sc = (typeof _wizScaleOfRow === 'function') ? (_wizScaleOfRow(m) || '') : ''; } catch (eS) {} }
+    second = [sc, rrRowRailWord(m)].filter(Boolean).join(' ');
+    if (!second && period) second = eraW[period] || '';
+  }
+  return [maker, second].filter(Boolean).join(W.tagSep || ' · ').toUpperCase();
+}
+// The tag as a small chip — the SAME look wherever it is drawn. `cls` adds a
+// placement class (the list's phone layout moves it under the number).
+function rrRowTagHtml(m, cls) {
+  var t = rrRowTagWords(m);
+  if (!t) return '';
+  var e = String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return '<span class="rr-row-tag' + (cls ? ' ' + cls : '') + '" data-row-tag="1" style="font-size:0.66rem;font-weight:700;'
+    + 'letter-spacing:0.05em;color:var(--accent2);white-space:nowrap;flex-shrink:0;font-family:var(--font-body);font-style:normal">' + e + '</span>';
+}
+if (typeof window !== 'undefined') { window.rrRowTagWords = rrRowTagWords; window.rrRowTagHtml = rrRowTagHtml; }
+
 // The words, from RR_ADD_TYPED (config.js) — never typed here.
 function rrTypedWords(key, num, maker) {
   var w = (typeof window !== 'undefined' && window.RR_ADD_TYPED) || {};
@@ -936,6 +965,11 @@ function selectSuggestion(num, roadName, itemType, opts) {
     delete wizard.data._suggestedItemType;
   } else {
     delete wizard.data._typedAsIs;
+    // 2026-11-01: a tapped catalog row is the add's ONE row from here on —
+    // the banner, step 2, the save and the reference link all use it
+    // (lookupItem keeps it while it fits the filters, which it does: the list
+    // only ever offers rows that fit).
+    if (opts && opts.row) wizard.matchedItem = opts.row;
   }
   if (roadName) wizard.data._suggestedRoadName = roadName;
   // Session 115: remember the itemType the user picked so downstream
@@ -1084,10 +1118,107 @@ function handleSuggestionKey(e) {
   }
 }
 
+// ── 2026-11-01 — NOTHING FITS THE FILTERS ([stated] Brad 05:39 CT, wording
+// agreed 05:41 CT). Three lines, words from RR_ADD_FILTERS (config.js):
+//   1  "No 1511 found for Lionel · Postwar in our Master Catalog"
+//      (no filter on: "No item found in our Master Catalog")
+//   2  only with a filter on: "Clear filters?" + the button — and, when the
+//      number IS in the catalog under another maker or era, a note saying so,
+//      so nobody adds a catalog item by hand. The button clears the filters
+//      and KEEPS the typed number (_clearAddFilters), so the list shows at once.
+//   3  "Add manually?" + the button — the add switches to "Manual — item not
+//      in our catalogs" carrying the number and the picked maker (_wizSetKind).
+// No other maker's or era's item is shown or picked.
+function _wizLooksLikeNumber(t) {
+  t = String(t || '').trim();
+  return !!t && /\d/.test(t) && !(typeof _rrIsWheelArrangement === 'function' && _rrIsWheelArrangement(t));
+}
+// The filters that are on, in the collector's own words ("Lionel · Postwar").
+function _wizFiltersLabel(f) {
+  var W = (typeof window !== 'undefined' && window.RR_ADD_FILTERS) || {};
+  var eraW = W.eraFilterWords || {};
+  f = f || ((typeof _wizAddFilters === 'function') ? _wizAddFilters() : {});
+  return [f.mfr, f.period ? (eraW[f.period] || f.period) : '', f.type, f.scale, f.road]
+    .filter(Boolean).join(W.filterSep || ' \u00B7 ');
+}
+// Is this number anywhere in the list a cleared filter would show?
+function _wizNumberInCatalog(num) {
+  var lc = String(num || '').trim().toLowerCase();
+  if (!lc) return false;
+  var hit = function (r) { return r && String(r.itemNum || '').toLowerCase() === lc; };
+  if ((state.masterData || []).some(hit)) return true;
+  var _all = (typeof _allErasSearchCache !== 'undefined') ? _allErasSearchCache : null;
+  return !!(_all && _all.some && _all.some(hit));
+}
+function _wizNothingFoundHtml(num) {
+  var W = (typeof window !== 'undefined' && window.RR_ADD_FILTERS) || {};
+  var esc = function (v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+  var fill = function (t) { return String(t || '').replace('{num}', num).replace('{filters}', _wizFiltersLabel()); };
+  var on = (typeof _wizAnyAddFilter === 'function') && _wizAnyAddFilter();
+  var btn = 'padding:0.3rem 0.7rem;font-size:0.8rem;background:var(--surface2);color:var(--text);border:1px solid var(--border);'
+    + 'border-radius:7px;cursor:pointer;min-height:32px;font-family:var(--font-body);white-space:nowrap';
+  var line = 'display:flex;align-items:center;flex-wrap:wrap;gap:0.4rem 0.6rem;margin-top:0.4rem';
+  var h = '<div data-nothing-found="1" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.8rem;font-size:0.82rem;color:var(--text)">';
+  h += '<div data-nf-line="none" style="font-weight:600">' + esc(fill(on ? W.noneFor : W.noneAtAll)) + '</div>';
+  if (on) {
+    var elsewhere = _wizNumberInCatalog(num);
+    h += '<div data-nf-line="clear" style="' + line + '">'
+      + (elsewhere ? '<span data-nf-elsewhere="1" style="color:var(--text-mid);flex-basis:100%">' + esc(fill(W.elsewhere)) + '</span>' : '')
+      + '<span>' + esc(W.clearAsk) + '</span>'
+      + '<button type="button" data-nf-btn="clear" onclick="_clearAddFilters()" style="' + btn + '">' + esc(W.clearBtn) + '</button></div>';
+  }
+  h += '<div data-nf-line="manual" style="' + line + '"><span>' + esc(W.manualAsk) + '</span>'
+    + '<button type="button" data-nf-btn="manual" onclick="_wizSetKind(\'manual\')" style="' + btn + '">' + esc(W.manualBtn) + '</button></div>';
+  return h + '</div>';
+}
+if (typeof window !== 'undefined') { window._wizNothingFoundHtml = _wizNothingFoundHtml; window._wizFiltersLabel = _wizFiltersLabel; window._wizNumberInCatalog = _wizNumberInCatalog; }
+
 function debounceItemLookup(e) {
   clearTimeout(itemLookupTimer);
   itemLookupTimer = setTimeout(() => lookupItem(e.target.value), 400);
 }
+
+// ── 2026-11-01 — THE ROW FOR A TYPED NUMBER (Brad: "if there is no 1511 for
+// lionel postwar, nothing shows up"). ONE picker, asked by the "Found" lookup
+// (lookupItem), the "ADDING No. …" banner and Next — so the three can never
+// hold different rows, and the row they hold is the row step 2, the save and
+// the links use (wizard.matchedItem). The old lookups ended in escapes —
+// "ignore period rather than fail", the unfiltered scorer, and finally the
+// FIRST row with the number in load order — which is how Lionel · Postwar ·
+// 1511 showed the Pre-War 1511 on step 1 and American Models' on step 2.
+// Every candidate now passes THE one filter test (_wizRowFitsFilters,
+// wizard.js); a number with no row inside the filters returns null.
+// Order: the row the add already holds for this number (a tapped suggestion,
+// the photo reader's answer), while it fits; the item type (and road) picked
+// from the list (Session 115); the wizard's scorer (_wizPickMasterRow).
+// opts.raw: the text IS the number, as typed (Next compares the whole box —
+// "6-8359" stays "6-8359"); otherwise the number token is pulled out of a
+// longer search ("lionel 1511" → 1511).
+function _wizResolveAddRow(numText, opts) {
+  var _num = (opts && opts.raw) ? String(numText || '')
+    : ((typeof _extractSearchItemNum === 'function') ? _extractSearchItemNum(numText) : String(numText || ''));
+  var numLC = String(_num || '').trim().toLowerCase();
+  if (!numLC) return null;
+  var d = (typeof wizard !== 'undefined' && wizard && wizard.data) ? wizard.data : {};
+  var prefType = d._suggestedItemType ? String(d._suggestedItemType).trim() : '';
+  var prefRoad = d._suggestedRoadName ? String(d._suggestedRoadName).trim() : '';
+  var fset = (typeof _wizAddFilters === 'function') ? _wizAddFilters() : null;
+  var fits = function (i) { return (typeof _wizRowFitsFilters === 'function') ? _wizRowFitsFilters(i, fset) : true; };
+  var rows = ((typeof state !== 'undefined' && state.masterData) || []).filter(function (i) {
+    return String(i.itemNum || '').toLowerCase() === numLC && fits(i);
+  });
+  var cur = (typeof wizard !== 'undefined' && wizard) ? wizard.matchedItem : null;
+  if (cur && String(cur.itemNum || '').toLowerCase() === numLC && fits(cur)
+      && (!prefType || String(cur.itemType || '').trim() === prefType)) return cur;
+  if (!rows.length) return null;
+  if (prefType) {
+    var t = rows.find(function (i) { return String(i.itemType || '').trim() === prefType && (!prefRoad || String(i.roadName || '').trim() === prefRoad); })
+         || rows.find(function (i) { return String(i.itemType || '').trim() === prefType; });
+    if (t) return t;
+  }
+  return (typeof _wizPickMasterRow === 'function') ? (_wizPickMasterRow(numLC, rows) || null) : rows[0];
+}
+if (typeof window !== 'undefined') window._wizResolveAddRow = _wizResolveAddRow;
 
 function lookupItem(num) {
   // Session 115: prefer the master row matching the itemType (and
@@ -1098,65 +1229,8 @@ function lookupItem(num) {
   // Bug 9 (Session 154): match on the item-number token, not the full
   // descriptive string the user may have typed.
   const _searchNum = (typeof _extractSearchItemNum === 'function') ? _extractSearchItemNum(num) : num;
-  const _numLC = _searchNum.trim().toLowerCase();
-  const _d = (typeof wizard !== 'undefined' && wizard && wizard.data) ? wizard.data : null;
-  const _prefType = _d && _d._suggestedItemType ? String(_d._suggestedItemType).trim() : '';
-  const _prefRoad = _d && _d._suggestedRoadName ? String(_d._suggestedRoadName).trim() : '';
-  // ── v0.9.1482 (Brad's 238 again: type it → banner says 1963, TAP the row
-  // → banner says 1939-1940): the suggestion-click path lands here with
-  // only number+type, and `find(first matching row)` resurrected the
-  // load-order bug — bypassing every era guard. The visible period filter
-  // outranks load order on THIS path too now.
-  // v0.9.1483: period AND scale via the one shared predicate (was period-only).
-  var _perOk = function (i) { return (typeof _wizRowFitsFilters !== 'function') || _wizRowFitsFilters(i); };
-  let match = null;
-  if (_prefType) {
-    match = state.masterData.find(i =>
-      i.itemNum.toLowerCase() === _numLC &&
-      String(i.itemType || '').trim() === _prefType &&
-      (!_prefRoad || String(i.roadName || '').trim() === _prefRoad) &&
-      _perOk(i)
-    );
-    // Fallback: type match alone if road-filtered version doesn't hit
-    if (!match) {
-      match = state.masterData.find(i =>
-        i.itemNum.toLowerCase() === _numLC &&
-        String(i.itemType || '').trim() === _prefType &&
-        _perOk(i)
-      );
-    }
-    // Last resort inside the type branch: ignore period rather than fail
-    // (a period with no rows should not blank a real match).
-    if (!match) {
-      match = state.masterData.find(i =>
-        i.itemNum.toLowerCase() === _numLC &&
-        String(i.itemType || '').trim() === _prefType
-      );
-    }
-  }
-  // v0.9.1034 (Brad's Lionel/Atlas 6-8359): this lookup runs 400ms after ANY
-  // keystroke in the item-number box — including the one the photo-identify
-  // fires itself to fill the field. It used to end at `find(first row with
-  // this number)`, which threw away the maker-aware row identify had just
-  // resolved and swapped in whichever catalog happened to load first.
-  // 1. A row already resolved for this SAME number stays. It came from the
-  //    identify answer or from a suggestion the user picked by hand; either
-  //    way it knows more than a bare number scan does.
-  if (!match) {
-    var _cur = (typeof wizard !== 'undefined' && wizard) ? wizard.matchedItem : null;
-    if (_cur && String(_cur.itemNum || '').toLowerCase() === _numLC) {
-      // v0.9.1473 (the 1023 Tunnel ratchet): the held row used to survive
-      // FOREVER — a pick made before the Era filter was consulted could
-      // never be displaced, so the banner disagreed with the filtered list.
-      // It survives only while it satisfies the on-screen period.
-      if (typeof _wizRowFitsFilters !== 'function' || _wizRowFitsFilters(_cur)) match = _cur;   // v0.9.1483: period+scale
-    }
-  }
-  // 2. Otherwise pick by the era the wizard is in and the maker on the search
-  //    bar, rather than by load order.
-  if (!match && typeof _wizPickMasterRow === 'function') match = _wizPickMasterRow(_numLC);
-  if (!match) match = state.masterData.find(i => i.itemNum.toLowerCase() === _numLC && _perOk(i))
-             || state.masterData.find(i => i.itemNum.toLowerCase() === _numLC);   // v0.9.1482: period first, load order last
+  // 2026-11-01: THE one row picker for this number (_wizResolveAddRow above).
+  let match = _wizResolveAddRow(_searchNum);
   wizard.matchedItem = match || null;
   const el = document.getElementById('wiz-match');
   if (!el) return;
@@ -1244,9 +1318,13 @@ function lookupItem(num) {
         </div>` : ''}
       </div>`;
     } else {
+      // 2026-11-01: when the list under the box is already saying "No 1511
+      // found …" (_wizNothingFoundHtml), this line stays empty — one message.
+      var _sgNF = document.getElementById('wiz-suggestions');
+      _sgNF = !!(_sgNF && _sgNF.style.display !== 'none' && _sgNF.querySelector('[data-nothing-found]'));
       el.innerHTML = (typeof _catalogReady === 'function' && !_catalogReady())
         ? `<div style="font-size:0.8rem;color:#e0a800">⏳ Loading your catalog — one moment…</div>`
-        : `<div style="font-size:0.8rem;color:var(--text-dim)">Not found in master inventory — will save anyway</div>`;
+        : (_sgNF ? '' : `<div style="font-size:0.8rem;color:var(--text-dim)">Not found in master inventory — will save anyway</div>`);
     }
   }
 }

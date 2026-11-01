@@ -44,6 +44,7 @@ eval(grab(wiz, '_wizScaleOfRow'));
 eval(grab(wiz, '_wizMasterPrefer'));
 eval(grab(wiz, '_wizPickMasterRow'));
 eval(grab(wiz, '_wizRowFitsFilters'));
+eval(grab(wiz, '_wizAddFilters'));   // 2026-11-01: the filters _wizRowFitsFilters / _wizPickMasterRow answer to
 eval(grab(dat, '_mIsMotive'));
 eval(grab(dat, '_mSuffix'));
 eval(grab(dat, '_letterKinRows'));
@@ -289,6 +290,50 @@ T('6456 untouched: plain row is a real item', (fmX('6456', null, LIVE) || {}).it
     (fm6('800', '', { masterKey: 'prewar|800|', era: 'prewar' }) || {}).itemType, 'Motorized Unit');
   T('Row ID: an ID that resolves to nothing falls back, never guesses past the key',
     (fm6('800', '', { masterKey: 'prewar|800|', masterRowId: 'ZZZZZZZZZZ', era: 'prewar' }) || {}).itemType, 'Motorized Unit');
+}
+
+// ── CANARY 7 (2026-11-01): No. 1511 under every maker / era pick ────────
+// Brad: "i want the filters to actually filter. if there is no 1511 for lionel
+// postwar, nothing shows up". 1511 is real on Lionel Pre-War (2 rows),
+// American Models S, S-Helper S, Atlas O (1511-1/-2), Atlas HO, Weaver O — and
+// NOT on Lionel Postwar. The scorer and the one filter test must never answer
+// outside the filters (the old escapes handed back the Pre-War row, then
+// American Models'). The maker word is the REAL rrRowMakerWord.
+{
+  const sug = fs.readFileSync(path.join(__dirname, '..', 'app', 'wizard-suggestions.js'), 'utf8');
+  eval(grab(sug, 'rrRowMakerWord'));
+  eval(grab(sug, '_wizResolveAddRow'));
+  global.ERAS7 = { prewar: 'Lionel', pw: 'Lionel', am_s: 'American Models', shelper: 'S-Helper Service', atlas: 'Atlas', atlas_ho: 'Atlas', weaver: 'Weaver' };
+  global._manufacturerOfItem = function (r) { return r && ERAS7[r._era] ? ERAS7[r._era].toLowerCase() : null; };
+  global._brandLabel = function (k) { return k ? String(k).replace(/\b\w/g, c => c.toUpperCase()) : ''; };
+  const r1511 = [
+    { itemNum: '1511', _era: 'prewar', yearProd: '1936-37', itemType: 'Steam Locomotive', _tab: 'Lionel Pre-War' },
+    { itemNum: '1511', _era: 'prewar', yearProd: '1936-37', itemType: 'Set', _tab: 'Lionel Pre-War' },
+    { itemNum: '1511', _era: 'am_s', yearProd: '1995', itemType: 'Boxcar', _tab: 'American Models S' },
+    { itemNum: '1511', _era: 'shelper', yearProd: '2001', itemType: 'Hopper', _tab: 'S-Helper Service S' },
+    { itemNum: '1511', _era: 'atlas_ho', yearProd: '2004', itemType: 'Boxcar', _tab: 'Atlas HO' },
+  ];
+  const saveMD = state.masterData;
+  state.masterData = r1511.concat(saveMD);
+  const pick = (d) => { wizard.data = d; wizard.matchedItem = null; return _wizPickMasterRow('1511'); };
+  T('1511: Lionel + Postwar -> nothing', pick({ _searchFilterManufacturer: 'Lionel', _searchFilterPeriod: 'postwar' }), null);
+  T('1511: Lionel + Pre-War -> the Pre-War row', (pick({ _searchFilterManufacturer: 'Lionel', _searchFilterPeriod: 'prewar' }) || {})._era, 'prewar');
+  T('1511: American Models -> the American Models row', (pick({ _searchFilterManufacturer: 'American Models' }) || {})._era, 'am_s');
+  T('1511: S-Helper Service + Modern -> the S-Helper row', (pick({ _searchFilterManufacturer: 'S-Helper Service', _searchFilterPeriod: 'modern' }) || {})._era, 'shelper');
+  T('1511: Atlas + Scale O -> nothing (only Atlas HO here)', pick({ _searchFilterManufacturer: 'Atlas', _searchFilterScale: 'O' }), null);
+  T('1511: Era All + Lionel -> a Lionel row', (pick({ _searchFilterManufacturer: 'Lionel' }) || {})._era, 'prewar');
+  T('1511: typed "lionel" word with Postwar -> nothing', pick({ _typedSearchMfr: 'Lionel', _searchFilterPeriod: 'postwar' }), null);
+  // the held row is let go when it no longer fits — never kept "rather than fail"
+  wizard.data = { _searchFilterManufacturer: 'Lionel', _searchFilterPeriod: 'postwar' };
+  wizard.matchedItem = r1511[0];
+  T('1511: a held Pre-War row under Lionel + Postwar -> resolver gives nothing', _wizResolveAddRow('1511'), null);
+  wizard.data = { _searchFilterManufacturer: 'Lionel', _searchFilterPeriod: 'prewar' };
+  T('1511: the held row stays while it fits', _wizResolveAddRow('1511'), r1511[0]);
+  wizard.data = { _searchFilterManufacturer: 'Lionel', _searchFilterPeriod: 'postwar', _fromInbox: true };
+  T('1511: an inbox add keeps its photo-tag rule (no Add filters)', _wizResolveAddRow('1511'), r1511[0]);
+  T('predicate: maker filter refuses another maker', _wizRowFitsFilters(r1511[2], { mfr: 'Lionel', period: '', type: '', scale: '', road: '' }), false);
+  state.masterData = saveMD;
+  wizard.data = {}; wizard.matchedItem = null;
 }
 
 // ── the earlier canaries must be unchanged by all of the above ──────────

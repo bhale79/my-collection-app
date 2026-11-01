@@ -36,7 +36,8 @@ function plant(src, from, to, label) {
 
 // ── A. Add Item — updateItemSuggestions (wizard-suggestions.js) ──────────
 function El() {
-  return { style: {}, dataset: {}, children: [], innerHTML: '', setAttribute() {}, addEventListener() {},
+  // insertAdjacentHTML: the maker · era tag (2026-11-01) is drawn as HTML; this stand-in keeps children only
+  return { style: {}, dataset: {}, children: [], innerHTML: '', setAttribute() {}, addEventListener() {}, insertAdjacentHTML() {},
     appendChild(c) { this.children.push(c); }, set textContent(v) { this._t = v; }, get textContent() { return this._t; } };
 }
 function addItemList(src, query) {

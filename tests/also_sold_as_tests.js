@@ -77,9 +77,10 @@ section('C · every maker filter asks rrRowAlsoSoldBy after its own test');
 // how far after it the Also Sold As question must appear.
 const SITES = [
   ['browse.js — Master Catalog maker chip', 'browse', '_itmMfr !== ch.manufacturer', 160],   // 2026-10-31: the chip rule now lives in rrChipRowPasses (ch = the chips)
-  ['wizard-suggestions.js — Add-screen list', 'sugg', 'String(_mMfr).toLowerCase() !== String(_effMfr).toLowerCase()', 200],
-  ['wizard.js — part-number narrowing', 'wiz', 'if (_rm !== _pfM && _tab.indexOf(_pfM) !== 0', 200],
-  ['wizard.js — right-maker row swap', 'wiz', 'if (_rm && _rm.indexOf(_fm) < 0', 200],
+  // 2026-11-01 (the Add screen's filters really filter): the Add list, the
+  // part-number narrowing and the banner's row swap were three copies of the
+  // maker test; they are now ONE — _wizRowFitsFilters (wizard.js) — so one site.
+  ['wizard.js — the one Add-screen filter test (_wizRowFitsFilters)', 'wiz', 'if (_n(rk) !== _n(f.mfr)', 200],
   ['wizard.js — the found-row scorer', 'wiz', "indexOf(mfrLC) === 0) sc += 4;", 200],
   ['barcode.js — _bcRowIsMfr', 'bc', 'function _bcRowIsMfr(', 900],
 ];

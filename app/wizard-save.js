@@ -1696,6 +1696,12 @@ async function saveWizardItem() {
         // row can use (engineInvId + 1) — fixes the dupe-ID bug where both
         // rows landed at the same number because nextInventoryId() scans
         // state.personalData which isn't updated mid-save.
+        // 2026-11-01: does this add hold NO catalog row? (a typed number with
+        // nothing inside the Add screen's filters). Not for a set member, an
+        // edit of an owned copy or an inbox add — those carry their own row.
+        var _wizNoRow = !(typeof wizard !== 'undefined' && wizard && wizard.matchedItem)
+          && !d._setMode && !d._updatePdKey && !d._fromInbox && !d._manualEntry;
+        var _wizNoRowMfr = _wizNoRow ? String(d._searchFilterManufacturer || d._typedSearchMfr || '').trim() : '';
         var _engineInvId = d._existingInventoryId || d._photoInventoryId || nextInventoryId();  // Session 165 hotfix: var, not const, so tender block at line 1206 can reference it
         // Session 156: paired engine row via buildPersonalRow
         // v0.9.1919: the fields are kept by name so the fill-item UPDATE below
@@ -1739,7 +1745,12 @@ async function saveWizardItem() {
           location: d.location || '',
           ..._rrUserFieldValues(d),
           era: _resolveSaveEra(),
-          manufacturer: _getEraManufacturer(),
+          manufacturer: (_wizNoRow && _wizNoRowMfr) ? _wizNoRowMfr : _getEraManufacturer(),
+          // 2026-11-01: an Add-screen number with NO catalog row inside the
+          // filters saves as exactly that — buildPersonalRow must not go and
+          // borrow another maker's or era's row (its description, key or Row ID)
+          // for it. The one row of the add (wizard.matchedItem) decides.
+          _noCatalogRow: _wizNoRow || undefined,
         };
         row = buildPersonalRow(_mainFields);
       }
