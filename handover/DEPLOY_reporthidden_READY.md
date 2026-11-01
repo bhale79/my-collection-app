@@ -1,4 +1,4 @@
-# DEPLOY — Report a problem: the My Collection count check (job B) — IN PROGRESS, NOT READY (full test gate still running; do not ship)
+# DEPLOY — Report a problem: the My Collection count check (job B) — READY
 
 Branch: `build/report-hidden`, built ON TOP of `build/varlink` (job A) — both change `browse.js`, so B
 starts where A ends and the two never collide.
@@ -45,7 +45,22 @@ MY COLLECTION COUNT CHECK
 
 ## Tests
 
-GATE_RESULTS_PLACEHOLDER
+ONE run of the final files (commit `ba419847`; the merge after it only added job A's `.github/site-files.txt`
+line and hand-over notes — `app/` and `tests/` are byte-for-byte the tested ones):
+`node tests/run-all.js --all --receipt handover/receipt_reporthidden.json`
+→ tier **full+browser**, **367 suites: 361 green, 6 red**, 561 files fingerprinted, nothing changed during the run.
+`report_hidden_items_tests` 29/29, `variation_link_tests` 52/52.
+
+**The receipt says NOT passed — none of the 6 reds is this change:**
+
+| Red suite | Why |
+|---|---|
+| `photo-inbox-tests.js` (4024 pass, 1 fail) | About-panel month: config.js says "October 2026", today is November — moves with the shipping chat's version bump (same on clean main) |
+| `photo_closer_1950`, `photo_choices_1951`, `picture_box_1955` | the real text reader's language data can't be downloaded in this cloud session (same on clean main) |
+| `safari-walk.js` | Safari's engine can't be downloaded here (same on clean main) |
+| `site_files_tests.js` | the new `handover/` folder wasn't marked private yet — **fixed on build/varlink** (`private: handover`) and merged into this branch; re-run: 18/18 |
+
+**The shipping chat should re-run the gate on Brad's PC** after its trio + date bump to get the PASSED receipt.
 
 New suite `report_hidden_items_tests.js` — 29 checks: one copy of every kind (drawn, inside a group,
 inside a set, hidden by Type / Era pick / My maker / search / the catalog in view, a box piece never
