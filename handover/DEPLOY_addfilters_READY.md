@@ -1,6 +1,6 @@
 # DEPLOY — The Add screen's filters really filter — READY for the shipping chat
 
-Branch: `build/add-filters` (rebased onto main `67b54c5`, v0.9.2090). **No version numbers were changed** (APP_VERSION, CACHE_NAME and the `?v=` stamps are untouched — the shipping chat bumps them).
+Branch: `build/add-filters` (rebased onto main `67b54c5`, v0.9.2090 — still the latest main at the final gate). **No version numbers were changed** (APP_VERSION, CACHE_NAME and the `?v=` stamps are untouched — the shipping chat bumps them).
 Patch: `git diff origin/main...origin/build/add-filters`
 Plan: PLAN 2026-11-01 "The Add screen's filters really filter", approved by Brad 05:41 CT ("yes, and will do the build on the cloud like the other").
 Adds NO sheet columns and writes nothing new to any sheet.
@@ -34,7 +34,18 @@ Tests (new):
 Tests (updated pins for the deliberate change): `tests/lookup_canary.js` (+ 1511 under each maker / era pick, and the canary now loads `_wizAddFilters`), `tests/also_sold_as_tests.js` (the three Add-screen maker copies are now ONE site), `tests/rail_chip_maker_2028_tests.js` (the rail word now rides in the tag; a bare chip put back is still caught), `tests/short_number_search_tests.js` (its stand-in element learns `insertAdjacentHTML`).
 
 ## Test results
-GATE_RESULTS_PLACEHOLDER
+ONE full run of the final app/ and tests/ files: `node tests/run-all.js --all --receipt handover/receipt_addfilters.json`
+(receipt in this folder: tier **full+browser**, 370 suites, 565 files fingerprinted, nothing changed during the run).
+
+- **366 green, 4 red** — so the receipt says **NOT passed**. None of the four comes from this change; each fails **the same way on a clean copy of main 67b54c5** (checked in this session):
+  - `photo_closer_1950_tests.js`, `photo_choices_1951_tests.js`, `picture_box_1955_tests.js` — the photo number reader needs an online text-reading engine this cloud machine's network blocks.
+  - `safari-walk.js` — Safari's engine (WebKit) could not be downloaded here.
+  (The same four as the Command IDs hand-over.)
+- The new suites: `add_filters_strict_tests` **54/54** (incl. 11 planted offenders), `add_filters_road_tests` **36/36** (laptop + iPhone, 3 planted offenders, 43 s).
+- Updated pins all green: `lookup_canary` (ALL CANARIES GREEN), `also_sold_as_tests` 27/27, `rail_chip_maker_2028_tests` 9/9, `short_number_search_tests` 21/21. Neighbours on the Add screen green: `photo-inbox-tests` 4025/4025, `typed_number_2031_tests` 31/31, `site_files_tests` 18/18.
+- One red found and fixed along the way: the first full run showed `photo-inbox-tests` red because the step 2 card builder called the new helper where that suite runs it on its own; the builder now reads its own `_cdMaster` (the same one row). The final run above is AFTER that fix.
+
+**For the shipping chat:** wizard.js, wizard-suggestions.js, wizard-save.js and app.js are core files. On Brad's PC (where the photo reader and WebKit work) run the full gate once (`node tests/run-all.js --all --receipt …`) to get a PASSED receipt before shipping.
 
 ## Command IDs (`build/command-ids`) — NOT on main yet
 Checked with `git fetch` before the gate: Command IDs has **not** landed on main. Files both branches change: `app/app.js`, `app/config.js`, `app/wizard-save.js`, `app/wizard.js` — a trial merge of the two branches auto-merges all four. The only conflict a trial merge shows is `app/index.html`, which **this branch does not touch** (Command IDs was cut from main 57a00ff and main has moved to v0.9.2090 since). Suggested order: ship Command IDs first (rebased on main), then rebase this branch on main and re-run its gate.
