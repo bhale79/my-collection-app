@@ -541,7 +541,11 @@ function buildPersonalRow(fields) {
   // catalog data — the old "manual items: findMaster returns null" assumption
   // breaks when a manual number COLLIDES with a real catalog number (4C).
   // This was stamping the F3's description INTO the manual row at save time.
-  const _rowIsManual = String(fields.era || '') === 'Manual';
+  // 2026-11-01: an Add-screen save that holds NO catalog row inside the
+  // collector's filters (fields._noCatalogRow, wizard-save.js) is treated the
+  // same way — Lionel · Postwar · 1511 must not come back as the Pre-War 1511's
+  // description, key and Row ID. (_noCatalogRow is not a column; never written.)
+  const _rowIsManual = String(fields.era || '') === 'Manual' || fields._noCatalogRow === true;
   const inum = fields.itemNum || '';
   const vari = fields.variation || '';
   const mdi = PERSONAL_FIELD_INDEX.masterDescription;

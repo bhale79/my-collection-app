@@ -157,8 +157,11 @@ function rrApplyGroupingChoice(groupId) {
   if (_engineGroupings.indexOf(groupId) !== -1) {
     const _curType = String((wizard.matchedItem && wizard.matchedItem.itemType) || '');
     if (!/engine|loco/i.test(_curType)) {
+      // 2026-11-01: only an engine row that fits the Add screen's filters (the
+      // one test, _wizRowFitsFilters) — never another maker's or era's engine.
       const _engineRow = (state.masterData || []).find(function(m) {
-        return m.itemNum === itemNum && /engine|loco/i.test(String(m.itemType || ''));
+        return m.itemNum === itemNum && /engine|loco/i.test(String(m.itemType || ''))
+          && (typeof _wizRowFitsFilters !== 'function' || _wizRowFitsFilters(m));
       });
       if (_engineRow) {
         wizard.matchedItem = _engineRow;

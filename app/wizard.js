@@ -393,30 +393,73 @@ if (typeof window !== 'undefined') window._wizScaleOfRow = _wizScaleOfRow;
 // (Manufacturer stays with the scorers: per-row maker detection is fuzzy.)
 // Every held-match guard and lookup fallback consults this ONE predicate;
 // a row with an UNKNOWN scale is never excluded (absence isn't a mismatch).
-function _wizRowFitsFilters(m) {
+// ── 2026-11-01 (Brad: "i want the filters to actually filter. if there is no
+// 1511 for lionel postwar, nothing shows up"): THE answer to "does this catalog
+// row fit what the collector picked" — Manufacturer, Era, Type, Scale (and the
+// Road box, on the tabs that show it). Blank = any. The suggestion list, the
+// "Found" banner, Next, every step after it, the save and the reference link
+// all go through this ONE test; there is no copy anywhere else, and no lookup
+// on the Add screen may "ignore the filter rather than fail" (the scan in
+// add_filters_strict_tests turns red on one).
+//   The filters are the drop-downs plus a maker / period word TYPED in the box
+// ("lionel 1511", "postwar 238" — stashed by the suggestion scan in
+// _typedSearchMfr / _typedSearchPeriod); a drop-down outranks a typed word.
+//   An add that started in the Photo Inbox answers to its photo's tag, never to
+// the Add screen's remembered drop-downs (the v0.9.1488 rule) — so it gets no
+// filters here; nor does a set member or an edit of an owned copy.
+//   `f` (optional): an explicit filter set, as _wizAddFilters returns it.
+function _wizAddFilters() {
+  var d = (typeof wizard !== 'undefined' && wizard && wizard.data) ? wizard.data : {};
+  // Inbox adds answer to their photo's tag; a set's members come from the set
+  // and an edit of an owned copy from that copy's own saved row — none of them
+  // is a search, so the Add screen's search filters do not apply.
+  if (d._fromInbox || d._setMode || d._updatePdKey) return { mfr: '', period: '', type: '', scale: '', road: '' };
+  return {
+    mfr:    String(d._searchFilterManufacturer || d._typedSearchMfr || '').trim(),
+    period: String(d._searchFilterPeriod || d._typedSearchPeriod || '').trim(),
+    type:   String(d._searchFilterType || '').trim(),
+    scale:  String(d._searchFilterScale || '').trim(),
+    road:   String(d._searchFilterRoad || '').trim(),
+  };
+}
+function _wizAnyAddFilter(f) {
+  f = f || _wizAddFilters();
+  return !!(f.mfr || f.period || f.type || f.scale || f.road);
+}
+function _wizRowFitsFilters(m, f) {
   if (!m) return false;
+  f = f || _wizAddFilters();
   try {
-    var d = (typeof wizard !== 'undefined' && wizard && wizard.data) ? wizard.data : {};
-    var p = String(d._searchFilterPeriod || d._typedSearchPeriod || '').trim();
-    if (p && typeof _wizPeriodOfRow === 'function' && _wizPeriodOfRow(m) !== p) return false;
-    var sc = String(d._searchFilterScale || '').trim();
-    if (sc) {
-      var rs = _wizScaleOfRow(m);
-      if (rs && rs !== sc) return false;
+    if (f.mfr) {
+      var _n = function (v) { return String(v || '').toLowerCase().replace(/[^a-z0-9]/g, ''); };
+      var rk = (typeof rrRowMakerWord === 'function') ? rrRowMakerWord(m) : '';
+      // v0.9.1935: a product carrying the chosen maker's name counts too ("Also Sold As")
+      if (_n(rk) !== _n(f.mfr) && !(typeof rrRowAlsoSoldBy === 'function' && rrRowAlsoSoldBy(m, f.mfr))) return false;
     }
+    if (f.period && _wizPeriodOfRow(m) !== f.period) return false;
+    if (f.type) {
+      var bt = (typeof getTypeBucketLabel === 'function') ? getTypeBucketLabel(m) : String(m.itemType || '').trim();
+      if (bt !== f.type) return false;
+    }
+    if (f.scale && _wizScaleOfRow(m) !== f.scale) return false;
+    if (f.road && String(m.roadName || '').trim() !== f.road) return false;
   } catch (e) {}
   return true;
 }
-if (typeof window !== 'undefined') window._wizRowFitsFilters = _wizRowFitsFilters;
+if (typeof window !== 'undefined') { window._wizRowFitsFilters = _wizRowFitsFilters; window._wizAddFilters = _wizAddFilters; window._wizAnyAddFilter = _wizAnyAddFilter; }
 
 // The wizard's own pick between rows that share an item number. Returns the
 // best row, or null when the number isn't in the catalog at all.
 // `rows` may be omitted — it scans state.masterData when so.
+// 2026-11-01: only rows that fit the Add screen's filters (_wizRowFitsFilters)
+// are ever candidates — a number with no row inside the filters returns null,
+// never another maker's or era's row.
 function _wizPickMasterRow(numLC, rows) {
   try {
-    var list = rows || (state.masterData || []).filter(function (i) {
+    var _f = _wizAddFilters();
+    var list = (rows || (state.masterData || []).filter(function (i) {
       return String(i.itemNum || '').toLowerCase() === numLC;
-    });
+    })).filter(function (i) { return _wizRowFitsFilters(i, _f); });
     if (!list.length) return null;
     if (list.length === 1) return list[0];
     var pref = _wizMasterPrefer();
@@ -457,9 +500,22 @@ function _wizPickMasterRow(numLC, rows) {
       if (sc > bestScore) { bestScore = sc; best = m; }
     });
     return best || list[0];
-  } catch (e) { return (rows && rows[0]) || null; }
+  } catch (e) { return null; }
 }
 if (typeof window !== 'undefined') window._wizPickMasterRow = _wizPickMasterRow;
+
+// ── 2026-11-01 — THE ROW OF THIS ADD. Every step after the number step (the
+// Condition & Details card and its "View on …" link, the photo views, the
+// Purchase & Value / year skips, the save) reads the ONE row the add holds —
+// set by the "Found" lookup, a tapped suggestion, Next, the photo reader, the
+// barcode, a set or an edit — and never looks the number up again. Before this,
+// step 2 asked findMaster a second time; with no Lionel Postwar 1511 it fell
+// through to American Models' 1511 while the banner showed the Pre-War one.
+// null = no catalog row: step 2 then shows no catalog card and no link.
+function _wizAddRow() {
+  return (typeof wizard !== 'undefined' && wizard && wizard.matchedItem) || null;
+}
+if (typeof window !== 'undefined') window._wizAddRow = _wizAddRow;
 
 // v0.9.1463: the ONE answer to "which variation rows belong to this item".
 // Shared by the variation screen (wizard.js) and the three variation
@@ -491,6 +547,9 @@ function _wizVariationRows(itemNum) {
     if (!m.variation) return false;
     if (mt && String(m.itemType || '').trim() !== String(mt).trim()) return false;
     if (wantPeriod && _wizPeriodOfRow(m) !== wantPeriod) return false;
+    // 2026-11-01: only variations that fit the filters on screen (the one test)
+    // — with no catalog row held, never another maker's variations.
+    if (!_wizRowFitsFilters(m)) return false;
     return true;
   });
   // ══ v0.9.1734 — THE ROAD NAME RANKS, IT NO LONGER DELETES ════════════════
@@ -975,10 +1034,7 @@ function _wizardMfr() {
     // v0.9.765 (BUG-001): identify the brand from the ITEM being added FIRST.
     // The era fallback returns '' in the All Collection view, which made every
     // Lionel-only gate fail (tender photo steps skipped, box-variation hidden).
-    var m = wizard.matchedItem || wizard.data.matchedItem || null;
-    if (!m && wizard.data.itemNum && typeof findMaster === 'function') {
-      m = findMaster(wizard.data.itemNum, wizard.data.variation, (typeof _wizMasterPrefer === 'function') ? _wizMasterPrefer() : null);   // v0.9.1821
-    }
+    var m = _wizAddRow() || wizard.data.matchedItem || null;   // 2026-11-01: the add's one row — no second lookup
     if (m && typeof _manufacturerOfItem === 'function') {
       var mk = _manufacturerOfItem(m);
       if (mk) return String(mk).toLowerCase();
@@ -1232,7 +1288,7 @@ function _wizSetKind(kind) {
   // "also list for sale". The NUMBER rides along too: a number on screen before
   // the switch is the number after it (Cataloged ↔ Manual), never a blank box.
   const _keep = {};
-  let _carryNum = '';
+  let _carryNum = '', _carryMfr = '';
   try {
     const _ck = (typeof RR_INBOX_CARRY_KEYS !== 'undefined') ? RR_INBOX_CARRY_KEYS : ['_addPhotoDriveId', '_addPhotoDriveIds', '_fromInbox', '_pinStagedNum'];
     _ck.forEach(function (k) {
@@ -1240,6 +1296,10 @@ function _wizSetKind(kind) {
     });
     const _d0 = wizard.data || {};
     _carryNum = String(_d0.itemNum || _d0.manualItemNum || '').trim();
+    // 2026-11-01 ("Add manually?" on the nothing-found lines): the maker
+    // picked in the Manufacturer filter rides into Manual's "Who made this
+    // item?" — the collector already told us.
+    _carryMfr = String(_d0._searchFilterManufacturer || _d0._typedSearchMfr || _d0.manualManufacturer || '').trim();
   } catch (e) {}
   wizard = { step: 0, tab: 'collection', data: Object.assign({ tab: 'collection', _returnPage: _rp, itemCategory: 'lionel' }, _keep), steps: getSteps('collection'), matchedItem: null };
   if (kind === 'cataloged') {
@@ -1252,6 +1312,7 @@ function _wizSetKind(kind) {
     return;
   }
   if (kind === 'manual' && _carryNum) wizard.data.manualItemNum = _carryNum;
+  if (kind === 'manual' && _carryMfr) wizard.data.manualManufacturer = _carryMfr;
   wizardChooseCategory(kind);
 }
 // v0.9.1039: ONE definition of the Item Type selector. The header (phones)
@@ -1701,10 +1762,23 @@ function _clearAddFilters() {
   if (typeof wizard !== 'undefined' && wizard.data) { wizard.data._searchFilterManufacturer = ''; wizard.data._searchFilterPeriod = ''; wizard.data._searchFilterType = ''; wizard.data._searchFilterScale = ''; }
   try { localStorage.removeItem('lv_add_mfr'); localStorage.removeItem('lv_add_era'); localStorage.removeItem('lv_add_scale'); } catch (e) {}
   ['wiz-search-mfr', 'wiz-search-era', 'wiz-search-type', 'wiz-search-scale'].forEach(function (id) { var el = document.getElementById(id); if (el) el.value = ''; });
-  var i = document.getElementById('wiz-input');
-  if (typeof updateItemSuggestions === 'function') updateItemSuggestions(i ? i.value : '');
+  // 2026-11-01: the typed number STAYS (Brad's "Clear filters?" line) — the
+  // list and the banner answer it again at once, with no filter on.
+  _wizFiltersChanged();
 }
 if (typeof window !== 'undefined') window._clearAddFilters = _clearAddFilters;
+// 2026-11-01: a filter changed — the list AND the banner answer again, so the
+// row the add holds (wizard.matchedItem) always fits what is on screen. Before
+// this, only the list re-ran: a banner found under the old filters stayed.
+function _wizFiltersChanged() {
+  var i = document.getElementById('wiz-input');
+  var v = i ? i.value : '';
+  if (typeof updateItemSuggestions === 'function') updateItemSuggestions(v);
+  if (String(v || '').trim() && typeof lookupItem === 'function' && document.getElementById('wiz-match')) {
+    try { lookupItem(v); } catch (eL) {}
+  }
+}
+if (typeof window !== 'undefined') window._wizFiltersChanged = _wizFiltersChanged;
 
 function _buildItemSearchFiltersDOM() {
   var cfg = window.ITEM_SEARCH_FILTERS || {};
@@ -1797,11 +1871,10 @@ function _buildItemSearchFiltersDOM() {
       '">' + opts + '</select>';
     return wrap;
   }
-  var _eraPairs = [
-    { value: 'prewar',  label: 'Pre-War' },
-    { value: 'postwar', label: 'Postwar' },
-    { value: 'modern',  label: 'Modern' },
-  ];
+  // 2026-11-01: the Era names come from the one word list (RR_ADD_FILTERS) —
+  // the "No 1511 found for Lionel · Postwar" line says them the same way.
+  var _eraW = ((typeof window !== 'undefined' && window.RR_ADD_FILTERS) || {}).eraFilterWords || { prewar: 'Pre-War', postwar: 'Postwar', modern: 'Modern' };
+  var _eraPairs = ['prewar', 'postwar', 'modern'].map(function (k) { return { value: k, label: _eraW[k] }; });
 
   if (wizard.tab === 'collection' || wizard.tab === 'want') {
     // Session 176: the add screen shows exactly Manufacturer / Era / Type, each
@@ -1840,6 +1913,26 @@ function _buildItemSearchFiltersDOM() {
   }
   return container;
 }
+
+// 2026-11-01: the one period every catalog of a maker sits in ('' when they
+// span periods — Lionel, Marx — or the maker is unknown). The period of a
+// catalog is the app's own (_ERA_KEY_TO_PERIOD, browse.js).
+function _wizMakerOnlyPeriod(maker) {
+  var n = function (v) { return String(v || '').toLowerCase().replace(/[^a-z0-9]/g, ''); };
+  var want = n(maker);
+  if (!want || typeof ERAS === 'undefined') return '';
+  var map = (typeof _ERA_KEY_TO_PERIOD !== 'undefined') ? _ERA_KEY_TO_PERIOD : {};
+  var seen = {}, any = false, unknown = false;
+  Object.keys(ERAS).forEach(function (k) {
+    var e = ERAS[k];
+    if (!e || e._isAll || k === 'all' || n(e.manufacturer) !== want) return;
+    any = true;
+    if (map[k]) seen[map[k]] = 1; else unknown = true;
+  });
+  var ps = Object.keys(seen);
+  return (any && !unknown && ps.length === 1) ? ps[0] : '';
+}
+if (typeof window !== 'undefined') window._wizMakerOnlyPeriod = _wizMakerOnlyPeriod;
 
 // Wires change events on the #wiz-search-type / #wiz-search-road selects
 // currently in the DOM. Cross-filters (picking Type narrows Road list and
@@ -1892,8 +1985,7 @@ function _wireItemSearchFilters() {
     typeSel.addEventListener('change', function() {
       wizard.data._searchFilterType = this.value || '';
       refreshDropdown('wiz-search-road', 'roadName', 'itemType', wizard.data._searchFilterType, wizard.data._searchFilterRoad || '', '_searchFilterRoad');
-      var i = document.getElementById('wiz-input');
-      if (typeof updateItemSuggestions === 'function') updateItemSuggestions(i ? i.value : '');
+      _wizFiltersChanged();
     });
   }
   var roadSel = document.getElementById('wiz-search-road');
@@ -1901,8 +1993,7 @@ function _wireItemSearchFilters() {
     roadSel.addEventListener('change', function() {
       wizard.data._searchFilterRoad = this.value || '';
       refreshDropdown('wiz-search-type', 'itemType', 'roadName', wizard.data._searchFilterRoad, wizard.data._searchFilterType || '', '_searchFilterType');
-      var i = document.getElementById('wiz-input');
-      if (typeof updateItemSuggestions === 'function') updateItemSuggestions(i ? i.value : '');
+      _wizFiltersChanged();
     });
   }
   var mfrSel = document.getElementById('wiz-search-mfr');
@@ -1910,17 +2001,20 @@ function _wireItemSearchFilters() {
     mfrSel.addEventListener('change', function() {
       wizard.data._searchFilterManufacturer = this.value || '';
       try { localStorage.setItem('lv_add_mfr', this.value || ''); } catch (e) {}
-      // Session 176: non-Lionel makers (Atlas/MTH/Weaver/RMT/...) are all Modern —
-      // auto-set the Era filter to Modern when one is chosen.
-      var _mv = String(this.value || '').toLowerCase();
+      // Session 176: a maker whose catalogs all sit in ONE period sets the Era
+      // filter to it (Atlas / MTH / Weaver / RMT … → Modern). 2026-11-01: asked
+      // of the maker's own catalogs (_wizMakerOnlyPeriod) rather than "anything
+      // but Lionel is Modern" — now that the filters really filter, that rule
+      // would have hidden every A.C. Gilbert (Postwar) row; Lionel and Marx span
+      // periods and leave the Era alone.
+      var _onlyP = _wizMakerOnlyPeriod(this.value || '');
       var _eraSel2 = document.getElementById('wiz-search-era');
-      if (_mv && _mv !== 'lionel') {
-        wizard.data._searchFilterPeriod = 'modern';
-        if (_eraSel2) _eraSel2.value = 'modern';
-        try { localStorage.setItem('lv_add_era', 'modern'); } catch (e) {}
+      if (_onlyP) {
+        wizard.data._searchFilterPeriod = _onlyP;
+        if (_eraSel2) _eraSel2.value = _onlyP;
+        try { localStorage.setItem('lv_add_era', _onlyP); } catch (e) {}
       }
-      var i = document.getElementById('wiz-input');
-      if (typeof updateItemSuggestions === 'function') updateItemSuggestions(i ? i.value : '');
+      _wizFiltersChanged();
     });
   }
   var eraSel = document.getElementById('wiz-search-era');
@@ -1928,8 +2022,7 @@ function _wireItemSearchFilters() {
     eraSel.addEventListener('change', function() {
       wizard.data._searchFilterPeriod = this.value || '';
       try { localStorage.setItem('lv_add_era', this.value || ''); } catch (e) {}
-      var i = document.getElementById('wiz-input');
-      if (typeof updateItemSuggestions === 'function') updateItemSuggestions(i ? i.value : '');
+      _wizFiltersChanged();
     });
   }
   var scaleSel = document.getElementById('wiz-search-scale');
@@ -1937,8 +2030,7 @@ function _wireItemSearchFilters() {
     scaleSel.addEventListener('change', function() {
       wizard.data._searchFilterScale = this.value || '';
       try { localStorage.setItem('lv_add_scale', this.value || ''); } catch (e) {}   // v0.9.1471: sticky
-      var i = document.getElementById('wiz-input');
-      if (typeof updateItemSuggestions === 'function') updateItemSuggestions(i ? i.value : '');
+      _wizFiltersChanged();
     });
   }
   if (window.RoadTypeahead && typeof RoadTypeahead.attach === 'function') {
@@ -2206,69 +2298,35 @@ function _renderAddingBannerItem() {
     desc = d.manualDesc || '';
   } else {
     var match = null;
-    if (wizard.matchedItem && String(wizard.matchedItem.itemNum || '').trim() === num) {
+    // 2026-11-01 — ONE row for the whole add: the banner shows the row the add
+    // holds (wizard.matchedItem — the "Found" lookup's or a tapped
+    // suggestion's), and never looks the number up again. A held row that no
+    // longer fits the filters on screen is not shown (v0.9.1473); with no row,
+    // the banner names the number alone and offers no link. The old re-lookup
+    // here (findMaster, then a v0.9.1460 bucket scan) is how Lionel · Postwar ·
+    // 1511 read "0-4-0 Locomotive" — the Pre-War 1511 — under a Postwar filter.
+    var _heldNum = wizard.matchedItem ? String(wizard.matchedItem.itemNum || '').trim() : '';
+    if (wizard.matchedItem && (_heldNum === num
+        || (typeof baseItemNum === 'function' && baseItemNum(_heldNum) === baseItemNum(num)))) {   // 2343-P held for a typed 2343
       match = wizard.matchedItem;
-      // v0.9.1473 (Brad's 1023: banner said the prewar Tunnel while the list
-      // said the postwar 45° Crossing): this branch BYPASSED the v1460
-      // period correction below — a held row that violates the visible Era
-      // filter is dropped so the findMaster path re-resolves it properly.
-      // v0.9.1483: period AND scale, via the one shared predicate.
-      try { if (match && typeof _wizRowFitsFilters === 'function' && !_wizRowFitsFilters(match)) match = null; } catch (eH0) {}
-    }
-    if (!match && typeof findMaster === 'function') {
-      // v0.9.982: disambiguate colliding item numbers. When editing an existing
-      // copy we know its stable identity (via _updatePdKey → the inventoryId-keyed
-      // owned row); pass that owned row so findMaster resolves to the right
-      // era/scale (e.g. postwar No. 115 vs standard-gauge No. 115). For new adds,
-      // fall back to the item's era/variation hints.
-      var _ownRow = (d._updatePdKey && typeof state !== 'undefined' && state.personalData)
-        ? state.personalData[d._updatePdKey] : null;
-      // v0.9.1459: was `d._era ? {...} : null`, which dropped the era hint on
-      // every normal add. _wizMasterPrefer() is the one resolver that knows
-      // about the era, the maker and the year — use it rather than a second,
-      // weaker answer to the same question.
-      var _pref = _ownRow || (typeof _wizMasterPrefer === 'function' ? _wizMasterPrefer() : null)
-                  || (d._era ? { era: d._era, manufacturer: d.manufacturer || '' } : null);
-      match = findMaster(num, d.variation, _pref);
-      // ── v0.9.1460 (Brad: "this should be a postwar 238"). The Era dropdown on
-      // THIS screen does not set an era key — it sets a PERIOD
-      // (_searchFilterPeriod = prewar | postwar | modern), which findMaster
-      // knows nothing about. So No. 238 with Postwar showing still answered
-      // "1939-1940 · Steam": the filter the user could see was never consulted.
-      // v0.9.1459 fixed a real missing hint but read the wrong variable, which
-      // is why both devices then agreed on the wrong answer.
-      //
-      // The row's own period is already computable (_wizPeriodOfRow), so when
-      // the visible filter disagrees with the match, look through the whole
-      // bucket for a row that satisfies it. Nothing is invented: if no row of
-      // that period exists, the original match stands.
+      // A held row that no longer fits the filters on screen is let go — the
+      // add holds the row the one picker finds inside them, or none.
       try {
-        var _fp = String(d._searchFilterPeriod || '').trim();
-        // v0.9.1483: trigger on ANY filter violation (period or scale).
         if (match && typeof _wizRowFitsFilters === 'function' && !_wizRowFitsFilters(match)) {
-          var _bucket = [];
-          try {
-            if (typeof _mbAllGet === 'function') _bucket = _mbAllGet(num) || [];
-            else if (state.masterByItem && state.masterByItem.get) _bucket = state.masterByItem.get(String(num).trim()) || [];
-          } catch (eB) {}
-          var _fm = String(d._searchFilterManufacturer || '').trim().toLowerCase();
-          var _better = null;
-          for (var _bi = 0; _bi < _bucket.length; _bi++) {
-            var _row = _bucket[_bi];
-            if (!_row || (typeof _wizRowFitsFilters === 'function' && !_wizRowFitsFilters(_row))) continue;
-            if (d.variation != null && d.variation !== ''
-                && String(_row.variation || '') !== String(d.variation)) continue;
-            if (_fm) {
-              var _rm = '';
-              try { _rm = String((typeof _manufacturerOfEra === 'function' && _manufacturerOfEra(_row._era)) || _row._tab || '').toLowerCase(); } catch (eM) {}
-              if (_rm && _rm.indexOf(_fm) < 0
-                  && !(typeof rrRowAlsoSoldBy === 'function' && rrRowAlsoSoldBy(_row, _fm))) continue;   // v0.9.1935: Also Sold As
-            }
-            _better = _row; break;
-          }
-          if (_better) match = _better;
+          match = (typeof _wizResolveAddRow === 'function') ? _wizResolveAddRow(num) : null;
+          wizard.matchedItem = match || null;
         }
-      } catch (ePF) {}
+      } catch (eH0) {}
+    } else if (d._updatePdKey && typeof findMaster === 'function' && typeof state !== 'undefined' && state.personalData && state.personalData[d._updatePdKey]) {
+      // v0.9.982: editing an existing copy — its own saved row names the catalog
+      // row exactly (Row ID / key), not a search.
+      match = findMaster(num, d.variation, state.personalData[d._updatePdKey]);
+    } else if (!d._setMode && !d._resolvedSet && typeof _wizResolveAddRow === 'function') {
+      // A typed number: THE one picker (wizard-suggestions.js) — inside the
+      // filters or nothing — and the row it finds becomes the add's row, so
+      // step 2 and the save show exactly what this banner shows.
+      match = _wizResolveAddRow(num);
+      wizard.matchedItem = match || null;
     }
     if (match) {
       desc = _composeRoadDesc(match);
@@ -2326,7 +2384,7 @@ function _renderAddingBannerItem() {
   // inline after the description. Reuses browse.js helper; only renders when
   // a master match exists (manual-entry items have no catalog page).
   var _bannerExt = '';
-  if (typeof match !== 'undefined' && match && typeof window._itemExternalLinkHTML === 'function') {
+  if (match && typeof window._itemExternalLinkHTML === 'function') {
     _bannerExt = window._itemExternalLinkHTML(match) || '';
   }
   el.innerHTML =
@@ -2337,6 +2395,8 @@ function _renderAddingBannerItem() {
     +   '<span style="flex-shrink:0;font-size:0.95rem;line-height:1">' + icon + '</span>'
     +   '<span style="font-size:0.62rem;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;color:var(--text-dim);flex-shrink:0;white-space:nowrap">' + _e(prefix) + '</span>'
     +   '<span style="font-family:var(--font-mono);font-weight:700;color:var(--accent2);font-size:0.88rem;flex-shrink:0;white-space:nowrap">No.&nbsp;' + _e(num) + '</span>'
+    // 2026-11-01: the maker · era tag of the add's row — the SAME helper the list uses
+    +   ((match && typeof rrRowTagHtml === 'function') ? rrRowTagHtml(match, 'rr-row-tag-banner') : '')
     +   (desc
           ? '<span style="color:var(--text-mid);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1">&mdash; ' + _e(desc) + '</span>'
           : '<span style="flex:1"></span>')
@@ -3036,7 +3096,7 @@ function renderWizardStep() {
           ${s.note && s.note(wizard.data) ? `<div style="font-size:0.8rem;color:var(--accent2);margin-top:0.6rem;padding:0.5rem 0.75rem;background:rgba(201,146,42,0.1);border-radius:6px">${s.note(wizard.data)}</div>` : ''}
         <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>
         ${(() => {
-          const singleItem = findMaster(itemNum, '', (typeof _wizMasterPrefer === 'function') ? _wizMasterPrefer() : null);   // v0.9.1483: hints
+          const singleItem = _wizAddRow();   // 2026-11-01: the add's one row — no second lookup
           // v0.9.1873: a cancelled item says so here too (before the reference link)
           const _siStatus = (singleItem && typeof rrCatalogStatusChip === 'function') ? rrCatalogStatusChip(singleItem, { block: true }) : '';
           if (!singleItem || !singleItem.refLink) return _siStatus;
@@ -4679,7 +4739,7 @@ function renderWizardStep() {
     // Check item type for custom views (Science/Construction/Catalog/Paper/IS)
     let views = s.views;
     if (!views) {
-      const _phMaster = wizard.matchedItem || findMaster((wizard.data.itemNum||''), '', (typeof _wizMasterPrefer === 'function') ? _wizMasterPrefer() : null);   // v0.9.1483: hints
+      const _phMaster = _wizAddRow();   // 2026-11-01: the add's one row — no second lookup
       const _phType = (_phMaster && _phMaster.itemType) ? _phMaster.itemType : '';
       if (['Science Set','Construction Set'].includes(_phType) && s.label === 'Item') {
         views = [
@@ -5916,7 +5976,9 @@ function renderWizardStep() {
     // v0.9.1034: preference-aware fallback — a bare findMaster() here took
     // the first row for the number, which is how the Atlas hopper turned up
     // on a Lionel item.
-    const _cdMaster = wizard.matchedItem || findMaster(_cdItemNum, '', _wizMasterPrefer());   // v0.9.1821: no hint-less retry
+    // 2026-11-01: the add's ONE row (_wizAddRow) — step 2 never looks the
+    // number up again. No row → no catalog description and no "View on" link.
+    const _cdMaster = _wizAddRow();
     const _cdItemType = (_cdMaster && _cdMaster.itemType) ? _cdMaster.itemType : '';
     const _cdMasterTab = (_cdMaster && _cdMaster._tab) ? _cdMaster._tab : '';
     const _cdIsSimplified = ['Science Set','Construction Set'].includes(_cdItemType);
@@ -6078,7 +6140,10 @@ function renderWizardStep() {
       // button on the right) — the button's own row was most of what ran the
       // step past a laptop window.
       html += '<div class="cd-head"><div class="cd-head-text">'
-        + '<div style="font-weight:700;font-size:0.82rem;color:var(--accent2);padding-bottom:0.2rem">' + col.label + (col.sublabel ? ' <span style=\"font-weight:400;color:var(--text-dim);font-size:0.75rem\">(' + col.sublabel + ')</span>' : '') + '</div>'
+        + '<div style="font-weight:700;font-size:0.82rem;color:var(--accent2);padding-bottom:0.2rem">' + col.label + (col.sublabel ? ' <span style=\"font-weight:400;color:var(--text-dim);font-size:0.75rem\">(' + col.sublabel + ')</span>' : '')
+        // 2026-11-01: the maker · era tag of the add's row — the same helper as the list and the banner
+        + ((col.id === 'main' && _cdMaster && typeof rrRowTagHtml === 'function') ? ' ' + rrRowTagHtml(_cdMaster, 'rr-row-tag-cd') : '')
+        + '</div>'
         + (col.description ? '<div style="font-size:0.78rem;color:var(--text-mid);font-style:italic;margin-bottom:0.35rem;line-height:1.35">' + String(col.description).replace(/</g,'&lt;') + '</div>' : '')
         // v0.9.1873: a cancelled item says so on the step that describes it
         + ((col.id === 'main' && _cdMaster && typeof rrCatalogStatusChip === 'function') ? rrCatalogStatusChip(_cdMaster, { block: true }) : '')
@@ -6144,9 +6209,7 @@ function renderWizardStep() {
         // pairings; Photo ID reads the tender itself and lands the answer
         // RIGHT HERE via _pickTender (see _wizTenderPhotoId).
         html += (function () {
-          var _thRow = (wizard.matchedItem && String(wizard.matchedItem.itemNum || '').trim() === (wizard.data.itemNum || '').trim())
-            ? wizard.matchedItem
-            : ((typeof findMaster === 'function') ? findMaster((wizard.data.itemNum || '').trim(), '', (typeof _wizMasterPrefer === 'function') ? _wizMasterPrefer() : null) : null);
+          var _thRow = _cdMaster;   // 2026-11-01: the add's one row (this card's own _cdMaster) — no second lookup
           var _thUrl = (_thRow && _thRow.refLink) ? _thRow.refLink : '';
           try { if (_thUrl && typeof window.cottAnchorUrl === 'function') _thUrl = window.cottAnchorUrl(_thRow.refLink, _thRow.itemNum, window.cottRowWords ? window.cottRowWords(_thRow) : '', _thRow.variation || ''); } catch (eTH) {}
           var _thLbl = (typeof window.resolveRefLabel === 'function') ? window.resolveRefLabel(_thUrl, { verbose: true }) : 'View reference \u2197';
@@ -7694,38 +7757,16 @@ async function _wizardNextCore() {
     // Fish Plate Set for item 773 when the user picked Steam Engine).
     let _exactMatch = null;
     const _rawLC = _rawInput.toLowerCase();
-    const _prefType = (wizard.data && wizard.data._suggestedItemType) || '';
-    const _prefRoad = (wizard.data && wizard.data._suggestedRoadName) || '';
-    if (_prefType) {
-      _exactMatch = state.masterData.find(i =>
-        i.itemNum.toLowerCase() === _rawLC &&
-        String(i.itemType || '').trim() === String(_prefType).trim() &&
-        (!_prefRoad || String(i.roadName || '').trim() === String(_prefRoad).trim())
-      );
-      if (!_exactMatch) {
-        _exactMatch = state.masterData.find(i =>
-          i.itemNum.toLowerCase() === _rawLC &&
-          String(i.itemType || '').trim() === String(_prefType).trim()
-        );
-      }
-    }
-    // Also honor an already-set matchedItem if it's for this itemNum
-    // (e.g. _selectGrouping re-resolved it to the engine row).
-    if (!_exactMatch && wizard.matchedItem && wizard.matchedItem.itemNum &&
-        String(wizard.matchedItem.itemNum).toLowerCase() === _rawLC) {
-      _exactMatch = wizard.matchedItem;
-    }
-    if (!_exactMatch) {
-      // ── v0.9.1462 (audit after the No. 238 fix): this took the FIRST row with
-      // that number — the same load-order lottery the "✓ Found" banner had.
-      // It matters more here than there: whatever this picks becomes
-      // wizard.matchedItem, which then scopes the variation list and the
-      // Condition & Details step. Reachable by tapping Next inside the 400ms
-      // lookup debounce, or when the number arrives pre-filled. Ask the same
-      // scorer the banner uses, so screen and save can never disagree.
-      if (typeof _wizPickMasterRow === 'function') _exactMatch = _wizPickMasterRow(_rawLC);
-      if (!_exactMatch) _exactMatch = state.masterData.find(i => i.itemNum.toLowerCase() === _rawLC);
-    }
+    // 2026-11-01: every row this step can take passes THE one filter test
+    // (_wizRowFitsFilters) — no "first row with the number" escape. Nothing
+    // inside the filters → no catalog row (the screen said so on step 1).
+    const _nf = _wizAddFilters();
+    const _nFits = function (i) { return _wizRowFitsFilters(i, _nf); };
+    // THE one picker (wizard-suggestions.js _wizResolveAddRow) — the row the
+    // add already holds for this number first (the banner's, or a tapped
+    // suggestion), then the picked type, then the scorer; always inside the
+    // filters — so screen and save can never disagree (v0.9.1462).
+    _exactMatch = _wizResolveAddRow(_rawInput, { raw: true });
     // Hyphen-variant fallback (2026-05-18). Some manufacturers store item
     // numbers with a hyphen before the letter suffix (Weaver "1076-L") while
     // Google Lens / casual text drops it ("1076L"). Try both forms before
@@ -7737,7 +7778,7 @@ async function _wizardNextCore() {
       const _mHyphen = _rawLC.match(/^(\d{2,5})-([a-z]+)$/);      // 1076-L -> 1076L
       if (_mHyphen) _variants.push(_mHyphen[1] + _mHyphen[2]);
       for (const _v of _variants) {
-        const _hit = state.masterData.find(i => i.itemNum.toLowerCase() === _v);
+        const _hit = state.masterData.find(i => i.itemNum.toLowerCase() === _v && _nFits(i));
         if (_hit) {
           _exactMatch = _hit;
           // Canonicalize wizard.data.itemNum to the master form so the
@@ -7753,6 +7794,7 @@ async function _wizardNextCore() {
       const _seen = new Set();
       var _partials = state.masterData.filter(m => {
         if (!m.itemNum.toLowerCase().includes(_numPart)) return false;
+        if (!_nFits(m)) return false;   // 2026-11-01: the one filter test, before the dedupe keeps a row
         if (_keyParts.length > 0) {
           const hay = (m.roadName + ' ' + m.description + ' ' + m.varDesc).toLowerCase();
           if (!_keyParts.every(kp => hay.includes(kp))) return false;
@@ -7762,30 +7804,11 @@ async function _wizardNextCore() {
         _seen.add(m.itemNum);
         return true;
       });
-      // ── v0.9.1462: "Select an item" offered rows from eras and makers the
-      // user had filtered OUT — the filter row sits directly above this list
-      // and did nothing to it. Narrow by the visible Era (period) and
-      // Manufacturer choices. If narrowing would leave nothing, the unfiltered
-      // list stands: showing the wrong era beats showing an empty picker and
-      // a dead end.
-      try {
-        var _pfP = String((wizard.data && wizard.data._searchFilterPeriod) || '').trim();
-        var _pfM = String((wizard.data && wizard.data._searchFilterManufacturer) || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
-        if (_pfP || _pfM) {
-          var _narrow = _partials.filter(function (m) {
-            if (_pfP && typeof _wizPeriodOfRow === 'function' && _wizPeriodOfRow(m) !== _pfP) return false;
-            if (_pfM) {
-              var _rm = '';
-              try { _rm = String((typeof _manufacturerOfEra === 'function' && _manufacturerOfEra(m._era)) || '').toLowerCase().replace(/[^a-z0-9]/g, ''); } catch (e) {}
-              var _tab = String(m._tab || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-              if (_rm !== _pfM && _tab.indexOf(_pfM) !== 0
-                  && !(typeof rrRowAlsoSoldBy === 'function' && rrRowAlsoSoldBy(m, _pfM))) return false;   // v0.9.1935: Also Sold As
-            }
-            return true;
-          });
-          if (_narrow.length) _partials = _narrow;
-        }
-      } catch (ePF2) {}
+      // ── v0.9.1462 / 2026-11-01: "Select an item" offers only rows that fit
+      // the filters on screen — THE one test, and no "if narrowing would leave
+      // nothing, the unfiltered list stands" escape any more: a number with
+      // nothing inside the filters has no catalog row to offer.
+      // (asked inside the scan above, before a number's first row is kept)
 
       // ── v0.9.2031 (Lars, York: typed RMT 66238, saved as MTH 20-66238): ONE
       // contains-match used to be taken as the answer, silently — a different
@@ -7802,9 +7825,13 @@ async function _wizardNextCore() {
         wizard.data._partialMatches = _partials;
         wizard.data._partialQuery = _rawInput;
         wizard.data._partialNum = _numPart;
+        wizard.matchedItem = null;   // 2026-11-01: the picker decides; no stale row rides on
       } else {
         // No matches at all — allow adding as custom item
         wizard.data._partialMatches = [];
+        // 2026-11-01: nothing inside the filters — the add holds NO catalog
+        // row (step 2: no card, no link), never a row left from earlier.
+        wizard.matchedItem = null;
       }
     } else {
       // Exact match found
@@ -7850,7 +7877,7 @@ async function _wizardNextCore() {
     if (wizard.data.hasIS === 'Yes' && !wizard.data.is_condition) wizard.data.is_condition = 7;
     else if (wizard.data.hasIS === 'No' && wizard.data.is_condition) delete wizard.data.is_condition;
     // For simplified types (Catalog/Paper/IS/Science/Construction) est worth is embedded and required
-    const _valMaster = wizard.matchedItem || findMaster((wizard.data.itemNum||''), '', (typeof _wizMasterPrefer === 'function') ? _wizMasterPrefer() : null);   // v0.9.1483: hints
+    const _valMaster = _wizAddRow();   // 2026-11-01: the add's one row — no second lookup
     const _valType = (_valMaster && _valMaster.itemType) ? _valMaster.itemType : '';
     const _valIsEmbedded = ['Science Set','Construction Set','Catalog','Instruction Sheet'].includes(_valType)
       || _valType.toLowerCase().includes('paper') || _valType.toLowerCase().includes('catalog');

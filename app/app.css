@@ -3412,6 +3412,12 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
 .wiz-ing-wide #wiz-suggestions .wiz-sug-spacer { display: none !important; }
 .wiz-ing-wide #wiz-suggestions .wiz-sug-details { order: 1; flex: 1 1 auto; min-width: 0; width: auto !important; max-height: none !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; word-break: normal !important; overflow-wrap: normal !important; }
 .wiz-ing-wide #wiz-suggestions .wiz-sug-ref { order: 2; margin-left: auto; }
+/* 2026-11-01 — the maker · era tag (rrRowTagHtml, wizard-suggestions.js), in the
+   same spot on every row, right after the number. Brad: "this needs to be small …
+   if we need to, widen the box". On a computer it sits in the row's one line; on
+   a phone it drops to a small line of its own under the number line. */
+#wiz-suggestions .rr-row-tag-sug { order: 10; flex-basis: 100%; line-height: 1.2; }
+.wiz-ing-wide #wiz-suggestions .rr-row-tag-sug { order: 0; flex-basis: auto; }
 .wiz-grp-inline { display: flex; align-items: center; gap: 0.6rem; }
 .wiz-grp-inline > .wiz-grp-lbl { margin-bottom: 0 !important; white-space: nowrap; flex-shrink: 0; }
 .wiz-grp-inline > .wiz-grp-btns-row { flex: 1 1 auto; min-width: 0; }

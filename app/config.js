@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2091';
+const APP_VERSION = 'v0.9.2092';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -4582,6 +4582,34 @@ const RR_ADD_TYPED = {
   contains:    '{maker} · contains {num}',   // the maker word, then why this row turned up
 };
 if (typeof window !== 'undefined') window.RR_ADD_TYPED = RR_ADD_TYPED;
+
+// ═══════════════════════════════════════════════════════════════
+// 2026-11-01 — THE ADD SCREEN'S FILTERS REALLY FILTER ([stated] Brad 05:30 CT:
+// "i want the filters to actually filter. if there is no 1511 for lionel
+// postwar, nothing shows up"; 05:35/05:39/05:41 CT: the maker · era tag on
+// every row and the three "nothing found" lines). Every word the collector
+// sees for it lives here — never typed in wizard.js / wizard-suggestions.js.
+//   {num}     the typed number
+//   {filters} the filters that are on, joined with " · " (filterSep)
+// "Master Catalog" is the app's own menu name for the catalog.
+const RR_ADD_FILTERS = {
+  noneFor:     'No {num} found for {filters} in our Master Catalog',
+  noneAtAll:   'No item found in our Master Catalog',
+  elsewhere:   '{num} is in the Master Catalog under other makers or eras',
+  clearAsk:    'Clear filters?',
+  clearBtn:    'Clear filters',
+  manualAsk:   'Add manually?',
+  manualBtn:   'Add manually',
+  filterSep:   ' · ',
+  // The maker · era tag (rrRowTagWords, wizard-suggestions.js): the maker word,
+  // this separator, then the era word — or, for a Modern maker other than
+  // Lionel, the scale (and the rail, where the row has one).
+  tagSep:      ' · ',
+  eraWords:    { prewar: 'Prewar', postwar: 'Postwar', modern: 'Modern' },
+  // the Era filter's own names, for the "No 1511 found for Lionel · Postwar" line
+  eraFilterWords: { prewar: 'Pre-War', postwar: 'Postwar', modern: 'Modern' },
+};
+if (typeof window !== 'undefined') window.RR_ADD_FILTERS = RR_ADD_FILTERS;
 
 // ═══════════════════════════════════════════════════════════════
 // v0.9.2032 — WHAT IS A PHONE (Bob, York, 2026-10-26: "I have to alternate my
