@@ -6207,7 +6207,7 @@ function renderWizardStep() {
         // pairings; Photo ID reads the tender itself and lands the answer
         // RIGHT HERE via _pickTender (see _wizTenderPhotoId).
         html += (function () {
-          var _thRow = _wizAddRow();   // 2026-11-01: the add's one row — no second lookup
+          var _thRow = _cdMaster;   // 2026-11-01: the add's one row (this card's own _cdMaster) — no second lookup
           var _thUrl = (_thRow && _thRow.refLink) ? _thRow.refLink : '';
           try { if (_thUrl && typeof window.cottAnchorUrl === 'function') _thUrl = window.cottAnchorUrl(_thRow.refLink, _thRow.itemNum, window.cottRowWords ? window.cottRowWords(_thRow) : '', _thRow.variation || ''); } catch (eTH) {}
           var _thLbl = (typeof window.resolveRefLabel === 'function') ? window.resolveRefLabel(_thUrl, { verbose: true }) : 'View reference \u2197';
