@@ -2699,6 +2699,7 @@
       if (_mkDone[k]) continue;
       var m = null;
       try { m = findMaster(p.itemNum, p.variation || '', p); } catch (e) {}
+      if (m && typeof rrRowForVariation === 'function') m = rrRowForVariation(m, p.itemNum, p.variation || '');   // 2026-10-31: the link follows the variation
       var key = m ? rrMasterKeyOf(m) : '';
       if (!key) { _mkDone[k] = true; continue; }                 // off-catalog — nothing to store, no API spent
       if (wrote >= 12) continue;                                 // write cap only; resolution stays free
@@ -2748,6 +2749,7 @@
       if (_mriDone[k]) return;
       var m = null;
       try { m = findMaster(p.itemNum, p.variation || '', p); } catch (e) {}
+      if (m && typeof rrRowForVariation === 'function') m = rrRowForVariation(m, p.itemNum, p.variation || '');   // 2026-10-31: the link follows the variation
       var id = m ? rrMasterRowIdOf(m) : '';
       if (!id) { if (m) _mriDone[k] = true; return; }       // no entry, or an entry with no ID yet — nothing to store
       todo.push({ k: k, p: p, id: id });

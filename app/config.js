@@ -149,6 +149,16 @@ if (typeof window !== 'undefined') {
 // page went to the home page (site commit 9f38bb36). Read it through
 // rrInviteGateOn(), never directly.
 const RR_INVITE_GATE_ON = false;
+// ── THE VARIATION-LINK REPAIR — ONE switch (2026-10-31, Lars report #26) ──
+// Items saved with a variation but linked to a different variation's catalog
+// row (the plain 2613 for a "2613 B") are re-linked to their own row when a
+// collection loads — Master Row ID + Master Key only (rrVarLinkRepair,
+// app-data.js). false = DRY RUN: nothing is written; the list of what WOULD
+// change goes into the sync diary (Report a problem carries it). Brad checks
+// his own collection's dry run first, then this becomes true. A `var` on
+// purpose: the suite that tests the repair switches it on in its page.
+var RR_VARLINK_REPAIR_ON = false;
+if (typeof window !== 'undefined') window.RR_VARLINK_REPAIR_ON = RR_VARLINK_REPAIR_ON;
 function rrInviteGateOn() {
   try { return typeof RR_INVITE_GATE_ON === 'undefined' ? false : !!RR_INVITE_GATE_ON; } catch (e) { return false; }
 }

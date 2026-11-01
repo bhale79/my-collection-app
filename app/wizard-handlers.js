@@ -636,6 +636,11 @@ function toggleBoxOnly() {
 
 function wizardChooseVariation(variation) {
   wizard.data.variation = variation;
+  // 2026-10-31 (Lars #26): the picked row follows the variation — the plain
+  // 2613 picked on step 1, then "B", links 2613 B's own row (rrRowForVariation).
+  if (wizard.matchedItem && typeof rrRowForVariation === 'function') {
+    wizard.matchedItem = rrRowForVariation(wizard.matchedItem, wizard.data.itemNum || wizard.matchedItem.itemNum, variation, true);
+  }
   setTimeout(() => wizardNext(), 150);
 }
 

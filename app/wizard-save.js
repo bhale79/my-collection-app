@@ -1704,11 +1704,13 @@ async function saveWizardItem() {
           dateAdded: (typeof existing !== 'undefined' && existing) ? (existing.dateAdded || '') : undefined,   // v0.9.720: updates keep their date
           // v0.9.1198: the user CONFIRMED this catalog row in the wizard — the
           // one moment the match is certain. Store it; never re-guess it.
+          // 2026-10-31 (Lars #26): the row for THIS variation (rrRowForVariation) —
+          // a typed / photo-read / edited variation re-points it right before writing.
           masterKey: (typeof wizard !== 'undefined' && wizard && wizard.matchedItem && typeof rrMasterKeyOf === 'function')
-            ? rrMasterKeyOf(wizard.matchedItem) : undefined,
+            ? rrMasterKeyOf(rrRowForVariation(wizard.matchedItem, itemNum, variation)) : undefined,
           // v0.9.1880: and the row's permanent Row ID — the exact row the user confirmed
           masterRowId: (typeof wizard !== 'undefined' && wizard && wizard.matchedItem && typeof rrMasterRowIdOf === 'function')
-            ? rrMasterRowIdOf(wizard.matchedItem) : undefined,
+            ? rrMasterRowIdOf(rrRowForVariation(wizard.matchedItem, itemNum, variation)) : undefined,
           itemNum: itemNum,
           variation: variation,
           condition: d.condition || '',

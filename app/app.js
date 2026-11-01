@@ -456,7 +456,10 @@ function rrCarryPersonalRow(rec, row, writtenKeys) {
     if ((s.field === 'itemNum' || s.field === 'matchedTo') && String(v).charAt(0) !== "'") v = "'" + v;
     out[i] = v;
   });
-  return out;
+  // 2026-10-31: a SAVE (it names fields) re-points a carried link that disagrees
+  // with the variation. rrRecordRow (names none) is "the row as the record holds
+  // it" — the base a safe save compares against — so it stays exactly as stored.
+  return (writtenKeys && writtenKeys.length) ? rrFixRowLink(out) : out;
 }
 function rrPersonalUpdateRow(rec, fields) {
   const f = fields || {};
@@ -534,6 +537,12 @@ function buildPersonalRow(fields) {
   // v0.9.1313: both lookups carry the copy's full identity — variation plus
   // era/maker/masterKey — so the description belongs to THIS row, not to the
   // first row that shares its number.
+  // 2026-10-31: a passed-in link that disagrees with the variation is re-pointed
+  // FIRST, so the descriptions below come from the variation's own row too.
+  if (!_rowIsManual && (fields.masterKey || fields.masterRowId) && typeof rrLinkForVariation === 'function') {
+    const _lv = rrLinkForVariation(inum, vari, fields.masterKey, fields.masterRowId);
+    if (_lv.changed) fields = Object.assign({}, fields, { masterKey: _lv.masterKey, masterRowId: _lv.masterRowId });
+  }
   const _descPrefer = { era: fields.era || '', manufacturer: fields.manufacturer || '', masterKey: fields.masterKey || '', masterRowId: fields.masterRowId || '' };   // v0.9.1880: + the Row ID
   if (!_rowIsManual && mdi !== undefined && (fields.masterDescription === undefined || fields.masterDescription === '')) {
     row[mdi] = _lookupMasterDesc(inum, vari, _descPrefer);
@@ -610,10 +619,26 @@ function buildPersonalRow(fields) {
       if (_v.charAt(0) !== "'") row[_ci] = "'" + _v;
     }
   });
+  return rrFixRowLink(row);
+}
+// 2026-10-31 (Lars report #26): the LAST step of every whole-row build —
+// buildPersonalRow and rrCarryPersonalRow both end here. A row whose saved
+// catalog link (Master Row ID / Master Key) names a row that does not fit its
+// own Variation is re-pointed to that variation's own row (rrLinkForVariation,
+// app-data.js — the ONE rule). Only those two cells; nothing else on the row.
+// A manual row, or a variation with no row of its own, is left exactly as is.
+function rrFixRowLink(row) {
+  if (!Array.isArray(row) || typeof rrLinkForVariation !== 'function') return row;
+  var X = PERSONAL_FIELD_INDEX;
+  if (X.masterKey === undefined || X.masterRowId === undefined) return row;
+  if (X.era !== undefined && String(row[X.era] || '') === 'Manual') return row;
+  var L = rrLinkForVariation(row[X.itemNum], row[X.variation], row[X.masterKey], row[X.masterRowId]);
+  if (L.changed) { row[X.masterKey] = L.masterKey; row[X.masterRowId] = L.masterRowId; }
   return row;
 }
 
 if (typeof window !== 'undefined') {
+  window.rrFixRowLink = rrFixRowLink;
   window.PERSONAL_SCHEMA = PERSONAL_SCHEMA;
   window.PERSONAL_HEADERS = PERSONAL_HEADERS;
   window.PERSONAL_FIELD_INDEX = PERSONAL_FIELD_INDEX;

@@ -4209,6 +4209,22 @@ function rrPersonalOnlyRow(pd) {
 }
 
 function renderBrowse() { return _rrBrowseCore(null); }
+// 2026-10-31 (Lars #26): which owned copies My Collection draws with the
+// filters as they are now — asked of the list-builder itself (the count
+// request), never re-derived. { drawn: [pd], folded: [{pd, lead}] }, or null
+// when it cannot be asked (catalog not loaded). Draws nothing, changes nothing.
+function rrCollectionDrawn() {
+  try {
+    if (!state || !Array.isArray(state.masterData) || !state.masterData.length) return null;
+    var _wasOwned = state.filters.owned;
+    state.filters.owned = true;
+    try {
+      var _cur = (typeof _phState === 'function') ? _phState() : null;
+      return _rrBrowseCore({ level: 'drawn', clearType: state.filters.type || '', clearOwnMaker: state.filters.ownMaker || '', clearChips: _cur, variants: [] });
+    } finally { state.filters.owned = _wasOwned; }
+  } catch (e) { console.warn('[collection] drawn check failed:', e && e.message); return null; }
+}
+if (typeof window !== 'undefined') window.rrCollectionDrawn = rrCollectionDrawn;
 // ── v0.9.1798: ONE LIST, TWO USES ──────────────────────────────────────────
 // Brad: the number beside a picker option must be what picking it SHOWS, with
 // every other chip kept. The only honest way to know that is to ask the code
@@ -4389,8 +4405,14 @@ function _rrBrowseCore(_co) {
   // and variation (Pre-War 800: the 1904 motor car and the 1915 boxcar) each
   // keep their own copy, which one number+variation seat never could.
   var _bvById = null, _bvByIdPds = null;
+  // 2026-10-31 (Lars #26): a seat whose row does NOT carry the copy's own
+  // variation (saved "2613 B" linked to the plain 2613 row) — the seat map
+  // above is keyed by the COPY's variation, the row asks with the ROW's, so
+  // such a seat was never found and the copy drew nowhere. Keyed by the row.
+  var _bvSeatByRow = null;
   if (state.filters.owned) {
     _bvAdopt = new Map();
+    _bvSeatByRow = new Map();
     _bvById = new Map(); _bvByIdPds = new Set();
     // v0.9.1817 (S4, measured: 488,154 _displayItemNum calls per My Collection
     // draw = three full walks of 162k rows for 233 items). This map is one of
@@ -4445,6 +4467,7 @@ function _rrBrowseCore(_co) {
         var _mkRow = rrMasterByKey(p.masterKey);
         if (_mkRow && String(_mkRow.itemNum).trim() === String(p.itemNum).trim()) {
           _bvAdopt.set(_pv ? (p.itemNum + '|v|' + _pv) : p.itemNum, { pd: p, row: _mkRow });
+          if (_pv && !rrSameVar(_mkRow.variation, p.variation) && !_bvSeatByRow.has(_mkRow)) _bvSeatByRow.set(_mkRow, p);   // 2026-10-31
           return;
         }
       }
@@ -4493,7 +4516,7 @@ function _rrBrowseCore(_co) {
       if (_byIdPd) return _byIdPd;
     }
     var _dn = _displayItemNum(item);
-    if (!_pdNumsExact.has(_dn)) {
+    if (!_pdNumsExact.has(_dn) && !(_bvSeatByRow && _bvSeatByRow.has(item))) {
       if (!_bvAdopt) return null;
       if (!_bvAdopt.get(_dn)
           && !_bvAdopt.get(_dn + '|v|' + String(item.variation == null ? '' : item.variation).trim().toUpperCase())) return null;
@@ -4528,13 +4551,47 @@ function _rrBrowseCore(_co) {
         else if (_p === _ad.pd && _ad.row !== item) _p = null;   // lookalikes let go of it
       }
     }
+    // 2026-10-31 (Lars #26): the row a saved link names draws that copy even
+    // when the copy's variation label disagrees with the row's (see _bvSeatByRow).
+    if (!_p && _bvSeatByRow) { var _seat = _bvSeatByRow.get(item); if (_seat) _p = _seat; }
     return _p;
+  }
+  // ── 2026-10-31 (Lars report #26): THE NET — an owned copy is never lost ──────
+  // His header said 54, his list drew 48: six copies that every catalog row let
+  // go of (the v1202 key rule, the v1880 Row ID rule) and that were not
+  // "personal-only" either, because their number + variation IS in the catalog.
+  // After the rules above, ask every row an owned copy could sit on which copies
+  // it draws (the SAME two answers the list uses: _rrPdForRow, and _copiesOfRow
+  // for a row with several copies — exactly _expandCopies' rule). A copy no row
+  // claims joins the personal-only rows below, so it is drawn (and filtered)
+  // like any other row instead of vanishing. Ownership only — no filter is asked.
+  var _orphanPds = new Set();
+  if (state.filters.owned && _bvByNum) {
+    var _claimedPds = new Set(), _netSeen = new Set();
+    var _netVisit = function (r) {
+      if (!r || _netSeen.has(r)) return;
+      _netSeen.add(r);
+      var _np = _rrPdForRow(r);
+      if (!_np) return;
+      var _ncs = _copiesOfRow(r);
+      if (_ncs.length <= 1) _claimedPds.add(_np); else _ncs.forEach(function (c) { _claimedPds.add(c); });
+    };
+    _pdNumsExact.forEach(function (n) { (_bvByNum.get(n) || []).forEach(_netVisit); });
+    if (_bvAdopt) _bvAdopt.forEach(function (a) { if (a) _netVisit(a.row); });
+    if (_bvSeatByRow) _bvSeatByRow.forEach(function (p, r) { _netVisit(r); });
+    Object.values(state.personalData).forEach(function (pd) {
+      if (!pd || !pd.owned || !pd.itemNum || _claimedPds.has(pd)) return;
+      if (String(pd.era || '') === 'Manual' || !masterNums.has(pd.itemNum + '|' + (pd.variation || ''))) return;   // already the personal-only lane
+      if (String(pd.itemNum).toUpperCase().endsWith('-BOX')) return;   // a box is never a catalog row's copy (_copiesOfRow)
+      _orphanPds.add(pd);
+    });
+    if (_orphanPds.size) console.warn('[collection] ' + _orphanPds.size + ' owned item(s) matched no catalog row — drawn on their own row');
   }
   const _eraFilterPersonalOnly = state.filters.owned && typeof _currentEra !== 'undefined' && _currentEra !== 'all';
   const personalOnlyItems = Object.values(state.personalData)
-    .filter(pd => pd.owned && (String(pd.era || '') === 'Manual' || !masterNums.has(pd.itemNum + '|' + (pd.variation||''))))   // v0.9.718: manual rows never merge into catalog rows
+    .filter(pd => pd.owned && (String(pd.era || '') === 'Manual' || !masterNums.has(pd.itemNum + '|' + (pd.variation||'')) || _orphanPds.has(pd)))   // v0.9.718: manual rows never merge into catalog rows; 2026-10-31: + the net
     .filter(pd => {   // v0.9.1120: adopted items display on their catalog row instead (v0.9.1193: variation-keyed entries too)
-      if (!_bvAdopt) return true;
+      if (!_bvAdopt || _orphanPds.has(pd)) return true;   // 2026-10-31: no row drew it — it draws itself
       if (_bvByIdPds && _bvByIdPds.has(pd)) return false;   // v0.9.1880: seated on its row by Row ID
       var _adN = _bvAdopt.get(pd.itemNum);
       if (_adN && _adN.pd === pd) return false;
@@ -4778,7 +4835,29 @@ function _rrBrowseCore(_co) {
       // The instruction sheets the combined view draws beneath the rows — part
       // of "N items", so part of the number — for a Type value under a section.
       var _isN = function (tv, sec) { return _isRowsNow(tv, sec).length; };
-      if (_co.level === 'type') {
+      if (_co.level === 'drawn') {
+        // 2026-10-31 (Lars #26): WHICH owned copies the list draws right now —
+        // the same rows, the same copy expansion (a set's members stay in the
+        // answer: the set row holds them). A companion folded under its lead
+        // (Brad's v1567 rule: it counts, one row shows) is listed apart as
+        // `folded`, with the lead it is shown inside.
+        var _dr = new Set();
+        _expandCopies(_pre).forEach(function (it) {
+          var _dp = it._copyPd || (it._personalOnly ? (it._pd || it) : _rrPdForRow(it));
+          if (_dp) _dr.add(_dp);
+        });
+        var _fold = [];
+        if (typeof _isCollectionCompanion === 'function' && _grpFoldActive()) {
+          var _leadOf = {};
+          _dr.forEach(function (p) { if (p && p.groupId && !_leadOf[p.groupId]) _leadOf[p.groupId] = p; });
+          Object.values(state.personalData).forEach(function (p) {
+            if (!p || !p.owned || _dr.has(p) || !p.groupId || !_isCollectionCompanion(p)) return;
+            if (_leadOf[p.groupId]) _fold.push({ pd: p, lead: _leadOf[p.groupId] });
+          });
+        }
+        _coOut.drawn = Array.from(_dr);
+        _coOut.folded = _fold;
+      } else if (_co.level === 'type') {
         // "All Types" clears the Type: the chip as chosen, nothing else moved.
         _coOut[''] = _foldSets(_expandCopies(_pre)).length + _isN('', _collSec);
         // Every other option is counted under All — a train bucket's rows all

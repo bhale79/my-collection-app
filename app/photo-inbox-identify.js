@@ -1131,6 +1131,7 @@
           _pinPanelDrawLast();   // v0.9.1834: the inbox card's pictures are back before the browser paints
           _injectNav(); _flushPending(); _repairMissingPhotoLinks(); _backfillMasterKeys();
           _backfillMasterRowIds();   // v0.9.1882: runs once the full catalog index is complete (its completion rebuilds the dashboard)
+          if (typeof window.rrVarLinkRepair === 'function') window.rrVarLinkRepair();   // 2026-10-31: a link that disagrees with its variation (OFF = dry run)
           window._pinFlushPendingNow = _flushPending;   // v0.9.1602: reconnect + drain-chain kick
           if (!_startupCounted) { _startupCounted = true; setTimeout(function () { _pinCountRefresh(); }, 1500); }
         } catch (e) {}
