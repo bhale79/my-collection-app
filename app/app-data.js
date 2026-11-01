@@ -1116,10 +1116,15 @@ async function rrVarLinkRepair(opts) {
         var curRow = rrRecordRow(cur);
         var newRow = rrPersonalUpdateRow(cur, { masterKey: L.masterKey, masterRowId: L.masterRowId });
         var cols = [X.masterKey, X.masterRowId].filter(function (c) { return bare(newRow[c]) !== bare(curRow[c]); });
-        for (var r = 0, runs = rrColumnRuns(cols); r < runs.length; r++) {
-          await sheetsUpdate(state.personalSheetId, PERSONAL_TAB + '!' + colLetter(runs[r][0]) + p.row + ':' + colLetter(runs[r][1]) + p.row,
-            [newRow.slice(runs[r][0], runs[r][1] + 1)]);
+        // through the guarded writer: the row is checked once more (Inventory ID /
+        // number) at the moment of writing; refused → nothing written, a skip line
+        var _landed = true;
+        for (var r = 0, runs = rrColumnRuns(cols); r < runs.length && _landed; r++) {
+          _landed = await rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, p.row,
+            PERSONAL_TAB + '!' + colLetter(runs[r][0]) + p.row + ':' + colLetter(runs[r][1]) + p.row,
+            [newRow.slice(runs[r][0], runs[r][1] + 1)], { num: p.itemNum || '', invId: p.inventoryId || '' }, 'collection');
         }
+        if (!_landed) { res.skipped++; log('varlink-skip', _rrVarLinkLine(t) + ' (row ' + p.row + ' refused at write)'); continue; }
         p.masterKey = bare(newRow[X.masterKey]); p.masterRowId = bare(newRow[X.masterRowId]);
         res.repaired++;
         log('varlink-fix', _rrVarLinkLine(t));

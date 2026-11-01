@@ -4556,6 +4556,7 @@ function _rrBrowseCore(_co) {
     if (!_p && _bvSeatByRow) { var _seat = _bvSeatByRow.get(item); if (_seat) _p = _seat; }
     return _p;
   }
+  const _eraFilterPersonalOnly = state.filters.owned && typeof _currentEra !== 'undefined' && _currentEra !== 'all';
   // ── 2026-10-31 (Lars report #26): THE NET — an owned copy is never lost ──────
   // His header said 54, his list drew 48: six copies that every catalog row let
   // go of (the v1202 key rule, the v1880 Row ID rule) and that were not
@@ -4587,7 +4588,6 @@ function _rrBrowseCore(_co) {
     });
     if (_orphanPds.size) console.warn('[collection] ' + _orphanPds.size + ' owned item(s) matched no catalog row — drawn on their own row');
   }
-  const _eraFilterPersonalOnly = state.filters.owned && typeof _currentEra !== 'undefined' && _currentEra !== 'all';
   const personalOnlyItems = Object.values(state.personalData)
     .filter(pd => pd.owned && (String(pd.era || '') === 'Manual' || !masterNums.has(pd.itemNum + '|' + (pd.variation||'')) || _orphanPds.has(pd)))   // v0.9.718: manual rows never merge into catalog rows; 2026-10-31: + the net
     .filter(pd => {   // v0.9.1120: adopted items display on their catalog row instead (v0.9.1193: variation-keyed entries too)

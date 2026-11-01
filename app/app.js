@@ -638,8 +638,8 @@ function rrFixRowLink(row) {
 }
 
 if (typeof window !== 'undefined') {
-  window.rrFixRowLink = rrFixRowLink;
   window.PERSONAL_SCHEMA = PERSONAL_SCHEMA;
+  window.rrFixRowLink = rrFixRowLink;   // 2026-10-31
   window.PERSONAL_HEADERS = PERSONAL_HEADERS;
   window.PERSONAL_FIELD_INDEX = PERSONAL_FIELD_INDEX;
   window.colLetter = colLetter;
