@@ -4213,18 +4213,132 @@ function renderBrowse() { return _rrBrowseCore(null); }
 // filters as they are now — asked of the list-builder itself (the count
 // request), never re-derived. { drawn: [pd], folded: [{pd, lead}] }, or null
 // when it cannot be asked (catalog not loaded). Draws nothing, changes nothing.
-function rrCollectionDrawn() {
+function rrCollectionDrawn(opts) {
   try {
     if (!state || !Array.isArray(state.masterData) || !state.masterData.length) return null;
     var _wasOwned = state.filters.owned;
     state.filters.owned = true;
     try {
-      var _cur = (typeof _phState === 'function') ? _phState() : null;
+      var _cur = (opts && opts.chips) ? opts.chips : ((typeof _phState === 'function') ? _phState() : null);
       return _rrBrowseCore({ level: 'drawn', clearType: state.filters.type || '', clearOwnMaker: state.filters.ownMaker || '', clearChips: _cur, variants: [] });
     } finally { state.filters.owned = _wasOwned; }
   } catch (e) { console.warn('[collection] drawn check failed:', e && e.message); return null; }
 }
 if (typeof window !== 'undefined') window.rrCollectionDrawn = rrCollectionDrawn;
+// ── 2026-10-31 (Lars report #26): THE COUNT CHECK for Report a problem ─────
+// [stated] Brad "yes" (PLAN_2026-10-31_REPORT_HIDDEN_ITEMS). His header said
+// 54, his list 48, and the report could not say which six or why. This asks
+// the list itself (rrCollectionDrawn — the count request, never a copy of the
+// list rules):
+//   1. which counted copies (_ownedNonBox, the header's counter) have a row of
+//      their own; one shown inside a set / group row is named so (counted by
+//      design, Brad's v1567 rule);
+//   2. for each copy still not drawn, clear ONE filter at a time and ask
+//      again — the first that brings it back is the reason;
+//   3. not back with everything cleared → a named rule (sold, folded under
+//      its lead, a box piece) — otherwise UNEXPLAINED: a real bug.
+// Per copy ONLY: number, variation, saved era + maker, its catalog row's ID,
+// whether it is grouped, the reason. Never a price, value, note, location,
+// photo link or email; a typed search is described by its length only.
+// Changes nothing: every filter it clears is put back.
+// Returns { counted, drawn, filters: [text], lines: [{…, text}] } or { error }.
+function _rrCcEraName(e) {
+  e = String(e || '');
+  try { if (typeof ERAS !== 'undefined' && ERAS[e]) return String(ERAS[e].label || ERAS[e].name || e); } catch (x) {}
+  return e ? e.charAt(0).toUpperCase() + e.slice(1) : '';
+}
+// THE filters the count check can clear — every `return false` of the owned
+// row test (_rowPasses / _copyPasses) is one of these or a named rule below;
+// tests/report_hidden_items_tests.js scans for any that is not.
+function _rrCcClears() {
+  var f = state.filters, ch = (typeof _phState === 'function' ? _phState() : null) || {};
+  var any = function (v) { return v && v !== 'any'; };
+  var C = [];
+  var add = function (id, on, label, apply) { if (on) C.push({ id: id, label: label, apply: apply }); };
+  add('type', !!f.type, 'the Type pick (' + f.type + ')', function (o) { state.filters.type = ''; });
+  var _perName = function (e) { return (typeof _RR_PERIOD_LABEL !== 'undefined' && _RR_PERIOD_LABEL[e]) || _rrCcEraName(e); };
+  add('chipEra', any(ch.era), 'the Era pick (' + _perName(ch.era) + ')', function (o) { o.chips.era = 'any'; });
+  add('chipMaker', any(ch.manufacturer), 'the Maker pick (' + ch.manufacturer + ')', function (o) { o.chips.manufacturer = 'any'; });
+  add('chipScale', any(ch.scale), 'the Scale pick (' + ch.scale + ')', function (o) { o.chips.scale = 'any'; });
+  add('ownMaker', !!f.ownMaker, 'the My maker pick (' + f.ownMaker + ')', function () { state.filters.ownMaker = ''; });
+  add('search', !!String(f.search || '').trim(), 'the search box (' + String(f.search || '').trim().length + ' characters typed)', function () { state.filters.search = ''; });
+  add('group', !!f.group, 'the Group pick (' + f.group + ')', function () { state.filters.group = ''; });
+  add('subCollection', !!f.subCollection, 'the Sub-collection pick', function () { state.filters.subCollection = ''; });
+  add('subType', !!f.subType, 'the Sub Type pick', function () { state.filters.subType = ''; });
+  add('imported', f.imported === 'imported', 'the Imported only flag', function () { state.filters.imported = ''; });
+  add('needsDetails', f.needsDetails === 'needs', 'the Needs details flag', function () { state.filters.needsDetails = ''; });
+  add('quickEntry', !!f.quickEntry, 'the Quick Entry flag (' + f.quickEntry + ')', function () { state.filters.quickEntry = ''; });
+  add('boxed', !!f.boxed, 'the Boxed flag', function () { state.filters.boxed = false; });
+  add('wantList', !!f.wantList, 'the Want list flag', function () { state.filters.wantList = false; });
+  add('road', !!f.road, 'the Road pick (' + f.road + ')', function () { state.filters.road = ''; });
+  add('section', !rrIsPhone() && !!state._collSection && state._collSection !== 'all', 'the section chip (' + state._collSection + ')', function () { state._collSection = 'all'; });
+  add('catalogEra', typeof _currentEra !== 'undefined' && _currentEra !== 'all', 'the catalog in view (' + _rrCcEraName(typeof _currentEra !== 'undefined' ? _currentEra : '') + ') — an item with no catalog row of its own hides under it', function () { _currentEra = 'all'; });
+  return C;
+}
+function rrCollectionCountCheck() {
+  try {
+    if (!state || !state.personalData || !Array.isArray(state.masterData) || !state.masterData.length) return { error: 'My Collection could not be asked (the catalog is not loaded yet).' };
+    var counted = (typeof _ownedNonBox === 'function') ? _ownedNonBox(state) : [];
+    var base = rrCollectionDrawn();
+    if (!base) return { error: 'My Collection could not be asked.' };
+    var seen = function (d) { var v = new Set(d.drawn); d.folded.forEach(function (x) { v.add(x.pd); }); return v; };
+    var own = new Set(base.drawn), foldOf = new Map();
+    base.folded.forEach(function (x) { foldOf.set(x.pd, x); });
+    var missing = counted.filter(function (p) { return !own.has(p); });
+    var why = new Map();
+    missing.forEach(function (p) {
+      var x = foldOf.get(p);
+      if (!x) return;
+      if (x.kind === 'set') why.set(p, 'shown inside set ' + (x.set || '') + '’s row');
+      else why.set(p, 'shown inside ' + ((x.lead && x.lead.itemNum) || 'its lead') + '’s group row');
+    });
+    var pending = function () { return missing.filter(function (p) { return !why.has(p); }); };
+    var clears = _rrCcClears();
+    var _snapF = Object.assign({}, state.filters), _snapEra = (typeof _currentEra !== 'undefined') ? _currentEra : undefined, _snapSec = state._collSection;
+    var _baseChips = Object.assign({}, (typeof _phState === 'function' ? _phState() : null) || {});
+    var restore = function () {
+      Object.keys(state.filters).forEach(function (k) { if (!(k in _snapF)) delete state.filters[k]; });
+      Object.assign(state.filters, _snapF);
+      if (_snapEra !== undefined) _currentEra = _snapEra;
+      state._collSection = _snapSec;
+    };
+    var ask = function (list) {
+      var o = { chips: Object.assign({}, _baseChips) };
+      try { list.forEach(function (c) { c.apply(o); }); return rrCollectionDrawn({ chips: o.chips }); }
+      finally { restore(); }
+    };
+    for (var i = 0; i < clears.length && pending().length; i++) {
+      var d = ask([clears[i]]);
+      if (!d) continue;
+      var v = seen(d);
+      pending().forEach(function (p) { if (v.has(p)) why.set(p, 'hidden by: ' + clears[i].label); });
+    }
+    if (pending().length && clears.length > 1) {
+      var dAll = ask(clears), vAll = dAll ? seen(dAll) : new Set();
+      pending().forEach(function (p) { if (vAll.has(p)) why.set(p, 'hidden by: several filters together (' + clears.map(function (c) { return c.label; }).join('; ') + ')'); });
+    }
+    var soldKeys = new Set();
+    Object.values(state.soldData || {}).forEach(function (s) { if (s && s.itemNum) soldKeys.add(s.itemNum + '|' + (s.variation || '')); });
+    pending().forEach(function (p) {
+      if (typeof _isCollectionCompanion === 'function' && _isCollectionCompanion(p)) why.set(p, 'the companion rule: folded under its group’s lead');
+      else if (/-(BOX|MBOX|IS)$/i.test(String(p.itemNum || ''))) why.set(p, 'the box-piece rule: a box / sheet belongs to its item');
+      else if (soldKeys.has(p.itemNum + '|' + (p.variation || ''))) why.set(p, 'the sold rule: a sale of this number is on record');
+      else why.set(p, 'UNEXPLAINED ← a real bug');
+    });
+    var lines = missing.map(function (p) {
+      var m = null; try { m = (typeof findMaster === 'function') ? findMaster(p.itemNum, p.variation || '', p) : null; } catch (e) {}
+      var rid = m ? (String(m.rowId || '').trim() || (typeof rrMasterKeyOf === 'function' ? rrMasterKeyOf(m) : '') || 'found') : 'none matched';
+      var g = String(p.groupId || '');
+      var o = { itemNum: String(p.itemNum || ''), variation: String(p.variation || ''), era: _rrCcEraName(p.era), maker: String(p.manufacturer || ''),
+                row: rid, group: g ? (/^SET-/i.test(g) ? 'in a set' : 'in a group') : '', reason: why.get(p) || 'UNEXPLAINED ← a real bug' };
+      o.text = (o.itemNum + '      ').slice(0, Math.max(7, o.itemNum.length + 1)) + ' var ' + (o.variation || '—') + '   saved as ' + (o.era || '?') + ' · ' + (o.maker || '?')
+        + '   catalog row: ' + o.row + (o.group ? '   ' + o.group : '') + '   → ' + o.reason;
+      return o;
+    });
+    return { counted: counted.length, drawn: counted.length - missing.length, filters: clears.map(function (c) { return c.label.replace(/^the /, ''); }), lines: lines };
+  } catch (e) { return { error: 'My Collection could not be asked (' + String((e && e.message) || e).slice(0, 80) + ').' }; }
+}
+if (typeof window !== 'undefined') window.rrCollectionCountCheck = rrCollectionCountCheck;
 // ── v0.9.1798: ONE LIST, TWO USES ──────────────────────────────────────────
 // Brad: the number beside a picker option must be what picking it SHOWS, with
 // every other chip kept. The only honest way to know that is to ask the code
@@ -4841,18 +4955,33 @@ function _rrBrowseCore(_co) {
         // answer: the set row holds them). A companion folded under its lead
         // (Brad's v1567 rule: it counts, one row shows) is listed apart as
         // `folded`, with the lead it is shown inside.
-        var _dr = new Set();
-        _expandCopies(_pre).forEach(function (it) {
-          var _dp = it._copyPd || (it._personalOnly ? (it._pd || it) : _rrPdForRow(it));
-          if (_dp) _dr.add(_dp);
+        // 2026-10-31 (report count check): `drawn` = copies with a row OF THEIR
+        // OWN on screen; a copy shown inside a set row or a group's lead row
+        // (_foldSets) is listed in `folded` with kind 'set' / 'group'.
+        var _pdOfIt = function (it) { return it._copyPd || (it._personalOnly ? (it._pd || it) : _rrPdForRow(it)); };
+        var _expD = _expandCopies(_pre), _flD = _foldSets(_expD), _onScreen = new Set(_flD);
+        var _dr = new Set(), _fold = [];
+        _flD.forEach(function (it) { if (it._setFold) return; var _dp = _pdOfIt(it); if (_dp) _dr.add(_dp); });
+        _expD.forEach(function (it) {
+          if (_onScreen.has(it)) return;
+          var _dp = _pdOfIt(it);
+          if (!_dp || _dr.has(_dp)) return;
+          var _gidD = String(_dp.groupId || '');
+          if (/^SET-/i.test(_gidD)) {
+            var _sf = _flD.find(function (f) { return f._setFold && f.groupId === _gidD; });
+            _fold.push({ pd: _dp, lead: null, set: _sf ? String(_sf.itemNum || '') : '', kind: 'set' });
+          } else {
+            var _gi = (typeof _grpFoldInfo === 'function') ? _grpFoldInfo(_dp) : null;
+            _fold.push({ pd: _dp, lead: _gi ? _gi.lead : null, kind: 'group' });
+          }
         });
-        var _fold = [];
         if (typeof _isCollectionCompanion === 'function' && _grpFoldActive()) {
           var _leadOf = {};
           _dr.forEach(function (p) { if (p && p.groupId && !_leadOf[p.groupId]) _leadOf[p.groupId] = p; });
+          var _inFold = new Set(_fold.map(function (f) { return f.pd; }));
           Object.values(state.personalData).forEach(function (p) {
-            if (!p || !p.owned || _dr.has(p) || !p.groupId || !_isCollectionCompanion(p)) return;
-            if (_leadOf[p.groupId]) _fold.push({ pd: p, lead: _leadOf[p.groupId] });
+            if (!p || !p.owned || _dr.has(p) || _inFold.has(p) || !p.groupId || !_isCollectionCompanion(p)) return;
+            if (_leadOf[p.groupId]) _fold.push({ pd: p, lead: _leadOf[p.groupId], kind: 'group' });
           });
         }
         _coOut.drawn = Array.from(_dr);
