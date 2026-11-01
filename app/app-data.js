@@ -981,6 +981,163 @@ function _rrRowIdFits(row, itemNum, variation) {
   return v.toUpperCase() === rv.toUpperCase();
 }
 if (typeof window !== 'undefined') { window.rrMasterRowIdOf = rrMasterRowIdOf; window.rrMasterByRowId = rrMasterByRowId; }
+// ── 2026-10-31 (PLAN_..._VARIATION_LINK, Lars report #26): THE LINK FOLLOWS THE VARIATION ──
+// Lars picked the plain 2613 on the Add screen, then variation B. The sheet
+// said "variation B" but linked the PLAIN row (Row ID + Master Key), and the
+// list then had no row that would draw the copy. ONE answer to "which catalog
+// row is this number + this variation, in the SAME catalog as the row picked":
+//   · the picked row already fits the variation (or no variation) → that row;
+//   · else the variation's own row, when it exists EXACTLY ONCE in the same
+//     catalog (same era, and same tab when both rows name one) → that row;
+//   · else (a variation the catalog does not list, or two candidates) → the
+//     picked row, unchanged — the case _rrRowIdFits already treats as
+//     "decides nothing"; the list still draws it.
+// A different item NUMBER is never re-pointed here — only the variation.
+// `exact` (the variation step only — the person picked THAT card): a blank
+// variation then means the blank row too, so picking B and going back to the
+// plain card moves back to the plain row. Everywhere else a blank variation
+// fits any row (the _rrRowIdFits rule) and nothing moves.
+function rrRowForVariation(row, itemNum, variation, exact) {
+  if (!row) return row;
+  var fits = function (r) {
+    if (!exact) return _rrRowIdFits(r, itemNum, variation);
+    return _rrRowIdFits(r, itemNum, '') && (typeof rrSameVar === 'function' ? rrSameVar(r.variation, variation)
+      : String(r.variation == null ? '' : r.variation).trim().toUpperCase() === String(variation == null ? '' : variation).trim().toUpperCase());
+  };
+  if (fits(row)) return row;
+  if (!_rrRowIdFits(row, itemNum, '')) return row;           // the number itself disagrees — not ours to fix
+  var era = String(row._era || ''), tab = String(row._tab || '');
+  var own = (typeof rrCatalogCandidates === 'function' ? rrCatalogCandidates(itemNum) : []).filter(function (r) {
+    if (!r || r === row) return false;
+    if (String(r._era || '') !== era) return false;
+    if (tab && r._tab && String(r._tab) !== tab) return false;
+    return fits(r);
+  });
+  return own.length === 1 ? own[0] : row;
+}
+// The link an owned copy SHOULD carry, from the link it carries now. Every
+// door that writes Master Row ID / Master Key asks this (the save, the row
+// builder, the edit carry, the backfills, the repair) — never a copy of it.
+// Returns { masterKey, masterRowId, changed, row }; `changed` only when the
+// saved link names a row that does not fit the variation AND the variation's
+// own row was found. Nothing to go on (no link, a manual row) → unchanged.
+function rrLinkForVariation(itemNum, variation, masterKey, masterRowId) {
+  var k = String(masterKey == null ? '' : masterKey).trim(), id = String(masterRowId == null ? '' : masterRowId).trim();
+  var out = { masterKey: k, masterRowId: id, changed: false, row: null };
+  var num = String(itemNum == null ? '' : itemNum).trim().replace(/^'/, '');
+  if (!num || !String(variation == null ? '' : variation).trim()) return out;
+  var byId = id ? rrMasterByRowId(id) : null;
+  var byKey = k ? rrMasterByKey(k) : null;
+  var base = byId || byKey;
+  if (!base) return out;
+  var fits = function (r) { return !r || _rrRowIdFits(r, num, variation); };
+  if (fits(byId) && fits(byKey)) { out.row = base; return out; }
+  // A Row ID that fits wins (it names one product); only a stale key moves then.
+  var own = (byId && fits(byId)) ? byId : rrRowForVariation(byId || byKey, num, variation);
+  if (!own || !_rrRowIdFits(own, num, variation)) { out.row = base; return out; }   // no own row — keep as is
+  out.row = own;
+  var nk = rrMasterKeyOf(own), nid = rrMasterRowIdOf(own);
+  if (nk !== k || nid !== id) { out.masterKey = nk; out.masterRowId = nid; out.changed = true; }
+  return out;
+}
+if (typeof window !== 'undefined') { window.rrRowForVariation = rrRowForVariation; window.rrLinkForVariation = rrLinkForVariation; }
+// ── THE REPAIR of copies already saved with the wrong link (part 3) ──────────
+// Which owned copies carry a link that disagrees with their variation AND whose
+// variation's own row exists exactly once in the same catalog. Ambiguous, or no
+// own row → not listed (the list still draws them). Asked only of a COMPLETE
+// catalog (the v0.9.1527 rule: never resolve in bulk against a half-built one).
+// Returns [{ pd, from: {masterKey, masterRowId}, to: {...} }] or null (not ready).
+function rrVarLinkRepairPlan() {
+  if (!state || !state.personalData) return null;
+  if (typeof rrCatalogIndexStatus === 'function' && !rrCatalogIndexStatus().complete) return null;
+  var out = [];
+  Object.keys(state.personalData).forEach(function (k) {
+    var p = state.personalData[k];
+    if (!p || !p.owned || !p.itemNum) return;
+    if (String(p.era || '') === 'Manual') return;
+    if (!p.row || Number(p.row) === 99999) return;             // a placeholder is not a sheet row
+    if (/-(BOX|MBOX)$/i.test(String(p.itemNum))) return;
+    var L = rrLinkForVariation(p.itemNum, p.variation, p.masterKey, p.masterRowId);
+    if (!L.changed) return;
+    out.push({ pd: p, from: { masterKey: String(p.masterKey || ''), masterRowId: String(p.masterRowId || '') },
+               to: { masterKey: L.masterKey, masterRowId: L.masterRowId } });
+  });
+  return out;
+}
+// One diary line per copy: number, variation, the old and new link. Never a
+// price, value, note, location or photo — the sync diary's privacy line.
+function _rrVarLinkLine(t) {
+  return String(t.pd.itemNum) + ' var ' + String(t.pd.variation || '') + ' inv ' + String(t.pd.inventoryId || '')
+    + ': ' + (t.from.masterKey || '-') + ' [' + (t.from.masterRowId || '-') + '] -> ' + (t.to.masterKey || '-') + ' [' + (t.to.masterRowId || '-') + ']';
+}
+// The repair itself. Switched OFF (RR_VARLINK_REPAIR_ON, config.js) it is a
+// DRY RUN: the would-change list goes to the sync diary, nothing is written.
+// ON: ONE row at a time — the row is RE-READ first and written only when it
+// still holds this copy (Inventory ID / number) with the SAME variation and the
+// SAME link the plan was made from; the new row is built by the ONE whole-row
+// path (rrPersonalUpdateRow over the re-read record) and only its Master Key /
+// Master Row ID cells are sent. Each repair (and each skip) is a diary line.
+// Once per session; a flag guards a second start (stability rule 5). A second
+// load finds nothing to repair. Returns { planned, repaired, skipped, dryRun }.
+var _rrVarLinkBusy = false, _rrVarLinkDone = false;
+async function rrVarLinkRepair(opts) {
+  opts = opts || {};
+  if (_rrVarLinkBusy || (_rrVarLinkDone && !opts.force)) return null;
+  var plan = rrVarLinkRepairPlan();
+  if (!plan) return null;                                       // catalog not complete yet — the next dashboard build asks again
+  _rrVarLinkBusy = true;
+  var log = function (e, i) { try { if (typeof rrSyncLog === 'function') rrSyncLog(e, i); } catch (eL) {} };
+  var on = (typeof RR_VARLINK_REPAIR_ON !== 'undefined') && !!RR_VARLINK_REPAIR_ON && !opts.dryRun;
+  var res = { planned: plan.length, repaired: 0, skipped: 0, dryRun: !on, lines: plan.map(_rrVarLinkLine) };
+  try {
+    if (!plan.length) return res;
+    if (!on) {
+      log('varlink-dry', plan.length + ' would re-link: ' + res.lines.join(' | ').slice(0, 900));
+      console.log('[varlink] DRY RUN — ' + plan.length + ' item(s) would be re-linked:\n  ' + res.lines.join('\n  '));
+      return res;
+    }
+    if (!state.personalSheetId) return res;
+    var X = PERSONAL_FIELD_INDEX, bare = function (v) { return String(v == null ? '' : v).trim().replace(/^'/, ''); };
+    for (var i = 0; i < plan.length; i++) {
+      var t = plan[i], p = t.pd;
+      try {
+        var got = await sheetsGet(state.personalSheetId, personalFullRowRange(p.row));
+        var cells = (((got && got.values) || [[]])[0]) || [];
+        var cur = rrPersonalRecordFromRow(cells, p.row);
+        var wantId = bare(p.inventoryId), gotId = bare(cur.inventoryId);
+        var same = ((wantId && gotId) ? wantId === gotId : bare(cur.itemNum) === bare(p.itemNum))
+          && bare(cur.itemNum) === bare(p.itemNum)
+          && bare(cur.variation) === bare(p.variation)
+          && bare(cur.masterKey) === bare(t.from.masterKey)
+          && bare(cur.masterRowId) === bare(t.from.masterRowId);
+        if (!same) { res.skipped++; log('varlink-skip', _rrVarLinkLine(t) + ' (row ' + p.row + ' changed since load)'); continue; }
+        var L = rrLinkForVariation(cur.itemNum, cur.variation, cur.masterKey, cur.masterRowId);
+        if (!L.changed) { res.skipped++; continue; }
+        var curRow = rrRecordRow(cur);
+        var newRow = rrPersonalUpdateRow(cur, { masterKey: L.masterKey, masterRowId: L.masterRowId });
+        var cols = [X.masterKey, X.masterRowId].filter(function (c) { return bare(newRow[c]) !== bare(curRow[c]); });
+        // through the guarded writer: the row is checked once more (Inventory ID /
+        // number) at the moment of writing; refused → nothing written, a skip line
+        var _landed = true;
+        for (var r = 0, runs = rrColumnRuns(cols); r < runs.length && _landed; r++) {
+          _landed = await rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, p.row,
+            PERSONAL_TAB + '!' + colLetter(runs[r][0]) + p.row + ':' + colLetter(runs[r][1]) + p.row,
+            [newRow.slice(runs[r][0], runs[r][1] + 1)], { num: p.itemNum || '', invId: p.inventoryId || '' }, 'collection');
+        }
+        if (!_landed) { res.skipped++; log('varlink-skip', _rrVarLinkLine(t) + ' (row ' + p.row + ' refused at write)'); continue; }
+        p.masterKey = bare(newRow[X.masterKey]); p.masterRowId = bare(newRow[X.masterRowId]);
+        res.repaired++;
+        log('varlink-fix', _rrVarLinkLine(t));
+      } catch (e) { res.skipped++; log('varlink-skip', _rrVarLinkLine(t) + ' (' + String((e && e.message) || e).slice(0, 60) + ')'); }
+    }
+    if (res.repaired) { try { if (typeof _cachePersonalData === 'function') _cachePersonalData(); } catch (eC) {} }
+    return res;
+  } finally {
+    _rrVarLinkBusy = false;
+    _rrVarLinkDone = true;
+  }
+}
+if (typeof window !== 'undefined') { window.rrVarLinkRepairPlan = rrVarLinkRepairPlan; window.rrVarLinkRepair = rrVarLinkRepair; }
 // ── v0.9.1882 (Step 4): every catalog row an owned copy COULD be ────────────
 // The rows under the copy's number and under its base number (2343-P → 2343),
 // every maker and era, from the whole-catalog index when it is up and the

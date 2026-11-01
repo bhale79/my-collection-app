@@ -4209,6 +4209,136 @@ function rrPersonalOnlyRow(pd) {
 }
 
 function renderBrowse() { return _rrBrowseCore(null); }
+// 2026-10-31 (Lars #26): which owned copies My Collection draws with the
+// filters as they are now — asked of the list-builder itself (the count
+// request), never re-derived. { drawn: [pd], folded: [{pd, lead}] }, or null
+// when it cannot be asked (catalog not loaded). Draws nothing, changes nothing.
+function rrCollectionDrawn(opts) {
+  try {
+    if (!state || !Array.isArray(state.masterData) || !state.masterData.length) return null;
+    var _wasOwned = state.filters.owned;
+    state.filters.owned = true;
+    try {
+      var _cur = (opts && opts.chips) ? opts.chips : ((typeof _phState === 'function') ? _phState() : null);
+      return _rrBrowseCore({ level: 'drawn', clearType: state.filters.type || '', clearOwnMaker: state.filters.ownMaker || '', clearChips: _cur, variants: [] });
+    } finally { state.filters.owned = _wasOwned; }
+  } catch (e) { console.warn('[collection] drawn check failed:', e && e.message); return null; }
+}
+if (typeof window !== 'undefined') window.rrCollectionDrawn = rrCollectionDrawn;
+// ── 2026-10-31 (Lars report #26): THE COUNT CHECK for Report a problem ─────
+// [stated] Brad "yes" (PLAN_2026-10-31_REPORT_HIDDEN_ITEMS). His header said
+// 54, his list 48, and the report could not say which six or why. This asks
+// the list itself (rrCollectionDrawn — the count request, never a copy of the
+// list rules):
+//   1. which counted copies (_ownedNonBox, the header's counter) have a row of
+//      their own; one shown inside a set / group row is named so (counted by
+//      design, Brad's v1567 rule);
+//   2. for each copy still not drawn, clear ONE filter at a time and ask
+//      again — the first that brings it back is the reason;
+//   3. not back with everything cleared → a named rule (sold, folded under
+//      its lead, a box piece) — otherwise UNEXPLAINED: a real bug.
+// Per copy ONLY: number, variation, saved era + maker, its catalog row's ID,
+// whether it is grouped, the reason. Never a price, value, note, location,
+// photo link or email; a typed search is described by its length only.
+// Changes nothing: every filter it clears is put back.
+// Returns { counted, drawn, filters: [text], lines: [{…, text}] } or { error }.
+function _rrCcEraName(e) {
+  e = String(e || '');
+  try { if (typeof ERAS !== 'undefined' && ERAS[e]) return String(ERAS[e].label || ERAS[e].name || e); } catch (x) {}
+  return e ? e.charAt(0).toUpperCase() + e.slice(1) : '';
+}
+// THE filters the count check can clear — every `return false` of the owned
+// row test (_rowPasses / _copyPasses) is one of these or a named rule below;
+// tests/report_hidden_items_tests.js scans for any that is not.
+function _rrCcClears() {
+  var f = state.filters, ch = (typeof _phState === 'function' ? _phState() : null) || {};
+  var any = function (v) { return v && v !== 'any'; };
+  var C = [];
+  var add = function (id, on, label, apply) { if (on) C.push({ id: id, label: label, apply: apply }); };
+  add('type', !!f.type, 'the Type pick (' + f.type + ')', function (o) { state.filters.type = ''; });
+  var _perName = function (e) { return (typeof _RR_PERIOD_LABEL !== 'undefined' && _RR_PERIOD_LABEL[e]) || _rrCcEraName(e); };
+  add('chipEra', any(ch.era), 'the Era pick (' + _perName(ch.era) + ')', function (o) { o.chips.era = 'any'; });
+  add('chipMaker', any(ch.manufacturer), 'the Maker pick (' + ch.manufacturer + ')', function (o) { o.chips.manufacturer = 'any'; });
+  add('chipScale', any(ch.scale), 'the Scale pick (' + ch.scale + ')', function (o) { o.chips.scale = 'any'; });
+  add('ownMaker', !!f.ownMaker, 'the My maker pick (' + f.ownMaker + ')', function () { state.filters.ownMaker = ''; });
+  add('search', !!String(f.search || '').trim(), 'the search box (' + String(f.search || '').trim().length + ' characters typed)', function () { state.filters.search = ''; });
+  add('group', !!f.group, 'the Group pick (' + f.group + ')', function () { state.filters.group = ''; });
+  add('subCollection', !!f.subCollection, 'the Sub-collection pick', function () { state.filters.subCollection = ''; });
+  add('subType', !!f.subType, 'the Sub Type pick', function () { state.filters.subType = ''; });
+  add('imported', f.imported === 'imported', 'the Imported only flag', function () { state.filters.imported = ''; });
+  add('needsDetails', f.needsDetails === 'needs', 'the Needs details flag', function () { state.filters.needsDetails = ''; });
+  add('quickEntry', !!f.quickEntry, 'the Quick Entry flag (' + f.quickEntry + ')', function () { state.filters.quickEntry = ''; });
+  add('boxed', !!f.boxed, 'the Boxed flag', function () { state.filters.boxed = false; });
+  add('wantList', !!f.wantList, 'the Want list flag', function () { state.filters.wantList = false; });
+  add('road', !!f.road, 'the Road pick (' + f.road + ')', function () { state.filters.road = ''; });
+  add('section', !rrIsPhone() && !!state._collSection && state._collSection !== 'all', 'the section chip (' + state._collSection + ')', function () { state._collSection = 'all'; });
+  add('catalogEra', typeof _currentEra !== 'undefined' && _currentEra !== 'all', 'the catalog in view (' + _rrCcEraName(typeof _currentEra !== 'undefined' ? _currentEra : '') + ') — an item with no catalog row of its own hides under it', function () { _currentEra = 'all'; });
+  return C;
+}
+function rrCollectionCountCheck() {
+  try {
+    if (!state || !state.personalData || !Array.isArray(state.masterData) || !state.masterData.length) return { error: 'My Collection could not be asked (the catalog is not loaded yet).' };
+    var counted = (typeof _ownedNonBox === 'function') ? _ownedNonBox(state) : [];
+    var base = rrCollectionDrawn();
+    if (!base) return { error: 'My Collection could not be asked.' };
+    var seen = function (d) { var v = new Set(d.drawn); d.folded.forEach(function (x) { v.add(x.pd); }); return v; };
+    var own = new Set(base.drawn), foldOf = new Map();
+    base.folded.forEach(function (x) { foldOf.set(x.pd, x); });
+    var missing = counted.filter(function (p) { return !own.has(p); });
+    var why = new Map();
+    missing.forEach(function (p) {
+      var x = foldOf.get(p);
+      if (!x) return;
+      if (x.kind === 'set') why.set(p, 'shown inside set ' + (x.set || '') + '’s row');
+      else why.set(p, 'shown inside ' + ((x.lead && x.lead.itemNum) || 'its lead') + '’s group row');
+    });
+    var pending = function () { return missing.filter(function (p) { return !why.has(p); }); };
+    var clears = _rrCcClears();
+    var _snapF = Object.assign({}, state.filters), _snapEra = (typeof _currentEra !== 'undefined') ? _currentEra : undefined, _snapSec = state._collSection;
+    var _baseChips = Object.assign({}, (typeof _phState === 'function' ? _phState() : null) || {});
+    var restore = function () {
+      Object.keys(state.filters).forEach(function (k) { if (!(k in _snapF)) delete state.filters[k]; });
+      Object.assign(state.filters, _snapF);
+      if (_snapEra !== undefined) _currentEra = _snapEra;
+      state._collSection = _snapSec;
+    };
+    var ask = function (list) {
+      var o = { chips: Object.assign({}, _baseChips) };
+      try { list.forEach(function (c) { c.apply(o); }); return rrCollectionDrawn({ chips: o.chips }); }
+      finally { restore(); }
+    };
+    for (var i = 0; i < clears.length && pending().length; i++) {
+      var d = ask([clears[i]]);
+      if (!d) continue;
+      var v = seen(d);
+      pending().forEach(function (p) { if (v.has(p)) why.set(p, 'hidden by: ' + clears[i].label); });
+    }
+    if (pending().length && clears.length > 1) {
+      var dAll = ask(clears), vAll = dAll ? seen(dAll) : new Set();
+      pending().forEach(function (p) { if (vAll.has(p)) why.set(p, 'hidden by: several filters together (' + clears.map(function (c) { return c.label; }).join('; ') + ')'); });
+    }
+    var soldKeys = new Set();
+    Object.values(state.soldData || {}).forEach(function (s) { if (s && s.itemNum) soldKeys.add(s.itemNum + '|' + (s.variation || '')); });
+    pending().forEach(function (p) {
+      if (typeof _isCollectionCompanion === 'function' && _isCollectionCompanion(p)) why.set(p, 'the companion rule: folded under its group’s lead');
+      else if (/-(BOX|MBOX|IS)$/i.test(String(p.itemNum || ''))) why.set(p, 'the box-piece rule: a box / sheet belongs to its item');
+      else if (soldKeys.has(p.itemNum + '|' + (p.variation || ''))) why.set(p, 'the sold rule: a sale of this number is on record');
+      else why.set(p, 'UNEXPLAINED ← a real bug');
+    });
+    var lines = missing.map(function (p) {
+      var m = null; try { m = (typeof findMaster === 'function') ? findMaster(p.itemNum, p.variation || '', p) : null; } catch (e) {}
+      var rid = m ? (String(m.rowId || '').trim() || (typeof rrMasterKeyOf === 'function' ? rrMasterKeyOf(m) : '') || 'found') : 'none matched';
+      var g = String(p.groupId || '');
+      var o = { itemNum: String(p.itemNum || ''), variation: String(p.variation || ''), era: _rrCcEraName(p.era), maker: String(p.manufacturer || ''),
+                row: rid, group: g ? (/^SET-/i.test(g) ? 'in a set' : 'in a group') : '', reason: why.get(p) || 'UNEXPLAINED ← a real bug' };
+      o.text = (o.itemNum + '      ').slice(0, Math.max(7, o.itemNum.length + 1)) + ' var ' + (o.variation || '—') + '   saved as ' + (o.era || '?') + ' · ' + (o.maker || '?')
+        + '   catalog row: ' + o.row + (o.group ? '   ' + o.group : '') + '   → ' + o.reason;
+      return o;
+    });
+    return { counted: counted.length, drawn: counted.length - missing.length, filters: clears.map(function (c) { return c.label.replace(/^the /, ''); }), lines: lines };
+  } catch (e) { return { error: 'My Collection could not be asked (' + String((e && e.message) || e).slice(0, 80) + ').' }; }
+}
+if (typeof window !== 'undefined') window.rrCollectionCountCheck = rrCollectionCountCheck;
 // ── v0.9.1798: ONE LIST, TWO USES ──────────────────────────────────────────
 // Brad: the number beside a picker option must be what picking it SHOWS, with
 // every other chip kept. The only honest way to know that is to ask the code
@@ -4389,8 +4519,14 @@ function _rrBrowseCore(_co) {
   // and variation (Pre-War 800: the 1904 motor car and the 1915 boxcar) each
   // keep their own copy, which one number+variation seat never could.
   var _bvById = null, _bvByIdPds = null;
+  // 2026-10-31 (Lars #26): a seat whose row does NOT carry the copy's own
+  // variation (saved "2613 B" linked to the plain 2613 row) — the seat map
+  // above is keyed by the COPY's variation, the row asks with the ROW's, so
+  // such a seat was never found and the copy drew nowhere. Keyed by the row.
+  var _bvSeatByRow = null;
   if (state.filters.owned) {
     _bvAdopt = new Map();
+    _bvSeatByRow = new Map();
     _bvById = new Map(); _bvByIdPds = new Set();
     // v0.9.1817 (S4, measured: 488,154 _displayItemNum calls per My Collection
     // draw = three full walks of 162k rows for 233 items). This map is one of
@@ -4445,6 +4581,7 @@ function _rrBrowseCore(_co) {
         var _mkRow = rrMasterByKey(p.masterKey);
         if (_mkRow && String(_mkRow.itemNum).trim() === String(p.itemNum).trim()) {
           _bvAdopt.set(_pv ? (p.itemNum + '|v|' + _pv) : p.itemNum, { pd: p, row: _mkRow });
+          if (_pv && !rrSameVar(_mkRow.variation, p.variation) && !_bvSeatByRow.has(_mkRow)) _bvSeatByRow.set(_mkRow, p);   // 2026-10-31
           return;
         }
       }
@@ -4496,7 +4633,7 @@ function _rrBrowseCore(_co) {
     if (!_pdNumsExact.has(_dn)) {
       if (!_bvAdopt) return null;
       if (!_bvAdopt.get(_dn)
-          && !_bvAdopt.get(_dn + '|v|' + String(item.variation == null ? '' : item.variation).trim().toUpperCase())) return null;
+          && !_bvAdopt.get(_dn + '|v|' + String(item.variation == null ? '' : item.variation).trim().toUpperCase())) return (_bvSeatByRow && _bvSeatByRow.get(item)) || null;   // 2026-10-31: a seat by row (below)
     }
     var _p = findPD(_dn, item.variation);
     if (_p && _p.itemNum !== _dn) _p = null;                     // no -P/-D bleed
@@ -4528,13 +4665,47 @@ function _rrBrowseCore(_co) {
         else if (_p === _ad.pd && _ad.row !== item) _p = null;   // lookalikes let go of it
       }
     }
+    // 2026-10-31 (Lars #26): the row a saved link names draws that copy even
+    // when the copy's variation label disagrees with the row's (see _bvSeatByRow).
+    if (!_p && _bvSeatByRow) { var _seat = _bvSeatByRow.get(item); if (_seat) _p = _seat; }
     return _p;
   }
   const _eraFilterPersonalOnly = state.filters.owned && typeof _currentEra !== 'undefined' && _currentEra !== 'all';
+  // ── 2026-10-31 (Lars report #26): THE NET — an owned copy is never lost ──────
+  // His header said 54, his list drew 48: six copies that every catalog row let
+  // go of (the v1202 key rule, the v1880 Row ID rule) and that were not
+  // "personal-only" either, because their number + variation IS in the catalog.
+  // After the rules above, ask every row an owned copy could sit on which copies
+  // it draws (the SAME two answers the list uses: _rrPdForRow, and _copiesOfRow
+  // for a row with several copies — exactly _expandCopies' rule). A copy no row
+  // claims joins the personal-only rows below, so it is drawn (and filtered)
+  // like any other row instead of vanishing. Ownership only — no filter is asked.
+  var _orphanPds = new Set();
+  if (state.filters.owned && _bvByNum) {
+    var _claimedPds = new Set(), _netSeen = new Set();
+    var _netVisit = function (r) {
+      if (!r || _netSeen.has(r)) return;
+      _netSeen.add(r);
+      var _np = _rrPdForRow(r);
+      if (!_np) return;
+      var _ncs = _copiesOfRow(r);
+      if (_ncs.length <= 1) _claimedPds.add(_np); else _ncs.forEach(function (c) { _claimedPds.add(c); });
+    };
+    _pdNumsExact.forEach(function (n) { (_bvByNum.get(n) || []).forEach(_netVisit); });
+    if (_bvAdopt) _bvAdopt.forEach(function (a) { if (a) _netVisit(a.row); });
+    if (_bvSeatByRow) _bvSeatByRow.forEach(function (p, r) { _netVisit(r); });
+    Object.values(state.personalData).forEach(function (pd) {
+      if (!pd || !pd.owned || !pd.itemNum || _claimedPds.has(pd)) return;
+      if (String(pd.era || '') === 'Manual' || !masterNums.has(pd.itemNum + '|' + (pd.variation || ''))) return;   // already the personal-only lane
+      if (String(pd.itemNum).toUpperCase().endsWith('-BOX')) return;   // a box is never a catalog row's copy (_copiesOfRow)
+      _orphanPds.add(pd);
+    });
+    if (_orphanPds.size) console.warn('[collection] ' + _orphanPds.size + ' owned item(s) matched no catalog row — drawn on their own row');
+  }
   const personalOnlyItems = Object.values(state.personalData)
-    .filter(pd => pd.owned && (String(pd.era || '') === 'Manual' || !masterNums.has(pd.itemNum + '|' + (pd.variation||''))))   // v0.9.718: manual rows never merge into catalog rows
+    .filter(pd => pd.owned && (String(pd.era || '') === 'Manual' || !masterNums.has(pd.itemNum + '|' + (pd.variation||'')) || _orphanPds.has(pd)))   // v0.9.718: manual rows never merge into catalog rows; 2026-10-31: + the net
     .filter(pd => {   // v0.9.1120: adopted items display on their catalog row instead (v0.9.1193: variation-keyed entries too)
-      if (!_bvAdopt) return true;
+      if (!_bvAdopt || _orphanPds.has(pd)) return true;   // 2026-10-31: no row drew it — it draws itself
       if (_bvByIdPds && _bvByIdPds.has(pd)) return false;   // v0.9.1880: seated on its row by Row ID
       var _adN = _bvAdopt.get(pd.itemNum);
       if (_adN && _adN.pd === pd) return false;
@@ -4778,7 +4949,44 @@ function _rrBrowseCore(_co) {
       // The instruction sheets the combined view draws beneath the rows — part
       // of "N items", so part of the number — for a Type value under a section.
       var _isN = function (tv, sec) { return _isRowsNow(tv, sec).length; };
-      if (_co.level === 'type') {
+      if (_co.level === 'drawn') {
+        // 2026-10-31 (Lars #26): WHICH owned copies the list draws right now —
+        // the same rows, the same copy expansion (a set's members stay in the
+        // answer: the set row holds them). A companion folded under its lead
+        // (Brad's v1567 rule: it counts, one row shows) is listed apart as
+        // `folded`, with the lead it is shown inside.
+        // 2026-10-31 (report count check): `drawn` = copies with a row OF THEIR
+        // OWN on screen; a copy shown inside a set row or a group's lead row
+        // (_foldSets) is listed in `folded` with kind 'set' / 'group'.
+        var _pdOfIt = function (it) { return it._copyPd || (it._personalOnly ? (it._pd || it) : _rrPdForRow(it)); };
+        var _expD = _expandCopies(_pre), _flD = _foldSets(_expD), _onScreen = new Set(_flD);
+        var _dr = new Set(), _fold = [];
+        _flD.forEach(function (it) { if (it._setFold) return; var _dp = _pdOfIt(it); if (_dp) _dr.add(_dp); });
+        _expD.forEach(function (it) {
+          if (_onScreen.has(it)) return;
+          var _dp = _pdOfIt(it);
+          if (!_dp || _dr.has(_dp)) return;
+          var _gidD = String(_dp.groupId || '');
+          if (/^SET-/i.test(_gidD)) {
+            var _sf = _flD.find(function (f) { return f._setFold && f.groupId === _gidD; });
+            _fold.push({ pd: _dp, lead: null, set: _sf ? String(_sf.itemNum || '') : '', kind: 'set' });
+          } else {
+            var _gi = (typeof _grpFoldInfo === 'function') ? _grpFoldInfo(_dp) : null;
+            _fold.push({ pd: _dp, lead: _gi ? _gi.lead : null, kind: 'group' });
+          }
+        });
+        if (typeof _isCollectionCompanion === 'function' && _grpFoldActive()) {
+          var _leadOf = {};
+          _dr.forEach(function (p) { if (p && p.groupId && !_leadOf[p.groupId]) _leadOf[p.groupId] = p; });
+          var _inFold = new Set(_fold.map(function (f) { return f.pd; }));
+          Object.values(state.personalData).forEach(function (p) {
+            if (!p || !p.owned || _dr.has(p) || _inFold.has(p) || !p.groupId || !_isCollectionCompanion(p)) return;
+            if (_leadOf[p.groupId]) _fold.push({ pd: p, lead: _leadOf[p.groupId], kind: 'group' });
+          });
+        }
+        _coOut.drawn = Array.from(_dr);
+        _coOut.folded = _fold;
+      } else if (_co.level === 'type') {
         // "All Types" clears the Type: the chip as chosen, nothing else moved.
         _coOut[''] = _foldSets(_expandCopies(_pre)).length + _isN('', _collSec);
         // Every other option is counted under All — a train bucket's rows all

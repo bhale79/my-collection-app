@@ -304,6 +304,48 @@ var ERR_REPORT_CFG = {
     return out;
   }
 
+  // ── 2026-10-31 (Lars report #26): MY COLLECTION COUNT CHECK ─────────────
+  // Which owned items the list counts but does not draw, and why — asked of
+  // the list itself (rrCollectionCountCheck, browse.js). Taken ONCE when the
+  // form opens, so the preview and the sent text are the same lines; each
+  // line has a tick box in the preview (untick = left out). This file only
+  // PRINTS what the check returns. Never holds the report up.
+  var _cc = null;
+  function _ccTake() {
+    try {
+      _cc = (typeof rrCollectionCountCheck === 'function') ? rrCollectionCountCheck() : { error: 'My Collection could not be asked.' };
+    } catch (e) { _cc = { error: 'My Collection could not be asked.' }; }
+    return _cc;
+  }
+  function _ccKept() {
+    if (!_cc || !_cc.lines) return [];
+    return _cc.lines.filter(function (l, i) { var b = document.getElementById('err-cc-' + i); return !b || b.checked; });
+  }
+  function _ccText() {
+    var L = ['MY COLLECTION COUNT CHECK'];
+    var c = _cc || _ccTake();
+    if (!c || c.error) { L.push('  ' + ((c && c.error) || 'My Collection could not be asked.')); return L; }
+    L.push('  Counted: ' + c.counted + '   Drawn now: ' + c.drawn + '   (' + (c.filters.length ? 'filters on: ' + c.filters.join(', ') : 'no filters on') + ')');
+    if (!c.lines.length) { L.push('  Every counted item is drawn.'); return L; }
+    var kept = _ccKept();
+    L.push('  Not drawn (' + c.lines.length + ')' + (kept.length < c.lines.length ? ' — ' + (c.lines.length - kept.length) + ' left out by the sender' : '') + ':');
+    kept.forEach(function (l) { L.push('    ' + l.text); });
+    return L;
+  }
+  function _ccRows() {
+    var c = _cc || _ccTake();
+    if (!c || c.error) return '<div style="font-size:0.78rem;color:var(--text-dim)">' + _esc((c && c.error) || 'My Collection could not be asked.') + '</div>';
+    var h = '<div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:0.2rem">Counted ' + c.counted + ', drawn ' + c.drawn + '</div>';
+    if (!c.lines.length) return h + '<div style="font-size:0.78rem;color:var(--text-dim)">Every counted item is drawn.</div>';
+    c.lines.forEach(function (l, i) {
+      h += '<label style="display:flex;gap:0.5rem;align-items:flex-start;padding:0.18rem 0;font-size:0.78rem;line-height:1.35;cursor:pointer">' +
+             '<input type="checkbox" id="err-cc-' + i + '" checked style="margin-top:0.18rem;flex-shrink:0">' +
+             '<span>' + _esc(l.text) + '</span>' +
+           '</label>';
+    });
+    return h;
+  }
+
   function _buildReportText(answers, shotLinks) {
     var ctx = _context();
     var L = [];
@@ -353,6 +395,8 @@ var ERR_REPORT_CFG = {
     // one thing that explains "the app keeps making me reconnect" (the
     // 'auth' lines) never reached Brad. Events, reasons and Google's error
     // codes only — never an email address, a token or a cell value.
+    L.push('');
+    _ccText().forEach(function (x) { L.push(x); });
     L.push('');
     L.push('SYNC & SIGN-IN DIARY (newest last; auth = token keeper, record/drain = unsent saves)');
     var diary = _diaryLines(ctx.syncLog);
@@ -597,6 +641,7 @@ var ERR_REPORT_CFG = {
   function errReportOpen() {
     try {
       _errRemove();
+      _ccTake();   // 2026-10-31: the count check, once, before the preview is drawn
       var ov = document.createElement('div');
       ov.id = 'err-report-modal';
       ov.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,20,0.92);z-index:9995;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:1.2rem';
@@ -638,6 +683,8 @@ var ERR_REPORT_CFG = {
               _ctxRows() +
               '<div style="font-weight:700;font-size:0.8rem;margin:0.7rem 0 0.3rem">Your last steps — untick anything you would rather not send</div>' +
               _crumbRows() +
+              '<div style="font-weight:700;font-size:0.8rem;margin:0.7rem 0 0.3rem">My Collection count check — untick anything you would rather not send</div>' +
+              _ccRows() +
             '</div>' +
           '</details>' +
 
