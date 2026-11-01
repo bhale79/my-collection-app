@@ -5117,6 +5117,7 @@ function _renderPartsList() {
   parts.sort(function (a, b) { return (b.dateAdded || '').localeCompare(a.dateAdded || ''); });
   var _thumbs = [];
   listEl.innerHTML = parts.map(function (p) {
+    var _pst = rrPartStatus(p);   // 2026-10-31: the part's state, read once (config.js)
     var forLabel = '';
     var _pdFor = _partsOwnedRow(p.forInv);   // v0.9.1753: the owned copy, when there is one
     if (p.forItem) {
@@ -5148,12 +5149,17 @@ function _renderPartsList() {
       + (noteShown ? '<div style="font-size:0.78rem;color:var(--text-dim);margin-top:0.2rem">' + rrEsc(noteShown) + '</div>' : '')
       + '</div>'
       + '<div style="display:flex;gap:0.35rem;flex-wrap:wrap;align-items:center">'
+      // 2026-10-31: the chip says the part's state in the ONE word list (RR_PART_STATUS,
+      // config.js) — Need part / Part ordered / Part on hand / Installed
       + (_lc ? ('<span style="padding:0.2rem 0.55rem;border-radius:99px;font-size:0.68rem;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;'
-          + ((p.status || 'wanted') === 'installed' ? 'background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 18%, var(--bg-card));color:var(--t-green)'
-            : (p.status === 'bought' ? 'background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 18%, var(--bg-card));color:var(--t-orange)'
-            : 'background:var(--surface2);color:var(--text-dim)'))
-          + '">' + ((p.status || 'wanted') === 'installed' ? '\u2713 installed' + (p.dateInstalled ? ' ' + p.dateInstalled : '') : (p.status === 'bought' ? 'bought' + (p.dateBought ? ' ' + p.dateBought : '') + ' \u2014 in the drawer' : 'wanted')) + '</span>') : '')
-      + (_lc && (p.status || 'wanted') === 'wanted' ? '<button onclick="markPartBought(\'' + rrJsArg(p.id) + '\')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:var(--t-orange);font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">Bought it</button>' : '')
+          + (_pst === 'installed' ? 'background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 18%, var(--bg-card));color:var(--t-green)'
+            : _pst === 'bought' ? 'background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 18%, var(--bg-card));color:var(--t-orange)'
+            : _pst === 'ordered' ? 'background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 14%, var(--bg-card));color:var(--t-link)'
+            : 'background:var(--surface2);color:var(--text-dim)')
+          + '">' + (_pst === 'installed' ? '\u2713 ' : '') + rrEsc(rrPartWord(p))
+          + (_pst === 'installed' && p.dateInstalled ? ' ' + rrEsc(p.dateInstalled) : _pst === 'bought' && p.dateBought ? ' ' + rrEsc(p.dateBought) : '') + '</span>') : '')
+      + (_lc && _pst === 'wanted' ? '<button onclick="markPartOrdered(\'' + rrJsArg(p.id) + '\', this)" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 10%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">' + rrEsc(RR_PART_STATUS.orderedBtn) + '</button>' : '')
+      + (_lc && rrPartStillNeeded(p) ? '<button onclick="markPartBought(\'' + rrJsArg(p.id) + '\')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:var(--t-orange);font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">Bought it</button>' : '')
       + ((p.forInv && state.personalData && state.personalData[p.forInv] && (p.status || 'wanted') !== 'installed') ? '<button onclick="markPartInstalled(\'' + rrJsArg(p.id) + '\')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:var(--t-green);font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">\u2713 Installed</button>' : '')
       + '<button onclick="googlePart(\'' + esc(p.partNum) + '\',\'' + esc(p.forItem) + '\',\'' + esc(p.description) + '\',\'' + esc(p.forInv || '') + '\')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 10%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">Google</button>'
       + '<button onclick="showAddPartModal(\'' + rrJsArg(p.id) + '\')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.75rem;cursor:pointer">Edit</button>'
@@ -5188,6 +5194,32 @@ async function markPartBought(partId) {
   } catch (e) { if (typeof showToast === 'function') showToast(rrSaveError(e, 'the part'), 4000, true); return false; }
 }
 if (typeof window !== 'undefined') window.markPartBought = markPartBought;
+
+// 2026-10-31 ([stated] Brad: "part ordered" — a part paid for that has not
+// arrived): wanted -> ordered. Writes ONLY the Status cell (I) of the part's
+// own row, verified by its id first (rrVerifiedRowUpdate), so a part bought or
+// installed meanwhile is never pushed back. The part stays on the list and the
+// job stays "Waiting on parts" (rrPartStillNeeded) until "Bought it". One run
+// per part at a time (rrOnce). Returns true when it landed.
+function markPartOrdered(partId, btn) {
+  var run = async function () {
+    var p = _partsFind(partId);
+    if (!p) { if (typeof showToast === 'function') showToast('That part is no longer on your list — refresh and try again.', 4000, true); return false; }
+    if (rrPartStatus(p) !== 'wanted') return false;   // already ordered, in hand or installed: nothing to do
+    var rowNum = p.row;
+    try {
+      if (typeof _ensurePartsLifecycleCols === 'function') await _ensurePartsLifecycleCols();
+      if (!(await rrVerifiedRowUpdate(state.personalSheetId, 'Parts Needed', rowNum,
+          'Parts Needed!I' + rowNum + ':I' + rowNum, [['ordered']], { num: p.id }, 'Parts list'))) return false;
+      p.status = 'ordered';
+      _renderPartsList();
+      if (typeof showToast === 'function') showToast(RR_PART_STATUS.toast);
+      return true;
+    } catch (e) { if (typeof showToast === 'function') showToast(rrSaveError(e, 'the part'), 4000, true); return false; }
+  };
+  return (typeof rrOnce === 'function') ? rrOnce('part-ordered:' + partId, run, btn || null) : run();
+}
+if (typeof window !== 'undefined') window.markPartOrdered = markPartOrdered;
 
 function googlePart(partNum, forItem, desc, forInv) {
   // v0.9.1838 (N5): when the part names an OWNED engine (forInv), that copy is
@@ -5331,7 +5363,7 @@ async function savePart(existingId) {
     var _dup = _partsFindDup({ forInv: forInv, forItem: forItem, partNum: partNum, description: desc });
     if (_dup) {
       _partsChooser(PARTS_COPY.dupTitle,
-        _partsEsc(_dup.description || _dup.partNum) + ' \u2014 ' + _partsEsc(_dup.status || 'wanted') + (_partsTaskLabel(_dup) ? ', ' + _partsEsc(_partsTaskLabel(_dup)) : ''),
+        _partsEsc(_dup.description || _dup.partNum) + ' \u2014 ' + _partsEsc(rrPartWord(_dup)) + (_partsTaskLabel(_dup) ? ', ' + _partsEsc(_partsTaskLabel(_dup)) : ''),
         [{ label: PARTS_COPY.dupOpen, primary: true, run: function () { var mo = document.getElementById('_part-modal'); if (mo) mo.remove(); showAddPartModal(_dup.id); } },
          { label: PARTS_COPY.dupAddAnyway, run: function () { window._partsAddAnyway = true; savePart(existingId); } }]);
       return;

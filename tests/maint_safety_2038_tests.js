@@ -50,6 +50,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm');
+Object.assign(global, require('./lib/part-status.js'));   // 2026-10-31: the part-state helpers (config.js) the lifted code now asks
 global.rrToday = require('./lib/rr-today.js');   // v0.9.2044: the app's one today (config.js) for code run by new Function / in this process
 const APP = path.join(__dirname, '..', 'app');
 const read = f => fs.readFileSync(path.join(APP, f), 'utf8');
@@ -122,6 +123,7 @@ function sandbox(o) {
   c.sheetsGet = async (sid, range) => { log.push('get ' + range); if (c.failGet) throw new Error(c.failGet); return { values: c.getValues || [] }; };
   vm.createContext(c);
   c.rrToday = require('./lib/rr-today.js');   // v0.9.2044: the app's one today (config.js), handed in
+  Object.assign(c, require('./lib/part-status.js'));   // 2026-10-31: the part-state helpers (config.js), handed in
   return c;
 }
 function load(c, code) { vm.runInContext(code, c); return c; }

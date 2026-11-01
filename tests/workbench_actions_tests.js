@@ -19,6 +19,7 @@
 // Run:  node tests/workbench_actions_tests.js
 // ═══════════════════════════════════════════════════════════════
 const fs = require('fs');
+Object.assign(global, require('./lib/part-status.js'));   // 2026-10-31: the part-state helpers (config.js) the lifted code now asks
 const path = require('path');
 let pass = 0, fail = 0;
 function ok(name, cond, detail) {
@@ -62,7 +63,7 @@ const rows = rowsFn();
 const byNeed = {}; rows.forEach(r => { byNeed[r.itemNum + '|' + r.need] = r; });
 ok('four rows: three open tasks + one loose part wanted', rows.length === 4, JSON.stringify(rows.map(r => r.itemNum + '|' + r.need)));
 ok('a task whose linked part is still on order is WAITING', byNeed['84631|Replace traction tire'] && byNeed['84631|Replace traction tire'].waiting === true);
-ok('a task whose part is on hand is READY', byNeed['2338|add decal'] && byNeed['2338|add decal'].waiting === false && /Parts on hand/.test(byNeed['2338|add decal'].part));
+ok('a task whose part is on hand is READY', byNeed['2338|add decal'] && byNeed['2338|add decal'].waiting === false && /Part on hand/.test(byNeed['2338|add decal'].part));   // 2026-10-31: the one word list (RR_PART_STATUS)
 ok('a task with no part at all is READY', byNeed['2343|Oil / lubricate'] && byNeed['2343|Oil / lubricate'].waiting === false && byNeed['2343|Oil / lubricate'].part === '');
 ok('a loose part wanted (no task) is its own WAITING row', byNeed['671|Part wanted'] && byNeed['671|Part wanted'].waiting === true);
 ok('rows sort by item number, numerically', rows.map(r => r.itemNum).join(',') === '671,2338,2343,84631', rows.map(r => r.itemNum).join(','));

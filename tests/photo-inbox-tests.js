@@ -15661,11 +15661,14 @@ META_WRITES.length = 0; TOASTS.length = 0;
         // sale off Sold through rrRemoveRowConfirmed, a copy kept like every other.
         // v0.9.2038: 68 → 69 — savePart's edit (app-pages.js) writes through the
         // guarded writer instead of its own inline rrRowStillIs.
-        ok('234 the sweep really landed — 70 sites write through the one guarded writer',
+        ok('234 the sweep really landed — 71 sites write through the one guarded writer',
            // v0.9.2047: 69 → 70 — the contact EDIT joins the guarded set (see
            // the retired exception above): the last remembered-row write that
            // did not check its row.
-           wrapped === 70, String(wrapped));
+           // 2026-10-31 (the Bench / "Ordered" state): 70 → 71 — markPartOrdered
+           // (app-pages.js) writes the part's Status cell through the guarded
+           // writer, checked by the part's id, like markPartBought beside it.
+           wrapped === 71, String(wrapped));
       }
     })();
 

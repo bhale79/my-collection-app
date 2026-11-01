@@ -2630,9 +2630,9 @@
       if (l.type === 'chore' && l.status === 'open') add(l.invId, l.itemNum, { kind: 'chore', label: l.text, since: l.dateAdded, row: l.row, id: l.id });
     });
     Object.values(state.partsData || {}).forEach(function (p) {
-      var st = p.status || 'wanted';
-      if ((st === 'wanted' || st === 'bought') && (p.forInv || p.forItem))
-        add(p.forInv, p.forItem, { kind: 'part', label: (st === 'bought' ? 'in the drawer: ' : 'part wanted: ') + (p.description || p.partNum || 'part'), since: p.dateAdded });
+      var st = rrPartStatus(p);   // 2026-10-31: + 'ordered' (still to come, so still listed)
+      if ((rrPartStillNeeded(p) || st === 'bought') && (p.forInv || p.forItem))
+        add(p.forInv, p.forItem, { kind: 'part', label: (st === 'bought' ? 'in the drawer: ' : st === 'ordered' ? 'on order: ' : 'part wanted: ') + (p.description || p.partNum || 'part'), since: p.dateAdded });
     });
     return Object.values(by);
   }
@@ -3131,13 +3131,17 @@
         return '<select onchange="_maintPartMove(\'' + rrJsArg(p.id) + '\',this.value===\'__none\'?\'\':this.value,this)" title="Move this part to another task" style="' + _QUIET + ';padding:0.2rem 0.3rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.7rem;flex-shrink:0">' + opts + '</select>';
       };
       var partRow = function (p, fromList) {
-        var st = p.status || 'wanted';
+        // 2026-10-31: the words are the ONE list (RR_PART_STATUS, config.js) — Need part /
+        // Part ordered / Part on hand / Installed; "Ordered it" beside "Bought it" while it is needed
+        var st = rrPartStatus(p);
         var name = _esc(p.description || p.partNum || 'part');
-        var txt = st === 'installed' ? '<b>Installed</b> — ' + name
-                : st === 'bought' ? '<span style="color:var(--green)">✓ <b>Parts on hand</b></span> — ' + name
-                : '<span style="color:var(--warn)"><b>Waiting on</b></span> “' + name + '”';
+        var word = _esc(rrPartWord(p));
+        var txt = st === 'installed' ? '<b>' + word + '</b> — ' + name
+                : st === 'bought' ? '<span style="color:var(--green)">✓ <b>' + word + '</b></span> — ' + name
+                : '<span style="color:var(--warn)"><b>' + word + '</b></span> — ' + name;
         var act = st === 'bought' ? '<button onclick="_maintPartInstalled(\'' + rrJsArg(p.id) + '\')" ' + _btn('green', 'sm', 'flex-shrink:0') + '>Installed it</button>'
-                : st === 'wanted' ? '<button onclick="_maintPartBought(\'' + rrJsArg(p.id) + '\')" ' + _btn('green', 'sm', 'flex-shrink:0') + '>Bought it</button>' : '';
+                : rrPartStillNeeded(p) ? ((st === 'wanted' ? '<button onclick="_maintPartOrdered(\'' + rrJsArg(p.id) + '\', this)" ' + _btn('blue', 'sm', 'flex-shrink:0') + '>' + _esc(RR_PART_STATUS.orderedBtn) + '</button>' : '')
+                    + '<button onclick="_maintPartBought(\'' + rrJsArg(p.id) + '\')" ' + _btn('green', 'sm', 'flex-shrink:0') + '>Bought it</button>') : '';
         // v0.9.1753 (Brad: "says waiting on the part, i can't get rid of it"): Remove right here, through the one remover
         var rm = st === 'installed' ? '' : '<button onclick="_maintPartRemove(\'' + rrJsArg(p.id) + '\')" title="Take this part off your Parts Needed list" ' + _btn('red', 'sm', 'flex-shrink:0') + '>Remove</button>';
         return '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;font-size:0.8rem;color:var(--text);margin-top:0.35rem;flex-wrap:wrap">'
@@ -3301,6 +3305,13 @@
     _maintRenderTasks();
     if (_previewArgs && document.getElementById('maint-preview')) window._maintRenderPreview(_previewArgs.idx, _previewArgs.it, _previewArgs.pd);
   };
+  // 2026-10-31: "Ordered it" on a part line — the Parts Needed page's ONE writer (markPartOrdered), then the card, bench and preview redraw
+  window._maintPartOrdered = async function (partId, btn) {
+    if (typeof markPartOrdered !== 'function') return;
+    await markPartOrdered(partId, btn);
+    _maintRenderTasks(); _wbBuild();
+    if (_previewArgs && document.getElementById('maint-preview')) window._maintRenderPreview(_previewArgs.idx, _previewArgs.it, _previewArgs.pd);
+  };
   window._maintPartInstalled = function (partId) {
     if (typeof markPartInstalled === 'function') markPartInstalled(partId, { onCard: true });   // its Save calls _maintLogPartInstalled → card redraws; v0.9.1753: the card is already open, don't reopen it
   };
@@ -3369,9 +3380,9 @@
     // or removed is loose again (the card's own rule, _taskOpen).
     Object.values(state.partsData || {}).forEach(function (p) {
       if (!forUnit(p) || (taskId && (p.taskId || '') === String(taskId))) return;
-      var st = p.status || 'wanted';
+      var st = rrPartStatus(p);
       var e = { part: p, onTask: (p.taskId && _taskOpen(p.taskId)) ? taskName(p.taskId) : '' };
-      if (st === 'bought') onHand.push(e); else if (st === 'wanted') wanted.push(e);
+      if (st === 'bought') onHand.push(e); else if (rrPartStillNeeded(p)) wanted.push(e);   // 2026-10-31: an ordered part is still to come
     });
     var bin = (state.partsBin || []).filter(function (b) { return b.qty > 0; });
     //   catalog — v0.9.1756: the parts every parts catalog says fit this item
@@ -3699,7 +3710,7 @@
         if (taskId) opts.push({ label: pc.dupAttach || 'Attach it to this job', primary: true, run: function () { window._maintPopAttach(dup.id, taskId); } });
         else opts.push({ label: pc.dupOpen || 'Open that one', primary: true, run: function () { var pop0 = document.getElementById('maint-parts-pop'); if (pop0) pop0.remove(); if (typeof showAddPartModal === 'function') showAddPartModal(dup.id); } });
         opts.push({ label: pc.dupAddAnyway || 'Add it anyway', run: function () { window._partsAddAnyway = true; if (typeof retry === 'function') retry(); } });
-        _partsChooser(pc.dupTitle || 'Already on your list', _esc(dup.description || dup.partNum) + ' \u2014 ' + _esc(dup.status || 'wanted') + ((typeof _partsTaskLabel === 'function' && _partsTaskLabel(dup)) ? ', ' + _esc(_partsTaskLabel(dup)) : ''), opts);
+        _partsChooser(pc.dupTitle || 'Already on your list', _esc(dup.description || dup.partNum) + ' \u2014 ' + _esc(rrPartWord(dup)) + ((typeof _partsTaskLabel === 'function' && _partsTaskLabel(dup)) ? ', ' + _esc(_partsTaskLabel(dup)) : ''), opts);
         return false;
       }
       window._partsAddAnyway = false;
@@ -4020,7 +4031,7 @@
                      notes: 'from Parts Bin' + (b.where ? ' (' + b.where + ')' : ''), dateAdded: today, status: 'bought', dateBought: b.dateAcq || today, price: b.price || '', taskId: taskId || '' };
       // v0.9.1753 (Brad: no duplicates): a WANTED row for this same part and unit is fulfilled from the bin — it turns bought, no second row
       var dup = (typeof _partsFindDup === 'function') ? _partsFindDup(fields) : null;
-      if (dup && (dup.status || 'wanted') === 'wanted' && typeof markPartBought === 'function') {
+      if (dup && rrPartStillNeeded(dup) && typeof markPartBought === 'function') {   // 2026-10-31: wanted or ordered
         if (!(await markPartBought(dup.id))) return;   // not recorded → the bin is not touched (the user has been told)
         if (taskId && (dup.taskId || '') !== taskId) await _maintPartSetTask(dup.id, taskId);
       } else {
@@ -4112,7 +4123,7 @@
     var words = _binTopicWords(b);
     // 1. your own open wants — the part number, or a topic word in the want
     Object.values(state.partsData || {}).forEach(function (p) {
-      if ((p.status || 'wanted') !== 'wanted') return;
+      if (!rrPartStillNeeded(p)) return;   // 2026-10-31: wanted or ordered — a part in the drawer could stand in for one on order
       var byNum = pnNorm && String(p.partNum || '').toUpperCase().replace(/[^A-Z0-9]/g, '') === pnNorm;
       var hay = String((p.description || '') + ' ' + (p.notes || '')).toLowerCase();
       var byWord = !byNum && words.some(function (w) { return hay.indexOf(w) >= 0; });
@@ -4486,7 +4497,11 @@
   function _wbRows() {
     var rows = [];
     var linkedTaskIds = {};
-    var partWords = function (p) { var st = p.status || 'wanted'; var nm = p.description || p.partNum || 'part'; return st === 'bought' ? 'Parts on hand — ' + nm : st === 'installed' ? 'Installed — ' + nm : 'Waiting on ' + nm; };
+    // 2026-10-31 ([stated] Brad: Part #, Part Status, Part Description columns): each row
+    // carries its parts as a list (one line each on the Bench), worded by the ONE list
+    // (RR_PART_STATUS, config.js); `part` stays the one-line summary.
+    var partWords = function (p) { return rrPartWord(p) + ' — ' + (p.description || p.partNum || 'part'); };
+    var partLine = function (p) { return { id: p.id, num: String(p.partNum || ''), desc: String(p.description || ''), status: rrPartStatus(p), word: rrPartWord(p) }; };
     var openTasks = (state.maintLog || []).filter(function (l) { return l.type === 'chore' && l.status === 'open'; });
     // v0.9.1680: the SAME fold rule as the task card — a part wanted for a
     // unit that was never tied to a task rides on that unit's row when it
@@ -4496,22 +4511,22 @@
     openTasks.forEach(function (l) { var k = unitKey(l.invId, l.itemNum); openPerUnit[k] = (openPerUnit[k] || 0) + 1; });
     var loosePerUnit = {};
     Object.values(state.partsData || {}).forEach(function (p) {
-      var st = p.status || 'wanted';
+      var st = rrPartStatus(p);
       if (p.taskId || st === 'installed' || !(p.forInv || p.forItem)) return;
       var k = unitKey(p.forInv, p.forItem);
       if (openPerUnit[k] === 1) { (loosePerUnit[k] = loosePerUnit[k] || []).push(p); linkedTaskIds[p.id] = true; }
     });
-    var waiting = function (parts) { return parts.some(function (p) { return (p.status || 'wanted') === 'wanted'; }); };
+    var waiting = function (parts) { return parts.some(rrPartStillNeeded); };   // 2026-10-31: an ORDERED part still keeps the job waiting
     openTasks.forEach(function (l) {
       var parts = Object.values(state.partsData || {}).filter(function (p) { return p.taskId && p.taskId === l.id; });
       parts.forEach(function (p) { linkedTaskIds[p.id] = true; });
       parts = parts.concat(loosePerUnit[unitKey(l.invId, l.itemNum)] || []);
-      rows.push({ invId: l.invId, itemNum: l.itemNum, need: l.text, part: parts.map(partWords).join('; '), since: l.dateAdded, waiting: waiting(parts) });
+      rows.push({ invId: l.invId, itemNum: l.itemNum, need: l.text, part: parts.map(partWords).join('; '), parts: parts.map(partLine), since: l.dateAdded, waiting: waiting(parts) });
     });
     Object.values(state.partsData || {}).forEach(function (p) {
-      var st = p.status || 'wanted';
+      var st = rrPartStatus(p);
       if (linkedTaskIds[p.id] || st === 'installed' || !(p.forInv || p.forItem)) return;
-      rows.push({ invId: p.forInv, itemNum: p.forItem, need: 'Part wanted', part: partWords(p), since: p.dateAdded, waiting: st === 'wanted' });
+      rows.push({ invId: p.forInv, itemNum: p.forItem, need: 'Part wanted', part: partWords(p), parts: [partLine(p)], since: p.dateAdded, waiting: rrPartStillNeeded(p) });
     });
     rows.sort(function (a, b) { return String(a.itemNum).localeCompare(String(b.itemNum), undefined, { numeric: true }) || (a.since || '').localeCompare(b.since || ''); });
     return rows;
@@ -4609,14 +4624,85 @@
       pg.innerHTML = _dz(head + '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><p>' + (rows.length ? (f === 'waiting' ? 'Nothing is waiting on a part.' : 'Nothing is ready to work on — every open job is waiting on a part.') : 'Nothing on the bench.') + '</p><p style="font-size:0.8rem;margin-top:0.4rem">' + (rows.length ? '' : 'Add a task above, or from any item’s Maintenance card.') + '</p></div>');
       return;
     }
-    pg.innerHTML = _dz(head + table(['Item', 'Needs', 'Part', 'Since'], shownRows.map(function (r) {
-      return '<tr onclick="_wbOpen(\'' + rrJsArg(String(r.invId || '')) + '\',\'' + rrJsArg(String(r.itemNum || '')) + '\')" style="cursor:pointer" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
-        + '<td style="' + td + ';font-weight:700;white-space:nowrap">' + _wbItemLabel(r.itemNum, r.invId) + '</td>'
-        + '<td style="' + td + '">' + _esc(r.need) + '</td>'
-        + '<td style="' + td + ';color:' + (r.part ? 'var(--text)' : 'var(--text-dim)') + '">' + (r.part ? _esc(r.part) : '—') + '</td>'
-        + '<td style="' + td + ';color:var(--text-dim);white-space:nowrap">' + _esc(r.since || '') + '</td>'
-        + '</tr>';
-    }).join('')));
+    // ── 2026-10-31: THE BENCH COLUMNS ([stated] Brad, on his screenshot: "need to add the
+    // thumbnail picture to the right of the item #, item description needs a header, Needs is
+    // fine, Part #, Part status, Part Description, Date entered" → "yes"). One line per PART
+    // (a job with three parts takes three lines; the item, description, job and date are
+    // drawn once beside them). The description and the photo come from the code My
+    // Collection uses (rrCollDescText, rrFillRowThumbs — browse.js) for the row My
+    // Collection files the copy under (_wbRowOf); the status words from RR_PART_STATUS
+    // (config.js). On a phone (rrIsPhone) each job is a card instead — seven columns do
+    // not fit. A click anywhere on a job opens its Maintenance card, as before.
+    var WB_COLS = ['Item #', 'Item Description', 'Needs', 'Part #', 'Part Status', 'Part Description', 'Date Entered'];
+    var thumbJobs = [];
+    var jobView = function (r, ri) {
+      // the owned copy: by its inventory number; an old job saved with only an item number
+      // finds its copy only when exactly ONE owned copy has that number (never a
+      // number-only catalog lookup — lookup_hint_tests)
+      var owned = Object.values(state.personalData || {}).filter(function (x) { return x && x.owned; });
+      var pd = r.invId ? (owned.find(function (x) { return String(x.inventoryId || '') === String(r.invId); }) || (state.personalData || {})[r.invId] || null) : null;
+      if (!pd && !r.invId && r.itemNum) { var same = owned.filter(function (x) { return String(x.itemNum || '') === String(r.itemNum); }); if (same.length === 1) pd = same[0]; }
+      var row = pd ? _wbRowOf(pd) : null;
+      var thumbId = '';
+      if (pd) { thumbId = 'wb-thumb-' + ri + '-' + String(pd.inventoryId || '').replace(/[^A-Za-z0-9_-]/g, ''); thumbJobs.push({ id: thumbId, pd: pd }); }
+      return {
+        open: '_wbOpen(\'' + rrJsArg(String(r.invId || '')) + '\',\'' + rrJsArg(String(r.itemNum || '')) + '\')',
+        num: _esc(r.itemNum || ''),
+        thumb: thumbId ? '<div id="' + thumbId + '" class="rr-row-thumb"></div>' : '',
+        desc: (row && typeof rrCollDescText === 'function') ? rrCollDescText(row) : '',
+        need: _esc(r.need),
+        date: _esc((typeof _formatDate === 'function' ? _formatDate(r.since) : r.since) || ''),
+      };
+    };
+    var statusHtml = function (pp) {
+      var col = pp.status === 'bought' ? 'var(--green)' : pp.status === 'ordered' ? 'var(--t-link)' : pp.status === 'installed' ? 'var(--text-dim)' : 'var(--warn)';
+      return '<span class="wb-part-status" data-status="' + _esc(pp.status) + '" style="font-weight:700;color:' + col + ';white-space:nowrap">' + (pp.status === 'bought' ? '✓ ' : '') + _esc(pp.word) + '</span>';
+    };
+    var dash = '<span style="color:var(--text-dim)">—</span>';
+    var html;
+    if (typeof rrIsPhone === 'function' && rrIsPhone()) {
+      html = shownRows.map(function (r, ri) {
+        var v = jobView(r, ri);
+        return '<div class="wb-job" onclick="' + v.open + '" style="cursor:pointer;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.7rem 0.8rem;margin-bottom:0.6rem">'
+          + '<div style="display:flex;gap:0.6rem;align-items:center">' + v.thumb
+          +   '<div style="min-width:0;flex:1"><div style="font-weight:700;overflow-wrap:anywhere">' + v.num + '</div>'
+          +   '<div style="font-size:0.8rem;color:var(--text-dim);overflow-wrap:anywhere">' + _esc(v.desc) + '</div></div></div>'
+          + '<div style="display:flex;justify-content:space-between;gap:0.5rem;margin-top:0.5rem"><b style="font-size:0.88rem">' + v.need + '</b><span style="font-size:0.75rem;color:var(--text-dim);white-space:nowrap">' + v.date + '</span></div>'
+          + (r.parts || []).map(function (pp) {
+              return '<div class="wb-part" style="font-size:0.8rem;margin-top:0.3rem;overflow-wrap:anywhere">' + statusHtml(pp)
+                + (pp.num ? ' <span style="font-family:var(--font-mono);color:var(--text-dim)">#' + _esc(pp.num) + '</span>' : '')
+                + (pp.desc ? ' — ' + _esc(pp.desc) : '') + '</div>';
+            }).join('')
+          + '</div>';
+      }).join('');
+    } else {
+      var th = 'text-align:left;font-family:var(--font-head);font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);padding:0.5rem 0.75rem;border-bottom:1px solid var(--border)';
+      html = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow-x:auto">'
+        + '<table id="wb-bench" style="width:100%;border-collapse:collapse"><thead><tr>' + WB_COLS.map(function (c) { return '<th style="' + th + '">' + c + '</th>'; }).join('') + '</tr></thead>'
+        + shownRows.map(function (r, ri) {
+            var v = jobView(r, ri);
+            var parts = (r.parts && r.parts.length) ? r.parts : [null];
+            var n = parts.length;
+            var span = n > 1 ? ' rowspan="' + n + '"' : '';
+            return '<tbody class="wb-job" onclick="' + v.open + '" style="cursor:pointer" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
+              + parts.map(function (pp, i) {
+                  var pb = i < n - 1 ? ';border-bottom:1px dashed var(--border)' : '';
+                  return '<tr>'
+                    + (i === 0 ? '<td' + span + ' style="' + td + '"><div style="display:flex;align-items:center;gap:0.6rem"><b class="wb-item-num" style="max-width:11rem;overflow-wrap:break-word">' + v.num + '</b>' + v.thumb + '</div></td>'
+                      + '<td' + span + ' style="' + td + ';color:var(--text-mid);min-width:9rem">' + (v.desc && v.desc !== '—' ? _esc(v.desc) : dash) + '</td>'
+                      + '<td' + span + ' style="' + td + '">' + v.need + '</td>' : '')
+                    + '<td class="wb-part-num" style="' + td + pb + ';font-family:var(--font-mono);font-size:0.82rem;white-space:nowrap">' + (pp && pp.num ? _esc(pp.num) : dash) + '</td>'
+                    + '<td style="' + td + pb + '">' + (pp ? statusHtml(pp) : dash) + '</td>'
+                    + '<td class="wb-part-desc" style="' + td + pb + '">' + (pp && pp.desc ? _esc(pp.desc) : dash) + '</td>'
+                    + (i === 0 ? '<td' + span + ' style="' + td + ';color:var(--text-dim);white-space:nowrap">' + v.date + '</td>' : '')
+                    + '</tr>';
+                }).join('')
+              + '</tbody>';
+          }).join('')
+        + '</table></div>';
+    }
+    pg.innerHTML = _dz(head + html);
+    if (typeof rrFillRowThumbs === 'function') rrFillRowThumbs(thumbJobs);
   }
   window._wbHistSearch = function (v) { _wbHistQ = String(v || ''); _wbHistTyping = true; _wbBuild(); };
   window._wbHistOpen = function (logId) { window._wbHistoryCtx = null; window._maintEditEntry(logId); };
@@ -4912,22 +4998,23 @@
         .sort(function (a, b) { return (b.dateDone || b.dateAdded || '').localeCompare(a.dateDone || a.dateAdded || ''); });
       var linked = {};
       var body = '';
+      var anyPart = false;   // 2026-10-31: was found by searching the drawn text for the old words
       tasks.forEach(function (t) {
         var parts = _taskParts(t.id);
         parts.forEach(function (p) { linked[p.id] = true; });
         var partTxt = parts.map(function (p) {
-          var st = p.status || 'wanted';
           var nm = _esc(p.description || p.partNum || 'part');
-          return st === 'bought' ? '✓ Parts on hand — ' + nm : st === 'installed' ? 'Installed — ' + nm : 'Waiting on “' + nm + '”';
+          return (rrPartStatus(p) === 'bought' ? '✓ ' : '') + _esc(rrPartWord(p)) + ' — ' + nm;   // 2026-10-31: the ONE word list
         }).join(' · ');
         body += line('<b>' + _esc(t.text) + '</b> ' + dim('since ' + _esc(t.dateAdded || '?'))
           + (partTxt ? '<div style="font-size:0.78rem;color:var(--text-mid);margin-left:1.3rem">' + partTxt + '</div>' : ''));
       });
       Object.values(state.partsData || {}).forEach(function (p) {
-        var st = p.status || 'wanted';
+        var st = rrPartStatus(p);
         if (linked[p.id] || st === 'installed') return;
         if (!(invId ? p.forInv === invId : (p.forItem === num && !p.forInv))) return;
-        body += line((st === 'bought' ? '✓ <b>Parts on hand</b> — ' : '<b>Waiting on</b> ') + _esc(p.description || p.partNum || 'part') + ' ' + dim('Parts Needed list'));
+        anyPart = true;
+        body += line((st === 'bought' ? '✓ ' : '') + '<b>' + _esc(rrPartWord(p)) + '</b> — ' + _esc(p.description || p.partNum || 'part') + ' ' + dim('Parts Needed list'));
       });
       if (history.length) {
         var h = history[0];
@@ -4938,7 +5025,7 @@
       body += line((docs === null ? (_readFailed.docs ? dim('saved manuals could not be read \u2014 check the connection') : dim('loading manuals…'))
         : docs.length ? '<b>' + docs.length + '</b> saved ' + (docs.length === 1 ? 'manual / doc' : 'manuals / docs') + ' for ' + _esc(num)
         : dim('No manuals saved for ' + _esc(num) + ' yet')));
-      if (!tasks.length && !history.length && docs !== null && !docs.length && body.indexOf('Waiting on') < 0 && body.indexOf('Parts on hand') < 0) {
+      if (!tasks.length && !history.length && docs !== null && !docs.length && !anyPart) {
         body = line(dim('Nothing on the bench — open the card to add a task, find manuals, or log service.'));
       }
       box.innerHTML = '<div onclick="_maintOpenPanel(' + openArgs + ')" title="Open the Maintenance card" '

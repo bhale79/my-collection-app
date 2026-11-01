@@ -4208,6 +4208,41 @@ function rrPersonalOnlyRow(pd) {
   };
 }
 
+// ═══ ONE ROW'S DESCRIPTION, ONE ROW'S PHOTO (2026-10-31, the Bench list) ═══
+// [stated] Brad 2026-10-31 (the Workbench's Bench list): a thumbnail to the
+// right of the item number and an Item Description column → "yes". Both are
+// drawn the way My Collection draws them — these two were moved out of
+// _rrBrowseCore word for word so the Bench asks the same code.
+// rrCollDescText(item) — the description a row shows: a typed-in item's own
+// words, else road name — description, else road · type.
+function rrCollDescText(item) {
+  if (!item) return '—';
+  if (item._personalOnly && item.description) return item.description;
+  return [item.roadName, item.description].filter(Boolean).join(' — ')
+    || [item.roadName, item.itemType].filter(Boolean).join(' · ') || '—';
+}
+// rrFillRowThumbs(jobs) — fill each { id, pd } box (class rr-row-thumb) with
+// the copy's first photo: _thumbFor finds it once per copy and remembers it
+// (dashboard.js), loadDriveThumb paints it (drive.js); no photo → the stock
+// picture (_stockThumb). The first 60 only, as the list always did.
+function rrFillRowThumbs(jobs) {
+  if (!jobs || !jobs.length || typeof _thumbFor !== 'function') return;
+  jobs.slice(0, 60).forEach(function (job) {
+    Promise.resolve(_thumbFor(job.pd)).then(function (fid) {
+      var host = document.getElementById(job.id);
+      if (!host) return;
+      if (!fid) { if (typeof window._stockThumb === 'function') window._stockThumb(job.pd, job.id); return; }   // v0.9.1682
+      var img = document.createElement('img');
+      img.style.cssText = 'opacity:0;transition:opacity 0.3s';   // v0.9.1806: size/fit from .rr-row-thumb
+      img.onload = function () { img.style.opacity = 1; };
+      host.innerHTML = '';
+      host.appendChild(img);
+      if (typeof loadDriveThumb === 'function') loadDriveThumb(fid, img, host, null, 'lo');
+    }).catch(function () {});
+  });
+}
+if (typeof window !== 'undefined') { window.rrCollDescText = rrCollDescText; window.rrFillRowThumbs = rrFillRowThumbs; }
+
 function renderBrowse() { return _rrBrowseCore(null); }
 // 2026-10-31 (Lars #26): which owned copies My Collection draws with the
 // filters as they are now — asked of the list-builder itself (the count
@@ -5735,8 +5770,7 @@ function _rrBrowseCore(_co) {
       const _descParts = [item.roadName, item.itemType].filter(Boolean);
       // v0.9.720/721 (Brad): show the real DESCRIPTION — road·type was echoing
       // the Type column whenever a catalog row had no road name.
-      const _descFull  = (item._personalOnly && item.description) ? item.description
-        : ([item.roadName, item.description].filter(Boolean).join(' — ') || _descParts.join(' · ') || '—');
+      const _descFull  = rrCollDescText(item);   // 2026-10-31: the ONE description rule, shared with the Workbench's Bench list
       const _descShort = _descFull.length > 110 ? _descFull.substring(0, 108) + '…' : _descFull;   // v0.9.938: column is wide now
       const _varText   = item.variation ? ` <span style="font-size:0.72rem;color:var(--text-dim);background:var(--surface2);padding:1px 5px;border-radius:4px;margin-left:3px">${rrEsc(item.variation)}</span>` : '';
       const _typeText = rrEsc((typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(item) : item.itemType) || '') || '<span style="color:var(--text-dim)">—</span>';
@@ -5934,21 +5968,7 @@ function _rrBrowseCore(_co) {
     if (cardsEl) cardsEl.innerHTML = (rowsHtml.join('') || emptyHtml) + _ephCardsHtml;
     // v0.9.1025: fill the row thumbnails (cached file-id per item, so Drive
     // is asked once per item ever — same helper the dashboard uses).
-    if (_collThumbJobs.length && typeof _thumbFor === 'function') {
-      _collThumbJobs.slice(0, 60).forEach(function (job) {
-        Promise.resolve(_thumbFor(job.pd)).then(function (fid) {
-          var host = document.getElementById(job.id);
-          if (!host) return;
-          if (!fid) { if (typeof window._stockThumb === 'function') window._stockThumb(job.pd, job.id); return; }   // v0.9.1682
-          var img = document.createElement('img');
-          img.style.cssText = 'opacity:0;transition:opacity 0.3s';   // v0.9.1806: size/fit from .rr-row-thumb
-          img.onload = function () { img.style.opacity = 1; };
-          host.innerHTML = '';
-          host.appendChild(img);
-          if (typeof loadDriveThumb === 'function') loadDriveThumb(fid, img, host, null, 'lo');
-        }).catch(function () {});
-      });
-    }
+    rrFillRowThumbs(_collThumbJobs);   // 2026-10-31: moved word for word into rrFillRowThumbs (the Workbench's Bench list fills its photos the same way)
   } else {
     // v0.9.986: single-section view shows its typed train-store rows + the
     // section's own rows; the "no items" banner only when BOTH are empty.

@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2089';
+const APP_VERSION = 'v0.9.2090';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -704,7 +704,7 @@ window.bindOverlayClose = function (ov, closeFn) {
 // cannot go out until this one word is updated. A version stamp nobody trusts
 // is worse than none — and the date sitting next to the version number is what
 // makes the version number look untrustworthy.
-const APP_DATE    = 'October 2026';
+const APP_DATE    = 'November 2026';
 
 // ── varShortLabel — SINGLE SOURCE for short variation labels (v0.9.657) ──
 // COTT Variation Details are verbatim multi-line sections that begin with a
@@ -4806,6 +4806,35 @@ const RR_AFFILIATE = [
   { store: 'Trainz', host: 'trainz.com', params: {}, wrap: '' },
 ];
 if (typeof window !== 'undefined') window.RR_AFFILIATE = RR_AFFILIATE;
+
+// ══ A PART'S STATE — the ONE list of states and the words for them ══════════
+// [stated] Brad 2026-10-31 (the Workbench Bench list): "Part status should say:
+// Part on hand, part ordered, need part based on the status" → "yes" to adding
+// ORDERED as a real state. Stored in the Parts Needed tab's Status column (I),
+// lower case; a blank cell has always meant 'wanted'. The words every screen
+// shows come from here — the Bench, the Maintenance card, the Parts Needed page.
+//   order     the states, first to last
+//   words     what a collector reads for each state
+//   toast     what the "Ordered it" button says when the save lands
+// rrPartStatus(p)       the state of a part, always one of `order` (blank or
+//                       unknown → 'wanted', as the reader always treated it)
+// rrPartWord(p)         the word for it
+// rrPartStillNeeded(p)  not in hand yet — 'wanted' or 'ordered'. A job waiting
+//                       on such a part is "Waiting on parts"; every list of
+//                       parts still to get asks this, never `=== 'wanted'`.
+const RR_PART_STATUS = {
+  order: ['wanted', 'ordered', 'bought', 'installed'],
+  words: { wanted: 'Need part', ordered: 'Part ordered', bought: 'Part on hand', installed: 'Installed' },
+  orderedBtn: 'Ordered it',
+  toast: '✓ Marked ordered — it stays on your list until it arrives',
+};
+function rrPartStatus(p) {
+  var s = String((p && p.status) || '').trim().toLowerCase();
+  return RR_PART_STATUS.order.indexOf(s) >= 0 ? s : 'wanted';
+}
+function rrPartWord(p) { return RR_PART_STATUS.words[rrPartStatus(p)]; }
+function rrPartStillNeeded(p) { var s = rrPartStatus(p); return s === 'wanted' || s === 'ordered'; }
+if (typeof window !== 'undefined') { window.RR_PART_STATUS = RR_PART_STATUS; window.rrPartStatus = rrPartStatus; window.rrPartWord = rrPartWord; window.rrPartStillNeeded = rrPartStillNeeded; }
 
 
 // ══ v0.9.2039 — TWO DEVICES NEVER SAVE OVER EACH OTHER: the words ═══════════

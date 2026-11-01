@@ -18,6 +18,7 @@
 // Run:  node tests/parts_drawer_tests.js
 // ═══════════════════════════════════════════════════════════════
 const fs = require('fs');
+Object.assign(global, require('./lib/part-status.js'));   // 2026-10-31: the part-state helpers (config.js) the lifted code now asks
 const path = require('path');
 let pass = 0, fail = 0;
 function ok(name, cond, detail) {
