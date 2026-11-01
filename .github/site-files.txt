@@ -39,3 +39,5 @@ private: package-lock.json
 private: .github
 private: .gitignore
 private: .nojekyll
+# Handover notes and test receipts for the shipping chat (2026-10-31)
+private: handover
