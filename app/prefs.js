@@ -1069,6 +1069,7 @@ function _openUserFieldsModal() {
     'Switch on only what you use. Anything you turn on appears when adding an item, on the item page, and in the edit screen \u2014 and can be filled in by a spreadsheet import. Turning one off hides it; nothing you have already written is deleted.</div>';
   (window.RR_USER_FIELDS || []).forEach(function (f) {
     if (f.prefToggle) return;   // v0.9.1863: its switch is its own row in Preferences → Collection — one control per switch
+    if (f.ownCard) return;      // 2026-10-31: no switch at all — the Command IDs are set on their own card
     var on = (typeof rrFieldEnabled === 'function') ? rrFieldEnabled(f) : false;
     var lbl = (typeof rrFieldLabel === 'function') ? rrFieldLabel(f) : f.label;
     var used = 0;
@@ -1104,7 +1105,7 @@ function _openUserFieldsModal() {
 // because it says its own words about what just happened.
 function _ufToggle(key, on, opts) {
   var f = (window.RR_USER_FIELDS || []).filter(function (x) { return x.key === key; })[0];
-  if (!f) return;
+  if (!f || !f.pref) return;   // 2026-10-31: a field with no switch (the Command IDs) has nothing to turn
   // v0.9.1988: switched on = on the item's Details card too, even when the
   // person once saved his own "Edit fields" choice (app-collection.js).
   if (on && typeof rrDetailFieldsJoin === 'function') {

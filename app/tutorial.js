@@ -1692,6 +1692,15 @@ function _guidedTour(steps) {
     // already lights that patch, so the tab ring stands down. Measured on the
     // raw boxes: the name menu hangs 8px under the name chip, and padding both
     // rings first made that an "overlap" and lost the chip its ring.
+    // 2026-10-31: a tab in the phone's bottom bar is drawn ON TOP of the page,
+    // so the part of a long page that runs on under the bar is hidden by it —
+    // measured to the bar's top edge, a tall page (the Reports list, say) does
+    // not cost the Reports tab its ring.
+    var _bar = t.closest ? t.closest('.mobile-nav') : null;
+    if (primary && _bar) {
+      var _bt = _bar.getBoundingClientRect().top;
+      if (primary.bottom > _bt) primary = { left: primary.left, right: primary.right, top: primary.top, bottom: Math.max(primary.top, _bt) };
+    }
     if (primary && !(r.right <= primary.left + 2 || r.left >= primary.right - 2 ||
                      r.bottom <= primary.top + 2 || r.top >= primary.bottom - 2)) { hole2.style.opacity = '0'; return; }
     var _vw = window.innerWidth, _vh = window.innerHeight, _e = 4;

@@ -287,6 +287,13 @@ function rrImpHeuristicMap(headers) {
     for (var i = 0; i < RR_IMP_HEADER_SYNONYMS.length; i++) {
       if (RR_IMP_HEADER_SYNONYMS[i].re.test(n)) { hit = RR_IMP_HEADER_SYNONYMS[i].field; break; }
     }
+    // 2026-10-31 (Command IDs): a field may name its own headings on its ONE
+    // definition (RR_USER_FIELDS importRe, config.js) — "TMCC ID", "DCS",
+    // "DCC Address" — so the import learns a new column with nothing typed here.
+    if (!hit && typeof window !== 'undefined') {
+      var _uf = (window.RR_USER_FIELDS || []).filter(function (f) { return f && f.importRe && f.importRe.test(n); })[0];
+      if (_uf) hit = _uf.key;
+    }
     // One column per field (except ignore): a second "Value"-ish column
     // stays unmapped for the user to place.
     if (hit && hit !== 'ignore' && used[hit]) hit = null;

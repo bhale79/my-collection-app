@@ -1191,6 +1191,13 @@ function showItemDetailPage(idx, copyInvId, opts) {
   // that takes no space. Kept apart from _descBlock so "no description →
   // no box" (§265) holds unchanged.
   var _maintSlot = `<div id="maint-preview"></div>`;
+  // 2026-10-31 (Command IDs, [stated] Brad 15:51 CT — the red box under the
+  // Description / Maintenance cards): the Command ID card's slot.
+  // command-ids.js fills it after the page is drawn — a small "＋ Add command
+  // ID" button on a Modern copy, the big numbers once set, nothing at all on
+  // a Pre-war / Postwar copy with no ID. A computer shows it under the
+  // Maintenance card; a phone right under the Description card.
+  var _cmdSlot = `<div id="cmdid-card"></div>`;
   // v0.9.1761 (Brad, on owning two of the same item): two identical rows used
   // to look identical here — nothing on the page said which one was open, so
   // "remove the one I just added" was a guess the user could not check. Now
@@ -1227,7 +1234,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
           ${(typeof alsoSoldAsChipHTML === 'function') ? alsoSoldAsChipHTML(it, { size: 'lg' }) : ''}
         </div>
         <div style="font-size:1.05rem;color:var(--text);margin-bottom:0.2rem">${rrEsc(it.roadName || '')}</div>
-        ${_isPhoneDetail ? '' : _descBlock + _maintSlot}
+        ${_isPhoneDetail ? '' : _descBlock + _maintSlot + _cmdSlot}
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.4rem;flex-shrink:0">
         ${_wantMode
@@ -1540,7 +1547,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
     // this places the galleries up top for groups too, which is what a phone
     // user wants: pictures first.)
     container.innerHTML = _headHtml + _photoCard
-      + '<div style="margin:0.9rem 0 1.25rem">' + _descBlock + _maintSlot + '</div>' + html;
+      + '<div style="margin:0.9rem 0 1.25rem">' + _descBlock + _cmdSlot + _maintSlot + '</div>' + html;
   } else {
     container.innerHTML = _headHtml + html + _photoCard;
   }
@@ -1552,6 +1559,11 @@ function showItemDetailPage(idx, copyInvId, opts) {
   // opens the real one. Owners/testers with an OWNED copy only; for
   // everyone else the placeholder stays empty and takes no space. Want-
   // list views (no copy to service) never get one.
+  // 2026-10-31: the Command ID card (command-ids.js) — owned copies only.
+  if (!_wantMode && pd && pd.owned && typeof window.rrCmdIdRenderCard === 'function') {
+    try { window.rrCmdIdRenderCard(pd, it); }
+    catch (eCmd) { console.warn('[cmdid] card failed', eCmd && eCmd.message); }
+  }
   if (!_wantMode && pd && pd.owned && typeof window._maintRenderPreview === 'function') {
     try { window._maintRenderPreview(idx, it, pd); }
     catch (ePrev) { console.warn('[maint] preview failed', ePrev && ePrev.message); }

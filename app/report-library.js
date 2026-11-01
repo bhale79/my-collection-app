@@ -13,6 +13,13 @@ var REPORT_DEFS = [
   { id: 'wantupgrade',name: 'Want / Upgrade / Parts',   desc: 'Your want list, upgrade list, and parts needed (with a section selector).' },
   { id: 'contacts',   name: 'Contacts',                  desc: 'Your dealer & collector rolodex — names, phones, emails, specialties.' },
 ];
+// 2026-10-31 (Command IDs): the ready-made Command ID report — only the items
+// that HAVE a Command ID. A report-builder report (rrCmdIdReportDef,
+// command-ids.js), so Edit opens it in the builder to change and keep as your
+// own. Its words are RR_CMDID's (config.js).
+if (typeof window !== 'undefined' && window.RR_CMDID) {
+  REPORT_DEFS.push({ id: 'cmdids', name: window.RR_CMDID.reportName, desc: window.RR_CMDID.reportDesc, builder: true });
+}
 
 function _repMeta() { try { return JSON.parse(localStorage.getItem('lv_report_meta') || '{}'); } catch (e) { return {}; } }
 function _repStamp(id) { var m = _repMeta(); m[id] = new Date().toISOString(); try { localStorage.setItem('lv_report_meta', JSON.stringify(m)); } catch (e) {} }
@@ -57,6 +64,7 @@ function renderReportLibrary() {
         '<div style="position:relative"><button id="rep-export-' + _repEsc(d.id) + '" onclick="_repToggleMenu(event,\'' + _repEsc(d.id) + '\')" style="' + btn + '">Export &#9662;</button>' + menu + '</div>' +
         '<button onclick="_repPrintRow(\'' + _repEsc(d.id) + '\')" style="' + btn + '">Print</button>' +
         (d.custom ? '<button onclick="openReportBuilder(\'' + _repEsc(d.custom) + '\')" style="' + btn + '">Edit</button>' : '') +
+        (d.builder ? '<button id="rep-edit-' + _repEsc(d.id) + '" onclick="openReportBuilder(null, rrCmdIdReportDef())" style="' + btn + '">Edit</button>' : '') +
       '</div>' +
     '</div>';
   }).join('');

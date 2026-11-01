@@ -7298,7 +7298,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('...appended at the END, never mid-schema',
        fields.slice(fields.indexOf('masterKey') + 1).join(',') ===
          // v2077: transferredTo, transferredFrom (TRR Pro release 6 — moving items) appended after stickerCode.
-         'eraPeriod,importBatch,yourGrade,yourDescription,locationDetail,shipper,subCollection,stockPhotoLink,masterRowId,stickerCode,transferredTo,transferredFrom',
+         // 2026-10-31: dcsId, tmccId, dccAddress (Command IDs) appended after transferredFrom.
+         'eraPeriod,importBatch,yourGrade,yourDescription,locationDetail,shipper,subCollection,stockPhotoLink,masterRowId,stickerCode,transferredTo,transferredFrom,dcsId,tmccId,dccAddress',
        fields.slice(fields.indexOf('masterKey') + 1).join(','));
 
     // The wizard passes the CONFIRMED match; buildPersonalRow has the fallback.
@@ -11044,8 +11045,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // v2071 91→92 (collections-ui.js). v2077 92→94 (collections-move.js, collections-inbox.js).
       // giftlist 94→95 (gift-list.js — the Gift wish list, Stage 1, owner-only beta).
       // TRR Pro release 7A 95→96 (collections-archive.js). 7B 96→97 (collections-handover.js). 8 97→98 (collections-all.js). 10 98→99 (collections-invoice.js).
-      ok('every ?v= mark in app/index.html matches it — all 99, none stale',
-         stamps.length === 99 && stamps.every(t => t === '?v=' + build),
+      // 2026-10-31 99→100 (command-ids.js — Command IDs).
+      ok('every ?v= mark in app/index.html matches it — all 100, none stale',
+         stamps.length === 100 && stamps.every(t => t === '?v=' + build),
          stamps.length + ' stamps; strays: ' + stamps.filter(t => t !== '?v=' + build).slice(0, 3).join(','));
       ok('the service worker cache name moved too (build + 10, the fixed offset)',
          new RegExp("const CACHE_NAME = 'mca-v" + (build + 10) + "';").test(rd('app/sw.js')),

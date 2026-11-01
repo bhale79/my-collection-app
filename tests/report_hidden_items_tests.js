@@ -164,7 +164,9 @@ const KINDS = function () {
     ['unowned && (isOwned || isWanted)', 'ownership'], ['boxed && !hasBox', 'clear:boxed'], ['!_cps.some(_copyPasses)', 'copy'],
     ['!rrChipRowPasses(item, pd, _stp3b, type', 'clear:type,chipEra,chipMaker,chipScale,catalogEra'], ['road && item.roadName !== road', 'clear:road'],
     ['!_aliasSearch(haystack, search)', 'clear:search'],
-    ['if (!pd) ', 'ownership'], ["boxed && pd.hasBox !== 'Yes'", 'clear:boxed'], ["_qf === 'quick'", 'clear:quickEntry'], ["_qf === 'complete'", 'clear:quickEntry'],
+    ['if (!pd) ', 'ownership'],
+    // v0.9.2091 (Command IDs): an ID search ("ID 12", "DCS 12" …) is the search box read per copy — clearing the search clears it
+    ['_cmdQ && !rrCmdIdMatches', 'clear:search'], ["boxed && pd.hasBox !== 'Yes'", 'clear:boxed'], ["_qf === 'quick'", 'clear:quickEntry'], ["_qf === 'complete'", 'clear:quickEntry'],
     ["state.filters.imported === 'imported'", 'clear:imported'], ['state.filters.ownMaker && !rrCopyMakerIs', 'clear:ownMaker'],
     ['state.filters.subCollection).trim()', 'clear:subCollection'], ['state.filters.subType).trim()', 'clear:subType'], ['if (!_nd) ', 'clear:needsDetails'],
     ['state.filters.group && typeof _ownedGroupOf', 'clear:group'],
@@ -191,7 +193,8 @@ const KINDS = function () {
   const s1 = scan(ROW_DROP);
   T('B4  PLANTED an unlisted `return false` → the scan goes red', s1.bad.length === 1, s1.bad);
   const s2 = scan(BROWSE.replace("add('search',", "add('srch',"));
-  T('B5  PLANTED a filter the check can no longer clear → the scan goes red', s2.bad.length === 1 && /search/.test(s2.bad[0]), s2.bad);
+  // v0.9.2091: two lines hang on the search box now (the words + the Command ID search) — both must go red
+  T('B5  PLANTED a filter the check can no longer clear → the scan goes red', s2.bad.length === 2 && s2.bad.every(b => /clear:search/.test(b)), s2.bad);
 
   // ── E: the real road at iPhone size ──────────────────────────────────────
   {

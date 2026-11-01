@@ -1250,6 +1250,7 @@ async function _saveManualEntry() {
     inventoryId: invId,
     location: location,
     ..._rrUserFieldValues(d),
+    ...((typeof rrCmdIdSaveValues === 'function') ? rrCmdIdSaveValues(d) : {}),   // 2026-10-31: Command IDs (command-ids.js) — this item's own row only
     era: 'Manual',
     gauge: (d.manualGauge || '').trim(),
     manufacturer: manufacturer,
@@ -1280,6 +1281,7 @@ async function _saveManualEntry() {
     inventoryId: invId, groupId: '',
     location,
     ..._rrUserFieldValues(d),
+    ...((typeof rrCmdIdSaveValues === 'function') ? rrCmdIdSaveValues(d) : {}),
     itemType: itemType, roadName: roadName, roadNumber: roadNumber, description: description, customName: customName,
     era: 'Manual', manufacturer,
   });
@@ -1738,6 +1740,7 @@ async function saveWizardItem() {
           inventoryId: _engineInvId,
           location: d.location || '',
           ..._rrUserFieldValues(d),
+          ...((typeof rrCmdIdSaveValues === 'function') ? rrCmdIdSaveValues(d) : {}),   // 2026-10-31: Command IDs (command-ids.js) — the item's OWN row, never its box, tender or set mates (each is its own copy)
           era: _resolveSaveEra(),
           manufacturer: _getEraManufacturer(),
         };

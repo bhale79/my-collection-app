@@ -133,7 +133,7 @@ T('D2 type-groups.js no longer lists "Vat Car" among the words shown bare', !/"S
 // ── E · planted ──────────────────────────────────────────────────────────────
 section('E · planted: the v1887 reading must fail');
 const UNDO_TG = [
-  ['Vat Car removed from the bucket list', ",\n    { id: 'Vat Car',              label: 'Vat'          }", ''],
+  ['Vat Car removed from the bucket list', ",\n    { id: 'Vat Car',              label: 'Vat',          onTrack: true }", ''],   // 2026-10-31: + onTrack (Command IDs)
   ['the tank rule swallowing "vat car" again', "      if (/\\bvat car\\b/i.test(hay)) return 'Vat Car';\n", ''],
 ];
 for (const [name, from, to] of UNDO_TG) {
