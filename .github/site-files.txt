@@ -33,6 +33,7 @@ private: tests
 private: tools
 private: README.md
 private: PROJECT_INSTRUCTIONS.md
+private: handover
 private: LICENSE
 private: package.json
 private: package-lock.json

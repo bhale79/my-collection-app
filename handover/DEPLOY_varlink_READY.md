@@ -39,6 +39,7 @@ variation (the plain row he picked on the first step). No row in the list would 
 | `app/photo-inbox-identify.js` | one line: start the repair beside the existing fill-ins on dashboard build |
 | `app/config.js` | NEW switch `RR_VARLINK_REPAIR_ON = false` (not the version line) |
 | `tests/variation_link_tests.js` | NEW suite (real Chromium, real app) |
+| `.github/site-files.txt` | one line: `private: handover` — this hand-over folder never goes on the website (`site_files_tests` requires every top-level folder be marked; added after the gate, outside app/ and tests/, so the receipt's fingerprints are unchanged; `site_files_tests` re-run: 18/18) |
 | `tests/lib/lars-world.js` | NEW shared stand-in: Lars's exact six + 48 fillers (job B reuses it) |
 
 `app/wizard.js` did **not** need a change: its typed variation box only appears when the catalog has no
