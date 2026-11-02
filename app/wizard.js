@@ -454,11 +454,14 @@ if (typeof window !== 'undefined') { window._wizRowFitsFilters = _wizRowFitsFilt
 // 2026-11-01: only rows that fit the Add screen's filters (_wizRowFitsFilters)
 // are ever candidates — a number with no row inside the filters returns null,
 // never another maker's or era's row.
+function _wizSameNum(a, b) {
+  return (typeof rrNumSameAsTyped === 'function') ? rrNumSameAsTyped(a, b) : String(a || '').toLowerCase() === String(b || '').toLowerCase();
+}
 function _wizPickMasterRow(numLC, rows) {
   try {
     var _f = _wizAddFilters();
     var list = (rows || (state.masterData || []).filter(function (i) {
-      return String(i.itemNum || '').toLowerCase() === numLC;
+      return _wizSameNum(i.itemNum, numLC);   // 2026-11-02: 6-8359 = 8359
     })).filter(function (i) { return _wizRowFitsFilters(i, _f); });
     if (!list.length) return null;
     if (list.length === 1) return list[0];
@@ -617,6 +620,18 @@ function _wizScrollFieldIntoView(el) {
   } catch (e) {}
 }
 if (typeof window !== 'undefined') window._wizScrollFieldIntoView = _wizScrollFieldIntoView;
+// A box the collector types into — the only thing the phone keyboard can hide.
+// Buttons, check boxes, sliders, file pickers and drop-downs open no keyboard.
+function _wizIsTypingField(el) {
+  if (!el || !el.tagName) return false;
+  var tag = String(el.tagName).toLowerCase();
+  if (tag === 'textarea') return true;
+  if (el.isContentEditable) return true;
+  if (tag !== 'input') return false;
+  var t = String(el.getAttribute('type') || 'text').toLowerCase();
+  return ['button', 'submit', 'reset', 'checkbox', 'radio', 'range', 'file', 'color', 'image', 'hidden'].indexOf(t) < 0;
+}
+if (typeof window !== 'undefined') window._wizIsTypingField = _wizIsTypingField;
 
 // ── v0.9.1033 (Brad): full-screen item number field on phones ──────────────
 // Tapping the item number box hands the whole screen to that one field: the
@@ -844,6 +859,13 @@ function _buildWizardModal() {
       // put that box at the top, pushing the filters above it out of sight.
       // A computer has no on-screen keyboard to dodge: stand down there.
       if (!window.IS_MOBILE_UA) return;
+      // 2026-11-02 (found building Lars's set line): only a box you TYPE into
+      // has a keyboard to dodge. Android Chrome also focuses a tapped BUTTON,
+      // and sliding that button to the top moved it out from under the finger
+      // between touch-down and the click — "Clear filters", "Add manually" and
+      // "Add as a set" missed their taps. iPhone Safari never focuses a tapped
+      // button, so it never showed there.
+      if (!_wizIsTypingField(e.target)) return;
       // v0.9.1033: was scrollIntoView({block:'center'}) — centring can't work
       // for a field near the END of the list (there is nothing below it to
       // scroll up), which is exactly where the item number field sits, so it
@@ -1313,8 +1335,37 @@ function _wizSetKind(kind) {
   }
   if (kind === 'manual' && _carryNum) wizard.data.manualItemNum = _carryNum;
   if (kind === 'manual' && _carryMfr) wizard.data.manualManufacturer = _carryMfr;
-  wizardChooseCategory(kind);
+  // 2026-11-01 (Lars typed the set 1467W in the item box): the SAME carry takes
+  // a Lionel Postwar set number into the set flow, which opens ON that set —
+  // its variant picker when the number has several, its pieces either way.
+  // A number that is not a Postwar set starts the set flow as before.
+  let _carrySet = '';
+  if (kind === 'set' && _carryNum && typeof rrPostwarSetVariants === 'function') {
+    let _tok = _carryNum;
+    try { if (typeof _extractSearchItemNum === 'function') _tok = _extractSearchItemNum(_carryNum.toLowerCase()) || _carryNum; } catch (eT) {}
+    const _sv = rrPostwarSetVariants(_tok);
+    if (_sv.length) _carrySet = _sv[0].setNum;
+  }
+  if (_carrySet) { wizard.data.set_knowsNum = 'Yes'; wizard.data.set_num = _carrySet; }
+  const _chosen = wizardChooseCategory(kind);
+  if (_carrySet) Promise.resolve(_chosen).then(function () { _wizOpenSetOn(_carrySet); });
 }
+// The set flow, opened on one Lionel Postwar set: the "Identify your set" step,
+// then its own _confirmSetMatch — the variant picker for a number with several
+// variants, otherwise straight on to the set's details with its pieces.
+function _wizOpenSetOn(setNum) {
+  try {
+    if (!wizard || wizard.tab !== 'set') return;
+    const _ix = (wizard.steps || []).findIndex(function (st) { return st && st.id === 'set_components'; });
+    if (_ix < 0) return;
+    wizard.data.set_knowsNum = 'Yes';
+    wizard.data.set_num = setNum;
+    wizard.step = _ix;
+    renderWizardStep();
+    if (typeof window._confirmSetMatch === 'function') window._confirmSetMatch(setNum);
+  } catch (e) { console.warn('[set from item box]', e); }
+}
+if (typeof window !== 'undefined') window._wizOpenSetOn = _wizOpenSetOn;
 // v0.9.1039: ONE definition of the Item Type selector. The header (phones)
 // and the in-form bar (desktop) both render this — they cannot drift apart.
 function _wizKindSelectHtml(cur, compact) {
@@ -7767,6 +7818,11 @@ async function _wizardNextCore() {
     // suggestion), then the picked type, then the scorer; always inside the
     // filters — so screen and save can never disagree (v0.9.1462).
     _exactMatch = _wizResolveAddRow(_rawInput, { raw: true });
+    // 2026-11-02: the row found under another form of the same number (typed
+    // 6-31705, catalog 31705 — or the other way round) gives the add the
+    // catalog's form, as the hyphen fallback below always has, so the save and
+    // every later lookup align.
+    if (_exactMatch && String(_exactMatch.itemNum || '').toLowerCase() !== _rawLC) wizard.data.itemNum = _exactMatch.itemNum;
     // Hyphen-variant fallback (2026-05-18). Some manufacturers store item
     // numbers with a hyphen before the letter suffix (Weaver "1076-L") while
     // Google Lens / casual text drops it ("1076L"). Try both forms before

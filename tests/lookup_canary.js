@@ -42,6 +42,11 @@ eval(grab(wiz, '_wizPeriodOfYear'));
 eval(grab(wiz, '_wizPeriodOfRow'));
 eval(grab(wiz, '_wizScaleOfRow'));
 eval(grab(wiz, '_wizMasterPrefer'));
+// 2026-11-02: the one "same number" check the picker asks (6-8359 = 8359)
+{ const _sug0 = fs.readFileSync(path.join(__dirname, '..', 'app', 'wizard-suggestions.js'), 'utf8');
+  eval(grab(_sug0, 'rrNumLinePrefixOff').replace('function rrNumLinePrefixOff', 'global.rrNumLinePrefixOff = function'));
+  eval(grab(_sug0, 'rrNumSameAsTyped').replace('function rrNumSameAsTyped', 'global.rrNumSameAsTyped = function')); }
+eval(grab(wiz, '_wizSameNum'));
 eval(grab(wiz, '_wizPickMasterRow'));
 eval(grab(wiz, '_wizRowFitsFilters'));
 eval(grab(wiz, '_wizAddFilters'));   // 2026-11-01: the filters _wizRowFitsFilters / _wizPickMasterRow answer to

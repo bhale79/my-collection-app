@@ -2057,6 +2057,40 @@ async function loadSetData() {
   } catch(e) { console.warn('loadSetData: read failed — keeping the saved copy', e); state.setData = _rrKeepCachedList(SET_CACHE); }   // v0.9.2048 (C16)
 }
 
+// ── 2026-11-01 — THE LIONEL POSTWAR SET LIST, WHEREVER IT IS ASKED FOR ──────
+// The set list loads with the Postwar catalog (loadSetData above). When it is
+// not in yet — "all eras" for a collector whose makers leave Postwar out, or a
+// single era that is not Postwar — the ONE way to fetch it: the saved Postwar
+// copy first, then the master's Sets tab. Asked by the Set Builder (tools.js)
+// and the Add screen's item box (wizard-suggestions.js, Lars's 1467W). Fills
+// state.setData only while it is empty; one try per app load when it finds
+// nothing, so a keystroke never re-reads the sheet (`again`: a button the
+// collector pressed — the Set Builder's Scan — tries once more).
+var _rrPwSetsPromise = null, _rrPwSetsTried = false;
+function rrEnsurePostwarSets(again) {
+  if (state.setData && state.setData.length) return Promise.resolve(state.setData);
+  if (_rrPwSetsPromise) return _rrPwSetsPromise;
+  if (_rrPwSetsTried && !again) return Promise.resolve(state.setData || []);
+  _rrPwSetsPromise = (async function () {
+    try {
+      var _c = localStorage.getItem('lv_set_cache_pw');
+      if (_c) { var _a = JSON.parse(_c); if (Array.isArray(_a) && _a.length && !(state.setData || []).length) state.setData = _a; }
+    } catch (e) {}
+    if (!(state.setData || []).length && state.masterSheetId && typeof sheetsGet === 'function') {
+      try {
+        var _tab = (typeof ERA_TABS !== 'undefined' && ERA_TABS.pw && ERA_TABS.pw.sets) || 'Lionel PW - Sets';
+        var _r = await sheetsGet(state.masterSheetId, _tab + '!A2:U');
+        if (_r && _r.values && !(state.setData || []).length) parseSetRows(_r.values);
+      } catch (e) {}
+    }
+    _rrPwSetsTried = true;
+    _rrPwSetsPromise = null;
+    return state.setData || [];
+  })();
+  return _rrPwSetsPromise;
+}
+if (typeof window !== 'undefined') window.rrEnsurePostwarSets = rrEnsurePostwarSets;
+
 async function loadCompanionData() {
   if (_currentEra === 'all') return; // 'all' handled by orchestrator
   const COMP_CACHE = 'lv_companion_cache_' + _currentEra;

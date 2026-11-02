@@ -295,7 +295,10 @@ function updateItemSuggestions(query) {
     const qParts = q.split(/\s+/);
     const numPart = _searchNum;
     const _stopWords = new Set((window.ITEM_SEARCH_FILTERS && window.ITEM_SEARCH_FILTERS.searchStopWords) || []);
-    const keyParts = qParts.filter(p => p && p !== _searchNum && !_stopWords.has(p));
+    // 2026-11-02: the number token itself is never a description word, in
+    // whichever form it was typed ("6-31705" gave the search 31705, then asked
+    // the description for "6-31705" too — and found nothing).
+    const keyParts = qParts.filter(p => p && p !== _searchNum && rrNumLinePrefixOff(p) !== _searchNum && !_stopWords.has(p));
     // Session 157: for a pure-text search, strip ONLY stop words (maker /
     // line / filler words like "weaver", "lionel", "gauge") and keep every
     // real description word, including the first one. keyParts must NOT be
@@ -375,7 +378,7 @@ function updateItemSuggestions(query) {
       let matches = false;
       if (startsWithDigit) {
         // Number-led search: item number must match first token; extra words filter by description
-        if (!m.itemNum.toLowerCase().includes(numPart)) return;
+        if (!m.itemNum.toLowerCase().includes(numPart) && !rrNumSameAsTyped(m.itemNum, numPart)) return;
         if (keyParts.length > 0 && !keyParts.every(kp => haystack.includes(kp))) return;
         matches = true;
       } else {
@@ -443,6 +446,29 @@ function updateItemSuggestions(query) {
           var _inp = document.getElementById('wiz-input');
           if (_inp && String(_inp.value || '').trim().toLowerCase() === q) updateItemSuggestions(_inp.value);
         }).catch(function() {});
+      }
+    }
+
+    // 2026-11-01 (Lars typed the set 1467W here): a Lionel Postwar SET number.
+    // The set list answers too, each set through THE one filter test
+    // (_wizPostwarSetHits → _wizRowFitsFilters) — one row per set number,
+    // drawn below with the SET tag. The set list not in yet → fetch it (the
+    // one loader, rrEnsurePostwarSets) and ask again, as the all-eras pass does.
+    if (startsWithDigit && _wizSetCheckOn()) {
+      var _setHits = _wizPostwarSetHits(numPart, _fset);
+      if (_setHits === null) {
+        if (typeof rrEnsurePostwarSets === 'function') {
+          rrEnsurePostwarSets().then(function (got) {
+            var _inp = document.getElementById('wiz-input');
+            if (got && got.length && _inp && String(_inp.value || '').trim().toLowerCase() === q) updateItemSuggestions(_inp.value);
+          }).catch(function () {});
+        }
+      } else {
+        var _setMax = ((window.RR_ADD_FILTERS || {}).setRowsMax) || 12;
+        _setHits.slice(0, _setMax).forEach(function (g) {
+          candidates.push({ num: g.setNum, roadName: '', itemType: '', subType: '', varDesc: '',
+            description: _wizSetRowDetails(g), refLink: '', label: g.setNum, _row: g.row, _setNum: g.setNum });
+        });
       }
     }
 
@@ -639,7 +665,7 @@ function updateItemSuggestions(query) {
     // or auto-filled number, it gets the green edge + tint so the eye
     // lands on it instantly. No icons — Brad's rule.
     try {
-      if (_hlNum && String(c.num || '').toLowerCase() === _hlNum) {
+      if (_hlNum && rrNumSameAsTyped(c.num, _hlNum)) {
         row.style.background = 'rgba(46,204,113,0.10)';
         row.style.border = '1.5px solid #2ecc71';
       }
@@ -647,7 +673,9 @@ function updateItemSuggestions(query) {
     row.onmouseenter = function() { highlightSuggestion(i); };
     row.dataset.roadName = c.roadName || '';
     // 2026-11-01: the tapped row rides along — it IS the add's one row
-    var _pick = function () { selectSuggestion(c.num, c.roadName || '', c.itemType || '', c._row ? { row: c._row } : undefined); };
+    // 2026-11-01: a Postwar SET row opens the set flow on that set (Lars)
+    var _pick = c._setNum ? function () { _wizPickSetRow(c._setNum); }
+      : function () { selectSuggestion(c.num, c.roadName || '', c.itemType || '', c._row ? { row: c._row } : undefined); };
     row.onclick = _pick;
     row.onkeydown = function(e) {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); _pick(); }
@@ -672,6 +700,16 @@ function updateItemSuggestions(query) {
     // .rr-row-tag-sug).
     var _tagHtml = rrRowTagHtml(c._row || c._owned || c, 'rr-row-tag-sug');
     if (_tagHtml) line1.insertAdjacentHTML('beforeend', _tagHtml);
+    // 2026-11-01: a Lionel Postwar set says SET beside its tag (Lars's 1467W)
+    if (c._setNum) {
+      const setSpan = document.createElement('span');
+      setSpan.setAttribute('data-set-tag', c._setNum);
+      setSpan.style.cssText = 'font-size:0.7rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;'
+        + 'color:var(--accent2);background:var(--surface2);border:1px solid var(--accent2);'
+        + 'padding:0.1rem 0.4rem;border-radius:4px;flex-shrink:0;white-space:nowrap';
+      setSpan.textContent = (window.RR_ADD_FILTERS || {}).setTag || '';
+      line1.appendChild(setSpan);
+    }
 
     // Session 115: show itemType next to the number so users can tell
     // apart rows that share an itemNum but differ in kind — e.g. the
@@ -887,11 +925,17 @@ function highlightSuggestion(idx) {
 // dash before a letter suffix (2343-P / 2343P, 1076-L / 1076L — the forms
 // wizardNext already treats as one). Anything else is a DIFFERENT number:
 // 20-66238 is not 66238, however many digits they share.
+// 2026-11-02: and a Modern Lionel product-line prefix — one digit and a dash
+// in front ("6-31705", "7-11193") — is the same number as without it; the
+// catalog writes both forms. Two or more digits in front (MTH 20-66238) or a
+// dash later on (Postwar 6464-1) is a DIFFERENT number, as before.
+function rrNumLinePrefixOff(t) { return String(t || '').replace(/^\d-(?=\d{2})/, ''); }
 function rrNumSameAsTyped(rowNum, typed) {
   var a = String(rowNum || '').trim().toLowerCase(), b = String(typed || '').trim().toLowerCase();
   if (!a || !b) return false;
   if (a === b) return true;
-  return a.replace(/-(?=[a-z]+$)/, '') === b.replace(/-(?=[a-z]+$)/, '');
+  var k = function (v) { return rrNumLinePrefixOff(v).replace(/-(?=[a-z]+$)/, ''); };
+  return k(a) === k(b);
 }
 // The maker word for a catalog row ("MTH", "RMT"), the way the badges say it.
 function rrRowMakerWord(m) {
@@ -952,7 +996,7 @@ function rrTypedWords(key, num, maker) {
   var w = (typeof window !== 'undefined' && window.RR_ADD_TYPED) || {};
   return String(w[key] || '').replace('{num}', num).replace('{maker}', maker || '');
 }
-if (typeof window !== 'undefined') { window.rrNumSameAsTyped = rrNumSameAsTyped; window.rrRowMakerWord = rrRowMakerWord; window.rrTypedWords = rrTypedWords; }
+if (typeof window !== 'undefined') { window.rrNumLinePrefixOff = rrNumLinePrefixOff; window.rrNumSameAsTyped = rrNumSameAsTyped; window.rrRowMakerWord = rrRowMakerWord; window.rrTypedWords = rrTypedWords; }
 
 // opts.asTyped (v0.9.2031): the "Use N as typed" row — the number stands as
 // typed, no catalog row behind it; wizardNext must not go hunting for one.
@@ -1145,7 +1189,7 @@ function _wizFiltersLabel(f) {
 function _wizNumberInCatalog(num) {
   var lc = String(num || '').trim().toLowerCase();
   if (!lc) return false;
-  var hit = function (r) { return r && String(r.itemNum || '').toLowerCase() === lc; };
+  var hit = function (r) { return r && rrNumSameAsTyped(r.itemNum, lc); };   // 2026-11-02: any form of the number
   if ((state.masterData || []).some(hit)) return true;
   var _all = (typeof _allErasSearchCache !== 'undefined') ? _allErasSearchCache : null;
   return !!(_all && _all.some && _all.some(hit));
@@ -1160,6 +1204,14 @@ function _wizNothingFoundHtml(num) {
   var line = 'display:flex;align-items:center;flex-wrap:wrap;gap:0.4rem 0.6rem;margin-top:0.4rem';
   var h = '<div data-nothing-found="1" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.8rem;font-size:0.82rem;color:var(--text)">';
   h += '<div data-nf-line="none" style="font-weight:600">' + esc(fill(on ? W.noneFor : W.noneAtAll)) + '</div>';
+  // 2026-11-01: the number IS a Lionel Postwar set the filters hide (Lars's
+  // 1467W under Lionel · Pre-War) — say so, and offer the set (same carry)
+  var setHit = (typeof _wizSetCheckOn === 'function' && _wizSetCheckOn())
+    ? ((_wizPostwarSetHits(num, null, { exact: true, anyFilter: true }) || [])[0] || null) : null;
+  if (setHit) {
+    h += '<div data-nf-line="set" style="' + line + '"><span>' + esc(String(W.setAsk || '').replace('{num}', setHit.setNum)) + '</span>'
+      + '<button type="button" data-nf-btn="set" data-set-num="' + esc(setHit.setNum) + '" onclick="_wizPickSetRow(this.getAttribute(\'data-set-num\'))" style="' + btn + '">' + esc(W.setBtn) + '</button></div>';
+  }
   if (on) {
     var elsewhere = _wizNumberInCatalog(num);
     h += '<div data-nf-line="clear" style="' + line + '">'
@@ -1172,6 +1224,101 @@ function _wizNothingFoundHtml(num) {
   return h + '</div>';
 }
 if (typeof window !== 'undefined') { window._wizNothingFoundHtml = _wizNothingFoundHtml; window._wizFiltersLabel = _wizFiltersLabel; window._wizNumberInCatalog = _wizNumberInCatalog; }
+
+// ── 2026-11-01 — A LIONEL POSTWAR SET NUMBER TYPED IN THE ITEM BOX ([stated]
+// Brad 16:11 CT: "no, he tried to enter a set as an item number" — Lars typed
+// 1467W in Cataloged Item and got "No item found"; 16:12 / 16:25 CT "yes").
+// Lionel's 472 Postwar cataloged sets live only in the set list
+// (state.setData, "Lionel PW - Sets"), never in the catalog rows the item box
+// searched. Now the item box asks the set list too:
+//   - a set shows in the SAME list, one row per set number, with the SET tag
+//     beside the maker · era tag, and its name · year · piece count
+//   - choosing it switches to the set flow on that set (_wizPickSetRow →
+//     _wizSetKind('set'), the same carry the number takes into Manual)
+//   - nothing fits the filters but the number IS a Postwar set → the
+//     nothing-found block adds "1467W is a Lionel Postwar set — add it as a set?"
+// Every set answers to THE one filter test (_wizRowFitsFilters, wizard.js) as
+// a catalog row would: rrSetAsRow describes it the way a row does — Lionel ·
+// Postwar · Set · O — and nothing here compares a filter itself. Words:
+// RR_ADD_FILTERS (config.js).
+// A set from the set list, in the shape of a catalog row. ONE description of
+// "a Postwar set is Lionel · Postwar" — the filter test and the tag read it.
+function rrSetAsRow(s) {
+  if (!s) return null;
+  var tab = (typeof ERA_TABS !== 'undefined' && ERA_TABS.pw && ERA_TABS.pw.sets) || 'Lionel PW - Sets';
+  return { itemNum: String(s.setNum || ''), itemType: 'Set', description: String(s.setName || ''),
+           yearProd: String(s.year || ''), eraPeriod: 'postwar', _era: 'pw', _tab: tab, roadName: '', _set: s };
+}
+// The set's variants whose number IS this number (1467W = 1467w; a dash before
+// a letter suffix is the same number, as everywhere on the Add screen).
+function rrPostwarSetVariants(num) {
+  var t = String(num || '').trim();
+  if (!t) return [];
+  return ((typeof state !== 'undefined' && state.setData) || []).filter(function (s) { return s && rrNumSameAsTyped(s.setNum, t); });
+}
+// Where the set check is asked: an add to the collection, on the item box —
+// not a box-only add, a set member, an edit of an owned copy or "Fill in".
+// Inbox adds are welcome: their photos ride along (_wizSetKind keeps them).
+function _wizSetCheckOn() {
+  var w = (typeof wizard !== 'undefined' && wizard) ? wizard : null;
+  var d = (w && w.data) || {};
+  return !!(w && w.tab === 'collection' && !d._setMode && !d._updatePdKey && !d.boxOnly && !d._fillItemMode && !d._manualEntry);
+}
+// The Postwar sets for a typed number token, one entry per set number, each
+// answering to THE one filter test. opts.exact: the number IS the set's (the
+// nothing-found line); otherwise a set number that STARTS with the token (the
+// list, while typing — "1467" finds 1467W). opts.anyFilter: ask no filter
+// (the nothing-found line's "is this a set at all").
+// Returns null when the set list is not loaded yet — the caller fetches it
+// (rrEnsurePostwarSets) and asks again; never a blank answer from load order.
+function _wizPostwarSetHits(token, fset, opts) {
+  opts = opts || {};
+  var t = String(token || '').trim().toLowerCase();
+  if (!t || !/\d/.test(t)) return [];
+  var list = (typeof state !== 'undefined' && state.setData) || [];
+  if (!list.length) return null;
+  var groups = {}, order = [];
+  list.forEach(function (s) {
+    if (!s || !s.setNum) return;
+    var n = String(s.setNum).trim();
+    if (opts.exact ? !rrNumSameAsTyped(n, t) : n.toLowerCase().indexOf(t) !== 0) return;
+    var row = rrSetAsRow(s);
+    if (!opts.anyFilter && typeof _wizRowFitsFilters === 'function' && !_wizRowFitsFilters(row, fset)) return;
+    if (!groups[n]) { groups[n] = { setNum: n, variants: [], row: row }; order.push(n); }
+    groups[n].variants.push(s);
+  });
+  return order.map(function (n) { return groups[n]; });
+}
+// The words under a set's row: name · year(s) · piece count (· N versions).
+function _wizSetRowDetails(g) {
+  var W = (typeof window !== 'undefined' && window.RR_ADD_FILTERS) || {};
+  var vs = (g && g.variants) || [];
+  var name = '', years = [], counts = [];
+  vs.forEach(function (s) {
+    if (!name && s.setName) name = String(s.setName).trim();
+    var y = String(s.year || '').trim(); if (y && years.indexOf(y) < 0) years.push(y);
+    var c = (s.items || []).length; if (counts.indexOf(c) < 0) counts.push(c);
+  });
+  counts.sort(function (a, b) { return a - b; });
+  var nTxt = counts.length > 1 ? (counts[0] + '–' + counts[counts.length - 1]) : String(counts[0] || 0);
+  var pieces = (counts.length === 1 && counts[0] === 1) ? (W.setPieceOne || '') : String(W.setPieces || '').replace('{n}', nTxt);
+  var parts = [name, years.join(', '), pieces];
+  if (vs.length > 1) parts.push(String(W.setVersions || '').replace('{n}', vs.length));
+  return parts.filter(Boolean).join(W.filterSep || ' · ');
+}
+// Chosen: the set flow, on that set. The number rides through the SAME carry
+// v0.9.2092 gave Manual (_wizSetKind reads wizard.data.itemNum).
+function _wizPickSetRow(setNum) {
+  if (typeof wizard === 'undefined' || !wizard || !wizard.data) return;
+  wizard.data.itemNum = String(setNum || '').trim();
+  var el = document.getElementById('wiz-suggestions');
+  if (el) { el.style.display = 'none'; el.innerHTML = ''; }
+  _wizSetKind('set');
+}
+if (typeof window !== 'undefined') {
+  window.rrSetAsRow = rrSetAsRow; window.rrPostwarSetVariants = rrPostwarSetVariants; window._wizSetCheckOn = _wizSetCheckOn;
+  window._wizPostwarSetHits = _wizPostwarSetHits; window._wizSetRowDetails = _wizSetRowDetails; window._wizPickSetRow = _wizPickSetRow;
+}
 
 function debounceItemLookup(e) {
   clearTimeout(itemLookupTimer);
@@ -1205,10 +1352,10 @@ function _wizResolveAddRow(numText, opts) {
   var fset = (typeof _wizAddFilters === 'function') ? _wizAddFilters() : null;
   var fits = function (i) { return (typeof _wizRowFitsFilters === 'function') ? _wizRowFitsFilters(i, fset) : true; };
   var rows = ((typeof state !== 'undefined' && state.masterData) || []).filter(function (i) {
-    return String(i.itemNum || '').toLowerCase() === numLC && fits(i);
+    return rrNumSameAsTyped(i.itemNum, numLC) && fits(i);   // 2026-11-02: 6-31705 = 31705
   });
   var cur = (typeof wizard !== 'undefined' && wizard) ? wizard.matchedItem : null;
-  if (cur && String(cur.itemNum || '').toLowerCase() === numLC && fits(cur)
+  if (cur && rrNumSameAsTyped(cur.itemNum, numLC) && fits(cur)
       && (!prefType || String(cur.itemType || '').trim() === prefType)) return cur;
   if (!rows.length) return null;
   if (prefType) {
