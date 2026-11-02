@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2095';
+const APP_VERSION = 'v0.9.2096';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -5226,3 +5226,48 @@ const RR_GIFT = {
   mailUrlMax: 7500,
 };
 if (typeof window !== 'undefined') window.RR_GIFT = RR_GIFT;
+
+// ═══════════════════════════════════════════════════════════════
+// PRINTING A REPORT — 2026-11-02 ([stated] Brad "yes" to the plan; hand-test
+// T-2026-10-31-02 FAILED: the print preview carried the app's "left menu and
+// buttons"). Print no longer sends the APP to the printer and hopes a list of
+// "hide this" rules catches everything: it copies the report (the preview's
+// report area only) onto its own white page in a new tab and prints THAT —
+// the Gift list's way (gift-list.js). report-export.js printReportWithPhotos
+// is the one door; these are its words and its paper look.
+//   strip  — what never goes on paper even when it sits inside the report
+//            area (buttons, boxes, pickers); anything hidden on screen and
+//            every on-click are dropped as well
+//   css    — the print page's whole look: black on white, no backgrounds, so
+//            it reads the same whether or not "Background graphics" is ticked.
+//            Named colours only (the paper is its own page: the app's colour
+//            tokens do not reach it — as the Gift list's print page)
+// ═══════════════════════════════════════════════════════════════
+const RR_REPORT_PRINT = {
+  making: 'Getting your report ready to print…',
+  blocked: 'Your browser blocked the print page — allow pop-ups for this site and press Print again.',
+  failed: 'The print page could not be made — try again.',
+  printed: 'Printed',
+  strip: 'button, input, select, textarea, script, style, link, iframe, .btn-export, .report-controls, #wup-controls',
+  css: '*{box-sizing:border-box}'
+    + 'body{font-family:Arial,Helvetica,sans-serif;color:black;background:white;margin:0;padding:18px 22px;font-size:11pt}'
+    + 'h1.rp-title{font-size:17pt;margin:0 0 2px}.rp-when{font-size:9pt;color:dimgray;margin:0 0 12px}'
+    + '.ins-report-header,.ins-report-totals{background:none!important;color:black!important;border-radius:0!important;padding:0!important;margin:0 0 8px!important}'
+    + '.ins-report-header{border-bottom:2px solid black!important;padding-bottom:6px!important}'
+    + '.ins-report-title{font-size:17pt;font-weight:bold;color:black!important}'
+    + '.ins-report-subtitle,.ins-report-meta,.ins-report-meta *,.ins-report-totals *{color:black!important}'
+    + '.ins-report-meta{display:flex;flex-wrap:wrap;gap:4px 18px;font-size:10pt;margin-top:4px}'
+    + '.ins-report-totals{display:flex;flex-wrap:wrap;gap:4px 18px;font-size:10pt;align-items:baseline}'
+    + 'table{width:100%;border-collapse:collapse;font-size:9.5pt;page-break-inside:auto}'
+    + 'thead{display:table-header-group}tr{page-break-inside:avoid}'
+    + 'th{text-align:left;border-bottom:1.5px solid black;padding:4px 6px;font-size:8.5pt;text-transform:uppercase;letter-spacing:0.03em;color:black;background:none}'
+    + 'td{border-bottom:1px solid silver;padding:4px 6px;vertical-align:middle;color:black!important;background:none!important}'
+    + 'td *{color:black!important}a{color:black;text-decoration:none}'
+    + '.item-num{font-weight:bold}'
+    + '.ins-photo{width:60px;height:60px;object-fit:cover;display:block;border:1px solid darkgray}'
+    + '.ins-photo-placeholder{width:60px;height:60px;border:1px solid silver;font-size:7pt;color:gray!important;display:flex;align-items:center;justify-content:center;text-align:center}'
+    + '.ins-report-footer{margin-top:18px;padding-top:10px;border-top:1px solid black!important;page-break-inside:avoid}'
+    + '.ins-report-footer *{color:black!important}.ins-report-footer div[style*="border-bottom"]{border-bottom:1px solid black!important}'
+    + '@page{margin:1.5cm 1.6cm}',
+};
+if (typeof window !== 'undefined') window.RR_REPORT_PRINT = RR_REPORT_PRINT;

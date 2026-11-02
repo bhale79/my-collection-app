@@ -151,7 +151,9 @@ function _repPrintRow(id) {
   var t = document.getElementById('rep-prev-title');
   if (t) t.textContent = _repNameOf(id) || 'Report';
   _repStamp(id); renderReportLibrary();
-  if (typeof printReportWithPhotos === 'function') printReportWithPhotos(); else window.print();
+  // 2026-11-02: the one print door — the report on its own page (report-export.js).
+  // No window.print() fallback: printing the app is the bug it replaced.
+  if (typeof printReportWithPhotos === 'function') printReportWithPhotos();
 }
 
 if (typeof window !== 'undefined') {

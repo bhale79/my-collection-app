@@ -448,22 +448,101 @@ function _reportToHTML(type) {
     '<thead><tr style="background:#eee">' + heads + '</tr></thead><tbody>' + rws + '</tbody></table></body></html>';
 }
 
-// ── Print, but preload photos first so they appear in the printout ──
+// ── Print: the report on its OWN white page, never the app ──────────────────
+// 2026-11-02 (hand-test T-2026-10-31-02 FAILED — the print preview carried the
+// app's left menu and buttons; [stated] Brad "yes" to this plan): window.print()
+// on the app sent EVERYTHING to the printer and relied on @media print rules to
+// hide each menu, button and pop-up — any new one leaked onto the paper, and
+// the Reports list printed as page 1. Now the report area of the preview is
+// COPIED onto a page of its own in a new tab (opened inside the tap, so no
+// pop-up blocker and no iPhone refusal — rrOpenLater) and THAT page is printed.
+// The app never reaches the printer. Words + paper look: RR_REPORT_PRINT
+// (config.js). The Gift list prints the same way (gift-list.js rrGiftPrint).
+var _repPrinting = false;
+function _repPrintEsc(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+// The whole print page, as a string, from the report area on screen.
+function _repPrintHtml() {
+  var P = window.RR_REPORT_PRINT || {};
+  var type = (document.getElementById('report-type') || {}).value || 'insurance';
+  var tEl = document.getElementById('rep-prev-title');
+  var title = (tEl && tEl.textContent.trim()) || ((typeof _repTitleOf === 'function') ? _repTitleOf(type) : '') || 'Report';
+  var wrap = (typeof _repTableWrap === 'function') ? _repTableWrap() : null;
+  var box = document.createElement('div');
+  if (wrap) [].slice.call(wrap.childNodes).forEach(function (n) { box.appendChild(n.cloneNode(true)); });
+  // The copy has the same elements in the same order as the original, so the
+  // original tells the copy what was hidden on screen and which picture it shows.
+  var orig = wrap ? wrap.querySelectorAll('*') : [], copy = box.querySelectorAll('*');
+  var drop = [];
+  for (var i = 0; i < copy.length && i < orig.length; i++) {
+    var o = orig[i], c = copy[i];
+    var hidden = false;
+    try { hidden = getComputedStyle(o).display === 'none'; } catch (e) { hidden = !!(o.style && o.style.display === 'none'); }
+    if (hidden) { drop.push(c); continue; }
+    if (c.tagName === 'IMG') { var s = o.currentSrc || o.src || ''; if (s) c.setAttribute('src', s); c.removeAttribute('loading'); c.removeAttribute('srcset'); }
+  }
+  drop.forEach(function (c) { if (c.parentNode) c.parentNode.removeChild(c); });
+  [].slice.call(box.querySelectorAll(P.strip || 'button, input, select, textarea, script')).forEach(function (c) { if (c.parentNode) c.parentNode.removeChild(c); });
+  // no on-click (or any on-…) survives onto the print page
+  [].slice.call(box.querySelectorAll('*')).forEach(function (c) {
+    [].slice.call(c.attributes).forEach(function (a) { if (/^on/i.test(a.name)) c.removeAttribute(a.name); });
+  });
+  // A report with its own heading (the Insurance report) keeps it; any other
+  // gets its name and the day it was printed.
+  var ownHead = !!box.querySelector('.ins-report-header');
+  var when = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  var head = ownHead ? '' : '<h1 class="rp-title">' + _repPrintEsc(title) + '</h1><div class="rp-when">' + _repPrintEsc((P.printed || 'Printed') + ' ' + when) + '</div>';
+  return '<!doctype html><html><head><meta charset="utf-8"><title>' + _repPrintEsc(title + ' — ' + when) + '</title>'
+    + '<style>' + (P.css || '') + '</style></head><body class="rr-report-print">' + head + box.innerHTML + '</body></html>';
+}
+// Wait (up to 8 s) for the print page's pictures, so the photos are on the paper.
+function _repPrintPhotosIn(doc) {
+  return new Promise(function (done) {
+    var t0 = Date.now();
+    (function look() {
+      var imgs = [].slice.call((doc && doc.images) || []);
+      if (imgs.every(function (im) { return im.complete; }) || Date.now() - t0 > 8000) return done();
+      setTimeout(look, 150);
+    })();
+  });
+}
 async function printReportWithPhotos() {
   if (_repStillWorking()) return;   // v0.9.1966
-  var type = (document.getElementById('report-type') || {}).value || 'insurance';
-  if (type === 'insurance') {
-    _repBtnBusy('Loading photos for printing\u2026', 0, 1);
+  if (_repPrinting) return;         // a second tap while the first is still making the page
+  var P = window.RR_REPORT_PRINT || {};
+  var t = (typeof rrOpenLater === 'function') ? rrOpenLater() : { tab: window.open('', '_blank'), drop: function () {} };   // INSIDE the tap
+  if (!t.tab) { showToast(P.blocked || 'Allow pop-ups for this site and press Print again.', 6000, true); return; }
+  _repPrinting = true;
+  try {
     try {
-      var items = _repOwnedItems();
-      await _repPreloadPhotos(items, function (d, t) { _repBtnBusy('Loading photos for printing \u2014 ' + d + ' of ' + t, d, t); });
-      // Force the on-screen insurance thumbnails to (re)load, then print.
-      if (typeof buildReport === 'function') buildReport();
-      await new Promise(function (r) { setTimeout(r, 1800); });
-    } catch (e) { /* print anyway */ }
-    _repBtnDone();
+      t.tab.document.open();
+      t.tab.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Report</title></head><body style="font-family:Arial,sans-serif;padding:24px;color:black;background:white">' + _repPrintEsc(P.making || 'Getting your report ready to print…') + '</body></html>');
+      t.tab.document.close();
+    } catch (e) {}
+    var type = (document.getElementById('report-type') || {}).value || 'insurance';
+    if (type === 'insurance') {
+      _repBtnBusy('Loading photos for printing…', 0, 1);
+      try {
+        var items = _repOwnedItems();
+        await _repPreloadPhotos(items, function (d, n) { _repBtnBusy('Loading photos for printing — ' + d + ' of ' + n, d, n); });
+        // Force the on-screen insurance thumbnails to (re)load, then copy them.
+        if (typeof buildReport === 'function') buildReport();
+        await new Promise(function (r) { setTimeout(r, 1800); });
+      } catch (e) { /* print anyway */ }
+      _repBtnDone();
+    }
+    var html = _repPrintHtml();
+    t.tab.document.open();
+    t.tab.document.write(html);
+    t.tab.document.close();
+    await _repPrintPhotosIn(t.tab.document);
+    try { t.tab.focus(); t.tab.print(); } catch (e) {}
+  } catch (e) {
+    console.error('[Report print]', e);
+    try { t.drop(); } catch (e2) {}
+    showToast(P.failed || 'The print page could not be made — try again.', 5000, true);
+  } finally {
+    _repPrinting = false;
   }
-  window.print();
 }
 
 // ── History archive: save a dated copy of every export to Drive "Past reports" ──
@@ -646,4 +725,5 @@ if (typeof window !== 'undefined') {
   window._archiveBlob = _archiveBlob;
   window.exportReportGoogleDoc = exportReportGoogleDoc;
   window.printReportWithPhotos = printReportWithPhotos;
+  window._repPrintHtml = _repPrintHtml;
 }
