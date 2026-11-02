@@ -11,10 +11,11 @@
 // user want to add it with add column" → 15:53 CT "yes".
 //   A  a Modern engine, boxcar, caboose and accessory show ONLY the small
 //      "＋ Add command ID" button — no boxes, no empty card
-//   B  tap → three boxes in place (the catalog hint orders them and says so:
-//      Lionel Legacy/CC → TMCC first; MTH Proto-Sound → DCS first; Bachmann →
-//      no hint); save → the BIG numbers in the card; the sheet row holds them
-//      in the three END columns and nothing else was written
+//   B  tap → (2026-11-02, [stated] Brad "yes") ONE drop-down — TMCC / Legacy,
+//      DCS, DCC, Other — and ONE number box; the drop-down starts on what the
+//      catalog says (Lionel Legacy/CC → TMCC; MTH Proto-Sound → DCS), else the
+//      maker's (Bachmann → DCC); save → the BIG numbers in the card; the sheet
+//      row holds them in the END columns and nothing else was written
 //   L  where it sits: under Description + Maintenance on a computer (left
 //      column, beside the photo); right under Description on a phone
 //   C  tap the numbers → change → clear them all → the small button is back
@@ -128,7 +129,8 @@ async function pageSuite(browser, swap) {
   R.b = await pg.evaluate(async () => {
     const S = ms => new Promise(r => setTimeout(r, ms));
     const out = {};
-    const order = () => Array.from(document.querySelectorAll('#cmdid-card input')).map(i => i.getAttribute('data-cmdid-key')).join(',');
+    // 2026-11-02: ONE drop-down (the four systems) + ONE number box ([stated] Brad "yes")
+    const order = () => { const sel = document.getElementById('cmdid-in-sys'); return sel ? { start: sel.value, opts: Array.from(sel.options).map(o => o.value).join(','), words: Array.from(sel.options).map(o => o.textContent).join('|'), boxes: document.querySelectorAll('#cmdid-card input:not([type=hidden])').length } : 'NO DROP-DOWN'; };
     const hint = () => { const h = document.querySelector('#cmdid-card .rr-cmdid-hint'); return h ? h.textContent : ''; };
     for (const [idx, inv, k] of [[0, '101', 'lionel'], [1, '102', 'mth'], [2, '103', 'bach']]) {
       showItemDetailPage(idx, inv); await S(80);
@@ -140,21 +142,21 @@ async function pageSuite(browser, swap) {
     showItemDetailPage(0, '101'); await S(80);
     if (!document.getElementById('cmdid-add')) return Object.assign(out, { saveStep: 'NO BUTTON', html: (document.getElementById('cmdid-card') || {}).innerHTML, pd: state.personalData['101'] });
     document.getElementById('cmdid-add').click(); await S(40);
-    const set = (k, v) => { const el = document.getElementById('cmdid-in-' + k); el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); };
-    set('tmccId', '012'); set('dcsId', '7'); set('dccAddress', '');
+    const setId = (k, v) => { const sel = document.getElementById('cmdid-in-sys'); sel.value = k; sel.dispatchEvent(new Event('change', { bubbles: true })); const n = document.getElementById('cmdid-in-num'); n.value = v; n.dispatchEvent(new Event('input', { bubbles: true })); };
+    setId('tmccId', '012'); setId('dcsId', '7'); setId('dccAddress', '');
     window.__writes.length = 0; window.__confirms.length = 0; window.__before3 = window.__sheet[3].slice();
     await rrCmdIdSave(); await S(60);
     const c = document.getElementById('cmdid-card');
     out.shown = c.textContent.replace(/\s+/g, ' ').trim();
     out.big = Array.from(c.querySelectorAll('.rr-cmdid-num')).map(x => { const s = x.querySelectorAll('span'); return s[0].textContent + ' ' + s[1].textContent + ' @' + getComputedStyle(s[1]).fontSize; });
     const F = PERSONAL_FIELD_INDEX, row = window.__sheet[3];
-    out.cells = [row[F.tmccId], row[F.dcsId], row[F.dccAddress]];
-    out.lastThree = PERSONAL_SCHEMA.slice(-3).map(s => s.field).join(',');
+    out.cells = [row[F.tmccId], row[F.dcsId], row[F.dccAddress], row[F.otherCmdId]];
+    out.lastFour = PERSONAL_SCHEMA.slice(-4).map(s => s.field).join(',');
     out.writes = window.__writes.slice();
     out.letters = ['dcsId', 'tmccId', 'dccAddress'].map(personalColLetter);
     out.pd = [state.personalData['101'].tmccId, state.personalData['101'].dcsId];
     out.confirms = window.__confirms.length;
-    out.otherCellsSame = JSON.stringify(row.filter((v, i) => !/^(tmccId|dcsId|dccAddress)$/.test(PERSONAL_SCHEMA[i].field))) === JSON.stringify(window.__before3.filter((v, i) => !/^(tmccId|dcsId|dccAddress)$/.test(PERSONAL_SCHEMA[i].field)));
+    out.otherCellsSame = JSON.stringify(row.filter((v, i) => !/^(tmccId|dcsId|dccAddress|otherCmdId)$/.test(PERSONAL_SCHEMA[i].field))) === JSON.stringify(window.__before3.filter((v, i) => !/^(tmccId|dcsId|dccAddress|otherCmdId)$/.test(PERSONAL_SCHEMA[i].field)));
     return out;
   });
   // L — where it sits (computer)
@@ -171,12 +173,14 @@ async function pageSuite(browser, swap) {
   R.c = await pg.evaluate(async () => {
     const S = ms => new Promise(r => setTimeout(r, ms));
     showItemDetailPage(0, '101'); await S(80);
+    const setId = (k, v) => { const sel = document.getElementById('cmdid-in-sys'); sel.value = k; sel.dispatchEvent(new Event('change', { bubbles: true })); const n = document.getElementById('cmdid-in-num'); n.value = v; n.dispatchEvent(new Event('input', { bubbles: true })); };
     document.getElementById('cmdid-show').click(); await S(40);
-    const vals = Array.from(document.querySelectorAll('#cmdid-card input')).map(i => i.getAttribute('data-cmdid-key') + '=' + i.value).join(',');
-    document.getElementById('cmdid-in-tmccId').value = '14'; await rrCmdIdSave(); await S(40);
+    const vals = Array.from(document.querySelectorAll('#cmdid-card input[data-cmdid-key]')).map(i => i.getAttribute('data-cmdid-key') + '=' + i.value).join(',')
+      + ' | box ' + document.getElementById('cmdid-in-sys').value + '=' + document.getElementById('cmdid-in-num').value;
+    setId('tmccId', '14'); await rrCmdIdSave(); await S(40);
     const changed = document.getElementById('cmdid-card').textContent.replace(/\s+/g, ' ');
     document.getElementById('cmdid-show').click(); await S(40);
-    document.querySelectorAll('#cmdid-card input').forEach(i => { i.value = ''; });
+    ['tmccId', 'dcsId', 'dccAddress', 'otherCmdId'].forEach(k => setId(k, ''));   // each system emptied in the box
     await rrCmdIdSave(); await S(60);
     const F = PERSONAL_FIELD_INDEX, row = window.__sheet[3];
     return { vals, changed, back: !!document.getElementById('cmdid-add'), card: !!document.querySelector('#cmdid-card .rr-cmdid-card'), cells: [row[F.tmccId], row[F.dcsId], row[F.dccAddress]].join('|'), toasts: window.__toasts.slice(-2) };
@@ -203,14 +207,16 @@ async function pageSuite(browser, swap) {
     const out = {};
     const F = PERSONAL_FIELD_INDEX;
     try {
+    const setId = (k, v) => { const sel = document.getElementById('cmdid-in-sys'); sel.value = k; sel.dispatchEvent(new Event('change', { bubbles: true })); const n = document.getElementById('cmdid-in-num'); n.value = v; n.dispatchEvent(new Event('input', { bubbles: true })); };
     showItemDetailPage(8, '111'); await S(80);
     document.getElementById('cmdid-add').click(); await S(40);
-    document.getElementById('cmdid-in-tmccId').value = '12';
+    setId('tmccId', '12');
     window.__confirms.length = 0; window.__answers = [false];          // "Change this one"
     out.changeSaved = await rrCmdIdSave(); await S(40);
     out.msg = (window.__confirms[0] || {}).msg; out.ok = (window.__confirms[0] || {}).ok; out.cancel = (window.__confirms[0] || {}).cancel;
-    out.stillOpen = !!document.getElementById('cmdid-in-tmccId');
+    out.stillOpen = !!document.getElementById('cmdid-in-num');
     out.focus = document.activeElement && document.activeElement.id;
+    out.focusSys = (document.getElementById('cmdid-in-sys') || {}).value;
     out.notWritten = !(window.__sheet[13][F.tmccId]);
     window.__confirms.length = 0; window.__answers = [true];           // "Keep both"
     out.keepSaved = await rrCmdIdSave(); await S(60);
@@ -218,25 +224,25 @@ async function pageSuite(browser, swap) {
     out.note = (document.querySelector('#cmdid-card .rr-cmdid-clash') || {}).textContent || '';
     // another system: DCS 12 → silent
     document.getElementById('cmdid-show').click(); await S(30);
-    document.getElementById('cmdid-in-dcsId').value = '12';
+    setId('dcsId', '12');
     window.__confirms.length = 0; window.__answers = [];
     await rrCmdIdSave(); await S(40);
     out.otherSystem = window.__confirms.length;
     // the same copy re-saved (unchanged TMCC 12, a new DCC) → silent about TMCC
     document.getElementById('cmdid-show').click(); await S(30);
-    document.getElementById('cmdid-in-dccAddress').value = '44';
+    setId('dccAddress', '44');
     window.__confirms.length = 0;
     await rrCmdIdSave(); await S(40);
     out.reSave = window.__confirms.length;
     // the accessory set to TMCC 12 (112) never warned the engines, and an accessory 12 vs engine 12 is silent
     showItemDetailPage(5, '106'); await S(60);
     document.getElementById('cmdid-add').click(); await S(30);
-    document.getElementById('cmdid-in-tmccId').value = '7';
+    setId('tmccId', '7');
     window.__confirms.length = 0;
     await rrCmdIdSave(); await S(40);
     out.accVsEngine7 = window.__confirms.length;   // engine 101 is DCS 7, not TMCC 7; nothing on the track matters to an accessory anyway
     document.getElementById('cmdid-show').click(); await S(30);
-    document.getElementById('cmdid-in-tmccId').value = '12';
+    setId('tmccId', '12');
     window.__confirms.length = 0; window.__answers = [true];
     await rrCmdIdSave(); await S(40);
     out.accVsAcc = window.__confirms.map(c => c.msg);
@@ -248,7 +254,7 @@ async function pageSuite(browser, swap) {
     const S = ms => new Promise(r => setTimeout(r, ms));
     const out = {};
     out.defaultVis = rrTableVisible('collection').join(',');
-    const cols = rrTableCols('collection').filter(c => /^(tmccId|dcsId|dccAddress)$/.test(c.col));
+    const cols = rrTableCols('collection').filter(c => /^(tmccId|dcsId|dccAddress|otherCmdId)$/.test(c.col));
     out.offered = cols.map(c => c.col + '=' + rrTableLabel('collection', c.col) + '|' + (rrTableHelp('collection', c.col) ? 'help' : 'NOHELP')).join(',');
     rrTableAddMenu('collection'); await S(30);
     out.menu = (document.getElementById('rr-addcol') || {}).textContent || '';
@@ -291,11 +297,13 @@ async function phoneSuite(browser) {
     const actions = document.querySelector('.rr-detail-actions');
     out.aboveButtons = !!(actions && c.getBoundingClientRect().bottom <= actions.getBoundingClientRect().top + 1);
     c.querySelector('#cmdid-add').click(); await S(50);
-    out.inputsOpen = c.querySelectorAll('input').length;
-    out.numericPad = Array.from(c.querySelectorAll('input')).every(i => i.getAttribute('inputmode') === 'numeric');
+    out.inputsOpen = c.querySelectorAll('input:not([type=hidden])').length;
+    out.pick = !!c.querySelector('select#cmdid-in-sys');
+    out.numericPad = Array.from(c.querySelectorAll('input:not([type=hidden])')).every(i => i.getAttribute('inputmode') === 'numeric');
     const vw = document.documentElement.clientWidth;
-    out.fits = Array.from(c.querySelectorAll('input, button')).every(el => el.getBoundingClientRect().right <= vw + 1);
-    document.getElementById('cmdid-in-tmccId').value = '9'; await rrCmdIdSave(); await S(60);
+    out.fits = Array.from(c.querySelectorAll('select, input:not([type=hidden]), button')).every(el => el.getBoundingClientRect().right <= vw + 1);
+    const setId = (k, v) => { const sel = document.getElementById('cmdid-in-sys'); sel.value = k; sel.dispatchEvent(new Event('change', { bubbles: true })); const n = document.getElementById('cmdid-in-num'); n.value = v; n.dispatchEvent(new Event('input', { bubbles: true })); };
+    setId('tmccId', '9'); await rrCmdIdSave(); await S(60);
     out.big = (c.querySelector('.rr-cmdid-num') || {}).textContent || '';
     out.noHScroll = document.documentElement.scrollWidth <= vw + 1;
     return out;
@@ -315,11 +323,11 @@ async function phoneSuite(browser) {
   for (const n of Object.keys(R.a)) T('A ' + n + ' (Modern) shows ONLY the small "＋ Add command ID" button — no boxes, no empty card', R.a[n].btn && R.a[n].inputs === 0 && !R.a[n].card && /^＋ Add command ID$/.test(R.a[n].text), R.a[n]);
 
   console.log('\n== B · tap → boxes → big numbers ==');
-  T('B1 tap → three boxes with Save and Cancel; Lionel "Legacy/CC" puts TMCC / Legacy first and says "Catalog: Legacy"', R.b.lionel.order === 'tmccId,dcsId,dccAddress' && R.b.lionel.hint === 'Catalog: Legacy' && R.b.lionel.save && R.b.lionel.cancel, R.b.lionel);
-  T('B2 an MTH Proto-Sound engine opens with DCS first and says so', R.b.mth.order.split(',')[0] === 'dcsId' && /Catalog: Proto-Sound — DCS/.test(R.b.mth.hint), R.b.mth);
-  T('B3 a Bachmann engine the catalog says nothing about: no hint, all three boxes', R.b.bach.hint === '' && R.b.bach.order.split(',').length === 3, R.b.bach);
+  T('B1 tap → ONE drop-down (TMCC / Legacy, DCS, DCC, Other) and ONE number box, Save and Cancel; Lionel "Legacy/CC" starts on TMCC / Legacy and says "Catalog: Legacy"', R.b.lionel.order.start === 'tmccId' && R.b.lionel.order.opts === 'tmccId,dcsId,dccAddress,otherCmdId' && R.b.lionel.order.words === 'TMCC / Legacy|DCS|DCC|Other' && R.b.lionel.order.boxes === 1 && R.b.lionel.hint === 'Catalog: Legacy' && R.b.lionel.save && R.b.lionel.cancel, R.b.lionel);
+  T('B2 an MTH Proto-Sound engine starts on DCS and says so', R.b.mth.order.start === 'dcsId' && R.b.mth.order.boxes === 1 && /Catalog: Proto-Sound — DCS/.test(R.b.mth.hint), R.b.mth);
+  T('B3 a Bachmann engine the catalog says nothing about: no hint, starts on DCC (not Lionel, Atlas or MTH)', R.b.bach.hint === '' && R.b.bach.order.start === 'dccAddress' && R.b.bach.order.boxes === 1, R.b.bach);
   T('B4 saved → the numbers LARGE in the card: LEGACY / TMCC 12 and DCS 7 ("012" kept as 12)', R.b.big.length === 2 && /^LEGACY \/ TMCC 12 @/.test(R.b.big[0]) && /^DCS 7 @/.test(R.b.big[1]) && parseFloat(R.b.big[0].split('@')[1]) >= 36, R.b.big);
-  T('B5 the sheet row carries them in the three END columns (Transferred From stays where it was)', R.b.lastThree === 'dcsId,tmccId,dccAddress' && R.b.cells.join('|') === '12|7|' && R.b.pd.join('|') === '12|7', R.b);
+  T('B5 the sheet row carries them in the four END columns (Transferred From stays where it was) — both systems kept', R.b.lastFour === 'dcsId,tmccId,dccAddress,otherCmdId' && R.b.cells.join('|') === '12|7||' && R.b.pd.join('|') === '12|7', R.b);
   T('B6 …written in one run of those columns only — no other cell touched', R.b.writes.length === 1 && new RegExp('!' + R.b.letters[0] + '3:' + R.b.letters[1] + '3$').test(R.b.writes[0]) && R.b.otherCellsSame, R.b.writes);
   T('B7 a first ID on a copy with no clash asks nothing', R.b.confirms === 0);
 
@@ -327,7 +335,7 @@ async function phoneSuite(browser) {
   T('L1 computer: in the left column, under the Description card and the Maintenance slot, beside (left of) the photo', R.l.prev === 'maint-preview' && R.l.descHasText && R.l.below && R.l.leftOfPhoto && R.l.inMain, R.l);
 
   console.log('\n== C · change, clear ==');
-  T('C1 tap the numbers → the boxes hold what is saved', /tmccId=12/.test(R.c.vals) && /dcsId=7/.test(R.c.vals), R.c.vals);
+  T('C1 tap the numbers → the box opens on the first saved system and holds its number; the other is kept', /tmccId=12/.test(R.c.vals) && /dcsId=7/.test(R.c.vals) && /\| box tmccId=12$/.test(R.c.vals), R.c.vals);
   T('C2 changed → the card shows the new number', /LEGACY \/ TMCC\s*14/.test(R.c.changed), R.c.changed);
   T('C3 cleared all → the small button is back and the sheet cells are blank', R.c.back && !R.c.card && R.c.cells === '||', R.c);
 
@@ -344,15 +352,15 @@ async function phoneSuite(browser) {
 
   console.log('\n== D · the duplicate warning ==');
   T('D1 same system, both on the track → "Your 6-84631 Santa Fe Diesel is also set to TMCC / Legacy 12. Both will answer the remote."', /^Your 6-84631 Santa Fe Diesel is also set to TMCC \/ Legacy 12\. Both will answer the remote\.$/.test(R.d.msg || '') && R.d.ok === 'Keep both' && R.d.cancel === 'Change this one', R.d);
-  T('D2 "Change this one" → nothing saved, the boxes stay open on that box', R.d.changeSaved === false && R.d.stillOpen && R.d.focus === 'cmdid-in-tmccId' && R.d.notWritten, R.d);
+  T('D2 "Change this one" → nothing saved, the box stays open on that system with the cursor in it', R.d.changeSaved === false && R.d.stillOpen && R.d.focus === 'cmdid-in-num' && R.d.focusSys === 'tmccId' && R.d.notWritten, R.d);
   T('D3 "Keep both" → saved (it never blocks), and the card notes the clash under the number', R.d.keepSaved === true && R.d.written === '12' && /Also on your 6-84631 Santa Fe Diesel$/.test(R.d.note.trim()), R.d);
   T('D4 DCS 12 against a TMCC 12 → silent (another system)', R.d.otherSystem === 0, R.d);
   T('D5 the same copy re-saved → silent', R.d.reSave === 0, R.d);
   T('D6 an accessory is never warned about an engine; it IS warned about another accessory with its number', R.d.accVsEngine7 === 0 && R.d.accVsAcc.length === 1 && /6-14200/.test(R.d.accVsAcc[0]) && !/6-84631/.test(R.d.accVsAcc[0]), R.d);
 
   console.log('\n== K · My Collection columns ==');
-  T('K1 none of the three is shown by default', !/tmccId|dcsId|dccAddress/.test(R.k.defaultVis), R.k.defaultVis);
-  T('K2 "+ Add a column" offers each, with its own words and one-line help', R.k.offered === 'tmccId=TMCC / Legacy ID|help,dcsId=DCS ID|help,dccAddress=DCC Address|help' && /TMCC \/ Legacy ID/.test(R.k.menu) && /DCS ID/.test(R.k.menu) && /DCC Address/.test(R.k.menu), R.k);
+  T('K1 none of the four is shown by default', !/tmccId|dcsId|dccAddress|otherCmdId/.test(R.k.defaultVis), R.k.defaultVis);
+  T('K2 "+ Add a column" offers each, with its own words and one-line help', R.k.offered === 'tmccId=TMCC / Legacy ID|help,dcsId=DCS ID|help,dccAddress=DCC Address|help,otherCmdId=Other Command ID|help' && /TMCC \/ Legacy ID/.test(R.k.menu) && /DCS ID/.test(R.k.menu) && /DCC Address/.test(R.k.menu) && /Other Command ID/.test(R.k.menu), R.k);
   T('K3 added → the column shows the saved values (before: no such cells)', R.k.cellsBefore === 0 && R.k.cellsAfter === '12,12,12,12,5', R.k);
   T('K4 adding the column turns on no switch (the Add steps still never ask in a plain box)', R.k.stillNotAsked === 0);
 
@@ -366,7 +374,7 @@ async function phoneSuite(browser) {
   console.log('\n== L2 · as an iPhone ==');
   const ph = await phoneSuite(browser);
   T('L2 phone: right under the Description card, above the buttons, before the Maintenance slot', ph.btn && ph.inputs === 0 && ph.prevIsDesc && ph.nextIsMaint && ph.aboveButtons, ph);
-  T('L3 phone: tap → three number-pad boxes that fit the screen; save → the big number; no sideways scroll', ph.inputsOpen === 3 && ph.numericPad && ph.fits && /LEGACY \/ TMCC\s*9/.test(ph.big) && ph.noHScroll, ph);
+  T('L3 phone: tap → the drop-down and ONE number-pad box, both fit the screen; save → the big number; no sideways scroll', ph.inputsOpen === 1 && ph.pick && ph.numericPad && ph.fits && /LEGACY \/ TMCC\s*9/.test(ph.big) && ph.noHScroll, ph);
   T('Z  no page errors on the phone', ph.errs.length === 0, ph.errs);
 
   console.log('\n== P · planted: each piece undone in a served copy ==');

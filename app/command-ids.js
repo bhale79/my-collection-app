@@ -5,7 +5,7 @@
 //
 // The number an engine (or a command car, crane, sound car, accessory…)
 // answers to on a command-control system is set by its OWNER on THEIR copy, so
-// it lives on the collection sheet (three columns at the END — PERSONAL_SCHEMA,
+// it lives on the collection sheet (one column per system at the END — PERSONAL_SCHEMA,
 // app.js) and never on the master catalog.
 //
 // What is where — one definition of each thing:
@@ -177,23 +177,83 @@
     return true;
   }
 
-  // ── the boxes (the card and the Add steps share them) ─────────────────────
-  function boxesHtml(prefix, vals, master, onInput) {
+  // ── which system the drop-down starts on ──────────────────────────────────
+  // 2026-11-02 ([stated] Brad "yes"): the system this copy already has a
+  // number for; else what the catalog says; else the maker's (Lionel and Atlas
+  // → TMCC / Legacy, MTH → DCS — RR_CMDID.makerSys, read through rrMakerKey,
+  // the one maker rule); else DCC (HO, N and the rest). Always changeable.
+  function makerKeyOf(pd, master, extra) {
+    var words = [];
+    if (pd && pd.manufacturer) words.push(pd.manufacturer);
+    (extra || []).forEach(function (w) { if (w) words.push(w); });
+    try { if (master && typeof _manufacturerOfItem === 'function') words.push(_manufacturerOfItem(master) || ''); } catch (e) {}
+    for (var i = 0; i < words.length; i++) {
+      var k = (typeof rrMakerKey === 'function') ? rrMakerKey(words[i]) : '';
+      if (k) return k;
+    }
+    return '';
+  }
+  function rrCmdIdStartKey(vals, master, makerKey) {
+    var fs = rrCmdIdFields();
+    var keyOfSys = function (sys) { var f = fs.filter(function (x) { return x.sys === sys; })[0]; return f ? f.key : ''; };
     var h = rrCmdIdHint(master);
+    var has = h.order.filter(function (k) { return vals && vals[k]; });
+    if (has.length) return has[0];
+    if (h.systems.length && keyOfSys(h.systems[0])) return keyOfSys(h.systems[0]);
+    var ms = (W('makerSys') || {})[makerKey || ''];
+    if (ms && keyOfSys(ms)) return keyOfSys(ms);
+    return keyOfSys(W('fallbackSys')) || (fs[0] && fs[0].key) || '';
+  }
+
+  // ── the drop-down + the number box (the card and the Add steps share them) ─
+  // ONE visible number box. Each system's number is held in its own hidden
+  // field (id prefix + field key), so switching the drop-down shows that
+  // system's number and an engine on two systems keeps both; the save reads
+  // the hidden fields (readBoxes) — every system, every time.
+  function boxesHtml(prefix, vals, master, makerKey) {
+    var h = rrCmdIdHint(master);
+    var fs = rrCmdIdFields();
+    var start = rrCmdIdStartKey(vals, master, makerKey);
+    var sf = fieldOf(start) || fs[0] || {};
     var hint = h.says.length
       ? '<div class="rr-cmdid-hint" style="font-size:0.8rem;color:var(--accent2);margin-bottom:0.5rem;font-weight:600">' + esc(fill(W('hint'), { say: h.says.join(' · ') })) + '</div>' : '';
+    var LBL = 'display:flex;flex-direction:column;gap:0.25rem;font-size:0.8rem;color:var(--text-mid)';
+    var BOX = 'padding:0.55rem 0.7rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);box-sizing:border-box;width:100%';
     return hint +
       '<div style="font-size:0.8rem;color:var(--text-dim);line-height:1.45;margin-bottom:0.6rem">' + esc(W('intro')) + '</div>' +
       '<div class="rr-cmdid-boxes" style="display:flex;flex-wrap:wrap;gap:0.6rem">' +
-      h.order.map(function (key) {
-        var f = fieldOf(key);
-        return '<label style="flex:1;min-width:120px;display:flex;flex-direction:column;gap:0.25rem;font-size:0.8rem;color:var(--text-mid)">' + esc(labelOf(f)) +
-          '<input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" id="' + prefix + key + '" data-cmdid-key="' + key + '"' +
-          ' value="' + esc((vals && vals[key]) || '') + '" placeholder="' + esc(f.hint || '') + '"' +
-          ' oninput="this.value=this.value.replace(/[^0-9]/g,\'\').slice(0,' + ((f.digits || 5) + 2) + ');' + (onInput ? onInput.replace('{key}', key) : '') + '"' +
-          ' style="padding:0.55rem 0.7rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:1.05rem;box-sizing:border-box;width:100%">' +
-          '</label>';
-      }).join('') + '</div>';
+      '<label style="flex:1;min-width:140px;' + LBL + '">' + esc(W('pickLabel')) +
+        '<select id="' + prefix + 'sys" data-cmdid-pick="1" onchange="rrCmdIdPick(\'' + prefix + '\',this.value)" style="' + BOX + ';font-family:var(--font-body);font-size:1rem">' +
+        fs.map(function (f) { return '<option value="' + f.key + '"' + (f.key === start ? ' selected' : '') + '>' + esc(f.pick || labelOf(f)) + '</option>'; }).join('') +
+        '</select></label>' +
+      '<label style="flex:1;min-width:120px;' + LBL + '">' + esc(W('numLabel')) +
+        '<input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" id="' + prefix + 'num" data-cmdid-num="1"' +
+        ' value="' + esc((vals && vals[start]) || '') + '" placeholder="' + esc(sf.hint || '') + '"' +
+        ' oninput="this.value=this.value.replace(/[^0-9]/g,\'\').slice(0,' + ((sf.digits || 5) + 2) + ');rrCmdIdNumInput(\'' + prefix + '\',this)"' +
+        ' style="' + BOX + ';font-family:var(--font-mono);font-size:1.05rem">' +
+        '</label>' +
+      fs.map(function (f) { return '<input type="hidden" id="' + prefix + f.key + '" data-cmdid-key="' + f.key + '" value="' + esc((vals && vals[f.key]) || '') + '">'; }).join('') +
+      '</div>';
+  }
+  // The drop-down changed: show that system's own number in the box.
+  function rrCmdIdPick(prefix, key) {
+    var f = fieldOf(key); if (!f) return;
+    var sel = document.getElementById(prefix + 'sys'), num = document.getElementById(prefix + 'num'), held = document.getElementById(prefix + key);
+    if (sel && sel.value !== key) sel.value = key;
+    if (num) { num.value = held ? held.value : ''; num.placeholder = f.hint || ''; }
+  }
+  // A number typed: it belongs to the system the drop-down shows.
+  function rrCmdIdNumInput(prefix, el) {
+    var sel = document.getElementById(prefix + 'sys'); if (!sel || !el) return;
+    var key = sel.value, held = document.getElementById(prefix + key);
+    if (held) held.value = el.value;
+    if (prefix === 'wiz-cmdid-') { var d = wizData(); if (d) d[key] = el.value; }
+  }
+  // Put the box on one system and the cursor in it (opening, or "Change this one").
+  function focusKey(prefix, key) {
+    if (key) rrCmdIdPick(prefix, key);
+    var num = document.getElementById(prefix + 'num');
+    if (num) { try { num.focus(); num.select(); } catch (e) {} }
   }
   // The numbers, as set: [{ key, short, num }] in the card's order.
   function shownNums(vals) {
@@ -222,7 +282,7 @@
     if (!pd || !rrCmdIdOffered(pd, master)) return '';
     var vals = rrCmdIdValues(pd);
     if (_card.open) {
-      return cardShell(boxesHtml('cmdid-in-', vals, master, '') +
+      return cardShell(boxesHtml('cmdid-in-', vals, master, makerKeyOf(pd, master)) +
         '<div style="display:flex;gap:0.5rem;justify-content:flex-end;margin-top:0.7rem">' +
         '<button type="button" id="cmdid-cancel" onclick="rrCmdIdCancel()" style="' + BTN + ';border:1px solid var(--border);background:var(--surface2);color:var(--text-mid)">' + esc(W('cancel')) + '</button>' +
         '<button type="button" id="cmdid-save" onclick="rrCmdIdSave()" style="' + BTN + ';border:none;background:var(--accent);color:var(--on-accent)">' + esc(W('save')) + '</button>' +
@@ -259,8 +319,7 @@
   function rrCmdIdOpen() {
     if (!_card.pd) return;
     _card.open = true; paintCard();
-    var first = document.querySelector('#cmdid-card [data-cmdid-key]');
-    if (first && first.focus) { try { first.focus(); } catch (e) {} }
+    focusKey('cmdid-in-', '');
   }
   function rrCmdIdCancel() { _card.open = false; paintCard(); }
   async function rrCmdIdSave() {
@@ -275,11 +334,7 @@
     var newly = {};
     Object.keys(r.vals).forEach(function (k) { if (r.vals[k] && r.vals[k] !== before[k]) newly[k] = r.vals[k]; });
     var ans = await askClashes(rrCmdIdClashes(pd, _card.it, newly));
-    if (ans !== true) {
-      var el = document.getElementById('cmdid-in-' + ans);
-      if (el) { try { el.focus(); el.select(); } catch (e) {} }
-      return false;
-    }
+    if (ans !== true) { focusKey('cmdid-in-', ans); return false; }
     _card.saving = true;
     var btn = document.getElementById('cmdid-save'); if (btn) btn.disabled = true;
     try {
@@ -320,6 +375,14 @@
   }
   // A NEW item has no saved ID yet, so only its era decides (what was typed
   // in the boxes a moment ago does not count as "already holds one").
+  // The Add steps' maker: the copy's own, else the matched catalog row's, else the era's.
+  function wizMakerKey(d) {
+    d = d || {};
+    var k = makerKeyOf(null, wizMaster(d), [d._manufacturer, d.manufacturer]);
+    if (k) return k;
+    try { if (typeof _getEraManufacturer === 'function') return makerKeyOf(null, null, [_getEraManufacturer()]); } catch (e) {}
+    return '';
+  }
   function wizOffered(d) {
     return rrCmdIdPeriod(wizProbe(d), wizMaster(d)) === 'modern';
   }
@@ -328,7 +391,7 @@
     var vals = {};
     rrCmdIdFields().forEach(function (f) { var n = rrCmdIdNorm(d[f.key], f); if (n.ok && n.v) vals[f.key] = n.v; });
     if (d._cmdIdOpen) {
-      return cardShell(boxesHtml('wiz-cmdid-', d, wizMaster(d), 'wizard.data[\'{key}\']=this.value') +
+      return cardShell(boxesHtml('wiz-cmdid-', vals, wizMaster(d), wizMakerKey(d)) +
         '<div style="display:flex;justify-content:flex-end;margin-top:0.6rem">' +
         '<button type="button" id="wiz-cmdid-done" onclick="rrCmdIdWizDone()" style="' + BTN + ';border:none;background:var(--accent);color:var(--on-accent)">' + esc(W('done')) + '</button></div>');
     }
@@ -349,8 +412,7 @@
   function rrCmdIdWizOpen() {
     var d = wizData(); if (!d) return;
     d._cmdIdOpen = true; wizPaint();
-    var first = document.querySelector('#wiz-cmdid [data-cmdid-key]');
-    if (first && first.focus) { try { first.focus(); } catch (e) {} }
+    focusKey('wiz-cmdid-', '');
   }
   async function rrCmdIdWizDone() {
     var d = wizData(); if (!d) return false;
@@ -359,11 +421,7 @@
     Object.keys(r.vals).forEach(function (k) { d[k] = r.vals[k]; });
     var probe = wizProbe(d);
     var ans = await askClashes(rrCmdIdClashes(probe, wizMaster(d), r.vals));
-    if (ans !== true) {
-      var el = document.getElementById('wiz-cmdid-' + ans);
-      if (el) { try { el.focus(); el.select(); } catch (e) {} }
-      return false;
-    }
+    if (ans !== true) { focusKey('wiz-cmdid-', ans); return false; }
     d._cmdIdOpen = false; wizPaint();
     return true;
   }
@@ -433,6 +491,10 @@
     window.rrCmdIdClashes = rrCmdIdClashes;
     window.rrCmdIdRenderCard = rrCmdIdRenderCard;
     window.rrCmdIdOpen = rrCmdIdOpen;
+    window.rrCmdIdPick = rrCmdIdPick;
+    window.rrCmdIdNumInput = rrCmdIdNumInput;
+    window.rrCmdIdStartKey = rrCmdIdStartKey;
+    window.rrCmdIdMakerKey = makerKeyOf;
     window.rrCmdIdCancel = rrCmdIdCancel;
     window.rrCmdIdSave = rrCmdIdSave;
     window.rrCmdIdWizHtml = rrCmdIdWizHtml;

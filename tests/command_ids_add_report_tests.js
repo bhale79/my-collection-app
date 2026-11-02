@@ -135,10 +135,13 @@ const pvStep = (pg, num, extra) => pg.evaluate(async ([num, extra]) => {
     const S = ms => new Promise(r => setTimeout(r, ms));
     const out = {};
     document.getElementById('wiz-cmdid-add').click(); await S(50);
-    out.order = Array.from(document.querySelectorAll('#wiz-cmdid input')).map(i => i.getAttribute('data-cmdid-key')).join(',');
+    // 2026-11-02: ONE drop-down + ONE number box ([stated] Brad "yes")
+    const sel0 = document.getElementById('wiz-cmdid-sys');
+    out.order = sel0 ? sel0.value + ' of ' + Array.from(sel0.options).map(o => o.value).join(',') + ' · boxes ' + document.querySelectorAll('#wiz-cmdid input:not([type=hidden])').length : 'NO DROP-DOWN';
     out.hint = (document.querySelector('#wiz-cmdid .rr-cmdid-hint') || {}).textContent || '';
-    const set = (k, v) => { const el = document.getElementById('wiz-cmdid-' + k); el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); };
-    set('tmccId', '0031'); set('dccAddress', '4401');
+    const setId = (k, v) => { const sel = document.getElementById('wiz-cmdid-sys'); sel.value = k; sel.dispatchEvent(new Event('change', { bubbles: true })); const n = document.getElementById('wiz-cmdid-num'); n.value = v; n.dispatchEvent(new Event('input', { bubbles: true })); };
+    setId('tmccId', '0031'); setId('dccAddress', '4401');
+    out.held = [wizard.data.tmccId, wizard.data.dccAddress].join('|');
     window.__confirms.length = 0;
     await rrCmdIdWizDone(); await S(40);
     out.summary = (document.getElementById('wiz-cmdid') || {}).textContent.replace(/\s+/g, ' ').trim();
@@ -147,7 +150,7 @@ const pvStep = (pg, num, extra) => pg.evaluate(async ([num, extra]) => {
     await saveWizardItem(); await S(80);
     const F = PERSONAL_FIELD_INDEX, r = window.__appended[0] || [];
     out.cells = [r[F.dcsId], r[F.tmccId], r[F.dccAddress]].map(v => String(v == null ? '' : v)).join('|');
-    out.endCols = PERSONAL_SCHEMA.slice(-3).map(s => s.field).join(',');
+    out.endCols = PERSONAL_SCHEMA.slice(-4).map(s => s.field).join(',');
     out.rows = window.__appended.length;
     const saved = Object.values(state.personalData).find(p => p.tmccId === '31');
     out.record = saved ? [saved.itemNum, saved.tmccId, saved.dccAddress].join('|') : 'none';
@@ -157,17 +160,18 @@ const pvStep = (pg, num, extra) => pg.evaluate(async ([num, extra]) => {
   const wc = await pg.evaluate(async () => {
     const S = ms => new Promise(r => setTimeout(r, ms));
     document.getElementById('wiz-cmdid-add').click(); await S(40);
-    document.getElementById('wiz-cmdid-tmccId').value = '20';
+    const setId = (k, v) => { const sel = document.getElementById('wiz-cmdid-sys'); sel.value = k; sel.dispatchEvent(new Event('change', { bubbles: true })); const n = document.getElementById('wiz-cmdid-num'); n.value = v; n.dispatchEvent(new Event('input', { bubbles: true })); };
+    setId('tmccId', '20');
     window.__confirms.length = 0;
     window.appConfirm = async (m) => { window.__confirms.push(String(m)); return false; };   // "Change this one"
     const done = await rrCmdIdWizDone(); await S(30);
-    return { done, asked: window.__confirms.slice(), open: !!document.getElementById('wiz-cmdid-tmccId'), focus: document.activeElement && document.activeElement.id };
+    return { done, asked: window.__confirms.slice(), open: !!document.getElementById('wiz-cmdid-num'), focus: document.activeElement && document.activeElement.id, sys: (document.getElementById('wiz-cmdid-sys') || {}).value };
   });
   T('W4 ignoring the button changes nothing: no ID written, nothing asked', ws.ignored === '||' && ws.ignoredAsked === 0, ws);
-  T('W5 tap → the three boxes, the catalog hint first ("Catalog: Legacy")', wt.order === 'tmccId,dcsId,dccAddress' && wt.hint === 'Catalog: Legacy', wt);
+  T('W5 tap → ONE drop-down of the four systems, starting on the catalog\'s ("Catalog: Legacy" → TMCC / Legacy), and ONE number box', wt.order === 'tmccId of tmccId,dcsId,dccAddress,otherCmdId · boxes 1' && wt.hint === 'Catalog: Legacy' && wt.held === '0031|4401', wt);
   T('W6 Done → the numbers in place of the boxes ("0031" kept as 31)', /LEGACY \/ TMCC\s*31/.test(wt.summary) && /DCC\s*4401/.test(wt.summary) && wt.asked === 0, wt);
-  T('W7 the save writes them into the three END columns of the item\'s own row', wt.endCols === 'dcsId,tmccId,dccAddress' && wt.cells === '|31|4401' && wt.rows === 1 && wt.record === '6-84631|31|4401', wt);
-  T('W8 the Add steps warn about a clash too, and "Change this one" keeps the boxes open on it', wc.done === false && wc.asked.length === 1 && /6-84631 Santa Fe Diesel is also set to TMCC \/ Legacy 20/.test(wc.asked[0]) && wc.open && wc.focus === 'wiz-cmdid-tmccId', wc);
+  T('W7 the save writes them into the END columns of the item\'s own row', wt.endCols === 'dcsId,tmccId,dccAddress,otherCmdId' && wt.cells === '|31|4401' && wt.rows === 1 && wt.record === '6-84631|31|4401', wt);
+  T('W8 the Add steps warn about a clash too, and "Change this one" keeps the boxes open on it', wc.done === false && wc.asked.length === 1 && /6-84631 Santa Fe Diesel is also set to TMCC \/ Legacy 20/.test(wc.asked[0]) && wc.open && wc.focus === 'wiz-cmdid-num' && wc.sys === 'tmccId', wc);
 
   console.log('\n== R · the Command ID report ==');
   const rp = await pg.evaluate(async () => {
@@ -231,10 +235,10 @@ const pvStep = (pg, num, extra) => pg.evaluate(async ([num, extra]) => {
       const r = await rrMoveRun(m);
       const S8 = window.__S.S8['My Collection'];
       const moved = S8.slice(2).find(x => x[F.transferredFrom]);
-      return { before, ok: r && r.ok, after: moved ? [moved[F.tmccId], moved[F.dcsId], moved[F.dccAddress]].join('|') : 'NOT MOVED', hdr: S8[1].slice(-3).join('|') };
+      return { before, ok: r && r.ok, after: moved ? [moved[F.tmccId], moved[F.dcsId], moved[F.dccAddress]].join('|') : 'NOT MOVED', hdr: S8[1].slice(-4).join('|') };
     });
     T('M1 a moved item keeps its IDs (the move copies the whole row)', mv.before === '12|7|3' && mv.ok && mv.after === '12|7|3', mv);
-    T('M2 …and the other collection\'s sheet has the three headings at its end', mv.hdr === 'DCS ID|TMCC / Legacy ID|DCC Address', mv);
+    T('M2 …and the other collection\'s sheet has the four headings at its end', mv.hdr === 'DCS ID|TMCC / Legacy ID|DCC Address|Other Command ID', mv);
     T('Z  no page errors in the move', me.length === 0, me);
     await mp.close();
   }

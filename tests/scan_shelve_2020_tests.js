@@ -85,7 +85,7 @@ async function boot(browser, email, files, recording) {
     const list = [...APPJS.matchAll(/\{ field: '(\w+)',\s+header: '([^']+)' \}/g)].map(m => m[1]);
     // v2077: Transferred To / From (TRR Pro release 6) are appended after it — nothing else moved
     const sc = list.indexOf('stickerCode');
-    T('C1 Sticker Code is appended at the END (only the later Transferred To / From follow it); Master Row ID stays right before it', list[sc - 1] === 'masterRowId' && list.slice(sc + 1).join(',') === 'transferredTo,transferredFrom,dcsId,tmccId,dccAddress', list.slice(-4));   // 2026-10-31: + the three Command ID columns
+    T('C1 Sticker Code is appended at the END (only the later Transferred To / From follow it); Master Row ID stays right before it', list[sc - 1] === 'masterRowId' && list.slice(sc + 1).join(',') === 'transferredTo,transferredFrom,dcsId,tmccId,dccAddress,otherCmdId', list.slice(-4));   // 2026-10-31: + the three Command ID columns; 2026-11-02: + Other Command ID
   }
 
   let pg = await boot(browser, 'bhale@ipd-llc.com');

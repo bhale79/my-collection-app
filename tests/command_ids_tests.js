@@ -138,7 +138,7 @@ function judge(R, tag) {
     E3: !R.postwar && !R.prewar && !R.modernSetPostwar,
     E4: R.postwarWithId,
     H: R.hMTH === 'dcsId|Proto-Sound \u2014 DCS' && R.hLegacy === 'tmccId|Legacy' && R.hAtlas === 'tmccId|TMCC' && /^tmccId\|$/.test(R.hBach) && /^tmccId\|$/.test(R.hLC) && /^dcsId\|Proto-Sound — DCS,DCC$/.test(R.hMTHHO),
-    S1: JSON.stringify(R.q.slice(0, 7)) === JSON.stringify(['tmccId+dcsId+dccAddress=12', 'tmccId+dcsId+dccAddress=12', 'dcsId=12', 'tmccId=12', 'tmccId=12', 'dccAddress=12', 'dcsId=7']),
+    S1: JSON.stringify(R.q.slice(0, 7)) === JSON.stringify(['tmccId+dcsId+dccAddress+otherCmdId=12', 'tmccId+dcsId+dccAddress+otherCmdId=12', 'dcsId=12', 'tmccId=12', 'tmccId=12', 'dccAddress=12', 'dcsId=7']),
     S2: R.q[7] === null && R.q[8] === null && R.q[9] === null,
     S3: JSON.stringify(R.match) === '[true,true,false,true]',
     D1: R.dSame === 'tmccId:12:101',
@@ -148,8 +148,8 @@ function judge(R, tag) {
     D5: R.dCar === 'tmccId:30:105',
     W: R.wSaved === '{"tmccId":"12"}' && R.wNone === '{}' && R.wPostwar === '{}' && R.wOverride === '{}',
     B: R.forItem.split(',').every(k => !/^(tmccId|dcsId|dccAddress)$/.test(k)) && R.enabled.split(',').every(k => !/^(tmccId|dcsId|dccAddress)$/.test(k)),
-    F: R.fields === 'tmccId/tmcc,dcsId/dcs,dccAddress/dcc',
-    RPT: /"filters":\{"hasCmdId":"Yes"\}/.test(R.report) && /"sort":\[\{"field":"tmccId","dir":"asc"\},\{"field":"dcsId","dir":"asc"\},\{"field":"dccAddress","dir":"asc"\}\]/.test(R.report) && /"location":true/.test(R.report),
+    F: R.fields === 'tmccId/tmcc,dcsId/dcs,dccAddress/dcc,otherCmdId/other',   // 2026-11-02: + Other ([stated] Brad "yes")
+    RPT: /"filters":\{"hasCmdId":"Yes"\}/.test(R.report) && /"sort":\[\{"field":"tmccId","dir":"asc"\},\{"field":"dcsId","dir":"asc"\},\{"field":"dccAddress","dir":"asc"\},\{"field":"otherCmdId","dir":"asc"\}\]/.test(R.report) && /"location":true/.test(R.report),
   };
 }
 
@@ -166,13 +166,13 @@ console.log('\n== C · the columns ==');
 const NOW = schemaOf(read('app.js'));
 let MAIN = null;
 try { MAIN = schemaOf(cp.execSync('git show origin/main:app/app.js', { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] })); } catch (e) {}
-if (!MAIN || NOW.slice(-3).map(c => c.field).join(',') !== 'dcsId,tmccId,dccAddress') {
-  // after the release main itself carries the columns: compare with the schema without them
-}
-const BEFORE = (MAIN && MAIN.some(c => c.field === 'dcsId')) ? MAIN.filter(c => !/^(dcsId|tmccId|dccAddress)$/.test(c.field)) : MAIN;
-T('C1 the three headings are the LAST three on the sheet: DCS ID, TMCC / Legacy ID, DCC Address',
-  NOW.slice(-3).map(c => c.header).join('|') === 'DCS ID|TMCC / Legacy ID|DCC Address' && NOW.slice(-3).map(c => c.field).join(',') === 'dcsId,tmccId,dccAddress', NOW.slice(-4));
-T('C2 every column main had keeps its letter (main\'s own list, read from git — no typed count)', !!BEFORE && colsKeepLetters(BEFORE, NOW) && NOW.length === BEFORE.length + 3, { before: BEFORE && BEFORE.length, now: NOW.length });
+// 2026-11-02: a fourth, "Other Command ID" ([stated] Brad "yes" to the drop-down's
+// TMCC / Legacy, DCS, DCC and Other) — appended after the three.
+const CMD_RE = /^(dcsId|tmccId|dccAddress|otherCmdId)$/;
+const BEFORE = MAIN ? MAIN.filter(c => !CMD_RE.test(c.field)) : MAIN;
+T('C1 the four headings are the LAST four on the sheet: DCS ID, TMCC / Legacy ID, DCC Address, Other Command ID',
+  NOW.slice(-4).map(c => c.header).join('|') === 'DCS ID|TMCC / Legacy ID|DCC Address|Other Command ID' && NOW.slice(-4).map(c => c.field).join(',') === 'dcsId,tmccId,dccAddress,otherCmdId', NOW.slice(-5));
+T('C2 every column main had keeps its letter (main\'s own list, read from git — no typed count)', !!MAIN && colsKeepLetters(MAIN, NOW) && colsKeepLetters(BEFORE, NOW) && NOW.length === BEFORE.length + 4, { before: BEFORE && BEFORE.length, main: MAIN && MAIN.length, now: NOW.length });
 {
   const planted = NOW.slice(); planted.splice(5, 0, { field: 'dcsId', header: 'DCS ID' }); planted.pop();
   T('C2 PLANTED: a column inserted in the middle → caught', !colsKeepLetters(BEFORE || [], planted));
@@ -230,17 +230,20 @@ function numberLists(src) {
 function secondFieldList(files) {
   // the three fields are defined ONCE (config.js RR_USER_FIELDS); any other file
   // that types one of their definitions — a key/label pair — is a second copy
-  return files.filter(([f, s]) => f !== 'config.js' && /key:\s*'(tmccId|dcsId|dccAddress)'|'TMCC \/ Legacy ID'|'DCC Address'|'DCS ID'/.test(stripComments(s).replace(/\{ field: '(dcsId|tmccId|dccAddress)',\s+header: '[^']+' \}/g, ''))).map(([f]) => f);
+  return files.filter(([f, s]) => f !== 'config.js' && /key:\s*'(tmccId|dcsId|dccAddress|otherCmdId)'|'TMCC \/ Legacy ID'|'DCC Address'|'DCS ID'|'Other Command ID'/.test(stripComments(s).replace(/\{ field: '(dcsId|tmccId|dccAddress|otherCmdId)',\s+header: '[^']+' \}/g, ''))).map(([f]) => f);
 }
 function defaultsName(src) { return /_COLL_COLS\s*=\s*\[[^\]]*(tmccId|dcsId|dccAddress)/.test(src); }
 
 (async () => {
   console.log('\n== C3 · an old sheet opened on the new version ==');
-  const oldH = (BEFORE || NOW.slice(0, -3)).map(c => c.header), newH = NOW.map(c => c.header);
+  const oldH = (BEFORE || NOW.slice(0, -4)).map(c => c.header), newH = NOW.map(c => c.header);
   const hr = await headerRepair(oldH, newH);
   const hdr = hr.after[1];
-  T('C3 the header check (ensurePersonalHeaders) writes the three new headings at the end', hdr.slice(-3).join('|') === 'DCS ID|TMCC / Legacy ID|DCC Address' && hdr.length === oldH.length + 3, hdr.slice(-5));
-  T('C3 …and exactly three: every old heading is where it was', oldH.every((h, i) => hdr[i] === h));
+  T('C3 the header check (ensurePersonalHeaders) writes the four new headings at the end', hdr.slice(-4).join('|') === 'DCS ID|TMCC / Legacy ID|DCC Address|Other Command ID' && hdr.length === oldH.length + 4, hdr.slice(-6));
+  T('C3 …and exactly four: every old heading is where it was', oldH.every((h, i) => hdr[i] === h));
+  // a sheet already on v2091's three gets only the Other heading, after them
+  const hr3 = await headerRepair(NOW.slice(0, -1).map(c => c.header), newH);
+  T('C3 a sheet with the first three gets just "Other Command ID" after them, nothing moved', hr3.after[1].slice(-2).join('|') === 'DCC Address|Other Command ID' && hr3.after[1].length === newH.length && JSON.stringify(hr3.after.slice(2)) === JSON.stringify(hr3.before.slice(2)), hr3.after[1].slice(-3));
   T('C3 …and no data cell moved or changed (before/after compare)', JSON.stringify(hr.after.slice(2)) === JSON.stringify(hr.before.slice(2)) && hr.writes.filter(w => /^My Collection!/.test(w)).every(w => /!A2:[A-Z]+2$|!A1$/.test(w)), hr.writes);
   const hr2 = await headerRepair(newH, newH);
   T('C3 a sheet already on the new layout is left alone (no header write)', hr2.writes.filter(w => /^My Collection!A2:/.test(w)).length === 0, hr2.writes);
@@ -264,7 +267,7 @@ function defaultsName(src) { return /_COLL_COLS\s*=\s*\[[^\]]*(tmccId|dcsId|dccA
   T('D5 an engine and a car are both on the track → warned', J.D5, R.dCar);
   T('W  the Add save writes the IDs ("012" → "12") only when the button was used on an item that offers it', J.W, [R.wSaved, R.wNone, R.wPostwar, R.wOverride]);
   T('B  the plain-box lists (Details grid, Update Info, Add steps) never carry the IDs', J.B, [R.forItem, R.enabled]);
-  T('F  the three fields come from ONE list (RR_USER_FIELDS), one per system', J.F, R.fields);
+  T('F  the four fields come from ONE list (RR_USER_FIELDS), one per system', J.F, R.fields);
   T('R  the Command ID report: the "has a Command ID" filter, sorted by system then number, with where it is kept', J.RPT, R.report);
 
   console.log('\n== G · source guards ==');
@@ -275,7 +278,7 @@ function defaultsName(src) { return /_COLL_COLS\s*=\s*\[[^\]]*(tmccId|dcsId|dccA
   T('G2 the hint is read from the row\'s own words — no typed list of item numbers', !numberLists(hintBlock) && !numberLists(cmd));
   T('G2 PLANTED: a hint from a list of numbers → caught', numberLists(hintBlock + "\n var dcsNums = ['30-2140-1', '30-1170-1'];"));
   const all = fs.readdirSync(APP).filter(f => f.endsWith('.js')).map(f => [f, read(f)]);
-  T('G3 one definition of the three fields (config.js) — no second copy of the field list', secondFieldList(all).length === 0, secondFieldList(all));
+  T('G3 one definition of the four fields (config.js) — no second copy of the field list', secondFieldList(all).length === 0, secondFieldList(all));
   T('G3 PLANTED: reports.js typing its own "TMCC / Legacy ID" → caught', secondFieldList([['reports.js', "const X = [{ key: 'tmccId', label: 'TMCC / Legacy ID' }];"]]).length === 1);
   const br = read('browse.js');
   T('G4 the columns are not shown by default (not in My Collection\'s default list)', !defaultsName(br) && /RR_ROW_EXTRA_COLS\.push/.test(read('table-columns.js')));

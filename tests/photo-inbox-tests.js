@@ -7304,7 +7304,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
        fields.slice(fields.indexOf('masterKey') + 1).join(',') ===
          // v2077: transferredTo, transferredFrom (TRR Pro release 6 — moving items) appended after stickerCode.
          // 2026-10-31: dcsId, tmccId, dccAddress (Command IDs) appended after transferredFrom.
-         'eraPeriod,importBatch,yourGrade,yourDescription,locationDetail,shipper,subCollection,stockPhotoLink,masterRowId,stickerCode,transferredTo,transferredFrom,dcsId,tmccId,dccAddress',
+         // 2026-11-02: otherCmdId (the drop-down's "Other") appended after dccAddress.
+         'eraPeriod,importBatch,yourGrade,yourDescription,locationDetail,shipper,subCollection,stockPhotoLink,masterRowId,stickerCode,transferredTo,transferredFrom,dcsId,tmccId,dccAddress,otherCmdId',
        fields.slice(fields.indexOf('masterKey') + 1).join(','));
 
     // The wizard passes the CONFIRMED match; buildPersonalRow has the fallback.

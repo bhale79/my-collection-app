@@ -252,14 +252,24 @@ const item = (types, blobs) => ({ types, getType: t => Promise.resolve(blobs[t])
     for (const [name, open, sel, want] of ROADS) {
       await reset(b.pg);
       await b.pg.evaluate(new Function('try{' + open + '}catch(e){window.__e=e.message}'));
-      await b.pg.waitForTimeout(1200);
-      const sel2 = name.indexOf('Photo Inbox') >= 0 ? '#pin-src-ov button' : sel;
+      // 2026-11-02 (the shipping chat: B1 red under the full run's load, v2097 held): wait until THIS screen's
+      // 📋 Paste is really on screen — never a fixed time. Capped; if it never comes the checks below still fail.
+      const inbox = name.indexOf('Photo Inbox') >= 0;
+      await b.pg.waitForFunction(({ sel, inbox }) => {
+        const all = inbox ? Array.from(document.querySelectorAll('#pin-src-ov button')).filter(x => x.textContent.indexOf(RR_PASTE.label) >= 0)
+                          : Array.from(document.querySelectorAll(sel));
+        return all.some(x => x.getClientRects().length && getComputedStyle(x).visibility !== 'hidden');
+      }, { sel, inbox }, { timeout: 10000 }).catch(() => {});
+      await b.pg.waitForTimeout(150);   // one settle for a pop-up's own opening move
+      const sel2 = inbox ? '#pin-src-ov button' : sel;
       let r;
       if (name.indexOf('Photo Inbox') >= 0) {
         // the paste row is the one carrying the paste words
         r = await b.pg.evaluate(() => { const bt = Array.from(document.querySelectorAll('#pin-src-ov button')).find(x => x.textContent.indexOf(RR_PASTE.label) >= 0); if (!bt) return null; bt.setAttribute('data-test-paste', '1'); return 1; });
         r = r ? await press(b.pg, '[data-test-paste="1"]') : null;
       } else r = await press(b.pg, sel2);
+      // …and until the picture has really landed in a file box (same cap, same rule)
+      if (r && r.onTop) await b.pg.waitForFunction(() => window.__fed.length > 0, null, { timeout: 10000 }).catch(() => {});
       const f = await fed(b.pg);
       const e = await b.pg.evaluate(() => { const x = window.__e; window.__e = null; return x; });
       ok('B1 ' + name + ' — the 📋 Paste is there and on top', r && r.onTop, JSON.stringify(r) + (e ? ' open error: ' + e : ''));

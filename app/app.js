@@ -189,6 +189,9 @@ const PERSONAL_SCHEMA = [
   { field: 'dcsId',                header: 'DCS ID' },
   { field: 'tmccId',               header: 'TMCC / Legacy ID' },
   { field: 'dccAddress',           header: 'DCC Address' },
+  // 2026-11-02 ([stated] Brad "yes": the drop-down's fourth system, "Other").
+  // Written by command-ids.js like the three above. Appended at END (column rule).
+  { field: 'otherCmdId',           header: 'Other Command ID' },
 ];
 const PERSONAL_HEADERS = PERSONAL_SCHEMA.map(s => s.header);
 const PERSONAL_FIELD_INDEX = {};

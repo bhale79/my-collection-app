@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2096';
+const APP_VERSION = 'v0.9.2097';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -2540,7 +2540,9 @@ window.RR_USER_FIELDS = [
   // steps' plain boxes, the Details grid, Update Info and Preferences → Extra
   // Columns leave them out (rrFieldEnabled / rrUserFieldsForItem below). No
   // switch (no pref): nothing shows until someone taps the button.
-  //   sys    — the system ('tmcc' / 'dcs' / 'dcc'): the duplicate warning
+  //   pick   — the system's name in the drop-down (2026-11-02: one drop-down
+  //            + one number box, [stated] Brad "yes")
+  //   sys    — the system ('tmcc' / 'dcs' / 'dcc' / 'other'): the duplicate warning
   //            compares only within one system, the hint names it
   //   short  — the words over the big number on the card ("LEGACY / TMCC 12")
   //   say    — the system in a sentence ("…is also set to TMCC / Legacy 12")
@@ -2550,15 +2552,21 @@ window.RR_USER_FIELDS = [
   //   importRe — a spreadsheet heading the import maps here on its own
   // Listed in the order the card shows them; the sheet's own column order is
   // PERSONAL_SCHEMA's (app.js), as for every field.
-  { key: 'tmccId', label: 'TMCC / Legacy ID', short: 'LEGACY / TMCC', say: 'TMCC / Legacy', sys: 'tmcc', hint: 'e.g. 12',
+  { key: 'tmccId', label: 'TMCC / Legacy ID', pick: 'TMCC / Legacy', short: 'LEGACY / TMCC', say: 'TMCC / Legacy', sys: 'tmcc', hint: 'e.g. 12',
     ownCard: 'cmdid', digits: 5, words: ['tmcc', 'legacy'],
     importRe: /^(tmcc|legacy|tmcc\s*\/?\s*legacy|legacy\s*\/?\s*tmcc|tmcc\s*or\s*legacy)(\s*(id|#|no\.?|num(ber)?|address|addr\.?))?$/ },
-  { key: 'dcsId', label: 'DCS ID', short: 'DCS', say: 'DCS', sys: 'dcs', hint: 'e.g. 7',
+  { key: 'dcsId', label: 'DCS ID', pick: 'DCS', short: 'DCS', say: 'DCS', sys: 'dcs', hint: 'e.g. 7',
     ownCard: 'cmdid', digits: 5, words: ['dcs'],
     importRe: /^(mth\s*)?dcs(\s*(id|#|no\.?|num(ber)?|address|addr\.?))?$/ },
-  { key: 'dccAddress', label: 'DCC Address', short: 'DCC', say: 'DCC', sys: 'dcc', hint: 'e.g. 3 or 1234',
+  { key: 'dccAddress', label: 'DCC Address', pick: 'DCC', short: 'DCC', say: 'DCC', sys: 'dcc', hint: 'e.g. 3 or 1234',
     ownCard: 'cmdid', digits: 5, words: ['dcc'],
     importRe: /^dcc(\s*(id|#|no\.?|num(ber)?|address|addr\.?|loco\s*address))?$/ },
+  // 2026-11-02 ([stated] Brad: "a drop down to show the 4 and then a box to
+  // enter it" → "yes" to TMCC / Legacy, DCS, DCC and Other): any other
+  // command system's number. Its own column at the END, like the other three.
+  { key: 'otherCmdId', label: 'Other Command ID', pick: 'Other', short: 'OTHER', say: 'Other', sys: 'other', hint: 'e.g. 5',
+    ownCard: 'cmdid', digits: 5, words: ['other'],
+    importRe: /^other\s*(command\s*)?(id|#|no\.?|num(ber)?|address|addr\.?)$/ },
 ];
 // ═══════════════════════════════════════════════════════════════
 // COMMAND IDs — 2026-10-31 ([stated] Brad: "a clickable button on the item
@@ -2575,7 +2583,21 @@ window.RR_CMDID = {
   cancel: 'Cancel',
   done: 'Done',
   change: 'Tap to change',
-  intro: 'The number you key into your remote to run this one. Fill any that apply.',
+  intro: 'Pick the system, then the number you key into your remote to run this one.',
+  // 2026-11-02 ([stated] Brad: "we need to just show what each engine has not a
+  // box for all three, lionel and atlas engines will always be tmcc/legacy, mth
+  // has dcc [DCS — confirmed], the ho and n and others may be dcc or other. so
+  // we just need a drop down to show the 4 and then a box to enter it" → "yes"):
+  // ONE drop-down (the four systems, in RR_USER_FIELDS order) and ONE number
+  // box. Which system the drop-down starts on: the system the copy already
+  // has a number for; else what the catalog says (hintRules below); else the
+  // maker's (makerSys — read by rrMakerKey, the one maker rule); else
+  // fallbackSys. Switching the drop-down shows that system's own number —
+  // an engine on two systems (MTH Proto-Sound 3) keeps both.
+  pickLabel: 'System',
+  numLabel: 'Number',
+  makerSys: { lionel: 'tmcc', atlas: 'tmcc', mth: 'dcs' },
+  fallbackSys: 'dcc',
   hint: 'Catalog: {say}',
   bad: '{label} must be a whole number of up to {n} digits.',
   saved: 'Command ID saved',
@@ -2764,6 +2786,7 @@ window.RR_FIELD_HELP = {
   tmccId:          'The number this engine (or car, or accessory) answers to on a Lionel TMCC / Legacy base. Set it on the item page with “＋ Add command ID”.',
   dcsId:           'The number it answers to on MTH DCS. Set it on the item page with “＋ Add command ID”.',
   dccAddress:      'The address it answers to on a DCC system (HO, N, G and most other scales). Set it on the item page with “＋ Add command ID”.',
+  otherCmdId:      'The number it answers to on any other command system. Set it on the item page with “＋ Add command ID”.',
 };
 // The sentence for a field, or '' when there is none. The five custom slots
 // are the only ones whose words depend on the user: a named slot is "your
