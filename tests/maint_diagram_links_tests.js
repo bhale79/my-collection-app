@@ -112,6 +112,40 @@ ok('no Trainz diagram for this item: no Trainz button, Google still there', !/tr
 const other = build(maint, { itemNum: '123' }, { route: 'other', maker: 'Weaver', tz: null });
 ok('a maker with no parts list: the honest line, then Google', /does not publish a parts list/.test(other) && /Google the parts diagram/.test(other));
 
+section('C2 · 2026-11-01: the Trainz diagram comes FIRST ([stated] Brad "add trainz parts diagrams above lionel parts diagram" → "yes")');
+{
+  // where each thing first appears in the drawn list (-1 = not drawn)
+  const at = (h) => ({ sm: h.indexOf('<!--SM-SLOT-->'), tz: h.indexOf('trainz.com/pages/parts-diagram'), lcca: h.indexOf('_maintLccaGo('),
+    lionel: h.indexOf('Lionel Support: search'), mth: h.indexOf('MTH Parts &amp; Sales'), google: h.indexOf('Google the parts diagram') });
+  const order = (src) => ({
+    pwDesk: at(build(src, GP7)), pwPhone: at(build(src, GP7, { phone: true })), prewar: at(build(src, GP7, { era: 'prewar' })),
+    modern: at(build(src, { itemNum: '18860' }, { route: 'lionel', era: 'mpc' })), mth: at(build(src, { itemNum: '30-2101-1' }, { route: 'mth', era: 'mth_o', maker: 'MTH' })),
+  });
+  const rule = (o) => ({
+    pwDesk: o.pwDesk.sm >= 0 && o.pwDesk.sm < o.pwDesk.tz && o.pwDesk.tz < o.pwDesk.lcca && o.pwDesk.lcca < o.pwDesk.google,
+    pwPhone: o.pwPhone.sm >= 0 && o.pwPhone.sm < o.pwPhone.tz && o.pwPhone.tz < o.pwPhone.google && o.pwPhone.lcca < 0,
+    prewar: o.prewar.sm < 0 && o.prewar.tz >= 0 && o.prewar.tz < o.prewar.lcca,
+    modern: o.modern.tz >= 0 && o.modern.tz < o.modern.lionel && o.modern.lionel < o.modern.google,
+    mth: o.mth.tz >= 0 && o.mth.tz < o.mth.mth && o.mth.mth < o.mth.google,
+  });
+  const o = order(maint), r = rule(o);
+  ok('C2a a modern Lionel item: Trainz first, then Lionel Support, then Google', r.modern, JSON.stringify(o.modern));
+  ok('C2b another maker (MTH): Trainz first, then the maker\'s own row', r.mth, JSON.stringify(o.mth));
+  ok('C2c a Lionel POSTWAR item: the service manual sheets FIRST (Brad\'s 2026-10-08 standard), Trainz right after, then LCCA, then Google', r.pwDesk, JSON.stringify(o.pwDesk));
+  ok('C2d …the same on a phone (no LCCA button there)', r.pwPhone, JSON.stringify(o.pwPhone));
+  ok('C2e a prewar item (no service manual sheets): Trainz first, then the LCCA row', r.prewar, JSON.stringify(o.prewar));
+  ok('C2f the Trainz buttons are drawn ONCE per list', (build(maint, { itemNum: '18860' }, { route: 'lionel', era: 'mpc' }).match(/trainz\.com\/pages\/parts-diagram/g) || []).length === 1);
+  // PLANTED: the old place (after the maker's row, just above Google)
+  const old = maint.replace("    if (route !== 'lcca') h += tzHtml;\n", '').replace('    // (the Trainz buttons moved to the top of this list — see tzHtml above)\n', '    h += tzHtml;\n')
+    .replace("      h += tzHtml;   // 2026-11-01: right after the service manual sheets (a prewar item has none: Trainz first)\n", '');
+  const ro = rule(order(old));
+  ok('C2g PLANTED: Trainz back at the bottom → C2a, C2b and C2e fail', old !== maint && !ro.modern && !ro.mth && !ro.prewar);
+  // PLANTED: Trainz above Brad's own service manual sheets on a postwar item
+  const above = maint.replace("      if (String(eraKey || '').toLowerCase() === 'pw') h += _smSlotHtml(item, where);\n      h += tzHtml;",
+    "      h += tzHtml;\n      if (String(eraKey || '').toLowerCase() === 'pw') h += _smSlotHtml(item, where);");
+  ok('C2h PLANTED: Trainz above the postwar service manual sheets → C2c fails', above !== maint && !rule(order(above)).pwDesk);
+}
+
 section('D · planted offenders are caught');
 ok('D0 the button moved back under the catalog is caught', (() => { const pop = "window._maintPartsPopup = function () { x = _maintPickerHtml(tg, taskId) + 'Find the part' + 'onclick=\"_maintDiagramsOpen()\"'; };"; const a = pop.indexOf('onclick="_maintDiagramsOpen()"'), b = pop.indexOf('_maintPickerHtml(tg, taskId)'); return !(a > 0 && a < b); })());
 ok('D1 the popup going back to the walk-away button is caught', /Find manuals &amp; diagrams \u2192<\/button>/.test(maint.replace("_maintDiagramLinksHtml(item, 'pop')", "'<button>Find manuals &amp; diagrams \u2192</button>'")));

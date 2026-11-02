@@ -2078,6 +2078,18 @@
     var mk = _makerName(item, eraKey) || 'this maker';
     var num = String(item.itemNum || '').trim();
     var h = '';
+    // ── Trainz exploded diagram, when their library has this item ──
+    // v0.9.2042: every diagram of the right kind, one button each (221: 1946 + 1947)
+    // 2026-11-01 ([stated] Brad: "add trainz parts diagrams above lionel parts
+    // diagram if the item has a trainz parts diagram" → "yes"): Trainz comes
+    // FIRST, above the maker's own row — except on a Lionel POSTWAR item, where
+    // Lionel's service manual sheets stay first (Brad's 2026-10-08 standard for
+    // postwar) and Trainz comes right after them.
+    var tzHtml = '';
+    _tzDiagrams(item, eraKey).forEach(function (tzd) {
+      tzHtml += '<div class="maint-tz-row" style="margin-bottom:0.5rem"><button onclick="window.open(\'https://www.trainz.com/pages/parts-diagram/' + _esc(tzd.h) + '\',\'_blank\')" ' + linkBtn + '>Trainz diagram: ' + _esc(tzd.t) + ' →</button></div>';
+    });
+    if (route !== 'lcca') h += tzHtml;
     // ── the manufacturer row ──
     if (route === 'lcca') {
       // v0.9.1896: Brad's scans of Lionel's own service manual FIRST, above
@@ -2085,6 +2097,7 @@
       // the sheets are postwar, a prewar item never borrows one. The LCCA
       // button below goes when the set is complete ([stated] Brad).
       if (String(eraKey || '').toLowerCase() === 'pw') h += _smSlotHtml(item, where);
+      h += tzHtml;   // 2026-11-01: right after the service manual sheets (a prewar item has none: Trainz first)
       // v0.9.1846 ([stated] Brad: "just remove the lcca button from the
       // mobile app all together but keep it on the desktop"). The LCCA
       // route is copy-the-link + paste it in the browser's address bar
@@ -2161,11 +2174,7 @@
           + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Maerklin\'s own shop \u2014 every part they still stock for this model.</div></div>';
       }
     }
-    // ── Trainz exploded diagram, when their library has this item ──
-    // v0.9.2042: every diagram of the right kind, one button each (221: 1946 + 1947)
-    _tzDiagrams(item, eraKey).forEach(function (tzd) {
-      h += '<div style="margin-top:0.5rem"><button onclick="window.open(\'https://www.trainz.com/pages/parts-diagram/' + _esc(tzd.h) + '\',\'_blank\')" ' + linkBtn + '>Trainz diagram: ' + _esc(tzd.t) + ' →</button></div>';
-    });
+    // (the Trainz buttons moved to the top of this list — see tzHtml above)
     // ── always: Google (with MODEL words) + supplier dropdown ──
     var mw = _modelWords(item);
     // v0.9.1838 (N5): the number the way the catalogs spell it (rrSearchNumber:

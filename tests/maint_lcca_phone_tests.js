@@ -56,7 +56,7 @@ function runBlock(block, isPhone, pwsmHit) {
   const win = { IS_MOBILE_UA: !!isPhone };
   const fn = new Function('window', 'route', 'item', 'routeLabel', '_pwsmHit', 'linkBtn',
     '_esc', 'rrJsArg', '_docsUrl', '_btnQuiet', 'eraKey', '_smSlotHtml', 'where',
-    'var h = "", noteId = "maint-lcca-note";\n' + block + '\nreturn h;');
+    'var h = "", noteId = "maint-lcca-note", tzHtml = "";\n' + block + '\nreturn h;');   // 2026-11-01: the block now places the Trainz buttons (tzHtml) after our scans — none here
   return fn(win, 'lcca', { itemNum: '2343' },
     pwsmHit ? 'Service Manual pages for 2343 (LCCA members)' : 'LCCA Postwar Service Manual archive (members)',
     pwsmHit ? 'loco_2343' : null, 'class="b"',
