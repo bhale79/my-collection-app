@@ -160,7 +160,7 @@ function schemaOf(appSrc) {
 }
 function colsKeepLetters(oldS, newS) {
   // every column main had is at the SAME index; the new ones come after it
-  return oldS.every((c, i) => newS[i] && newS[i].field === c.field && newS[i].header === c.header) && newS.length > oldS.length;
+  return oldS.every((c, i) => newS[i] && newS[i].field === c.field && newS[i].header === c.header) && newS.length >= oldS.length;  // >= : once this ships, main already has the columns (2026-11-02)
 }
 console.log('\n== C · the columns ==');
 const NOW = schemaOf(read('app.js'));
