@@ -295,7 +295,10 @@ function updateItemSuggestions(query) {
     const qParts = q.split(/\s+/);
     const numPart = _searchNum;
     const _stopWords = new Set((window.ITEM_SEARCH_FILTERS && window.ITEM_SEARCH_FILTERS.searchStopWords) || []);
-    const keyParts = qParts.filter(p => p && p !== _searchNum && !_stopWords.has(p));
+    // 2026-11-02: the number token itself is never a description word, in
+    // whichever form it was typed ("6-31705" gave the search 31705, then asked
+    // the description for "6-31705" too — and found nothing).
+    const keyParts = qParts.filter(p => p && p !== _searchNum && rrNumLinePrefixOff(p) !== _searchNum && !_stopWords.has(p));
     // Session 157: for a pure-text search, strip ONLY stop words (maker /
     // line / filler words like "weaver", "lionel", "gauge") and keep every
     // real description word, including the first one. keyParts must NOT be
@@ -375,7 +378,7 @@ function updateItemSuggestions(query) {
       let matches = false;
       if (startsWithDigit) {
         // Number-led search: item number must match first token; extra words filter by description
-        if (!m.itemNum.toLowerCase().includes(numPart)) return;
+        if (!m.itemNum.toLowerCase().includes(numPart) && !rrNumSameAsTyped(m.itemNum, numPart)) return;
         if (keyParts.length > 0 && !keyParts.every(kp => haystack.includes(kp))) return;
         matches = true;
       } else {
@@ -639,7 +642,7 @@ function updateItemSuggestions(query) {
     // or auto-filled number, it gets the green edge + tint so the eye
     // lands on it instantly. No icons — Brad's rule.
     try {
-      if (_hlNum && String(c.num || '').toLowerCase() === _hlNum) {
+      if (_hlNum && rrNumSameAsTyped(c.num, _hlNum)) {
         row.style.background = 'rgba(46,204,113,0.10)';
         row.style.border = '1.5px solid #2ecc71';
       }
@@ -887,11 +890,17 @@ function highlightSuggestion(idx) {
 // dash before a letter suffix (2343-P / 2343P, 1076-L / 1076L — the forms
 // wizardNext already treats as one). Anything else is a DIFFERENT number:
 // 20-66238 is not 66238, however many digits they share.
+// 2026-11-02: and a Modern Lionel product-line prefix — one digit and a dash
+// in front ("6-31705", "7-11193") — is the same number as without it; the
+// catalog writes both forms. Two or more digits in front (MTH 20-66238) or a
+// dash later on (Postwar 6464-1) is a DIFFERENT number, as before.
+function rrNumLinePrefixOff(t) { return String(t || '').replace(/^\d-(?=\d{2})/, ''); }
 function rrNumSameAsTyped(rowNum, typed) {
   var a = String(rowNum || '').trim().toLowerCase(), b = String(typed || '').trim().toLowerCase();
   if (!a || !b) return false;
   if (a === b) return true;
-  return a.replace(/-(?=[a-z]+$)/, '') === b.replace(/-(?=[a-z]+$)/, '');
+  var k = function (v) { return rrNumLinePrefixOff(v).replace(/-(?=[a-z]+$)/, ''); };
+  return k(a) === k(b);
 }
 // The maker word for a catalog row ("MTH", "RMT"), the way the badges say it.
 function rrRowMakerWord(m) {
@@ -952,7 +961,7 @@ function rrTypedWords(key, num, maker) {
   var w = (typeof window !== 'undefined' && window.RR_ADD_TYPED) || {};
   return String(w[key] || '').replace('{num}', num).replace('{maker}', maker || '');
 }
-if (typeof window !== 'undefined') { window.rrNumSameAsTyped = rrNumSameAsTyped; window.rrRowMakerWord = rrRowMakerWord; window.rrTypedWords = rrTypedWords; }
+if (typeof window !== 'undefined') { window.rrNumLinePrefixOff = rrNumLinePrefixOff; window.rrNumSameAsTyped = rrNumSameAsTyped; window.rrRowMakerWord = rrRowMakerWord; window.rrTypedWords = rrTypedWords; }
 
 // opts.asTyped (v0.9.2031): the "Use N as typed" row — the number stands as
 // typed, no catalog row behind it; wizardNext must not go hunting for one.
@@ -1145,7 +1154,7 @@ function _wizFiltersLabel(f) {
 function _wizNumberInCatalog(num) {
   var lc = String(num || '').trim().toLowerCase();
   if (!lc) return false;
-  var hit = function (r) { return r && String(r.itemNum || '').toLowerCase() === lc; };
+  var hit = function (r) { return r && rrNumSameAsTyped(r.itemNum, lc); };   // 2026-11-02: any form of the number
   if ((state.masterData || []).some(hit)) return true;
   var _all = (typeof _allErasSearchCache !== 'undefined') ? _allErasSearchCache : null;
   return !!(_all && _all.some && _all.some(hit));
@@ -1205,10 +1214,10 @@ function _wizResolveAddRow(numText, opts) {
   var fset = (typeof _wizAddFilters === 'function') ? _wizAddFilters() : null;
   var fits = function (i) { return (typeof _wizRowFitsFilters === 'function') ? _wizRowFitsFilters(i, fset) : true; };
   var rows = ((typeof state !== 'undefined' && state.masterData) || []).filter(function (i) {
-    return String(i.itemNum || '').toLowerCase() === numLC && fits(i);
+    return rrNumSameAsTyped(i.itemNum, numLC) && fits(i);   // 2026-11-02: 6-31705 = 31705
   });
   var cur = (typeof wizard !== 'undefined' && wizard) ? wizard.matchedItem : null;
-  if (cur && String(cur.itemNum || '').toLowerCase() === numLC && fits(cur)
+  if (cur && rrNumSameAsTyped(cur.itemNum, numLC) && fits(cur)
       && (!prefType || String(cur.itemType || '').trim() === prefType)) return cur;
   if (!rows.length) return null;
   if (prefType) {
