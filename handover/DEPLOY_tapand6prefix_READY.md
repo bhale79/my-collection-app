@@ -1,6 +1,6 @@
 # DEPLOY — Android taps in the Add screen land; a Modern Lionel number typed with its "6-" is found — READY for the shipping chat
 
-Branch: `build/tap-and-6-prefix`, made from main `2c8d7f9b` (v0.9.2092 + the Privacy page). __MAINCHECK__ **No version numbers were changed** (APP_VERSION, CACHE_NAME and the `?v=` stamps are untouched — the shipping chat bumps them).
+Branch: `build/tap-and-6-prefix`, made from main `2c8d7f9b` (v0.9.2092 + the Privacy page). `git fetch` after the final gate: **main had not moved**, so no rebase was needed. **No version numbers were changed** (APP_VERSION, CACHE_NAME and the `?v=` stamps are untouched — the shipping chat bumps them).
 Patch: `git diff origin/main...origin/build/tap-and-6-prefix`
 Both problems were found while building Lars's set line (`build/set-in-item-box`, 2026-11-01). Brad, 2026-11-02: "yes" to planning a fix for both, then "yes" to building them on their own branch made from main.
 Adds NO sheet columns and writes nothing new to any sheet.
@@ -20,12 +20,21 @@ App:
 - `.github/site-files.txt` — `handover/` listed private (the same two lines as on the other build branches, so they merge cleanly). Branch-only.
 
 Tests (new):
-- `tests/line_prefix_number_tests.js` — Node + jsdom, the REAL code: the same-number rule (6-31705 = 31705, 7-11193 = 11193, 2343-P = 2343P; NOT 20-66238 / 66238, NOT 6464-1 / 6464, no wheel arrangements); the list both ways round, description words still narrowing, MTH and Postwar unchanged; the picker, the scorer and the "elsewhere" note; still nothing outside the filters; scans with planted offenders, two of them RUN to show the old code fails the checks. __RESULT_NODE__
-- `tests/tap_and_prefix_road_tests.js` — real Chromium as a small Android phone (360×640, Android Chrome): finger-taps on "Add manually" (opens Manual with 1511) and "Clear filters" (clears, keeps 1511); a typing box still slides up and a button doesn't; "6-31705" found and held when tapped; "6-8359" → Next holds the 8359 row in the catalog's form; no page errors; planted: the old focus rule makes the "Add manually" tap miss, and the old list finds nothing for "6-31705". __RESULT_ROAD__
+- `tests/line_prefix_number_tests.js` — Node + jsdom, the REAL code: the same-number rule (6-31705 = 31705, 7-11193 = 11193, 2343-P = 2343P; NOT 20-66238 / 66238, NOT 6464-1 / 6464, no wheel arrangements); the list both ways round, description words still narrowing, MTH and Postwar unchanged; the picker, the scorer and the "elsewhere" note; still nothing outside the filters; scans with planted offenders, two of them RUN to show the old code fails the checks. **28/28.**
+- `tests/tap_and_prefix_road_tests.js` — real Chromium as a small Android phone (360×640, Android Chrome): finger-taps on "Add manually" (opens Manual with 1511) and "Clear filters" (clears, keeps 1511); a typing box still slides up and a button doesn't; "6-31705" found and held when tapped; "6-8359" → Next holds the 8359 row in the catalog's form; no page errors; planted: the old focus rule makes the "Add manually" tap miss, and the old list finds nothing for "6-31705". **11/11, 15 s.**
 Tests (updated harness pins, because the picker and scorer now ask the shared check): `tests/lookup_canary.js` and `tests/add_filters_strict_tests.js` load `rrNumLinePrefixOff` / `rrNumSameAsTyped` / `_wizSameNum` beside the pieces they already load. No expected answer changed.
 
 ## Test results
-__RESULTS__
+ONE full run of the final app/ and tests/ files: `node tests/run-all.js --all --receipt receipt.json` (receipt moved to `handover/receipt_tapand6prefix.json`: tier **full+browser**, 376 suites, 572 files fingerprinted, nothing changed during the run).
+
+- **372 green, 4 red**, so the receipt says **NOT passed**. None of the four comes from this change. They are the same four that failed on the set build's gate, and each fails **the same way on a clean copy of main `2c8d7f9b`** (checked in this session, 2026-11-01/02):
+  - `photo_closer_1950_tests.js`, `photo_choices_1951_tests.js`, `picture_box_1955_tests.js`: the photo number reader needs an online text-reading engine that this cloud machine's network blocks.
+  - `safari-walk.js`: Safari's engine (WebKit) could not be downloaded here.
+- `import_core_tests.js`: its 18 fixture pins were skipped because Scott's workbook is not on this machine. That is normal.
+- The new suites: `line_prefix_number_tests` **28/28**; `tap_and_prefix_road_tests` **11/11** (15 s).
+- The neighbours are all green: `add_filters_strict_tests` 54/54, `add_filters_road_tests` 36/36, `lookup_canary` (all canaries green), `typed_number_2031_tests` 31/31, `short_number_search_tests` 21/21, `parts_typed_number_tests` 29/29, `photo-inbox-tests` 4025/4025, `site_files_tests` 18/18.
+
+**For the shipping chat:** wizard.js and wizard-suggestions.js are core files. Run the full gate once on Brad's PC, where the photo reader and WebKit work, to get a PASSED receipt before shipping.
 
 ## With the set build (`build/set-in-item-box`)
 Both branches change `app/wizard.js` and `app/wizard-suggestions.js`. A trial merge of the two **auto-merges with no conflicts**, and in the merged copy `set_number_item_box_tests` (50/50), `set_number_item_box_road_tests` (10/10), `tap_and_prefix_road_tests` (11/11), `add_filters_strict_tests` (54/54) and `lookup_canary` are all green. Either order works; whichever ships second should rebase on main and re-run its gate. Once both are in, the set build's road test can tap "Add as a set" with a real finger instead of a script click (a small follow-up, not needed to ship).
