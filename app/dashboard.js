@@ -1892,10 +1892,33 @@ function rrThumbForgetFid(fid) {
   try {
     if (!fid) return 0;
     var c = _thumbFids(), n = 0;
-    Object.keys(c).forEach(function (k) { if (c[k] === fid) { delete c[k]; n++; } });
+    Object.keys(c).forEach(function (k) { if (c[k] === fid) { delete c[k]; _thumbSeenDrop(k); n++; } });
     if (n) { try { localStorage.setItem(_thumbFidKey(), JSON.stringify(c)); } catch (e) {} }
     return n;
   } catch (e) { return 0; }
+}
+// 2026-11-02 (the main picture, [stated] Brad "yes"): WHEN this device last
+// looked an item's list photo up — kept beside the list above (same per-sheet
+// key + ":seen"), so the list itself keeps its old shape. A remembered photo
+// older than RR_MAIN_PHOTO.recheckMs (a day) is looked up again, so a main
+// picture chosen on the iPad reaches the computer by the next day; this device
+// forgets at once (rrThumbForgetFid from the gallery's writers). A photo
+// remembered before this release has no "seen" time and is looked up once.
+function _thumbSeenKey() { return _thumbFidKey() + ':seen'; }
+function _thumbSeen() {
+  var key = _thumbSeenKey();
+  if (!window._thumbSeenCache || window._thumbSeenCacheKey !== key) {
+    try { window._thumbSeenCache = JSON.parse(localStorage.getItem(key) || '{}'); } catch (e) { window._thumbSeenCache = {}; }
+    window._thumbSeenCacheKey = key;
+  }
+  return window._thumbSeenCache;
+}
+function _thumbSeenSave() { try { localStorage.setItem(_thumbSeenKey(), JSON.stringify(_thumbSeen())); } catch (e) {} }
+function _thumbSeenDrop(k) { var s = _thumbSeen(); if (s[k] !== undefined) { delete s[k]; _thumbSeenSave(); } }
+function _thumbFresh(k) {
+  var t = Number(_thumbSeen()[k] || 0);
+  var max = Number((window.RR_MAIN_PHOTO && window.RR_MAIN_PHOTO.recheckMs) || 86400000);
+  return t > 0 && (Date.now() - t) < max;
 }
 if (typeof window !== 'undefined') window.rrThumbForgetFid = rrThumbForgetFid;
 // v0.9.1201 (structural audit #6): the cache above remembers each item's
@@ -1913,12 +1936,14 @@ function rrThumbBust(pdOrKey) {
       delete c[k];
       try { localStorage.setItem(_thumbFidKey(), JSON.stringify(c)); } catch (e) {}
     }
+    _thumbSeenDrop(k);
   } catch (e) {}
 }
 if (typeof window !== 'undefined') window.rrThumbBust = rrThumbBust;
 async function _thumbFor(pd) {
   var c = _thumbFids(), k = String(pd.inventoryId || pd.itemNum);
-  if (c[k]) return c[k];
+  if (c[k] && _thumbFresh(k)) return c[k];
+  var _was = c[k] || null;   // 2026-11-02: an older remembered photo is checked again — and kept if the check fails
   if (typeof driveGetFolderPhotos !== 'function') return null;
   // v0.9.1123: the same fallback the item detail page has always had — photos
   // can sit in the item's Drive folder while the sheet's photo-link cell is
@@ -1927,12 +1952,22 @@ async function _thumbFor(pd) {
   // Find-only: never creates a folder, so a photoless item costs one lookup.
   // v0.9.1197: the ONE photo resolver (drive.js rrPhotoFolderFor) — this pass
   // no longer keeps its own copy of the sheet-cell-else-Drive-search dance.
-  var _link = (typeof rrPhotoFolderFor === 'function') ? await rrPhotoFolderFor(pd) : pd.photoItem;
-  if (!_link) return null;
+  var _link = (typeof rrPhotoFolderFor === 'function') ? await rrPhotoFolderFor(pd).catch(function () { return null; }) : pd.photoItem;
+  if (!_link) return _was;
   var files = await driveGetFolderPhotos(_link).catch(function () { return null; });
-  var fid = files && files[0] && files[0].id;
-  if (fid) { c[k] = fid; try { localStorage.setItem(_thumbFidKey(), JSON.stringify(c)); } catch (e) {} }
-  return fid || null;   // failures/empties NOT cached — retried next time
+  // 2026-11-02: THE MAIN PICTURE — the ONE rule (rrMainPhotoOf, app-collection.js:
+  // the gallery's own order, so the list shows what the item page shows first).
+  // It used to be the first file by NAME, which let a box flap stand for an engine.
+  // 2026-11-02 (the box in a group): a Box piece's list photo is its own box shot (rrPiecePhotos).
+  var main = (typeof rrMainPhotoOf === 'function') ? rrMainPhotoOf(typeof rrPiecePhotos === 'function' ? rrPiecePhotos(pd, files) : files) : null;
+  var fid = main && main.id;
+  if (fid) {
+    c[k] = fid; try { localStorage.setItem(_thumbFidKey(), JSON.stringify(c)); } catch (e) {}
+    _thumbSeen()[k] = Date.now(); _thumbSeenSave();
+    return fid;
+  }
+  if (Array.isArray(files) && !files.length) { rrThumbBust(k); return null; }   // the folder answered: no photos now
+  return _was;   // a failed look is NOT cached — retried next time; a photo already shown stays
 }
 function _photoPds() {
   return Object.values(state.personalData || {}).filter(function (p) {

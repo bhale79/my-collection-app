@@ -824,9 +824,22 @@ if (typeof window !== 'undefined') window.driveFindItemFolder = driveFindItemFol
 // photo. One resolver, called by every surface: the sheet's stored link when
 // present, otherwise a find-only Drive search (never creates a folder), '' on
 // any failure. If a fifth surface ever needs photos, it calls this.
+// 2026-11-02 ([stated] Brad: "the box in the group set doesn't show the picture
+// of the box, its under the engine item. when you click box, it says no photo
+// for that item yet" → "yes"): a Box / Master Carton piece keeps its pictures'
+// folder in its BOX PHOTO cell (wizard-save.js writes photoBox there, never
+// photoItem) — and box shots taken during an Add live in the engine's own
+// folder, tagged BOX. THE one answer, sync, for code that cannot wait:
+function rrPhotoLinkOf(pd) {
+  if (!pd) return '';
+  if (pd.photoItem) return String(pd.photoItem);
+  var box = (typeof _isBoxItemNum === 'function') && _isBoxItemNum(pd.itemNum);
+  return (box && pd.photoBox) ? String(pd.photoBox) : '';
+}
+if (typeof window !== 'undefined') window.rrPhotoLinkOf = rrPhotoLinkOf;
 async function rrPhotoFolderFor(pd, itemNumOverride) {
   try {
-    var link = pd && pd.photoItem;
+    var link = rrPhotoLinkOf(pd);   // 2026-11-02: a box piece's Box Photo folder counts
     if (link) return link;
     var num = String(itemNumOverride || (pd && pd.itemNum) || '').trim();
     if (!num) return '';

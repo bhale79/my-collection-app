@@ -1322,7 +1322,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
           var worth = p.userEstWorth ? _currencySymbol() + parseFloat(p.userEstWorth).toLocaleString() : '';
           return '<div onclick="if(typeof _grpHeroSwap===\'function\')_grpHeroSwap(' + i + ')" title="' + ((window.innerWidth || 0) >= 1000 ? 'Show this unit\'s photo above' : 'Jump to this unit\'s photos') + '" style="cursor:pointer;flex:1;min-width:150px;max-width:230px;background:var(--surface2);border:1px solid ' + (me ? 'var(--accent3,#2ecc71)' : 'var(--border)') + ';border-radius:10px;padding:0.6rem 0.75rem">'
             + '<div style="font-size:0.64rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--accent3,#2ecc71)">' + ((typeof RR_TERM_FOR !== 'undefined' && RR_TERM_FOR.role[role]) ? rrTermWrap(RR_TERM_FOR.role[role], rrTypeWord(role)) : rrTypeWord(role)) + (me ? ' · this page' : '') + '</div>'
-            + '<div style="font-family:var(--font-mono);font-weight:700;color:var(--t-accent);font-size:0.95rem;margin:0.15rem 0">' + String(p.itemNum || '').replace(/</g, '&lt;') + (p.photoItem ? ' <span title="Has photos" style="font-size:0.78rem">📷</span>' : '') + '</div>'
+            + '<div style="font-family:var(--font-mono);font-weight:700;color:var(--t-accent);font-size:0.95rem;margin:0.15rem 0">' + String(p.itemNum || '').replace(/</g, '&lt;') + (rrPhotoLinkOf(p) ? ' <span title="Has photos" style="font-size:0.78rem">📷</span>' : '') + '</div>'
             + '<div style="font-size:0.74rem;color:var(--text-mid);line-height:1.5">Cond ' + cond + (box ? ' · ' + box : '') + (worth ? '<br>Worth ' + worth : '') + '</div>'
             // v0.9.1569 (audit step 5): Remove sits beside Edit/Photos — the
             // ONLY place a single piece leaves the group. Confirms per piece.
@@ -1491,8 +1491,8 @@ function showItemDetailPage(idx, copyInvId, opts) {
 
   // ── PHOTO GALLERY ──
   // v0.9.728: group sheets show EVERY member's photos, labeled by piece.
-  const _grpPhotoMembers = _isGroupSheet ? _grpFull.filter(function (p) { return p.photoItem; }) : [];
-  const _photoLink = pd && pd.photoItem ? pd.photoItem : '';
+  const _grpPhotoMembers = _isGroupSheet ? _grpFull.filter(function (p) { return rrPhotoLinkOf(p); }) : [];   // 2026-11-02: a box's Box Photo folder counts
+  const _photoLink = rrPhotoLinkOf(pd);   // 2026-11-02: a box piece's Box Photo folder counts
   // v0.9.1009 (Brad): held in its own variable so it can be placed in the
   // desktop side column instead of appended to the bottom of the page.
   var _photoCard = '';
@@ -1515,7 +1515,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
           // v0.9.936 (Brad): each unit is its own column so paired units sit
           // BESIDE each other on wide screens instead of stacking.
           return '<div>'
-            + '<div style="font-size:0.7rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--accent3,#2ecc71);margin:0.6rem 0 0.4rem">' + _grpRole(p) + ' — ' + String(p.itemNum||'').replace(/</g,'&lt;') + ' <a href="' + p.photoItem + '" target="_blank" rel="noopener" style="font-weight:400;text-transform:none;color:var(--accent2);text-decoration:none;letter-spacing:0">folder \u2197</a></div>'
+            + '<div style="font-size:0.7rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--accent3,#2ecc71);margin:0.6rem 0 0.4rem">' + _grpRole(p) + ' — ' + String(p.itemNum||'').replace(/</g,'&lt;') + ' <a href="' + rrPhotoLinkOf(p) + '" target="_blank" rel="noopener" style="font-weight:400;text-transform:none;color:var(--accent2);text-decoration:none;letter-spacing:0">folder \u2197</a></div>'
             + '<div id="grp-photos-' + gi + '" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:0.75rem;min-height:40px"><div style="grid-column:1/-1;color:var(--text-dim);font-size:0.78rem">Loading…</div></div>'
             + '</div>';
         }).join('')
@@ -1591,7 +1591,8 @@ function showItemDetailPage(idx, copyInvId, opts) {
   window._grpHeroSwap = async function (gi) {
     try {
       var p = _grpFull && _grpFull[gi];
-      if (!p || !p.photoItem) { if (typeof showToast === 'function') showToast('No photos for that unit yet'); return; }
+      var _plink = rrPhotoLinkOf(p);   // 2026-11-02: a box piece's pictures are in its Box Photo folder
+      if (!p || !_plink) { if (typeof showToast === 'function') showToast('No photos for that unit yet'); return; }
       var target = document.getElementById('grp-side-photo');
       if (!target) {
         var _mi = _grpPhotoMembers.indexOf(p);
@@ -1606,11 +1607,10 @@ function showItemDetailPage(idx, copyInvId, opts) {
         } catch (eH) {}
         return;
       }
-      var photos = await driveGetFolderPhotos(p.photoItem);
+      var photos = rrPiecePhotos(p, await driveGetFolderPhotos(_plink));
       if (!photos || !photos.length) { if (typeof showToast === 'function') showToast('No photos for that unit yet'); return; }
-      var isRSV = function (x) { var n = String(x.name || '').toUpperCase(); return n.indexOf('RSV') !== -1 && n.indexOf('BOX') === -1; };
-      var pick = photos.find(isRSV) || photos[0];
-      _buildPhotoGallery(target, [pick], { folderLink: p.photoItem, canRename: true, stack: true });
+      var pick = rrMainPhotoOf(photos);   // 2026-11-02: THE main-picture rule (a box: its first box shot)
+      _buildPhotoGallery(target, [pick], { folderLink: _plink, canRename: true, stack: true });
     } catch (e) { console.warn('hero swap:', e); }
   };
 
@@ -1620,7 +1620,6 @@ function showItemDetailPage(idx, copyInvId, opts) {
     (async function () {
       var el = function () { return document.getElementById('grp-side-photo'); };
       function isSet(p) { return /\bSET\b/i.test(String(p.name || '')); }
-      function isRSV(p) { var n = String(p.name || '').toUpperCase(); return n.indexOf('RSV') !== -1 && n.indexOf('BOX') === -1; }
       var pick = null, pickFolder = '';
       try {
         var lead = _grpPhotoMembers[0];
@@ -1629,15 +1628,16 @@ function showItemDetailPage(idx, copyInvId, opts) {
           pick = leadPhotos.find(isSet) || null;
           if (pick) pickFolder = lead.photoItem;
         }
-        if (!pick && pd && pd.photoItem) {
-          var ownPhotos = (lead && pd.photoItem === lead.photoItem) ? leadPhotos : await driveGetFolderPhotos(pd.photoItem);
+        var _ownLink = rrPhotoLinkOf(pd);   // 2026-11-02: on a box's page, the box's own pictures
+        if (!pick && pd && _ownLink) {
+          var ownPhotos = rrPiecePhotos(pd, (lead && _ownLink === lead.photoItem) ? leadPhotos : await driveGetFolderPhotos(_ownLink));
           if (ownPhotos && ownPhotos.length) {
-            pick = ownPhotos.find(isRSV) || ownPhotos[0];
-            pickFolder = pd.photoItem;
+            pick = rrMainPhotoOf(ownPhotos);
+            pickFolder = _ownLink;
           }
         }
         if (!pick && leadPhotos && leadPhotos.length) {
-          pick = leadPhotos.find(isRSV) || leadPhotos[0];
+          pick = rrMainPhotoOf(leadPhotos.filter(function (x) { return !isSet(x); })) || rrMainPhotoOf(leadPhotos);   // 2026-11-02: THE main-picture rule
           pickFolder = lead.photoItem;
         }
       } catch (e) { console.warn('Group side photo load:', e); }
@@ -1654,12 +1654,13 @@ function showItemDetailPage(idx, copyInvId, opts) {
   // Async: group-sheet photos — one loader per member (v0.9.728)
   if (_grpPhotoMembers.length) {
     _grpPhotoMembers.forEach(function (p, gi) {
-      driveGetFolderPhotos(p.photoItem).then(function (photos) {
+      driveGetFolderPhotos(rrPhotoLinkOf(p)).then(function (photos) {
         var el = document.getElementById('grp-photos-' + gi);
         if (!el) return;
         // v0.9.1632 (Brad's design): set/together shots live in the GROUP
         // PHOTOS section above — a member's gallery shows only its own views.
         photos = (photos || []).filter(function (p) { return !/\bSET\b/i.test(String(p.name || '')); });
+        photos = rrPiecePhotos(p, photos);   // 2026-11-02: a box shows its box shots, even from the engine's folder
         if (!photos || !photos.length) { el.innerHTML = '<div style="grid-column:1/-1;color:var(--text-dim);font-size:0.78rem">No photos in this folder</div>'; return; }
         // v0.9.937 (Brad): hero + thumbnail-rail gallery per unit (rename via
         // the hero label, ✂ crops the photo shown large).
@@ -1667,7 +1668,8 @@ function showItemDetailPage(idx, copyInvId, opts) {
         // compacted" strip): stack the rail BELOW the hero — the 74px side
         // rail was stealing a third of an already-narrow member column, and
         // the member grid now shares the row's full width (auto-fit above).
-        _buildPhotoGallery(el, photos, { folderLink: p.photoItem, canRename: true, arrange: true, stack: true });
+        var _shared = _rrPieceSharesFolder(p);   // 2026-11-02: re-ordering a part of the engine's folder would move the engine's main picture
+        _buildPhotoGallery(el, photos, { folderLink: rrPhotoLinkOf(p), canRename: true, arrange: !_shared, stack: true, mainPick: !_shared });
       }).catch(function () {
         var el = document.getElementById('grp-photos-' + gi);
         if (el) el.innerHTML = '<div style="grid-column:1/-1;color:var(--text-dim);font-size:0.78rem">Could not load photos</div>';
@@ -1744,6 +1746,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
     // for an empty folder; a box-only folder gets the stock card underneath.
     if (!_lnk) { if (typeof window._stockDetail === 'function') window._stockDetail(pd, it, 'empty'); return; }
     return driveGetFolderPhotos(_lnk).then(function(photos) {
+      photos = rrPiecePhotos(pd, photos || []);   // 2026-11-02: a box shows its box shots
       const el = document.getElementById('item-detail-photos');
       if (!el) return;
       if (!photos || photos.length === 0) {
@@ -1753,7 +1756,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
       }
       // v0.9.937 (Brad): hero + thumbnail-rail gallery (RSV big, other views
       // as clickable thumbnails beside it; ✂ acts on the photo shown large).
-      _buildPhotoGallery(el, photos, { folderLink: _lnk, canRename: false, arrange: true,
+      _buildPhotoGallery(el, photos, { folderLink: _lnk, canRename: false, arrange: !_rrPieceSharesFolder(pd), mainPick: !_rrPieceSharesFolder(pd),   // 2026-11-02: "Make this the main picture" (never on a box that borrows the engine's folder)
         stack: !!document.querySelector('.rr-detail-side') });   // v0.9.1009
       if (typeof window._stockDetail === 'function') window._stockDetail(pd, it, 'extra', photos);   // v0.9.1682: box-only folders
     });
@@ -1791,7 +1794,7 @@ function rrShowCopyPicker(idx) {
     if (p.pricePaid) bits.push('Paid ' + ((typeof _currencySymbol === 'function' ? _currencySymbol() : '$') + p.pricePaid));
     var _d = (typeof rrBestDate === 'function') ? rrBestDate(p) : (p.dateAdded || p.datePurchased || '');
     if (_d) bits.push('Added ' + ((typeof _formatDate === 'function') ? _formatDate(_d) : _d));
-    bits.push(p.photoItem ? 'Has photos' : 'No photos');
+    bits.push(rrPhotoLinkOf(p) ? 'Has photos' : 'No photos');   // 2026-11-02
     var isCur = inv && inv === cur;
     return '<button onclick="rrPickCopy(' + idx + ',\'' + rrJsArg(inv) + '\')" style="display:block;width:100%;text-align:left;padding:0.6rem 0.75rem;margin-bottom:0.45rem;border-radius:9px;cursor:pointer;font-family:var(--font-body);'
       + (isCur ? 'border:2px solid var(--accent);background:color-mix(in srgb, var(--accent) 12%, var(--bg-card));' : 'border:1.5px solid var(--border);background:var(--bg-card);') + '">'
@@ -1985,7 +1988,7 @@ function _buildPhotoGallery(el, photos, opts) {
   galBody.appendChild(heroWrap);
 
   // Rail (only when there is more than one photo)
-  var rail = null, thumbs = [];
+  var rail = null, thumbs = [], mainBtn = null;
   if (photos.length > 1) {
     rail = document.createElement('div');
     rail.style.cssText = narrow
@@ -2038,6 +2041,41 @@ function _buildPhotoGallery(el, photos, opts) {
       try { loadDriveThumb(p.id, ti, t, p.thumbnailLink || null, 'lo'); } catch (e) {}
     });
     galBody.appendChild(rail);
+    // 2026-11-02 ([stated] Brad: "i need a button on the strip at the bottom
+    // that says, make this the main picture" → "yes"): under the strip, on
+    // EVERY screen — iPad and phone too (dragging is computer-only). It acts on
+    // the photo shown large; the first photo wears a ★ and the button says so.
+    if (opts.mainPick && opts.folderLink) {
+      var _MP = window.RR_MAIN_PHOTO || {};
+      mainBtn = document.createElement('button');
+      mainBtn.type = 'button';
+      mainBtn.className = 'rr-tap-wide rr-main-photo-btn';
+      mainBtn.style.cssText = 'display:inline-flex;align-items:center;gap:0.35rem;padding:0.4rem 0.8rem;border-radius:8px;'
+        + 'border:1.5px solid var(--accent2);background:var(--surface2);color:var(--text);font-family:var(--font-body);'
+        + 'font-size:0.82rem;font-weight:600;cursor:pointer;line-height:1.15';
+      mainBtn.onclick = async function (ev) {
+        ev.preventDefault(); ev.stopPropagation();
+        if (cur === 0 || mainBtn.disabled) return;
+        var pick = photos[cur];
+        mainBtn.disabled = true;
+        mainBtn.textContent = _MP.busy || 'Saving\u2026';
+        var done = false;
+        try { done = await rrGalMakeMain(photos, pick.id, redraw); }
+        catch (eM) { console.warn('[main picture]', eM); if (typeof showToast === 'function') showToast(_MP.failed || 'Try again.', 4000, true); }
+        if (!done) { mainBtn.disabled = false; select(cur); }
+      };
+      var mainRow = document.createElement('div');
+      mainRow.className = 'rr-main-photo-row';
+      mainRow.style.cssText = 'display:flex;justify-content:flex-start;width:100%';
+      mainRow.appendChild(mainBtn);
+      el.appendChild(mainRow);
+      var star = document.createElement('div');
+      star.className = 'rr-main-star';
+      star.title = _MP.is || '';
+      star.textContent = '\u2605';
+      star.style.cssText = 'position:absolute;top:1px;left:3px;font-size:0.85rem;line-height:1;color:var(--gold,#d4a843);text-shadow:0 0 3px rgba(0,0,0,0.85)';
+      thumbs[0].appendChild(star);
+    }
   }
 
   function heroSrcFor(p) {
@@ -2083,6 +2121,16 @@ function _buildPhotoGallery(el, photos, opts) {
       t.style.borderColor = (ti2 === cur) ? 'var(--accent)' : 'var(--border)';
       t.style.opacity = (ti2 === cur) ? '1' : '0.85';
     });
+    if (mainBtn) {   // 2026-11-02: the main-picture button follows the photo shown large
+      var _MPw = window.RR_MAIN_PHOTO || {};
+      var _isMain = (cur === 0);
+      mainBtn.disabled = _isMain;
+      mainBtn.style.opacity = _isMain ? '0.75' : '1';
+      mainBtn.style.cursor = _isMain ? 'default' : 'pointer';
+      mainBtn.setAttribute('aria-pressed', _isMain ? 'true' : 'false');
+      mainBtn.innerHTML = '<span aria-hidden="true">' + (_isMain ? '\u2605' : '\u2606') + '</span><span>'
+        + rrEsc(_isMain ? (_MPw.is || '') : (_MPw.make || '')) + '</span>';
+    }
   }
 
   // Swipe on the hero (phones) + arrow keys when the hero is focused
@@ -3816,6 +3864,10 @@ function _rrNameWithView(name, viewKey) {
 function _rrSortGalleryPhotos(photos) {
   var priority = function (name) {
     var n = (name || '').toUpperCase();
+    // 2026-11-02 (Mike Caruso's box flap as his engine's list photo): a BOX
+    // shot never leads while the item has a photo of itself — "BOX-FV" used to
+    // rank as a Front View. A folder of box shots only still shows one.
+    if (n.includes('BOX')) return 10;
     if (n.includes('RSV')) return 0;
     if (n.includes('FV'))  return 1;
     if (n.includes('TV'))  return 2;
@@ -3833,11 +3885,65 @@ function _rrSortGalleryPhotos(photos) {
   });
   return photos;
 }
+// THE MAIN PICTURE — the ONE rule (2026-11-02, [stated] Brad "make this the
+// main picture" → "yes"): the first photo in the gallery's own order above.
+// The Collection list rows, phone rows, the dashboard reel and the Workbench
+// (dashboard.js _thumbFor) ask THIS; the item page's gallery draws in the same
+// order, so the big picture and the list can never disagree. Never a second
+// chooser (list_photo_tests scans for one, planted).
+function rrMainPhotoOf(files) {
+  if (!files || !files.length) return null;
+  return _rrSortGalleryPhotos(files.slice())[0] || null;
+}
+if (typeof window !== 'undefined') window.rrMainPhotoOf = rrMainPhotoOf;
+// 2026-11-02 (the box in a group, [stated] Brad "yes"): WHICH of a folder's
+// photos belong to THIS piece. A Box / Master Carton piece shows its BOX shots
+// (they often sit in the engine's folder — rrPhotoLinkOf, drive.js); a box with
+// a folder of its own and no BOX-named shot shows that folder. Every other
+// piece: the whole folder. The list photo (dashboard.js _thumbFor), the group
+// strip and the group's photo sections all ask this — one answer.
+function rrPiecePhotos(pd, files) {
+  files = files || [];
+  if (!pd || !(typeof _isBoxItemNum === 'function' && _isBoxItemNum(pd.itemNum))) return files;
+  var shots = files.filter(function (f) { return /BOX/i.test(String((f && f.name) || '')); });
+  if (shots.length) return shots;
+  return pd.photoItem ? files : [];   // the engine's folder with no box shot in it: nothing of the box's
+}
+if (typeof window !== 'undefined') window.rrPiecePhotos = rrPiecePhotos;
+// A box whose shots live in ANOTHER piece's folder: its gallery shows a part of
+// that folder, so it must not re-order it (that would change the engine's main
+// picture) — no dragging, no "Make this the main picture" there.
+function _rrPieceSharesFolder(pd) {
+  return !!(pd && !pd.photoItem && typeof _isBoxItemNum === 'function' && _isBoxItemNum(pd.itemNum) && pd.photoBox);
+}
+// A device remembers each item's list photo (dashboard.js); after a rename it
+// must look again — forget every remembered photo of this folder's files.
+function _rrGalForget(photos) {
+  try { if (typeof rrThumbForgetFid === 'function') (photos || []).forEach(function (x) { if (x && x.id) rrThumbForgetFid(x.id); }); } catch (e) {}
+}
+// "Make this the main picture": that photo moves to first place, the rest keep
+// their order — the reorder writer below (a rename on the collector's own
+// Drive, never a delete). One save at a time.
+var _rrMainBusy = false;
+async function rrGalMakeMain(photos, fileId, redraw) {
+  if (_rrMainBusy) return false;
+  var ids = (photos || []).map(function (x) { return x.id; });
+  var at = ids.indexOf(fileId);
+  if (at < 0) return false;
+  if (at === 0) return true;
+  _rrMainBusy = true;
+  try {
+    ids.splice(0, 0, ids.splice(at, 1)[0]);
+    var r = await _rrGalCommitOrder(photos, ids, redraw, (window.RR_MAIN_PHOTO || {}).saved);
+    return r !== false;
+  } finally { _rrMainBusy = false; }
+}
+if (typeof window !== 'undefined') window.rrGalMakeMain = rrGalMakeMain;
 
 // The two writers. Nothing here is destructive: the only Drive call either
 // one makes is PATCH {name}. `redraw` re-fetches from Drive afterwards so
 // the screen always shows what the renames actually produced.
-async function _rrGalCommitOrder(photos, orderedIds, redraw) {
+async function _rrGalCommitOrder(photos, orderedIds, redraw, okWords) {
   var ok = 0, fail = 0;
   for (var i = 0; i < orderedIds.length; i++) {
     var p = photos.find(function (x) { return x.id === orderedIds[i]; });
@@ -3849,9 +3955,11 @@ async function _rrGalCommitOrder(photos, orderedIds, redraw) {
       ok++;
     } catch (e) { fail++; console.warn('[gallery] reorder rename failed — continuing:', p.id, e); }
   }
+  _rrGalForget(photos);   // 2026-11-02: the list photo follows the new order on this device at once
   if (fail) showToast('Reordered ' + ok + ' of ' + orderedIds.length + ' photos — ' + fail + ' would not rename. Try again.', 4500, true);
-  else showToast('✓ Photo order saved', 2000);
+  else showToast(okWords || '✓ Photo order saved', okWords ? 3000 : 2000);
   redraw();
+  return !fail;
 }
 async function _rrGalCommitView(photos, fileId, viewKey, redraw) {
   var p = photos.find(function (x) { return x.id === fileId; });
@@ -3874,6 +3982,7 @@ async function _rrGalCommitView(photos, fileId, viewKey, redraw) {
       ok++;
     } catch (e) { fail++; console.warn('[gallery] view rename failed — continuing:', renames[i].id, e); }
   }
+  _rrGalForget(photos);   // 2026-11-02: a view change can change the main picture too
   if (fail) showToast('That view change only partly saved — check the labels and try again.', 4500, true);
   else if (viewKey) {
     var vDef = (typeof ITEM_VIEWS !== 'undefined' ? ITEM_VIEWS : []).find(function (v) { return v.key === viewKey; });
@@ -4026,6 +4135,7 @@ async function _deleteCollectionPhoto(fileId, fileName, wrapEl) {
   try {
     if (typeof driveRequest !== 'function') throw new Error('Drive not available');
     await driveRequest('PATCH', '/files/' + fileId, { trashed: true });
+    try { if (typeof rrThumbForgetFid === 'function') rrThumbForgetFid(fileId); } catch (eF) {}   // 2026-11-02: a deleted main picture is not shown in the lists
     if (wrapEl && wrapEl.parentNode) wrapEl.parentNode.removeChild(wrapEl);
     if (typeof showToast === 'function') showToast('\u2713 Photo deleted (moved to Drive trash)');
     // Refresh the detail page PHOTOS card behind the modal so it reflects the

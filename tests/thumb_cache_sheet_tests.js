@@ -49,6 +49,9 @@ function world(dashSrc, driveSrc) {
   ctx.window = ctx;
   ctx.fetch = async () => ({ ok: ctx.fetchStatus === 200, status: ctx.fetchStatus, blob: async () => ({}) });
   vm.createContext(ctx);
+  // 2026-11-02 (the main picture): the REAL main-picture rule + the "last looked up" helpers
+  const MP = require('./lib/main-photo');
+  vm.runInContext(MP.mainPhotoSrc() + '\n' + MP.rememberSrc(dashSrc), ctx);
   ['_thumbFidKey', '_thumbFids', 'rrThumbForgetFid', 'rrThumbBust', '_thumbFor'].forEach(n => {
     if (n === '_thumbFidKey' && dashSrc.indexOf('function _thumbFidKey(') < 0) return;   // the planted old version has none
     if (n === 'rrThumbForgetFid' && dashSrc.indexOf('function rrThumbForgetFid(') < 0) return;

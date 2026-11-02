@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2097';
+const APP_VERSION = 'v0.9.2098';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -5294,3 +5294,27 @@ const RR_REPORT_PRINT = {
     + '@page{margin:1.5cm 1.6cm}',
 };
 if (typeof window !== 'undefined') window.RR_REPORT_PRINT = RR_REPORT_PRINT;
+
+// ═══════════════════════════════════════════════════════════════
+// THE MAIN PICTURE — 2026-11-02 ([stated] Brad: "i can't do that on the ipad,
+// i need a button on the strip at the bottom that says, make this the main
+// picture" → "yes"; Mike Caruso's box flap showed as his engine's list photo).
+// The main picture = the FIRST photo in the gallery's own order
+// (rrMainPhotoOf / _rrSortGalleryPhotos, app-collection.js) — the Collection
+// list rows, phone rows, the dashboard reel and the Workbench all show it.
+// The button moves the chosen photo to first place through the existing
+// reorder writer (_rrGalCommitOrder: a rename on the collector's own Drive,
+// never a delete), so every device sees the same order.
+//   recheckMs — how long a device trusts the list photo it remembered for an
+//               item before looking again (so the collector's OTHER devices
+//               follow a change within a day; this device forgets at once)
+// ═══════════════════════════════════════════════════════════════
+const RR_MAIN_PHOTO = {
+  make: 'Make this the main picture',
+  is: 'Main picture',
+  saved: '\u2713 Main picture saved \u2014 your lists show it now',
+  busy: 'Saving\u2026',
+  failed: 'The main picture did not change \u2014 try again.',
+  recheckMs: 24 * 60 * 60 * 1000,
+};
+if (typeof window !== 'undefined') window.RR_MAIN_PHOTO = RR_MAIN_PHOTO;

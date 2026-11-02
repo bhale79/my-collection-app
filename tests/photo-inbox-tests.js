@@ -7252,7 +7252,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // strip async/await (the branching is unchanged) so the assertions run
     // BEFORE the summary's process.exit — in this harness an async assertion
     // is an invisible one, which section 160's first draft proved the hard way.
-    const rIdx = drv2.indexOf('async function rrPhotoFolderFor');
+    // 2026-11-02 (the box in a group): the resolver reads the link through rrPhotoLinkOf, just above it
+    const rIdx = drv2.indexOf('function rrPhotoLinkOf') >= 0 ? drv2.indexOf('function rrPhotoLinkOf') : drv2.indexOf('async function rrPhotoFolderFor');
     const rEnd = drv2.indexOf("window.rrPhotoFolderFor = rrPhotoFolderFor", rIdx);
     ok('the resolver slice is findable', rIdx > 0 && rEnd > rIdx);
     const mkSync = function (finder) {
@@ -15330,17 +15331,19 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // and count what it actually renamed. (v0.9.1293: commitOrder became the
       // SHARED _rrGalCommitOrder — one writer for both galleries.)
       {
-        const c0 = coll30.indexOf('async function _rrGalCommitOrder(photos, orderedIds, redraw) {');
+        // 2026-11-02 (the main picture): the writer takes the toast words as a 4th
+        // argument and forgets the remembered list photo (_rrGalForget) — stubbed here.
+        const c0 = coll30.indexOf('async function _rrGalCommitOrder(photos, orderedIds, redraw');
         const c1 = coll30.indexOf('async function _rrGalCommitView');
         const patched = [];
         const photos = [{ id: 'a', name: '6561 ADD 1.jpg' },
                         { id: 'b', name: '6561 RSV.jpg' },
                         { id: 'c', name: '6561 ADD 3.jpg' }];
-        const run30 = new Function('_rrNameWithOrder', 'driveRequest', 'showToast',
+        const run30 = new Function('_rrNameWithOrder', 'driveRequest', 'showToast', '_rrGalForget',
           coll30.slice(c0, c1) + ' return _rrGalCommitOrder;')(
             H.withOrder,
             async (m, u, body) => { patched.push({ url: u, name: body.name }); },
-            () => {});
+            () => {}, () => {});
         await run30(photos, ['c', 'a', 'b'], () => {});
         const names = {};
         patched.forEach(x => { names[x.url.split('/')[2].split('?')[0]] = x.name; });
@@ -16838,12 +16841,14 @@ META_WRITES.length = 0; TOASTS.length = 0;
          })(), 'a second copy of the reorder writer exists — the two galleries can drift');
 
       // ── the gestures are wired where Brad asked for them ──────────────
+      // 2026-11-02 (the main picture): both galleries also carry mainPick: true.
       ok('241 the detail page gallery is told to arrange',
-         /canRename: false, arrange: true,\s*\n\s*stack: !!document\.querySelector/.test(coll41));
+         /canRename: false, arrange: (?:true|!_rrPieceSharesFolder\(pd\)),(?: mainPick: (?:true|!_rrPieceSharesFolder\(pd\)),)?[^\n]*\n\s*stack: !!document\.querySelector/.test(coll41));
       // Session 85: v1570 added stack:true (the side rail was stealing a
       // third of the member column) — same gallery, same arrange wiring.
       ok('241 …and the group-unit galleries are too',
-         /\{ folderLink: p\.photoItem, canRename: true, arrange: true, stack: true \}/.test(coll41));
+         // 2026-11-02 (the box in a group): rrPhotoLinkOf(p), and a box that borrows the engine's folder may not re-order it
+         /\{ folderLink: (?:p\.photoItem|rrPhotoLinkOf\(p\)), canRename: true, arrange: (?:true|!_shared), stack: true(?:, mainPick: (?:true|!_shared))? \}/.test(coll41));
       ok('241 drag stays desktop-only, and needs something to reorder',
          /var arrange = !!opts\.arrange && !window\.IS_MOBILE_UA && photos\.length > 1;/.test(hero));
       ok('241 the rail tile drags as a tile, never as a ghosted image URL',
