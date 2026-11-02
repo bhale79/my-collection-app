@@ -1409,6 +1409,7 @@
     html += '<div class="rrap-hint" style="margin-top:0.4rem">'
       + 'Paste, drop, or click a box to fill it. <b>' + _slotLabel(_slotArmed) + '</b> is selected.'
       + '</div>'
+      + (typeof rrPasteBtn === 'function' ? '<div style="margin-top:0.35rem">' + rrPasteBtn('rrap-lfile') + '</div>' : '')   // 2026-11-01: the 📋 button for devices with no Ctrl+V (config.js)
       + (armed && armed.kind ? '<div class="rrap-lnote" style="margin-top:0.3rem">' + _rrLogoNote(armed.kind) + '</div>' : '')
       + '<input type="file" id="rrap-lfile" accept="image/*" style="display:none"></div>';
     return html;
@@ -1988,12 +1989,8 @@
   // paste + drag-drop, only while the editor is open
   function _onPaste(e) {
     if (!document.getElementById('rrap')) return;
-    var items = (e.clipboardData && e.clipboardData.items) || [];
-    for (var i = 0; i < items.length; i++) {
-      if (items[i].type && items[i].type.indexOf('image/') === 0) {
-        e.preventDefault(); _rrapLogoLoad(items[i].getAsFile()); return;
-      }
-    }
+    var f = (typeof rrPicFromEvent === 'function') ? rrPicFromEvent(e) : null;   // 2026-11-01: the ONE way a pasted picture is taken out (config.js)
+    if (f) { e.preventDefault(); _rrapLogoLoad(f); }
   }
   function _onDrop(e) {
     var ov = document.getElementById('rrap'); if (!ov) return;

@@ -91,7 +91,14 @@ function _wizBoxHeight() {
   // (not dvh, which ignores the keyboard) keeps this inside the keyboard
   // guard above: keyboard up -> vv < 596 -> the short branch already won.
   // Scoped to <=640px wide so small tablets keep their exact old box.
-  if ((window.innerWidth || 0) <= 640) return Math.max(300, Math.round(vv * 0.92));
+  // 2026-11-01 (Brad's iPhone: Photo ID / ✕ / Next under the menu bar): a phone's
+  // box ends ABOVE the bottom menu bar — the bar's MEASURED cover
+  // (back-stack.js rrBottomBarMeasure), never a share of the screen that guesses
+  // how tall the bar is. Same space app.css leaves (bar + 23px).
+  if ((window.innerWidth || 0) <= 640) {
+    var _bar = (typeof window.rrBottomBarMeasure === 'function') ? window.rrBottomBarMeasure() : 85;
+    return Math.max(300, Math.round(Math.min(vv * 0.92, vv - _bar - 23)));
+  }
   return 580;   // small tablets — exactly as before
 }
 window._wizBoxHeight = _wizBoxHeight;
@@ -883,7 +890,7 @@ function _buildWizardModal() {
   if (!document.getElementById('photo-picker-sheet')) {
     var _pickerEl = document.createElement('div');
     _pickerEl.id = 'photo-picker-sheet';
-    _pickerEl.innerHTML = "<div id=\"photo-picker-inner\"><div style=\"text-align:center;font-family:var(--font-head);font-size:0.8rem;letter-spacing:0.12em;color:var(--text-dim);text-transform:uppercase;margin-bottom:0.25rem\">Add Photo</div><button id=\"picker-btn-cam\" class=\"picker-btn\" style=\"display:none\"><span class=\"picker-icon\">\ud83d\udcf7</span><span id=\"picker-cam-label\">Take Photo</span></button><button id=\"picker-btn-lib\" class=\"picker-btn\"><span class=\"picker-icon\">\ud83d\uddbc\ufe0f</span><span id=\"picker-lib-label\">Choose from Library</span></button><button class=\"picker-btn\" style=\"border-color:var(--text-dim);color:var(--text-dim)\" onclick=\"closePhotoPicker()\"><span class=\"picker-icon\">\u2715</span><span>Cancel</span></button></div>";
+    _pickerEl.innerHTML = "<div id=\"photo-picker-inner\"><div style=\"text-align:center;font-family:var(--font-head);font-size:0.8rem;letter-spacing:0.12em;color:var(--text-dim);text-transform:uppercase;margin-bottom:0.25rem\">Add Photo</div><button id=\"picker-btn-cam\" class=\"picker-btn\" style=\"display:none\"><span class=\"picker-icon\">\ud83d\udcf7</span><span id=\"picker-cam-label\">Take Photo</span></button><button id=\"picker-btn-lib\" class=\"picker-btn\"><span class=\"picker-icon\">\ud83d\uddbc\ufe0f</span><span id=\"picker-lib-label\">Choose from Library</span></button><button id=\"picker-btn-paste\" class=\"picker-btn rr-paste-btn\" data-paste=\"slot\"><span class=\"picker-icon\">\ud83d\udccb</span><span id=\"picker-paste-label\">Paste a copied picture</span></button><button class=\"picker-btn\" style=\"border-color:var(--text-dim);color:var(--text-dim)\" onclick=\"closePhotoPicker()\"><span class=\"picker-icon\">\u2715</span><span>Cancel</span></button></div>";
     // Wire up camera button (creates hidden input on click)
     var _camBtn = _pickerEl.querySelector('#picker-btn-cam');
     if (_camBtn) _camBtn.addEventListener('click', function() {
@@ -911,6 +918,18 @@ function _buildWizardModal() {
         document.body.appendChild(inp);
       }
       inp.value = ''; inp.click();
+    });
+    // 2026-11-01 ([stated] Brad: paste a screenshot straight into a photo slot):
+    // the picture goes into THIS slot through the same upload as a picked file.
+    // config.js rrPasteInto reads the clipboard (one reader) and explains when it can't.
+    var _pasteBtn = _pickerEl.querySelector('#picker-btn-paste');
+    if (_pasteBtn) _pasteBtn.addEventListener('click', function() {
+      rrPasteInto(null, function (f) {
+        var sid = _pickerStepId, vk = _pickerViewKey;
+        closePhotoPicker();
+        if (!sid || !vk) { showToast('Photo slot lost — please try again', 3000, true); return; }
+        uploadWizardPhoto(f, sid, vk);
+      });
     });
     // Close on backdrop click
     bindOverlayClose(_pickerEl, function() { closePhotoPicker(); });
@@ -943,7 +962,9 @@ function _buildWizardModal() {
       +       '<img id="id-photo-img" style="max-width:100%;max-height:180px;display:block;margin:0 auto">'
       +       '<button aria-label="Remove this photo" id="id-photo-clear" type="button" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.7);border:1px solid var(--border);color:#fff;border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:0.9rem">\u2715</button>'
       +     '</div>'
-      +     '<div id="id-photo-buttons" style="display:flex;gap:0.4rem">' + _photoButtons + '</div>'
+      +     '<div id="id-photo-buttons" style="display:flex;gap:0.4rem;flex-wrap:wrap">' + _photoButtons
+      // 2026-11-01: a copied picture goes into the same box "pick a photo" fills (config.js rrPasteInto)
+      +       rrPasteBtn('id-file-gallery', 'flex:1;padding:0.6rem;border-radius:9px;border:1.5px dashed var(--accent2);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer', true) + '</div>'
       +     '<input type="file" id="id-file-camera" accept="image/*" capture="environment" style="display:none">'
       +     '<input type="file" id="id-file-gallery" accept="image/*" style="display:none">'
       +   '</div>'
@@ -3610,6 +3631,7 @@ function renderWizardStep() {
       + '<span id="bcd-photo-label">' + (_bcd._boxPhotoFile ? '\u2713 ' + String(_bcd._boxPhotoFile.name || '').slice(0, 22) : ((_bcd._boxKind === 'mbox' && typeof RR_ADD_PIECE !== 'undefined') ? RR_ADD_PIECE.mbox.photoBtn : 'Add box photo')) + '</span>'
       + '</button>'
       + '<input type="file" id="bcd-photo-file" accept="image/*" capture="environment" style="display:none">'
+      + '<div style="margin-top:0.35rem">' + rrPasteBtn('bcd-photo-file', 'width:100%;padding:0.45rem;border-radius:9px;border:1.5px dashed var(--border);background:none;color:var(--text-mid);font-family:var(--font-body);font-size:0.82rem;cursor:pointer') + '</div>'   // 2026-11-01
       + '</div>';
 
     _bcdHtml += '</div>';
@@ -8609,6 +8631,7 @@ function _wizPicFirstChoose() {
       (window.IS_MOBILE_UA ? '<button type="button" data-pfc="camera">' + RR_PIC_FIRST.takePhoto + '</button>' : '') +
       '<button type="button" data-pfc="local">' + (window.IS_MOBILE_UA ? RR_PIC_FIRST.fromPhone : RR_PIC_FIRST.fromComputer) + '</button>' +
       (gpOk ? '<button type="button" data-pfc="gphotos">' + RR_PIC_FIRST.fromGPhotos + '</button>' : '') +
+      '<button type="button" data-pfc="paste" class="rr-paste-btn">' + RR_PASTE.icon + ' ' + RR_PASTE.label + '</button>' +   // 2026-11-01
       '<div class="wiz-picfirst-status" id="wiz-picfirst-status" style="display:none"></div>' +
       '<button type="button" data-pfc="cancel" class="wiz-picfirst-cancel">Cancel</button>' +
     '</div>';
@@ -8620,6 +8643,8 @@ function _wizPicFirstChoose() {
   ov.querySelector('[data-pfc="local"]').onclick = function () { close(); _wizPicFirstPick(); };
   var cam = ov.querySelector('[data-pfc="camera"]');
   if (cam) cam.onclick = function () { close(); _wizPicFirstPick(true); };
+  // 2026-11-01: a copied picture starts the add exactly like a picked one (config.js rrPasteInto)
+  ov.querySelector('[data-pfc="paste"]').onclick = function () { close(); rrPasteInto(null, _wizPicFirstTake); };
   ov.querySelector('[data-pfc="cancel"]').onclick = close;
   var gp = ov.querySelector('[data-pfc="gphotos"]');
   if (gp) gp.onclick = function () { _wizPicFirstGPhotos(ov, close); };   // inside the click: the picker tab opens now

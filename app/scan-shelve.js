@@ -557,10 +557,12 @@ function rrShelveClose() {
 function _shCameraStart() {
   var nocam = document.getElementById('rr-shelve-nocam');
   var video = document.getElementById('rr-shelve-video');
-  var noCam = function () { if (nocam) { nocam.textContent = _shW('noCamera'); nocam.style.display = 'flex'; } };
+  // 2026-11-01: a camera that can't start says WHY (config.js rrStartCamera — the
+  // same words and diary line as the scanner); a computer keeps its own words.
+  var noCam = function (why) { if (nocam) { nocam.textContent = (why && why.words) || _shW('noCamera'); nocam.style.display = 'flex'; } };
   if (!window.IS_MOBILE_UA || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { noCam(); return; }
   var me = _sh;
-  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 } }, audio: false }).then(function (s) {
+  rrStartCamera({ video: { facingMode: 'environment', width: { ideal: 1280 } }, audio: false }).then(function (s) {
     if (!_sh || _sh !== me || me.stop) { s.getTracks().forEach(function (t) { t.stop(); }); return; }
     me.stream = s; video.srcObject = s;
     var canvas = document.createElement('canvas');
@@ -576,7 +578,7 @@ function _shCameraStart() {
         } catch (e) {}
       }
     })();
-  }).catch(noCam);
+  }).catch(function (why) { if (why && why.words) noCam(why); else console.warn('[shelve] after the camera started:', why); });
 }
 function _shCameraStop() {
   try { if (_sh && _sh.stream) _sh.stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {}

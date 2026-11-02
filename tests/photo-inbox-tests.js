@@ -3022,12 +3022,17 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('the box-identify shell is a dim scrim, not a full-bleed page',
        /d\.style\.cssText = 'position:fixed;inset:0;z-index:99997;background:rgba\(0,0,0,0\.7\)/.test(bc4) &&
        !/z-index:99997;background:#0b0d1d/.test(bc4));
+    // 2026-11-01 (Brad's iPad: Research ran off the bottom): still centred, now by the
+    // card's own margin:auto — align-items:center cut the TOP off a card taller than
+    // the window; flex-start + margin:auto centres a short card and starts a tall one
+    // at the top so it scrolls. Seen red against the old line first.
     ok('it centres the standard card',
-       /align-items:center;justify-content:center/.test(bc4.slice(bc4.indexOf('function _biOverlay'), bc4.indexOf('var _biStream'))));
+       /align-items:flex-start;justify-content:center/.test(bc4.slice(bc4.indexOf('function _biOverlay'), bc4.indexOf('var _biStream'))) &&
+       /<div class="rr-card" style="margin:auto 0">/.test(bc4.slice(bc4.indexOf('function _biOverlay'), bc4.indexOf('var _biStream'))));
     // v0.9.1143: the accent top edge moved from an inline style here into
     // .rr-card itself — Brad asked for the orange bar on ALL of these.
     ok('every phase renders inside the standard card',
-       /d\.innerHTML = '<div class="rr-card">' \+ inner \+ '<\/div>';/.test(bc4));
+       /d\.innerHTML = '<div class="rr-card" style="margin:auto 0">' \+ inner \+ '<\/div>';/.test(bc4));   // 2026-11-01: + margin:auto (above)
     ok('the accent top bar is part of the standard now, one place',
        /\.rr-card \{[\s\S]{0,400}border-top: 3px solid var\(--accent\);/.test(rd4('app.css').replace(/\/\*[\s\S]*?\*\//g, '')));
     const css4 = rd4('app.css').replace(/\/\*[\s\S]*?\*\//g, '');
@@ -9311,18 +9316,25 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // function its subject calls tests nothing but its own ReferenceError.
     const hsrc = wz.slice(wz.indexOf('function _wizBoxHeight()'),
                           wz.indexOf('window._wizWide = _wizWide;'));
-    const H = (innerWidth, innerHeight, vvHeight) => {
+    const H = (innerWidth, innerHeight, vvHeight, bar) => {
       const win = { innerWidth, innerHeight, visualViewport: vvHeight ? { height: vvHeight } : null };
+      if (bar != null) win.rrBottomBarMeasure = () => bar;   // 2026-11-01: the bottom bar's measured cover
       return new Function('window', '"use strict";' + hsrc + '; return _wizBoxHeight();')(win);
     };
     // v0.9.1407 — the phone stops wasting its screen too (Brad: the grouping
     // question sat below the fold). 92% of the VISUAL viewport, same courtesy
     // the desktop got in v0.9.1389. This line was 'a phone is left exactly as
     // it was — 580' and was seen red against the new rule before it changed.
-    ok('a phone finally uses its screen (92% of the viewport)',
-       H(390, 844, 844) === 776, String(H(390, 844, 844)));
+    // 2026-11-01 ([stated] Brad, iPhone: "you can't see the photo id button"): 92% of the
+    // screen ran the box's footer under the bottom menu bar on an iPhone, whose bar is
+    // taller. The phone box now ends ABOVE the bar's MEASURED cover (+23px, the same
+    // room app.css leaves). These lines were 776 / 681 and were seen red first.
+    ok('a phone uses its screen down to the bottom bar (Android bar, 85px → 844 − 85 − 23)',
+       H(390, 844, 844) === 736 && H(390, 844, 844, 85) === 736, String(H(390, 844, 844)));
+    ok('…an iPhone, whose bar is taller (111px measured), gets a box that still ends above it',
+       H(390, 844, 844, 111) === 710, String(H(390, 844, 844, 111)));
     ok('…and a smaller phone scales the same way, not to a fixed number',
-       H(360, 740, 740) === 681, String(H(360, 740, 740)));
+       H(360, 740, 740) === 632, String(H(360, 740, 740)));
     ok('a phone with the keyboard up still gives the footer room',
        H(390, 844, 380) === 364, String(H(390, 844, 380)));
     ok('a 1080p desktop stops wasting half its screen',

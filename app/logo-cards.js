@@ -202,6 +202,7 @@
                     : '<span style="font-size:1.7rem">🖼</span><span>Paste, drop, or click<br>to add a logo</span>')
       +   '</div>'
       +   '<input type="file" id="rrlc-file" accept="image/*" style="display:none">'
+      +   '<div style="margin-top:0.35rem">' + rrPasteBtn('rrlc-file') + '</div>'   // 2026-11-01 (Ctrl+V reaches this box too — config.js)
       +   (c.logo && c.logo.kind && typeof window.rrLogoNote === 'function'
             ? '<div class="rrlc-note">' + _esc(window.rrLogoNote(c.logo.kind)) + '</div>' : '')
       + '</div>'

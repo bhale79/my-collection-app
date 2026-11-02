@@ -1014,6 +1014,8 @@
       + '<div id="ct-card-dropwrap" style="display:flex;gap:0.5rem;margin-bottom:0.7rem">'
       +   '<button onclick="document.getElementById(\'ct-card-file\').click()" style="flex:1;padding:0.75rem;border-radius:9px;border:1.5px dashed #3498db;background:var(--bg-card);background:color-mix(in srgb, rgb(52,152,219) 8%, var(--bg-card));color:var(--t-info);font-weight:700;cursor:pointer;font-family:var(--font-body)">📷 Take photo of card</button>'
       +   '<button onclick="document.getElementById(\'ct-card-gallery\').click()" style="flex:1;padding:0.75rem;border-radius:9px;border:1.5px dashed #3498db;background:var(--bg-card);background:color-mix(in srgb, rgb(52,152,219) 8%, var(--bg-card));color:var(--t-info);font-weight:700;cursor:pointer;font-family:var(--font-body)">🖼 From gallery</button>'
+      // 2026-11-01: a copied picture of the card goes into the gallery box (same reading road)
+      +   rrPasteBtn('ct-card-gallery', 'flex:1;padding:0.75rem;border-radius:9px;border:1.5px dashed #3498db;background:var(--bg-card);background:color-mix(in srgb, rgb(52,152,219) 8%, var(--bg-card));color:var(--t-info);font-weight:700;cursor:pointer;font-family:var(--font-body)', true)
       + '</div>'
       + '<input type="file" id="ct-card-file" accept="image/*" capture="environment" style="display:none">'
       + '<input type="file" id="ct-card-gallery" accept="image/*" style="display:none">'
@@ -1024,6 +1026,7 @@
       + '<div id="ct-person-row" style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem">'
       +   '<span id="ct-person-wrap" style="display:none;position:relative;flex-shrink:0"><img id="ct-person-preview" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:50%;border:1.5px solid var(--border);background:#111;display:block"><button id="ct-person-crop" title="Crop" style="position:absolute;right:-7px;bottom:-7px;width:24px;height:24px;border-radius:50%;border:1px solid var(--border);background:rgba(0,0,0,0.75);color:#fff;cursor:pointer;font-size:0.7rem;line-height:1">✂</button></span>'
       +   '<button onclick="document.getElementById(\'ct-person-file\').click()" style="flex:1;padding:0.5rem;border-radius:8px;border:1.5px dashed var(--border);background:none;color:var(--text-mid);font-size:0.8rem;cursor:pointer;font-family:var(--font-body)">🙂 Add a photo of them (optional)</button>'
+      +   rrPasteBtn('ct-person-file', 'flex:0 0 auto;padding:0.5rem 0.7rem;border-radius:8px;border:1.5px dashed var(--border);background:none;color:var(--text-mid);font-size:0.8rem;cursor:pointer;font-family:var(--font-body)', true)   // 2026-11-01
       +   '<input type="file" id="ct-person-file" accept="image/*" style="display:none">'
       + '</div>'
       + '<div id="ct-card-status" style="font-size:0.75rem;color:var(--text-dim);margin:-0.3rem 0 0.5rem"></div>'

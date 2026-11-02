@@ -61,8 +61,9 @@ const chooser = (pg, mobile) => pg.evaluate(m => {
 
     // ── A · the camera ──
     const a1 = await chooser(pg, true);
-    T('A on a phone the box offers Take a picture, Pick from this phone, Google Photos and Cancel',
-      a1.buttons.map(b => b.split(':')[0]).join(',') === 'camera,local,gphotos,cancel' && /Take a picture/.test(a1.buttons[0]) && /Pick from this phone/.test(a1.buttons[1]), a1);
+    // 2026-11-01 ([stated] Brad: paste a copied picture): + "📋 Paste a copied picture" before Cancel
+    T('A on a phone the box offers Take a picture, Pick from this phone, Google Photos, Paste and Cancel',
+      a1.buttons.map(b => b.split(':')[0]).join(',') === 'camera,local,gphotos,paste,cancel' && /Take a picture/.test(a1.buttons[0]) && /Pick from this phone/.test(a1.buttons[1]), a1);
     await pg.click('#wiz-picfirst-choose [data-pfc="camera"]');
     const p1 = await pg.evaluate(() => window.__picks.slice(-1)[0]);
     T('A Take a picture opens the CAMERA (capture=environment)', p1 && p1.capture === 'environment' && p1.accept === 'image/*', p1);
@@ -71,7 +72,7 @@ const chooser = (pg, mobile) => pg.evaluate(m => {
     const p2 = await pg.evaluate(() => window.__picks.slice(-1)[0]);
     T('A Pick from this phone opens the pictures (no camera forced)', p2 && !p2.capture, p2);
     const a3 = await chooser(pg, false);
-    T('A on a computer: one "From this computer" button, no camera', a3.buttons.map(b => b.split(':')[0]).join(',') === 'local,gphotos,cancel' && /computer/.test(a3.buttons[0]), a3);
+    T('A on a computer: one "From this computer" button, no camera (+ Paste, 2026-11-01)', a3.buttons.map(b => b.split(':')[0]).join(',') === 'local,gphotos,paste,cancel' && /computer/.test(a3.buttons[0]), a3);
     await pg.evaluate(() => { const o = document.getElementById('wiz-picfirst-choose'); if (o) o.remove(); });
 
     // ── B · the 7-digit number ──

@@ -81,20 +81,12 @@ function _wizPhotoPaste(e) {
   if (!st || st.type !== 'drivePhotos') return;
   var t = e.target;
   if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
-  var cd = e.clipboardData; if (!cd) return;
-  var file = null, items = cd.items || [];
-  for (var i = 0; i < items.length; i++) {
-    if (items[i].kind === 'file' && items[i].type && items[i].type.indexOf('image/') === 0) { file = items[i].getAsFile(); if (file) break; }
-  }
-  if (!file && cd.files && cd.files.length && /^image\//.test(cd.files[0].type || '')) file = cd.files[0];
+  var file = rrPicFromEvent(e);   // 2026-11-01: the ONE way a pasted picture is taken out (config.js)
   if (!file) return;
   e.preventDefault();
   var tgt = _wizPhotoPasteTarget();
   if (!tgt) { showToast('Every slot has a picture \u2014 click the slot you want to replace, then paste', 4000, true); return; }
   if (tgt.picked) closePhotoPicker();
-  if (!file.name || file.name === 'image.png') {
-    try { file = new File([file], 'pasted-' + Date.now() + '.' + ((file.type.split('/')[1] || 'png').replace('jpeg', 'jpg')), { type: file.type }); } catch (eF) {}
-  }
   uploadWizardPhoto(file, tgt.sid, tgt.vk);
 }
 if (typeof document !== 'undefined' && !window._wizPhotoPasteOn) {
@@ -2778,6 +2770,7 @@ function _wizTrayRender(stepId) {
     + '<div style="font-size:0.78rem;color:var(--text-dim)">drag a picture onto its view slot above</div>'
     + '<div style="margin-left:auto;display:flex;gap:0.4rem">'
       + '<button type="button" id="wiz-tray-add" style="padding:0.3rem 0.7rem;border-radius:7px;border:1.5px solid var(--accent2);background:var(--surface);color:var(--accent2);font-family:var(--font-body);font-size:0.8rem;font-weight:600;cursor:pointer">\u2795 Add photos\u2026</button>'
+      + rrPasteBtn('wiz-tray-file', 'padding:0.3rem 0.7rem;border-radius:7px;border:1.5px dashed var(--border);background:var(--surface);color:var(--text-mid);font-family:var(--font-body);font-size:0.8rem;cursor:pointer', true)   // 2026-11-01
       + '<button type="button" id="wiz-tray-gp" style="padding:0.3rem 0.7rem;border-radius:7px;border:1.5px solid var(--border);background:var(--surface);color:var(--text-mid);font-family:var(--font-body);font-size:0.8rem;cursor:pointer">\u2601\ufe0f Google Photos</button>'
     + '</div></div>'
     + '<input type="file" id="wiz-tray-file" accept="image/*" multiple style="display:none">'

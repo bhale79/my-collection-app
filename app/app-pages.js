@@ -671,7 +671,7 @@ if (typeof window !== 'undefined') window.openEphemeraEdit = openEphemeraEdit;
 // paper/catalog/mock-up rows never had a photo button. Uploads to the same
 // 'Ephemera Photos/<title>' folder the wizard uses, then writes the folder
 // link into the row's photo column.
-window.ephemeraAddPhotos = function (tabId, rowKey) {
+window.ephemeraAddPhotos = function (tabId, rowKey, paste) {
   const entry = (state.ephemeraData[tabId] || {})[rowKey];
   if (!entry) return;
   const rowNum = parseInt(entry.row || rowKey, 10);
@@ -716,7 +716,7 @@ window.ephemeraAddPhotos = function (tabId, rowKey) {
       showToast(rrSaveError(e, 'the photo', { kept: false }), 4500, true);
     }
   };
-  inp.click();
+  if (paste) rrPasteInto(inp); else inp.click();   // 2026-11-01: 📋 Paste takes the same road
 };
 
 function openEphemeraDetail(tabId, rowKey) {
@@ -795,6 +795,7 @@ function openEphemeraDetail(tabId, rowKey) {
       <div style="padding:0.75rem 1.25rem;border-top:1px solid var(--border);display:flex;gap:0.5rem">
         <button onclick="openEphemeraEdit('${tabId}',${rowKey})" style="flex:1;padding:0.6rem;border-radius:8px;border:1.5px solid #e67e22;color:var(--t-orange);background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));cursor:pointer;font-family:var(--font-body);font-weight:600">Edit</button>
         <button onclick="ephemeraAddPhotos('${tabId}',${rowKey})" style="flex:1;padding:0.6rem;border-radius:8px;border:1.5px solid #3498db;color:var(--t-info);background:var(--bg-card);background:color-mix(in srgb, rgb(52,152,219) 8%, var(--bg-card));cursor:pointer;font-family:var(--font-body);font-weight:600">📷 Add Photos</button>
+        <button class="rr-paste-btn" onclick="ephemeraAddPhotos('${tabId}',${rowKey},true)" style="flex:0 0 auto;padding:0.6rem 0.8rem;border-radius:8px;border:1.5px dashed var(--border);color:var(--text-mid);background:none;cursor:pointer;font-family:var(--font-body)">${RR_PASTE.icon} ${RR_PASTE.short}</button>
         <button onclick="ephemeraForSale('${tabId}',${rowKey});this.closest('.modal-overlay').remove()" style="flex:1;padding:0.6rem;border-radius:8px;border:1.5px solid #e67e22;color:var(--t-orange);background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));cursor:pointer;font-family:var(--font-body);font-weight:600">🏷️ For Sale</button>
         <button onclick="ephemeraSold('${tabId}',${rowKey});this.closest('.modal-overlay').remove()" style="flex:1;padding:0.6rem;border-radius:8px;border:1.5px solid #2ecc71;color:var(--t-green);background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));cursor:pointer;font-family:var(--font-body);font-weight:600">💰 Sold</button>
         <button onclick="ephemeraDelete('${tabId}',${rowKey});this.closest('.modal-overlay').remove()" style="padding:0.6rem 0.8rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);cursor:pointer;font-family:var(--font-body)" title="Delete">🗑</button>
@@ -5297,6 +5298,7 @@ function showAddPartModal(existingId) {
     + '<div style="margin-bottom:0.7rem">'
     +   '<img id="_part-photo-preview" style="display:none;max-width:100%;max-height:170px;border-radius:8px;object-fit:contain;margin-bottom:0.4rem">'
     +   '<input id="_part-photo-input" type="file" accept="image/*" capture="environment" onchange="_partPhotoPicked(event)" style="width:100%;font-size:0.82rem;color:var(--text)">'
+    +   '<div style="margin-top:0.35rem">' + rrPasteBtn('_part-photo-input') + '</div>'   // 2026-11-01
     +   '<div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.2rem">Snap a picture of the part to show a vendor at a show.</div>'
     + '</div>'
     + '<label style="font-size:0.74rem;color:var(--text-dim);display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.05em">Notes (optional)</label>'

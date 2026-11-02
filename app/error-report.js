@@ -674,6 +674,7 @@ var ERR_REPORT_CFG = {
 
           '<label style="display:block;font-weight:700;font-size:0.85rem;margin-bottom:0.25rem">Screenshots (up to ' + ERR_REPORT_CFG.maxShots + ')</label>' +
           '<input type="file" id="err-shots" accept="image/*" multiple style="font-size:0.8rem;margin-bottom:0.3rem">' +
+          '<div style="margin-bottom:0.3rem">' + rrPasteBtn('err-shots') + '</div>' +   // 2026-11-01: screenshot → Paste (adds to the pictures picked)
           '<div id="err-shot-note" style="font-size:0.75rem;color:var(--text-dim);margin-bottom:0.8rem">They upload to your own Google Drive, and only The Rail Roster\u2019s support team can open them.</div>' +
 
           '<details style="margin-bottom:0.8rem">' +

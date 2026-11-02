@@ -658,8 +658,11 @@
       ? srcBtn('📷', 'Take with Phone', '_qcOpen()')
         + srcBtn('🖼️', 'From My Photos', '_pinPickFiles()', 'camera roll')
         + srcBtn('☁️', 'From Google Photos', '_pinGPhotos()')
+        + srcBtn(RR_PASTE.icon, RR_PASTE.label, "rrPasteInto('pin-file-input')", 'a screenshot or copied picture')
       : srcBtn('💻', 'From This Computer', '_pinPickFiles()', 'your own files')
-        + srcBtn('☁️', 'From Google Photos', '_pinGPhotos()');
+        + srcBtn('☁️', 'From Google Photos', '_pinGPhotos()')
+        // 2026-11-01: paste — into the inbox's own file box, so it lands like an added photo (config.js rrPasteInto)
+        + srcBtn(RR_PASTE.icon, RR_PASTE.label, "rrPasteInto('pin-file-input')", 'a screenshot or copied picture (or Ctrl+V)');
     ov.innerHTML = '<div class="rr-card">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.85rem">' +
         '<div style="font-family:var(--font-head);font-weight:700;font-size:1rem;color:var(--text)">Add photos from…</div>' +

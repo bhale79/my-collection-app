@@ -800,13 +800,8 @@
     if (!PIN._rvGroups || !PIN._rvGroups.length) return;
     var cd = e.clipboardData; if (!cd) return;
     // A picture on the clipboard (a snip) — always read it.
-    var items = cd.items || [];
-    for (var i = 0; i < items.length; i++) {
-      if (items[i].type && items[i].type.indexOf('image') === 0) {
-        var f = items[i].getAsFile();
-        if (f) { e.preventDefault(); showToast('Reading your snip…', 1800); _pinProcessShot(f); return; }
-      }
-    }
+    var f = rrPicFromEvent(e);   // 2026-11-01: the ONE way a pasted picture is taken out (config.js)
+    if (f) { e.preventDefault(); showToast('Reading your snip…', 1800); _pinProcessShot(f); return; }
     // Otherwise copied text (the answer). Don't hijack a short paste into a field.
     var txt = (cd.getData && cd.getData('text')) || '';
     txt = txt.trim();

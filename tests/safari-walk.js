@@ -78,6 +78,15 @@ const VIEWS = [
   { v: 'sold item page', open: "showSoldDetailPage('s1')", lands: PAGE('page-itemdetail') },
   { v: 'want item page', open: "_wantViewDetail('2333','1')", lands: PAGE('page-itemdetail') },
   { v: 'Add screen', open: "openWizard('collection')", lands: SEEN('#wizard-modal') },
+  // 2026-11-01 (Brad's iPhone: "you can't see the photo id button") — the Add box's bottom row ends above the menu bar and Next is on top
+  { v: 'Add screen — Photo ID / Next above the menu bar', open: "showAiUsageCard = function(){}; openWizard('collection')",
+    lands: `(function(){var f=document.querySelector('#wizard-modal .modal-footer'),n=document.querySelector('.mobile-nav'),x=document.getElementById('wizard-next-btn');if(!f||!x)return false;var c=document.getElementById('rr-ai-usage-card');if(c)c.remove();var nt=(n&&getComputedStyle(n).display!=='none')?n.getBoundingClientRect().top:innerHeight;var q=x.getBoundingClientRect(),t=document.elementFromPoint(q.left+q.width/2,q.top+q.height/2);return f.getBoundingClientRect().bottom<=nt&&!!t&&(t===x||x.contains(t))})()` },
+  // 2026-11-01 (Brad: paste a screenshot into a photo slot)
+  { v: 'Add photo slot — 📋 Paste in the chooser', open: "showAiUsageCard = function(){}; openWizard('collection'); showPhotoSourcePicker('s-walk','RSV')", lands: SEEN('#picker-btn-paste') },
+  { v: 'Photo ID — 📋 Paste beside the picture buttons', open: "showAiUsageCard = function(){}; openWizard('collection'); openIdentify()", lands: SEEN('[data-paste="id-file-gallery"]') },
+  // 2026-11-01 (Brad's iPad: Research ran off the bottom; "Camera unavailable" gave no reason)
+  { v: 'Research an Item — every control on screen', open: "window.openResearch()",
+    lands: `(function(){var ids=['bi-quick','bi-filters-btn'];var b=document.querySelector('#bi-overlay [data-bi="paste"]');if(!b)return false;var all=ids.map(function(i){return document.getElementById(i)}).concat([b]);return all.every(function(e){if(!e)return false;var r=e.getBoundingClientRect();return r.height>0&&r.top>=0&&r.bottom<=innerHeight})})()` },
   { v: 'photo inbox', open: "window._pinGo(document.getElementById('nav-photo-inbox'))", lands: PAGE('page-photo-inbox') },
   { v: 'help guide', open: "rrgOpen('grading')", lands: SEEN('#rrg-modal') },
   { v: 'terms', open: "rrTermsOpen()", lands: SEEN('#rr-terms') },

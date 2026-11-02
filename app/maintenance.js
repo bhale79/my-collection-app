@@ -3820,7 +3820,7 @@
       + '<label style="' + LB + '">Notes</label><input id="binf-notes" type="text" value="' + _esc(existing.notes || '') + '" style="' + IN + '">'
       + '<div style="display:flex;gap:0.6rem;align-items:center;margin-bottom:0.6rem"><label style="display:flex;align-items:center;gap:0.35rem;font-size:0.85rem;color:var(--text)"><input id="binf-sale" type="checkbox" ' + (existing.forSale ? 'checked' : '') + '> For sale</label>'
       + '<input id="binf-asking" type="text" value="' + _esc(existing.asking || '') + '" placeholder="asking price" style="' + IN + ';margin:0;flex:1"></div>'
-      + (existing.id ? '' : '<label style="' + LB + '">Photo (optional — the baggie IS the record)</label><input id="binf-photo" type="file" accept="image/*" style="margin-bottom:0.7rem;font-size:0.8rem;color:var(--text)">')
+      + (existing.id ? '' : '<label style="' + LB + '">Photo (optional — the baggie IS the record)</label><input id="binf-photo" type="file" accept="image/*" style="margin-bottom:0.35rem;font-size:0.8rem;color:var(--text)"><div style="margin-bottom:0.7rem">' + rrPasteBtn('binf-photo') + '</div>')   // 2026-11-01: + Paste
       + _cardFoot('<button onclick="document.getElementById(\'bin-form\').remove()" ' + _btnCancel() + '>Cancel</button>'
       + '<button id="binf-save" ' + _btnSave() + '>' + (existing.id ? 'Save' : 'Add to bin') + '</button>')
       + '</div></div>';

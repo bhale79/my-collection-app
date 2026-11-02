@@ -99,6 +99,11 @@
      (a tap there goes to the phone, not the app). Guard:
      tests/home_bar_2055_tests.js. */
   :root { --rr-safe-b: env(safe-area-inset-bottom, 0px); }
+  /* 2026-11-01 (Brad's iPhone: Photo ID / Next under the menu bar) — how much of the window the
+     bottom menu bar covers, MEASURED by back-stack.js rrBottomBarMeasure (set on <html>, which
+     wins over this line). This is only the value before the first measure: the phone bar's
+     85px + the home strip, the old guess. Every pop-up's room at the bottom reads it. */
+  :root { --rr-bottom-bar: calc(85px + var(--rr-safe-b)); }
   :root {
     /* My Collection App — Lionel Box Palette */
     --bg:        #0f1220;
@@ -1832,11 +1837,18 @@
       max-height: 100dvh !important; height: 100dvh !important; }
 
     /* Fix safe areas for notched phones */
+    /* 2026-11-01 (Brad's iPhone): the bar's HEIGHT is its content (68px) — the
+       home strip is added ONCE, as bottom padding. It used to be added twice
+       (height 68px + strip AND padding = strip), so on an iPhone the bar stood
+       145px tall with a dead band, and covered more than anything allowed for. */
     .mobile-nav {
       padding-bottom: max(0.5rem, var(--rr-safe-b));
-      height: calc(68px + var(--rr-safe-b));
+      height: 68px;
     }
-    .main { padding-bottom: calc(92px + var(--rr-safe-b)); }   /* v0.9.1053 — see above */
+    /* the room under a scrolling page = the bar's MEASURED cover (back-stack.js
+       rrBottomBarMeasure → --rr-bottom-bar) + 7px; before the first measure,
+       the old guess (85px bar + the home strip). */
+    .main { padding-bottom: calc(var(--rr-bottom-bar) + 7px); }   /* v0.9.1053 — see above */
     .main {
       --rr-main-pt: 0.75rem;
       --rr-main-pl: max(0.75rem, env(safe-area-inset-left));
@@ -2648,10 +2660,18 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
    ══════════════════════════════════════════════════════════════════════ */
 @media (max-width: 640px), (max-height: 500px) and (pointer: coarse) {
   /* the nav is ~85px tall on a phone — clear it with a little to spare */
-  .modal-overlay { padding-bottom: 92px; }
+  /* 2026-11-01 ([stated] Brad 20:28 CT, iPhone: "you can't see the photo id button"):
+     the room is the bar's MEASURED cover (back-stack.js rrBottomBarMeasure →
+     --rr-bottom-bar), never a fixed guess — 92px was an Android bar (85px) + 7px,
+     and an iPhone's bar is taller. Same numbers as before on Android. */
+  .modal-overlay { padding-bottom: calc(var(--rr-bottom-bar) + 7px); }
+  .modal-overlay > .modal {
+    max-height: calc(100vh - var(--rr-bottom-bar) - 23px);
+    max-height: calc(100dvh - var(--rr-bottom-bar) - 23px);
+  }
   #wizard-modal .modal {
-    max-height: calc(100vh - 108px);
-    max-height: calc(100dvh - 108px);
+    max-height: calc(100vh - var(--rr-bottom-bar) - 23px);
+    max-height: calc(100dvh - var(--rr-bottom-bar) - 23px);
   }
 
   /* ══ v0.9.2032 — a phone on its SIDE (short + touch). Bob, York: "I have to

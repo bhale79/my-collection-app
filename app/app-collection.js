@@ -697,6 +697,13 @@ function _nonItemDetailPhotos(type, key) {
       });
     });
 
+    // 2026-11-01: 📋 Paste beside each slot's file box (config.js rrPasteInto → this box's own change)
+    var pb = document.createElement('button');
+    pb.type = 'button'; pb.className = 'rr-paste-btn';
+    pb.style.cssText = 'flex:0 0 auto;padding:0.3rem 0.7rem;border-radius:7px;border:1.5px dashed var(--border);background:var(--surface);color:var(--text-mid);font-family:var(--font-body);font-size:0.8rem;cursor:pointer';
+    pb.textContent = RR_PASTE.icon + ' ' + RR_PASTE.short;
+    pb.onclick = function () { rrPasteInto(fi); };
+    row.appendChild(pb);
     fileInputsByView[v.key] = fi;
     box.appendChild(row);
   });
@@ -1499,6 +1506,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
         + '<div style="display:flex;align-items:center;gap:0.7rem;flex-wrap:wrap;margin-bottom:0.45rem">'
         + '<div style="font-size:0.7rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--accent3,#2ecc71)">\ud83d\udd17 Group Photos — the pieces together</div>'
         + '<button onclick="_grpAddGroupPhoto()" style="margin-left:auto;padding:0.3rem 0.75rem;border-radius:7px;border:1.5px solid var(--accent2);background:var(--surface);color:var(--accent2);font-family:var(--font-body);font-size:0.75rem;font-weight:600;cursor:pointer">\u2795 Add group photo</button>'
+        + '<button class="rr-paste-btn" onclick="_grpAddGroupPhoto(true)" style="padding:0.3rem 0.75rem;border-radius:7px;border:1.5px dashed var(--border);background:var(--surface);color:var(--text-mid);font-family:var(--font-body);font-size:0.75rem;cursor:pointer">' + RR_PASTE.icon + ' ' + RR_PASTE.short + '</button>'   // 2026-11-01
         + '</div>'
         + '<div id="grp-photos-set" style="min-height:40px"><div style="color:var(--text-dim);font-size:0.78rem">Loading\u2026</div></div>'
         + '</div>'
@@ -1687,7 +1695,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
         var el = document.getElementById('grp-photos-set');
         if (el) el.innerHTML = '<div style="color:var(--text-dim);font-size:0.78rem">Could not load the group photos</div>';
       });
-      window._grpAddGroupPhoto = function () {
+      window._grpAddGroupPhoto = function (paste) {
         var inp = document.createElement('input');
         inp.type = 'file'; inp.accept = 'image/*'; inp.multiple = true;
         inp.onchange = async function () {
@@ -1710,7 +1718,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
           if (typeof showToast === 'function') showToast(okCount ? ('\u2713 ' + okCount + (okCount === 1 ? ' group photo added' : ' group photos added') + (_gMiss ? ' \u2014 ' + _gMiss + ' did not upload, add ' + (_gMiss === 1 ? 'it' : 'them') + ' again' : '')) : 'Upload failed \u2014 try again', _gMiss ? 6000 : 3500, !!_gMiss);
           if (okCount) rrDetailRepaint(300);   // v0.9.1765: by identity, not by remembered position
         };
-        inp.click();
+        if (paste) rrPasteInto(inp); else inp.click();   // 2026-11-01: 📋 Paste takes the same road
       };
     })();
   }

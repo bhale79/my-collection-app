@@ -229,9 +229,40 @@
     for (var i = 0; i < c.length; i++) if (_isOpenPop(c[i])) return true;
     return false;
   }
+  // ══ 2026-11-01 — THE BOTTOM BAR'S ROOM ([stated] Brad 20:28 CT, his iPhone: "you can't
+  // see the photo id button") ══════════════════════════════════════════════════
+  // On a phone the menu bar (.mobile-nav, layer 800) is pinned over every pop-up
+  // (layer 200), so a pop-up must END above it. app.css used a fixed guess (92px)
+  // — right for an Android bar (85px), wrong for an iPhone, whose bar also covers
+  // the home strip, so the Add box's Photo ID / ✕ / Next sat under the bar.
+  // ONE number now, measured here: how much of the bottom of the window the bar
+  // really covers (0 when it is hidden or on a computer), kept in ONE CSS setting
+  // (BAR.prop on <html>) that app.css reads everywhere it leaves room for the bar.
+  // Measured whenever the pop-up watcher looks (a pop-up opens or closes, the app
+  // signs in, the window resizes or turns). tests/apple_screens_tests.js.
+  var BAR = { prop: '--rr-bottom-bar', sel: '.mobile-nav' };
+  function _barCover() {
+    var n = document.querySelector(BAR.sel);
+    if (!n || !n.getBoundingClientRect) return 0;
+    var c = getComputedStyle(n);
+    if (c.display === 'none' || c.visibility === 'hidden' || c.position !== 'fixed') return 0;
+    var r = n.getBoundingClientRect(), H = window.innerHeight || 0;
+    if (!r.height || r.top >= H) return 0;
+    return Math.max(0, Math.round(H - r.top));
+  }
+  function rrBottomBarMeasure() {
+    var px = 0;
+    try {
+      px = _barCover();
+      var root = document.documentElement;
+      if (root.style.getPropertyValue(BAR.prop) !== px + 'px') root.style.setProperty(BAR.prop, px + 'px');
+    } catch (e) {}
+    return px;
+  }
   var _popPending = false;
   function _popCheck() {
     _popPending = false;
+    rrBottomBarMeasure();
     try { document.documentElement.classList.toggle(POP.cls, _popOpen()); } catch (e) {}
   }
   function _popSchedule() {
@@ -259,11 +290,15 @@
         .observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style', 'hidden'] });
     } catch (e) {}
     window.addEventListener('resize', _popSchedule);
+    window.addEventListener('orientationchange', _popSchedule);
+    try { if (window.visualViewport) window.visualViewport.addEventListener('resize', _popSchedule); } catch (e) {}
     _popSchedule();
   }
   if (document.body) _popWatch(); else document.addEventListener('DOMContentLoaded', _popWatch);
   global.rrPopOpen = _popOpen;
   global.RR_POP = POP;
+  global.rrBottomBarMeasure = rrBottomBarMeasure;
+  global.RR_BOTTOM_BAR = BAR;
 
   global.BackStack = {
     push:  push,

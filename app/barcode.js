@@ -2097,12 +2097,59 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     if (!d) {
       d = document.createElement('div');
       d.id = 'bi-overlay';
-      d.style.cssText = 'position:fixed;inset:0;z-index:99997;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;overflow-y:auto;padding:1rem;box-sizing:border-box';
+      // 2026-11-01 (Brad's iPad: Research ran off the bottom): the card centres with
+      // margin:auto (below), so a card taller than the window starts at the TOP and
+      // scrolls — align-items:center cut its top off instead. The home strip is
+      // left clear at the bottom (--rr-safe-b).
+      d.style.cssText = 'position:fixed;inset:0;z-index:99997;background:rgba(0,0,0,0.7);display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:1rem;padding-bottom:calc(1rem + var(--rr-safe-b, 0px));box-sizing:border-box';
       document.body.appendChild(d);
     }
-    d.innerHTML = '<div class="rr-card">' + inner + '</div>';
+    d.innerHTML = '<div class="rr-card" style="margin:auto 0">' + inner + '</div>';
     return d;
   }
+  // 2026-11-01 — THE SCANNER BOX FITS THE WINDOW (Brad's iPad, Research ran off
+  // the bottom). Measured, never guessed: take the camera picture's height down
+  // by exactly how far the card runs past the room inside the overlay, never
+  // below RR_CAMERA.boxMin; a window too short even then scrolls the overlay.
+  // Re-run on resize / rotate / the visible window changing, and after the
+  // status line changes length. tests/apple_screens_tests.js.
+  function _biFitBox() {
+    try {
+      var ov = document.getElementById('bi-overlay'), box = document.getElementById('bi-vbox');
+      if (!ov || !box) return;
+      var card = ov.querySelector('.rr-card'); if (!card) return;
+      var inner = card.firstElementChild || card;
+      var min = (typeof RR_CAMERA !== 'undefined' && RR_CAMERA.boxMin) || 150;
+      box.style.maxHeight = '';
+      // The card has its own height limit on a tablet (app.css, scrolls inside)
+      // and is zoomed on wide screens, so measure on screen and convert:
+      // k = screen pixels per pixel of the picture's own height.
+      for (var i = 0; i < 3; i++) {
+        card.scrollTop = 0;
+        var cs = getComputedStyle(card), os = getComputedStyle(ov);
+        var bh = parseFloat(getComputedStyle(box).height) || 0;
+        var br = box.getBoundingClientRect();
+        if (!bh || !br.height) return;
+        var k = br.height / bh;
+        var foot = ((parseFloat(cs.paddingBottom) || 0) + (parseFloat(cs.borderBottomWidth) || 0)) * k;
+        var cardBottom = card.getBoundingClientRect().bottom - foot;
+        var roomBottom = ov.getBoundingClientRect().bottom - (parseFloat(os.paddingBottom) || 0) - foot;
+        var over = inner.getBoundingClientRect().bottom - Math.min(cardBottom, roomBottom);
+        if (over <= 1) return;
+        var next = Math.max(min, Math.floor(bh - over / k));
+        if (next >= bh) return;
+        box.style.maxHeight = next + 'px';
+      }
+    } catch (e) {}
+  }
+  window._biFitBox = _biFitBox;
+  (function () {
+    if (typeof window.addEventListener !== 'function') return;   // a stand-in window (Node tests) has no events
+    var q = 0, later = function () { if (q) return; q = 1; (window.requestAnimationFrame || setTimeout)(function () { q = 0; _biFitBox(); }); };
+    window.addEventListener('resize', later);
+    window.addEventListener('orientationchange', later);
+    try { if (window.visualViewport) window.visualViewport.addEventListener('resize', later); } catch (e) {}
+  })();
   var _biStream = null, _biOnCancel = null, _biLastShot = null;
   function _biKill() {
     try { if (window.BackStack && BackStack.has('bi-filters')) BackStack.pop('bi-filters'); } catch (eF) {}   // v0.9.1913
@@ -2194,7 +2241,12 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           ? ((window._researchActive
               ? '<div id="bi-guide" style="color:var(--t-gold);font-size:0.84rem;line-height:1.45;margin-bottom:0.5rem">Point at the <b>barcode</b> \u2014 it looks the item up by itself. No barcode? Take a picture for <b>Google Lens</b>.</div>'
               : '<div id="bi-guide" style="color:#ffd27d;font-size:0.82rem;line-height:1.45;margin-bottom:0.5rem">Get the <b>barcode AND the printed item number</b> in the shot. No barcode? A clear shot of the box end/side with the number — or of the <b>item itself</b> (road name &amp; number visible). Already have a photo? Use <b>🖼 gallery</b> below.</div>')
-            + '<div style="position:relative;width:100%;aspect-ratio:4/3;border-radius:12px;background:#000;overflow:hidden"><video id="bi-video" autoplay playsinline style="width:100%;height:100%;object-fit:cover"></video>'
+            // 2026-11-01 (Brad's iPad, 20:31 CT): a 4:3 picture the full width of the
+            // card was taller than the room on an iPad, so Item # / Look up / Filters
+            // ran off the bottom. The picture gives up height first — _biFitBox
+            // measures the overflow and caps #bi-vbox by exactly that; the camera
+            // fills whatever is left (object-fit:cover).
+            + '<div id="bi-vbox" style="position:relative;width:100%;aspect-ratio:4/3;border-radius:12px;background:#000;overflow:hidden"><video id="bi-video" autoplay playsinline style="width:100%;height:100%;object-fit:cover"></video>'
             // v0.9.1153 (Brad: "when you scan a barcode and it locks in, we need
             // to have a note pop up that says 'bar code read, you can take
             // picture now'"). It sits ON the video, because that is where the
@@ -2212,6 +2264,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
             + _biBtn({ act: 'snap', txt: '📸 Capture' }, 'background:var(--accent,#e8401c);border:1.5px solid var(--accent,#e8401c);color:#fff;flex:2')
             + _biBtn({ act: 'gallery', txt: '🖼 Gallery' }, 'background:var(--surface2);border:1.5px solid var(--border);color:var(--text);flex:1')
             + (_biLastShot ? _biBtn({ act: 'last', txt: '↩ Last photo' }, 'background:var(--surface2);border:1.5px solid var(--border);color:var(--text);flex:1') : '')
+            + _biBtn({ act: 'paste', txt: RR_PASTE.icon + ' ' + RR_PASTE.short }, 'background:var(--surface2);border:1.5px solid var(--border);color:var(--text);flex:1')   // 2026-11-01 (after Last photo, which stays right of Gallery)
             + (window._researchActive ? '' : _biBtn({ act: 'cancel', txt: 'Cancel' }))
             + '</div>')
           : ((window._researchActive
@@ -2222,6 +2275,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
             // v0.9.1014 (Brad): the Google Photos picker (same shared helper
             // the Photo Inbox uses) right beside the computer picker.
             + _biBtn({ act: 'gphotos', txt: '🖼️ From Google Photos' })
+            + _biBtn({ act: 'paste', txt: RR_PASTE.icon + ' ' + RR_PASTE.label })   // 2026-11-01 (or Ctrl+V)
             + (window._researchActive ? '' : _biBtn({ act: 'cancel', txt: 'Cancel' }))
             + '</div>'))   // v0.9.1936: the Google Photos wait shows on the shared panel, not a line here
         + (window._researchActive
@@ -2291,6 +2345,8 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         var act = b.getAttribute('data-bi');
         if (act === 'snap') { if (video.videoWidth) { var fr = snapFrame(); done({ raw: fr.raw, view: fr.view, lockedBc: heldBc }); } }
         if (act === 'gallery') d.querySelector('#bi-file').click();
+        // 2026-11-01: a copied picture goes into the same file box Gallery fills (config.js rrPasteInto)
+        if (act === 'paste') rrPasteInto(d.querySelector('#bi-file'));
         // v0.9.1014 (Brad): pick the identify shot straight from Google
         // Photos — same shared picker helper the Photo Inbox uses.
         if (act === 'gphotos' && typeof window.rrGPhotosPickFiles === 'function') {
@@ -2439,13 +2495,22 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         if (!f) return;
         _biIngestFile(f);
       });
+      _biFitBox();   // 2026-11-01: the picture gives up height so the buttons fit (measured)
       if (!window.IS_MOBILE_UA) return;   // v0.9.704: desktop = upload only, never touch the webcam
-      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 } }, audio: false })
+      // 2026-11-01: the ONE camera starter (config.js rrStartCamera) — when the
+      // camera can't start, the words say WHY and how to fix it (Brad's iPad:
+      // the site's camera permission was off), and the reason goes in the
+      // Report a problem diary. Only a camera that never started reaches the
+      // failure below; a fault after it started is not "camera unavailable".
+      rrStartCamera({ video: { facingMode: 'environment', width: { ideal: 1920 } }, audio: false })
         .then(function (s) {
           stream = s; _biStream = s; video.srcObject = s;
           _rtMark('camera ready');   // v0.9.1910
           stat.textContent = window._researchActive ? 'Camera ready.' : 'Aim at the box end — barcode + item number. Auto-captures when a barcode locks.';   // v0.9.1913
-          var nativeDet = _biHasBD ? new window.BarcodeDetector({ formats: ['ean_13', 'upc_a', 'ean_8', 'upc_e', 'code_128', 'code_39'] }) : null;
+          // a browser that HAS BarcodeDetector but refuses these formats falls back to the
+          // other reader instead of throwing (that throw used to read as "Camera unavailable")
+          var nativeDet = null;
+          try { nativeDet = _biHasBD ? new window.BarcodeDetector({ formats: ['ean_13', 'upc_a', 'ean_8', 'upc_e', 'code_128', 'code_39'] }) : null; } catch (eBD) { nativeDet = null; }
           if (!nativeDet) _loadZXing().catch(function () {});
           (async function lockLoop() {
             while (!stopLoop) {
@@ -2555,8 +2620,10 @@ window.eraSupportsBarcode = eraSupportsBarcode;
             }
           })();
         })
-        .catch(function () {
-          stat.textContent = 'Camera unavailable — use "Photo from gallery".';
+        .catch(function (why) {
+          // rrStartCamera rejects with { reason, words } — anything else is a fault after start
+          if (why && why.words) { stat.textContent = why.words; _biFitBox(); return; }
+          console.warn('[scanner] after the camera started:', why);
         });
     });
   }

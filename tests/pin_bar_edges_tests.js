@@ -67,7 +67,10 @@ catch (e) { console.log('FAILED  —  pin_bar_edges_tests needs playwright for i
 const SCREENS = [
   ['computer', { viewport: { width: 1280, height: 900 } }, null, '24px 24px 24px 24px'],
   ['phone', pw.devices['iPhone 13'], null, '12px 12px 92px 12px'],
-  ['notched phone on its side', pw.devices['iPhone 13 landscape'], { top: 0, bottom: 21, left: 47, right: 47 }, '8px 47px 113px 47px'],
+  // 2026-11-01 (Brad's iPhone, PLAN_2026-11-01_APPLE_SCREENS.md): the room under the page is the bottom
+  // bar's MEASURED cover + 7px (back-stack.js rrBottomBarMeasure → --rr-bottom-bar), and the bar no longer
+  // counts the home strip twice — 113px (a 92px guess + the strip) → 105px (98px measured + 7). Seen red first.
+  ['notched phone on its side', pw.devices['iPhone 13 landscape'], { top: 0, bottom: 21, left: 47, right: 47 }, '8px 47px 105px 47px'],
   ['phone on its side', pw.devices['iPhone 13 landscape'], null, '8px 12px 92px 12px'],
   ['tablet', { viewport: { width: 820, height: 1180 }, isMobile: true, hasTouch: true }, null, '24px 24px 24px 24px'],
 ];

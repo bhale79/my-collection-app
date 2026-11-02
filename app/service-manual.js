@@ -340,6 +340,7 @@ function _smPageLine(p) {
     var b = 'border:1px solid var(--border);background:var(--surface2);color:var(--text);border-radius:7px;padding:0.3rem 0.65rem;font-size:0.78rem;font-family:var(--font-body);cursor:pointer;min-height:32px';
     html += '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.35rem">'
       + '<button type="button" class="sm-photo" data-sm-id="' + _smEsc(p.id) + '" style="' + b + '">📷 ' + (rec.photo ? 'Add another photo' : 'Add a photo') + '</button>'
+      + '<button type="button" class="sm-photo sm-photo-paste rr-paste-btn" data-sm-id="' + _smEsc(p.id) + '" style="' + b + '">' + RR_PASTE.icon + ' ' + RR_PASTE.short + '</button>'   // 2026-11-01
       + (rec.photo ? '<a href="' + _smEsc(rec.photo) + '" target="_blank" rel="noopener" style="' + b + ';text-decoration:none;display:inline-flex;align-items:center">View my photos ↗</a>' : '')
       + '<button type="button" class="sm-edit" data-sm-id="' + _smEsc(p.id) + '" style="' + b + '">✎ Condition &amp; notes</button>'
       + '</div>';
@@ -450,7 +451,7 @@ function _smWire(root) {
         var f = inp.files && inp.files[0];
         if (f) rrSmAddPhoto(id, f).then(_smRedrawKeepScroll, _smRedrawKeepScroll);
       });
-      inp.click();
+      if (t.classList.contains('sm-photo-paste')) rrPasteInto(inp); else inp.click();   // 2026-11-01
     }
   });
   root.addEventListener('toggle', function (ev) {

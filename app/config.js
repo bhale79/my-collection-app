@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2094';
+const APP_VERSION = 'v0.9.2095';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -4718,6 +4718,225 @@ function rrOpenDatePicker(elOrId) {
   return false;
 }
 if (typeof window !== 'undefined') window.rrOpenDatePicker = rrOpenDatePicker;
+
+// ═══════════════════════════════════════════════════════════════
+// 2026-11-01 — THE CAMERA, AND WHY IT WON'T START ([stated] Brad 20:29 CT, his
+// iPad: "Camera unavailable — use Photo from gallery" — it was Safari's camera
+// permission for the site, which the words never said; plan
+// PLAN_2026-11-01_APPLE_SCREENS.md).
+// ONE starter for every camera in the app (the scanner in barcode.js, Scan to
+// Shelve): rrStartCamera(constraints) resolves with the camera, or rejects with
+// { reason, words } — the browser's reason turned into plain words with the
+// fix, from RR_CAMERA.words — and writes ONE diary line (rrSyncLog 'camera',
+// the reason name only) so a Report a problem shows it.
+// boxMin: the scanner's camera picture gives up height so its buttons stay on
+// the screen (barcode.js _biFitBox MEASURES how far the box runs past the
+// window and takes exactly that off the picture) — but never below this many
+// pixels. tests/apple_screens_tests.js.
+const RR_CAMERA = {
+  boxMin: 150,
+  words: {
+    // permission off — the words follow the device, because the fix is in a different place
+    deniedApple:   'The camera is turned off for therailroster.com. On an iPhone or iPad: tap aA at the left of the address bar → Website Settings → Camera → Allow, then try again. (If that is already Allow, check Settings → Safari → Camera.) Or use “Photo from gallery”.',
+    deniedAndroid: 'The camera is turned off for therailroster.com. Tap the icon at the left of the address bar → Permissions → Camera → Allow, then try again. Or use “Photo from gallery”.',
+    denied:        'The camera is turned off for this site in your browser’s settings. Allow the camera for therailroster.com and try again, or use “Photo from gallery”.',
+    busy:          'Another app is using the camera — close it and try again, or use “Photo from gallery”.',
+    none:          'No camera was found on this device — use “Photo from gallery”.',
+    other:         'Camera unavailable — use “Photo from gallery”.',
+  },
+  // the browser's error name → the reason
+  reasons: {
+    NotAllowedError: 'denied', PermissionDeniedError: 'denied', SecurityError: 'denied',
+    NotReadableError: 'busy', TrackStartError: 'busy', AbortError: 'busy',
+    NotFoundError: 'none', DevicesNotFoundError: 'none', OverconstrainedError: 'none', ConstraintNotSatisfiedError: 'none',
+  },
+};
+function rrCameraWhy(err) {
+  var name = String((err && err.name) || '');
+  var reason = RR_CAMERA.reasons[name] || (name === 'NoCamera' ? 'none' : 'other');
+  var w = RR_CAMERA.words, key = reason;
+  if (reason === 'denied') {
+    var ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
+    var apple = /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && (navigator.maxTouchPoints || 0) > 1);
+    key = apple ? 'deniedApple' : (/Android/i.test(ua) ? 'deniedAndroid' : 'denied');
+  }
+  return { reason: reason, name: name || 'unknown', words: w[key] || w.other };
+}
+function rrStartCamera(constraints) {
+  var md = (typeof navigator !== 'undefined') && navigator.mediaDevices;
+  var fail = function (err) {
+    var why = rrCameraWhy(err);
+    try { if (typeof window.rrSyncLog === 'function') window.rrSyncLog('camera', why.reason + ' (' + why.name + ')'); } catch (e) {}
+    return Promise.reject(why);
+  };
+  if (!md || typeof md.getUserMedia !== 'function') return fail({ name: 'NoCamera' });
+  var p;
+  try { p = md.getUserMedia(constraints); } catch (e) { return fail(e); }
+  return Promise.resolve(p).then(null, fail);
+}
+if (typeof window !== 'undefined') { window.RR_CAMERA = RR_CAMERA; window.rrCameraWhy = rrCameraWhy; window.rrStartCamera = rrStartCamera; }
+
+// ═══════════════════════════════════════════════════════════════
+// 2026-11-01 — PASTE A COPIED PICTURE ([stated] Brad 20:58 CT: "is there a way
+// we can paste directly into a photo slot when adding a picture instead of
+// downloading it … i would screen shot a picture, then … hit paste?"; plan
+// PLAN_2026-11-01_PASTE_PICTURE.md). Worded for ANY picture ([stated] Brad
+// v0.9.1973: never "copy the maker's"). tests/paste_picture_tests.js.
+//   rrPastePicture()      the ONE clipboard reader — after a tap; resolves a
+//                         File (pasted-<time>.png) or rejects { reason, words }
+//                         and writes ONE diary line (rrSyncLog 'paste').
+//   rrPicFromEvent(e)     the ONE way a Ctrl+V / ⌘V picture is taken out of a
+//                         paste event (every paste listener uses it).
+//   rrPasteInto(input)    the 📋 button: the picture goes into that chooser's
+//                         own file box, so it takes EXACTLY the road an
+//                         uploaded picture takes (its own change handler).
+//   rrPasteBtn(id, css)   the button, one look, one set of words.
+//   RR_PASTE.inputs       the choosers Ctrl+V reaches when nothing else claims
+//                         the paste — first open one wins (pop-ups before the
+//                         Photo Inbox page). The Add screen's photo step, the
+//                         Inbox review card and the logo editor keep their own.
+// ═══════════════════════════════════════════════════════════════
+const RR_PASTE = {
+  icon: '📋',
+  label: 'Paste a copied picture',
+  short: 'Paste',
+  words: {
+    none:        'There’s no picture copied. Take a screenshot or copy a picture, then press Paste.',
+    deniedApple: 'The picture wasn’t let in. Press Paste again and tap the small “Paste” bubble that appears.',
+    denied:      'Your browser blocked reading the picture you copied. Click the icon at the left of the address bar → Site settings → Clipboard → Allow, then press Paste again — or press Ctrl+V (⌘V on a Mac).',
+    unsupported: 'This browser can’t paste a picture with a button — press Ctrl+V (⌘V on a Mac) instead, or choose the picture from your files.',
+    other:       'The picture couldn’t be pasted — press Ctrl+V (⌘V on a Mac), or choose the picture from your files.',
+  },
+  reasons: { NotAllowedError: 'denied', SecurityError: 'denied', NoPicture: 'none', DataError: 'none', NotFoundError: 'none', Unsupported: 'unsupported' },
+  // Ctrl+V reaches these file boxes (first one on screen wins) — every picture
+  // chooser that has no paste of its own. Each one also has rrPasteBtn.
+  inputs: ['id-file-gallery', 'bi-file', 'err-shots', '_part-photo-input', 'binf-photo', 'ct-card-gallery', 'ct-person-file', 'rrlc-file', 'bcd-photo-file', 'pin-file-input'],
+  // while one of these is on screen, ITS own picture paste runs instead (the Add
+  // screen's photo step → the slots; the Inbox review card → reads the snip; the
+  // logo editor → the armed tile)
+  ownPaste: '#wizard-modal.open #wizard-body .photo-drop-zone, #pin-review-ov, #rrap',
+  // a pop-up of a chooser's own (the Inbox's "Add photos from…") still lets it take the paste
+  alsoOver: { 'pin-file-input': '#pin-src-ov' },
+};
+function _rrPasteApple() {
+  var ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
+  return /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && (navigator.maxTouchPoints || 0) > 1) || (/Safari\//.test(ua) && !/Chrome|Chromium|Edg\//.test(ua));
+}
+function rrPasteWhy(err) {
+  var name = String((err && err.name) || '');
+  var reason = RR_PASTE.reasons[name] || 'other';
+  var key = reason === 'denied' ? (_rrPasteApple() ? 'deniedApple' : 'denied') : reason;
+  return { reason: reason, name: name || 'unknown', words: RR_PASTE.words[key] || RR_PASTE.words.other };
+}
+function rrPictureFile(blob, type) {
+  type = type || (blob && blob.type) || 'image/png';
+  var ext = (String(type).split('/')[1] || 'png').replace('jpeg', 'jpg').replace(/[^a-z0-9]/gi, '') || 'png';
+  try { return new File([blob], 'pasted-' + Date.now() + '.' + ext, { type: type }); }
+  catch (e) { try { blob.name = 'pasted-' + Date.now() + '.' + ext; } catch (e2) {} return blob; }
+}
+function rrPicFromEvent(e) {
+  var cd = e && e.clipboardData; if (!cd) return null;
+  var items = cd.items || [];
+  for (var i = 0; i < items.length; i++) {
+    if (items[i] && items[i].kind === 'file' && items[i].type && items[i].type.indexOf('image/') === 0) {
+      var f = items[i].getAsFile();
+      if (f) return (!f.name || /^image\.[a-z]+$/i.test(f.name)) ? rrPictureFile(f, f.type) : f;
+    }
+  }
+  if (cd.files && cd.files.length && /^image\//.test(cd.files[0].type || '')) return cd.files[0];
+  return null;
+}
+function rrPastePicture() {
+  var fail = function (err) {
+    var why = rrPasteWhy(err);
+    try { if (typeof window.rrSyncLog === 'function') window.rrSyncLog('paste', why.reason + ' (' + why.name + ')'); } catch (e) {}
+    return Promise.reject(why);
+  };
+  var cb = (typeof navigator !== 'undefined') && navigator.clipboard;
+  if (!cb || typeof cb.read !== 'function') return fail({ name: 'Unsupported' });
+  var p;
+  try { p = cb.read(); } catch (e) { return fail(e); }
+  return Promise.resolve(p).then(function (items) {
+    var it = null, type = '';
+    for (var i = 0; items && i < items.length && !it; i++) {
+      var ts = (items[i] && items[i].types) || [];
+      for (var j = 0; j < ts.length; j++) { if (/^image\//.test(ts[j])) { it = items[i]; type = ts[j]; break; } }
+    }
+    if (!it) return fail({ name: 'NoPicture' });
+    return Promise.resolve(it.getType(type)).then(function (b) { return rrPictureFile(b, type); }, fail);
+  }, fail);
+}
+// the picture into a chooser's own file box → its own change handler runs
+function rrFeedInput(inp, file) {
+  var dt = new DataTransfer();
+  if (inp.multiple && inp.files) for (var i = 0; i < inp.files.length; i++) dt.items.add(inp.files[i]);
+  dt.items.add(file);
+  inp.files = dt.files;
+  inp.dispatchEvent(new Event('change', { bubbles: true }));
+}
+function rrPasteInto(target, onFile) {
+  var inp = typeof target === 'string' ? document.getElementById(target) : target;
+  return rrPastePicture().then(function (f) {
+    if (typeof onFile === 'function') { onFile(f); return f; }
+    if (!inp) throw { words: RR_PASTE.words.other };
+    try { rrFeedInput(inp, f); } catch (e) { throw rrPasteWhy({ name: 'Unsupported' }); }
+    return f;
+  }).then(null, function (why) {
+    try { if (typeof showToast === 'function') showToast((why && why.words) || RR_PASTE.words.other, 6000, true); } catch (e) {}
+    return null;
+  });
+}
+function rrPasteBtn(target, css, short) {
+  return '<button type="button" class="rr-paste-btn" data-paste="' + target + '" onclick="rrPasteInto(\'' + target + '\')"'
+    + ' style="' + (css || 'padding:0.5rem 0.75rem;border-radius:8px;border:1.5px dashed var(--border);background:none;color:var(--text-mid);font-size:0.82rem;cursor:pointer;font-family:var(--font-body)') + '">'
+    + RR_PASTE.icon + ' ' + (short ? RR_PASTE.short : RR_PASTE.label) + '</button>';
+}
+// Ctrl+V / ⌘V: the first open chooser in RR_PASTE.inputs takes the picture
+// A chooser takes the paste only when it is the thing on top: a point in the
+// middle of what is visible of its pop-up (the nearest fixed ancestor) or its
+// page must land inside it. (A page laid out display:contents has no box of
+// its own — the window's middle stands for it.)
+function _rrPasteShown(inp) {
+  var el = inp && inp.parentElement;
+  if (!el) return false;
+  var scope = null;
+  for (var a = el; a && a !== document.body; a = a.parentElement) {
+    if (getComputedStyle(a).position === 'fixed' || /^page-/.test(a.id || '')) { scope = a; break; }
+  }
+  scope = scope || document.body;
+  var W = window.innerWidth || 0, H = window.innerHeight || 0, x = W / 2, y = H / 2;
+  if (getComputedStyle(scope).display !== 'contents') {
+    var r = scope.getBoundingClientRect();
+    var l = Math.max(0, r.left), t = Math.max(0, r.top), rt = Math.min(W, r.right), bt = Math.min(H, r.bottom);
+    if (rt - l < 2 || bt - t < 2) return false;   // not on screen
+    x = (l + rt) / 2; y = (t + bt) / 2;
+  }
+  var top = document.elementFromPoint(x, y);
+  if (!top) return false;
+  if (scope.contains(top)) return true;
+  var also = RR_PASTE.alsoOver[inp.id];
+  return !!(also && top.closest && top.closest(also));
+}
+function _rrPasteKeys(e) {
+  if (!e || e.defaultPrevented) return;
+  var t = e.target;
+  if (t && ((t.tagName === 'INPUT' && t.type !== 'file') || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+  try { if (document.querySelector(RR_PASTE.ownPaste)) return; } catch (e0) {}
+  var inp = null;
+  for (var i = 0; i < RR_PASTE.inputs.length && !inp; i++) {
+    var x = document.getElementById(RR_PASTE.inputs[i]);
+    if (x && _rrPasteShown(x)) inp = x;
+  }
+  if (!inp) return;
+  var f = rrPicFromEvent(e); if (!f) return;
+  e.preventDefault();
+  try { rrFeedInput(inp, f); } catch (e1) { try { if (typeof showToast === 'function') showToast(RR_PASTE.words.other, 5000, true); } catch (e2) {} }
+}
+if (typeof window !== 'undefined') {
+  window.RR_PASTE = RR_PASTE; window.rrPastePicture = rrPastePicture; window.rrPicFromEvent = rrPicFromEvent;
+  window.rrPasteInto = rrPasteInto; window.rrPasteBtn = rrPasteBtn; window.rrFeedInput = rrFeedInput; window.rrPasteWhy = rrPasteWhy;
+  if (typeof document !== 'undefined' && document && typeof document.addEventListener === 'function' && !window._rrPasteKeysOn) { window._rrPasteKeysOn = true; document.addEventListener('paste', _rrPasteKeys); }
+}
 
 // ═══════════════════════════════════════════════════════════════
 // v0.9.2034 — THE SCALE / GAUGE LIST (Melissa, 2026-10-27, typing in a Bowser

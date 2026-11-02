@@ -57,8 +57,13 @@ ok('onboarding.js pins no bar to the top edge (the return bar is gone)',
 // :root; every bottom-pinned bar adds it (the whole-app rule is home_bar_2055_tests).
 ok('the report-draft restore bar clears the home indicator',
    /bottom:0;padding:0\.85rem 1rem calc\(0\.85rem \+ var\(--rr-safe-b, 0px\)\);/.test(ERR));
-ok('the bottom nav still has its v0.9.1053 inset (regression pin, now through --rr-safe-b)',
-   /:root \{ --rr-safe-b: env\(safe-area-inset-bottom, 0px\); \}/.test(CSS) && /height: calc\(68px \+ var\(--rr-safe-b\)\)/.test(CSS));
+// 2026-11-01 (Brad's iPhone, PLAN_2026-11-01_APPLE_SCREENS.md): the bar counted the home strip TWICE —
+// height 68px + strip AND padding-bottom = strip (content-box: 145px on an iPhone, a dead band). It is now
+// added ONCE, as the bottom padding; the height is the 68px of buttons. Seen red against the old pin first.
+ok('the bottom nav still clears the home strip — ONCE, as its bottom padding (regression pin, through --rr-safe-b)',
+   /:root \{ --rr-safe-b: env\(safe-area-inset-bottom, 0px\); \}/.test(CSS) &&
+   /\.mobile-nav \{\s*padding-bottom: max\(0\.5rem, var\(--rr-safe-b\)\);\s*height: 68px;\s*\}/.test(CSS) &&
+   !/height: calc\(68px \+ var\(--rr-safe-b\)\)/.test(CSS));
 
 console.log('\n== The contract that makes insets exist at all ==');
 ok('viewport-fit=cover is still declared (removing it would "fix" this by undoing the look Brad chose)',
