@@ -64,6 +64,7 @@ function build(src, item, opts) {
     rrSearchNumber: () => item.itemNum,
     _lionelBoxNum: n => n,
     _smSlotHtml: () => '<!--SM-SLOT-->',   // v0.9.1896: our service-manual scans (own suite: service_manual_links_tests.js)
+    _tzLiveRefresh: () => null,            // 2026-11-03: the site's Trainz list, read in the background (own suite: trainz_live_tests.js)
   };
   const names = Object.keys(env);
   const fn = new Function(...names, grab(src, '_maintDiagramLinksHtml') + '\n' + grab(src, '_maintRouteLabel') + '\nreturn _maintDiagramLinksHtml;');

@@ -4,7 +4,7 @@
 // fetches fresh copies in the background for next load.
 // NEVER caches Google API, OAuth, or Sheets calls.
 
-const CACHE_NAME = 'mca-v2112';
+const CACHE_NAME = 'mca-v2113';
 
 // ── v0.9.1214: the version stamp has to survive as far as the cache ──
 // Brad, on v1213: "im reset twice and it still looks the same." He was
@@ -300,6 +300,12 @@ self.addEventListener('fetch', event => {
   // of them is intercepted. Change the tag in one file and the other is
   // not left to be noticed later.
   if (url.includes('rr_selfcheck=1')) return;
+
+  // 2026-11-03: the Trainz diagram list the Monday crawl publishes is never
+  // cached here either. maintenance.js keeps its own last good copy (checked
+  // before it is used), and a copy filed here would answer the next open with
+  // last week's list — hiding a new week's pages, or an undo, behind it.
+  if (url.includes('/harvests/trainz-diagrams-live.json')) return;
 
   // v0.9.1987: the Help Center's videos (app/videos/) are never cached. They
   // are large (5–18 MB each), a phone may never watch one, and the browser

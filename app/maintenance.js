@@ -1133,6 +1133,93 @@
   // the first of them — for the "Covers" suggestion, which wants one family
   function _tzDiagram(item, eraKey) { return _tzDiagrams(item, eraKey)[0] || null; }
 
+  // ── 2026-11-03: the Trainz list stays current without an app release ──
+  // PLAN_2026-11-02_TRAINZ_DIAGRAMS_LIVE, Part 1 ([stated] Brad 2026-11-03
+  // "Yes" to building it). Trainz renames and adds diagram pages all the time;
+  // a list built into a release goes stale between releases (76 of 648 links
+  // moved in one month). Every Monday the crawl on Brad's PC opens every Trainz
+  // diagram page and publishes harvests/trainz-diagrams-live.json. The app
+  // reads it HERE, in the background, the first time the diagram links are
+  // built (_maintDiagramLinksHtml), and uses it only when:
+  //   • it passes every check in _tzLiveCheck, and
+  //   • it is at least as new as the list built into this release.
+  // The last good copy is kept on this device for offline use. The built-in
+  // list (trainz-diagrams-config.js) is the safety net: a missing, broken,
+  // short or old file changes nothing.
+  // The MATCHER IS UNTOUCHED. _tzUse is the ONE place a list is swapped: it
+  // replaces the list _tzDiagrams already reads (window.TRAINZ_DIAGRAMS) and
+  // drops the lookup built from the old one. The service worker never caches
+  // this file (sw.js), so a new week's list, or an undo, arrives on the next
+  // open. The site copy always wins over this device's copy, so putting back
+  // last week's file on the site is a working undo.
+  // The crawl's publisher (Task38_crawl/weekly/publish_trainz_live.py,
+  // check_file) makes these SAME checks before it publishes, so a file this
+  // reader would refuse is never put on the site. Change one, change both.
+  var _TZ_LIVE = {
+    url: '../harvests/trainz-diagrams-live.json',   // the app is at /app/, the file at /harvests/ — same site
+    format: 'rr-trainz-diagrams-1',
+    min: 600,          // fewer = something went wrong at Trainz or in the crawl
+    max: 5000,         // a runaway file is refused, never kept
+    key: 'rr_tz_live_v1'
+  };
+  var _TZ_BUILT_IN = { diagrams: window.TRAINZ_DIAGRAMS || [], pulled: String(window.TRAINZ_DIAGRAMS_PULLED || '') };
+  var _tzLiveAsked = false;
+  // '' = good; anything else is the reason the list is refused
+  function _tzLiveCheck(doc) {
+    if (!doc || typeof doc !== 'object') return 'not a list';
+    if (doc.format !== _TZ_LIVE.format) return 'not format ' + _TZ_LIVE.format;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(doc.pulled || ''))) return 'no pulled date';
+    var d = doc.diagrams;
+    if (!Array.isArray(d)) return 'no diagrams';
+    if (d.length < _TZ_LIVE.min) return 'only ' + d.length + ' diagrams';
+    if (d.length > _TZ_LIVE.max) return d.length + ' diagrams is too many';
+    if (doc.count !== d.length) return 'says ' + doc.count + ' diagrams, holds ' + d.length;
+    var seen = {};
+    for (var i = 0; i < d.length; i++) {
+      var e = d[i];
+      if (!e || typeof e !== 'object' || Object.keys(e).sort().join(',') !== 'h,n,t') return 'entry ' + i + ' is malformed';
+      if (typeof e.n !== 'string' || !/^[A-Z0-9|]*$/.test(e.n)) return 'entry ' + i + ': item numbers';
+      if (typeof e.t !== 'string' || !e.t || e.t.length > 60) return 'entry ' + i + ': title';
+      // the page name goes inside the link the button opens: lower-case
+      // letters, digits and dashes ONLY — never a quote, a slash or a space
+      if (typeof e.h !== 'string' || !/^[a-z0-9][a-z0-9-]{0,199}$/.test(e.h)) return 'entry ' + i + ': page name';
+      if (seen[e.h]) return 'two diagrams share one page';
+      seen[e.h] = 1;
+    }
+    return '';
+  }
+  function _tzUse(doc, source) {
+    window.TRAINZ_DIAGRAMS = doc.diagrams;
+    window.TRAINZ_DIAGRAMS_PULLED = doc.pulled;
+    window.TRAINZ_DIAGRAMS_SOURCE = source;   // 'device' or 'site' (never shown; for checks)
+    _tzLookup = null;                          // the matcher rebuilds from the list now in use
+  }
+  // this device's last good copy — used at start-up when it is good and not
+  // older than the built-in list (an app release with a newer list wins)
+  function _tzLiveFromDevice() {
+    try {
+      var doc = JSON.parse(localStorage.getItem(_TZ_LIVE.key) || 'null');
+      if (doc && !_tzLiveCheck(doc) && String(doc.pulled) >= _TZ_BUILT_IN.pulled) _tzUse(doc, 'device');
+    } catch (e) {}
+  }
+  _tzLiveFromDevice();
+  // the site's list — asked for ONCE per open of the app, never blocking a screen
+  function _tzLiveRefresh() {
+    if (_tzLiveAsked || typeof fetch !== 'function') return null;
+    _tzLiveAsked = true;
+    return fetch(_TZ_LIVE.url, { cache: 'no-cache' })
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function (doc) {
+        var bad = _tzLiveCheck(doc);
+        if (bad) { console.warn('[trainz] the site list was refused: ' + bad); return false; }
+        if (String(doc.pulled) < _TZ_BUILT_IN.pulled) return false;   // older than this release's own list
+        _tzUse(doc, 'site');
+        try { localStorage.setItem(_TZ_LIVE.key, JSON.stringify(doc)); } catch (eS) {}
+        return true;
+      })
+      .catch(function (e) { console.warn('[trainz] the site list could not be read: ' + (e && e.message)); return false; });
+  }
+
   // ── v0.9.1690: Maerklin's own spare-parts index (marklin-parts-config.js).
   // Maerklin keys everything by article number and never re-uses one, so this
   // is an exact-number lookup — no prefix juggling, unlike Lionel. Only
@@ -2059,6 +2146,7 @@
   // `where` suffixes the LCCA note's id so a popup over the panel keeps its
   // own note ('' = the panel, 'pop' = the Need-a-part popup).
   function _maintDiagramLinksHtml(item, where) {
+    _tzLiveRefresh();   // 2026-11-03: the site's current Trainz list, once per open (see _TZ_LIVE)
     var eraKey = null;
     try { eraKey = (typeof _itemEraKey === 'function') ? _itemEraKey(item) : (item._era || item.era || null); } catch (e) {}
     var route = _docsRoute(eraKey);
