@@ -261,6 +261,9 @@ var ERR_REPORT_CFG = {
     // v0.9.1611: the sync flight recorder + the photo-note keys — counts,
     // events and item numbers only, never row values (PRIVACY note 4 holds).
     try { c.syncLog = (localStorage.getItem('rr_sync_log') || '[]').slice(0, 3500); } catch (e) {}
+    // 2026-11-03: Photo ID's last reads (barcode.js _biRecordSave) — sizes, the
+    // barcode, each pass's result, the first words read; never an email or a cell value
+    try { c.photoIdReads = JSON.parse(localStorage.getItem((typeof RR_PHOTO_ID_CLOSER !== 'undefined' && RR_PHOTO_ID_CLOSER.recordKey) || 'rr_photoid_reads') || '[]'); } catch (e) { c.photoIdReads = []; }
     try {
       c.photoNotes = 'staged=' + Object.keys(JSON.parse(localStorage.getItem('rr_inbox_setstage') || '{}')).join(',')
                    + ' pending=' + Object.keys(JSON.parse(localStorage.getItem('rr_inbox_pending') || '{}')).join(',');
@@ -404,6 +407,18 @@ var ERR_REPORT_CFG = {
       L.push('  (nothing recorded)');
     } else {
       for (var k = 0; k < diary.length; k++) L.push('  ' + diary[k]);
+    }
+    // 2026-11-03 — Photo ID's last reads (PLAN_2026-11-03_PHOTO_ID_IPHONE)
+    var pid = Array.isArray(ctx.photoIdReads) ? ctx.photoIdReads : [];
+    if (pid.length) {
+      L.push('');
+      L.push('PHOTO ID READS (newest last; picture size · how it came in · each pass)');
+      for (var q = 0; q < pid.length; q++) {
+        var r = pid[q] || {};
+        var clean = (typeof window.rrPhotoIdRecordText === 'function') ? window.rrPhotoIdRecordText : function (x) { return String(x || '').slice(0, 160); };
+        L.push('  ' + [r.t, r.v, r.dev, r.src || '?', 'full ' + r.full, 'read ' + r.work + (r.crop ? ' (cropped)' : ''), 'barcode ' + (r.bc || '-')].join(' · ') + (r.filter ? ' · filter ' + clean(r.filter) : ''));
+        L.push('    quick: ' + clean(r.quick) + (r.turned ? '  ·  turned: ' + clean(r.turned) : '') + (r.closer ? '  ·  closer: ' + clean(r.closer) : '') + '  =>  ' + clean(r.got));
+      }
     }
     // (v0.9.1700–1829 printed the crop-flash diary here; the recorder was retired in v0.9.1830 — see photo-crop.js.)
     if (shotLinks && shotLinks.length) {

@@ -155,16 +155,21 @@ const ROW = (o) => Object.assign({ itemNum: '6-12345', description: 'Test boxcar
 
   console.log('\n== C · a barcode that does not name the item (v0.9.1914: the label, then Google Lens) ==');
   for (const c of [
-    { name: 'C1  a Lionel last-5 GUESS (only a 7-digit row ends in 12345)', rows: [ROW({ itemNum: '2112345' })], code: LIONEL },
-    { name: 'C2  a barcode not in the catalog', rows: [ROW({ itemNum: '6-99999' })], code: LIONEL },
+    // named: the barcode named items (a guess) — no turned reads then, as no closer look (v0.9.1968)
+    { name: 'C1  a Lionel last-5 GUESS (only a 7-digit row ends in 12345)', rows: [ROW({ itemNum: '2112345' })], code: LIONEL, named: true },
+    { name: 'C2  a barcode not in the catalog', rows: [ROW({ itemNum: '6-99999' })], code: LIONEL, named: false },
   ]) {
     const pg = await boot(c.rows);
     await pg.evaluate(() => { window.__lens = null; window._identifyOpenWithPhoto = function (f, auto, opts) { window.__lens = { name: f && f.name, auto: auto, words: opts && opts.extraWords }; }; });
     await scan(pg, c.code);
     await pg.waitForTimeout(2500);
     const r = await pg.evaluate(() => ({ card: !!document.getElementById('rs-overlay'), lens: window.__lens, ocr: window.__ocr || 0, cam: !!document.getElementById('bi-video'),
-      pending: JSON.parse(localStorage.getItem('rr_bc_pending') || 'null') }));
-    T(c.name + ' → the label is read (no tap), finds nothing, and Google Lens gets the photo', !r.card && r.ocr === 1 && r.lens && r.lens.auto === true && !r.cam, r);
+      turns: RR_PHOTO_ID_CLOSER.turns.length, pending: JSON.parse(localStorage.getItem('rr_bc_pending') || 'null') }));
+    // 2026-11-03 (PLAN_2026-11-03_PHOTO_ID_IPHONE): a label read with no sure
+    // word is also read turned each way (RR_PHOTO_ID_CLOSER.turns) unless the
+    // barcode named items — this stand-in label reads nothing, so: the upright
+    // read + one per turn when the barcode named nothing.
+    T(c.name + ' → the label is read (no tap), finds nothing, and Google Lens gets the photo', !r.card && r.ocr === 1 + (c.named ? 0 : r.turns) && r.lens && r.lens.auto === true && !r.cam, r);
     T(c.name.slice(0, 3) + ' …with the barcode digits as Lens words, and the barcode kept for the answer', r.lens && r.lens.words === '023922123456' && r.pending && r.pending.raw === '023922123456', r);
     const rec = await lastRec(pg) || {};
     T(c.name.slice(0, 3) + ' …recorded: looked up ONCE, label read, outcome lens', (rec.steps || []).filter(s => s[0] === 'barcode look-up').length === 1 && (rec.steps || []).some(s => s[0] === 'label read') && rec.outcome === 'lens', rec);

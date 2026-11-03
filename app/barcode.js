@@ -164,6 +164,102 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     return true;
   }
   window._biPreferOf = _biPreferOf; window._biFits = _biFits;
+  // 2026-11-03 — THE one place Photo ID's later reads (the turned read, the
+  // closer look) learn the maker: the screen's filters, narrowed to the maker
+  // the barcode named when the barcode was found inside the crop. The barcode
+  // is a fact about this box — once it has named MTH, a Lionel number in the
+  // noise is never offered (Mike Caruso's 105 · 283 · 193). A maker FILTER on
+  // the screen still rules: when it disagrees with the barcode, Photo ID has
+  // already asked (_biFilterAsk — [stated] Brad: ask "The barcode says MTH but
+  // your filter is Lionel — clear the filter?") and the collector kept it.
+  // A maker the catalog has no line for narrows nothing. -> prefer or null
+  function _biCloserPrefer(opts, out) {
+    var p = _biPreferOf(opts);
+    var mk = (out && out.bcMaker && !out.bcOutsideCrop) ? String(out.bcMaker) : '';
+    if (!mk || typeof window.rrReaderPreferFrom !== 'function') return p;
+    if (p && p.manufacturer) return p;
+    var np = null;
+    try {
+      np = window.rrReaderPreferFrom({ manufacturer: mk, scale: p ? p.scale : '', period: p ? p.period : '', type: p ? p.type : '' });
+      if (np && !(np.eras && np.eras.length) && p && (p.scale || p.period)) np = window.rrReaderPreferFrom({ manufacturer: mk });
+    } catch (eC) { np = null; }
+    if (!np || !(np.eras && np.eras.length)) return p;
+    np._fromBarcode = mk;
+    return np;
+  }
+  window._biCloserPrefer = _biCloserPrefer;   // tests reach it here
+  // How many words the reader is SURE of (RR_PHOTO_ID_CLOSER.sureWordConf, 3+
+  // letters) — the sign a picture is the right way up. A sideways label reads
+  // as hundreds of fragments, none of them sure. -> a count
+  function _biSureWords(o) {
+    var w = (o && o.data && o.data.words) || [];
+    var n = 0;
+    for (var i = 0; i < w.length; i++) if (w[i] && w[i].confidence >= RR_PHOTO_ID_CLOSER.sureWordConf && /^[A-Za-z]{3,}$/.test(String(w[i].text || ''))) n++;
+    return n;
+  }
+  window._biSureWords = _biSureWords;   // tests reach it here
+  // The picture turned a quarter-turn (deg 90 or 270), no bigger than
+  // RR_PHOTO_ID_CLOSER.turnMaxPx on its long side (a phone's canvas memory).
+  function _biTurnCanvas(src, deg) {
+    var w = src.width | 0, h = src.height | 0;
+    var k = Math.min(1, RR_PHOTO_ID_CLOSER.turnMaxPx / Math.max(w, h, 1));
+    var sw = Math.max(1, Math.round(w * k)), sh = Math.max(1, Math.round(h * k));
+    var c = document.createElement('canvas');
+    c.width = sh; c.height = sw;
+    var x = c.getContext('2d');
+    x.translate(sh / 2, sw / 2);
+    x.rotate(deg * Math.PI / 180);
+    x.drawImage(src, -sw / 2, -sh / 2, sw, sh);
+    return c;
+  }
+  // A number read off the turned picture is kept only when the catalog has it
+  // inside the barcode's maker and the screen's filters — the turn reads more
+  // noise than the upright picture, so nothing unconfirmed gets through.
+  async function _biTurnedKeep(cands, pref, out) {
+    var nums = (cands || []).map(function (c) { return String((c && c.raw) || ''); }).filter(Boolean);
+    if (!nums.length) return [];
+    var rows = [];
+    try { rows = await _findMasterItemsAllEras(nums.concat(nums.map(function (n) { return n.replace(/^6-/, ''); }))); } catch (eR) { rows = []; }
+    var mk = (out && out.bcMaker && !out.bcOutsideCrop) ? _bcMfrKey(out.bcMaker) : '';
+    return cands.filter(function (c) {
+      var n = String((c && c.raw) || '');
+      return (rows || []).some(function (r) {
+        var rn = String((r && r.itemNum) || '');
+        if (!rn || !(rn === n || rn === n.replace(/^6-/, '') || ('6-' + rn) === n)) return false;
+        if (mk && !_bcRowIsMfr(r, mk)) return false;
+        if (pref && typeof window.rrRowFitsPrefer === 'function' && !window.rrRowFitsPrefer(r, pref)) return false;
+        return true;
+      });
+    });
+  }
+  // ── THE Photo ID read record (2026-11-03) ──
+  // One short record per read, the last RR_PHOTO_ID_CLOSER.recordKeep kept on
+  // the device; Report a problem prints them (error-report.js), so the next
+  // miss on someone's phone tells us whether the picture came in sideways,
+  // cropped or shrunk. Sizes, the barcode, each pass's result and the first
+  // recordTextMax characters read — never an email, a token, a cell value or
+  // the picture. rrPhotoIdRecordText is the ONE cleaner of read text.
+  function rrPhotoIdRecordText(t) {
+    return String(t || '').replace(/\s+/g, ' ').replace(/[^\s@]+@[^\s@]+\.[^\s@]+/g, '[email]').trim().slice(0, RR_PHOTO_ID_CLOSER.recordTextMax);
+  }
+  window.rrPhotoIdRecordText = rrPhotoIdRecordText;
+  function _biDeviceWord() {
+    var u = ''; try { u = navigator.userAgent || ''; } catch (e) {}
+    var dev = /iPad/.test(u) || (/Macintosh/.test(u) && (navigator.maxTouchPoints || 0) > 1) ? 'iPad'
+      : /iPhone/.test(u) ? 'iPhone' : /Android/.test(u) ? 'Android' : /Mac OS X|Macintosh/.test(u) ? 'Mac' : /Windows/.test(u) ? 'Windows' : /CrOS/.test(u) ? 'Chromebook' : /Linux/.test(u) ? 'Linux' : 'other';
+    var br = /EdgA?\//.test(u) ? 'Edge' : /CriOS|Chrome\//.test(u) ? 'Chrome' : /FxiOS|Firefox\//.test(u) ? 'Firefox' : /Safari\//.test(u) ? 'Safari' : 'other';
+    var app = false; try { app = !!((window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone); } catch (e) {}
+    return dev + ' ' + br + (app ? ' (app)' : '');
+  }
+  function _biRecordSave(rec) {
+    try {
+      var k = RR_PHOTO_ID_CLOSER.recordKey;
+      var list = JSON.parse(localStorage.getItem(k) || '[]');
+      if (!Array.isArray(list)) list = [];
+      list.push(rec);
+      localStorage.setItem(k, JSON.stringify(list.slice(-RR_PHOTO_ID_CLOSER.recordKeep)));
+    } catch (e) {}
+  }
   function _biNarrow(hits, ctx) {
     var r = hits || [];
     if (r.length < 2) return r;
@@ -481,9 +577,13 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   // "1927690:mpc") become choices, LONGEST first — a 7-digit modern number is
   // a far rarer accident than a 3-digit one — at most RR_PHOTO_ID_CLOSER
   // .maxChoices. -> ['1927690', '2026', …]
-  function _bcCloserChoices(fr) {
+  // 2026-11-03 (Mike Caruso's MTH box offered Lionel 105 · 283 · 193 —
+  // PLAN_2026-11-03_PHOTO_ID_IPHONE): narrowed = the reader was given a maker
+  // (the barcode's) or the screen's filters; then only the numbers INSIDE them
+  // are offered, never another maker's (dbg.offEra).
+  function _bcCloserChoices(fr, narrowed) {
     var d = (fr && fr.dbg) || {}, seen = {}, out = [];
-    [].concat(d.inEra || [], d.offEra || []).forEach(function (v, i) {
+    [].concat(d.inEra || [], narrowed ? [] : (d.offEra || [])).forEach(function (v, i) {
       var n = String(v || '').split(':')[0].trim();
       if (n && !seen[n]) { seen[n] = 1; out.push({ n: n, i: i }); }
     });
@@ -2343,7 +2443,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         var b = e.target.closest && e.target.closest('[data-bi]');
         if (!b) return;
         var act = b.getAttribute('data-bi');
-        if (act === 'snap') { if (video.videoWidth) { var fr = snapFrame(); done({ raw: fr.raw, view: fr.view, lockedBc: heldBc }); } }
+        if (act === 'snap') { if (video.videoWidth) { var fr = snapFrame(); done({ raw: fr.raw, view: fr.view, lockedBc: heldBc, src: 'camera' }); } }
         if (act === 'gallery') d.querySelector('#bi-file').click();
         // 2026-11-01: a copied picture goes into the same file box Gallery fills (config.js rrPasteInto)
         if (act === 'paste') rrPasteInto(d.querySelector('#bi-file'));
@@ -2368,7 +2468,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           if (_qv.trim()) done({ typedQuery: _qv.trim(), typedEra: (d.querySelector('#bi-quick-era') || {}).value || '', typedMfr: (d.querySelector('#bi-quick-mfr') || {}).value || '', typedScale: (d.querySelector('#bi-quick-scale') || {}).value || '' });
           return;
         }
-        if (act === 'last' && _biLastShot) done({ raw: _biLastShot.raw, view: _biLastShot.view, lockedBc: null });
+        if (act === 'last' && _biLastShot) done({ raw: _biLastShot.raw, view: _biLastShot.view, lockedBc: null, src: 'last shot' });
         if (act === 'cancel') done(null);
         // v0.9.1913: the Filters pop-up
         // (the house rule: the device Back button closes it; a stray tap on
@@ -2477,7 +2577,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
             c.width = img.naturalWidth; c.height = img.naturalHeight;
             c.getContext('2d').drawImage(img, 0, 0);
             URL.revokeObjectURL(img.src);
-            done({ raw: c, view: c, lockedBc: null });
+            done({ raw: c, view: c, lockedBc: null, src: 'picture' });
           };
           img.src = URL.createObjectURL(blobOrFile);
         };
@@ -2592,7 +2692,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                       if (stopLoop) return;
                       stat.textContent = '\u2713 Barcode locked \u2014 captured';
                       var frame = snapFrame();
-                      done({ raw: frame.raw, view: frame.view, lockedBc: bc });
+                      done({ raw: frame.raw, view: frame.view, lockedBc: bc, src: 'camera (auto)' });
                       return;
                     }
                     // v0.9.1153 (the reason Brad never saw a confirmation): this
@@ -2896,7 +2996,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   }
   // v0.9.1949: a test runs Photo ID on a canvas it drew, with the real stages
   // (photo_fixes_1949_tests). Nothing in the app calls it.
-  window._biPipelineOnCanvas = function (c, opts) { return _biPipeline(c, c, null, '', opts || {}); };
+  window._biPipelineOnCanvas = function (c, opts) { return _biPipeline(c, c, (opts && opts.lockedBc) || null, '', opts || {}); };
   // v0.9.1955 — ONE reading step for Photo ID and the Your Picture box
   // (Brad: "lets have a option check box that when you load a picture, it
   // automatically starts to read it in the background"). Stages 1 and 2 —
@@ -2910,6 +3010,16 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     st = st || function () {};
     stopped = stopped || function () { return false; };
     var out = { bcMaker: '', ocrDesc: '', ocrNums: [], why: {} };
+    var _cw = function (c) { return c ? ((c.width | 0) + 'x' + (c.height | 0)) : '-'; };
+    var rec = { t: new Date().toISOString().slice(5, 19), v: (typeof APP_VERSION !== 'undefined' ? APP_VERSION : '?'),
+                dev: _biDeviceWord(), src: (opts && opts.source) || '', full: _cw(fullCanvas), work: _cw(workCanvas),
+                crop: !!(fullCanvas && workCanvas && fullCanvas !== workCanvas && _cw(fullCanvas) !== _cw(workCanvas)),
+                bc: '', filter: '', quick: '', turned: '', closer: '', got: '' };
+    var _recDone = function (got) {
+      rec.got = got;
+      if (out.bcMaker) rec.bc = rec.bc + ' → ' + out.bcMaker + (out.bcOutsideCrop ? ' (outside crop)' : '');
+      _biRecordSave(rec);
+    };
 
     // Stage 1 — barcode (always from the FULL frame)
     st('bc', '<span class="bi-spin">⟳</span>', 'Barcode: looking…');
@@ -2928,6 +3038,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       bc = found && found.length ? found[0] : null;
     }
     if (bc) {
+      rec.bc = String(bc.rawValue || '').slice(0, 20);
       try { bcResult = await decodeBarcode(bc, eraHint); } catch (e) {}
       if (bcResult) {
         out.bcMaker = (bcResult.manufacturer && bcResult.manufacturer !== 'Unknown') ? bcResult.manufacturer : '';
@@ -2951,17 +3062,37 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     var _bcNamed = !!(bcResult && !out.bcOutsideCrop && (bcResult.masterItem || (bcResult.multipleMatches && (bcResult.candidates || []).length)));
     if (_bcNamed && bcResult.byCatalogUpc && bcResult.masterItem && !(opts && opts.ignoreNums)) {
       st('ocr', '➖', 'Lettering: not needed — the barcode matched your catalog');
+      _recDone('barcode ' + String(bcResult.itemNum || ''));
       return { out: out, bc: bc, bcResult: bcResult, ocrText: '', rawCands: [],
                numsFromFullFrame: false, closerUnsure: false, bcSettled: true };
+    }
+
+    // 2026-11-03 ([stated] Brad 11:51 CT): the Add screen is filtered to one
+    // maker and the barcode names another → ask, never decide quietly:
+    // "The barcode says MTH but your filter is Lionel — clear the filter?"
+    // Clear = the Add screen's own Clear filters (_clearAddFilters); Keep = the
+    // filter stays and rules every read below (strict filters, 2026-11-01).
+    if (out.bcMaker && !out.bcOutsideCrop && opts && opts.addFilters && typeof opts.askFilter === 'function' && !opts.ignoreNums) {
+      var _fp = _biPreferOf(opts);
+      var _fm = (_fp && _fp.manufacturer) ? String(_fp.manufacturer) : '';
+      if (_fm && _bcMfrKey(_fm) !== _bcMfrKey(out.bcMaker)) {
+        st('ocr', '❓', rrEsc(RR_PHOTO_ID_CLOSER.filterStage.replace(/\{bc\}/g, out.bcMaker).replace(/\{filter\}/g, _fm)), _BC_AMBER);
+        var _fa = await opts.askFilter(out.bcMaker, _fm);
+        if (stopped() || _fa === 'cancel') { rec.filter = 'asked ' + out.bcMaker + ' vs ' + _fm + ' → stopped'; _recDone('stopped'); return { cancel: true }; }
+        if (_fa === 'clear' && typeof window._clearAddFilters === 'function') { try { window._clearAddFilters(); } catch (eCF) {} }
+        rec.filter = 'asked ' + out.bcMaker + ' vs ' + _fm + ' → ' + (_fa === 'clear' ? 'cleared' : 'kept');
+      }
     }
 
     // Stage 2 — label / lettering OCR (from the WORK canvas = crop)
     st('ocr', '<span class="bi-spin">⟳</span>', 'Lettering: reading…');
     var ocrText = '';
+    var _uprightWords = -1;           // 2026-11-03: sure words in the quick read (-1 = not read)
     var _numsFromFullFrame = false;   // v0.9.1464: numbers read outside the user's crop
     try {
       var T = await _rtTime('label reader start', _ensureTesseract());
       var o = await _rtTime('label read', T.recognize(_bcPreprocessForOCR(workCanvas), 'eng', {}));
+      _uprightWords = _biSureWords(o);   // 2026-11-03: is this picture the right way up?
       ocrText = (o && o.data && o.data.text) || '';
       // v0.9.1108 (Brad's MTH lamp-set box, phone flow): he cropped tight to
       // the barcode, slicing the printed 11-90012 in half at the crop edge.
@@ -2983,6 +3114,8 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     } catch (e) {}
     if (stopped()) return { cancel: true };
     var rawCands = ocrText ? _extractItemNumberCandidates(ocrText) : [];
+    rec.quick = ((rawCands || []).length ? (rawCands.map(function (c) { return c && c.raw; }).slice(0, 4).join(',') + ' | ') : (ocrText ? 'no number | ' : 'nothing | '))
+      + rrPhotoIdRecordText(ocrText) + (_numsFromFullFrame ? ' (whole photo)' : '') + (_uprightWords >= 0 ? ' [sure words ' + _uprightWords + ']' : '');
     // v0.9.1949 (Brad's Woodruff 2-pack box end, "1927690" printed big and
     // clear: "you should easily read this number"): a bare 7-digit number is
     // only taken as Lionel's when "Lionel" is also in the shot — the July rule
@@ -3002,7 +3135,40 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     // same picture. So when the quick look finds no number, the same picture
     // goes to it before Photo ID gives up. Free; a number the catalog does not
     // confirm is not kept. tests/photo_closer_1950_tests.js.
+    // 2026-11-03 (Mike Caruso's iPhone — PLAN_2026-11-03_PHOTO_ID_IPHONE): his
+    // box label reads cleanly upright; turned sideways the quick look reads no
+    // number and the closer look finds stray 3-digit numbers in the noise. So
+    // before the closer look, the same quick reader gets the picture turned a
+    // quarter-turn each way (RR_PHOTO_ID_CLOSER.turns). A number read that way
+    // is kept only when the catalog has it, inside the barcode's maker and the
+    // screen's filters (_biTurnedKeep). Free, and only on a miss.
+    var _tPref = _biCloserPrefer(opts, out);
+    var _turnT = (typeof T !== 'undefined') ? T : null;
+    // Only when the upright read holds almost no sure words (measured on three
+    // real pictures: text-rich upright ones 26, every sideways one 0 — see
+    // RR_PHOTO_ID_CLOSER.turnBelowWords) — a readable picture the right way up
+    // that simply has no number costs no extra time.
+    if (_turnT && workCanvas && !_bcNamed && !(rawCands || []).length && !(opts && opts.ignoreNums)
+        && _uprightWords >= 0 && _uprightWords < RR_PHOTO_ID_CLOSER.turnBelowWords) {   // (worded apart from the closer look's line: photo_id_narrow_1968 plants on that one)
+      var _tLog = [];
+      for (var _ti = 0; _ti < RR_PHOTO_ID_CLOSER.turns.length && !(rawCands || []).length; _ti++) {
+        var _deg = RR_PHOTO_ID_CLOSER.turns[_ti];
+        st('ocr', '<span class="bi-spin">⟳</span>', RR_PHOTO_ID_CLOSER.turning);
+        try {
+          var _ot = await _rtTime('label read (turned)', _turnT.recognize(_bcPreprocessForOCR(_biTurnCanvas(workCanvas, _deg)), 'eng', {}));
+          var _tt = (_ot && _ot.data && _ot.data.text) || '';
+          var _tc = _extractItemNumberCandidates(_tt);
+          var _tk = _tc.length ? await _biTurnedKeep(_tc, _tPref, out) : [];
+          _tLog.push(_deg + ': ' + (_tk.length ? 'kept ' + _tk.map(function (c) { return c.raw; }).join(',')
+            : (_tc.length ? 'not in catalog ' + _tc.map(function (c) { return c.raw; }).slice(0, 3).join(',') : 'no number')));
+          if (_tk.length) { rawCands = _tk; ocrText = _tt; out.why.turned = _deg; }
+        } catch (eT) { _tLog.push(_deg + ': failed'); }
+        if (stopped()) { rec.turned = _tLog.join('; '); _recDone('stopped'); return { cancel: true }; }
+      }
+      rec.turned = _tLog.join('; ');
+    }
     var _closerUnsure = false;   // v0.9.1951: the closer look read numbers but confirmed none
+    var _closerNone = '';         // 2026-11-03: the closer look, narrowed to a maker, kept nothing
     if (!(rawCands || []).length && !_bcNamed && !(opts && opts.ignoreNums) && typeof window.rrFreeReadBlob === 'function') {   // v0.9.1968: not once the barcode named items
       st('ocr', '<span class="bi-spin">⟳</span>', RR_PHOTO_ID_CLOSER.reading);
       try {
@@ -3011,8 +3177,11 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         // era) — the same preference the Photo Inbox gives it — so a number
         // only another maker's catalog knows (a car's "LT WT 43725" = a
         // Marklin HO coach) never counts as confirmed while filtered to Lionel O.
-        var _frPref = _biPreferOf(opts);   // v0.9.1977: whichever screen it came from
+        var _frPref = _tPref;   // v0.9.1977 the screen's filters; 2026-11-03 + the barcode's maker (_biCloserPrefer)
+        var _frNarrow = !!(_frPref && _frPref.eras && _frPref.eras.length);
         var _fr = _frBlob ? await _rtTime('label read (closer)', window.rrFreeReadBlob(_frBlob, 2400, _frPref, { barcodeDone: true })) : null;
+        rec.closer = _fr ? ((_fr.matched ? 'sure ' : 'unsure ') + String(_fr.num || '-') + ' | in ' + ((_fr.dbg && _fr.dbg.inEra) || []).slice(0, 4).join(',')
+          + ' | out ' + ((_fr.dbg && _fr.dbg.offEra) || []).slice(0, 4).join(',') + (_frNarrow ? ' | maker ' + (_frPref.manufacturer || '') : '')) : 'no answer';
         if (_fr && _fr.matched && _fr.num) rawCands = [{ raw: String(_fr.num), mfr: '' }];
         else if (_fr) {
           // v0.9.1951 (Brad's screenshot of the whole screen: the browser's
@@ -3022,8 +3191,9 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           // are offered as choices instead, longest first — the same "which
           // one is YOUR item?" Photo ID asks of a shelf photo. Nothing is
           // picked for him.
-          var _frKnown = _bcCloserChoices(_fr);
+          var _frKnown = _bcCloserChoices(_fr, _frNarrow);
           if (_frKnown.length) { rawCands = _frKnown.map(function (n) { return { raw: n, mfr: '' }; }); _closerUnsure = true; }
+          else if (_frNarrow && _frPref._fromBarcode) _closerNone = _frPref._fromBarcode;
         }
       } catch (eFR) {}
       if (stopped()) return { cancel: true };
@@ -3040,11 +3210,13 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     var kwMfr = ocrText ? _mfrFromKeywords(ocrText) : '';
     if (!out.bcMaker && kwMfr) out.bcMaker = kwMfr;
     if (_closerUnsure && out.ocrNums.length) st('ocr', '🔤', RR_PHOTO_ID_CLOSER.lettering, _BC_AMBER);   // v0.9.1951: no green tick on a guess
+    else if (_closerNone && !out.ocrNums.length) st('ocr', '➖', RR_PHOTO_ID_CLOSER.noneOfMaker.replace('{maker}', _closerNone));   // 2026-11-03: honest, never another maker's numbers
     else
     st('ocr', out.ocrNums.length ? '🔤' : '➖',
        'Lettering: ' + (out.ocrNums.length ? ('✓ found ' + out.ocrNums.slice(0, 3).join(', ')) : (ocrText ? 'no item number read' : 'nothing readable')),
        out.ocrNums.length ? '#2ecc71' : null);
 
+    _recDone(out.ocrNums.length ? ((_closerUnsure ? 'choices ' : 'read ') + out.ocrNums.slice(0, 4).join(',') + (out.why.turned ? ' (turned ' + out.why.turned + ')' : '')) : 'no number');
     return { out: out, bc: bc, bcResult: bcResult, ocrText: ocrText, rawCands: rawCands,
              numsFromFullFrame: _numsFromFullFrame, closerUnsure: _closerUnsure };
   }
@@ -3077,7 +3249,8 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       rows[key].innerHTML = '<span style="margin-right:0.4rem">' + icon + '</span>' + text;
       if (color) rows[key].style.borderColor = color;
     }
-    var _rp = await _biReadPicture(fullCanvas, workCanvas, lockedBc, eraHint, opts, st, function () { return _biStop; });
+    var _rpOpts = Object.assign({}, opts || {}, { askFilter: function (bcM, fM) { return _rtWait('filter question', _biFilterAsk(bcM, fM)); } });   // 2026-11-03
+    var _rp = await _biReadPicture(fullCanvas, workCanvas, lockedBc, eraHint, _rpOpts, st, function () { return _biStop; });
     if (_rp.cancel) return { __biCancel: true };
     var out = _rp.out, bc = _rp.bc, bcResult = _rp.bcResult, ocrText = _rp.ocrText, rawCands = _rp.rawCands;
     var _numsFromFullFrame = _rp.numsFromFullFrame, _closerUnsure = _rp.closerUnsure;
@@ -3316,6 +3489,33 @@ window.eraSupportsBarcode = eraSupportsBarcode;
 
   // ── Phase 4 fail card ──
   // v0.9.690: chooser when a shot contains several different item numbers.
+  // 2026-11-03 — "The barcode says MTH but your filter is Lionel — clear the
+  // filter?" -> 'clear' | 'keep' | 'cancel' (Stop). Words: RR_PHOTO_ID_CLOSER.
+  function _biFilterAsk(bcMaker, filterMaker) {
+    return new Promise(function (resolve) {
+      var d = document.getElementById('bi-overlay');
+      var act = d && d.querySelector('#bi-actions');
+      if (!act) { resolve('keep'); return; }
+      var W = RR_PHOTO_ID_CLOSER;
+      var say = function (t) { return rrEsc(String(t).replace(/\{bc\}/g, bcMaker).replace(/\{filter\}/g, filterMaker)); };
+      act.innerHTML =
+        '<div style="width:100%;color:#ffd27d;font-size:0.85rem;margin-bottom:0.3rem">' + say(W.filterAsk) + '</div>'
+        + _biBtn({ act: 'fclear', txt: say(W.filterClear) }, 'border:1.5px solid var(--accent,#e8401c);color:var(--t-accent)')
+        + _biBtn({ act: 'fkeep', txt: say(W.filterKeep) });
+      var _poll = setInterval(function () { if (_biStop) { clearInterval(_poll); act.innerHTML = ''; act.onclick = null; resolve('cancel'); } }, 200);
+      act.onclick = function (e) {
+        var b = e.target.closest && e.target.closest('[data-bi]');
+        if (!b) return;
+        var a = b.getAttribute('data-bi');
+        if (a !== 'fclear' && a !== 'fkeep') return;
+        clearInterval(_poll);
+        act.innerHTML = ''; act.onclick = null;
+        resolve(a === 'fclear' ? 'clear' : 'keep');
+      };
+    });
+  }
+  window._biFilterAsk = _biFilterAsk;   // tests reach it here
+
   function _biNumPicker(nums, msg) {
     return new Promise(function (resolve) {
       var d = document.getElementById('bi-overlay');
@@ -3427,7 +3627,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         if (_startFile) {
           var _sc = await _rtTime('photo prep', _biFileToCanvas(_startFile));
           _startFile = null;   // one pass only: Retake opens the camera
-          if (_sc) { cap = { raw: _sc, view: _sc, lockedBc: null }; _fromStart = true; }
+          if (_sc) { cap = { raw: _sc, view: _sc, lockedBc: null, src: 'picture (added first)' }; _fromStart = true; }
           else if (typeof showToast === 'function') showToast('That picture could not be opened — pick it again', 3000, true);
         }
         if (!cap) cap = await _rtWait('camera screen', _biCapture());
@@ -3534,7 +3734,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         }
         // v0.9.1473: Photo ID = free readers ONLY; 🤖 Auto Read = may spend.
         var res = await _biPipeline(cap.view || cap.raw, cr.work, cap.lockedBc, eraHint,
-          { noAi: cr.action !== 'auto', forceAi: cr.action === 'auto', addFilters: _addF, prefer: _prefOf() });
+          { noAi: cr.action !== 'auto', forceAi: cr.action === 'auto', addFilters: _addF, prefer: _prefOf(), source: cap.src || '' });
         // v0.9.897: Stop pressed = plain cancel — back to the wizard, nothing filled.
         if (res && res.__biCancel) { _biKill(); if (onCancel) onCancel(); return; }
         if (res && res.__biFail) {
@@ -3695,7 +3895,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     if (!c) return { kind: 'error' };
     var say = function (key, icon, text) { if (ctl.onStage && /reading/i.test(String(text))) try { ctl.onStage(String(text).replace(/<[^>]*>/g, '')); } catch (e) {} };
     // v0.9.1977: the same filters Photo ID on the same screen reads with
-    var _ro = { addFilters: !!ctl.addFilters, prefer: ctl.prefer || null };
+    var _ro = { addFilters: !!ctl.addFilters, prefer: ctl.prefer || null, source: 'read picture' };
     var rp = await _biReadPicture(c, c, null, ctl.eraHint || '', _ro, say, stopped);
     if (rp.cancel || stopped()) return { kind: 'cancel' };
     var nums = Array.from(new Set(rp.out.ocrNums || []));

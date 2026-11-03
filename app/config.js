@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2101';
+const APP_VERSION = 'v0.9.2102';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -4390,6 +4390,32 @@ const RR_PHOTO_ID_CLOSER = {
   lettering: 'Lettering: read several numbers — not sure which is yours',
   stage: 'Catalog: which number is YOUR item?',
   choose: 'The closer look read these numbers in the picture, and the catalog knows each one. Which one is YOUR item?',
+  // 2026-11-03 (Mike Caruso's sideways MTH label — PLAN_2026-11-03_PHOTO_ID_IPHONE):
+  // on a miss the quick reader also reads the picture turned these ways
+  turns: [90, 270],
+  // …only when the upright read is SURE of fewer than this many words (a word
+  // of 3+ letters read at sureWordConf or better). Measured 2026-11-03 through
+  // the app's own quick read: Mike's label upright 26, the Woodruff screenshot
+  // 26, the red Woodruff box end 1 (a hard picture: it gets the turned reads,
+  // ~4 s each in the cloud) — every one of them turned sideways 0.
+  turnBelowWords: 3,
+  sureWordConf: 80,
+  turnMaxPx: 2400,   // the turned copy's long side at most (a phone's canvas memory)
+  turning: 'Lettering: reading the picture turned sideways…',
+  // the barcode named the maker and no number of that maker was read — said
+  // plainly, never another maker's numbers offered instead
+  noneOfMaker: 'Lettering: couldn\u2019t read a {maker} item number in this picture',
+  // the Add screen is filtered to one maker and the barcode names another —
+  // [stated] Brad 2026-11-03 11:51 CT: ask "The barcode says MTH but your
+  // filter is Lionel — clear the filter?"  {bc} the barcode's maker, {filter} the filter's
+  filterAsk: 'The barcode says {bc} but your filter is {filter} \u2014 clear the filter?',
+  filterClear: 'Clear the filter',
+  filterKeep: 'Keep my filter',
+  filterStage: 'Barcode says {bc} \u2014 your filter is {filter}',
+  // the read record Report a problem carries (barcode.js _biRecordSave)
+  recordKey: 'rr_photoid_reads',
+  recordKeep: 5,
+  recordTextMax: 160,
 };
 
 // v0.9.1937 — WHERE a picture handed over from earlier lands at the Photos step
