@@ -46,7 +46,8 @@ async function handlePhotoDrop(event, stepId, viewKey) {
   event.preventDefault();
   event.currentTarget.style.borderColor = 'var(--border)';
   const file = event.dataTransfer.files[0];
-  if (file && file.type.startsWith('image/')) {
+  // 2026-11-02: a picture whose type the browser left blank is known by its extension (drive.js rrImageTypeOf)
+  if (file && (file.type.startsWith('image/') || (!file.type && typeof rrImageTypeOf === 'function' && rrImageTypeOf(file)))) {
     await uploadWizardPhoto(file, stepId, viewKey);
   }
 }
@@ -224,6 +225,7 @@ async function uploadWizardPhoto(file, stepId, viewKey) {
     if (zone && typeof window._wizSlotPaint === 'function') window._wizSlotPaint(zone, stepId, viewKey, { src: blobThumb, file: file, itemNum: itemNum });
   } catch(e) {
     console.error('Photo upload failed:', e);
+    if (typeof rrPhotoFailed === 'function') rrPhotoFailed(e, 'photo slot');   // 2026-11-02: the reason reaches a report
     showToast(rrSaveError(e, 'this photo'), 5000, true);
   } finally {
     if (prog) prog.style.display = 'none';

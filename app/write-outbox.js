@@ -567,6 +567,17 @@
     if (/\b40[34]\b|permission|PERMISSION_DENIED/i.test(raw)) {
       return 'Your sheet would not accept that change — check it is still shared with this account.' + tail;
     }
+    // 2026-11-02 (Joseph's report): Google Drive ANSWERED and refused (400, 413,
+    // 5xx …) — say that, in RR_DRIVE_REFUSED's words (config.js).
+    var _dr = /Drive request failed \((\d{3})\)|upload failed \(HTTP (\d{3})\)/i.exec(raw);
+    if (_dr) {
+      var _code = _dr[1] || _dr[2];
+      var DR = (typeof RR_DRIVE_REFUSED !== 'undefined' && RR_DRIVE_REFUSED) || null;
+      if (DR) {
+        var _why = _code === '413' ? DR.tooBig : (/^5/.test(_code) ? DR.busy : DR.other.replace('{code}', _code));
+        return DR.words.replace('{thing}', thing).replace('{why}', _why) + tail;
+      }
+    }
     return 'Could not save ' + thing + '.' + (tail || ' Please try again.');
   }
   window.rrSaveError = rrSaveError;
@@ -600,8 +611,19 @@
     var w = _rrPhotoMissWords(_rrPhotoMissN); _rrPhotoMissN = 0;
     return w;
   }
+  // 2026-11-02 (Joseph's report — the real reason only ever reached the browser's
+  // console): ONE line in the Report a problem diary for every photo that did
+  // not upload — where, and Drive's own answer. Never the picture, never a name.
+  function rrPhotoFailed(err, where) {
+    try {
+      var raw = String((err && err.message) || err || '').replace(/\s+/g, ' ').slice(0, 120);
+      if (typeof rrSyncLog === 'function') rrSyncLog('photo', (where || 'photo') + ' — ' + (raw || 'no reason given'));
+    } catch (e) {}
+  }
+  window.rrPhotoFailed = rrPhotoFailed;
   function rrPhotoMissed(err, where, n) {
     try { console.warn('[photo upload] ' + (where || 'photo') + ' did not upload:', err); } catch (e) {}
+    rrPhotoFailed(err, where);
     n = (n == null) ? 1 : Math.max(0, parseInt(n, 10) || 0);
     if (!n) return;
     _rrPhotoMissN += n;

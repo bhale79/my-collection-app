@@ -713,6 +713,7 @@ window.ephemeraAddPhotos = function (tabId, rowKey, paste) {
       if (typeof renderBrowse === 'function') renderBrowse();
     } catch (e) {
       console.warn('[ephemera photos]', e);
+      if (typeof rrPhotoFailed === 'function') rrPhotoFailed(e, 'paper photo');   // 2026-11-02
       showToast(rrSaveError(e, 'the photo', { kept: false }), 4500, true);
     }
   };

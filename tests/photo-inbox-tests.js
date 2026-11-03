@@ -2530,8 +2530,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
   const dv5 = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'drive.js'), 'utf8');
   ok('only rows with a BLANK link are touched',
      /\.filter\(function \(x\) \{ return x\.pd && x\.pd\.owned && x\.pd\.itemNum && !x\.pd\.photoItem; \}\)/.test(dv5));
+  // 2026-11-02 (apostrophe_photo_tests): the name goes into the search through the ONE escape, rrDriveQ —
+  // this line read `name='" + String(pd.inventoryId)…` and was seen red against the change first.
   ok('the per-copy subfolder is named for the row\'s inventory id',
-     /name='" \+ String\(pd\.inventoryId\)/.test(dv5));
+     /name='" \+ rrDriveQ\(pd\.inventoryId\)/.test(dv5));
   ok('loose photos are only claimed when exactly ONE copy is owned',
      /if \(\(copies\[pd\.itemNum\] \|\| 1\) === 1\) hit = link;/.test(dv5));
   ok('with several copies and no per-copy folder it gives up rather than guess',
@@ -12415,7 +12417,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const api = new Function(
         'driveCache', 'driveRequest', 'driveEnsureSetup', 'driveFindOrCreateFolder',
         'ERAS', 'window', 'console', 'baseItemNum', 'findMaster',
-        'RR_PHOTO_HOME', 'ephSectionOfType',
+        'RR_PHOTO_HOME', 'ephSectionOfType', 'rrDriveQ',
         cut + '\n; return { ensure: driveEnsureItemFolder, eras: _driveEraFolders };'
       )({ photosId: 'PHOTOS', itemFolders: {} },
         async function (method, endpoint) { asked.push(endpoint); return script(method, endpoint); },
@@ -12427,7 +12429,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
         function (n) { return n; },
         function () { return null; },
         liftPhotoHome(),
-        function () { return ''; });   // stub: no owned paper rows in this rig
+        function () { return ''; },   // stub: no owned paper rows in this rig
+        // 2026-11-02: the REAL name escape from drive.js (apostrophe_photo_tests), lifted, never a copy
+        new Function(r6Src.slice(r6Src.indexOf('function rrDriveQ('), r6Src.indexOf('\n', r6Src.indexOf('function rrDriveQ('))) + '; return rrDriveQ;')());
       return { api: api, created: created, asked: asked };
     }
 
@@ -13169,7 +13173,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
         const api = new Function(
           'driveCache', 'driveRequest', 'driveEnsureSetup', 'driveFindOrCreateFolder',
           'ERAS', 'window', 'console', 'baseItemNum', 'findMaster',
-          'RR_PHOTO_HOME', 'ephSectionOfType',
+          'RR_PHOTO_HOME', 'ephSectionOfType', 'rrDriveQ',
           cut8 + '\n; return { move: driveMoveToSold, cache: driveCache };'
         )({ photosId: 'PHOTOS', soldPhotosId: 'SOLD', itemFolders: {} },
           async function (method, endpoint, body) {
@@ -13207,7 +13211,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
           function (n) { return n; },
           function () { return null; },
           liftPhotoHome(),                                  // v0.9.1995: the real one
-          function () { return ''; });                      // stub: no owned paper rows here
+          function () { return ''; },                       // stub: no owned paper rows here
+          // 2026-11-02: the REAL name escape from drive.js (apostrophe_photo_tests), lifted, never a copy
+          new Function(dv8.slice(dv8.indexOf('function rrDriveQ('), dv8.indexOf('\n', dv8.indexOf('function rrDriveQ('))) + '; return rrDriveQ;')());
         return { api: api, calls: calls, created: created,
                  moves: function () { return calls.filter(c => c.k === 'move').map(c => moveOf(c.ep)); },
                  trashed: function () { return calls.filter(c => c.k === 'patch' && c.body && c.body.trashed === true)
@@ -14913,9 +14919,17 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // same batchGet that rendered it, the column is header-derived, and
       // the page exists only for the two owner accounts. yardmaster_tests
       // pins that exact shape.
-      ok('224 the only PUTs outside sheets.js are the lock probe and the Office chore cell',
-           putsElsewhere === 2 && probePuts === 1,
-           putsElsewhere + ' PUT(s) outside sheets.js');
+      // 2026-11-02: 2 -> 3. drive.js's resumable photo upload (_driveUploadResumable, a
+      // photo over 5 MB — apostrophe_photo_tests B5) PUTs the picture's bytes to the
+      // Google DRIVE upload session it just opened — a file, not a sheet value; pinned
+      // to exactly that one function here. Seen red at 3 before this line changed.
+      const drvPut = rd24('drive.js');
+      const drvPutOk = (drvPut.match(/method:\s*'PUT'/g) || []).length === 1 &&
+        drvPut.indexOf("method: 'PUT'") > drvPut.indexOf('async function _driveUploadResumable(') &&
+        drvPut.indexOf("method: 'PUT'") < drvPut.indexOf('\n}', drvPut.indexOf('async function _driveUploadResumable('));
+      ok('224 the only PUTs outside sheets.js are the lock probe, the Office chore cell and the big-photo Drive upload',
+           putsElsewhere === 3 && probePuts === 1 && drvPutOk,
+           putsElsewhere + ' PUT(s) outside sheets.js; drive.js resumable only: ' + drvPutOk);
       }
 
       // ── the user-facing label for the new kind exists ──────────────────

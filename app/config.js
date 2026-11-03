@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2098';
+const APP_VERSION = 'v0.9.2099';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -4540,6 +4540,23 @@ const RR_PHOTO_MISSED = {
   after: ' But ',
 };
 if (typeof window !== 'undefined') window.RR_PHOTO_MISSED = RR_PHOTO_MISSED;
+// 2026-11-02 (Joseph's report, PLAN_2026-11-02_APOSTROPHE_PHOTO_FOLDER.md): when
+// Google Drive itself refuses a photo or its folder (an answer, not a lost
+// connection or a sign-in), say so — "Please try again" was advice that could
+// never work. {thing} = what was being saved, {why} = one of the reasons below.
+// write-outbox.js rrSaveError reads these; rrPhotoFailed puts Drive's own answer
+// in the Report a problem diary (rrSyncLog 'photo').
+const RR_DRIVE_REFUSED = {
+  words:   'Google Drive would not take {thing} ({why}). It was not saved — if it keeps happening, tell us with Report a problem.',
+  tooBig:  'the file is too large',
+  busy:    'Google Drive had a problem on its side — try again in a few minutes',
+  other:   'Google answered {code}',
+};
+if (typeof window !== 'undefined') window.RR_DRIVE_REFUSED = RR_DRIVE_REFUSED;
+// Google documents the one-request ("multipart") upload for files up to 5 MB;
+// a bigger photo goes with Google's resumable upload (drive.js driveUploadFile).
+const RR_DRIVE_MULTIPART_MAX = 5 * 1024 * 1024;
+if (typeof window !== 'undefined') window.RR_DRIVE_MULTIPART_MAX = RR_DRIVE_MULTIPART_MAX;
 // v0.9.2072 (PLAN_2026-10-30_INBOX_PAPER_SAVES.md): photos an add brought from the
 // Photo Inbox that could not go with the item (offline, or a move that failed)
 // stay in the inbox — said on the end of the save's own "saved" message, the

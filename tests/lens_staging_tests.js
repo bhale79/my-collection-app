@@ -170,7 +170,7 @@ const previews = (sb) => sb.log.filter(e => e[0] === 'preview');
     ok('the wizard still uploads its camera shot (it is not in Drive yet)', /const staged = await driveStageLensPhoto\(_identifyPhotoFile(?:, function \(n, ms\) \{ _lensSteps\.push\(\[n, ms\]\); \})?\);/.test(wiz));   // v0.9.1911: may carry the step timer
     ok('…and its link still carries the words', /uploadbyurl\?url=' \+ encodeURIComponent\(staged\.url\)\n\s*\+ \(_hint \? '&q=' \+ encodeURIComponent\(_hint\) \+ '&lns_mode=mu' : ''\);/.test(wiz));
     ok('…arming its cleanup only for a fresh upload', /if \(!staged\.reused\) \{\n\s*_identifyStagedFileId = staged\.id;/.test(wiz));
-    ok('driveUploadFile grew an OPTIONAL fourth argument — every other caller is unchanged', /async function driveUploadFile\(file, name, folderId, extraMeta\)/.test(DRV) && /Object\.assign\(\{ name, parents: \[folderId\], mimeType: file\.type \}, extraMeta \|\| \{\}\)/.test(DRV));
+    ok('driveUploadFile grew an OPTIONAL fourth argument — every other caller is unchanged', /async function driveUploadFile\(file, name, folderId, extraMeta\)/.test(DRV) && /Object\.assign\(\{ name, parents: \[folderId\], mimeType: file\.type \|\| rrImageTypeOf\(file\) \}, extraMeta \|\| \{\}\)/.test(DRV));   // 2026-11-02 (apostrophe_photo_tests B9): a blank type is known by its extension — this read `mimeType: file.type }` and was seen red first
     ok('the sweeper still looks for the stamp the copy carries', /appProperties has \{ key='rrShared' and value='1' \}/.test(fs.readFileSync(path.join(__dirname, '..', 'app', 'share.js'), 'utf8')));
   }
 

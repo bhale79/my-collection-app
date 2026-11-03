@@ -1723,7 +1723,7 @@ async function _vcKids(parentId) {
 }
 function _vcIsFolder(f) { return f && f.mimeType === 'application/vnd.google-apps.folder'; }
 async function _vcFindFolders(name, parentId) {
-  var q = "name='" + String(name).replace(/'/g, "\\'") + "' and mimeType='application/vnd.google-apps.folder' and trashed=false"
+  var q = "name='" + rrDriveQ(name) + "' and mimeType='application/vnd.google-apps.folder' and trashed=false"
         + (parentId ? " and '" + parentId + "' in parents" : '');
   var r = await driveRequest('GET', '/files?q=' + encodeURIComponent(q) + '&fields=files(id,name,parents)&pageSize=10');
   return (r && r.files) || [];

@@ -723,6 +723,7 @@
         } catch (eUp) {
           _upFail++;
           console.warn('[Inbox] upload failed for ' + safe + ' — continuing:', eUp);
+          if (typeof rrPhotoFailed === 'function') rrPhotoFailed(eUp, 'Photo Inbox');   // 2026-11-02: the reason reaches a report
           continue;
         }
         var _thisEra = (PIN._pinOneShot && !_spentOneShot) ? PIN._pinOneShot : _pinHomeEra();

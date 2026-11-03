@@ -796,7 +796,7 @@ async function _ensureNonItemPhotoRoot(rootName) {
 async function _findDriveFileByName(folderId, fileName) {
   if (!folderId || !fileName || typeof driveRequest !== 'function') return null;
   try {
-    var safe = String(fileName).replace(/'/g, "\\'");
+    var safe = rrDriveQ(fileName);   // 2026-11-02: the ONE Drive-search escape (drive.js) — the backslash too
     var q = encodeURIComponent("name='" + safe + "' and '" + folderId + "' in parents and trashed=false");
     var res = await driveRequest('GET', '/files?q=' + q + '&fields=files(id,name)');
     if (res && res.files && res.files.length) return res.files[0].id;

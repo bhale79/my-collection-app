@@ -2646,7 +2646,7 @@
         try {
           var _rpFid = (String(link).match(/folders\/([a-zA-Z0-9_-]+)/) || [])[1] || '';
           if (_rpFid && p.inventoryId) {
-            var _rpQ = await driveRequest('GET', '/files?q=' + encodeURIComponent("'" + _rpFid + "' in parents and name='" + String(p.inventoryId) + "' and mimeType='application/vnd.google-apps.folder' and trashed=false") + '&fields=files(id)');
+            var _rpQ = await driveRequest('GET', '/files?q=' + encodeURIComponent("'" + _rpFid + "' in parents and name='" + rrDriveQ(p.inventoryId) + "' and mimeType='application/vnd.google-apps.folder' and trashed=false") + '&fields=files(id)');
             if (_rpQ && _rpQ.files && _rpQ.files[0]) link = driveFolderLink(_rpQ.files[0].id);
           }
         } catch (eSub) {}

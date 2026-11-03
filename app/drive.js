@@ -215,7 +215,7 @@ async function driveUploadFile(file, name, folderId, extraMeta) {
     if (_s && _e > Date.now()) { accessToken = _s; }
     else throw new Error('Not signed in — please sign in and try again');
   }
-  const metadata = Object.assign({ name, parents: [folderId], mimeType: file.type }, extraMeta || {});
+  const metadata = Object.assign({ name, parents: [folderId], mimeType: file.type || rrImageTypeOf(file) }, extraMeta || {});
   // v0.9.2077 (TRR Pro release 6): a Photo Inbox photo carries the collection
   // it was added in — THE one place every inbox upload passes. A photo staged
   // offline brings the collection it was taken in (photo-inbox-offline.js).
@@ -226,21 +226,64 @@ async function driveUploadFile(file, name, folderId, extraMeta) {
       if (_ap.rrColl) metadata.appProperties = _ap;
     }
   } catch (eTag) {}
+  // 2026-11-02 (PLAN_2026-11-02_APOSTROPHE_PHOTO_FOLDER.md): over 5 MB → Google's
+  // resumable upload (two requests: open a session, send the bytes). If the
+  // session can't be opened from this browser, it falls back to the one-request
+  // upload below — never worse than before.
+  const _max = (typeof RR_DRIVE_MULTIPART_MAX === 'number') ? RR_DRIVE_MULTIPART_MAX : 5 * 1024 * 1024;
+  if (file && file.size > _max) {
+    const big = await _driveUploadResumable(file, metadata);
+    if (big) return big;
+  }
   const form = new FormData();
   form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
   form.append('file', file);
-  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,webContentLink', {
+  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=' + _DRIVE_UP_FIELDS, {
     method: 'POST',
     headers: { Authorization: 'Bearer ' + accessToken },
     body: form,
   });
-  if (!res.ok) {
-    const errText = await res.text().catch(() => 'unknown');
-    console.error('[Drive] Upload failed:', res.status, errText);
-    throw new Error('Photo upload failed (HTTP ' + res.status + ')');
-  }
+  if (!res.ok) throw await _driveUploadRefused(res);
   return res.json();
 }
+const _DRIVE_UP_FIELDS = 'id,name,webViewLink,webContentLink';
+// Drive's answer to a refused upload, as ONE error: "Photo upload failed (HTTP
+// 413): Request Too Large" — rrSaveError words it, rrPhotoFailed puts it in the
+// Report a problem diary.
+async function _driveUploadRefused(res) {
+  const errText = await res.text().catch(() => 'unknown');
+  console.error('[Drive] Upload failed:', res.status, errText);
+  let why = '';
+  try { const j = JSON.parse(errText); why = String((j && j.error && j.error.message) || '').slice(0, 80); } catch (e) {}
+  return new Error('Photo upload failed (HTTP ' + res.status + ')' + (why ? ': ' + why : ''));
+}
+// Google's resumable upload: null = the session could not be opened (then the
+// caller sends it the one-request way); a refusal from Drive throws like above.
+async function _driveUploadResumable(file, metadata) {
+  let init;
+  try {
+    init = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=' + _DRIVE_UP_FIELDS, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json; charset=UTF-8',
+                 'X-Upload-Content-Type': metadata.mimeType || 'application/octet-stream', 'X-Upload-Content-Length': String(file.size) },
+      body: JSON.stringify(metadata),
+    });
+  } catch (e) { console.warn('[Drive] resumable session could not open — sending it in one request', e); return null; }
+  if (!init.ok) throw await _driveUploadRefused(init);
+  const at = init.headers && init.headers.get && init.headers.get('Location');
+  if (!at) { console.warn('[Drive] resumable session gave no address — sending it in one request'); return null; }
+  const put = await fetch(at, { method: 'PUT', headers: { 'Content-Type': metadata.mimeType || 'application/octet-stream' }, body: file });
+  if (!put.ok) throw await _driveUploadRefused(put);
+  return put.json();
+}
+// A picture whose type the browser left blank ("" — happens on some Windows
+// set-ups) is known by its extension. '' = not a picture we know.
+function rrImageTypeOf(file) {
+  const m = /\.([a-z0-9]+)$/i.exec(String((file && file.name) || ''));
+  const map = { jpg: 'image/jpeg', jpeg: 'image/jpeg', jfif: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp', heic: 'image/heic', heif: 'image/heif', bmp: 'image/bmp', tif: 'image/tiff', tiff: 'image/tiff' };
+  return (file && file.type) || (m && map[m[1].toLowerCase()]) || '';
+}
+if (typeof window !== 'undefined') window.rrImageTypeOf = rrImageTypeOf;
 
 // v0.9.1286 (audit round 3, finding R3-1 — PROVEN by running the real
 // function): two concurrent calls for the same name both searched, both saw
@@ -251,6 +294,16 @@ async function driveUploadFile(file, name, folderId, extraMeta) {
 // second caller awaits the first's promise, so one search, one create,
 // one folder. A rejected promise clears the slot, so a retry starts fresh.
 const _folderInflight = {};
+// 2026-11-02 (Joseph's report: "Could not save this photo. Please try again." on
+// every photo for his hand-added "40' Wood Reefer"; PLAN_2026-11-02_APOSTROPHE_PHOTO_FOLDER.md)
+// — THE one way a name goes INTO a Drive search (q=name='…'). Drive's search
+// language needs a backslash written \\ and an apostrophe written \'; an
+// unescaped ' ends the name early and Drive refuses the whole search (400
+// Invalid Value), so the photo never uploads and retrying can't help. Every
+// Drive name search in app/ goes through this (apostrophe_photo_tests scans).
+// It sits here, inside the slice the photo-inbox tests lift with this code.
+function rrDriveQ(text) { return String(text == null ? '' : text).replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
+if (typeof window !== 'undefined') window.rrDriveQ = rrDriveQ;
 async function driveFindOrCreateFolder(name, parentId) {
   if (!parentId) throw new Error('Missing parentId for folder: ' + name);
   const _fk = parentId + '|' + name;
@@ -264,7 +317,7 @@ async function driveFindOrCreateFolder(name, parentId) {
 // whose folder a photo is going into; and a NEW folder inside an archived
 // collection is refused (finding one is only a read, and stays allowed).
 async function _driveFindOrCreateFolderNow(name, parentId) {
-  const q = encodeURIComponent(`name='${name}' and mimeType='application/vnd.google-apps.folder' and '${parentId}' in parents and trashed=false`);
+  const q = encodeURIComponent(`name='${rrDriveQ(name)}' and mimeType='application/vnd.google-apps.folder' and '${parentId}' in parents and trashed=false`);   // 2026-11-02: rrDriveQ (Joseph's 40')
   const res = await driveRequest('GET', `/files?q=${q}&fields=files(id,name)&spaces=drive`);
   // v0.9.1261: the `if (res.error)` check that used to be here is gone.
   // driveRequest raises now, so a failed search never reaches this line.
@@ -289,26 +342,10 @@ async function _driveFindOrCreateFolderNow(name, parentId) {
 
 async function driveUploadPhoto(file, fileName, folderId) {
   if (file && file._rrOriginal) return _rrUploadKeepingOriginal(file, function (orig) { return driveUploadPhoto(orig, fileName, folderId); });   // v0.9.1872
-  const meta = JSON.stringify({ name: fileName, parents: [folderId] });
-  const form = new FormData();
-  form.append('metadata', new Blob([meta], { type: 'application/json' }));
-  form.append('file', file);
-  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${accessToken}` },
-    body: form,
-  });
-  // v0.9.1040: this check was missing while its sibling driveUploadFile (above)
-  // has always had it. Without it a Drive error — expired token, quota, a bad
-  // folder id — came back as a perfectly ordinary resolved promise, so every
-  // .catch() around a photo upload never fired and the item still reported
-  // "saved" with the photo nowhere on Drive.
-  if (!res.ok) {
-    const errText = await res.text().catch(() => 'unknown');
-    console.error('[Drive] Photo upload failed:', res.status, errText);
-    throw new Error('Photo upload failed (HTTP ' + res.status + ')');
-  }
-  return res.json();
+  // 2026-11-02: this was a second copy of driveUploadFile's upload (v0.9.1040 had
+  // to add its missing error check separately). ONE upload now — the big-file
+  // route, Drive's own refusal words and a blank picture type come with it.
+  return driveUploadFile(file, fileName, folderId);
 }
 
 async function driveMoveFileToFolder(fileId, fromFolderId, toFolderId) {
@@ -729,7 +766,7 @@ async function _driveItemFolderAnywhere(itemNum) {
   };
   const lookIn = async function (parents) {
     const parentQ = parents.map(function (p) { return "'" + p + "' in parents"; }).join(' or ');
-    const q = encodeURIComponent("name='" + name.replace(/'/g, "\\'") + "' and mimeType='application/vnd.google-apps.folder' and trashed=false and (" + parentQ + ")");
+    const q = encodeURIComponent("name='" + rrDriveQ(name) + "' and mimeType='application/vnd.google-apps.folder' and trashed=false and (" + parentQ + ")");
     const res = await driveRequest('GET', '/files?q=' + q + '&fields=files(id,name,parents)&spaces=drive');
     const hit = res && res.files && res.files[0];
     return hit ? hit.id : null;
@@ -971,7 +1008,7 @@ async function driveTidyPhotoFolders(opts) {
     const p = plan[i];
     try {
       const destId = await _driveEnsureHomePath(p.path);
-      const qn = encodeURIComponent("name='" + p.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "' and mimeType='application/vnd.google-apps.folder' and '" + destId + "' in parents and trashed=false");
+      const qn = encodeURIComponent("name='" + rrDriveQ(p.name) + "' and mimeType='application/vnd.google-apps.folder' and '" + destId + "' in parents and trashed=false");
       const there = await driveRequest('GET', '/files?q=' + qn + '&fields=files(id)&spaces=drive');
       if ((there.files || []).some(function (x) { return x.id !== p.id; })) {
         result.skipped.push({ name: p.name, to: p.to, why: 'a folder with this name is already there — left for you to look at' });
@@ -1129,7 +1166,7 @@ async function driveRepairPhotoLinks(opts) {
     let hit = '';
     if (pd.inventoryId) {
       try {
-        const q = encodeURIComponent("name='" + String(pd.inventoryId).replace(/'/g, "\\'") + "' and mimeType='application/vnd.google-apps.folder' and '" + fid + "' in parents and trashed=false");
+        const q = encodeURIComponent("name='" + rrDriveQ(pd.inventoryId) + "' and mimeType='application/vnd.google-apps.folder' and '" + fid + "' in parents and trashed=false");
         const r = await driveRequest('GET', '/files?q=' + q + '&fields=files(id)');
         const sub = r && r.files && r.files[0] && r.files[0].id;
         if (sub) {
