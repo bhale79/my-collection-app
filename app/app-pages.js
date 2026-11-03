@@ -754,7 +754,7 @@ function openEphemeraDetail(tabId, rowKey) {
     ['Item # Reference', item.itemNumRef],
     ['Description', item.description],
     ['Year', item.year],
-    ['Manufacturer', item.manufacturer || 'Lionel'],
+    ['Manufacturer', item.manufacturer || '—'],   // 2026-11-03: a blank maker shows as not set, never as Lionel
     ['Condition', item.condition ? item.condition + '/10' : '—'],
     ['Production Status', item.productionStatus || '—'],
     ['Material', item.material || '—'],
@@ -768,7 +768,7 @@ function openEphemeraDetail(tabId, rowKey) {
     ['Title', item.title],
     ['Description', item.description || '—'],
     ['Year', item.year || '—'],
-    ['Manufacturer', item.manufacturer || 'Lionel'],
+    ['Manufacturer', item.manufacturer || '—'],   // 2026-11-03: a blank maker shows as not set, never as Lionel
     ['Condition', item.condition ? item.condition + '/10' : '—'],
     ['Quantity', item.quantity || '1'],
     ['Est. Value', item.estValue ? _currencySymbol() + parseFloat(item.estValue).toLocaleString() : '—'],
@@ -914,7 +914,7 @@ function ephemeraForSale(tabId, rowKey) {
       '',                          // original price paid
       item.estValue || '',
       '',                          // inventory ID (not applicable for ephemera)
-      ((typeof _brandOfItem === 'function' && _brandOfItem(item.itemNum)) || _getEraManufacturer()),       // manufacturer
+      rrMakerOf({ copy: item }),   // manufacturer — 2026-11-03: the paper item's own maker, blank if it has none
     ];
     try {
       await sheetsAppend(state.personalSheetId, 'For Sale!A:J', [row]);
@@ -989,7 +989,7 @@ function ephemeraSold(tabId, rowKey) {
       dateSold: dateSold,
       notes: _det.notes || '',
       inventoryId: '',
-      manufacturer: ((typeof _brandOfItem === 'function' && _brandOfItem(item.itemNum)) || _getEraManufacturer()),
+      manufacturer: rrMakerOf({ copy: item }),   // 2026-11-03: the paper item's own maker, blank if it has none
       soldTo: _det.soldTo || '', soldAt: _det.soldAt || '',
     });
     try {
@@ -1480,7 +1480,7 @@ function buildSoldPage() {
     .filter(sd => /^Part from Parts Bin/.test(String(sd.notes || '')) || typeof _isInCurrentEra !== 'function' || _isInCurrentEra(sd.itemNum))
     .map(sd => {
       const master = findMaster(sd.itemNum, sd.variation, sd) || {};
-      return { ...sd, _type: master.itemType || '', _roadName: sd.roadName || master.roadName || '', _master: master, _mfr: (typeof _manufacturerOfItem==='function' ? (_manufacturerOfItem(master.itemNum?master:sd)||'') : '') };
+      return { ...sd, _type: master.itemType || '', _roadName: sd.roadName || master.roadName || '', _master: master, _mfr: rrMakerOf({ copy: sd }) };
     });
 
   // Populate type filter dropdown (before filtering)
@@ -1849,7 +1849,7 @@ function _fsMaster(fs) {
 }
 function _fsSortVal(fs, col) {
   var m = _fsMaster(fs);
-  if (col==='mfr') return (typeof _manufacturerOfItem==='function' ? (_manufacturerOfItem(m.itemNum?m:fs)||'') : '');
+  if (col==='mfr') return String(rrMakerOf({ copy: fs }) || '').toLowerCase();   // 2026-11-03: the listing's own maker
   if (col==='num') return parseInt(String(fs.itemNum||'').replace(/[^0-9]/g,''))||0;
   if (col==='type') return (m.itemType||'').toLowerCase();
   if (col==='road') return (m.roadName||'').toLowerCase();
@@ -2333,7 +2333,7 @@ async function _convertUpgradeToWantOnSell(soldInventoryId) {
     ugEntry.targetCondition || '',  // PRESERVED — target condition stays
     '',                       // upgrading inventory id cleared
     ugEntry.notes || '',
-    ugEntry.manufacturer || 'Lionel',
+    rrMakerOf({ copy: ugEntry }),   // 2026-11-03: the entry's own maker (its catalog row, else what it carries) — never a default
   ];
   // v0.9.1292 (audit R3-3): this was the worst of the family and the last one
   // found, because the rebuilt census had to see into a helper to find it.
@@ -2374,7 +2374,7 @@ async function _convertUpgradeToWantOnSell(soldInventoryId) {
       expectedPrice: ugEntry.maxPrice || '',
       targetCondition: ugEntry.targetCondition || '',  // PRESERVED
       notes: ugEntry.notes || '',
-      manufacturer: ugEntry.manufacturer || 'Lionel',
+      manufacturer: rrMakerOf({ copy: ugEntry }),
       listType: 'Want',
     };
     if (typeof showToast === 'function') {
@@ -4607,7 +4607,7 @@ async function _saveUpgradeGroupNow() {
   if (!pieces.length) { showToast('No items to add'); return; }
   try {
     for (const pc of pieces) {
-      const mfr = (typeof _brandOfItem === 'function' && _brandOfItem(pc.itemNum)) || _getEraManufacturer();
+      const mfr = rrMakerOf({ copy: (pc.invId && typeof _rrPdByInv === 'function' && _rrPdByInv(pc.invId)) || pc });   // 2026-11-03: the owned copy's maker
       const _wuRow = [pc.itemNum, pc.variation || '', 'Upgrade', priority, maxPrice, targetCond, pc.invId || '', notes, mfr];
       const existing = pc.invId ? state.upgradeData[pc.invId] : null;
       if (existing && existing.row > 0) {
@@ -4623,7 +4623,7 @@ async function _saveUpgradeGroupNow() {
       const _row = idx + 3;
       const _s = (v) => (v !== null && v !== undefined && v !== '') ? String(v) : '';
       if (_s(r[2]).toLowerCase() !== 'upgrade') return;
-      const _ugEntry = { row: _row, itemNum: _s(r[0]), variation: _s(r[1]), priority: _s(r[3]) || 'Medium', targetCondition: _s(r[5]), maxPrice: _s(r[4]), notes: _s(r[7]), inventoryId: _s(r[6]), manufacturer: _s(r[8]) || 'Lionel', listType: 'Upgrade' };
+      const _ugEntry = { row: _row, itemNum: _s(r[0]), variation: _s(r[1]), priority: _s(r[3]) || 'Medium', targetCondition: _s(r[5]), maxPrice: _s(r[4]), notes: _s(r[7]), inventoryId: _s(r[6]), manufacturer: _s(r[8]), listType: 'Upgrade' };   // 2026-11-03: blank stays blank
       const _k = _ugEntry.inventoryId || ('legacy-row-' + _row);
       state.upgradeData[_k] = _ugEntry;
     });
@@ -4650,7 +4650,7 @@ async function _saveUpgradeItemNow(itemNum, variation, existingRow, invId) {
   const targetCond = document.getElementById('upg-target-cond')?.value || '';
   const maxPrice = document.getElementById('upg-max-price')?.value || '';
   const notes = document.getElementById('upg-notes')?.value || '';
-  const row = [itemNum, variation||'', priority, targetCond, maxPrice, notes, invId || '', ((typeof _brandOfItem === 'function' && _brandOfItem(itemNum)) || _getEraManufacturer())];
+  const row = [itemNum, variation||'', priority, targetCond, maxPrice, notes, invId || '', rrMakerOf({ copy: (invId && typeof _rrPdByInv === 'function' && _rrPdByInv(invId)) || { itemNum: itemNum, variation: variation || '' } })];   // 2026-11-03: the owned copy's maker
   const sheetId = state.personalSheetId;
   if (!sheetId) { showToast('Not connected to a sheet'); return; }
   try {
@@ -4685,7 +4685,7 @@ async function _saveUpgradeItemNow(itemNum, variation, existingRow, invId) {
         maxPrice: _s(r[4]),  // Target Price column
         notes: _s(r[7]),
         inventoryId: _s(r[6]),  // Upgrading Inventory ID column
-        manufacturer: _s(r[8]) || 'Lionel',
+        manufacturer: _s(r[8]),   // 2026-11-03: blank stays blank
         listType: 'Upgrade',
       };
       const _k = _ugEntry.inventoryId || ('legacy-row-' + _row);
@@ -5318,8 +5318,8 @@ function googlePart(partNum, forItem, desc, forInv) {
   // the lookup hint and the catalog row decides the brand (rrSearchBrand — an
   // American Flyer engine says American Flyer) and how the item number is
   // spelled (rrSearchNumber — a modern Lionel 84631 is sold as 6-84631). A part
-  // with no owned copy keeps the pre-1838 path: the brand of whatever row the
-  // number alone finds.
+  // with no owned copy names no brand (2026-11-03 — the number alone is not
+  // a maker).
   var _row = null;
   try {
     var _pd = (forInv && typeof state !== 'undefined' && state.personalData) ? state.personalData[forInv] : null;
@@ -5327,7 +5327,9 @@ function googlePart(partNum, forItem, desc, forInv) {
   } catch (e) { _row = null; }
   var mfr = '';
   if (_row && typeof rrSearchBrand === 'function') { try { mfr = rrSearchBrand(_row) || ''; } catch (e) { mfr = ''; } }
-  if (!mfr) mfr = (forItem && typeof _brandOfItem === 'function') ? (_brandOfItem(forItem) || '') : '';
+  // 2026-11-03 (NO_QUIET_MAKER): a part with no owned copy names no brand —
+  // the number alone can belong to several makers, so the search says the
+  // number and the description only.
   var _itemWord = forItem || '';
   if (_row && typeof rrSearchNumber === 'function') { try { _itemWord = rrSearchNumber(_row) || _itemWord; } catch (e) {} }
   var idPart = partNum || _itemWord || '';

@@ -713,6 +713,11 @@ const WISHLIST_HEADERS = [
 // ── Manufacturer helper ──
 // Returns the manufacturer name for the current era (e.g. "Lionel", "Atlas").
 // Reads from ERAS[_currentEra].manufacturer. Defaults to "Lionel" (backward compat).
+// 2026-11-03 (PLAN_2026-11-03_NO_QUIET_MAKER, [stated] Brad "we dont need to
+// quielty fill anything"): this is the maker of the ERA ON SCREEN — a hint for
+// screens that want one (command-ids.js). It is NEVER an item's maker: that is
+// rrMakerOf below. No era → '' (it used to answer 'Lionel', and every add with
+// no catalog row saved as Lionel — Mike's MTH Hudson and SD40).
 function _getEraManufacturer() {
   try {
     if (typeof ERAS !== 'undefined' && typeof _currentEra !== 'undefined'
@@ -720,7 +725,7 @@ function _getEraManufacturer() {
       return ERAS[_currentEra].manufacturer;
     }
   } catch(e) {}
-  return 'Lionel';
+  return '';
 }
 
 // ── Era filter helper for personal lists ──
@@ -1525,7 +1530,8 @@ function _buildSoldRow(opts) {
     opts.dateSold || rrToday(),
     opts.notes || '',
     pick(opts.inventoryId, src.inventoryId),
-    pick(opts.manufacturer, src.manufacturer, ((typeof _brandOfItem === 'function' ? _brandOfItem(opts.itemNum) : '') || (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : 'Lionel'))),
+    // 2026-11-03: the maker the copy carries, else its own catalog row's — never a default (rrMakerOf)
+    pick(opts.manufacturer, src.manufacturer, rrMakerOf({ row: (master && master.itemNum) ? master : null, copy: opts.src || null })),
     pick(src.allOriginal),
     pick(src.hasBox),
     pick(src.boxCond),
@@ -2914,6 +2920,9 @@ function _manufacturerOfEra(era) {
 function _manufacturerOfItem(item) {
   if (!item) return null;
   if (item.manufacturer) return String(item.manufacturer).toLowerCase();
+  // 2026-11-03 (PLAN_2026-11-03_NO_QUIET_MAKER): a hand-added item with no maker
+  // saved has NO maker — it used to fall through 'Manual' -> postwar -> Lionel.
+  if (String(item.era || '') === 'Manual') return null;
   var era = (typeof _itemEraKey === 'function') ? _itemEraKey(item) : ((item._era || item.era || '').toLowerCase());
   return _manufacturerOfEra(era);
 }
@@ -2965,6 +2974,73 @@ function _brandOfItem(itemOrNum, variation, prefer) {
   return key ? _brandLabel(key) : '';
 }
 if (typeof window !== 'undefined') { window._brandOfItem = _brandOfItem; window._brandLabel = _brandLabel; }
+
+// ── 2026-11-03: THE ONE RULE FOR AN ITEM'S MAKER ────────────────────────────
+// PLAN_2026-11-03_NO_QUIET_MAKER ([stated] Brad: "we dont need to quielty fill
+// anything. thats an issue"). An item's maker is, in this order:
+//   1. the maker of its OWN catalog row — the row handed in (o.row), or, for a
+//      copy, the row the copy itself points at (findMaster with the copy as the
+//      preference: its Row ID / key / era / maker — never the bare number);
+//   2. the maker the collector CHOSE (o.chosen: the Add screen's maker filter,
+//      the "Who made this item?" step, a hand-added item's maker);
+//   3. the maker already SAVED on the copy (o.copy.manufacturer);
+//   4. otherwise '' — blank. Never the era on screen, never 'Lionel'.
+// Every save and every list that writes a maker calls this; the scan in
+// no_quiet_maker_tests fails a second way of doing it.
+// The catalog row a saved COPY is tied to, or null. A copy is looked up ONLY
+// when it names its own catalog (its saved Row ID, key or era — _preferEraOf),
+// and the answer counts ONLY when it comes from that catalog. A copy that names
+// nothing (a hand-added item, an old Want row with just a number) is never
+// matched by number alone — 165,000 rows reuse numbers across makers.
+function rrCopyCatalogRow(copy) {
+  if (!copy || typeof copy !== 'object' || !copy.itemNum) return null;
+  if (typeof findMaster !== 'function' || typeof _preferEraOf !== 'function') return null;
+  var want = '';
+  try { want = _preferEraOf(copy) || ''; } catch (e0) { want = ''; }
+  if (!want) return null;
+  try {
+    var hit = findMaster(copy.itemNum, copy.variation || '', copy);
+    return (hit && String(hit._era || '') === want) ? hit : null;
+  } catch (e) { return null; }
+}
+if (typeof window !== 'undefined') window.rrCopyCatalogRow = rrCopyCatalogRow;
+function rrMakerOf(o) {
+  o = o || {};
+  var row = (o.row && typeof o.row === 'object') ? o.row : null;
+  var copy = (o.copy && typeof o.copy === 'object') ? o.copy : null;
+  if (!row && copy) row = rrCopyCatalogRow(copy);
+  if (row) {
+    var b = '';
+    try { b = _brandOfItem(row); } catch (e2) { b = ''; }
+    if (b) return b;
+  }
+  var chosen = String(o.chosen == null ? '' : o.chosen).trim();
+  if (chosen) return chosen;
+  if (copy && copy.manufacturer) return String(copy.manufacturer).trim();
+  return '';
+}
+if (typeof window !== 'undefined') window.rrMakerOf = rrMakerOf;
+// Is this saved copy tied to a catalog entry? Its saved Row ID or key says so,
+// or its own catalog holds it (rrCopyCatalogRow). A hand-added item never is.
+// Only an item that is NOT tied gets a Manufacturer line in Update Info and a
+// place on the Check makers list — a catalog item's maker is its row's.
+function rrCopyIsUnlinked(copy) {
+  if (!copy || typeof copy !== 'object') return false;
+  if (String(copy.era || '') === 'Manual') return true;
+  if (copy.masterRowId || copy.masterKey) return false;
+  return !rrCopyCatalogRow(copy);
+}
+// The makers to offer when the collector names one: the hand-entry list's
+// common and full makers, any maker remembered on this device, then extras.
+function rrKnownMakers(extra) {
+  var out = [], seen = {};
+  function add(m) { m = String(m == null ? '' : m).trim(); if (!m) return; var k = m.toLowerCase(); if (seen[k]) return; seen[k] = 1; out.push(m); }
+  try { var c = (typeof window !== 'undefined' && window.MANUAL_MANUFACTURERS) || {}; (c.common || []).forEach(add); (c.all || []).forEach(add); } catch (e) {}
+  try { (JSON.parse(localStorage.getItem('rr_custom_makers') || '[]') || []).forEach(add); } catch (e2) {}
+  (extra || []).forEach(add);
+  return out;
+}
+if (typeof window !== 'undefined') { window.rrCopyIsUnlinked = rrCopyIsUnlinked; window.rrKnownMakers = rrKnownMakers; }
 
 // ── Session 121 ─ the era an item belongs to ─────────────────────────────────
 function _itemEraKey(item) {

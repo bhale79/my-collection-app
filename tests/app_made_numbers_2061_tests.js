@@ -135,7 +135,9 @@ function sender(vaultSrc, cfg) {
     _vaultMasterSet: async () => master,
     state: { personalData: {}, soldData: {} },
   };
-  vm.createContext(sb); vm.runInContext(code, sb);
+  vm.createContext(sb);
+  require('./lib/maker-of.js').installMakerOf(sb);   // 2026-11-03: the Market send names the maker through the app's one rule
+  vm.runInContext(code, sb);
   return sb;
 }
 function owned(list) {

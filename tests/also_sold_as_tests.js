@@ -121,6 +121,9 @@ const win = {};
 const ctx = { window: win, document: {}, rrAlsoSoldAsNames: lifted ? lifted.names : undefined,
               _brandOfItem: function (it) { return /^MTH/.test(it._tab || '') ? 'MTH' : 'Lionel'; } };
 vm.createContext(ctx);
+// 2026-11-03: the chip names the row's maker through the app's ONE maker rule
+// (rrMakerOf, app.js) — the real rule, beside this sandbox's _brandOfItem.
+safe(() => require('./lib/maker-of.js').installMakerOf(ctx), null);
 safe(() => { vm.runInContext(bcfg, ctx); vm.runInContext(badges, ctx); }, null);
 const CFG = win.ERA_BADGES || {};
 T('E1 the wording lives in era-badges-config.js (alsoSoldAs: label + title)', !!(CFG.alsoSoldAs && CFG.alsoSoldAs.label && CFG.alsoSoldAs.title));

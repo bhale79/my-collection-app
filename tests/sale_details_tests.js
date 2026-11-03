@@ -134,6 +134,8 @@ function scanBuilderCalls(files) {
     + appSrc.slice(appSrc.indexOf('function colLetter('), appSrc.indexOf('// Spreadsheet column letter')) + '\n'
     + appSrc.slice(appSrc.indexOf('function soldEndCol()'), appSrc.indexOf('const FOR_SALE_HEADERS')) + '\n'
     + appSrc.slice(appSrc.indexOf('function _buildSoldRow(opts)'), appSrc.indexOf('window._buildSoldRow = _buildSoldRow;')) + '\n'
+    // 2026-11-03: the Sold row names the maker through the app's ONE maker rule (rrMakerOf) — the real one, lifted
+    + require('./lib/maker-of.js').makerOfSource(['rrCopyCatalogRow', 'rrMakerOf']) + '\n'
     + 'out.headers = SOLD_HEADERS; out.end = soldEndCol(); out.range = soldRowRange(9);'
     + 'out.row = _buildSoldRow({ itemNum: "2343", salePrice: "5", dateSold: "2026-10-14", soldTo: "C-1", soldAt: "York" });',
     { out: box, window: {} });

@@ -194,7 +194,14 @@ async function photos(pg, hasScope) {
   const plants = [
     ['P1 the grouped sheet counted again (old counter)', plant('dashboard.js', "if (_n176.endsWith('-IS') && String(pd.groupId || '').trim()) return false;", ''), x => JSON.stringify(x.A.counted) === '["30-1234-1"]'],
     ['P2 the sheet saved with no era (old save)', plant('wizard-save.js', "          era: _resolveSaveEra(),   // v0.9.2026: the item's era (its maker follows", "          // v0.9.2026: the item's era (its maker follows"), x => mthEra((x.A.rows['30-1234-1-IS'] || {}).era)],
-    ['P3 a piece takes the era view’s maker (old row builder)', plant('app.js', 'if (!_mb && typeof _brandOfItem === \'function\' && _pieceOf) {', 'if (false) {'), x => (x.A.rows['30-1234-1-MBOX'] || {}).mfr === 'MTH'],
+    // 2026-11-03 RE-PLANT (NO_QUIET_MAKER): the master carton's save now names the
+    // engine's maker itself (rrMakerOf), so the row builder's piece lookup is a
+    // second layer. The old behaviour is BOTH layers gone: the old row builder AND
+    // the old save line (the era on screen, else Lionel).
+    ['P3 a piece takes the era view’s maker (old row builder + old save)', Object.assign(
+        plant('app.js', 'if (!_mb && typeof _brandOfItem === \'function\' && _pieceOf) {', 'if (false) {'),
+        plant('wizard-save.js', 'manufacturer: _resolveSaveMfr(),', "manufacturer: (_getEraManufacturer() || 'Lionel'),")),
+      x => (x.A.rows['30-1234-1-MBOX'] || {}).mfr === 'MTH'],
     ['P5 each poll overwrites "press Open Google Photos" (old panel)', plant('drive.js', "onStatus: function () { if (!panel.needTab) panel.stage('waiting'); },", "onStatus: function () { panel.stage('waiting'); },"), x => !!(x.C.panel && x.C.panel.stage === x.C.panel.want)],
     ['P4 the Photos tab opened before the permission window (old picker)', plant('drive.js', 'if (!_askFirst) { try { tab = window.open', 'if (true) { try { tab = window.open'), x => x.C.perm === true],
   ];

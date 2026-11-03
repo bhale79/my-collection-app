@@ -413,6 +413,13 @@ function getSteps(tab) {
       { id: 'entryMode', title: (d) => 'How would you like to add this ' + getItemLabel(d) + '?',
         type: 'entryMode', skipIf: () => true },
 
+      // ── 2026-11-03 (PLAN_2026-11-03_NO_QUIET_MAKER): an item with no
+      // catalog row and no maker named asks, instead of saving the era on
+      // screen (which made Mike's MTH Hudson and SD40 "Lionel"). Same maker
+      // buttons as a hand-added item. Rule: _rrAddNeedsMaker (wizard-save.js).
+      { id: 'addMaker', title: 'Who made this item?', type: 'manualManufacturer',
+        skipIf: (d) => !(typeof _rrAddNeedsMaker === 'function' && _rrAddNeedsMaker(d)) },
+
       // ── SCREEN 3: Condition & Details (multi-column) ──
       { id: 'conditionDetails', title: 'Condition & Details', type: 'conditionDetails' },
 

@@ -2343,7 +2343,7 @@ async function loadPersonalData() {
                 condition: _s(r[2]), askingPrice: _s(r[3]), dateListed: _s(r[4]),
                 notes: _s(r[5]), originalPrice: _s(r[6]), estWorth: _s(r[7]),
                 inventoryId: _s(r[8]),
-                manufacturer: _s(r[9]) || 'Lionel',
+                manufacturer: _s(r[9]),   // 2026-11-03: a blank maker stays blank (was 'Lionel')
               };
               newFs[entry.inventoryId || ('legacy-row-' + row)] = entry;
             });
@@ -2375,7 +2375,7 @@ async function loadPersonalData() {
                   maxPrice: _us(r[4]),  // Target Price column
                   notes: _us(r[7]),
                   inventoryId: _us(r[6]),  // Upgrading Inventory ID column
-                  manufacturer: _us(r[8]) || 'Lionel',
+                  manufacturer: _us(r[8]),   // 2026-11-03: a blank maker stays blank (was 'Lionel')
                   listType: 'Upgrade',
                 };
                 newUg[entry.inventoryId || ('legacy-row-' + row)] = entry;
@@ -2388,7 +2388,7 @@ async function loadPersonalData() {
                   expectedPrice: _us(r[4]),  // Target Price -> expectedPrice
                   targetCondition: _us(r[5]),  // Brad: keep Target on Want
                   notes: _us(r[7]),
-                  manufacturer: _us(r[8]) || 'Lionel',
+                  manufacturer: _us(r[8]),   // 2026-11-03: a blank maker stays blank (was 'Lionel')
                   listType: 'Want',
                 };
               }
@@ -2635,7 +2635,7 @@ function rrForSaleEntryFromRow(r, rowNum) {
     condition: _s(r[2]), askingPrice: _s(r[3]), dateListed: _s(r[4]),
     notes: _s(r[5]), originalPrice: _s(r[6]), estWorth: _s(r[7]),
     inventoryId: _s(r[8]),
-    manufacturer: _s(r[9]) || 'Lionel',
+    manufacturer: _s(r[9]),   // 2026-11-03: a blank maker stays blank (was 'Lionel')
   };
   entry._key = entry.inventoryId || ('legacy-row-' + rowNum);
   return entry;
@@ -2810,7 +2810,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
       copy: _ss(r[2]) || '1', condition: _ss(r[3]), priceItem: _ss(r[4]),
       salePrice: _ss(r[5]), dateSold: _ss(r[6]), notes: _ss(r[7]),
       inventoryId: _ss(r[8]),
-      manufacturer: _ss(r[9]) || 'Lionel',
+      manufacturer: _ss(r[9]),   // 2026-11-03: a blank maker stays blank (was 'Lionel')
       allOriginal: _ss(r[10]), hasBox: _ss(r[11]), boxCond: _ss(r[12]),
       photoItem: _ss(r[13]), photoBox: _ss(r[14]),
       roadName: _ss(r[15]), description: _ss(r[16]),
@@ -2857,7 +2857,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
         maxPrice: _wu(r[4]),  // Target Price -> maxPrice (legacy field name)
         notes: _wu(r[7]),
         inventoryId: _wu(r[6]),  // Upgrading Inventory ID -> inventoryId (legacy)
-        manufacturer: _wu(r[8]) || 'Lionel',
+        manufacturer: _wu(r[8]),   // 2026-11-03: a blank maker stays blank (was 'Lionel')
         listType: 'Upgrade',
       };
       // v0.9.1251: same as For Sale above — the key is minted once and carried.
@@ -2873,7 +2873,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
         expectedPrice: _wu(r[4]),  // Target Price -> expectedPrice (legacy)
         targetCondition: _wu(r[5]),  // Brad's preference: track Target on Want too
         notes: _wu(r[7]),
-        manufacturer: _wu(r[8]) || 'Lionel',
+        manufacturer: _wu(r[8]),   // 2026-11-03: a blank maker stays blank (was 'Lionel')
         listType: 'Want',
       };
     }
@@ -2901,7 +2901,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
           maxPrice: _hs(r[4]),  // Target Price column
           notes: _hs(r[7]),
           inventoryId: _hs(r[6]),  // Upgrading Inventory ID column
-          manufacturer: _hs(r[8]) || 'Lionel',
+          manufacturer: _hs(r[8]),   // 2026-11-03: a blank maker stays blank (was 'Lionel')
           listType: 'Upgrade',
         };
         var _key = entry.inventoryId || ('legacy-row-' + (idx+3));
@@ -3076,7 +3076,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
       if (hasItemId) {
         bucket[key] = {
           row: key, itemNum: String(r[0]||''), title: String(r[1]||''), description: String(r[2]||''), year: String(r[3]||''),
-          manufacturer: String(r[4]||'Lionel'), condition: String(r[5]||''), quantity: String(r[6]||'1'),
+          manufacturer: String(r[4]||''), condition: String(r[5]||''), quantity: String(r[6]||'1'),
           pricePaid: String(r[7]||''), estValue: String(r[8]||''), photoLink: String(r[9]||''), notes: String(r[10]||''), dateAcquired: String(r[11]||''),
           paperType: String(r[12]||''), itemNumRef: String(r[13]||''),
         };
@@ -3084,7 +3084,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
         // Legacy row without Item ID — predates Price Paid column
         bucket[key] = {
           row: key, itemNum: '', title: String(r[0]||''), description: String(r[1]||''), year: String(r[2]||''),
-          manufacturer: String(r[3]||'Lionel'), condition: String(r[4]||''), quantity: String(r[5]||'1'),
+          manufacturer: String(r[3]||''), condition: String(r[4]||''), quantity: String(r[5]||'1'),
           pricePaid: '', estValue: String(r[6]||''), photoLink: String(r[7]||''), notes: String(r[8]||''), dateAcquired: String(r[9]||''),
           paperType: '', itemNumRef: '',
         };
@@ -3148,7 +3148,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     const key = idx + 3;
     newEphemera.mockups[key] = {
       row: key, itemNum: String(r[0]||''), title: String(r[1]||''), itemNumRef: String(r[2]||''), description: String(r[3]||''),
-      year: String(r[4]||''), manufacturer: String(r[5]||'Lionel'), condition: String(r[6]||''),
+      year: String(r[4]||''), manufacturer: String(r[5]||''), condition: String(r[6]||''),
       productionStatus: String(r[7]||''), material: String(r[8]||''), dimensions: String(r[9]||''),
       provenance: String(r[10]||''), lionelVerified: String(r[11]||''),
       pricePaid: String(r[12]||''), estValue: String(r[13]||''),

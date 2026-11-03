@@ -182,7 +182,8 @@
       _mfrNote = 'Your search context said ' + mfr + ' \u2014 this catalog match is ' + _mRow + '.';
     }
     if (_mRow) mfr = _mRow;
-    if (!mfr && typeof _brandOfItem === 'function') { try { mfr = _brandOfItem(itemNum) || ''; } catch (e) {} }
+    // 2026-11-03 (NO_QUIET_MAKER): no maker from the number alone — the row
+    // lookup above already had every hint there is; nothing found → no maker.
     // v0.9.1838 (N5): the brand the SEARCHES (and the card) say follows the
     // gauge — rrSearchBrand, app.js — so an American Flyer piece is searched
     // and shown as American Flyer, not as the Lionel its tab is named for.

@@ -212,7 +212,9 @@ async function quickEntryAdd() {
       // after a cache refresh. The in-memory state.personalData entry below
       // already had these set correctly; the sheet row was missing them.
       const _qeEra = (typeof _currentEra !== 'undefined' ? _currentEra : '');
-      const _qeMfr = ((typeof _brandOfItem === 'function' && _brandOfItem(r.itemNum)) || (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : ''));
+      // 2026-11-03: the maker of this unit's row in the era being entered —
+      // never the number alone, never the era's default maker. No row → blank.
+      const _qeMfr = rrMakerOf({ copy: { itemNum: r.itemNum, variation: r.variation || '', era: _qeEra } });
       const row = [r.itemNum, r.variation, r.condition||'','','','','','','',(isLead ? _qePhotoLink : ''),'', r.notes,'',(isLead ? _qeEstWorth : ''),r.matchedTo,r.setId,'','','','Yes', invId, r.groupId||'', '', _qeEra, _qeMfr];
       const actualRow = await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [row]);
       state.personalData[invId] = {
@@ -225,7 +227,7 @@ async function quickEntryAdd() {
         yearMade: '', isError: '', errorDesc: '', quickEntry: true,
         inventoryId: invId, groupId: r.groupId||'',
         location: '',
-        era: (typeof _currentEra !== 'undefined' ? _currentEra : ''), manufacturer: ((typeof _brandOfItem === 'function' && _brandOfItem(r.itemNum)) || _getEraManufacturer()),
+        era: (typeof _currentEra !== 'undefined' ? _currentEra : ''), manufacturer: _qeMfr,
       };
     }
 

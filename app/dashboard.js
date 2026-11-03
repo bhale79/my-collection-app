@@ -244,15 +244,12 @@ function _valueBucketOf(pd, mode) {
     if (mode === 'scale') return _valueScaleLabel(_valueScaleId(pd, _m));
     return _valueTypeLabel(pd, _m, mode.slice(5));
   }
-  var mk = String(pd.manufacturer || '').trim();
-  if (!mk) { try { mk = String((typeof _brandOfItem === 'function' && _brandOfItem(pd.itemNum)) || '').trim(); } catch (e3) {} }
-  if (!mk) {
-    try {
-      var e4 = (typeof _eraOf === 'function') ? _eraOf(pd) : '';
-      mk = String((typeof _manufacturerOfEra === 'function' && _manufacturerOfEra(e4)) || '').trim();
-    } catch (e5) {}
-  }
-  return mk || 'Other';
+  // 2026-11-03 (PLAN_2026-11-03_NO_QUIET_MAKER): the one maker rule — the
+  // copy's own catalog row, else the maker saved on it. A copy with neither
+  // is "Maker not set", never quietly counted under the era's maker.
+  var mk = '';
+  try { mk = String(rrMakerOf({ copy: pd }) || '').trim(); } catch (e3) { mk = String(pd.manufacturer || '').trim(); }
+  return mk || 'Maker not set';
 }
 
 // ── v0.9.1727 — the same question for paper, sheets and sets.
@@ -292,7 +289,7 @@ function _extraBucketOf(row, mode, refKey, fallbackEra) {
     return _valueTypeLabel(probe, m, mode.slice(5));
   }
   var mk = String((row && row.manufacturer) || '').trim();
-  if (!mk && ref) { try { mk = String((typeof _brandOfItem === 'function' && _brandOfItem(ref)) || '').trim(); } catch (e3) {} }
+  if (!mk && ref) { try { mk = String((typeof _brandOfItem === 'function' && _brandOfItem(ref, '', row || null)) || '').trim(); } catch (e3) {} }   // 2026-11-03: the row steers the lookup — never the number alone
   // The maker comes FROM the fallback era rather than being named twice, so the
   // two cuts can never disagree about what an unlinked sheet is.
   if (!mk && fallbackEra) {

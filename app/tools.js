@@ -15,12 +15,12 @@ function buildToolsPage() {
   // (MTH ABA detection, Atlas track-power tools, etc.) get their own
   // sections when they ship.
 
-  var SECTION_HEADER = function(id, label, note) {
+  var SECTION_HEADER = function(id, label, note, closed) {   // 2026-11-03: closed = the section starts folded (caret turned)
     return '<div onclick="_toolsToggleSection(\'' + id + '\')" style="cursor:pointer;font-size:0.72rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim);margin:0.85rem 0 0.5rem;padding-bottom:0.3rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:0.5rem">' +
       '<span>' + label +
         (note ? '<span style="font-weight:400;letter-spacing:0;text-transform:none;margin-left:0.6rem;font-style:italic;color:var(--text-dim)">' + note + '</span>' : '') +
       '</span>' +
-      '<span id="' + id + '-caret" style="font-size:0.9rem;transition:transform 0.15s;flex-shrink:0">\u25be</span>' +
+      '<span id="' + id + '-caret" style="font-size:0.9rem;transition:transform 0.15s;flex-shrink:0' + (closed ? ';transform:rotate(-90deg)' : '') + '">\u25be</span>' +
       '</div>';
   };
 
@@ -48,6 +48,21 @@ function buildToolsPage() {
     '</div>';
 
 
+
+  // 2026-11-03 (PLAN_2026-11-03_NO_QUIET_MAKER, change 6): the items an older
+  // version may have labelled Lionel on its own — not tied to a catalog entry,
+  // maker Lionel or not set. Each row has its photo and a Manufacturer box;
+  // nothing changes until the collector saves a row.
+  var CARD_CHECK_MAKERS =
+    '<div class="tools-card">' +
+      '<div class="tools-card-title">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2980b9" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>' +
+        'Check Makers' +
+      '</div>' +
+      '<div class="tools-card-desc">Lists the items in your collection that are not tied to a catalog entry and show Lionel or no maker at all. Earlier versions could label such an item Lionel on their own. Check each one and set the right maker &mdash; nothing changes until you tap Save on a row.</div>' +
+      '<button onclick="runCheckMakers()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 10%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Check Makers</button>' +
+      '<div id="check-makers-results" style="margin-top:1rem"></div>' +
+    '</div>';
 
   var CARD_SET_BUILDER =
     '<div class="tools-card">' +
@@ -323,6 +338,14 @@ function buildToolsPage() {
   html += SECTION_HEADER('universal', 'Universal Tools', 'Work across all manufacturers');
   html += '<div id="universal-body">' + CARD_DUPLICATE_CHECKER + CARD_STOCK_PHOTOS + CARD_VAULT_CLEANUP + CARD_MASTER_FIXUP + CARD_VERSION_TIDY + CARD_MASTER_173 + CARD_MASTER_174 + CARD_MASTER_175 + CARD_SHARED_PHOTOS + '</div>';
 
+  // 2026-11-03: Check Makers — its own section, every collector, every maker.
+  // Not a card in the Universal grid: the grid shares the row's width among its
+  // cards, and a third card squeezed the Duplicate Checker's columns. It starts
+  // FOLDED (one tap on its heading opens it), so the page — and the tour's ring
+  // around every tool — stays the height it was.
+  html += SECTION_HEADER('makers', 'Check Makers', 'Items whose maker needs a look', true);
+  html += '<div id="makers-body" style="display:none">' + CARD_CHECK_MAKERS + '</div>';
+
   // Postwar Lionel = tools that rely on Lionel postwar catalog data (grouping,
   // sets, companions). Smart Group Finder lives here (it's postwar-Lionel only).
   if (showLionelSection) {
@@ -350,6 +373,114 @@ function buildToolsPage() {
 }
 
 
+
+// ═══ 2026-11-03 — CHECK MAKERS (PLAN_2026-11-03_NO_QUIET_MAKER, change 6) ═══
+// [stated] Brad: "we dont need to quielty fill anything. thats an issue".
+// Which items: OWNED copies not tied to a catalog entry (rrCopyIsUnlinked —
+// a hand-added item, or a number the catalog lacks) whose saved maker is
+// Lionel or blank. App-made numbers (paper items, parts) are left out: their
+// maker was typed on screen. Keyed by the copy's store key (its inventory id),
+// never by row or position.
+function rrCheckMakersList() {
+  var out = [];
+  var pdAll = (typeof state !== 'undefined' && state && state.personalData) || {};
+  Object.keys(pdAll).forEach(function (k) {
+    var pd = pdAll[k];
+    if (!pd || !pd.owned || !pd.itemNum) return;
+    if (typeof rrIsAppMadeNumber === 'function' && rrIsAppMadeNumber(pd.itemNum)) return;
+    if (typeof rrCopyIsUnlinked !== 'function' || !rrCopyIsUnlinked(pd)) return;
+    var mk = String(pd.manufacturer || '').trim().toLowerCase();
+    if (mk && mk !== 'lionel') return;
+    out.push({ key: k, pd: pd });
+  });
+  out.sort(function (a, b) {
+    return String(a.pd.itemNum || '').localeCompare(String(b.pd.itemNum || ''), undefined, { numeric: true });
+  });
+  return out;
+}
+if (typeof window !== 'undefined') window.rrCheckMakersList = rrCheckMakersList;
+
+function runCheckMakers() {
+  var out = document.getElementById('check-makers-results');
+  if (!out) return;
+  if (!state.personalData || !Object.keys(state.personalData).length) {
+    out.innerHTML = '<div style="padding:0.75rem;background:rgba(240,80,8,0.08);border:1px solid rgba(240,80,8,0.25);border-radius:8px;color:var(--t-accent);font-size:0.85rem">Collection data not loaded yet. Open My Collection first, then try again.</div>';
+    return;
+  }
+  var list = rrCheckMakersList();
+  if (!list.length) {
+    out.innerHTML = '<div style="padding:0.75rem;background:rgba(46,204,113,0.08);border:1px solid rgba(46,204,113,0.25);border-radius:8px;color:#4dc880;font-size:0.85rem">\u2713 Nothing to check \u2014 every item not tied to a catalog entry already names its maker.</div>';
+    return;
+  }
+  var makers = (typeof rrKnownMakers === 'function') ? rrKnownMakers() : [];
+  var html = '<div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:0.6rem">' + list.length + ' item' + (list.length === 1 ? '' : 's') + ' to check:</div>'
+    + '<datalist id="ckm-makers">' + makers.map(function (m) { return '<option value="' + rrEsc(m) + '">'; }).join('') + '</datalist>';
+  var jobs = [];
+  list.forEach(function (e, i) {
+    var pd = e.pd;
+    var thumbId = 'ckm-thumb-' + i;
+    jobs.push({ id: thumbId, pd: pd });
+    var desc = String(pd.description || pd.customName || pd.masterDescription || pd.itemType || '').trim();
+    var cur = String(pd.manufacturer || '').trim();
+    html += '<div class="ckm-row" data-key="' + rrEsc(e.key) + '" style="display:flex;gap:0.6rem;align-items:center;padding:0.55rem 0;border-top:1px solid var(--border);flex-wrap:wrap">'
+      + '<div class="rr-row-thumb" id="' + thumbId + '"></div>'
+      + '<div style="flex:1;min-width:9rem">'
+      +   '<div style="font-family:var(--font-mono);font-weight:700;color:var(--t-accent)">' + rrEsc(String(pd.itemNum || '')) + '</div>'
+      +   (desc ? '<div style="font-size:0.78rem;color:var(--text-mid);line-height:1.4">' + rrEsc(desc.length > 80 ? desc.slice(0, 79) + '\u2026' : desc) + '</div>' : '')
+      +   '<div style="font-size:0.72rem;color:var(--text-dim)">Maker now: ' + (cur ? rrEsc(cur) : 'not set') + '</div>'
+      + '</div>'
+      + '<div style="display:flex;gap:0.35rem;align-items:center;flex:1;min-width:12rem">'
+      +   '<input type="text" id="ckm-in-' + i + '" list="ckm-makers" autocomplete="off" placeholder="Maker, e.g. MTH" value="' + rrEsc(cur) + '"'
+      +     ' style="flex:1;min-width:0;padding:0.5rem 0.6rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.9rem">'
+      +   '<button id="ckm-save-' + i + '" onclick="rrCheckMakerSave(' + i + ', this)" style="padding:0.5rem 0.8rem;border-radius:7px;border:none;background:#2980b9;color:#fff;font-weight:700;font-family:var(--font-body);font-size:0.85rem;cursor:pointer;min-height:38px">Save</button>'
+      + '</div>'
+      + '</div>';
+  });
+  out.innerHTML = html;
+  window._ckmList = list;
+  if (typeof rrFillRowThumbs === 'function') rrFillRowThumbs(jobs);
+}
+
+// Saves ONE row's maker: only the Manufacturer column of that copy, through the
+// same safe write Update Info uses (a column another device changed is kept).
+function rrCheckMakerSave(i, btn) {
+  var e = (window._ckmList || [])[i];
+  if (!e) return null;
+  var run = async function () {
+    var inp = document.getElementById('ckm-in-' + i);
+    var mk = String((inp && inp.value) || '').trim().slice(0, 40);
+    if (!mk) { showToast('Pick or type the maker first', 2500, true); return false; }
+    var live = state.personalData[e.key];
+    if (!live) { showToast('That item is no longer in your collection \u2014 refresh and try again.', 4000, true); return false; }
+    var base = Object.assign({}, live);
+    var pd = Object.assign({}, live, { manufacturer: mk });
+    try {
+      var newRow = rrPersonalUpdateRow(pd, { manufacturer: mk, _noCatalogRow: true });
+      var _out = {};
+      if (!(await rrPersonalSafeWrite(pd, newRow, base, { out: _out }))) return false;
+      var _now = (_out.row && typeof rrSavedRecord === 'function') ? rrSavedRecord(_out.row, pd.row, {}) : {};
+      Object.assign(live, { manufacturer: mk }, _now);
+      if (typeof _cachePersonalData === 'function') _cachePersonalData();
+      var rowEl = btn && btn.closest ? btn.closest('.ckm-row') : null;
+      if (rowEl) {
+        rowEl.style.opacity = '0.6';
+        var tag = document.createElement('div');
+        tag.style.cssText = 'font-size:0.8rem;color:#4dc880;font-weight:700;width:100%';
+        tag.textContent = '\u2713 Saved \u2014 ' + mk;
+        rowEl.appendChild(tag);
+        if (btn) btn.remove();
+        if (inp) inp.disabled = true;
+      }
+      showToast('\u2713 Maker saved \u2014 ' + mk);
+      return true;
+    } catch (err) {
+      showToast((typeof rrSaveError === 'function') ? rrSaveError(err, 'the maker') : 'Could not save the maker', 4000, true);
+      return false;
+    }
+  };
+  return (typeof rrOnce === 'function') ? rrOnce('check-maker:' + e.key, run, btn || null) : run();
+}
+if (typeof window !== 'undefined') { window.runCheckMakers = runCheckMakers; window.rrCheckMakerSave = rrCheckMakerSave; }
 
 // Collapsible Collection-Tools sections.
 function _toolsToggleSection(id) {
@@ -1493,8 +1624,7 @@ function _photoNameFor(stem, ownerPd) {
   if (!tokens.length) return null;
   var view = tokens.pop();
   var mfr = '';
-  try { mfr = (typeof _brandOfItem === 'function') ? String(_brandOfItem(ownerPd.itemNum, ownerPd.variation) || '') : ''; } catch (e) {}
-  if (!mfr) mfr = String(ownerPd.manufacturer || '');
+  try { mfr = String(rrMakerOf({ copy: ownerPd }) || ''); } catch (e) { mfr = String(ownerPd.manufacturer || ''); }   // 2026-11-03: the copy's own maker
   // Make sure the item number is present (hand-uploaded files like
   // "IMG_1234.jpg" have only their own name — keep it as the view word).
   var restLower = tokens.join(' ').toLowerCase();

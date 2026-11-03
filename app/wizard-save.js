@@ -71,7 +71,44 @@ function _resolveSaveEra() {
 
 // v0.9.2025 — the maker a save writes. "Add a Piece to Group" carries the
 // copy's own maker (wizard.data._manufacturer) so an MTH engine's box is saved
-// as MTH; every other flow sets nothing here and keeps the era's maker.
+// as MTH.
+// 2026-11-03 (PLAN_2026-11-03_NO_QUIET_MAKER): every other add takes its own
+// catalog row's maker, else the maker the collector chose, else '' — through
+// rrMakerOf (app.js), the one rule. It used to fall back to the era on screen,
+// which answered 'Lionel' for an add with no catalog row (Mike's MTH Hudson).
+// The maker the collector CHOSE during this add, most direct first: Add a
+// Piece's copy, the "Who made this item?" step (and a hand-added item's maker
+// step — the same field), a maker typed with the number, the Add screen's
+// maker filter. The step's answer outranks the filter: a sticky Lionel filter
+// must never overrule the MTH the collector just tapped.
+function _rrAddChosenMaker(d) {
+  try {
+    d = d || ((typeof wizard !== 'undefined' && wizard) ? wizard.data : null) || {};
+    return String(d._manufacturer || d.manualManufacturer || d._typedSearchMfr || d._searchFilterManufacturer || '').trim();
+  } catch (e) { return ''; }
+}
+// 2026-11-03 (PLAN_2026-11-03_NO_QUIET_MAKER, change 2): does this collection
+// add need the "Who made this item?" step (wizard-steps.js, id addMaker)?
+// Yes when the item has NO catalog row and the collector has not named a maker
+// for THIS item (Add a Piece's copy, a maker typed with the number, or the
+// step itself). The Add screen's sticky maker filter does not count as naming
+// it — it only pre-selects the step's answer, on screen, for one tap.
+// Once asked, the step stays in the flow (so Back returns to it) for as long
+// as there is still no catalog row. An add WITH a row never sees it.
+function _rrAddNeedsMaker(d) {
+  try {
+    d = d || ((typeof wizard !== 'undefined' && wizard) ? wizard.data : null) || {};
+    if (d._manualEntry || d._setMode || d._updatePdKey || d.boxOnly || d._fillItemMode || d._completingQuickEntry) return false;
+    if (!String(d.itemNum || '').trim()) return false;
+    if ((typeof _wizAddRow === 'function') ? _wizAddRow() : ((typeof wizard !== 'undefined' && wizard) ? wizard.matchedItem : null)) return false;
+    if (d._askedAddMaker) return true;
+    if (String(d._manufacturer || d._typedSearchMfr || d.manualManufacturer || '').trim()) return false;
+    d._askedAddMaker = true;
+    var f = String(d._searchFilterManufacturer || '').trim();
+    if (f && !d.manualManufacturer) d.manualManufacturer = f;   // shown pre-selected on the step
+    return true;
+  } catch (e) { return false; }
+}
 function _resolveSaveMfr() {
   try {
     if (typeof wizard !== 'undefined' && wizard && wizard.data) {
@@ -79,8 +116,10 @@ function _resolveSaveMfr() {
       if (m) return m;
     }
   } catch (e) {}
-  return _getEraManufacturer();
+  var row = (typeof _wizAddRow === 'function') ? _wizAddRow() : ((typeof wizard !== 'undefined' && wizard && wizard.matchedItem) || null);
+  return rrMakerOf({ row: row, chosen: _rrAddChosenMaker() });
 }
+if (typeof window !== 'undefined') { window._rrAddChosenMaker = _rrAddChosenMaker; window._rrAddNeedsMaker = _rrAddNeedsMaker; window._resolveSaveMfr = _resolveSaveMfr; }
 
 // v0.9.2025 — "Add a Piece to Group" (app-collection.js rrAddPieceStart) aims
 // a Box / Master Carton / Instruction Sheet at ONE copy. At save time that copy
@@ -352,7 +391,9 @@ async function _quickEntrySaveSet(condition, worth, photoFiles) {
       inventoryId: invId,
       groupId: groupId,
       era: 'Postwar',
-      manufacturer: _getEraManufacturer(),
+      // 2026-11-03: the component's own catalog row decides; a set off Lionel's
+      // Postwar set list (the only set list the master has) is Lionel by fact.
+      manufacturer: rrMakerOf({ row: master, chosen: resolvedSet ? 'Lionel' : _rrAddChosenMaker(d) }),
     });
 
     try {
@@ -364,7 +405,7 @@ async function _quickEntrySaveSet(condition, worth, photoFiles) {
         boxPhoto: '', notes: row[PERSONAL_FIELD_INDEX.notes], datePurchased: '', userEstWorth: isEngine ? worth : '',
         matchedTo: '', setId, yearMade: year, isError: '', errorDesc: '',
         quickEntry: 'Yes', inventoryId: invId, groupId, location: '',
-        era: 'Postwar', manufacturer: _getEraManufacturer(), owned: true,
+        era: 'Postwar', manufacturer: row[PERSONAL_FIELD_INDEX.manufacturer] || '', owned: true,   // 2026-11-03: what the row wrote
       });
       _stampSaved(state.personalData[invId]);
       savedItems.push(itemNum);
@@ -1022,7 +1063,7 @@ async function saveEphemeraItem() {
   const _uniInvId = (typeof nextInventoryId === 'function') ? String(nextInventoryId()) : '';
   const row = buildPersonalRow({
     itemNum: ephItemNum,
-    manufacturer: d.eph_manufacturer || 'Lionel',
+    manufacturer: String(d.eph_manufacturer || '').trim(),   // 2026-11-03: what the collector entered (the paper step shows Lionel there to start) — never a hidden default
     itemType: _uniItemType,
     subType: _uniSubType,
     condition: d.eph_condition || '',
@@ -1043,7 +1084,7 @@ async function saveEphemeraItem() {
     const pdObj = rrSavedRecord(row, actualRow, {
       row: actualRow, status: 'Owned', owned: true,
       itemNum: ephItemNum, variation: '',
-      manufacturer: d.eph_manufacturer || 'Lionel',
+      manufacturer: String(d.eph_manufacturer || '').trim(),
       itemType: _uniItemType, subType: _uniSubType,
       condition: d.eph_condition || '', userEstWorth: d.eph_estValue || '',
       notes: _noteParts.join(' — '), priceItem: d.eph_pricePaid || '',
@@ -1673,7 +1714,7 @@ async function saveWizardItem() {
           inventoryId: boxInvId, groupId: boxGroupId,
           location: d.location || '',
           ..._rrUserFieldValues(d),
-          era: _resolveSaveEra(), manufacturer: ((typeof _brandOfItem === 'function' && _brandOfItem(itemNum)) || _getEraManufacturer()),
+          era: _resolveSaveEra(), manufacturer: boxRow[PERSONAL_FIELD_INDEX.manufacturer] || '',   // 2026-11-03: what the row wrote
         });
         _stampSaved(state.personalData[boxInvId]);
 
@@ -1703,7 +1744,7 @@ async function saveWizardItem() {
         // edit of an owned copy or an inbox add — those carry their own row.
         var _wizNoRow = !(typeof wizard !== 'undefined' && wizard && wizard.matchedItem)
           && !d._setMode && !d._updatePdKey && !d._fromInbox && !d._manualEntry;
-        var _wizNoRowMfr = _wizNoRow ? String(d._searchFilterManufacturer || d._typedSearchMfr || '').trim() : '';
+        // 2026-11-03: the maker = the add's row's, else the collector's choice, else '' (rrMakerOf via _resolveSaveMfr).
         var _engineInvId = d._existingInventoryId || d._photoInventoryId || nextInventoryId();  // Session 165 hotfix: var, not const, so tender block at line 1206 can reference it
         // Session 156: paired engine row via buildPersonalRow
         // v0.9.1919: the fields are kept by name so the fill-item UPDATE below
@@ -1748,7 +1789,7 @@ async function saveWizardItem() {
           ..._rrUserFieldValues(d),
           ...((typeof rrCmdIdSaveValues === 'function') ? rrCmdIdSaveValues(d) : {}),   // 2026-10-31: Command IDs (command-ids.js) — the item's OWN row, never its box, tender or set mates (each is its own copy)
           era: _resolveSaveEra(),
-          manufacturer: (_wizNoRow && _wizNoRowMfr) ? _wizNoRowMfr : _getEraManufacturer(),
+          manufacturer: _resolveSaveMfr(),
           // 2026-11-01: an Add-screen number with NO catalog row inside the
           // filters saves as exactly that — buildPersonalRow must not go and
           // borrow another maker's or era's row (its description, key or Row ID)
@@ -1801,7 +1842,7 @@ async function saveWizardItem() {
       location: d.location || '',
       ..._rrUserFieldValues(d),
       era: _resolveSaveEra(),
-      manufacturer: _getEraManufacturer(),
+      manufacturer: _resolveSaveMfr(),   // 2026-11-03: the set's maker (rrMakerOf), never the era on screen
     });
     await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [u2Row]);
 
@@ -1832,7 +1873,7 @@ async function saveWizardItem() {
         location: d.location || '',
         ..._rrUserFieldValues(d),
         era: _resolveSaveEra(),
-        manufacturer: _getEraManufacturer(),
+        manufacturer: _resolveSaveMfr(),
       });
       await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [u3Row]);
       // Update u2Row matchedTo to also reference u3Num
@@ -1921,7 +1962,7 @@ async function saveWizardItem() {
       location: d.location || '',
       ..._rrUserFieldValues(d),
       era: _resolveSaveEra(),
-      manufacturer: _getEraManufacturer(),
+      manufacturer: _resolveSaveMfr(),   // 2026-11-03: the engine's maker; buildPersonalRow takes the tender's own row when it has one
     });
     await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [tRow]);
     // Update engine row matchedTo to point to tender
@@ -2059,7 +2100,8 @@ async function saveWizardItem() {
         fsOrigPrice,
         fsEstWorth,
         collectionEntry?.inventoryId || '',
-        collectionEntry?.manufacturer || (typeof _brandOfItem === 'function' && _brandOfItem(itemNum)) || (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : 'Lionel'),
+        // 2026-11-03: the copy's own maker (its catalog row, else what it carries), else this add's row / choice — never a default
+        collectionEntry ? rrMakerOf({ copy: collectionEntry }) : rrMakerOf({ row: (typeof _wizAddRow === 'function') ? _wizAddRow() : null, chosen: _rrAddChosenMaker(d) }),
       ];
       // Phase 3: state.forSaleData is keyed by inventoryId. Look up the existing
       // row by the collection entry's inventoryId; fall back to a one-time scan
@@ -2308,7 +2350,7 @@ async function saveWizardItem() {
 
     } else if (tab === 'want') {
       // Audit H6 fix: include Manufacturer column. WANT_HEADERS is 6 cols.
-      const _wMfr = (typeof _brandOfItem === 'function' && _brandOfItem(itemNum)) || (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : 'Lionel');
+      const _wMfr = rrMakerOf({ row: (typeof _wizAddRow === 'function') ? _wizAddRow() : null, chosen: _rrAddChosenMaker(d) });   // 2026-11-03: the row's maker, else the collector's choice, else blank
       const _wPriority = d.priority || 'Medium';
       const _wPrice = d.expectedPrice || '';
       const _wNotes = (d.notes || '').trim();
@@ -2540,7 +2582,7 @@ async function saveWizardItem() {
           location: d.location || '',
           ..._rrUserFieldValues(d),
           era: _resolveSaveEra(),
-          manufacturer: _getEraManufacturer(),
+          manufacturer: _resolveSaveMfr(),
         });
         const _mbApRow = await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [mbRow]);   // v0.9.1196
         // Add to local state
@@ -2594,7 +2636,7 @@ async function saveWizardItem() {
         state.personalData[_setOptId] = rrSavedRecord(_mainWrittenRow || row, _mainApRow || 0, {
           inventoryId: _setOptId, itemNum: itemNum, variation: variation, groupId: groupId || '',
           setId: (typeof setId !== 'undefined' ? (setId || '') : ''),
-          era: _resolveSaveEra(), manufacturer: ((typeof _brandOfItem === 'function' && _brandOfItem(itemNum)) || _getEraManufacturer()),
+          era: _resolveSaveEra(), manufacturer: ((_mainWrittenRow || row) || [])[PERSONAL_FIELD_INDEX.manufacturer] || '',   // 2026-11-03: what the row wrote
         });
         _stampSaved(state.personalData[_setOptId]);
       } catch (eOpt) { console.warn('[set] optimistic insert:', eOpt); }
@@ -2665,7 +2707,7 @@ async function saveWizardItem() {
           String(d.priceItem || ''),              // Original price paid
           String(d.userEstWorth || ''),           // Est worth
           _alfInvId,
-          ((typeof _brandOfItem === 'function' && _brandOfItem(d.itemNum)) || (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : 'Lionel')),
+          (row && row[PERSONAL_FIELD_INDEX.manufacturer]) || '',   // 2026-11-03: the maker the collection row just wrote
         ];
         var _alfApRow = (await sheetsAppend(state.personalSheetId, 'For Sale!A:J', [_alfFsRow])) || 0;   // v0.9.1196
         // Mirror into state for instant rendering
@@ -2682,7 +2724,7 @@ async function saveWizardItem() {
           originalPrice: String(d.priceItem || ''),
           estWorth: String(d.userEstWorth || ''),
           inventoryId: _alfInvId,
-          manufacturer: ((typeof _brandOfItem === 'function' && _brandOfItem(d.itemNum)) || (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : 'Lionel')),
+          manufacturer: (row && row[PERSONAL_FIELD_INDEX.manufacturer]) || '',
         };
         if (typeof showToast === 'function') showToast('Listed for sale at $' + (d.forSale_salePrice || '0'), 2800);
         if (typeof buildForSalePage === 'function') buildForSalePage();
@@ -2770,7 +2812,7 @@ async function saveWizardItem() {
       // laid over it: the session's own era / maker words when the row's are blank.
       state.personalData[_optInvId] = rrSavedRecord(_mainWrittenRow || row, _mainApRow || 0, {
         inventoryId: _optInvId, itemNum: itemNum, variation: variation, groupId: groupId || '',
-        era: _resolveSaveEra(), manufacturer: ((typeof _brandOfItem === 'function' && _brandOfItem(itemNum)) || _getEraManufacturer()),
+        era: _resolveSaveEra(), manufacturer: ((_mainWrittenRow || row) || [])[PERSONAL_FIELD_INDEX.manufacturer] || '',   // 2026-11-03: what the row wrote
       });
       _stampSaved(state.personalData[_optInvId]);
     } else if (tab === 'sold') {

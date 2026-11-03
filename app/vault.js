@@ -586,11 +586,11 @@ async function _vaultItemsToSend() {
   const flagged = [];
   let sales = 0;
   const makerOf = function (x) {
-    // Session 135: maker for brand-segmented market data; legacy rows fall
-    // back to the era's maker, then Lionel.
-    return x.manufacturer
-      || (x.era && typeof ERAS !== 'undefined' && ERAS[x.era] && ERAS[x.era].manufacturer)
-      || 'Lionel';
+    // Session 135: maker for brand-segmented market data.
+    // 2026-11-03 (PLAN_2026-11-03_NO_QUIET_MAKER): the one maker rule — the
+    // copy's own catalog row, else the maker saved on it, else BLANK. A blank
+    // maker is sent blank; it never counts as Lionel in the Market numbers.
+    return rrMakerOf({ copy: x });
   };
   if (typeof state !== 'undefined' && state.personalData) {
     for (const [key, pd] of Object.entries(state.personalData)) {

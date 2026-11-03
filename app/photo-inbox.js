@@ -1270,7 +1270,8 @@
 
     function draw() {
       var makers = uniq(choices.map(function (c) { return c.maker; }));
-      if (!pick.maker && makers.indexOf('Lionel') >= 0) pick.maker = 'Lionel';
+      // 2026-11-03 (NO_QUIET_MAKER): no maker is pre-picked — the sheet opens on
+      // "Choose…" until the collector picks one (the old line pre-picked Lionel).
       // v0.9.1504 (task #29, Brad): "Not sure" is a first-class maker —
       // pick scale and period by themselves; the tag stores what IS known.
       var _anyMaker = pick.maker === '*';

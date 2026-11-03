@@ -112,7 +112,7 @@
     if (!cfg.enabled || !cfg.alsoSoldAs) return '';
     var names = (typeof rrAlsoSoldAsNames === 'function') ? rrAlsoSoldAsNames(item) : [];
     if (!names.length) return '';
-    var maker = (typeof _brandOfItem === 'function') ? (_brandOfItem(item) || '') : '';
+    var maker = (typeof rrMakerOf === 'function') ? (rrMakerOf({ row: item }) || '') : '';   // the row's own maker
     var size = (opts && opts.size) || 'sm';
     var padY = size === 'lg' ? '3px' : '1px';
     var padX = size === 'lg' ? '8px' : '5px';

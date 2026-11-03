@@ -205,7 +205,7 @@ function _wpSellFilterRow(onchangeJs) {   // v0.9.750: reused by the upgrade pic
     var makers = {}, types = {}, scales = {};
     Object.values(state.personalData || {}).forEach(function (pd) {
       if (!pd || !pd.owned) return;
-      var mf = pd.manufacturer || ((typeof ERAS !== 'undefined' && ERAS[pd.era]) ? ERAS[pd.era].manufacturer : '');
+      var mf = rrMakerOf({ copy: pd });   // 2026-11-03: the one maker rule
       if (mf) makers[mf] = 1;
       try { var b = _wpBucketOf(pd); if (b) types[b] = 1; } catch (e) {}
       var sc = pd.gauge || ((typeof ERA_SCALE !== 'undefined') ? ERA_SCALE[String(pd.era || '').toLowerCase()] : '');
@@ -238,7 +238,7 @@ function _wpSellFilterPass(e) {
   var v = function (id) { var el = document.getElementById(id); return el ? el.value : ''; };
   var mfr = v('wp-f-mfr'), era = v('wp-f-era'), typ = v('wp-f-type'), sc = v('wp-f-scale');
   if (mfr) {
-    var pm = pd.manufacturer || ((typeof ERAS !== 'undefined' && ERAS[pd.era]) ? ERAS[pd.era].manufacturer : '');
+    var pm = rrMakerOf({ copy: pd });   // 2026-11-03: the one maker rule
     if (String(pm || '') !== mfr) return false;
   }
   if (era) {

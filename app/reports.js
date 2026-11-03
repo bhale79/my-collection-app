@@ -119,12 +119,10 @@ function buildReport() {
       const p = parseFloat(pd.priceComplete || pd.priceItem || 0);
       totalWorth += w;
       totalPaid  += p;
-      let mfr = (pd.manufacturer || '').toString();
-      if (!mfr && typeof _manufacturerOfItem === 'function') {
-        mfr = _manufacturerOfItem(pd) || '';
-        if (mfr) mfr = mfr.charAt(0).toUpperCase() + mfr.slice(1);
-      }
-      if (!mfr) mfr = 'Lionel';
+      // 2026-11-03: the one maker rule; an item with no maker is counted
+      // under "Maker not set", never quietly under Lionel.
+      let mfr = rrMakerOf({ copy: pd });
+      if (!mfr) mfr = 'Maker not set';
       if (!_mfrTotals[mfr]) _mfrTotals[mfr] = { worth: 0, paid: 0, count: 0 };
       _mfrTotals[mfr].worth += w;
       _mfrTotals[mfr].paid  += p;

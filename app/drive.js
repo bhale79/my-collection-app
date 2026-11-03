@@ -1483,7 +1483,27 @@ function _photoFileName(itemNum, viewAbbr, inventoryId, fileLabel) {
   var setTag = /\sSET$/i.test(base);
   if (setTag) base = base.replace(/\sSET$/i, '');
   var mfr = '';
-  try { mfr = (typeof _brandOfItem === 'function') ? String(_brandOfItem(itemNum) || '') : ''; } catch (e) {}
+  // 2026-11-03 (PLAN_2026-11-03_NO_QUIET_MAKER): the maker in the name is the
+  // copy's own maker (its saved copy by inventory id), or, during an add, the
+  // add's own catalog row or chosen maker — never a lookup by the number
+  // alone (165,000 rows reuse numbers). Nothing known → no maker in the name.
+  try {
+    if (typeof rrMakerOf === 'function') {
+      var _own = (inventoryId && typeof state !== 'undefined' && state && state.personalData) ? state.personalData[String(inventoryId)] : null;
+      var _sameN = function (a) {
+        if (!a || !itemNum) return false;
+        return (typeof rrSameNum === 'function') ? rrSameNum(a, itemNum) : String(a).trim() === String(itemNum).trim();
+      };
+      if (_own) mfr = String(rrMakerOf({ copy: _own }) || '');
+      else if (typeof wizard !== 'undefined' && wizard && wizard.data) {
+        var _wr = wizard.matchedItem || null;
+        if (_wr && _sameN(_wr.itemNum)) mfr = String(rrMakerOf({ row: _wr }) || '');
+        else if (_sameN(wizard.data.itemNum || wizard.data.manualItemNum)) {
+          mfr = String(rrMakerOf({ chosen: (typeof _rrAddChosenMaker === 'function') ? _rrAddChosenMaker(wizard.data) : '' }) || '');
+        }
+      }
+    }
+  } catch (e) { mfr = ''; }
   // Manual entries already carry the maker in the label ("Marx Tank Car") —
   // don't double it.
   if (mfr && base.toLowerCase().indexOf(mfr.toLowerCase()) === 0) mfr = '';

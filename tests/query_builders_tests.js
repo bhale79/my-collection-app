@@ -215,8 +215,11 @@ function partsHarness(src, opts) {
 {
   const h = partsHarness(pages);
   h.api('', '3562-1', 'barrel car man');
-  ok('a part with no owned copy keeps the pre-1838 path (the brand of the number alone)',
-     q(h.opened[0]) === 'part for Lionel 3562-1 barrel car man' && h.brandAsks.join() === '3562-1' && h.lookups.length === 0, q(h.opened[0]));
+  // 2026-11-03 RE-PIN (PLAN_2026-11-03_NO_QUIET_MAKER): the number alone is not
+  // a maker — 3562-1 can be more than one maker's. A part with no owned copy
+  // names no brand; it was "the brand of the number alone" before.
+  ok('a part with no owned copy names NO brand — no lookup by the number alone',
+     q(h.opened[0]) === 'part for 3562-1 barrel car man' && h.brandAsks.length === 0 && h.lookups.length === 0, q(h.opened[0]));
 }
 {
   let picked = null;

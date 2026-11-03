@@ -137,6 +137,16 @@ function mkCompute(mode) {
     getTypeBucket: (o) => String((o && o.itemType) || '').toLowerCase() || null,
     getTypeBucketLabel: (b) => b ? b.charAt(0).toUpperCase() + b.slice(1) : '',
   };
+  // 2026-11-03 (NO_QUIET_MAKER): the maker line asks the app's ONE maker rule
+  // (rrMakerOf, app.js) — lifted, never imitated, and run against this
+  // sandbox's own catalog. _preferEraOf comes out of app-data.js with it.
+  env.ERA_TABS = ERAS;
+  env.rrMasterByRowId = () => null;
+  const ADATA = fs.readFileSync(path.join(__dirname, '..', 'app', 'app-data.js'), 'utf8');
+  const RULE = require('./lib/maker-of.js');
+  const ruleNames = Object.keys(env);
+  Object.assign(env, new Function(...ruleNames, RULE.liftFn(ADATA, '_preferEraOf') + '\n' + RULE.makerOfSource(['rrCopyCatalogRow', 'rrMakerOf'])
+    + '\nreturn { _preferEraOf: _preferEraOf, rrCopyCatalogRow: rrCopyCatalogRow, rrMakerOf: rrMakerOf };')(...ruleNames.map(n => env[n])));
   const names = Object.keys(env);
   const body = BUCKET + '\nreturn function (state) {' + COMPUTE + '};';
   return new Function(...names, body)(...names.map(n => env[n]));
@@ -240,13 +250,16 @@ section('Paper, sheets and sets land on their maker');
 section('Manufacturer');
 {
   const h = mkCompute('maker')(STATE, 0).html;
-  // 22830 postwar + 1170 mpc + 75 (no maker saved, resolved via its era)
-  // + 10 (v0.9.1728: the unlinked instruction sheet falls back to postwar,
-  // and postwar's maker is Lionel).
-  const LIONEL = 22830 + 1170 + 75 + 10;
-  ok('rolls both Lionel eras into ONE Lionel line', /Lionel/.test(h) && money(h).includes(LIONEL));
-  ok('…including a row with no maker saved, via its era — that is the $75',
-     money(h).includes(LIONEL) && !money(h).includes(22830 + 1170));
+  // 22830 postwar + 1170 mpc + 10 (v0.9.1728: the unlinked instruction sheet
+  // falls back to postwar, and postwar's maker is Lionel).
+  // 2026-11-03 RE-PIN (PLAN_2026-11-03_NO_QUIET_MAKER, [stated] Brad: "we dont
+  // need to quielty fill anything"): the $75 row — no maker saved and no
+  // catalog row — used to be counted as Lionel "via its era". It is "Maker not
+  // set" now; it never joins Lionel's line on its own.
+  const LIONEL = 22830 + 1170 + 10;
+  ok('rolls both Lionel eras into ONE Lionel line', /Lionel/.test(h) && money(h).includes(LIONEL), JSON.stringify(money(h)));
+  ok('…and a row with no maker saved and no catalog row is NOT counted as Lionel — the $75 stays out',
+     money(h).includes(LIONEL) && !money(h).includes(LIONEL + 75));
   ok('names the cut on the card, so a screenshot is self-explanatory', /by manufacturer/.test(h));
   // Pittman ($300) is the 7th bucket here, so it is correctly folded into
   // Other. What must be true either way is that its money did not join
@@ -321,8 +334,10 @@ section('Paper add: Manufacturer is asked for');
   const step = WIZ.slice(WIZ.indexOf("} else if (s.type === 'paperExtras') {"), WIZ.indexOf("} else if (s.type === 'pricePaid') {"));
   ok('the step writes eph_manufacturer — the field wizard-save already reads',
      /wizard\.data\.eph_manufacturer=this\.value/.test(step));
+  // 2026-11-03 RE-PIN: the Lionel it shows is now WRITTEN into the data as the
+  // screen draws, so what is shown is exactly what is saved (the save fills nothing).
   ok('it is pre-filled, so adding Lionel paper costs no extra taps',
-     /wizard\.data\.eph_manufacturer \|\| 'Lionel'/.test(step));
+     /if \(wizard\.data\.eph_manufacturer == null\) wizard\.data\.eph_manufacturer = 'Lionel';/.test(step));
   ok('a datalist offers the makers the app knows',
      /list="pe-mfr-list"/.test(step) && /WHAT_I_COLLECT\.MANUFACTURERS/.test(step));
   ok('…but it is a TEXT box, so an unlisted maker is not a dead end',

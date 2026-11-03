@@ -3667,11 +3667,11 @@ function _ncShowFsSoldModal(type, key, action) {
               dateSold: date,
               notes: _det.notes || '',
               inventoryId: '',
-              manufacturer: ((typeof _brandOfItem === 'function' && _brandOfItem(ids.itemNum)) || (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : '')),
+              manufacturer: rrMakerOf({ copy: entry }),
               soldTo: _det.soldTo || '', soldAt: _det.soldAt || '',
             })
           : [ ids.itemNum, ids.variation, '1', condition, '', price, date, title, '',
-              ((typeof _brandOfItem === 'function' && _brandOfItem(ids.itemNum)) || (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : '')),
+              rrMakerOf({ copy: entry }),
               '','','','','','','','','','' ];
         await sheetsAppend(state.personalSheetId, 'Sold!A:' + soldEndCol(), [row]);
         // v0.9.1288 (R3-3): the sale is recorded either way — that append is
@@ -3689,7 +3689,7 @@ function _ncShowFsSoldModal(type, key, action) {
           condition, price, date, title,
           '', estValue || '',
           '',
-          ((typeof _brandOfItem === 'function' && _brandOfItem(ids.itemNum)) || (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : '')),
+          rrMakerOf({ copy: entry }),
         ];
         await sheetsAppend(state.personalSheetId, 'For Sale!A:J', [row]);
         showToast('✓ Listed for sale');
@@ -3795,7 +3795,7 @@ function _ncShowUpgradeModal(type, key) {
         price, // maxPrice
         title, // notes
         (_brOwnedPd && _brOwnedPd.inventoryId) || '',
-        ((typeof _brandOfItem === 'function' && _brandOfItem(ids.itemNum)) || (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : 'Lionel')),
+        rrMakerOf({ copy: entry }),
       ];
       // Want-Upgrade combined: append 9-col row with List Type='Upgrade'.
       const _wuRow = [row[0], row[1], 'Upgrade', row[2], row[4], row[3], row[6], row[5], row[7]];
@@ -5829,7 +5829,7 @@ function _rrBrowseCore(_co) {
         // the user's chosen order. Mfr and Item # stay locked at the front.
         var _cells = {};
         _cells.mfr = (function(){
-          var _b = (typeof _mfrBadge === 'function') ? _mfrBadge({ manufacturer: (pd && pd.manufacturer) || '' }) : '<td>\u2014</td>';
+          var _b = (typeof _mfrBadge === 'function') ? _mfrBadge({ manufacturer: pd ? rrMakerOf({ copy: pd }) : '' })   /* 2026-11-03: the one maker rule; blank shows — */ : '<td>\u2014</td>';
           // v0.9.726 (Brad): stack SCALE under the maker badge.
           var _sc = (pd && pd.gauge) || (item && item.gauge) || '';
           if (!_sc && item && item._era && typeof ERA_SCALE !== 'undefined') _sc = ERA_SCALE[item._era] || '';

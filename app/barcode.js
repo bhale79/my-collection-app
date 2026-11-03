@@ -468,7 +468,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     for (var i = 0; i < nums.length; i++) {
       var hits = await _findMasterItemsAllEras([nums[i]]);
       if (hits && hits.length) {
-        var mk = (hits[0] && (hits[0].manufacturer || '')) || 'Lionel';
+        var mk = rrMakerOf({ row: hits[0] || null });   // 2026-11-03: the row's own maker, never a default
         out.push({ raw: nums[i], mfr: mk });
       }
     }
@@ -827,7 +827,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       var hits = await _findMasterItemsAllEras(lookup);
       if (hits.length) {
         var m = _biPreferMfrHit(hits, meta.manufacturer) || hits[0];   // v0.9.1015: stated maker wins cross-catalog collisions (Brad's GM50)
-        return { handled: true, itemNum: m.itemNum, variation: m.variation || '', masterItem: m, manufacturer: meta.manufacturer || 'Lionel', roadName: (m.roadName || ''), description: (m.description || ''), eraTag: (typeof _eraLabel === 'function') ? _eraLabel(m._era) : '', verifiedNote: '🔍 Identified from the photo', verifiedBy: 'ai', statusMessage: 'Found ' + m.itemNum + ' — ' + (m.description || '').substring(0, 40) };
+        return { handled: true, itemNum: m.itemNum, variation: m.variation || '', masterItem: m, manufacturer: rrMakerOf({ row: m, chosen: meta.manufacturer }), roadName: (m.roadName || ''), description: (m.description || ''), eraTag: (typeof _eraLabel === 'function') ? _eraLabel(m._era) : '', verifiedNote: '🔍 Identified from the photo', verifiedBy: 'ai', statusMessage: 'Found ' + m.itemNum + ' — ' + (m.description || '').substring(0, 40) };
       }
       var descBits = [];
       if (meta.roadName) descBits.push(meta.roadName);

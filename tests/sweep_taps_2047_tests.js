@@ -213,6 +213,7 @@ function sandbox(o) {
   c.sheetsAppend = async (sid, range, rows) => { log.push('append ' + range); if (c.slow) await tick(c.slow); return 7; };
   c.sheetsGet = async () => { log.push('get'); return { values: [] }; };
   vm.createContext(c);
+  require('./lib/maker-of.js').installMakerOf(c);   // 2026-11-03: saves name the maker through the app's one rule (rrMakerOf)
   return c;
 }
 function load(c, code) { vm.runInContext(code, c); return c; }

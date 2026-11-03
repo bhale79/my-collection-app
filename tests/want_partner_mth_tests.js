@@ -202,8 +202,11 @@ ok('…while a want for the B unit 2343C, with only the dummy owned, still offer
 
 section('E · wiring');
 ok('the wizard hands the want\'s maker to the prompt', /_checkWantPartners\(itemNum, variation, _wPriority, _wPrice, _wNotes, _wMfr\)/.test(wsave));
-ok('the partner row\'s brand comes from its own catalog row (found with the hint), the number-only lookup only as the fallback',
-   /_brandOfItem\(_pRow \|\| c\.itemNum\)/.test(grab(coll, '_checkWantPartners')));
+// 2026-11-03 RE-PIN (PLAN_2026-11-03_NO_QUIET_MAKER): through the one maker rule —
+// the partner's own row, else the want's maker; the number-only fallback is gone.
+ok('the partner row\'s brand comes from its own catalog row (found with the hint), else the want\'s maker — never the number alone',
+   /rrMakerOf\(\{ row: _pRow, chosen: mfr \}\)/.test(grab(coll, '_checkWantPartners'))
+   && !/_brandOfItem\(_pRow \|\| c\.itemNum\)/.test(grab(coll, '_checkWantPartners')));
 ok('the map\'s entries carry dummyA and aUnits', /dummyA:'', aUnits:\[\]/.test(grab(appjs, 'buildPartnerMap')));
 
 // ── F · planted offenders ───────────────────────────────────────────────────

@@ -3092,7 +3092,7 @@ function _checkGroupBeforeForSale(globalIdx, pdKey) {
         pd.priceItem || '',
         pd.userEstWorth || '',
         pd.inventoryId || '',
-        pd.manufacturer || (typeof _brandOfItem === 'function' && _brandOfItem(pd.itemNum)) || _getEraManufacturer(),
+        rrMakerOf({ copy: pd }),   // 2026-11-03: the copy's own row, else its saved maker, else blank
       ];
       const existingFs = state.forSaleData[_grpFsKey];
       let _grpFsApRow = 0;   // v0.9.1196: real row from update target or append return
@@ -4273,6 +4273,8 @@ function showItemPanel(idx, pdKey, mode) {
     return rl;
   }
 
+  // 2026-11-03: decided once, as the item was opened (rrCopyIsUnlinked, app.js).
+  const _panelUnlinked = (typeof rrCopyIsUnlinked === 'function') ? rrCopyIsUnlinked(_live) : (pd.era === 'Manual');
   const fields = [
     // v0.9.701 (Brad): a no-number item's TITLE is its identity — editable.
     ...((idx < 0 || pd.era === 'Manual') ? [{ label: 'Title / Name', key: 'itemNum', val: pd.itemNum || '—', type: 'textarea' }] : []),
@@ -4301,6 +4303,12 @@ function showItemPanel(idx, pdKey, mode) {
     // v0.9.1882: the catalog entry — every catalog item, changeable in Edit (cards)
     ...((pd.era !== 'Manual' && (pd.itemNum || item.itemNum) && typeof rrCatalogCandidates === 'function')
       ? [{ label: 'Catalog entry', key: 'catalogEntry', val: _panelEntryLabel(_panelCurrentRow()), type: 'catalog' }] : []),
+    // 2026-11-03 (PLAN_2026-11-03_NO_QUIET_MAKER, change 3): an item NOT tied to
+    // a catalog entry (hand-added, or a number the catalog lacks) has its maker
+    // changed here — the makers the app knows are offered and any other can be
+    // typed. A catalog item keeps its row's maker (change it by changing the
+    // Catalog entry above).
+    ...(_panelUnlinked ? [{ label: 'Manufacturer', key: 'manufacturer', val: pd.manufacturer || '—', type: 'text', suggest: 'makers' }] : []),
     // v0.9.987 (Brad): TYPE is editable on manual/off-catalog items — it
     // decides which Show chip the item appears under (Trains/Catalogs/
     // Paper Items). Catalog-matched items keep the catalog's type
@@ -4609,6 +4617,8 @@ function showItemPanel(idx, pdKey, mode) {
               _sVals = rrLocationDetails(pd.location || '');
             } else if (f.suggest === 'subtypes' && typeof rrSavedSubTypes === 'function') {
               _sVals = rrSavedSubTypes();   // v0.9.1863: the same list the wizard's chips show
+            } else if (f.suggest === 'makers' && typeof rrKnownMakers === 'function') {
+              _sVals = rrKnownMakers([pd.manufacturer]);   // 2026-11-03: the makers the app knows, plus this item's own
             }
             if (_sVals && _sVals.length) {
               var _dlId = 'panel-dl-' + f.key;
@@ -4789,7 +4799,7 @@ function showItemPanel(idx, pdKey, mode) {
         pd.variation = String(_entry.variation == null ? '' : _entry.variation);
         pd.masterDescription = String(_entry.description || '');
         pd.variationDescription = String(_entry.varDesc || '');
-        pd.manufacturer = (typeof _brandOfItem === 'function' && _brandOfItem(_entry)) || pd.manufacturer || '';
+        pd.manufacturer = rrMakerOf({ row: _entry, copy: pd });
         if (_entry.itemType) pd.itemType = String(_entry.itemType);
         pd.roadName = String(_entry.roadName || '');
         pd.roadNumber = String(_entry.roadNum || '');
@@ -4848,6 +4858,10 @@ function showItemPanel(idx, pdKey, mode) {
         // item at a different product that shares its number and variation.
         masterRowId: pd.masterRowId || '',
         masterKey: pd.masterKey || '',   // v0.9.1882: the stored key rides along too — never re-guessed on a panel save
+        // 2026-11-03: an item not tied to a catalog entry keeps the maker the
+        // collector set (no catalog lookup by its number re-picks one) — the
+        // same flag an Add-screen save with no catalog row passes.
+        _noCatalogRow: (_panelUnlinked && !_entry) ? true : undefined,
       });
       try {
         if (typeof _healPdRow === 'function') await _healPdRow(pd);
@@ -5637,7 +5651,7 @@ function _checkWantPartners(itemNum, variation, priority, maxPrice, notes, mfr) 
         // v0.9.1840: the partner's own catalog row (found with the want's maker as
         // the hint) names its brand; the number-only lookup is only the fallback
         const _pRow = _rowOf(c.itemNum);
-        const row = [c.itemNum, '', priority || 'Medium', maxPrice || '', notes || '', ((typeof _brandOfItem === 'function' && (_brandOfItem(_pRow || c.itemNum))) || mfr || _getEraManufacturer())];
+        const row = [c.itemNum, '', priority || 'Medium', maxPrice || '', notes || '', rrMakerOf({ row: _pRow, chosen: mfr })];
         // Want-Upgrade combined: append partner 9-col row with List Type='Want'.
         const _wuPartnerRow = [row[0], row[1], 'Want', row[2], row[3], '', '', row[4], row[5]];
         const _wuPartnerApRow = (await sheetsAppend(state.personalSheetId, 'Want-Upgrade List!A:I', [_wuPartnerRow])) || 0;   // v0.9.1196
@@ -5736,7 +5750,7 @@ window._wantEditOpen = function () {
     // (PRESERVED), H Notes, I Manufacturer.
     var row = [u.itemNum || '', u.variation || '', u.listType || 'Want',
       v.pri || 'Medium', v.price || '', v.cond || '',
-      u.inventoryId || u.upgradingInventoryId || '', u.notes || '', u.manufacturer || 'Lionel'];
+      u.inventoryId || u.upgradingInventoryId || '', u.notes || '', String(u.manufacturer || '')];   // blank stays blank (2026-11-03)
     var okW = await rrVerifiedRowUpdate(state.personalSheetId, 'Want-Upgrade List', u.row,
       'Want-Upgrade List!A' + u.row + ':I' + u.row, [row],
       { num: u.itemNum || '', invId: u.inventoryId || '' }, 'Want list');

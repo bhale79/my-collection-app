@@ -1123,7 +1123,7 @@ window._wizResearchIdentity = function () {
   return {
     num: num,
     gnum: _gnum,
-    mfr: _rowBrand || m.manufacturer || d.manualManufacturer || ((typeof _brandOfItem === 'function') ? (_brandOfItem(num) || '') : ''),
+    mfr: _rowBrand || m.manufacturer || ((typeof _rrAddChosenMaker === 'function') ? _rrAddChosenMaker(d) : (d.manualManufacturer || '')),   // 2026-11-03: no number-only maker
     road: m.roadName || d.manualRoadName || d.suggestedRoadName || '',
     desc: m.description || d.manualDesc || ''
   };
@@ -4001,7 +4001,12 @@ function renderWizardStep() {
     // A text box with a datalist, not a dropdown — the makers the app knows
     // are offered, and anything else can still be typed. A closed list would
     // be a dead end for the one maker nobody listed.
-    const mf  = wizard.data.eph_manufacturer || 'Lionel';
+    // 2026-11-03 (NO_QUIET_MAKER): the Lionel shown in the box is now also the
+    // value saved — written into the data when the screen draws, so what the
+    // collector sees is exactly what is stored (the save itself never fills a
+    // maker). A box the collector cleared stays cleared.
+    if (wizard.data.eph_manufacturer == null) wizard.data.eph_manufacturer = 'Lionel';
+    const mf  = String(wizard.data.eph_manufacturer || '');
     let _mfOpts = '';
     try {
       const _M = (typeof WHAT_I_COLLECT !== 'undefined' && WHAT_I_COLLECT.MANUFACTURERS) || {};
