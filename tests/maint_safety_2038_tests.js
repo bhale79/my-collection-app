@@ -99,7 +99,7 @@ function sandbox(o) {
   c._target = () => ({ item: { itemNum: '2338' }, invId: '190' });
   c._isOwner = () => true; c._maintIsOwner = () => true;
   c._favs = () => []; c._saveFavs = () => {};
-  ['_wbBadge', '_maintRenderTasks', '_wbBuild', '_wbCloseCard', '_renderPartsList', '_binBuild', '_updatePartsBadge', 'renderBrowse', 'buildDashboard', '_cachePersonalData', '_maintRenderMyDocs', '_tbRefresh'].forEach(n => { c[n] = () => { log.push(n); }; });
+  ['_wbBadge', '_maintRenderTasks', '_wbBuild', '_wbCloseCard', '_renderPartsList', '_binBuild', '_updatePartsBadge', 'renderBrowse', 'buildDashboard', '_cachePersonalData', '_maintRenderMyDocs', '_tbRefresh', '_maintPartsRedraw'].forEach(n => { c[n] = () => { log.push(n); }; });
   c._binVisible = () => false;
   c._ensureLogTab = async () => true; c._ensureBinTab = async () => true; c._ensureDocsTab = async () => true;
   c._ensurePartsTab = async () => true; c._ensurePartsLifecycleCols = async () => true; c._ensureLogNotesCol = async () => true;
@@ -128,7 +128,9 @@ function sandbox(o) {
 }
 function load(c, code) { vm.runInContext(code, c); return c; }
 const RRSHEETTEXT = grab(SHEETS, 'function rrSheetText(v)');
-const PARTSFIND = grab(PAGES, 'function _partsFind(partId)');
+const PARTSFIND = grab(PAGES, 'function _partsFind(partId)')
+  // 2026-11-02 (parts_stale): the part writers go through THE row writer and its helpers — lifted with them
+  + '\n' + ['function rrPartsGen()', 'function _partsSaved()', 'function _partsRedrawOpen()', 'function rrPartsTake(values, o)', 'async function _partsRecheck(partId, quiet)', 'async function rrPartsRowWrite(p, range, values, apply, opts)'].map(sig => grab(PAGES, sig)).join('\n');
 const ONCE = grab(MAINT, 'async function _once(key, fn)');
 
 (async function main() {
@@ -220,7 +222,7 @@ const ONCE = grab(MAINT, 'async function _once(key, fn)');
     const r = await installRun(PAGES, { owner: true, refuse: { 'Parts Needed': true } });
     ok('the owner, Parts Needed refused → no "Installed" line in the service history, no ✓ toast', !r.c.log.includes('logInstalled') && !r.c.toasts.some(t => /✓ Installed/.test(t)), r.c.log);
     ok('…the part stays "bought" and the toast says what to check', r.c.state.partsData.p7.status === 'bought' && r.c.toasts.some(t => /Parts list did not update/.test(t)), r.c.toasts);
-    const p = await installRun(plant(PAGES, "'Parts Needed!I' + rowNum + ':L' + rowNum, [['installed', p.dateBought || '', date, price || '']], { num: p.id }, 'Parts list'))) {", "'Parts Needed!I' + rowNum + ':L' + rowNum, [['installed', p.dateBought || '', date, price || '']], { num: p.id }, 'Parts list')) && false) {"), { owner: true, refuse: { 'Parts Needed': true } });
+    const p = await installRun(plant(PAGES, "if (price) p.pricePaid = price; }, { quiet: true }))) {", "if (price) p.pricePaid = price; }, { quiet: true })) && false) {"), { owner: true, refuse: { 'Parts Needed': true } });
     ok('PLANTED: the refusal ignored → the history line IS written', p.c.log.includes('logInstalled'), p.c.log);
   }
   {
@@ -409,9 +411,11 @@ const ONCE = grab(MAINT, 'async function _once(key, fn)');
   // ═══ A9 · the report reads every column through the one parser ═══════
   section('A9 · the Want/Upgrade report reads A–M through the one parser');
   const wup = REPORTS.slice(REPORTS.indexOf('if (!_wupPartsLoading) {'), REPORTS.indexOf('_wupPartsLoading=false;'));
-  const a9 = (src) => /sheetsGet\(state\.personalSheetId,'Parts Needed!A3:M'\); state\.partsData=_parsePartsRows\(res\.values\);/.test(src) && !/'Parts Needed!A3:H'/.test(src);
+  // 2026-11-02 (parts_stale): through THE taker, rrPartsTake — which parses with _parsePartsRows (checked below)
+  const a9 = (src) => /sheetsGet\(state\.personalSheetId,'Parts Needed!A3:M'\); if\(typeof rrPartsTake==='function'\) rrPartsTake\(res\.values,\{gen:_pg0\}\); else state\.partsData=_parsePartsRows\(res\.values\);/.test(src) && !/'Parts Needed!A3:H'/.test(src)
+    && /state\.partsData = _parsePartsRows\(values\);/.test(grab(PAGES, 'function rrPartsTake(values, o)'));
   ok('it reads Parts Needed!A3:M and parses with _parsePartsRows (status + task kept)', a9(wup));
-  ok('PLANTED: the old A3:H hand parser is caught', !a9(REPORTS.replace("'Parts Needed!A3:M'); state.partsData=_parsePartsRows(res.values);", "'Parts Needed!A3:H'); const parts={}; state.partsData=parts;")));
+  ok('PLANTED: the old A3:H hand parser is caught', !a9(REPORTS.replace("'Parts Needed!A3:M'); if(typeof rrPartsTake==='function') rrPartsTake(res.values,{gen:_pg0}); else state.partsData=_parsePartsRows(res.values);", "'Parts Needed!A3:H'); const parts={}; state.partsData=parts;")));
   {
     const c = sandbox(); load(c, 'var window = this;\n' + grab(PAGES, 'function _parsePartsRows(values)'));
     const parts = c._parsePartsRows([['part-1', 'drum', '', '', '', '', '', '2026-10-01', 'installed', '', '2026-10-20', '', 'log-1']]);
@@ -448,12 +452,12 @@ const ONCE = grab(MAINT, 'async function _once(key, fn)');
       c.failGet = 'offline';
       c.document = { getElementById: id => id === 'parts-list' ? { innerHTML: '' } : null };
       c._parsePartsRows = () => ({});
-      load(c, grab(src, 'async function buildPartsPage()'));
+      load(c, PARTSFIND + '\n' + grab(src, 'async function buildPartsPage()'));
       await c.buildPartsPage();
       return Object.keys(c.state.partsData).length;
     };
     ok('the Parts page whose read fails keeps the parts already loaded (and says so)', (await run(PAGES)) === 1);
-    ok('PLANTED: the old .catch → the list emptied', (await run(plant(PAGES, "var res = await sheetsGet(state.personalSheetId, 'Parts Needed!A3:M');\n    state.partsData", "var res = await sheetsGet(state.personalSheetId, 'Parts Needed!A3:M').catch(function () { return { values: [] }; });\n    state.partsData"))) === 0);
+    ok('PLANTED: the old .catch → the list emptied', (await run(plant(PAGES, "var res = await sheetsGet(state.personalSheetId, 'Parts Needed!A3:M');\n    rrPartsTake", "var res = await sheetsGet(state.personalSheetId, 'Parts Needed!A3:M').catch(function () { return { values: [] }; });\n    rrPartsTake"))) === 0);
   }
   {
     // the "is the tab there?" checks: every one goes through _withTokenRetry

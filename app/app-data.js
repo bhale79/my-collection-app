@@ -2689,6 +2689,9 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   // when that range is empty ({range: 'Sold!A3:V1000', majorDimension: 'ROWS'}).
   // That is how an empty list is told apart from a read that never landed.
   const _plAnswered = function (r) { return !!(r && !r._failed && !r.error && typeof r.range === 'string'); };
+  // 2026-11-02: the parts change count as this read STARTS — a part changed on
+  // this device while it runs makes the read older than the list (rrPartsTake).
+  const _partsGen0 = (typeof rrPartsGen === 'function') ? rrPartsGen() : null;
   // Secondary tabs fire off in parallel, NOT awaited in the main flow
   const _secondaryFetch = Promise.all([
     // v0.9.992 (unified inventory Phase 5): the four ephemera tabs are
@@ -3159,7 +3162,13 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     // v0.9.827 (Brad): Parts + Contacts — parsed by THE parsers their pages
     // own (window._parsePartsRows / window._ctParseRows), committed only on a
     // successful fetch so a hiccup keeps the previous data (BUG-003 rule).
-    if (partsRes2 && !partsRes2._failed && typeof window._parsePartsRows === 'function') {
+    // 2026-11-02 ([stated] Brad's 84631 smoke funnels): through THE taker —
+    // it keeps a change made here while this read ran, and redraws an open
+    // Maintenance card / Workbench that was drawn from an older copy. The
+    // device copy is saved once, below, with everything else.
+    if (partsRes2 && !partsRes2._failed && typeof window.rrPartsTake === 'function') {
+      window.rrPartsTake(partsRes2.values, { gen: _partsGen0, save: false });
+    } else if (partsRes2 && !partsRes2._failed && typeof window._parsePartsRows === 'function') {
       state.partsData = window._parsePartsRows(partsRes2.values);
       try { if (typeof _updatePartsBadge === 'function') _updatePartsBadge(); } catch (e) {}
     }

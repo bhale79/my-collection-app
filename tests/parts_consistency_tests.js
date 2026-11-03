@@ -158,7 +158,10 @@ ok('the loose rule: a part whose task is not OPEN (gone or done) is loose again'
 const preview = grabFrom(maint, 'window._maintRenderPreview = function (idx, it, pd)');
 ok('…which is exactly the preview\'s rule (linked = on an OPEN task), so card and preview agree', /l\.status === 'open'/.test(preview) && /if \(linked\[p\.id\] \|\| st === 'installed'\) return;/.test(preview));
 const rmCard = grabFrom(maint, 'window._maintPartRemove = async function (partId)');
-ok('the card\'s Remove asks first (v0.9.1819: the app\'s own box), then goes through removePart (the one remover) and redraws card, bench, badge, preview', /await appConfirm\(/.test(rmCard) && /await removePart\(p\.id\)/.test(rmCard) && /_maintRenderTasks\(\); _wbBuild\(\); _wbBadge\(\)/.test(rmCard) && /_maintRenderPreview/.test(rmCard));
+// 2026-11-02 (parts_stale): the four redraws live in ONE place now, _maintPartsRedraw — the card's Remove calls it
+const partsRedraw = grabFrom(maint, 'function _maintPartsRedraw()');
+ok('the card\'s Remove asks first (v0.9.1819: the app\'s own box), then goes through removePart (the one remover) and redraws card, bench, badge, preview', /await appConfirm\(/.test(rmCard) && /await removePart\(p\.id\)/.test(rmCard) && /_maintPartsRedraw\(\)/.test(rmCard)
+   && /_maintRenderTasks\(\)/.test(partsRedraw) && /_wbBuild\(\); _wbBadge\(\)/.test(partsRedraw) && /_maintRenderPreview/.test(partsRedraw));
 const rmPage = grabFrom(pages, 'async function removePart(partId)');
 ok('removePart blanks the WHOLE row (13 cells, A–M) where the lifecycle columns exist', /\['', '', '', '', '', '', '', '', '', '', '', '', ''\]/.test(rmPage) && /\(_wide \? 'M' : 'H'\)/.test(rmPage));
 ok('removePart returns true/false and drops the part from memory at once', /return true;/.test(rmPage) && /return false;/.test(rmPage) && /delete state\.partsData\[k\]/.test(rmPage));
@@ -171,7 +174,7 @@ const wbBuild = grabFrom(maint, 'function _wbBuild()');
 ok('the Workbench shows four tabs — Bench, Toolbox, History, Parts Bin', /_wbTab\(\\'bench\\'\)/.test(wbBuild) && /_wbTab\(\\'toolbox\\'\)/.test(wbBuild) && /_wbTab\(\\'history\\'\)/.test(wbBuild) && /_wbTab\(\\'bin\\'\)/.test(wbBuild));
 ok('the bin tab renders into #wb-bin and _binBuild targets it', /<div id="wb-bin"><\/div>/.test(wbBuild) && /document\.getElementById\('wb-bin'\)/.test(grabFrom(maint, 'function _binBuild()')));
 ok('no separate Parts Bin page or menu entry is created any more', !/nav-partsbin-btn/.test(maint) && !/page-partsbin/.test(maint) && !/page-partsbin/.test(pages));
-ok('"is the bin on screen?" is asked ONE way everywhere (_binVisible)', /window\._binVisible = function/.test(maint) && (pages.match(/_binVisible\(\)/g) || []).length === 2 && (maint.match(/_binVisible\(\)/g) || []).length === 1);
+ok('"is the bin on screen?" is asked ONE way everywhere (_binVisible)', /window\._binVisible = function/.test(maint) && (pages.match(/_binVisible\(\)/g) || []).length === 2 && (maint.match(/_binVisible\(\)/g) || []).length === 2);   // 2026-11-02: + _maintPartsRedraw's window._binVisible()
 ok('the bin tab carries the tooltip the menu entry used to', /Need-a-part checks here first\./.test(wbBuild));
 
 section('Page pins (the trio agrees with itself)');

@@ -11519,8 +11519,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
        !/sheetsUpdate\(state\.personalSheetId, 'Sold!A'/.test(pages));
     // v0.9.2038: the part save joined the guarded writer too (Workbench check
     // A4/A7 — the part is found by its id, its row read at write time).
+    // 2026-11-02 (parts_stale): through THE part row writer, which is the guarded writer checked by the part's id
     ok('saving over an existing part verifies — now through the guarded writer',
-       /rrVerifiedRowUpdate\(state\.personalSheetId, 'Parts Needed', existingRow, 'Parts Needed!A' \+ existingRow \+ ':H' \+ existingRow/.test(pages) &&
+       /rrPartsRowWrite\(ex, 'Parts Needed!A' \+ existingRow \+ ':H' \+ existingRow/.test(pages) &&
+       /rrVerifiedRowUpdate\(state\.personalSheetId, 'Parts Needed', p\.row, range, values, \{ num: p\.id \}/.test(pages) &&
        !/sheetsUpdate\(state\.personalSheetId, 'Parts Needed!A' \+ existingRow/.test(pages));
     ok('removing a part verifies — now through the guarded writer',
        /rrRemoveRowConfirmed\(state\.personalSheetId, 'Parts Needed', rowNum/.test(pages) &&
@@ -15693,14 +15695,18 @@ META_WRITES.length = 0; TOASTS.length = 0;
         // sale off Sold through rrRemoveRowConfirmed, a copy kept like every other.
         // v0.9.2038: 68 → 69 — savePart's edit (app-pages.js) writes through the
         // guarded writer instead of its own inline rrRowStillIs.
-        ok('234 the sweep really landed — 71 sites write through the one guarded writer',
+        ok('234 the sweep really landed — 68 sites write through the one guarded writer',
            // v0.9.2047: 69 → 70 — the contact EDIT joins the guarded set (see
            // the retired exception above): the last remembered-row write that
            // did not check its row.
            // 2026-10-31 (the Bench / "Ordered" state): 70 → 71 — markPartOrdered
            // (app-pages.js) writes the part's Status cell through the guarded
            // writer, checked by the part's id, like markPartBought beside it.
-           wrapped === 71, String(wrapped));
+           // 2026-11-02 (parts_stale): 71 → 68 — the four part writers in app-pages.js
+           // (Bought it, Ordered it, the part edit, Installed's stamp) now share ONE
+           // guarded call, rrPartsRowWrite: four sites became one (−3). Same check,
+           // same id, one place — and a refusal there re-reads the list.
+           wrapped === 68, String(wrapped));
       }
     })();
 

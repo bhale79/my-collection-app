@@ -4912,6 +4912,9 @@ var PARTS_COPY = {
   markDoneYes: 'Mark it done',
   markDoneNo: 'Not yet',
   removeCard: 'Take “%s” off your Parts Needed list?',
+  // 2026-11-02 ([stated] Brad's 84631 smoke funnels): a part write refused because the list on screen
+  // was older than the sheet — the list is re-read and redrawn at once, and this says so.
+  staleFixed: 'That part had already changed on your sheet \u2014 nothing was written. Your Parts list is up to date now.',
   cancel: 'Cancel'
 };
 function _partsEsc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
@@ -4937,6 +4940,7 @@ async function _partsAppendRow(f) {
   await _ensurePartsLifecycleCols();
   var row = _partsRowBuild(f);
   await sheetsAppend(state.personalSheetId, 'Parts Needed!A:M', [row]);
+  if (typeof window !== 'undefined') window._rrPartsGen = rrPartsGen() + 1;   // 2026-11-02: a read already in flight is now older than the list
   return row;
 }
 // v0.9.1856 ([stated] Brad: "it should be part # installed, and part
@@ -4989,6 +4993,91 @@ function _partsFind(partId) {
   if (partId == null || partId === '') return null;
   var id = String(partId);
   return Object.values(state.partsData || {}).find(function (p) { return p && p.id === id; }) || null;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// 2026-11-02 ([stated] Brad: removed three smoke funnels on 84631's card, they
+// came back, and tapping one said "Your Parts list changed somewhere else").
+// WHY: the device copy of the lists (_cachePersonalData — what the app opens
+// with) was never saved after a part changed, so the next open restored the
+// removed parts; a background read that landed later was never drawn on an
+// open card; and a read that started BEFORE a change could land AFTER it and
+// put the old list back. THREE helpers, the only ways the parts list changes:
+//   _partsSaved()          after THIS device changed a part (memory already
+//                          changed): count the change, save the device copy,
+//                          the badge.
+//   rrPartsTake(values, o) a fresh READ of the tab replaces the list — unless a
+//                          part changed on this device while it was reading
+//                          (o.gen); then the device copy and every open
+//                          surface that shows parts redraw (when it differs).
+//   rrPartsRowWrite(...)   THE guarded row writer for a part: verify, write,
+//                          change memory, _partsSaved(); refused → re-read and
+//                          redraw (_partsRecheck), and say the list is current.
+// ════════════════════════════════════════════════════════════════════
+function rrPartsGen() { return (typeof window !== 'undefined' && window._rrPartsGen) || 0; }
+function _partsSaved() {
+  if (typeof window !== 'undefined') window._rrPartsGen = rrPartsGen() + 1;
+  try { if (typeof _cachePersonalData === 'function') _cachePersonalData(); } catch (e) {}
+  try { if (typeof _updatePartsBadge === 'function') _updatePartsBadge(); } catch (e) {}
+}
+// every surface that shows parts, redrawn from memory (the Maintenance card,
+// the Workbench, the bin, the card preview — maintenance.js owns those — and
+// the Parts Needed page)
+function _partsRedrawOpen() {
+  try { if (typeof window._maintPartsRedraw === 'function') window._maintPartsRedraw(); } catch (e) {}
+  try { if (document.getElementById('parts-list') && typeof _renderPartsList === 'function') _renderPartsList(); } catch (e) {}
+}
+// o: { gen: rrPartsGen() taken BEFORE the read started, save: false when the
+// caller saves the device copy itself, redraw: false when it draws itself }.
+// Returns false when the read was older than the list (nothing replaced).
+function rrPartsTake(values, o) {
+  o = o || {};
+  if (o.gen !== undefined && o.gen !== null && rrPartsGen() !== o.gen) {
+    console.warn('[Parts] a part changed on this device while the list was being read — keeping the list in hand');
+    return false;
+  }
+  var before = '';
+  try { before = JSON.stringify(state.partsData || {}); } catch (e) {}
+  state.partsData = _parsePartsRows(values);
+  var changed = true;
+  try { changed = JSON.stringify(state.partsData) !== before; } catch (e) {}
+  if (o.save !== false) { try { if (typeof _cachePersonalData === 'function') _cachePersonalData(); } catch (e) {} }
+  try { if (typeof _updatePartsBadge === 'function') _updatePartsBadge(); } catch (e) {}
+  if (changed && o.redraw !== false) _partsRedrawOpen();
+  return true;
+}
+// A part write was refused or did not land: read the list again and redraw.
+// Returns true when the list on screen WAS out of date (the part is gone or
+// sits on another row now) — then, unless quiet, it says the list is current.
+async function _partsRecheck(partId, quiet) {
+  try {
+    var was = _partsFind(partId);
+    var wasRow = was ? was.row : 0;
+    var gen0 = rrPartsGen();
+    var res = await sheetsGet(state.personalSheetId, 'Parts Needed!A3:M');
+    if (!rrPartsTake(res && res.values, { gen: gen0 })) return false;
+    var now = _partsFind(partId);
+    var stale = !now || now.row !== wasRow;
+    if (stale && !quiet && typeof showToast === 'function') showToast(PARTS_COPY.staleFixed, 6000, true);
+    return stale;
+  } catch (e) {
+    // offline / signed out: the writer's own message stands — a re-check never turns a refusal into an error
+    console.warn('[Parts] could not re-read the list after a refused write:', e && e.message);
+    return false;
+  }
+}
+// THE guarded writer for one part's row. apply() changes the part in memory
+// after the write lands. Returns true when it landed; false when refused (the
+// list has been re-read and redrawn). A failed write still throws, as before.
+async function rrPartsRowWrite(p, range, values, apply, opts) {
+  opts = opts || {};
+  if (!(await rrVerifiedRowUpdate(state.personalSheetId, 'Parts Needed', p.row, range, values, { num: p.id }, opts.what || 'Parts list'))) {
+    await _partsRecheck(p.id, !!opts.quiet);
+    return false;
+  }
+  if (typeof apply === 'function') apply();
+  _partsSaved();
+  return true;
 }
 // "Is this part already on the list for this unit?" — same unit (inventory
 // id when there is one, else item number with no inventory id), same part
@@ -5045,6 +5134,8 @@ if (typeof window !== 'undefined') {
   window._partsIsOpen = _partsIsOpen; window._partsOpenList = _partsOpenList;
   window._partsSplitTyped = _partsSplitTyped; window._partsLooksLikeNum = _partsLooksLikeNum;
   window._partsTaskLabel = _partsTaskLabel; window._partsChooser = _partsChooser; window._partsOpenCard = _partsOpenCard;
+  window.rrPartsGen = rrPartsGen; window._partsSaved = _partsSaved; window._partsRedrawOpen = _partsRedrawOpen;
+  window.rrPartsTake = rrPartsTake; window._partsRecheck = _partsRecheck; window.rrPartsRowWrite = rrPartsRowWrite;
 }
 
 async function buildPartsPage() {
@@ -5065,8 +5156,9 @@ async function buildPartsPage() {
   var _readFailed = false;
   try {
     await _ensurePartsTab();
+    var _gen0 = rrPartsGen();
     var res = await sheetsGet(state.personalSheetId, 'Parts Needed!A3:M');
-    state.partsData = _parsePartsRows(res.values);
+    rrPartsTake(res.values, { gen: _gen0 });   // 2026-11-02: the ONE taker — saves the device copy, redraws the card when it changed
   } catch (e) {
     _readFailed = true;
     console.warn('[Parts] read failed — keeping the list already loaded:', e && e.message);
@@ -5186,9 +5278,8 @@ async function markPartBought(partId) {
   var today = rrToday();
   try {
     if (typeof _ensurePartsLifecycleCols === 'function') await _ensurePartsLifecycleCols();
-    if (!(await rrVerifiedRowUpdate(state.personalSheetId, 'Parts Needed', rowNum,
-        'Parts Needed!I' + rowNum + ':J' + rowNum, [['bought', today]], { num: p.id }, 'Parts list'))) return false;
-    p.status = 'bought'; p.dateBought = today;
+    if (!(await rrPartsRowWrite(p, 'Parts Needed!I' + rowNum + ':J' + rowNum, [['bought', today]],
+        function () { p.status = 'bought'; p.dateBought = today; }))) return false;
     _renderPartsList();
     if (typeof _binVisible === 'function' && _binVisible()) _binBuild();   // v0.9.1748: the drawer page shows it as spoken for
     if (typeof showToast === 'function') showToast('\u2713 Marked bought \u2014 it\u2019s in the drawer');
@@ -5211,9 +5302,8 @@ function markPartOrdered(partId, btn) {
     var rowNum = p.row;
     try {
       if (typeof _ensurePartsLifecycleCols === 'function') await _ensurePartsLifecycleCols();
-      if (!(await rrVerifiedRowUpdate(state.personalSheetId, 'Parts Needed', rowNum,
-          'Parts Needed!I' + rowNum + ':I' + rowNum, [['ordered']], { num: p.id }, 'Parts list'))) return false;
-      p.status = 'ordered';
+      if (!(await rrPartsRowWrite(p, 'Parts Needed!I' + rowNum + ':I' + rowNum, [['ordered']],
+          function () { p.status = 'ordered'; }))) return false;
       _renderPartsList();
       if (typeof showToast === 'function') showToast(RR_PART_STATUS.toast);
       return true;
@@ -5397,7 +5487,7 @@ async function savePart(existingId) {
       // NOW (v0.9.2038: read off the part found by its id).
       var existingRow = ex.row;
       var row = [_t(id), rrSheetText(desc), _t(partNum), _t(forItem), _t(forInv), photoLink, rrSheetText(notes), _t(ex.dateAdded || rrToday())];
-      if (!(await rrVerifiedRowUpdate(state.personalSheetId, 'Parts Needed', existingRow, 'Parts Needed!A' + existingRow + ':H' + existingRow, [row], { num: id }, 'Parts list'))) return;
+      if (!(await rrPartsRowWrite(ex, 'Parts Needed!A' + existingRow + ':H' + existingRow, [row], null))) return;
     } else {
       await _partsAppendRow({ id: id, description: desc, partNum: partNum, forItem: forItem, forInv: forInv, photo: photoLink, notes: notes });   // v0.9.1753: the one appender (A–M)
     }
@@ -5426,10 +5516,13 @@ async function removePart(partId) {
   var _wide = (typeof _maintIsOwner === 'function' && _maintIsOwner() && typeof _ensurePartsLifecycleCols === 'function') ? await _ensurePartsLifecycleCols() : false;
   var _range = 'Parts Needed!A' + rowNum + ':' + (_wide ? 'M' : 'H') + rowNum;
   var _blank = [_wide ? ['', '', '', '', '', '', '', '', '', '', '', '', ''] : ['', '', '', '', '', '', '', '']];
-  if (!(await rrRemoveRowConfirmed(state.personalSheetId, 'Parts Needed', rowNum, _range, _blank, { num: _expId || '' }, 'Parts list'))) return false;
+  if (!(await rrRemoveRowConfirmed(state.personalSheetId, 'Parts Needed', rowNum, _range, _blank, { num: _expId || '' }, 'Parts list'))) {
+    await _partsRecheck(_expId);   // 2026-11-02: refused because the list was old → re-read, redraw, say so; offline → its own message stands
+    return false;
+  }
   // the in-memory list drops it at once, so the card, bench, preview and badge all redraw right
   Object.keys(state.partsData || {}).forEach(function (k) { if (state.partsData[k] && state.partsData[k].id === _expId) delete state.partsData[k]; });
-  if (typeof _updatePartsBadge === 'function') _updatePartsBadge();
+  _partsSaved();   // 2026-11-02: and the device copy forgets it too — the next open must not bring it back
   if (typeof showToast === 'function') showToast('Part removed');
   buildPartsPage();
   return true;
@@ -5580,12 +5673,11 @@ async function _savePartInstalled(partId) {
     // delete-on-install behavior — their app is unchanged.
     if (typeof _maintIsOwner === 'function' && _maintIsOwner()) {
       if (typeof _ensurePartsLifecycleCols === 'function') await _ensurePartsLifecycleCols();
-      if (!(await rrVerifiedRowUpdate(state.personalSheetId, 'Parts Needed', rowNum,
-          'Parts Needed!I' + rowNum + ':L' + rowNum, [['installed', p.dateBought || '', date, price || '']], { num: p.id }, 'Parts list'))) {
+      if (!(await rrPartsRowWrite(p, 'Parts Needed!I' + rowNum + ':L' + rowNum, [['installed', p.dateBought || '', date, price || '']],
+          function () { p.status = 'installed'; p.dateInstalled = date; if (price) p.pricePaid = price; }, { quiet: true }))) {
         if (typeof showToast === 'function') showToast('The line was added to ' + pd.itemNum + '\u2019s notes, but your Parts list did not update \u2014 refresh and press Installed again (the line is not added twice).', 6000, true);
         return;
       }
-      p.status = 'installed'; p.dateInstalled = date; if (price) p.pricePaid = price;
       if (typeof _binVisible === 'function' && _binVisible()) _binBuild();   // v0.9.1748: it leaves the drawer
       var _logged = (typeof window._maintLogPartInstalled === 'function') ? await window._maintLogPartInstalled(pd.inventoryId, pd.itemNum, desc, partNum, vendor ? ('self — from ' + vendor) : 'self') : true;   // v0.9.1654: the Workbench auto-trail
       if (_logged === false) _origNote += ' \u2014 but the service-history line did not save; add it from the item\u2019s Service history';

@@ -3049,11 +3049,12 @@
     var partRow = p.row;
     var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
     if (typeof _ensurePartsLifecycleCols === 'function') await _ensurePartsLifecycleCols();
-    var ok = await rrVerifiedRowUpdate(state.personalSheetId, 'Parts Needed', partRow, 'Parts Needed!M' + partRow, [[_t(taskId || '')]], { num: p.id }, 'Parts Needed');
+    // 2026-11-02: through THE part row writer — the device copy is saved, and a refusal re-reads the list
+    var ok = (typeof rrPartsRowWrite === 'function')
+      ? await rrPartsRowWrite(p, 'Parts Needed!M' + partRow, [[_t(taskId || '')]], function () { p.taskId = String(taskId || ''); })
+      : false;
     if (!ok) return false;
-    p.taskId = String(taskId || '');
-    _maintRenderTasks(); _wbBuild(); _wbBadge();
-    if (typeof _renderPartsList === 'function' && document.getElementById('parts-list')) _renderPartsList();
+    _maintPartsRedraw();
     return true;
   }
   window._maintPartSetTask = _maintPartSetTask;
@@ -3307,19 +3308,44 @@
   // v0.9.1676: the part's lifecycle from the task card — same writers the
   // Parts Needed page uses (markPartBought / markPartInstalled in
   // app-pages.js), then the card and the detail-page preview redraw.
+  // 2026-11-02 ([stated] Brad's 84631 smoke funnels): THE redraw of every
+  // Maintenance surface that shows parts — the card's tasks, the Workbench and
+  // its badge, the bin when it is open, the card preview. Called after a part
+  // changes here AND when a fresh read of the list lands (rrPartsTake,
+  // app-pages.js), so a card drawn from an old copy corrects itself. If the
+  // person is typing in the card (a task's notes), the card waits until they
+  // leave the box — its notes save on leaving — so the redraw never eats typing.
+  function _maintPartsRedraw() {
+    var tasksEl = document.getElementById('maint-tasks');
+    var ae = document.activeElement;
+    var typing = !!ae && (ae.tagName === 'TEXTAREA' || (ae.tagName === 'INPUT' && /^(text|search|number|tel|email|url|)$/i.test(ae.getAttribute('type') || '')));
+    if (tasksEl && typing && tasksEl.contains(ae)) {
+      if (!tasksEl._rrPartsRedrawWaiting) {
+        tasksEl._rrPartsRedrawWaiting = true;
+        tasksEl.addEventListener('focusout', function _later() {
+          tasksEl.removeEventListener('focusout', _later);
+          setTimeout(function () { tasksEl._rrPartsRedrawWaiting = false; _maintPartsRedraw(); }, 0);
+        });
+      }
+    } else {
+      try { _maintRenderTasks(); } catch (e) { console.warn('[Maint] card redraw', e && e.message); }
+    }
+    try { _wbBuild(); _wbBadge(); } catch (e) { console.warn('[Maint] bench redraw', e && e.message); }
+    try { if (window._binVisible && window._binVisible()) _binBuild(); } catch (e) {}
+    try { if (_previewArgs && document.getElementById('maint-preview')) window._maintRenderPreview(_previewArgs.idx, _previewArgs.it, _previewArgs.pd); } catch (e) {}
+  }
+  window._maintPartsRedraw = _maintPartsRedraw;
   // v0.9.2038 (A4): all three by the part's id
   window._maintPartBought = async function (partId) {
     if (typeof markPartBought !== 'function') return;
     await markPartBought(partId);
-    _maintRenderTasks();
-    if (_previewArgs && document.getElementById('maint-preview')) window._maintRenderPreview(_previewArgs.idx, _previewArgs.it, _previewArgs.pd);
+    _maintPartsRedraw();
   };
   // 2026-10-31: "Ordered it" on a part line — the Parts Needed page's ONE writer (markPartOrdered), then the card, bench and preview redraw
   window._maintPartOrdered = async function (partId, btn) {
     if (typeof markPartOrdered !== 'function') return;
     await markPartOrdered(partId, btn);
-    _maintRenderTasks(); _wbBuild();
-    if (_previewArgs && document.getElementById('maint-preview')) window._maintRenderPreview(_previewArgs.idx, _previewArgs.it, _previewArgs.pd);
+    _maintPartsRedraw();
   };
   window._maintPartInstalled = function (partId) {
     if (typeof markPartInstalled === 'function') markPartInstalled(partId, { onCard: true });   // its Save calls _maintLogPartInstalled → card redraws; v0.9.1753: the card is already open, don't reopen it
@@ -3330,9 +3356,8 @@
     if (!p || typeof removePart !== 'function') return;
     var copy = window.PARTS_COPY || {};
     if (!(await appConfirm(String(copy.removeCard || 'Take \u201c%s\u201d off your Parts Needed list?').replace('%s', rrEsc(p.description || p.partNum || 'part')), { title: 'Take it off the list', ok: 'Take it off', danger: true }))) return;
-    if (!(await removePart(p.id))) return;
-    _maintRenderTasks(); _wbBuild(); _wbBadge();
-    if (_previewArgs && document.getElementById('maint-preview')) window._maintRenderPreview(_previewArgs.idx, _previewArgs.it, _previewArgs.pd);
+    if (!(await removePart(p.id))) return;   // refused → removePart has re-read the list and redrawn this card
+    _maintPartsRedraw();
   };
 
   // v0.9.1670 (Brad): notes save BY THEMSELVES — a pause in typing or

@@ -94,8 +94,10 @@ ok('an empty search shows the bin\'s loose spares (capped at 8) instead of "type
 
 section('ONE column-M writer, ONE log-row remover');
 const setTask = grab('async function _maintPartSetTask(partId, taskId)');   // v0.9.2038: the part by its id; the row read off it at write time
-ok('_maintPartSetTask writes ONLY column M of Parts Needed, verified', /'Parts Needed!M' \+ partRow/.test(setTask) && /rrVerifiedRowUpdate\(/.test(setTask) && !/sheetsAppend/.test(setTask));
-ok('…and keeps the in-memory row in step, then redraws card, bench, badge', /p\.taskId = String\(taskId \|\| ''\)/.test(setTask) && /_maintRenderTasks\(\); _wbBuild\(\); _wbBadge\(\)/.test(setTask));
+// 2026-11-02 (parts_stale): through THE part row writer (rrPartsRowWrite — verified by the part's id,
+// the device copy saved) and THE redraw (_maintPartsRedraw — card, bench, badge, preview)
+ok('_maintPartSetTask writes ONLY column M of Parts Needed, verified', /'Parts Needed!M' \+ partRow/.test(setTask) && /rrPartsRowWrite\(/.test(setTask) && !/sheetsAppend/.test(setTask));
+ok('…and keeps the in-memory row in step, then redraws card, bench, badge', /p\.taskId = String\(taskId \|\| ''\)/.test(setTask) && /_maintPartsRedraw\(\)/.test(setTask));
 const attach = grab('window._maintPopAttach = async function (partId, taskId)');
 const move = grab('window._maintPartMove = async function (partId, taskId, sel)');
 const unlink = grab('async function _unlinkTaskParts(logId)');   // v0.9.2038 (A8): ONE unlinker, Remove task and the history's Remove
