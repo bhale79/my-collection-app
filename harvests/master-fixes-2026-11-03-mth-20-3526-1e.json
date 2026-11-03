@@ -1,0 +1,84 @@
+{
+ "what": "Master Version 2.75 — MTH O: (1) NEW row 20-3526-1E, the 4-6-4 Dreyfuss Hudson steam engine (Proto-Sound 3.0, Hi-Rail wheels, Premier, 2014) that comes with the 20th Century Limited streamlined passenger set 20-3526-1 — MTH numbers the engine's own box 20-3526-1E (read off a collector's box label, 2026-11-03); the catalog had no row for it, so his engine saved as Lionel. Road Name is plain \"New York Central\" (the label's year is too blurry to read; MTH's pages do not say which set is 1938 / 1940). (2) 20-3526-1 Item Type \"Passenger Car\" -> \"Set\" (the July MTH sweep auto-classified the whole set as a car; its sister 20-3525-1 is a Set). New Row ID checked against every Row ID in the master. Row goes at the bottom of the tab; no other cell changes.",
+ "stated": "Brad 2026-11-03 06:53 CT \"yes\" to doing the master edit (add 20-3526-1E, retype 20-3526-1 as a Set) and then the plan",
+ "masterVersion": "2.75",
+ "date": "2026-11-03",
+ "planReadAt": "public CSV export of every master tab 2026-11-03 ~12:55 UTC (166,108 Row IDs); MTH O 32,071 data rows; 20-3526-1 at sheet row 17131 (Row ID YENN7RVN8R); run through the app's own audit rules (tools/master-audit, live main 8514ea4d): MTH O 0 new flags, 0 cleared",
+ "counts": {
+  "cells": 1,
+  "rowsAdded": 1
+ },
+ "cellFormat": "[tab, item number (column A), column header, old, new, sheet row as a hint, Row ID of the row]",
+ "cells": [
+  [
+   "MTH O",
+   "20-3526-1",
+   "Item Type",
+   "Passenger Car",
+   "Set",
+   17131,
+   "YENN7RVN8R"
+  ]
+ ],
+ "mthHeader": [
+  "Item Number",
+  "Item Type",
+  "Sub Type",
+  "Unit",
+  "Powered/Dummy",
+  "Control",
+  "Road Name",
+  "Description",
+  "Gauge",
+  "Year Produced",
+  "Variation",
+  "Variation Description",
+  "Reference Link",
+  "Notes",
+  "Market Value",
+  "Source",
+  "COTT Code",
+  "Original Description",
+  "Category",
+  "Track Power",
+  "MSRP",
+  "UPC / Barcode",
+  "Stamped Markings",
+  "Parts Lists",
+  "Delivery Status",
+  "Row ID"
+ ],
+ "addRows": [
+  {
+   "tab": "MTH O",
+   "row": [
+    "20-3526-1E",
+    "Steam Locomotive",
+    "",
+    "",
+    "",
+    "",
+    "New York Central",
+    "4-6-4 Dreyfuss Hudson Steam Engine w/Proto-Sound 3.0",
+    "O",
+    "2014",
+    "",
+    "Hi-Rail Wheels",
+    "https://mthtrains.com/products/20-3526-1",
+    "Engine and tender from the 20th Century Limited set 20-3526-1; MTH numbers the engine's own box 20-3526-1E. Added 2026-11-03 from a collector's box label.",
+    "",
+    "MTH box label",
+    "",
+    "",
+    "Premier",
+    "3-Rail O",
+    "",
+    "",
+    "",
+    "",
+    "Delivered Oct. 2014",
+    "U7A525KEFF"
+   ]
+  }
+ ]
+}
