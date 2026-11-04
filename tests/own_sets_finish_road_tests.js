@@ -7,7 +7,7 @@
 // Measured on v0.9.2105: the own set's Full Entry saved a nameless, numberless,
 // unmarked My Sets row the reader skipped, and its 2343 became Lionel's F3.
 //
-//   A  Add → Item Type "Set": an MTH set the catalog doesn't list, three pieces
+//   A  Add → Item Type "Lionel Postwar Set" (the label Brad keeps, 2026-11-04): an MTH set the catalog doesn't list, three pieces
 //      (an MTH catalog piece, a number nobody lists, and 2343 — a number a
 //      Lionel postwar item also has) → "My set isn't listed — continue with 3
 //      items" → the form (Continue and Next both refuse with no name; a name
@@ -205,7 +205,7 @@ async function scenario(pg, full) {
     const R = await scenario(pg, true).catch(e => ({ err: String(e && e.stack || e) }));
     if (R.err) { ok('[' + name + '] the road runs', false, R.err); await ctx.close(); continue; }
     const t = (s) => '[' + name + '] ' + s;
-    ok(t('A0 the Item Type choice reads "Set" (any maker)'), R.kindLabel === 'Set', R.kindLabel);
+    ok(t('A0 the Item Type choice reads "Lionel Postwar Set" (Brad 2026-11-04: left alone; other makers use "My Own Set")'), R.kindLabel === 'Lionel Postwar Set', R.kindLabel);
     ok(t('A1 no catalog set picked → "My set isn\'t listed — continue with 3 items"'), /isn.t listed/.test(R.aContText) && /3 items/.test(R.aContText), R.aContText);
     ok(t('A2 → the own-set form: name, number, year and the maker buttons'), R.aStep1 === 'set_ownInfo' && R.aInfoFields, R.aStep1);
     ok(t('A3 its Continue refuses with no name, and says so'), R.aNoName);

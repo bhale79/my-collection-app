@@ -26,7 +26,7 @@
 //      S3 a piece of an own set is looked up only through rrOwnSetRow (Full and
 //         Quick) and saved with no catalog link when it has no row
 //      S4 the My Sets reader keeps a row with no set number
-//      S5 the Item Type choice says "Set", not "Lionel Postwar Set"
+//      S5 the Item Type choice says "Lionel Postwar Set" (Brad 2026-11-04: put back; v2106's plain "Set" is retired)
 //      S6 no catalog set picked → ONE way on, the own-set form
 //      S7 the words live in config.js (RR_OWN_SETS), none says "AI"; removing a
 //         set checks its Inventory ID
@@ -154,7 +154,9 @@ section('S  scans');
   ok('S4 the My Sets reader keeps a row with no set number (its name or Inventory ID keeps it)',
      /if \(!\(r\[0\] \|\| r\[1\] \|\| r\[13\]\) \|\| r\[0\] === 'Set Number'\) return;/.test(ADATA) && !/if \(!r\[0\] \|\| r\[0\] === 'Set Number'\) return;/.test(ADATA));
 
-  ok('S5 the Item Type choice says "Set" — not "Lionel Postwar Set"', /\{ id: 'set',\s+label: 'Set' \}/.test(WIZ) && !/label: 'Lionel Postwar Set'/.test(WIZ));
+  // [stated] Brad 2026-11-04 05:18 CT "This should be left alone!" — the choice is the Lionel Postwar
+  // set catalog; other makers' sets are "My Own Set — not in our catalogs" right under it (v0.9.2107).
+  ok('S5 the Item Type choice says "Lionel Postwar Set" — and "My Own Set" sits beside it', /\{ id: 'set',\s+label: 'Lionel Postwar Set' \}/.test(WIZ) && /id: 'ownset',\s+label: 'My Own Set/.test(WIZ));
 
   const s6 = (w) => /if \(!_resolvedSet\) \{ window\._startOwnSet\(\); return; \}/.test(w) && /RR_OWN_SETS\.continueBtn/.test(w) && !/Continue without set ID/.test(code(w));
   ok('S6 no catalog set picked → one way on: the continue button opens the own-set form', s6(WIZ));

@@ -1309,10 +1309,11 @@ window._soldPickSrcSet = function (src) {
 const _WIZ_KINDS = [
   { id: 'cataloged', label: 'Cataloged Item' },
   // v0.9.994 (Brad): Lionel Postwar is the only era with set-composition data.
-  // 2026-11-03 (PLAN_2026-11-03_OWN_SETS): any maker's set can be added now —
-  // a set the catalog doesn't list is the collector's own — so the choice no
-  // longer says "Lionel Postwar" (an MTH collector would never pick it).
-  { id: 'set',       label: 'Set' },
+  // v0.9.2106 renamed this to plain "Set"; [stated] Brad 2026-11-04 05:18 CT:
+  // "This should be left alone!" → 05:20 "that should stay the Lionel Postwar
+  // set". It is the Lionel Postwar set catalog; any other maker's set is the
+  // choice below it ("My Own Set — not in our catalogs"). Do not rename again.
+  { id: 'set',       label: 'Lionel Postwar Set' },
   // 2026-11-03 ([stated] Brad 22:26 CT: "add a custom set, like add an item"):
   // the set-side partner of "Manual — item not in our catalogs". Opens the set
   // flow with the own-set path already chosen (_wizSetKind 'ownset'): the
