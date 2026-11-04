@@ -158,18 +158,20 @@ function _collectAllOwnedItems() {
     const key = entry[0], s = entry[1];
     if (!s) return;
     const extras = [];
+    const _isOwnSet = s.setId === 'OWN-SET';
+    if (_isOwnSet) extras.unshift('Your set');
     if (s.condition) extras.push('Condition ' + s.condition);
     if (s.hasSetBox === 'Yes') extras.push('✓ Has set box');
     if (s.estValue) extras.push(_currencySymbol() + parseFloat(s.estValue).toLocaleString());
     out.push({
       type:    'sets',
       key:     'set|' + key,
-      title:   String(s.setNum || s.itemNum || ''),
-      subtitle: s.setName || s.description || '',
+      title:   String(s.setNum || s.setName || '(unnamed set)'),
+      subtitle: (s.setNum && s.setName) ? s.setName : (s.description || ''),
       extras:  extras.join(' · '),
       date:    s.dateAcquired || s.datePurchased || '',
       _savedAt: s._savedAt || 0,
-      openFn:  '',
+      openFn:  "showNonItemDetailPage('sets', '" + (key + '').replace(/'/g, "\\'") + "')",
     });
   });
 

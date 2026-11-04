@@ -98,11 +98,17 @@ function getSteps(tab) {
           title: 'Identify your set',
           type: 'setComponents' },
 
+        // Own set \u2014 name / number / year / maker (skipped for catalog-matched sets)
+        { id: 'set_ownInfo',
+          title: "My set isn\u2019t listed \u2014 tell us about it",
+          type: 'ownSetInfo',
+          skipIf: d => !d._ownSet },
+
         // One entry mode question for the whole set
         { id: 'set_entryMode',
           title: d => {
             const s = d._resolvedSet;
-            const label = s ? 'Set ' + s.setNum : 'your set';
+            const label = s ? 'Set ' + s.setNum : (d._ownSetName || 'your set');
             return 'Set details \u2014 ' + label;
           },
           type: 'setEntryMode' },
@@ -120,7 +126,7 @@ function getSteps(tab) {
             const s = d._resolvedSet;
             const items = d._setFinalItems || [];
             const idx = d._setItemIndex || 0;
-            return 'Adding items from ' + (s ? 'Set ' + s.setNum : 'your set') + ' (' + (idx + 1) + ' of ' + items.length + ')';
+            return 'Adding items from ' + (s ? 'Set ' + s.setNum : (d._ownSetName || 'your set')) + ' (' + (idx + 1) + ' of ' + items.length + ')';
           },
           type: 'setWalkItems',
           skipIf: d => d._setEntryMode === 'quick' },
@@ -152,7 +158,7 @@ function getSteps(tab) {
         { id: 'set_confirm',
           title: d => {
             const count = (d._setItemsSaved || []).length;
-            const setNum = d._resolvedSet ? d._resolvedSet.setNum : (d.set_num || 'Set');
+            const setNum = d._resolvedSet ? d._resolvedSet.setNum : (d._ownSetNum || d.set_num || 'Set');
             return count > 0 ? `${setNum} — ${count} item${count!==1?'s':''} ready` : 'Review your set';
           },
           type: 'confirm' },

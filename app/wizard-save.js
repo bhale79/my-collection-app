@@ -332,12 +332,13 @@ function generatePaperItemNum(paperType, year) {
 async function _quickEntrySaveSet(condition, worth, photoFiles) {
   const d = wizard.data;
   const resolvedSet = d._resolvedSet;
+  const isOwnSet = !!d._ownSet;
   const items = d._setFinalItems || (resolvedSet ? resolvedSet.items : []);
-  const setNum = resolvedSet ? resolvedSet.setNum : (d.set_num || '');
-  const groupId = rrAddToGroupId(d) || d._setGroupId || ('SET-' + setNum + '-' + Date.now());   // v0.9.2029
+  const setNum = isOwnSet ? (d._ownSetNum || d.set_num || '') : (resolvedSet ? resolvedSet.setNum : (d.set_num || ''));
+  const groupId = rrAddToGroupId(d) || d._setGroupId || ((isOwnSet ? 'OWN-' : 'SET-') + setNum + '-' + Date.now());   // v0.9.2029
   d._setGroupId = groupId;
-  const setId = 'SET-' + setNum;
-  const year = resolvedSet ? (resolvedSet.year || '') : '';
+  const setId = isOwnSet ? 'OWN-SET' : ('SET-' + setNum);
+  const year = isOwnSet ? (d._ownSetYear || '') : (resolvedSet ? (resolvedSet.year || '') : '');
 
   if (!items.length) { showToast('No items to save'); return; }
 
@@ -425,8 +426,8 @@ async function _quickEntrySaveSet(condition, worth, photoFiles) {
   // Write My Sets record
   try {
     const mySetsRow = [
-      setNum,                              // A: Set Number
-      resolvedSet ? (resolvedSet.setName || '') : '', // B: Set Name
+      setNum,                                                                           // A: Set Number
+      isOwnSet ? (d._ownSetName || '') : (resolvedSet ? (resolvedSet.setName || '') : ''), // B: Set Name
       year,                                // C: Year
       String(condition),                   // D: Condition
       worth,                               // E: Est Worth
@@ -443,7 +444,7 @@ async function _quickEntrySaveSet(condition, worth, photoFiles) {
     const _msApRow = await sheetsAppend(state.personalSheetId, 'My Sets!A:A', [mySetsRow]);   // v0.9.1196: keep the REAL row
     const _msInvId = mySetsRow[13];
     state.mySetsData[_msInvId] = {
-      row: _msApRow || 0, setNum, setName: resolvedSet ? (resolvedSet.setName || '') : '',
+      row: _msApRow || 0, setNum, setName: isOwnSet ? (d._ownSetName || '') : (resolvedSet ? (resolvedSet.setName || '') : ''),
       year, condition: String(condition), estWorth: worth, datePurchased: '',
       groupId, setId, hasSetBox: d.set_hasBox || 'No', boxCondition: '',
       photoLink, notes: '', quickEntry: true, inventoryId: _msInvId,
@@ -666,7 +667,8 @@ async function saveSet() {
   // Items were already saved one-by-one via saveWizardItem.
   // This function now only records set box notes and closes.
   const d = wizard.data;
-  const setNum  = d._resolvedSet ? d._resolvedSet.setNum : (d.set_num || '');
+  const isOwnSet = !!d._ownSet;
+  const setNum  = isOwnSet ? (d._ownSetNum || d.set_num || '') : (d._resolvedSet ? d._resolvedSet.setNum : (d.set_num || ''));
   const groupId = d._setGroupId || '';
   const saved   = d._setItemsSaved || [];
 
@@ -692,11 +694,11 @@ async function saveSet() {
   // Write My Sets record
   try {
     const _resolvedSet = d._resolvedSet;
-    const year = _resolvedSet ? (_resolvedSet.year || '') : '';
-    const setId = d._setGroupId ? 'SET-' + setNum : '';
+    const year = isOwnSet ? (d._ownSetYear || '') : (_resolvedSet ? (_resolvedSet.year || '') : '');
+    const setId = isOwnSet ? 'OWN-SET' : (d._setGroupId ? 'SET-' + setNum : '');
     const mySetsRow = [
       setNum,                              // A: Set Number
-      _resolvedSet ? (_resolvedSet.setName || '') : '', // B: Set Name
+      isOwnSet ? (d._ownSetName || '') : (_resolvedSet ? (_resolvedSet.setName || '') : ''), // B: Set Name
       year,                                // C: Year
       d._setCondition ? String(d._setCondition) : '', // D: Condition
       d._setWorth || '',                   // E: Est Worth
@@ -713,7 +715,7 @@ async function saveSet() {
     const _msApRow2 = await sheetsAppend(state.personalSheetId, 'My Sets!A:A', [mySetsRow]);   // v0.9.1196
     const _msInvId2 = mySetsRow[13];
     state.mySetsData[_msInvId2] = {
-      row: _msApRow2 || 0, setNum, setName: _resolvedSet ? (_resolvedSet.setName || '') : '',
+      row: _msApRow2 || 0, setNum, setName: isOwnSet ? (d._ownSetName || '') : (_resolvedSet ? (_resolvedSet.setName || '') : ''),
       year, condition: mySetsRow[3], estWorth: d._setWorth || '', datePurchased: '',
       groupId, setId, hasSetBox: d.set_hasBox || 'No', boxCondition: d.set_boxCond || '',
       photoLink: '', notes: d.set_notes || '', quickEntry: false, inventoryId: _msInvId2,

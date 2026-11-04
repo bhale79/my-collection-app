@@ -103,8 +103,8 @@ window._catalogDisplayLabel = function (year, type, fallback) {
         { col: 'M', key: 'quickEntry', boolToYesNo: true },
         { col: 'N', key: 'inventoryId' },
       ],
-      editFields: [
-        { key: 'setNum',        label: 'Set #',                type: 'text',     locked: true },
+      editFields: function(e) { return [
+        { key: 'setNum',        label: 'Set #',                type: 'text',     locked: !(e.setId === 'OWN-SET') },
         { key: 'setName',       label: 'Set Name',             type: 'text' },
         { key: 'year',          label: 'Year',                 type: 'text' },
         { key: 'condition',     label: 'Condition (1-10)',     type: 'number',   min: 1, max: 10 },
@@ -113,7 +113,7 @@ window._catalogDisplayLabel = function (year, type, fallback) {
         { key: 'boxCondition',  label: 'Box Condition (1-10)', type: 'number',   min: 1, max: 10 },
         { key: 'datePurchased', label: 'Date Purchased',       type: 'date' },
         { key: 'notes',         label: 'Notes',                type: 'textarea' },
-      ],
+      ]; },
       // Photo upload — Sets are dynamic. The slots are: one for the
       // set box + one per item in the master set definition.
       photoRootName:   'Set Photos',

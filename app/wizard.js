@@ -3420,6 +3420,62 @@ function renderWizardStep() {
     }, 50);
 
 
+  } else if (s.type === 'ownSetInfo') {
+    // ── OWN SET INFO — name / number / year / maker ──────────────────────────────
+    body.innerHTML = '';
+    const _od = wizard.data;
+    function _ownField(id, lbl, ph, val) {
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'margin-bottom:0.75rem';
+      const l = document.createElement('label');
+      l.style.cssText = 'display:block;font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem;font-weight:600';
+      l.textContent = lbl;
+      const inp = document.createElement('input');
+      inp.type = 'text'; inp.id = id; inp.placeholder = ph; inp.value = val || '';
+      inp.style.cssText = 'width:100%;padding:0.65rem 0.9rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.92rem;box-sizing:border-box';
+      wrap.appendChild(l); wrap.appendChild(inp);
+      return wrap;
+    }
+    body.appendChild(_ownField('own-set-name', 'Set Name *',              'e.g. Polar Express Freight Set', _od._ownSetName || ''));
+    body.appendChild(_ownField('own-set-num',  'Set Number (optional)',   'e.g. 4-8-8004',                 _od._ownSetNum || _od.set_num || ''));
+    body.appendChild(_ownField('own-set-year', 'Year (optional)',         'e.g. 2003',                     _od._ownSetYear || ''));
+    // Maker buttons
+    const _mkLbl = document.createElement('div');
+    _mkLbl.style.cssText = 'font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem;font-weight:600';
+    _mkLbl.textContent = 'Who made it? *';
+    body.appendChild(_mkLbl);
+    const _mkRow = document.createElement('div');
+    _mkRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.9rem';
+    const _curMaker = _od._ownSetMaker || '';
+    ['Lionel','MTH','American Flyer','Atlas','Marx','Williams','K-Line','Weaver','Other / Unknown'].forEach(m => {
+      const mb = document.createElement('button');
+      mb.type = 'button';
+      const sel = (_curMaker === m);
+      mb.style.cssText = 'padding:0.4rem 0.75rem;border-radius:20px;border:1.5px solid '+(sel?'#1e3a5f':'var(--border)')+';background:'+(sel?'#1e3a5f':'var(--surface2)')+';color:'+(sel?'#fff':'var(--text-mid)')+';font-family:var(--font-body);font-size:0.78rem;font-weight:600;cursor:pointer';
+      mb.textContent = m;
+      mb.onclick = () => { wizard.data._ownSetMaker = m; renderWizardStep(); };
+      _mkRow.appendChild(mb);
+    });
+    body.appendChild(_mkRow);
+    // Continue
+    const _ownCont = document.createElement('button');
+    _ownCont.style.cssText = 'width:100%;padding:0.85rem;border-radius:10px;border:none;background:#1e3a5f;color:#fff;font-family:var(--font-body);font-size:0.92rem;font-weight:600;cursor:pointer;margin-top:0.25rem';
+    _ownCont.textContent = 'Continue →';
+    _ownCont.onclick = () => {
+      const nm = (document.getElementById('own-set-name')?.value || '').trim();
+      const nu = (document.getElementById('own-set-num')?.value  || '').trim();
+      const yr = (document.getElementById('own-set-year')?.value || '').trim();
+      if (!nm) { if (typeof showToast==='function') showToast('⚠ Please enter a set name'); return; }
+      if (!wizard.data._ownSetMaker) { if (typeof showToast==='function') showToast('⚠ Please select a maker'); return; }
+      wizard.data._ownSetName = nm;
+      wizard.data._ownSetNum  = nu;
+      wizard.data._ownSetYear = yr;
+      // Feed maker into _searchFilterManufacturer — _rrAddChosenMaker reads it for every item
+      wizard.data._searchFilterManufacturer = wizard.data._ownSetMaker;
+      wizardAdvance();
+    };
+    body.appendChild(_ownCont);
+
   } else if (s.type === 'setEntryMode') {
     // ── SET ENTRY MODE — condition slider + est worth + set box + QE/Full buttons ──
     const _seD = wizard.data;
@@ -3436,9 +3492,12 @@ function renderWizardStep() {
     // ── Set info banner (tightened) ──
     const banner = document.createElement('div');
     banner.style.cssText = 'background:var(--surface2);border:1px solid var(--accent2);border-radius:8px;padding:0.4rem 0.75rem';
-    const setLabel = _seSet ? _seSet.setNum + (_seSet.setName ? ' — ' + _seSet.setName : '') : 'Set';
+    const setLabel = _seSet ? _seSet.setNum + (_seSet.setName ? ' — ' + _seSet.setName : '') : (_seD._ownSetName || 'Set');
+    const setSubLabel = _seSet
+      ? (_seItems.length + ' items' + (_seSet.year ? ' · ' + _seSet.year : '') + (_seSet.gauge ? ' · ' + _seSet.gauge : ''))
+      : (_seD._ownSetYear ? _seD._ownSetYear + ' · Your set' : 'Your set — not in catalog');
     banner.innerHTML = '<div style="font-family:var(--font-mono);font-weight:700;color:var(--accent2);font-size:0.88rem;line-height:1.2">' + setLabel + '</div>'
-      + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:2px">' + _seItems.length + ' items · ' + (_seSet && _seSet.year ? _seSet.year : '') + ' · ' + (_seSet && _seSet.gauge ? _seSet.gauge : '') + '</div>';
+      + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:2px">' + setSubLabel + '</div>';
     wrap.appendChild(banner);
 
     // ── Condition slider (tightened) ──
@@ -4594,6 +4653,14 @@ function renderWizardStep() {
         body.appendChild(contBtn);
       }
 
+      // "My set isn't listed" — shown whenever no set is confirmed yet
+      if (!_resolvedSet) {
+        const _ownRow = document.createElement('div');
+        _ownRow.style.cssText = 'text-align:center;margin-top:0.5rem';
+        _ownRow.innerHTML = '<button onclick="window._startOwnSet()" style="border:none;background:none;color:var(--text-dim);font-size:0.78rem;cursor:pointer;text-decoration:underline;font-family:var(--font-body)">My set isn’t listed</button>';
+        body.appendChild(_ownRow);
+      }
+
       // Wire up identify-phase callbacks
       window._setAddEntered = () => {
         const inp = document.getElementById('set-id-input');
@@ -4670,6 +4737,17 @@ function renderWizardStep() {
         if (!wizard.data._dismissedSets) wizard.data._dismissedSets = [];
         sug.forEach(sg => wizard.data._dismissedSets.push(sg.setNum));
         renderWizardStep();
+      };
+      window._startOwnSet = () => {
+        wizard.data._ownSet = true;
+        // Pre-fill set number from whatever the user typed (if anything)
+        if (!wizard.data._ownSetNum && wizard.data.set_num) wizard.data._ownSetNum = wizard.data.set_num;
+        // Carry any manually entered item numbers as the set's item list
+        wizard.data._setFinalItems = [...(wizard.data._enteredNums || [])];
+        wizard.data._setItemIndex  = 0;
+        wizard.data._setGroupId    = 'OWN-' + Date.now();
+        wizard.data._setItemsSaved = [];
+        wizardAdvance();
       };
 
     // ── PHASE 2: DETAIL ───────────────────────────────────────────

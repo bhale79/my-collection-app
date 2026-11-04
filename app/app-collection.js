@@ -371,7 +371,7 @@ function _nonItemDetailEdit(type, key) {
   }
 
   var cfg = (window.NON_ITEM_DETAIL_CONFIG || {})[type];
-  if (!cfg || !Array.isArray(cfg.editFields) || !cfg.editFields.length) {
+  if (!cfg || !cfg.editFields) {
     if (typeof showToast === 'function') showToast('Edit not configured for this type yet.', 3500);
     return;
   }
@@ -383,6 +383,8 @@ function _nonItemDetailEdit(type, key) {
     if (typeof showToast === 'function') showToast('Record not found.', 3000, true);
     return;
   }
+  var _editFields = typeof cfg.editFields === 'function' ? cfg.editFields(entry) : (cfg.editFields || []);
+  if (!_editFields.length) { showToast('Edit not configured for this type yet.', 3500); return; }
 
   // Build the modal
   var ov = document.createElement('div');
@@ -405,7 +407,7 @@ function _nonItemDetailEdit(type, key) {
 
   // Render an input for each editField
   var inputsByKey = {};
-  cfg.editFields.forEach(function(f) {
+  _editFields.forEach(function(f) {
     var wrap = document.createElement('div');
     wrap.style.cssText = 'margin-bottom:0.85rem';
 
@@ -530,7 +532,8 @@ async function _saveNonItemEdit(type, key, entry, cfg, inputsByKey) {
   }
   // Apply input values onto entry (skip locked fields — they retain
   // their existing value since the input is disabled).
-  cfg.editFields.forEach(function(f) {
+  var _ef = typeof cfg.editFields === 'function' ? cfg.editFields(entry) : (cfg.editFields || []);
+  _ef.forEach(function(f) {
     if (f.locked) return;
     var inp = inputsByKey[f.key];
     if (!inp) return;
