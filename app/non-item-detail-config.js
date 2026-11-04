@@ -61,15 +61,21 @@ window._catalogDisplayLabel = function (year, type, fallback) {
     // ── Sets ─────────────────────────────────────────────────────
     sets: {
       label: 'Set',
-      pageTitle:       function(e) { return 'Set ' + (e.setNum || '—'); },
-      subtitle:        function(e) { return e.setName || ''; },
-      typeBadge:       function(e) { return e.gauge ? (e.gauge + ' Gauge') : 'Set'; },
+      // 2026-11-03: the collector's own set (PLAN_2026-11-03_OWN_SETS) may have no number — its name heads the page
+      pageTitle:       function(e) { return e.setNum ? ('Set ' + e.setNum) : (e.setName || 'Set —'); },
+      subtitle:        function(e) { return e.setNum ? (e.setName || '') : ''; },
+      typeBadge:       function(e) {
+        if (typeof rrMySetIsOwn === 'function' && rrMySetIsOwn(e) && typeof RR_OWN_SETS !== 'undefined') return RR_OWN_SETS.listTag;
+        return e.gauge ? (e.gauge + ' Gauge') : 'Set';
+      },
       itemNumDisplay:  function(e) { return e.setNum || ''; },
       year:            function(e) { return e.year || ''; },
       description:     function(e) { return ''; },
       fields: function(e) {
         return [
           { label: 'Year',          val: plain(e.year) },
+          // 2026-11-03: who made the collector's own set — its pieces' maker
+          { label: 'Made by',       val: (typeof rrMySetIsOwn === 'function' && rrMySetIsOwn(e) && typeof rrMySetMaker === 'function') ? plain(rrMySetMaker(e)) : null },
           { label: 'Gauge',         val: plain(e.gauge) },
           { label: 'Condition',     val: e.condition ? (e.condition + '/10') : null },
           { label: 'Est. Worth',    val: money(e.estWorth) },
@@ -122,7 +128,8 @@ window._catalogDisplayLabel = function (year, type, fallback) {
       photoViews: function(e) {
         var views = [{ key: 'BOX', label: 'Set Box' }];
         try {
-          var master = (window.state && Array.isArray(state.setData))
+          // 2026-11-03: the collector's own set is never matched to a catalog set by number
+          var master = (window.state && Array.isArray(state.setData) && !(typeof rrMySetIsOwn === 'function' && rrMySetIsOwn(e)))
             ? state.setData.find(function(s) {
                 return s.setNum === e.setNum && (!e.year || !s.year || s.year === e.year);
               })

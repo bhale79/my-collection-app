@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2105';
+const APP_VERSION = 'v0.9.2106';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -4689,6 +4689,27 @@ const RR_ADD_FILTERS = {
   setRowsMax:  12,
 };
 if (typeof window !== 'undefined') window.RR_ADD_FILTERS = RR_ADD_FILTERS;
+
+// ── 2026-11-03 — YOUR OWN SET (PLAN_2026-11-03_OWN_SETS) ──────────────────────
+// [stated] Brad 16:46 CT: "the ability for users to add their own unlisted sets
+// to My Sets is a real gap" → 17:04 CT "Yes" to the plan; 21:59 CT "yes" to
+// finishing it on top of v0.9.2105. The set catalog is Lionel Postwar only, so
+// every other set is the collector's own. Words the collector sees, here.
+//   mark — the start of the My Sets row's Set ID cell (column H) that says the
+//          set is the collector's own (v0.9.2105 writes 'OWN-SET'), so it is
+//          never matched to a catalog set by its number.
+const RR_OWN_SETS = {
+  continueBtn:  'My set isn\u2019t listed \u2014 continue with {n} item{s} \u2192',
+  listTag:      'Your set',
+  noItems:      'No items saved with this set yet',
+  mark:         'OWN',
+};
+if (typeof window !== 'undefined') window.RR_OWN_SETS = RR_OWN_SETS;
+// Is this My Sets row the collector's own set? Its Set ID (column H) says so.
+function rrMySetIsOwn(ms) {
+  return !!(ms && String(ms.setId || '').indexOf(RR_OWN_SETS.mark + '-') === 0);
+}
+if (typeof window !== 'undefined') window.rrMySetIsOwn = rrMySetIsOwn;
 
 // ═══════════════════════════════════════════════════════════════
 // v0.9.2032 — WHAT IS A PHONE (Bob, York, 2026-10-26: "I have to alternate my

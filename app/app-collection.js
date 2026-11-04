@@ -5186,6 +5186,7 @@ function showRefItemPopup(type, idx) {
     // so we can deep-link "View Full Details" into showNonItemDetailPage.
     var _mySetEntry = Object.entries(state.mySetsData || {}).find(function(ent) {
       var ms = ent[1];
+      if (typeof rrMySetIsOwn === 'function' && rrMySetIsOwn(ms)) return false;   // 2026-11-03: an own set is never this catalog set
       return ms.setNum === s.setNum && (!ms.year || ms.year === s.year);
     });
     var _mySetKey = _mySetEntry ? _mySetEntry[0] : null;

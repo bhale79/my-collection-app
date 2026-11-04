@@ -3000,7 +3000,16 @@ function rrCopyCatalogRow(copy) {
   if (!want) return null;
   try {
     var hit = findMaster(copy.itemNum, copy.variation || '', copy);
-    return (hit && String(hit._era || '') === want) ? hit : null;
+    if (!hit || String(hit._era || '') !== want) return null;
+    // 2026-11-03 (found building PLAN_2026-11-03_OWN_SETS): a copy found by its
+    // ERA alone (no saved Row ID or key) must also agree with the maker saved on
+    // it. An add with no catalog row is saved with an era the collector may
+    // never have chosen (the era on screen, else postwar), so an Atlas item
+    // typed as 6464 would read as Lionel's postwar 6464.
+    if (!copy.masterRowId && !copy.masterKey && copy.manufacturer && typeof rrMakerSame === 'function') {
+      if (!rrMakerSame(rrMakerOf({ row: hit }), String(copy.manufacturer))) return null;
+    }
+    return hit;
   } catch (e) { return null; }
 }
 if (typeof window !== 'undefined') window.rrCopyCatalogRow = rrCopyCatalogRow;
@@ -3041,6 +3050,26 @@ function rrKnownMakers(extra) {
   return out;
 }
 if (typeof window !== 'undefined') { window.rrCopyIsUnlinked = rrCopyIsUnlinked; window.rrKnownMakers = rrKnownMakers; }
+// 2026-11-03 (PLAN_2026-11-03_OWN_SETS): the pieces saved with a My Sets row —
+// the owned copies that carry its Group ID (never matched by a set number).
+function rrMySetItems(ms) {
+  var gid = String((ms && ms.groupId) || '').trim();
+  if (!gid || typeof state === 'undefined' || !state || !state.personalData) return [];
+  return Object.keys(state.personalData).map(function (k) { return state.personalData[k]; })
+    .filter(function (pd) { return pd && pd.owned !== false && String(pd.groupId || '').trim() === gid; });
+}
+// Who made a My Sets row's set: its pieces' maker (the one maker rule). The
+// set catalog has no maker column — the pieces carry it. '' when none is known.
+function rrMySetMaker(ms) {
+  var items = rrMySetItems(ms);
+  for (var i = 0; i < items.length; i++) {
+    var m = '';
+    try { m = rrMakerOf({ copy: items[i] }); } catch (e) { m = ''; }
+    if (m) return m;
+  }
+  return '';
+}
+if (typeof window !== 'undefined') { window.rrMySetItems = rrMySetItems; window.rrMySetMaker = rrMySetMaker; }
 
 // ── Session 121 ─ the era an item belongs to ─────────────────────────────────
 function _itemEraKey(item) {

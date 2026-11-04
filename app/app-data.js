@@ -2991,7 +2991,10 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
 
   // My Sets
   (mySetsRes.values || []).forEach((r, idx) => {
-    if (!r[0] || r[0] === 'Set Number') return;
+    // 2026-11-03 (PLAN_2026-11-03_OWN_SETS): a set the catalog doesn't list may
+    // have no number — its name or its Inventory ID keeps the row (rows saved
+    // that way were read as empty and never shown).
+    if (!(r[0] || r[1] || r[13]) || r[0] === 'Set Number') return;
     const rowNum = idx + 3;
     const _msInvId = String(r[13] || '');
     const key = _msInvId || `${r[0]}|${String(r[2] || '')}|${rowNum}`;

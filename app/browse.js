@@ -3123,9 +3123,20 @@ function renderSetsTab() {
   // buttons can dispatch to _collection* handlers correctly.
   const ownedSets = {};       // keyed by setNum lowercase -> [mySet entries]
   const mySetKeyByEntry = new Map();
+  // 2026-11-03 (PLAN_2026-11-03_OWN_SETS): the collector's OWN sets (a set the
+  // catalog doesn't list) are never matched to a catalog set by their number —
+  // they are listed on their own below. So is any older row whose number the
+  // catalog doesn't have (it used to vanish from this list).
+  const _catSetNums = new Set((state.setData || []).map(function (s) { return String(s.setNum || '').toLowerCase(); }));
+  const ownRows = [];   // [key, mySet]
   Object.entries(state.mySetsData || {}).forEach(function(entry) {
     const k = entry[0], ms = entry[1];
+    if (!ms) return;
     const setKey = (ms.setNum || '').toLowerCase();
+    if ((typeof rrMySetIsOwn === 'function' && rrMySetIsOwn(ms)) || !setKey || !_catSetNums.has(setKey)) {
+      ownRows.push(entry);
+      return;
+    }
     if (!ownedSets[setKey]) ownedSets[setKey] = [];
     ownedSets[setKey].push(ms);
     mySetKeyByEntry.set(ms, k);
@@ -3145,9 +3156,16 @@ function renderSetsTab() {
     if (!q) return true;
     return (s.setNum + ' ' + s.setName + ' ' + s.year + ' ' + s.gauge).toLowerCase().includes(q);
   });
+  // The collector's own sets — only in My Collection (the catalog view lists the catalog).
+  const ownList = !inColl ? [] : ownRows.filter(function (e) {
+    if (!q) return true;
+    const ms = e[1];
+    return [ms.setNum, ms.setName, ms.year, (typeof rrMySetMaker === 'function' ? rrMySetMaker(ms) : '')].join(' ').toLowerCase().includes(q);
+  });
+  const _nAll = sets.length + ownList.length;
   const emptyMsg = inColl ? 'No sets in your collection yet' : 'No sets found';
-  if (countEl) countEl.textContent = sets.length.toLocaleString() + ' set' + (sets.length !== 1 ? 's' : '');
-  if (!sets.length) { tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-dim)">${emptyMsg}</td></tr>`; return; }
+  if (countEl) countEl.textContent = _nAll.toLocaleString() + ' set' + (_nAll !== 1 ? 's' : '');
+  if (!_nAll) { tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-dim)">${emptyMsg}</td></tr>`; return; }
   window._browseFilteredSets = sets;
   tbody.innerHTML = sets.map((s, si) => {
     const k = s.setNum.toLowerCase();
@@ -3179,6 +3197,30 @@ function renderSetsTab() {
       <td style="text-align:center">${ownedBadge}</td>
       ${inColl ? '<td onclick="event.stopPropagation()" style="text-align:right;white-space:nowrap">' + actionsHTML + '</td>' : ''}
     </tr>`;
+  }).join('') + ownList.map(function (e) {
+    // 2026-11-03 (PLAN_2026-11-03_OWN_SETS): a set the catalog doesn't list —
+    // the collector's own. Its pieces are the copies saved under its Group ID;
+    // tapping it opens its own page (never a catalog set's).
+    const k = e[0], ms = e[1];
+    const pieces = (typeof rrMySetItems === 'function') ? rrMySetItems(ms) : [];
+    const chips = pieces.slice(0, 6).map(function (pd) {
+      return '<span style="font-family:var(--font-mono);font-size:0.67rem;padding:1px 5px;border-radius:3px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim)">' + rrEsc(String(pd.itemNum || '')) + '</span>';
+    }).join(' ') + (pieces.length > 6 ? '<span style="font-size:0.67rem;color:var(--text-dim)"> +' + (pieces.length - 6) + '</span>' : '');
+    const maker = (typeof rrMySetMaker === 'function') ? rrMySetMaker(ms) : '';
+    const worth = ms.estWorth ? _currencySymbol() + parseFloat(ms.estWorth).toLocaleString() : '';
+    const badge = '<span data-own-set="1" style="color:var(--green);font-size:0.75rem;font-weight:700">' + rrEsc(RR_OWN_SETS.listTag) + '</span>'
+      + (ms.quickEntry ? ' <span style="color:var(--t-orange);font-size:0.68rem;font-weight:700" title="Quick Entry">⚡</span>' : '')
+      + (worth ? '<div style="font-size:0.72rem;color:var(--text-mid);margin-top:2px">' + rrEsc(worth) + '</div>' : '');
+    const acts = (typeof _collectionActionsHTML === 'function') ? _collectionActionsHTML('sets', k, ms) : '';
+    return '<tr data-own-set-key="' + rrEsc(k) + '" onclick="showNonItemDetailPage(\'sets\',\'' + rrJsArg(k) + '\')" style="cursor:pointer;background:rgba(46,204,113,0.04)">'
+      + '<td><span style="font-family:var(--font-mono);color:var(--accent2)">' + (ms.setNum ? rrEsc(ms.setNum) : '—') + '</span></td>'
+      + '<td style="font-size:0.88rem">' + rrEsc(ms.setName || '—') + (maker ? '<div style="font-size:0.72rem;color:var(--text-dim)">' + rrEsc(maker) + '</div>' : '') + '</td>'
+      + '<td style="font-size:0.85rem;color:var(--text-mid)">' + rrEsc(ms.year || '—') + '</td>'
+      + '<td style="font-size:0.85rem;color:var(--text-mid)">—</td>'
+      + '<td style="font-size:0.82rem">' + (chips || '<span style="color:var(--text-dim)">' + rrEsc(RR_OWN_SETS.noItems) + '</span>') + '</td>'
+      + '<td style="text-align:center">' + badge + '</td>'
+      + '<td onclick="event.stopPropagation()" style="text-align:right;white-space:nowrap">' + acts + '</td>'
+      + '</tr>';
   }).join('');
   if (typeof rrReapplyTableSort === 'function' && !(state.filters && state.filters.owned)) rrReapplyTableSort('browse-sets-tbody');   // v0.9.1916: keep the clicked column's order
 }
@@ -3583,7 +3625,7 @@ async function _removeOwnedSet(key) {
     // successful one and the set vanished from the screen while sitting right
     // where it was in the sheet. On failure the set stays put, which is the
     // truth, and the helper has already said why.
-    if (!(await rrRemoveRowConfirmed(state.personalSheetId, 'My Sets', entry.row, 'My Sets!A' + entry.row + ':N' + entry.row, blanks, { num: entry.setNum || entry.itemNum || '' }, 'sets list'))) return;
+    if (!(await rrRemoveRowConfirmed(state.personalSheetId, 'My Sets', entry.row, 'My Sets!A' + entry.row + ':N' + entry.row, blanks, { num: entry.setNum || entry.itemNum || '', invId: entry.inventoryId || '' }, 'sets list'))) return;   // 2026-11-03: the Inventory ID too — an own set may have no number
   }
   delete state.mySetsData[key];
   if (typeof _cachePersonalData === 'function') _cachePersonalData();

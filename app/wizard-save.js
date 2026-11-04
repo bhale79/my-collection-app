@@ -109,6 +109,35 @@ function _rrAddNeedsMaker(d) {
     return true;
   } catch (e) { return false; }
 }
+// ── 2026-11-03 — YOUR OWN SET, finished (PLAN_2026-11-03_OWN_SETS) ───────────
+// v0.9.2105 added the "My set isn't listed" form (d._ownSet, _ownSetName /
+// _ownSetNum / _ownSetYear / _ownSetMaker). These are the rest of the plan:
+// a piece of an own set takes only a row from the SET'S maker, and the set's
+// details ride through the pieces in Full Entry (they were lost there, so the
+// My Sets row saved with no name, number or own-set mark).
+function rrIsOwnSetAdd(d) {
+  d = d || ((typeof wizard !== 'undefined' && wizard) ? wizard.data : null) || {};
+  return !d._resolvedSet && d._ownSet === true;
+}
+// A piece of an own set: its catalog row FROM THE SET'S MAKER, or null — never
+// another maker's row that happens to share the number. "Other / Unknown"
+// can be checked against nothing, so no row is taken at all.
+function rrOwnSetRow(itemNum, maker) {
+  var m = String(maker || '').trim();
+  if (!itemNum || !m || typeof findMaster !== 'function') return null;
+  var known = (typeof rrMakerKey === 'function') ? rrMakerKey(m) : '';
+  if (!known && typeof RR_MAKER_LINE_WORDS !== 'undefined' && RR_MAKER_LINE_WORDS.test(m)) return null;
+  var r = null;
+  try { r = findMaster(itemNum, '', { manufacturer: m }); } catch (e) { r = null; }
+  if (!r) return null;
+  var rb = '';
+  try { rb = (typeof rrMakerOf === 'function') ? rrMakerOf({ row: r }) : ''; } catch (e2) { rb = ''; }
+  if (!rb) return null;
+  var same = (typeof rrMakerSame === 'function') ? rrMakerSame(rb, m) : (rb.toLowerCase() === m.toLowerCase());
+  return same ? r : null;
+}
+if (typeof window !== 'undefined') { window.rrIsOwnSetAdd = rrIsOwnSetAdd; window.rrOwnSetRow = rrOwnSetRow; }
+
 function _resolveSaveMfr() {
   try {
     if (typeof wizard !== 'undefined' && wizard && wizard.data) {
@@ -373,7 +402,8 @@ async function _quickEntrySaveSet(condition, worth, photoFiles) {
     // v0.9.1821: this WRITES identity to the sheet — the set's era/maker preference
     // goes with the lookup, or a component number shared with another maker
     // saves the other maker's variation and description.
-    const master = (typeof findMaster==='function') ? findMaster(itemNum, '', (typeof _wizMasterPrefer === 'function') ? _wizMasterPrefer() : null) : state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(itemNum));
+    // 2026-11-03: a piece of an OWN set takes only a row from the set's maker (rrOwnSetRow).
+    const master = isOwnSet ? rrOwnSetRow(itemNum, d._ownSetMaker) : (typeof findMaster==='function') ? findMaster(itemNum, '', (typeof _wizMasterPrefer === 'function') ? _wizMasterPrefer() : null) : state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(itemNum));
     const variation = master ? (master.variation || '') : '';
 
     // Build personal sheet row — Session 156 buildPersonalRow form
@@ -384,17 +414,19 @@ async function _quickEntrySaveSet(condition, worth, photoFiles) {
       priceItem: isEngine ? worth : '',
       hasBox: 'No',
       photoItem: photoLink,
-      notes: isEngine ? '' : ('Part of set ' + setNum + ' \u2014 price on ' + items[0]),
+      notes: isEngine ? '' : ('Part of set ' + (setNum || (isOwnSet ? (d._ownSetName || '') : '')) + ' \u2014 price on ' + items[0]),
       userEstWorth: isEngine ? worth : '',
       setId: setId,
       yearMade: year,
       quickEntry: 'Yes',
       inventoryId: invId,
       groupId: groupId,
-      era: 'Postwar',
+      era: isOwnSet ? ((master && master._era) || '') : 'Postwar',
       // 2026-11-03: the component's own catalog row decides; a set off Lionel's
-      // Postwar set list (the only set list the master has) is Lionel by fact.
-      manufacturer: rrMakerOf({ row: master, chosen: resolvedSet ? 'Lionel' : _rrAddChosenMaker(d) }),
+      // Postwar set list (the only set list the master has) is Lionel by fact;
+      // a piece of an own set with no row takes the set's maker, with no catalog link.
+      manufacturer: rrMakerOf({ row: master, chosen: resolvedSet ? 'Lionel' : (isOwnSet ? (d._ownSetMaker || '') : _rrAddChosenMaker(d)) }),
+      _noCatalogRow: (isOwnSet && !master) ? true : undefined,
     });
 
     try {
@@ -406,7 +438,7 @@ async function _quickEntrySaveSet(condition, worth, photoFiles) {
         boxPhoto: '', notes: row[PERSONAL_FIELD_INDEX.notes], datePurchased: '', userEstWorth: isEngine ? worth : '',
         matchedTo: '', setId, yearMade: year, isError: '', errorDesc: '',
         quickEntry: 'Yes', inventoryId: invId, groupId, location: '',
-        era: 'Postwar', manufacturer: row[PERSONAL_FIELD_INDEX.manufacturer] || '', owned: true,   // 2026-11-03: what the row wrote
+        era: row[PERSONAL_FIELD_INDEX.era] || '', manufacturer: row[PERSONAL_FIELD_INDEX.manufacturer] || '', owned: true,   // 2026-11-03: what the row wrote
       });
       _stampSaved(state.personalData[invId]);
       savedItems.push(itemNum);
@@ -500,6 +532,17 @@ function launchSetItemWizard() {
   const _setBoxPhotos    = d.set_boxPhotos;
   const _setNotes        = d.set_notes;
   const _returnPage      = d._returnPage;
+  // 2026-11-03 (PLAN_2026-11-03_OWN_SETS): the set's own details ride from piece
+  // to piece — the walk rebuilds wizard.data per piece, and without these an own
+  // set reached the final save as a nameless, numberless, unmarked My Sets row
+  // (the reader then skipped it). The set's number and condition ride too: they
+  // were dropped for every set the catalog doesn't list.
+  const _ownSet          = rrIsOwnSetAdd(d);
+  const _setCarry = {
+    set_num: d.set_num, _setCondition: d._setCondition,
+    ...(_ownSet ? { _ownSet: true, _ownSetName: d._ownSetName, _ownSetNum: d._ownSetNum, _ownSetYear: d._ownSetYear,
+                    _ownSetMaker: d._ownSetMaker, manualManufacturer: d._ownSetMaker } : {}),
+  };
 
   const _setLocoNum      = d._setLocoNum || (items[0] || '');
   const _setMemberPhotos = d._setMemberPhotos || null;   // v0.9.1117
@@ -532,6 +575,7 @@ function launchSetItemWizard() {
     set_boxPhotos: _setBoxPhotos,
     set_notes: _setNotes,
     _returnPage,
+    ..._setCarry,
     _existingGroupId: _setGroupId,
     // v0.9.2029: the aimed group rides from member to member
     _addToGroupInv: d._addToGroupInv, _addToGroupKey: d._addToGroupKey, _addToGroupNum: d._addToGroupNum, _addToGroupGid: d._addToGroupGid,
@@ -558,7 +602,10 @@ function launchSetItemWizard() {
   // v0.9.1821: the bare retry after the hinted lookup is gone — findMaster already
   // falls through every catalog with the hint; a hint-less retry could only ever
   // answer with another maker's row.
-  wizard.matchedItem = ((typeof findMaster==='function') ? findMaster(itemNum, '', _smPrefer) : state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(itemNum))) || null;
+  // 2026-11-03: a piece of an OWN set takes only a row from the set's maker
+  // (rrOwnSetRow) — no row → saved as the set's maker, with no catalog link.
+  wizard.matchedItem = _ownSet ? rrOwnSetRow(itemNum, d._ownSetMaker)
+    : (((typeof findMaster==='function') ? findMaster(itemNum, '', _smPrefer) : state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(itemNum))) || null);
   // v0.9.1117 (Brad's 2442): Lionel reused numbers across decades — a 1946
   // brown sheet-metal Pullman and the 1956 silver plastic car share "2442".
   // A set member is not just a number, it is a number FROM THE SET'S YEAR:
@@ -706,7 +753,7 @@ async function saveSet() {
       groupId,                             // G: Group ID
       setId,                               // H: Set ID
       d.set_hasBox || 'No',                // I: Has Set Box
-      d.set_boxCond || '',                 // J: Box Condition
+      d.set_hasBox === 'Yes' ? (d.set_boxCond || '') : '',   // J: Box Condition — only with a set box (the slider is pre-set from the set's condition)
       '',                                  // K: Photo Link
       d.set_notes || '',                   // L: Notes
       'No',                                // M: Quick Entry
@@ -717,7 +764,7 @@ async function saveSet() {
     state.mySetsData[_msInvId2] = {
       row: _msApRow2 || 0, setNum, setName: isOwnSet ? (d._ownSetName || '') : (_resolvedSet ? (_resolvedSet.setName || '') : ''),
       year, condition: mySetsRow[3], estWorth: d._setWorth || '', datePurchased: '',
-      groupId, setId, hasSetBox: d.set_hasBox || 'No', boxCondition: d.set_boxCond || '',
+      groupId, setId, hasSetBox: d.set_hasBox || 'No', boxCondition: mySetsRow[9],
       photoLink: '', notes: d.set_notes || '', quickEntry: false, inventoryId: _msInvId2,
     };
   } catch(e) { rrSaveMissed(e, 'the set\u2019s entry in My Sets'); }   // v0.9.2048 (C17): was console-only — the items saved, the set's own row did not, unsaid
@@ -725,7 +772,7 @@ async function saveSet() {
   localStorage.removeItem((typeof rrPersonalCacheKey === 'function' ? rrPersonalCacheKey('') : 'lv_personal_cache'));
   localStorage.removeItem((typeof rrPersonalCacheKey === 'function' ? rrPersonalCacheKey('ts') : 'lv_personal_cache_ts'));
   wizard.data._saveComplete = true;
-  showToast('\u2713 ' + (setNum || 'Set') + ' complete \u2014 ' + saved.length + ' item' + (saved.length !== 1 ? 's' : '') + ' in your collection!');
+  showToast('\u2713 ' + (setNum || (isOwnSet ? d._ownSetName : '') || 'Set') + ' complete \u2014 ' + saved.length + ' item' + (saved.length !== 1 ? 's' : '') + ' in your collection!');
   _doCloseWizard();
   buildDashboard();
   renderBrowse();
@@ -1745,7 +1792,7 @@ async function saveWizardItem() {
         // nothing inside the Add screen's filters). Not for a set member, an
         // edit of an owned copy or an inbox add — those carry their own row.
         var _wizNoRow = !(typeof wizard !== 'undefined' && wizard && wizard.matchedItem)
-          && !d._setMode && !d._updatePdKey && !d._fromInbox && !d._manualEntry;
+          && (!d._setMode || rrIsOwnSetAdd(d)) && !d._updatePdKey && !d._fromInbox && !d._manualEntry;   // 2026-11-03: a piece of an own set with no row is one too
         // 2026-11-03: the maker = the add's row's, else the collector's choice, else '' (rrMakerOf via _resolveSaveMfr).
         var _engineInvId = d._existingInventoryId || d._photoInventoryId || nextInventoryId();  // Session 165 hotfix: var, not const, so tender block at line 1206 can reference it
         // Session 156: paired engine row via buildPersonalRow

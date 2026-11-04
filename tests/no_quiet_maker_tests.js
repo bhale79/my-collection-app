@@ -117,8 +117,16 @@ section('R  the one rule');
 if (loaded) {
   ok('R1 a catalog row decides: the MTH Hudson row → MTH', M({ row: ROWS[0] }) === 'MTH', M({ row: ROWS[0] }));
   ok('R2 …and outranks a maker the add had chosen (the row is the fact)', M({ row: ROWS[0], chosen: 'Lionel' }) === 'MTH');
-  ok('R3 a copy that names its catalog (era MTH O) gets that row\'s maker, even if Lionel was saved on it',
-     M({ copy: { itemNum: '20-3526-1E', era: 'mth_o', manufacturer: 'Lionel' } }) === 'MTH');
+  ok('R3 a copy that names its catalog (era MTH O) with no maker saved gets that row\'s maker',
+     M({ copy: { itemNum: '20-3526-1E', era: 'mth_o', manufacturer: '' } }) === 'MTH');
+  // 2026-11-03 RE-PIN (found building PLAN_2026-11-03_OWN_SETS): found by its ERA
+  // alone (no Row ID, no key), a copy must also agree with the maker saved on it —
+  // an add with no catalog row is saved with the screen's era, so an Atlas item
+  // typed as 6464 would otherwise read as Lionel's postwar 6464. The saved maker
+  // stands; the copy shows in Check Makers if it is Lionel or blank.
+  ok('R3b …but found by its era alone, a saved maker that disagrees stands (no Row ID to prove the link)',
+     M({ copy: { itemNum: '20-3526-1E', era: 'mth_o', manufacturer: 'Lionel' } }) === 'Lionel'
+     && M({ copy: { itemNum: '20-3526-1E', era: 'mth_o', manufacturer: 'MTH' } }) === 'MTH');
   ok('R4 a copy found by its saved Row ID gets that row\'s maker',
      M({ copy: { itemNum: '20-3526-1E', masterRowId: 'U7A525KEFF' } }) === 'MTH');
   lastFind = null;
@@ -197,12 +205,13 @@ if (loaded) {
     d: { owned: true, itemNum: 'TOY1', era: 'Manual', manufacturer: 'Marx', inventoryId: 'd' },         // has its maker → not listed
     e: { owned: false, itemNum: 'SOLD1', era: 'Manual', manufacturer: '', inventoryId: 'e' },           // not owned → not listed
     f: { owned: true, itemNum: 'PC-1001', era: 'Manual', manufacturer: 'Lionel', inventoryId: 'f' },    // a paper item, typed on screen → not listed
-    g: { owned: true, itemNum: '20-3526-1E', era: 'mth_o', manufacturer: 'Lionel', inventoryId: 'g' },  // in its catalog (2.75) → not listed; its row says MTH
+    g: { owned: true, itemNum: '20-3526-1E', era: 'mth_o', manufacturer: 'Lionel', inventoryId: 'g' },  // era-only link that disagrees with its saved Lionel → listed to check (re-pin, R3b)
+    g2: { owned: true, itemNum: '20-3526-1E', era: 'mth_o', masterRowId: 'U7A525KEFF', manufacturer: 'Lionel', inventoryId: 'g2' },   // tied by its Row ID → not listed; its row says MTH
     h: { owned: true, itemNum: '3300', era: 'pw', manufacturer: 'lionel', inventoryId: 'h' },           // only another catalog has 3300 → listed
   } };
   const keys = ctx.rrCheckMakersList().map(x => x.key).sort().join(',');
-  ok('C1 the list is the SD40, the maker-less hand-added item and the other-catalog 3300 — nothing else', keys === 'a,b,h', keys);
-  ok('C2 the Hudson now in the catalog reads MTH everywhere through the rule', M({ copy: ctx.state.personalData.g }) === 'MTH');
+  ok('C1 the list is the SD40, the maker-less hand-added item, the era-only Lionel Hudson and the other-catalog 3300 — nothing else', keys === 'a,b,g,h', keys);
+  ok('C2 a Hudson tied by its Row ID reads MTH everywhere through the rule', M({ copy: ctx.state.personalData.g2 }) === 'MTH');
 }
 
 // ═══ S — scans of every app file, each proven on a planted offender ═══

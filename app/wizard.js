@@ -1225,10 +1225,15 @@ window._wizResearchSet = function () {
     var d = (typeof wizard !== 'undefined' && wizard.data) || {};
     var rs = d._resolvedSet || null;
     var num = String((rs && rs.setNum) || d.set_num || '').trim();
+    // 2026-11-03 (PLAN_2026-11-03_OWN_SETS): only a catalog set (Lionel Postwar)
+    // is Lionel by fact; any other set searches under the maker the collector
+    // named for it, else under no maker at all — never an assumed Lionel.
+    var brand = rs ? 'Lionel' : String(d._ownSetMaker || d._searchFilterManufacturer || '').trim();
+    if (/^other/i.test(brand)) brand = '';
     var q;
     if (num) {
-      q = ['Lionel', num, 'set', String((rs && rs.setName) || '').trim(),
-           String((rs && rs.year) || '').trim()]
+      q = [brand, num, 'set', String((rs && rs.setName) || d._ownSetName || '').trim(),
+           String((rs && rs.year) || d._ownSetYear || '').trim()]
           .filter(Boolean).join(' ') + ' sold prices value';
     } else {
       var nums = (d._enteredNums || []).slice(0, 6).filter(Boolean);
@@ -1239,7 +1244,9 @@ window._wizResearchSet = function () {
         }
         return;
       }
-      q = 'Lionel postwar set ' + nums.join(' ');
+      // a named maker searches under it; otherwise the search stays the one
+      // that identifies an unnumbered Lionel Postwar set box (v0.9.1234)
+      q = (brand ? brand + ' train set ' : 'Lionel postwar set ') + nums.join(' ');
     }
     window.open('https://www.google.com/search?q=' + encodeURIComponent(q), '_blank');
   } catch (e) { console.warn('[research set]', e); }
@@ -1301,7 +1308,11 @@ window._soldPickSrcSet = function (src) {
 // and the phone's own dropdown blew them up to the size of the words.
 const _WIZ_KINDS = [
   { id: 'cataloged', label: 'Cataloged Item' },
-  { id: 'set',       label: 'Lionel Postwar Set' },   // v0.9.994 (Brad): only era with set-composition data
+  // v0.9.994 (Brad): Lionel Postwar is the only era with set-composition data.
+  // 2026-11-03 (PLAN_2026-11-03_OWN_SETS): any maker's set can be added now —
+  // a set the catalog doesn't list is the collector's own — so the choice no
+  // longer says "Lionel Postwar" (an MTH collector would never pick it).
+  { id: 'set',       label: 'Set' },
   { id: 'paper',     label: 'Paper Item' },
   { id: 'catalogs',  label: 'Catalog' },
   { id: 'mockups',   label: 'Mock-Up' },
@@ -3424,6 +3435,9 @@ function renderWizardStep() {
     // ── OWN SET INFO — name / number / year / maker ──────────────────────────────
     body.innerHTML = '';
     const _od = wizard.data;
+    // 2026-11-03: each box keeps what is typed in wizard.data as it is typed —
+    // tapping a maker redraws this screen, and a name typed first was wiped.
+    const _ownKey = { 'own-set-name': '_ownSetName', 'own-set-num': '_ownSetNum', 'own-set-year': '_ownSetYear' };
     function _ownField(id, lbl, ph, val) {
       const wrap = document.createElement('div');
       wrap.style.cssText = 'margin-bottom:0.75rem';
@@ -3432,6 +3446,7 @@ function renderWizardStep() {
       l.textContent = lbl;
       const inp = document.createElement('input');
       inp.type = 'text'; inp.id = id; inp.placeholder = ph; inp.value = val || '';
+      inp.oninput = function () { if (_ownKey[id]) wizard.data[_ownKey[id]] = inp.value; };
       inp.style.cssText = 'width:100%;padding:0.65rem 0.9rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.92rem;box-sizing:border-box';
       wrap.appendChild(l); wrap.appendChild(inp);
       return wrap;
@@ -4635,10 +4650,14 @@ function renderWizardStep() {
       if (canContinue) {
         const contBtn = document.createElement('button');
         contBtn.style.cssText = 'width:100%;margin-top:0.75rem;padding:0.85rem;border-radius:10px;border:none;background:' + (_resolvedSet ? '#1e3a5f' : 'var(--surface2)') + ';color:' + (_resolvedSet ? 'white' : 'var(--text-mid)') + ';font-family:var(--font-body);font-size:0.92rem;font-weight:600;cursor:pointer';
+        // 2026-11-03 (PLAN_2026-11-03_OWN_SETS): no catalog set picked = the
+        // collector's own set — ONE way on, through the "tell us about it" form
+        // (the old "Continue without set ID" saved a nameless set My Sets never showed).
         contBtn.textContent = _resolvedSet
           ? `Continue — add details for ${_resolvedSet.items.length} items →`
-          : `Continue without set ID — add ${_enteredNums.length} item${_enteredNums.length!==1?'s':''}  →`;
+          : String(RR_OWN_SETS.continueBtn).replace('{n}', _enteredNums.length).replace('{s}', _enteredNums.length !== 1 ? 's' : '');
         contBtn.onclick = () => {
+          if (!_resolvedSet) { window._startOwnSet(); return; }
           // Build final item list from resolved set + manually entered items.
           // v0.9.1122: same shared builder — a set that lists a number twice
           // (1562W's two 2442 Vista Domes) walks it twice.
@@ -4653,8 +4672,9 @@ function renderWizardStep() {
         body.appendChild(contBtn);
       }
 
-      // "My set isn't listed" — shown whenever no set is confirmed yet
-      if (!_resolvedSet) {
+      // "My set isn't listed" — shown whenever no set is confirmed yet (2026-11-03:
+      // and no items are entered — with items, the button above is that way on)
+      if (!_resolvedSet && !canContinue) {
         const _ownRow = document.createElement('div');
         _ownRow.style.cssText = 'text-align:center;margin-top:0.5rem';
         _ownRow.innerHTML = '<button onclick="window._startOwnSet()" style="border:none;background:none;color:var(--text-dim);font-size:0.78rem;cursor:pointer;text-decoration:underline;font-family:var(--font-body)">My set isn’t listed</button>';
@@ -6741,7 +6761,7 @@ function renderWizardStep() {
     const _scSet = _scD._resolvedSet;
     const _scSaved = _scD._setItemsSaved || [];
     const _scGroupId = _scD._setGroupId || '';
-    const _scSetNum = _scSet ? _scSet.setNum : (_scD.set_num || '');
+    const _scSetNum = _scSet ? _scSet.setNum : (_scD._ownSetNum || _scD.set_num || '');   // 2026-11-03: an own set's own number
     const _scItems = _scD._setFinalItems || [];
     const _scMode = _scD._setEntryMode || 'full';
     const _scHasBox = _scD.set_hasBox === 'Yes';
@@ -6756,7 +6776,12 @@ function renderWizardStep() {
     const scHdr = document.createElement('div');
     scHdr.style.cssText = 'background:rgba(46,204,113,0.1);border:1.5px solid #2ecc71;border-radius:10px;padding:0.65rem 0.9rem';
     scHdr.innerHTML = '<div style="font-size:0.65rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--t-green)">Set Complete \u2713</div>'
-      + '<div style="font-family:var(--font-mono);font-size:1rem;font-weight:700;color:var(--accent2)">' + _scSetNum + '</div>'
+      + '<div style="font-family:var(--font-mono);font-size:1rem;font-weight:700;color:var(--accent2)">' + rrEsc(_scSetNum) + '</div>'
+      // 2026-11-03 (PLAN_2026-11-03_OWN_SETS): the collector's own set says its name, year and maker
+      + ((typeof rrIsOwnSetAdd === 'function' && rrIsOwnSetAdd(_scD))
+          ? '<div style="font-weight:600;color:var(--text)">' + rrEsc(_scD._ownSetName || '') + '</div>'
+            + '<div style="font-size:0.75rem;color:var(--text-dim)">' + rrEsc([RR_OWN_SETS.listTag, _scD._ownSetYear, _scD._ownSetMaker].filter(Boolean).join(' \u00b7 ')) + '</div>'
+          : '')
       + '<div style="font-size:0.75rem;color:var(--text-dim)">' + _scSaved.length + ' item' + (_scSaved.length !== 1 ? 's' : '') + ' saved · Group: ' + _scGroupId + '</div>';
     scWrap.appendChild(scHdr);
 
@@ -7888,6 +7913,10 @@ async function _wizardNextCore() {
   if (s.type === 'manualManufacturer' && !(wizard.data.manualManufacturer || '').trim()) {
     showToast('Please select or type a manufacturer.'); return;
   }
+  // 2026-11-03: the own-set form's name and maker are required on Next too (its
+  // own Continue button checked them; the wizard's Next walked straight past)
+  if (s.type === 'ownSetInfo' && !String(wizard.data._ownSetName || '').trim()) { showToast('\u26a0 Please enter a set name'); return; }
+  if (s.type === 'ownSetInfo' && !String(wizard.data._ownSetMaker || '').trim()) { showToast('\u26a0 Please select a maker'); return; }
   if (s.type === 'manualItemType' && !(wizard.data.manualItemType || '').trim()) {
     showToast('Please select or type an item type.'); return;
   }
