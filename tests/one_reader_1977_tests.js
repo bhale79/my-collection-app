@@ -333,7 +333,7 @@ function withFile(f, src) { const o = Object.assign({}, FILES); o[f] = src; retu
   r = await blobRead(b.pg, () => window.rrReadPictureFile(window.__blob, { addFilters: true }));
   T('X-B2 PLANTED: the Your Picture box ignoring the filters → 43725 is "sure" (caught)', r.res && r.res.kind === 'sure', r.res);
   await b.ctx.close();
-  b = await boot({ says: '6556', src: { 'barcode.js': planted(BC, "var _frPref = _biPreferOf(opts);", "var _frPref = (opts && opts.addFilters && typeof window._wizReaderPrefer === 'function') ? window._wizReaderPrefer() : null;", 'release 1 hand-off') } });
+  b = await boot({ says: '6556', src: { 'barcode.js': planted(BC, "var p = _biPreferOf(opts);", "var p = (opts && opts.addFilters && typeof window._wizReaderPrefer === 'function') ? window._wizReaderPrefer() : null;", 'release 1 hand-off') } });
   m = await runPid(b.pg, { noAi: true, preferFrom: { mfr: 'Lionel', period: 'pw' } });
   T('X-B4 PLANTED: the release 1 hand-off (Add screen only) → a screen\'s own filters never reach the reader (caught)', m.pref === null, m.pref);
   await b.ctx.close();

@@ -2,7 +2,7 @@
 // Extracted from app.js in Session 111 (Round 2 Chunk 13).
 //
 // Contents:
-//   • Post-load data patches (_patchMasterData, _inferMissingYears)
+//   • Post-load data patches (_patchMasterData)
 //   • Top-level data orchestrator (loadAllData)
 //   • Master data loading + parse + dedup (loadMasterData, _fetchMasterTabs,
 //     parseMasterRow, _deduplicateMaster, parseMasterRows)
@@ -68,63 +68,6 @@ function _patchMasterData() {
   }
 }
 
-function _inferMissingYears() {
-  // Phase 1: Set-based — map each set component to its set year(s)
-  var setYears = {};
-  (state.setData || []).forEach(function(s) {
-    if (!s.year) return;
-    var yrs = [];
-    (s.year.match(/\d{4}/g) || []).forEach(function(y) { yrs.push(parseInt(y)); });
-    if (!yrs.length) return;
-    s.items.forEach(function(comp) {
-      if (!comp) return;
-      [normalizeItemNum(comp), baseItemNum(comp)].forEach(function(k) {
-        if (!k) return;
-        if (!setYears[k]) setYears[k] = [];
-        yrs.forEach(function(y) { if (setYears[k].indexOf(y) < 0) setYears[k].push(y); });
-      });
-    });
-  });
-  var fixed = 0;
-  (state.masterData || []).forEach(function(m) {
-    if (m.yearProd) return;
-    var years = setYears[normalizeItemNum(m.itemNum)] || setYears[baseItemNum(m.itemNum)];
-    if (years && years.length) {
-      years.sort(function(a,b){return a-b;});
-      m.yearProd = years[0] === years[years.length-1] ? String(years[0]) : years[0] + ' - ' + years[years.length-1];
-      fixed++;
-    }
-  });
-  if (fixed) console.log('[YearInfer] Set-based: filled ' + fixed + ' items');
-
-  // Phase 2: Sibling — another variation of same item has a year
-  var itemYears = {};
-  (state.masterData || []).forEach(function(m) {
-    if (m.yearProd && !itemYears[m.itemNum]) itemYears[m.itemNum] = m.yearProd;
-  });
-  var sib = 0;
-  (state.masterData || []).forEach(function(m) {
-    if (!m.yearProd && itemYears[m.itemNum]) { m.yearProd = itemYears[m.itemNum]; sib++; }
-  });
-  if (sib) console.log('[YearInfer] Sibling: filled ' + sib + ' items');
-
-  // Phase 3: Companion — engine↔tender year sharing
-  (state.masterData || []).forEach(function(m) {
-    if (m.yearProd && !itemYears[m.itemNum]) itemYears[m.itemNum] = m.yearProd;
-  });
-  var comp = 0;
-  (state.masterData || []).forEach(function(m) {
-    if (m.yearProd) return;
-    var num = normalizeItemNum(m.itemNum);
-    var engine = num.replace(/[WTX]+$/, '');
-    if (engine !== num && itemYears[engine]) { m.yearProd = itemYears[engine]; comp++; return; }
-    ['W','T'].forEach(function(suf) {
-      if (!m.yearProd && itemYears[num + suf]) { m.yearProd = itemYears[num + suf]; comp++; }
-    });
-  });
-  if (comp) console.log('[YearInfer] Companion: filled ' + comp + ' items');
-}
-
 async function loadAllData() {
   showLoading();
   // v0.9.840 (Phase C): subscription/trial check rides behind every full
@@ -156,7 +99,6 @@ async function loadAllData() {
     if (_currentEra === 'all' && typeof loadAllErasMode === 'function') {
       await loadAllErasMode();   // v0.9.1818: reads the Master Version itself, before deciding what to refresh
       _patchMasterData();
-      _inferMissingYears();
       buildApp(); if (typeof _auditCatalogResolution === 'function') setTimeout(_auditCatalogResolution, 1500);
       try { if (typeof rrCollectionsBoot === 'function') rrCollectionsBoot(); } catch (eCB) {}   // v0.9.2071: Pro collections (off unless switched on)
       try { if (typeof window._rrOfflineAppendDrain === 'function') setTimeout(window._rrOfflineAppendDrain, 2500); } catch (eAD) {}
@@ -202,7 +144,6 @@ async function loadAllData() {
     // Single-era mode — load master data (uses cache if fresh) and personal data in parallel
     await Promise.all([loadMasterData(), loadPersonalData(), loadSetData(), loadCompanionData(), loadCatalogRefData(), loadISRefData()]);
     _patchMasterData();
-    _inferMissingYears();
     buildPartnerMap();
     _loadMasterVersion();   // v0.9.1103 — which master sheet is live (fail-silent)
     buildApp(); if (typeof _auditCatalogResolution === 'function') setTimeout(_auditCatalogResolution, 1500);
