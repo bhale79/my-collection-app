@@ -202,7 +202,7 @@ async function openApp(browser, served) {
   ok('B2 no button on a piece’s own page; a full group still has it (Add Another Item)', R.btnCb === '' && R.btnF.indexOf('Add a Piece to Group') >= 0, R.btnCb + '|' + R.btnF.slice(0, 60));
   ok('B3 the real item page draws the button for copy 2', R.pageBtn === true && /Add a Piece to Group/.test(R.pageBtnLabel), JSON.stringify([R.pageBtn, R.pageBtnLabel, R.pageErr]));
   ok('B4 the real item page draws the button for a full group too (v0.9.2029)', R.pageBtnFull === true, String(R.pageBtnFull));
-  ok('C1 the popup is guarded and lists one button per missing piece, then Add Another Item (v0.9.2029)', R.popGuarded && R.popPieces === 'box,is,mbox,item', R.popGuarded + ' ' + R.popPieces);
+  ok('C1 the popup is guarded and lists one button per missing piece, then Add Another Item (v0.9.2029), then A Piece I Already Own (2026-11-03)', R.popGuarded && R.popPieces === 'box,is,mbox,item,owned', R.popGuarded + ' ' + R.popPieces);
   ok('C2 a backdrop click does not close it', R.popAfterBackdrop === true, String(R.popAfterBackdrop));
   ok('D1 Box opens on the box condition screen with the group question', R.dStep === 'boxCondDetails' && R.dGroupQ, R.dStep + ' ' + R.dGroupQ);
   ok('D2 the link is aimed at copy 2 only', R.dChoices === 'kB', R.dChoices);

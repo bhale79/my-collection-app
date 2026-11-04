@@ -256,7 +256,8 @@ section('rule 3 — no repaint may go back to a remembered position');
   // v0.9.2020: ten — Scan to Shelve's sticker Pair/Remove on the item page (scan-shelve.js _shRedrawDetail).
   // v0.9.2025: eleven — Add a Piece to Group, after the piece saves (wizard-save.js _rrAddPieceRepaint).
   // v0.9.2029: twelve — Add Another Item, after the item saves into the group (wizard-save.js _rrAddToGroupRepaint).
-  ok('exactly the twelve known repaint sites call the helper', mentions - 1 === 12,
+  // 2026-11-03: thirteen — A Piece I Already Own, after the owned item joins the group (app-collection.js rrAddPieceStart kind 'owned').
+  ok('exactly the thirteen known repaint sites call the helper', mentions - 1 === 13,
      'found ' + (mentions - 1) + ' call sites');
 }
 

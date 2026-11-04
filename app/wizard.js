@@ -1313,6 +1313,13 @@ const _WIZ_KINDS = [
   // a set the catalog doesn't list is the collector's own — so the choice no
   // longer says "Lionel Postwar" (an MTH collector would never pick it).
   { id: 'set',       label: 'Set' },
+  // 2026-11-03 ([stated] Brad 22:26 CT: "add a custom set, like add an item"):
+  // the set-side partner of "Manual — item not in our catalogs". Opens the set
+  // flow with the own-set path already chosen (_wizSetKind 'ownset'): the
+  // pieces box, then "My set isn't listed — tell us about it", no catalog
+  // set search. The search step's own way on stays for anyone who searched
+  // first. PLAN_2026-11-03_GROUP_EXISTING.md item 7.
+  { id: 'ownset',    label: 'My Own Set — not in our catalogs' },
   { id: 'paper',     label: 'Paper Item' },
   { id: 'catalogs',  label: 'Catalog' },
   { id: 'mockups',   label: 'Mock-Up' },
@@ -1322,7 +1329,7 @@ const _WIZ_KINDS = [
 function _wizCurrentKind() {
   try {
     if (wizard.data && wizard.data._manualEntry) return 'manual';
-    if (wizard.tab === 'set') return 'set';
+    if (wizard.tab === 'set') return (wizard.data && wizard.data._ownSet) ? 'ownset' : 'set';
     if (['paper', 'catalogs', 'mockups', 'other'].indexOf(wizard.tab) >= 0) return wizard.tab;
   } catch (e) {}
   return 'cataloged';
@@ -1379,9 +1386,35 @@ function _wizSetKind(kind) {
     if (_sv.length) _carrySet = _sv[0].setNum;
   }
   if (_carrySet) { wizard.data.set_knowsNum = 'Yes'; wizard.data.set_num = _carrySet; }
+  // 2026-11-03: "My Own Set" is the set flow with the own-set path chosen up
+  // front. A number typed before the switch rides in as the first piece; the
+  // maker filter rides in as the set's maker (shown on the own-set step).
+  if (kind === 'ownset') {
+    const _chosenOwn = wizardChooseCategory('set');
+    Promise.resolve(_chosenOwn).then(function () { _wizOpenOwnSet(_carryNum, _carryMfr); });
+    return;
+  }
   const _chosen = wizardChooseCategory(kind);
   if (_carrySet) Promise.resolve(_chosen).then(function () { _wizOpenSetOn(_carrySet); });
 }
+// The set flow, opened as the collector's OWN set (no Lionel set search): the
+// pieces box ("Identify your set" with _ownSet already on — no catalog
+// suggestions, the continue button reads "My set isn't listed — continue"),
+// then the own-set step. Same _startOwnSet as the link on the search step.
+function _wizOpenOwnSet(carryNum, carryMfr) {
+  try {
+    if (!wizard || wizard.tab !== 'set') return;
+    const _ix = (wizard.steps || []).findIndex(function (st) { return st && st.id === 'set_components'; });
+    if (_ix < 0) return;
+    wizard.data._ownSet = true;
+    wizard.data.set_knowsNum = 'No';
+    wizard.data._enteredNums = carryNum ? [String(carryNum).toUpperCase()] : [];
+    if (carryMfr) { wizard.data._ownSetMaker = carryMfr; wizard.data._searchFilterManufacturer = carryMfr; }
+    wizard.step = _ix;
+    renderWizardStep();
+  } catch (e) { console.warn('[own set from the Add list]', e); }
+}
+if (typeof window !== 'undefined') window._wizOpenOwnSet = _wizOpenOwnSet;
 // The set flow, opened on one Lionel Postwar set: the "Identify your set" step,
 // then its own _confirmSetMatch — the variant picker for a number with several
 // variants, otherwise straight on to the set's details with its pieces.
@@ -4583,7 +4616,8 @@ function renderWizardStep() {
 
       // Suggestions
       const _allEntered = _enteredNums;
-      const _suggestions = _allEntered.length >= 1
+      // 2026-11-03: "My Own Set" from the Add list — no Lionel set guesses.
+      const _suggestions = (_allEntered.length >= 1 && !wizard.data._ownSet)
         ? suggestSets(_allEntered).filter(sg => !_dismissed.includes(sg.setNum))
         : [];
       wizard.data._suggestions_cache = _suggestions; // for inline button onclick refs
@@ -4646,9 +4680,14 @@ function renderWizardStep() {
       };
 
       // Continue button — shown once set identified OR user has ≥1 item and no suggestions
-      const canContinue = _resolvedSet || (_enteredNums.length >= 1);
+      // 2026-11-03 (GROUP_EXISTING item 7): a preset own set ("My Own Set" on the
+      // Add list) continues with any number of pieces, even none — the own-set
+      // step is next. Same button, same way on (_startOwnSet).
+      const _ownPreset = !!wizard.data._ownSet && !_resolvedSet;
+      const canContinue = _resolvedSet || (_enteredNums.length >= 1) || _ownPreset;
       if (canContinue) {
         const contBtn = document.createElement('button');
+        if (!_resolvedSet) contBtn.id = 'set-own-continue';   // 2026-11-03: the own-set way on (tests find it by id)
         contBtn.style.cssText = 'width:100%;margin-top:0.75rem;padding:0.85rem;border-radius:10px;border:none;background:' + (_resolvedSet ? '#1e3a5f' : 'var(--surface2)') + ';color:' + (_resolvedSet ? 'white' : 'var(--text-mid)') + ';font-family:var(--font-body);font-size:0.92rem;font-weight:600;cursor:pointer';
         // 2026-11-03 (PLAN_2026-11-03_OWN_SETS): no catalog set picked = the
         // collector's own set — ONE way on, through the "tell us about it" form
@@ -4673,7 +4712,8 @@ function renderWizardStep() {
       }
 
       // "My set isn't listed" — shown whenever no set is confirmed yet (2026-11-03:
-      // and no items are entered — with items, the button above is that way on)
+      // and no items are entered — with items, the button above is that way on;
+      // a preset own set from the Add list always has the button, so no link)
       if (!_resolvedSet && !canContinue) {
         const _ownRow = document.createElement('div');
         _ownRow.style.cssText = 'text-align:center;margin-top:0.5rem';

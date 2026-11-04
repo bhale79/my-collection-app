@@ -2428,8 +2428,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('the three callers that DO own an `ai` still pass it',
      (auP.match(/_pinApplyMeta\(meta, gs, ai && ai\.text\)/g) || []).length === 2);
   // Set members returned before the optimistic insert every other path gets.
-  const _setHook = auW.slice(auW.indexOf('if (d._setMode && tab === \'collection\')'),
-                             auW.indexOf('launchSetItemWizard();'));
+  // 2026-11-03: the end anchor is searched FROM the start — launchSetItemWizard
+  // now calls itself earlier in the file (the "use the one I have" question),
+  // and a from-zero search found that call first and sliced nothing.
+  const _setHookAt = auW.indexOf('if (d._setMode && tab === \'collection\')');
+  const _setHook = auW.slice(_setHookAt, auW.indexOf('launchSetItemWizard();', _setHookAt));
   // v0.9.1941: the member's record is built from the row it was written as
   // (rrSavedRecord — the load's own reader, which marks it owned); the save's
   // own words, the group included, fill whatever that row leaves blank.
@@ -15706,7 +15709,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
            // (Bought it, Ordered it, the part edit, Installed's stamp) now share ONE
            // guarded call, rrPartsRowWrite: four sites became one (−3). Same check,
            // same id, one place — and a refusal there re-reads the list.
-           wrapped === 68, String(wrapped));
+           // 2026-11-03 (group_existing): 68 → 71 — rrLinkOwnedToGroup (wizard-save.js)
+           // writes a collection row's Group ID and an instruction sheet's through the
+           // guarded writer (+2), and the set page writes a pre-Group-ID set's own
+           // Group ID cell to My Sets (app-collection.js rrSetAddOwnedOpen, +1).
+           wrapped === 71, String(wrapped));
       }
     })();
 

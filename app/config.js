@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2106';
+const APP_VERSION = 'v0.9.2107';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -4618,6 +4618,12 @@ const RR_ADD_PIECE = {
   // group (wizard-save.js rrAddToGroupId). Not in `pieces`, so the list of
   // MISSING pieces (rrAddPieceMissing) is unchanged.
   another: { kind: 'item', icon: '🚂', label: 'Add Another Item', desc: 'A B unit, a car for a set, or anything else that belongs with this item' },
+  // 2026-11-03 (Lars Brown: "Is it possible to group items after already
+  // entered or do I need to start over?") — a piece ALREADY in the collection
+  // joins this copy's group; nothing is re-entered. Opens the owned-item picker
+  // (app-collection.js rrOwnedPickerOpen); the stamp is wizard-save.js
+  // rrLinkOwnedToGroup. Always offered, after Add Another Item.
+  owned: { kind: 'owned', icon: '🔗', label: 'A Piece I Already Own', desc: 'Put an item that is already in your collection into this group' },
   // The line across the top of every Add step while it is aimed at a group.
   // {group} = the group's own heading ("205 AA Set"); {num} = the item's number.
   banner: { group: 'Adding to the {group}', single: 'Joins the group with No. {num}' },
@@ -4633,6 +4639,64 @@ const RR_ADD_PIECE = {
   },
 };
 if (typeof window !== 'undefined') window.RR_ADD_PIECE = RR_ADD_PIECE;
+
+// ═══════════════════════════════════════════════════════════════
+// 2026-11-03 — PUT ITEMS YOU ALREADY OWN INTO A SET / GROUP
+// PLAN_2026-11-03_GROUP_EXISTING.md (Lars Brown's email). Every word of the
+// owned-item picker, the set page's Pieces card, and the set flow's "you
+// already have one" question lives here. One place.
+//   picker   rrOwnedPickerOpen (app-collection.js) — the list of the
+//            collector's items to choose from; every copy listed on its own.
+//   setPage  the Pieces card on a set's page and its button.
+//   setFlow  the question the set walk asks when a piece is already owned.
+//   stamp    what rrLinkOwnedToGroup (wizard-save.js) says — done / refused.
+// {num} = the item's number; {set} = the set's label; {n} = a count.
+const RR_LINK_OWNED = {
+  picker: {
+    title:    'Which item?',
+    sub:      'Pick one of your items. It joins {target} — nothing is re-entered.',
+    search:   'Type a number or a word to narrow the list',
+    none:     'No items to choose from — everything you own is already in this group, or a piece of one.',
+    noMatch:  'Nothing matches that.',
+    inSet:    'In {set} — remove it there first',   // another set: not offered
+    inGroup:  'Comes with its group ({n} pieces)',   // an engine + its box: all come along
+    cond:     'Condition {n}/10',
+    cancel:   'Cancel',
+    // Which rows are never offered: a piece row (box, carton, sheet) rides with
+    // its item and is never picked on its own.
+    pieceRe:  /-(BOX|MBOX|IS)$/i,
+  },
+  setPage: {
+    head:     'Pieces',
+    empty:    'No pieces are linked to this set yet.',
+    button:   'Add a Piece I Already Own',
+    tip:      'Put an item that is already in your collection into this set.',
+    target:   'this set',
+  },
+  // The set walk (wizard-save.js launchSetItemWizard): the piece about to be
+  // added is already in the collection.
+  setFlow: {
+    title:    'You already have a {num}',
+    sub:      'It is in your collection now. Use that one for this set, or add another copy?',
+    use:      'Use the one I have',
+    useDesc:  'It joins this set. Nothing is re-entered.',
+    add:      'Add another copy',
+    addDesc:  'This set gets a second {num}, entered as usual.',
+    which:    'Which copy?',
+  },
+  stamp: {
+    done:     '✓ {num} joined {target}.',
+    doneMany: '✓ {num} and {n} more joined {target}.',
+    already:  '{num} is already in {target}.',
+    inSet:    '{num} is in {set} — remove it from that set first.',
+    gone:     'That item is no longer in your collection — refresh and try again.',
+    noRow:    '{num} was added a moment ago and is still being written — refresh, then try again.',
+    refused:  'Nothing was changed.',
+    busy:     'Still linking the last one — one moment.',
+    target:   'this group',
+  },
+};
+if (typeof window !== 'undefined') window.RR_LINK_OWNED = RR_LINK_OWNED;
 
 // ═══════════════════════════════════════════════════════════════
 // v0.9.2031 — A TYPED NUMBER THE CATALOG DOES NOT HOLD (Lars, York, 2026-10-26:

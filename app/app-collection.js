@@ -279,6 +279,12 @@ function showNonItemDetailPage(type, key) {
   }
   html += '</div>';
 
+  // ── PIECES CARD (sets only) — 2026-11-03, PLAN_2026-11-03_GROUP_EXISTING.md ──
+  // The items carrying this set's Group ID, each tappable, and the button that
+  // puts an item already owned into the set. (The set page never listed its
+  // pieces before — they were only visible from each piece's own page.)
+  if (type === 'sets' && typeof rrSetPiecesCardHtml === 'function') html += rrSetPiecesCardHtml(entry, key);
+
   // ── PHOTOS CARD ──
   html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.25rem">'
        +    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">'
@@ -2415,6 +2421,7 @@ function rrAddPieceOpen(inv) {
   if (!pd) { if (typeof showToast === 'function') showToast(C.gone, 4000, true); return; }
   var missing = rrAddPieceMissing(pd);
   if (rrAddAnotherOk(pd)) missing = missing.concat([C.another]);   // v0.9.2029: always last
+  if (rrAddAnotherOk(pd) && C.owned) missing = missing.concat([C.owned]);   // 2026-11-03: a piece already owned, after it
   var old = document.getElementById('rr-add-piece');
   if (old) old.remove();
   var ov = document.createElement('div');
@@ -2446,6 +2453,26 @@ async function rrAddPieceStart(inv, kind) {
   var pd = key ? state.personalData[key] : null;
   if (!pd) { if (typeof showToast === 'function') showToast(C.gone, 4000, true); return; }
   var num = String(pd.itemNum || '').trim();
+  // 2026-11-03: "A Piece I Already Own" — no Add steps at all. The owned-item
+  // picker opens; the pick joins THIS copy's group (minted onto the copy by
+  // rrGroupIdForCopy only once something is picked), through the one stamp
+  // (wizard-save.js rrLinkOwnedToGroup). The page repaints by inventory ID.
+  if (kind === 'owned') {
+    var _ownTarget = (typeof RR_LINK_OWNED !== 'undefined' && RR_LINK_OWNED.stamp && RR_LINK_OWNED.stamp.target) || 'this group';
+    rrOwnedPickerOpen({
+      target: _ownTarget,
+      excludeKey: key,
+      excludeGroup: pd.groupId || '',
+      onPick: async function (pickKey) {
+        var copy = state.personalData[key];
+        if (!copy) { if (typeof showToast === 'function') showToast(C.gone, 4000, true); return; }
+        var gid = (typeof rrGroupIdForCopy === 'function') ? rrGroupIdForCopy(copy, copy.itemNum) : copy.groupId;
+        var r = await rrLinkOwnedToGroup(pickKey, gid, { target: _ownTarget });
+        if (r && r.ok && typeof rrDetailRepaint === 'function') rrDetailRepaint(0, String(copy.inventoryId || ''));
+      },
+    });
+    return;
+  }
   // v0.9.2029: "Add Another Item" — the normal Add steps from the start, any
   // number; only the GROUP is aimed (by inventory ID). The copy's era / maker
   // do NOT ride along: a B unit or a set car is searched like any add.
@@ -2489,6 +2516,287 @@ if (typeof window !== 'undefined') {
   window.rrAddAnotherOk = rrAddAnotherOk; window.rrAddToGroupBannerText = rrAddToGroupBannerText;
   window.rrGroupRole = rrGroupRole; window.rrGroupHeading = rrGroupHeading;
 }
+
+// ══ 2026-11-03 — THE OWNED-ITEM PICKER ════════════════════════════════════
+// PLAN_2026-11-03_GROUP_EXISTING.md. One list of the collector's own items to
+// choose ONE from, used by "A Piece I Already Own" (item page) and the set
+// page's button. Words: RR_LINK_OWNED.picker (config.js).
+//   rrOwnedPickerRows({ excludeKey, excludeGroup }) -> [{ key, pd, label, sub, note, disabled }]
+//   rrOwnedPickerOpen({ target, excludeKey, excludeGroup, onPick })
+// Every copy is its own row (two 2343s show twice, each with its condition
+// and inventory ID) — never a number alone. Not offered: the copy the page is
+// on, anything already in the target group, and piece rows (a box, carton or
+// sheet rides with its item). An item in ANOTHER set is shown greyed with the
+// reason, never silently skipped — so the collector learns where it is.
+// A search box narrows by number or word. The popup is guarded (rrDismissGuard):
+// a backdrop click does nothing, Back closes it.
+function rrOwnedPickerRows(o) {
+  var P = (typeof RR_LINK_OWNED !== 'undefined') ? RR_LINK_OWNED.picker : null;
+  if (!P) return [];
+  var all = state.personalData || {};
+  var exKey = (o && o.excludeKey) || '';
+  var exGid = String((o && o.excludeGroup) || '');
+  var out = [];
+  Object.keys(all).forEach(function (k) {
+    var pd = all[k];
+    if (!pd || !pd.owned) return;
+    if (k === exKey) return;
+    var num = String(pd.itemNum || '').trim();
+    if (!num || P.pieceRe.test(num)) return;
+    var gid = String(pd.groupId || '');
+    if (exGid && gid === exGid) return;
+    var master = null;
+    try { master = (String(pd.era || '') !== 'Manual' && typeof findMaster === 'function') ? findMaster(num, pd.variation || '', pd) : null; } catch (e) {}
+    var sub = [pd.roadName || (master && master.roadName) || '', (master && (master.description || master.itemType)) || pd.description || pd.itemType || ''].filter(Boolean).join(' · ');
+    var mates = 0;
+    if (gid) Object.keys(all).forEach(function (k2) { var q = all[k2]; if (q && q.owned && String(q.groupId || '') === gid) mates++; });
+    var inSet = !!(gid && /^(SET|OWN)-/i.test(gid));
+    var note = '';
+    if (inSet) note = P.inSet.replace('{set}', (typeof rrSetLabelOfGroup === 'function') ? rrSetLabelOfGroup(gid) : 'another set');
+    else if (mates > 1) note = P.inGroup.replace('{n}', String(mates));
+    out.push({
+      key: k, pd: pd, num: num,
+      label: num + (pd.variation ? ' ' + pd.variation : ''),
+      sub: sub,
+      cond: pd.condition ? P.cond.replace('{n}', String(pd.condition)) : '',
+      inv: String(pd.inventoryId || ''),
+      note: note,
+      disabled: inSet,
+      maker: String(pd.manufacturer || ''),
+    });
+  });
+  // By number, then by sheet row — "copy 1 of 2" is the same copy every time.
+  out.sort(function (a, b) {
+    var an = a.num.toUpperCase(), bn = b.num.toUpperCase();
+    if (an !== bn) return an < bn ? -1 : 1;
+    return (Number(a.pd.row) || 999999) - (Number(b.pd.row) || 999999);
+  });
+  return out;
+}
+function rrOwnedPickerOpen(o) {
+  var P = (typeof RR_LINK_OWNED !== 'undefined') ? RR_LINK_OWNED.picker : null;
+  if (!P) return;
+  var rows = rrOwnedPickerRows(o);
+  var old = document.getElementById('rr-owned-picker');
+  if (old) old.remove();
+  var ov = document.createElement('div');
+  ov.id = 'rr-owned-picker';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+  var close = function () { ov.remove(); };
+  rrDismissGuard(ov, close);
+  var esc = function (t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+  var target = (o && o.target) || '';
+  var listHtml = function (q) {
+    q = String(q || '').trim().toLowerCase();
+    var shown = rows.filter(function (r) {
+      if (!q) return true;
+      return (r.label + ' ' + r.sub + ' ' + r.maker).toLowerCase().indexOf(q) >= 0;
+    });
+    if (!rows.length) return '<div style="padding:1rem 0.2rem;color:var(--text-dim);font-size:0.85rem">' + esc(P.none) + '</div>';
+    if (!shown.length) return '<div style="padding:1rem 0.2rem;color:var(--text-dim);font-size:0.85rem">' + esc(P.noMatch) + '</div>';
+    return shown.map(function (r) {
+      var dis = r.disabled;
+      return '<button type="button" data-pick="' + esc(r.key) + '"' + (dis ? ' disabled' : '') + ' style="display:flex;align-items:center;gap:0.8rem;width:100%;text-align:left;padding:0.65rem 0.8rem;border-radius:10px;border:1.5px solid var(--border);background:var(--surface2);margin-bottom:0.45rem;cursor:' + (dis ? 'not-allowed' : 'pointer') + ';opacity:' + (dis ? '0.55' : '1') + ';font-family:var(--font-body)">'
+        + '<span style="flex:1;min-width:0"><b style="display:block;font-family:var(--font-mono);font-size:0.95rem;color:var(--t-accent)">' + esc(r.label) + '</b>'
+        + (r.sub ? '<span style="display:block;font-size:0.78rem;color:var(--text-mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(r.sub) + '</span>' : '')
+        + '<span style="display:block;font-size:0.72rem;color:var(--text-dim)">' + esc([r.cond, r.note].filter(Boolean).join(' · ')) + '</span></span>'
+        + '</button>';
+    }).join('');
+  };
+  ov.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:460px;width:100%;max-height:85vh;max-height:85dvh;display:flex;flex-direction:column;padding:1.3rem 1.4rem;font-family:var(--font-body)">'
+    + '<div style="font-family:var(--font-head);font-size:1.15rem;color:var(--t-accent);letter-spacing:0.03em">' + esc(P.title) + '</div>'
+    + '<div style="font-size:0.8rem;color:var(--text-dim);margin:0.2rem 0 0.8rem">' + esc(P.sub.replace('{target}', target)) + '</div>'
+    + '<input id="rr-owned-picker-q" type="text" autocomplete="off" placeholder="' + esc(P.search) + '" style="width:100%;box-sizing:border-box;padding:0.6rem 0.8rem;border-radius:9px;border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:0.9rem;margin-bottom:0.7rem">'
+    + '<div id="rr-owned-picker-list" style="flex:1;overflow:auto;min-height:0">' + listHtml('') + '</div>'
+    + '<div style="text-align:right;margin-top:0.6rem"><button type="button" data-close="1" style="padding:0.5rem 1.1rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);font-family:var(--font-body);cursor:pointer">' + esc(P.cancel) + '</button></div>'
+    + '</div>';
+  ov.querySelector('[data-close]').onclick = close;
+  var q = ov.querySelector('#rr-owned-picker-q');
+  var list = ov.querySelector('#rr-owned-picker-list');
+  q.oninput = function () { list.innerHTML = listHtml(q.value); };
+  list.onclick = function (ev) {
+    var b = ev.target && ev.target.closest ? ev.target.closest('button[data-pick]') : null;
+    if (!b || b.disabled) return;
+    var k = b.getAttribute('data-pick');
+    close();
+    if (o && typeof o.onPick === 'function') o.onPick(k);
+  };
+  document.body.appendChild(ov);
+  try { q.focus(); } catch (e) {}
+}
+if (typeof window !== 'undefined') { window.rrOwnedPickerRows = rrOwnedPickerRows; window.rrOwnedPickerOpen = rrOwnedPickerOpen; }
+
+// ══ 2026-11-03 — A SET'S PIECES, ON THE SET'S PAGE ════════════════════════
+// rrSetPieces(setEntry)  -> the owned rows carrying the set's Group ID (sorted)
+// rrSetPiecesCardHtml    -> the Pieces card: each piece tappable (by inventory
+//                           ID / state key, never a position) + the button
+// rrSetAddOwnedOpen(key) -> the picker aimed at THIS set. A set row older
+//                           than Group IDs gets one minted and written to its
+//                           own row first (identity-checked), so the pieces
+//                           have something to carry.
+function rrSetPieces(s) {
+  var gid = String((s && s.groupId) || '');
+  var all = state.personalData || {};
+  var out = [];
+  if (!gid) return out;
+  Object.keys(all).forEach(function (k) {
+    var pd = all[k];
+    if (pd && pd.owned && String(pd.groupId || '') === gid) out.push({ key: k, pd: pd });
+  });
+  out.sort(function (a, b) {
+    var an = String(a.pd.itemNum || '').toUpperCase(), bn = String(b.pd.itemNum || '').toUpperCase();
+    if (an !== bn) return an < bn ? -1 : 1;
+    return (Number(a.pd.row) || 999999) - (Number(b.pd.row) || 999999);
+  });
+  return out;
+}
+function rrSetPiecesCardHtml(s, key) {
+  var W = (typeof RR_LINK_OWNED !== 'undefined') ? RR_LINK_OWNED.setPage : null;
+  if (!W || !s) return '';
+  var esc = function (t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+  var pieces = rrSetPieces(s);
+  var keyArg = "'" + String(key || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
+  var html = '<div id="set-pieces-card" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.25rem;margin-bottom:1.5rem">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.75rem">'
+    + '<div style="font-family:var(--font-head);font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent2)">' + esc(W.head) + (pieces.length ? ' · ' + pieces.length : '') + '</div>'
+    + '<button id="set-add-owned" onclick="rrSetAddOwnedOpen(' + keyArg + ')" data-ctip="' + esc(W.tip) + '" style="padding:0.45rem 0.85rem;border-radius:8px;border:1.5px solid var(--accent2);background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 12%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:0.4rem">'
+    + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>' + esc(W.button) + '</button>'
+    + '</div>';
+  if (!pieces.length) {
+    html += '<div style="color:var(--text-dim);font-size:0.85rem">' + esc(W.empty) + '</div>';
+  } else {
+    html += '<div style="display:flex;gap:0.6rem;flex-wrap:wrap">' + pieces.map(function (p) {
+      var pd = p.pd;
+      var master = null;
+      try { master = (String(pd.era || '') !== 'Manual' && typeof findMaster === 'function') ? findMaster(pd.itemNum, pd.variation || '', pd) : null; } catch (e) {}
+      var sub = [pd.roadName || (master && master.roadName) || '', (master && (master.description || master.itemType)) || pd.description || pd.itemType || ''].filter(Boolean).join(' · ');
+      var inv = String(pd.inventoryId || p.key);
+      var invArg = "'" + inv.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
+      return '<button type="button" data-piece-inv="' + esc(inv) + '" onclick="if(typeof _openOwnedByInvId===\'function\')_openOwnedByInvId(' + invArg + ')" style="flex:1 1 150px;min-width:140px;max-width:220px;text-align:left;padding:0.6rem 0.75rem;border-radius:10px;border:1.5px solid var(--border);background:var(--surface2);cursor:pointer;font-family:var(--font-body)">'
+        + '<div style="font-family:var(--font-mono);font-weight:700;color:var(--t-accent);font-size:0.95rem">' + esc(pd.itemNum) + (pd.variation ? ' <span style="font-weight:400;font-size:0.8rem">' + esc(pd.variation) + '</span>' : '') + '</div>'
+        + (sub ? '<div style="font-size:0.74rem;color:var(--text-mid);line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(sub) + '</div>' : '')
+        + '<div style="font-size:0.72rem;color:var(--text-dim)">' + (pd.condition ? 'Cond ' + esc(pd.condition) + '/10' : '') + (pd.hasBox === 'Yes' ? ' · Box ✓' : '') + '</div>'
+        + '</button>';
+    }).join('') + '</div>';
+  }
+  html += '</div>';
+  return html;
+}
+async function rrSetAddOwnedOpen(key) {
+  var W = (typeof RR_LINK_OWNED !== 'undefined') ? RR_LINK_OWNED.setPage : null;
+  var s = (state.mySetsData || {})[key];
+  if (!W || !s) { if (typeof showToast === 'function') showToast(RR_LINK_OWNED.stamp.gone, 4000, true); return; }
+  rrOwnedPickerOpen({
+    target: W.target,
+    excludeKey: '',
+    excludeGroup: s.groupId || '',
+    onPick: async function (pickKey) {
+      var set = (state.mySetsData || {})[key];
+      if (!set) { if (typeof showToast === 'function') showToast(RR_LINK_OWNED.stamp.gone, 4000, true); return; }
+      var gid = String(set.groupId || '');
+      if (!gid) {
+        // A set saved before Group IDs: mint one and write it to the set's own
+        // row first — the same shape its pieces carry (SET-<num>-<time>, or
+        // OWN-… for the collector's own set), identity-checked by set number
+        // and inventory ID. No row on the sheet → nothing is minted.
+        var own = (typeof rrMySetIsOwn === 'function') ? rrMySetIsOwn(set) : String(set.setId || '') === 'OWN-SET';   // the one reader of the own-set mark (config.js)
+        gid = (own ? 'OWN-' : 'SET-') + String(set.setNum || 'UNK').replace(/[^A-Za-z0-9-]/g, '-') + '-' + Date.now();
+        var cfg = (window.NON_ITEM_DETAIL_CONFIG || {}).sets;
+        var gcol = cfg && cfg.rowSchema ? (cfg.rowSchema.find(function (r) { return r.key === 'groupId'; }) || {}).col : '';
+        if (!cfg || !gcol || !set.row || Number(set.row) === 99999 || !state.personalSheetId) {
+          if (typeof showToast === 'function') showToast(RR_LINK_OWNED.stamp.noRow.replace('{num}', 'This set'), 4500, true);
+          return;
+        }
+        var okG = await rrVerifiedRowUpdate(state.personalSheetId, cfg.sheetTab, set.row,
+          cfg.sheetTab + '!' + gcol + set.row + ':' + gcol + set.row, [[gid]],
+          { num: set.setNum || '', invId: set.inventoryId || '' }, 'sets list');
+        if (!okG) return;
+        set.groupId = gid;
+        try { if (typeof _cachePersonalData === 'function') _cachePersonalData(); } catch (eC) {}
+      }
+      var r = await rrLinkOwnedToGroup(pickKey, gid, { target: W.target });
+      if (r && r.ok) {
+        try { showNonItemDetailPage('sets', key); } catch (eR) {}
+      }
+    },
+  });
+}
+if (typeof window !== 'undefined') { window.rrSetPieces = rrSetPieces; window.rrSetPiecesCardHtml = rrSetPiecesCardHtml; window.rrSetAddOwnedOpen = rrSetAddOwnedOpen; }
+
+// ══ 2026-11-03 — THE SET WALK MEETS A PIECE ALREADY OWNED ═════════════════
+// rrSetOwnedCandidates(itemNum, d) -> state keys of owned copies of that
+//   number (every variation; -P / -D too, through rrOwnedCopyKeys) that are
+//   not in a set already, not in THIS set's group, and not used by this walk.
+// rrSetOwnedPieceAsk(itemNum, cands, { onUse(key), onAdd() }) -> the question,
+//   over the Add screens. One copy: two buttons. Several: each copy is its own
+//   "use" button (condition, inventory ID), then "add another copy".
+// Words: RR_LINK_OWNED.setFlow. Guarded like every overlay (rrDismissGuard);
+// Back = "add another copy", so the walk never stalls.
+function rrSetOwnedCandidates(itemNum, d) {
+  if (typeof rrOwnedCopyKeys !== 'function') return [];
+  var all = state.personalData || {};
+  var used = (d && d._setUsedOwned) || [];
+  var gid = String((d && (d._setGroupId || d._addToGroupGid)) || '');
+  var keys = rrOwnedCopyKeys(itemNum, '', true);
+  return keys.filter(function (k) {
+    var pd = all[k];
+    if (!pd || !pd.owned) return false;
+    if (used.indexOf(k) >= 0) return false;
+    var g = String(pd.groupId || '');
+    if (gid && g === gid) return false;
+    if (g && /^(SET|OWN)-/i.test(g)) return false;
+    return true;
+  });
+}
+function rrSetOwnedPieceAsk(itemNum, cands, h) {
+  var W = (typeof RR_LINK_OWNED !== 'undefined') ? RR_LINK_OWNED.setFlow : null;
+  var all = state.personalData || {};
+  if (!W || !cands || !cands.length) { if (h && h.onAdd) h.onAdd(); return; }
+  var old = document.getElementById('rr-set-owned-ask');
+  if (old) old.remove();
+  var ov = document.createElement('div');
+  ov.id = 'rr-set-owned-ask';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+  var done = false;
+  var finish = function (fn) { if (done) return; done = true; ov.remove(); if (typeof fn === 'function') fn(); };
+  rrDismissGuard(ov, function () { finish(h && h.onAdd); });
+  var esc = function (t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+  var btn = function (attr, title, desc, main) {
+    return '<button type="button" ' + attr + ' style="display:flex;align-items:center;gap:0.8rem;width:100%;text-align:left;padding:0.8rem 0.9rem;border-radius:10px;border:1.5px solid ' + (main ? 'var(--accent2)' : 'var(--border)') + ';background:var(--surface2);margin-bottom:0.55rem;cursor:pointer;font-family:var(--font-body)">'
+      + '<span style="min-width:0"><b style="display:block;font-size:0.92rem;color:var(--text)">' + esc(title) + '</b>'
+      + (desc ? '<span style="display:block;font-size:0.76rem;color:var(--text-dim)">' + esc(desc) + '</span>' : '') + '</span></button>';
+  };
+  var useBtns = '';
+  if (cands.length === 1) {
+    var p1 = all[cands[0]] || {};
+    useBtns = btn('data-use="' + esc(cands[0]) + '"', W.use, [String(p1.itemNum || ''), p1.condition ? 'Condition ' + p1.condition + '/10' : '', W.useDesc].filter(Boolean).join(' · '), true);
+  } else {
+    useBtns = '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.4rem">' + esc(W.which) + '</div>'
+      + cands.map(function (k, i) {
+          var p = all[k] || {};
+          return btn('data-use="' + esc(k) + '"', W.use + ' — ' + String(p.itemNum || '') + (p.variation ? ' ' + p.variation : '') + ' (' + (i + 1) + ' of ' + cands.length + ')',
+            [p.condition ? 'Condition ' + p.condition + '/10' : '', p.inventoryId ? 'ID ' + p.inventoryId : '', W.useDesc].filter(Boolean).join(' · '), true);
+        }).join('');
+  }
+  // The ✕ and the device Back button both mean "add it as usual" — the walk
+  // goes on exactly as it did before this question existed; nothing is lost.
+  ov.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:440px;width:100%;max-height:85vh;max-height:85dvh;overflow:auto;padding:1.3rem 1.4rem;font-family:var(--font-body);position:relative">'
+    + '<button type="button" data-add="1" aria-label="' + esc(W.add) + '" title="' + esc(W.add) + '" style="position:absolute;top:0.6rem;right:0.7rem;border:none;background:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer;line-height:1">✕</button>'
+    + '<div style="font-family:var(--font-head);font-size:1.15rem;color:var(--t-accent);letter-spacing:0.03em;padding-right:1.6rem">' + esc(W.title.replace('{num}', itemNum)) + '</div>'
+    + '<div style="font-size:0.8rem;color:var(--text-dim);margin:0.2rem 0 1rem">' + esc(W.sub) + '</div>'
+    + useBtns
+    + btn('data-add="1"', W.add, W.addDesc.replace('{num}', itemNum), false)
+    + '</div>';
+  ov.onclick = function (ev) {
+    var b = ev.target && ev.target.closest ? ev.target.closest('button[data-use],button[data-add]') : null;
+    if (!b) return;
+    if (b.hasAttribute('data-add')) { finish(h && h.onAdd); return; }
+    var k = b.getAttribute('data-use');
+    finish(function () { if (h && h.onUse) h.onUse(k); });
+  };
+  document.body.appendChild(ov);
+}
+if (typeof window !== 'undefined') { window.rrSetOwnedCandidates = rrSetOwnedCandidates; window.rrSetOwnedPieceAsk = rrSetOwnedPieceAsk; }
 
 // ══ v0.9.1571 — EDIT THE DETAILS CARD (Brad: "need to be able to edit the
 // detail sheet and be able to add the different columns or take them away,

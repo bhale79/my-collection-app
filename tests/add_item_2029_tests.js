@@ -167,8 +167,9 @@ async function openApp(browser, served) {
   const R = await scenario(pg);
   if (R.pageErr) console.log('note: detail page threw: ' + R.pageErr);
 
-  ok('A1 the box ends with Add Another Item (pieces first)', R.popAA === 'box,is,mbox,item' && R.anotherLabel === 'Add Another Item', R.popAA + ' ' + R.anotherLabel);
-  ok('A2 a group with every piece still offers Add Another Item', R.popFull === 'item', R.popFull);
+  // 2026-11-03 (group_existing): "A Piece I Already Own" follows Add Another Item — pieces, then the two item choices.
+  ok('A1 the box: pieces first, then Add Another Item, then A Piece I Already Own', R.popAA === 'box,is,mbox,item,owned' && R.anotherLabel === 'Add Another Item', R.popAA + ' ' + R.anotherLabel);
+  ok('A2 a group with every piece still offers Add Another Item (and A Piece I Already Own)', R.popFull === 'item,owned', R.popFull);
   ok('A3 a box’s own page gets no button', R.btnPiece === '', R.btnPiece.slice(0, 60));
   ok('A4 an item whose group has every piece keeps the button', R.btnFull.indexOf('Add a Piece to Group') >= 0, R.btnFull.slice(0, 60));
   ok('B1 the button reads Add Another Item and closes the box', /Add Another Item/.test(R.itemBtnText) && R.bPopGone, R.itemBtnText + ' ' + R.bPopGone);

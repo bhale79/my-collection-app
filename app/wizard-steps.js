@@ -95,7 +95,9 @@ function getSteps(tab) {
 
         // Identify phase (both paths converge here)
         { id: 'set_components',
-          title: 'Identify your set',
+          // 2026-11-03: "My Own Set" from the Add list lands here with the
+          // own-set path chosen — the box is for the set's pieces, not a search.
+          title: d => (d._ownSet && !d._resolvedSet) ? 'Your set \u2014 enter its pieces' : 'Identify your set',
           type: 'setComponents' },
 
         // Own set \u2014 name / number / year / maker (skipped for catalog-matched sets)

@@ -265,6 +265,152 @@ function _rrAddToGroupRepaint(d) {
   } catch (e) {}
 }
 
+// ══ 2026-11-03 — AN ITEM ALREADY OWNED JOINS A GROUP / SET ═════════════════
+// PLAN_2026-11-03_GROUP_EXISTING.md (Lars Brown: "Is it possible to group
+// items after already entered or do I need to start over?"). Until now a
+// Group ID was written only while a piece was being ADDED — nothing could put
+// an item that already existed into a set. This is THE one place that does:
+// the item page's "A Piece I Already Own", the set page's button, and the set
+// walk's "use the one I have" all come here.
+//
+//   rrLinkOwnedToGroup(copyKey, targetGid, { target }) -> { ok, moved, sheets, reason }
+//
+// What it writes: the Group ID cell of the copy's row — and of every row in
+// the copy's present group (an engine brings its box, carton and instruction
+// sheet; they are never split from it). Each write is the identity-checked
+// rrVerifiedRowUpdate (number + inventory ID), never a blind cell write. Every
+// row is checked BEFORE the first write, so a group is moved whole or not at
+// all. State follows the sheet (never the other way round), the cache is
+// refreshed, and the caller repaints.
+//
+// Refused, with the reason said (RR_LINK_OWNED.stamp, config.js):
+//   · the copy is in ANOTHER set (SET- / OWN- group) — never moved out of a
+//     set quietly; the collector removes it there first
+//   · the copy is not on the sheet yet (no row) — refresh and try again
+//   · a second call while one is still writing (busy guard)
+// Nothing here reads a list position: the copy is its state key / inventory ID.
+function rrSetLabelOfGroup(gid) {
+  gid = String(gid || '');
+  if (!gid) return '';
+  var hit = null;
+  try {
+    Object.keys(state.mySetsData || {}).some(function (k) {
+      var s = state.mySetsData[k];
+      if (s && String(s.groupId || '') === gid) { hit = s; return true; }
+      return false;
+    });
+  } catch (e) {}
+  if (hit) return hit.setNum ? ('Set ' + hit.setNum) : (hit.setName || 'another set');
+  return /^(SET|OWN)-/i.test(gid) ? 'another set' : 'another group';
+}
+function _rrLinkSay(key, pd, extra) {
+  var W = (typeof RR_LINK_OWNED !== 'undefined' && RR_LINK_OWNED.stamp) ? RR_LINK_OWNED.stamp : {};
+  var t = String(W[key] || '');
+  if (!t) return;
+  t = t.replace('{num}', String((pd && pd.itemNum) || ''))
+       .replace('{target}', String((extra && extra.target) || W.target || 'this group'))
+       .replace('{set}', String((extra && extra.set) || ''))
+       .replace('{n}', String((extra && extra.n) || ''));
+  if (typeof showToast === 'function') showToast(t, 4500, key !== 'done' && key !== 'doneMany');
+}
+// The instruction-sheet tab and its Group ID column come from the sheet's own
+// config (NON_ITEM_DETAIL_CONFIG, bucket isData) — not typed here a second time.
+function _rrIsSheetCols() {
+  try {
+    var cfgs = (typeof NON_ITEM_DETAIL_CONFIG !== 'undefined') ? NON_ITEM_DETAIL_CONFIG : (window.NON_ITEM_DETAIL_CONFIG || {});
+    var keys = Object.keys(cfgs);
+    for (var i = 0; i < keys.length; i++) {
+      var c = cfgs[keys[i]];
+      if (!c || c.bucketPath !== 'isData' || !c.sheetTab || !c.rowSchema) continue;
+      var g = c.rowSchema.find(function (r) { return r && r.key === 'groupId'; });
+      if (g && g.col) return { tab: c.sheetTab, col: g.col };
+    }
+  } catch (e) {}
+  return null;
+}
+async function rrLinkOwnedToGroup(copyKey, targetGid, opts) {
+  var target = (opts && opts.target) || '';
+  var all = (typeof state !== 'undefined' && state.personalData) || {};
+  var pd = all[copyKey];
+  targetGid = String(targetGid || '').trim();
+  if (!pd || !pd.owned) { _rrLinkSay('gone', pd); return { ok: false, reason: 'gone', moved: [] }; }
+  if (!targetGid) { _rrLinkSay('refused', pd); return { ok: false, reason: 'noTarget', moved: [] }; }
+  var cur = String(pd.groupId || '').trim();
+  if (cur === targetGid) { _rrLinkSay('already', pd, { target: target }); return { ok: true, already: true, moved: [] }; }
+  if (cur && /^(SET|OWN)-/i.test(cur)) {
+    _rrLinkSay('inSet', pd, { set: rrSetLabelOfGroup(cur) });
+    return { ok: false, reason: 'inSet', set: rrSetLabelOfGroup(cur), moved: [] };
+  }
+  if (rrLinkOwnedToGroup._busy) { _rrLinkSay('busy', pd); return { ok: false, reason: 'busy', moved: [] }; }
+  // The copy and everything grouped with it.
+  var members = [];
+  if (cur) {
+    Object.keys(all).forEach(function (k) { var m = all[k]; if (m && m.owned && String(m.groupId || '') === cur) members.push(k); });
+  }
+  if (members.indexOf(copyKey) < 0) members.unshift(copyKey);
+  var sheets = [];
+  if (cur && state.isData) {
+    Object.keys(state.isData).forEach(function (k) { var s = state.isData[k]; if (s && String(s.groupId || '') === cur) sheets.push(k); });
+  }
+  // Every row must be on the sheet, or nothing is written.
+  for (var i = 0; i < members.length; i++) {
+    var mm = all[members[i]];
+    if (!mm.row || Number(mm.row) === 99999) { _rrLinkSay('noRow', mm); return { ok: false, reason: 'noRow', moved: [] }; }
+  }
+  rrLinkOwnedToGroup._busy = true;
+  try {
+    var sid = state.personalSheetId;
+    var grpCol = personalColLetter('groupId');
+    // Check first — the whole group, before the first write.
+    if (sid && typeof rrRowStillIs === 'function') {
+      for (var c = 0; c < members.length; c++) {
+        var mc = all[members[c]];
+        var still = await rrRowStillIs(sid, PERSONAL_TAB, mc.row, mc.itemNum || '', mc.inventoryId || '');
+        if (!still) {
+          if (typeof showToast === 'function') showToast('Your collection changed somewhere else — nothing was written. Refresh and try again.', 5000, true);
+          return { ok: false, reason: 'refused', moved: [] };
+        }
+      }
+    }
+    var moved = [];
+    for (var w = 0; w < members.length; w++) {
+      var mw = all[members[w]];
+      if (sid) {
+        var okW = await rrVerifiedRowUpdate(sid, PERSONAL_TAB, mw.row,
+          PERSONAL_TAB + '!' + grpCol + mw.row + ':' + grpCol + mw.row, [[targetGid]],
+          { num: mw.itemNum || '', invId: mw.inventoryId || '' }, 'collection');
+        if (!okW) return { ok: false, reason: 'refused', moved: moved };   // it has already said so
+      }
+      mw.groupId = targetGid;
+      moved.push(members[w]);
+    }
+    var isc = _rrIsSheetCols();
+    var movedSheets = [];
+    for (var s = 0; s < sheets.length; s++) {
+      var sh = state.isData[sheets[s]];
+      if (!sh || !sh.row || Number(sh.row) === 99999 || !isc || !sid) continue;
+      try {
+        var okS = await rrVerifiedRowUpdate(sid, isc.tab, sh.row,
+          isc.tab + '!' + isc.col + sh.row + ':' + isc.col + sh.row, [[targetGid]],
+          { num: sh.sheetNum || '', invId: sh.inventoryId || '' }, 'instruction sheets');
+        if (okS) { sh.groupId = targetGid; movedSheets.push(sheets[s]); }
+      } catch (eS) { console.warn('[link] instruction sheet:', eS); }
+    }
+    try { if (typeof _cachePersonalData === 'function') _cachePersonalData(); } catch (eC) {}
+    var others = moved.length - 1 + movedSheets.length;
+    if (others > 0) _rrLinkSay('doneMany', pd, { target: target, n: others });
+    else _rrLinkSay('done', pd, { target: target });
+    return { ok: true, moved: moved, sheets: movedSheets };
+  } catch (e) {
+    try { if (typeof rrSaveMissed === 'function') rrSaveMissed(e, 'the link'); else console.warn('[link]', e); } catch (e2) {}
+    return { ok: false, reason: 'error', moved: [] };
+  } finally {
+    rrLinkOwnedToGroup._busy = false;
+  }
+}
+rrLinkOwnedToGroup._busy = false;
+if (typeof window !== 'undefined') { window.rrLinkOwnedToGroup = rrLinkOwnedToGroup; window.rrSetLabelOfGroup = rrSetLabelOfGroup; }
+
 // ══ v0.9.2072 — INBOX PHOTOS FOR A ROW OUTSIDE THE COLLECTION TAB ══════════
 // PLAN_2026-10-30_INBOX_PAPER_SAVES.md. An add that started in the Photo Inbox
 // holds its photos until a save arms them, and the background mover then files
@@ -522,6 +668,36 @@ function launchSetItemWizard() {
   const itemNum = items[idx];
   // Snapshot set-level data we need to preserve
   const _setGroupId      = rrAddToGroupId(d) || d._setGroupId;   // v0.9.2029: a set added through "Add Another Item" joins that group
+  // 2026-11-03 (PLAN_2026-11-03_GROUP_EXISTING.md item 3): this piece may already
+  // be in the collection. Asked ONCE per slot (d._setOwnedAsked[idx]) — "use the
+  // one I have" stamps that copy with the set's Group ID through the one stamp
+  // (rrLinkOwnedToGroup) and moves on to the next piece; "add another copy"
+  // walks the Add steps exactly as before. A refused stamp (the copy sits in
+  // another set, or its row changed) falls through to the Add steps, with the
+  // reason already said. Copies already used by this set are not offered twice.
+  if (typeof rrSetOwnedPieceAsk === 'function' && typeof rrSetOwnedCandidates === 'function') {
+    const _asked = d._setOwnedAsked || {};
+    if (!_asked[idx]) {
+      const _cands = rrSetOwnedCandidates(itemNum, d);
+      if (_cands.length) {
+        _asked[idx] = true; d._setOwnedAsked = _asked;
+        const _setLbl = d._resolvedSet ? ('Set ' + d._resolvedSet.setNum) : (d._ownSetName || 'your set');
+        rrSetOwnedPieceAsk(itemNum, _cands, {
+          onUse: async function (pickKey) {
+            const r = await rrLinkOwnedToGroup(pickKey, _setGroupId, { target: _setLbl });
+            if (!r || !r.ok) { launchSetItemWizard(); return; }   // falls through to the Add steps
+            const _used = d._setUsedOwned || []; _used.push(pickKey); d._setUsedOwned = _used;
+            const _saved = d._setItemsSaved || []; _saved.push(itemNum); d._setItemsSaved = _saved;
+            d._setItemIndex = idx + 1;
+            try { buildDashboard(); renderBrowse(); } catch (eB) {}
+            launchSetItemWizard();
+          },
+          onAdd: function () { launchSetItemWizard(); },
+        });
+        return;
+      }
+    }
+  }
   const _setFinalItems   = d._setFinalItems;
   const _setItemIndex    = idx;
   const _setItemsSaved   = d._setItemsSaved || [];
@@ -579,6 +755,9 @@ function launchSetItemWizard() {
     _existingGroupId: _setGroupId,
     // v0.9.2029: the aimed group rides from member to member
     _addToGroupInv: d._addToGroupInv, _addToGroupKey: d._addToGroupKey, _addToGroupNum: d._addToGroupNum, _addToGroupGid: d._addToGroupGid,
+    // 2026-11-03 (GROUP_EXISTING): which slots were already asked "use the one I
+    // have", and which copies said yes (the own set's details ride in _setCarry above)
+    _setOwnedAsked: d._setOwnedAsked, _setUsedOwned: d._setUsedOwned,
     tenderMatch: 'none',  // Prevent paired engine+tender detection
     setMatch: '',          // Prevent set detection
     // For the locomotive (item 0): pre-fill purchase fields
