@@ -273,12 +273,10 @@ function personalFullRowRange(rowNum) {
 // once. Both are commented where they sit. Everywhere else, use this.
 async function personalWriteRow(rec, values) {
   if (!rec || !rec.row || rec.row === 99999) return false;
-  return await sheetsUpdateRow(
-    state.personalSheetId,
-    personalFullRowRange(rec.row),
-    [values],
-    { itemNum: rec.itemNum, inventoryId: rec.inventoryId || '' }
-  );
+  const _exp = { itemNum: rec.itemNum, inventoryId: rec.inventoryId || '' };
+  const _ok = await sheetsUpdateRow(state.personalSheetId, personalFullRowRange(rec.row), [values], _exp);
+  if (_ok && _exp.foundRow) rec.row = _exp.foundRow;   // FIND BY ID: it may have landed where the copy moved to
+  return _ok;
 }
 
 // v0.9.1944 — THE way to take a My Collection row off the sheet by blanking it.
@@ -299,10 +297,16 @@ async function personalWriteRow(rec, values) {
 //      (the user has been told why).
 async function rrPersonalRemoveRow(rec, why) {
   if (!rec || !rec.row || rec.row === 99999) return false;
-  if (typeof rrRowStillIs === 'function'
-      && !(await rrRowStillIs(state.personalSheetId, PERSONAL_TAB, rec.row, rec.itemNum, rec.inventoryId || ''))) {
-    if (typeof rrRowMovedToast === 'function') rrRowMovedToast();
-    return false;
+  // FIND BY ID (2026-11-04): the row this copy is on NOW — another device may
+  // have removed a row above it. Refused only when it is really gone, on two
+  // rows, or Google could not be asked (sheets.js rrWhereIsRow says which).
+  if (typeof rrWhereIsRow === 'function') {
+    const _w = await rrWhereIsRow(state.personalSheetId, PERSONAL_TAB, rec.row, rec.itemNum, rec.inventoryId || '');
+    if (!_w.ok) {
+      if (typeof rrRowRefusedToast === 'function') rrRowRefusedToast(_w, rec.itemNum);
+      return false;
+    }
+    rec.row = _w.row;
   }
   if (typeof rrArchiveRowBeforeRemoval === 'function'
       && !(await rrArchiveRowBeforeRemoval(state.personalSheetId, PERSONAL_TAB, rec.row, why || 'removed',
@@ -372,6 +376,17 @@ async function rrPersonalSafeWrite(rec, values, base, opts) {
   const baseRow = rrRecordRow(base);
   let curRec = null, curRow = null;
   const offline = (typeof _rrOfflineNow === 'function') && _rrOfflineNow();
+  // FIND BY ID (2026-11-04): first, the row this copy is on NOW. A copy whose
+  // row moved (another device removed one above it) is saved where it is; the
+  // save is refused only when it is really gone / on two rows / unreadable.
+  if (!offline && typeof rrWhereIsRow === 'function') {
+    const _w = await rrWhereIsRow(state.personalSheetId, PERSONAL_TAB, rec.row, base.itemNum || rec.itemNum, rec.inventoryId || '');
+    if (!_w.ok) {
+      if (!(opts && opts.quiet) && typeof rrRowRefusedToast === 'function') rrRowRefusedToast(_w, base.itemNum || rec.itemNum);
+      return false;
+    }
+    if (!_w.offline) rec.row = _w.row;
+  }
   if (!offline) {
     try {
       const res = await sheetsGet(state.personalSheetId, personalFullRowRange(rec.row));
@@ -406,7 +421,8 @@ async function rrPersonalSafeWrite(rec, values, base, opts) {
   let firstErr = null;
   for (const run of rrColumnRuns(plan.write)) {
     const range = PERSONAL_TAB + '!' + colLetter(run[0]) + rec.row + ':' + colLetter(run[1]) + rec.row;
-    try { await sheetsUpdate(state.personalSheetId, range, [values.slice(run[0], run[1] + 1)]); }
+    try { await sheetsUpdate(state.personalSheetId, range, [values.slice(run[0], run[1] + 1)],
+                             { expect: { tab: PERSONAL_TAB, row: rec.row, num: base.itemNum || rec.itemNum || '', invId: rec.inventoryId || '' } }); }
     catch (e) { if (!firstErr) firstErr = e; }      // offline: every run still reaches the queue
   }
   // The row as it now stands: this save's columns where written, everything

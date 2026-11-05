@@ -365,11 +365,14 @@ async function rrLinkOwnedToGroup(copyKey, targetGid, opts) {
     if (sid && typeof rrRowStillIs === 'function') {
       for (var c = 0; c < members.length; c++) {
         var mc = all[members[c]];
-        var still = await rrRowStillIs(sid, PERSONAL_TAB, mc.row, mc.itemNum || '', mc.inventoryId || '');
-        if (!still) {
-          if (typeof showToast === 'function') showToast('Your collection changed somewhere else — nothing was written. Refresh and try again.', 5000, true);
+        // FIND BY ID: where each member is NOW (a row above it may have been removed elsewhere).
+        var _wm = await rrWhereIsRow(sid, PERSONAL_TAB, mc.row, mc.itemNum || '', mc.inventoryId || '');
+        if (!_wm.ok) {
+          if (typeof showToast === 'function') showToast((_wm.why === 'gone' || _wm.why === 'twice' || _wm.why === 'busy') && typeof rrRowRefusedWords === 'function'
+            ? rrRowRefusedWords(_wm, mc.itemNum) : 'Your collection changed somewhere else — nothing was written. Refresh and try again.', 5000, true);
           return { ok: false, reason: 'refused', moved: [] };
         }
+        if (!_wm.offline) mc.row = _wm.row;
       }
     }
     var moved = [];
@@ -1691,6 +1694,7 @@ function _normalizeEnteredItemNum(raw) {
 
 async function saveWizardItem() {
   const d = wizard.data;
+  var _rrSaleKeptNum = '';   // FIND BY ID: set when a sale is saved but its copy could not be taken off My Collection
   // Guided walkthrough is on screen — never write to the sheet.
   if (typeof document !== 'undefined' && document.getElementById('wiz-coach')) { if (typeof _coachPlaying !== 'undefined') _coachPlaying = false; return; }
   // Guard: prevent any save if a save already completed this wizard session
@@ -1910,8 +1914,11 @@ async function saveWizardItem() {
         // (Purchased From, Custom 1–5, Import Batch …) from the row it replaces;
         // quickEntry is named — finishing the entry clears the flag.
         if (existing && existing.row && existing.itemNum === boxItemNum) {
-          _bxUpdated = await rrRowStillIs(state.personalSheetId, PERSONAL_TAB, existing.row,
-                                          existing.itemNum, existing.inventoryId || '');
+          // FIND BY ID: the box row where it is NOW — a moved box is updated where
+          // it went, never appended a second time.
+          var _bxW = await rrWhereIsRow(state.personalSheetId, PERSONAL_TAB, existing.row, existing.itemNum, existing.inventoryId || '');
+          if (_bxW.ok && !_bxW.offline) existing.row = _bxW.row;
+          _bxUpdated = !!_bxW.ok;
           if (_bxUpdated) {
             _bxWritten = rrCarryPersonalRow(existing, boxRow, Object.keys(_boxFields).filter(k => _boxFields[k] !== undefined).concat(['quickEntry']));
             // v0.9.2039: changed columns only; another device's change is kept (app.js)
@@ -2242,10 +2249,15 @@ async function saveWizardItem() {
         // (Purchased From, Your Grade, Custom 1–5, Import Batch …) from the row it
         // replaces. groupId / setId / matchedTo are set on the row after it is
         // built, and quickEntry is cleared on purpose — all four count as written.
-        if (!(await rrRowStillIs(state.personalSheetId, PERSONAL_TAB, existing.row,
-                                 existing.itemNum, existing.inventoryId || ''))) {
-          throw new Error('ROW_MOVED');
+        // FIND BY ID: the row this copy is on NOW; refused only when it is really
+        // gone / on two rows / Google could not be asked — with those words.
+        var _fillW = await rrWhereIsRow(state.personalSheetId, PERSONAL_TAB, existing.row, existing.itemNum, existing.inventoryId || '');
+        if (!_fillW.ok) {
+          var _fillErr = new Error('ROW_MOVED');
+          if ((_fillW.why === 'gone' || _fillW.why === 'twice' || _fillW.why === 'busy') && typeof rrRowRefusedWords === 'function') _fillErr.rrWords = rrRowRefusedWords(_fillW, existing.itemNum);
+          throw _fillErr;
         }
+        if (!_fillW.offline) existing.row = _fillW.row;
         _mainWrittenRow = rrCarryPersonalRow(existing, row, Object.keys(_mainFields || {}).filter(k => _mainFields[k] !== undefined)
             .concat(['groupId', 'setId', 'matchedTo', 'quickEntry']));
         // v0.9.2039: only the columns this save changed are written; another
@@ -2428,6 +2440,23 @@ async function saveWizardItem() {
       // Rows under this tag first, so Returned can put exactly those rows back.
       var _soldInvIdForState = (collectionEntry && collectionEntry.inventoryId) || '';   // read by the optimistic Sold entry below
       var _saleTag = rrSaleTag((collectionEntry && collectionEntry.inventoryId) || itemNum, row[6]);
+      // FIND BY ID (2026-11-04, audit F7): find the copy being sold BEFORE the
+      // sale is written. The sale used to go to Sold first and the collection
+      // row was then refused ("it had moved") — the item ended up both owned and
+      // sold under "✓ Added to Sold!". Now: found (where it is now) → go on;
+      // gone / on two rows / Google could not be asked → nothing is written.
+      if (collectionEntry && collectionEntry.row && collectionEntry.row !== 99999 && typeof rrWhereIsRow === 'function') {
+        var _sw = await rrWhereIsRow(state.personalSheetId, PERSONAL_TAB, collectionEntry.row,
+                                     collectionEntry.itemNum || itemNum, collectionEntry.inventoryId || '');
+        if (!_sw.ok) {
+          var _swErr = new Error('SALE_STOPPED');
+          _swErr.rrWords = (_sw.why === 'busy' && typeof rrRowRefusedWords === 'function')
+            ? rrRowRefusedWords(_sw, itemNum)
+            : String(((typeof RR_FIND_BY_ID !== 'undefined' && RR_FIND_BY_ID.saleStopped) || '')).replace('{num}', collectionEntry.itemNum || itemNum);
+          throw _swErr;
+        }
+        if (!_sw.offline) collectionEntry.row = _sw.row;
+      }
       var _soldApRow = (await sheetsAppend(state.personalSheetId, 'Sold!A:' + soldEndCol(), [row])) || 0;   // v0.9.1196
       // Bug 19 (Session 154): group sale — handle the other selected pieces
       // BEFORE deleting the lead row (clearing rows doesn't shift row numbers
@@ -2442,6 +2471,9 @@ async function saveWizardItem() {
           var _spBlanked = true;
           if (_sp && _sp.row) { try { _spBlanked = await rrPersonalRemoveRow(_sp, _saleTag); } catch(e){ _spBlanked = false; } }
           if (_spBlanked) delete state.personalData[_gs.sellPd[_i]];
+          // FIND BY ID (2026-11-04): a piece the sheet kept is named in the
+          // last message, never "✓ Added to Sold!" over it.
+          else if (!_rrSaleKeptNum) _rrSaleKeptNum = (_sp && _sp.itemNum) || itemNum;
         }
         for (var _j=0; _j<(_gs.sellIs||[]).length; _j++) {
           var _ip = (state.isData||{})[_gs.sellIs[_j]];
@@ -2487,11 +2519,19 @@ async function saveWizardItem() {
                                                 { itemNum: collectionEntry.itemNum || itemNum,
                                                   inventoryId: collectionEntry.inventoryId || '',
                                                   why: _saleTag });   // v0.9.1944: the copy in Deleted Rows carries the sale's tag
-        if (!_soldGone) console.warn('[sold] My Collection row was not removed — it had moved.');
+        if (!_soldGone) {
+          // FIND BY ID: the sale is saved but the copy is still in the collection —
+          // say THAT (below, instead of "✓ Added to Sold!") and keep it on screen.
+          console.warn('[sold] My Collection row was not removed — the sale is saved, the copy is still owned.');
+          _rrSaleKeptNum = collectionEntry.itemNum || itemNum;
+        } else if (typeof _adjustRowsAfterDelete === 'function') {
+          _adjustRowsAfterDelete(state.personalData, _soldGone, PERSONAL_TAB);   // the rows below it moved up
+        }
       }
       // Session 176: drop the sold item from state right away so Items-I-Own and the
       // collection list update immediately (don't wait for the background reload).
-      if (_collKey && state.personalData[_collKey]) delete state.personalData[_collKey];
+      // FIND BY ID: only when the sheet really let go of it.
+      if (!_rrSaleKeptNum && _collKey && state.personalData[_collKey]) delete state.personalData[_collKey];
       // Bugfix 2026-04-14: clear any matching For Sale row when an item is marked sold.
       // Wizard sold path used to leave a stale row on the For Sale tab even though the
       // item was also in Sold. Mirror the cleanup that markForSaleAsSold already does.
@@ -3080,7 +3120,12 @@ async function saveWizardItem() {
       }, 250);
     }
     renderBrowse();
-    showToast(`✓ Item ${itemNum} added to ${tab === 'collection' ? 'My Collection' : tab === 'forsale' ? 'For Sale' : tab === 'sold' ? 'Sold' : 'Want List'}!`);
+    if (tab === 'sold' && _rrSaleKeptNum) {
+      // FIND BY ID: never "✓ Added to Sold!" over a copy that is still owned.
+      showToast(String(((typeof RR_FIND_BY_ID !== 'undefined' && RR_FIND_BY_ID.saleKept) || '')).replace('{num}', _rrSaleKeptNum), 9000, true);
+    } else {
+      showToast(`✓ Item ${itemNum} added to ${tab === 'collection' ? 'My Collection' : tab === 'forsale' ? 'For Sale' : tab === 'sold' ? 'Sold' : 'Want List'}!`);
+    }
     if (tab === 'collection') _rrAddToGroupRepaint(d);   // v0.9.2029
 
     // ── Vault: submit updated collection data in background ──

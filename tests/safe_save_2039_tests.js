@@ -100,7 +100,17 @@ async function boot(browser, planted) {
       if (/values:batchUpdate/.test(u) && method === 'POST') { window.__sheet.writes.push(JSON.parse(opts.body)); return ok({ totalUpdatedCells: 1 }); }
       const m = /\/values\/([^?]+)\?/.exec(u);
       if (m && method === 'GET') {   // rrRowStillIs: A{row}:{inv}{row}; the safe save: the whole row
-        const r = decodeURIComponent(m[1]); const rowN = Number((/!A(\d+)/.exec(r) || [])[1]);
+        const r = decodeURIComponent(m[1]);
+        // FIND BY ID (2026-11-04): rrWhereIsRow reads a tab's whole ID column
+        // (e.g. My Collection!H3:H) to find a record that moved — answered
+        // from the same rows the stand-in holds.
+        const colRead = /!([A-Z]+)3:([A-Z]+)$/.exec(r);
+        if (colRead && colRead[1] === colRead[2]) {
+          const ci = colIdx(colRead[1]); const v = [];
+          for (let i = 3; i <= last; i++) v.push([window.__rows[i] ? (window.__rows[i][ci] || '') : (ci === F.inventoryId ? (sheetInv[i] || '') : ci === 0 ? (sheetA[i] || '') : '')]);
+          return ok({ values: v });
+        }
+        const rowN = Number((/!A(\d+)/.exec(r) || [])[1]);
         if (window.__rows[rowN]) { const end = colIdx((/:([A-Z]+)\d+$/.exec(r) || [])[1] || 'A'); return ok({ values: [window.__rows[rowN].slice(0, end + 1)] }); }
         const cells = []; cells[0] = sheetA[rowN] || ''; cells[F.inventoryId] = sheetInv[rowN] || '';
         return ok({ values: [cells] });
@@ -170,6 +180,9 @@ async function twoPhones(browser, o) {
       window.__asks = [];
       window.appConfirm = async function (msg, opts) { window.__asks.push({ msg: msg, opts: opts }); return o.answer; };
       window.__moved = 0; window.rrRowMovedToast = function () { window.__moved++; };
+      // FIND BY ID (2026-11-04): a record that cannot be found anywhere is now
+      // refused up front by rrWhereIsRow, through rrRowRefusedToast with its why.
+      window.__why = ''; window.rrRowRefusedToast = function (r) { window.__moved++; window.__why = (r && r.why) || ''; };
       window.__queued = [];
       if (o.offline) {
         window._offlineMode = true;
@@ -200,7 +213,7 @@ async function twoPhones(browser, o) {
         notes: row[F.notes], cond: row[F.condition], inv: row[F.inventoryId],
         puts: puts, condCell: cell('condition'),
         asks: window.__asks.map(a => ({ msg: a.msg, title: a.opts && a.opts.title, ok: a.opts && a.opts.ok, cancel: a.opts && a.opts.cancel })),
-        moved: window.__moved, queued: window.__queued.map(q => q.range).filter(r => new RegExp('![A-Z]+' + rec.row + '(:|$)').test(r)),   // this item's row (other rows get background repairs in this world)
+        moved: window.__moved, why: window.__why, queued: window.__queued.map(q => q.range).filter(r => new RegExp('![A-Z]+' + rec.row + '(:|$)').test(r)),   // this item's row (other rows get background repairs in this world)
         liveNotes: live.notes, liveCond: live.condition,
         words: RR_SAFE_SAVE,
       };
@@ -255,7 +268,9 @@ async function twoPhones(browser, o) {
 
   const r4 = await twoPhones(browser, { bInv: 'INV-SOMEONE-ELSE', answer: true });
   T('R4 the row now holds ANOTHER item → nothing written', r4.out.puts.length === 0 && r4.out.inv === 'INV-SOMEONE-ELSE', r4.out);
-  T('R4b ...and the person is told (row-moved notice)', r4.out.moved === 1, r4.out);
+  // FIND BY ID (2026-11-04): the item's Inventory ID is on no row now, so it is
+  // told "removed on another device" (why 'gone') instead of the row-moved notice.
+  T('R4b ...and the person is told, once: it is gone from the sheet', r4.out.moved === 1 && r4.out.why === 'gone', r4.out);
 
   const r5 = await twoPhones(browser, { offline: true });
   T('R5 offline → only the Condition cell is queued (no whole row waiting to overwrite later)', r5.out.queued.length === 1 && r5.out.queued[0] === r5.out.condCell, r5.out);

@@ -3744,7 +3744,7 @@ async function removeCollectionItem(itemNum, variation, row, invId, opts) {
             var _sibGone = await sheetsDeleteRow(state.personalSheetId, PERSONAL_TAB, sib.row,
                                                  { itemNum: sib.itemNum, inventoryId: sib.inventoryId || '' });
             if (!_sibGone) { _sibFailed.push(sibKey); continue; }
-            _adjustRowsAfterDelete(state.personalData, sib.row, PERSONAL_TAB);
+            _adjustRowsAfterDelete(state.personalData, _sibGone, PERSONAL_TAB);   // FIND BY ID: the row really deleted
           } catch(e) { console.warn('Remove group row error:', sib.itemNum, e); _sibFailed.push(sibKey); continue; }
         }
         // Phase 3: prefer sibling's inventoryId for For Sale + Upgrade cleanup.
@@ -3791,7 +3791,7 @@ async function removeCollectionItem(itemNum, variation, row, invId, opts) {
         try {
           var _fsGone = await sheetsDeleteRow(state.personalSheetId, 'For Sale', fsRow.row,
                                               { itemNum: fsRow.itemNum, inventoryId: fsRow.inventoryId });
-          if (_fsGone) _adjustRowsAfterDelete(state.forSaleData, fsRow.row, 'For Sale');
+          if (_fsGone) _adjustRowsAfterDelete(state.forSaleData, _fsGone, 'For Sale');   // FIND BY ID: the row really deleted
         } catch(e) { console.warn('FS cleanup:', e); }
       }
       // v0.9.1569 (audit step 5): a boxed SET's remove-all used to orphan its
@@ -3862,7 +3862,7 @@ async function removeCollectionItem(itemNum, variation, row, invId, opts) {
       var _fsEntGone = await sheetsDeleteRow(state.personalSheetId, 'For Sale', fsEntry.row,
                                              { itemNum: fsEntry.itemNum || itemNum,
                                                inventoryId: fsEntry.inventoryId || _thisInv || '' });
-      if (_fsEntGone) _adjustRowsAfterDelete(state.forSaleData, fsEntry.row, 'For Sale');
+      if (_fsEntGone) _adjustRowsAfterDelete(state.forSaleData, _fsEntGone, 'For Sale');   // FIND BY ID: the row really deleted
     } catch(e) { console.warn('For Sale cleanup:', e); }
     delete state.forSaleData[fsKey];
   }
@@ -3883,7 +3883,7 @@ async function removeCollectionItem(itemNum, variation, row, invId, opts) {
     else _ugStuck1 = true;
   }
   if (pdKey) delete state.personalData[pdKey];
-  if (_delRow && _delRow !== 99999) _adjustRowsAfterDelete(state.personalData, _delRow, PERSONAL_TAB);
+  if (typeof _delGone === 'number' && _delGone !== 99999) _adjustRowsAfterDelete(state.personalData, _delGone, PERSONAL_TAB);   // FIND BY ID: the row really deleted
   _cachePersonalData();
   renderBrowse();
   buildDashboard();

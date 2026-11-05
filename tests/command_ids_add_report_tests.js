@@ -76,6 +76,7 @@ async function open(browser, swap) {
     window.__appended = []; window.__toasts = []; window.__confirms = [];
     window.sheetsAppend = async (id, range, rows) => { window.__appended.push(rows[0]); return 100 + window.__appended.length; };
     window.rrVerifiedRowUpdate = async () => true; window.rrRowStillIs = async () => true;
+    window.rrWhereIsRow = async (sid, tab, row) => ({ ok: true, row: row });   // FIND BY ID (2026-11-04): the gates ask where it is NOW — same stand-in: unmoved
     window.driveEnsureSetup = async () => {}; window.driveEnsureItemFolder = async (n) => 'FOLDER-' + n; window.driveUploadPhoto = async () => ({});
     window.buildDashboard = () => {}; window.loadPersonalData = async () => {};
     window.showToast = (m) => { window.__toasts.push(String(m)); };

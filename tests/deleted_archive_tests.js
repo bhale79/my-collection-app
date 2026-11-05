@@ -119,7 +119,9 @@ section('A removal copies the row first — and the copy lands BEFORE the delete
   const t = boot();
   const got = await t.sandbox.sheetsDeleteRow(MINE, 'My Collection', 233, { itemNum: '6-24177', inventoryId: '153' });
   const ap = trashAppend(t.calls);
-  ok('the row was deleted', got === true);
+  // 2026-11-04 (findbyid): sheetsDeleteRow now returns the row it REALLY deleted
+  // (truthy) so callers renumber from it, never from the row they remembered. Was: got === true.
+  ok('the row was deleted (and it says which row)', got === 233);
   ok('a copy went to the "Deleted Rows" tab', !!ap, kinds(t.calls));
   ok('…and it went BEFORE the delete, not after',
      ap && t.calls.indexOf(ap) < t.calls.findIndex(c => c.kind === 'DELETE'), kinds(t.calls));
@@ -201,7 +203,7 @@ section('The cases that must NOT get in the way');
   const t = boot({ rows: { 'My Collection!240': [] } });
   const got = await t.sandbox.sheetsDeleteRow(MINE, 'My Collection', 240, { itemNum: '', inventoryId: '' });
   ok('an already-empty row is not worth keeping and does not block the removal',
-     !trashAppend(t.calls) && got === true, kinds(t.calls));
+     !trashAppend(t.calls) && got === 240, kinds(t.calls));   // findbyid: the row deleted, was === true
 }
 {
   const t = boot({ offline: true });

@@ -697,8 +697,13 @@ async function markSold(pg, fill) {
         const other = new Array(SOLD_HEADERS.length).fill(''); other[0] = '2343'; other[5] = '99'; other[6] = '2025-01-01'; other[8] = '55';
         window.__S.tabs.Sold.splice(r - 1, 0, other); return k; });
       await q.pg.evaluate(k => rrSaleReturned(k), qk);
-      const stuck = await q.pg.evaluate(() => window.__S.get('Sold!A3:A').filter(r => r.length && r[0] === '2343').length);
-      T('I PLANTED: trusting the remembered row leaves the moved sale stuck on Sold (I would fail)', stuck === 2, stuck);
+      // FIND BY ID (2026-11-04): this used to leave the moved sale stuck on Sold
+      // (the gate refused the moved row; stuck === 2). Now the gate itself finds
+      // the sale by its Inventory ID, so even a caller trusting the remembered
+      // row takes off the RIGHT sale and leaves the row that moved in alone.
+      // (The gate's own planted offenders live in tests/find_by_id_tests.js.)
+      const left = await q.pg.evaluate(() => window.__S.get('Sold!A3:' + soldEndCol()).filter(r => r.length && r[0] === '2343').map(r => [r[5], r[8]]));
+      T('I even a caller trusting the remembered row takes off the right sale (the gate finds it by its Inventory ID)', JSON.stringify(left) === JSON.stringify([['99', '55']]), left);
       await q.pg.close();
     }
   } finally { await browser.close(); }

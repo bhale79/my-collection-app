@@ -9802,8 +9802,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // ── 4. Cancelling a set left every later row number wrong ───────────
     const rsg = wz.slice(wz.indexOf('async function rrRemoveSetGroup'),
                          wz.indexOf("if (typeof window !== 'undefined') window.rrRemoveSetGroup"));
-    ok('deleting a set row pulls the rows beneath it up, like every other delete',
-       /_adjustRowsAfterDelete\(state\.personalData, pd\.row, PERSONAL_TAB\)/.test(rsg));
+    // FIND BY ID (2026-11-04): sheetsDeleteRow returns the row it REALLY deleted
+    // (the record may have moved on another device); the renumber uses that.
+    ok('deleting a set row pulls the rows beneath it up, like every other delete — from the row really deleted',
+       /_adjustRowsAfterDelete\(state\.personalData, _setGone, PERSONAL_TAB\)/.test(rsg));
     ok('…and it happens after the delete, not before',
        rsg.indexOf('sheetsDeleteRow') < rsg.indexOf('_adjustRowsAfterDelete'));
     // v0.9.1251: this assertion used to require the OPPOSITE — it locked in the
@@ -9841,7 +9843,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
           // under test correctly does nothing and the rig, not the code, is
           // what failed. It also now takes the expected identity — captured so
           // the assertions below can check the caller actually supplies one.
-          (sid, tab, row, expected) => { deleted.push(row); expects.push(expected); return true; },
+          (sid, tab, row, expected) => { deleted.push(row); expects.push(expected); return row; },   // FIND BY ID: the row deleted
           'T', adjust,
           { removeItem() {} }, { warn() {} });
       const n = fn('G1');
@@ -11482,14 +11484,18 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // network round trip, so strip the async/await out of the slice and drive
     // it with a plain function, exactly as §(earlier) does.
     (function () {
-      const raw = sh.slice(sh.indexOf('async function rrRowStillIs'),
+      // FIND BY ID (2026-11-04): rrRowStillIs is now the yes/no face of
+      // rrWhereIsRow, so the slice is the whole FIND BY ID block. No retry
+      // waits here (retryWaitsMs []), so the stripped awaits never wait.
+      const raw = sh.slice(sh.indexOf('function _rrFindWords'),
                            sh.indexOf("if (typeof window !== 'undefined') window.rrRowStillIs"));
-      const src = raw.replace(/^async function/, 'function').replace(/await /g, '');
+      const src = raw.replace(/async function/g, 'function').replace(/await /g, '');
       const mkWarns = [];
-      const mk = (cell, throws) => new Function('sheetsGet', 'console',
+      const mk = (cell, throws) => new Function('sheetsGet', 'console', 'RR_FIND_BY_ID', '_rrOfflineNow', '_rrTabIdentity', 'state',
         src + '\n return rrRowStillIs;')(
           () => { if (throws) throw new Error('offline'); return { values: [[cell]] }; },
-          { warn: function () { mkWarns.push([].slice.call(arguments).join(' ')); } });
+          { warn: function () { mkWarns.push([].slice.call(arguments).join(' ')); } },
+          { retryWaitsMs: [] }, () => false, () => null, {});
 
       ok('a matching row is allowed through',
          mk('PART-7')('S', 'Parts Needed', 5, 'PART-7') === true);
@@ -11497,8 +11503,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
          mk('PART-9')('S', 'Parts Needed', 5, 'PART-7') === false);
       ok('…and says the sheet was changed elsewhere',
          mkWarns.some(w => /refusing to write/.test(w)), mkWarns[0] || '(no warning)');
-      ok('a failed CHECK is not treated as a mismatch — the write proceeds',
-         mk('', true)('S', 'Parts Needed', 5, 'PART-7') === true);
+      // FIND BY ID (2026-11-04, [stated] Brad "Yes" to PLAN_2026-11-04_FIND_BY_ID):
+      // this used to read "a failed CHECK ... the write proceeds" — the
+      // "writing anyway" the four-platform audit caught skipping the guard on
+      // a 429. Now a check that cannot be made stops the write.
+      ok('a failed CHECK stops the write — never "writing anyway"',
+         mk('', true)('S', 'Parts Needed', 5, 'PART-7') === false);
       ok('nothing to compare against does not block the write',
          mk('PART-9')('S', 'Parts Needed', 5, '') === true);
       ok('a missing row is refused',
@@ -12876,13 +12886,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
         const warns = [];
         const fn = new Function('sheetsGet', 'console', 'PERSONAL_TAB',
           'PERSONAL_FIELD_INDEX', 'colLetter', 'FOR_SALE_HEADERS', 'SOLD_HEADERS',
-          'WISHLIST_HEADERS',
+          'WISHLIST_HEADERS', '_rrOfflineNow',   // FIND BY ID (2026-11-04): the block now reads through _rrIdentityRead
           src7 + '\n return rrRowStillIs;')(
             () => ({ values: [rowCells] }),
             { warn: function () { warns.push([].slice.call(arguments).join(' ')); } },
             'My Collection', { inventoryId: 26 }, i => 'C' + i,
             ['Item Number', 'x', 'Inventory ID'], ['Item Number', 'x', 'Inventory ID'],
-            ['Item Number', 'x', 'Upgrading Inventory ID']);
+            ['Item Number', 'x', 'Upgrading Inventory ID'], () => false);
         return { fn, warns };
       };
       // A My Collection row: column A is the item number, index 26 the id.
@@ -12896,7 +12906,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const dw = mk7(mcRow('2343', '116'));
       dw.fn('S', 'My Collection', 12, '2343', '117');
       ok('…and says the sheet was changed somewhere else',
-         dw.warns.some(w => /Inventory ID .*expected .*refusing to write/.test(w)),
+         // FIND BY ID (2026-11-04): a different copy on the row → the wanted copy is
+         // looked for by its id; on no row → "removed elsewhere", nothing written.
+         dw.warns.some(w => /Inventory ID "117" is no longer on the tab .*removed elsewhere/.test(w)),
          dw.warns[0] || '(no warning)');
       ok('a row holding a different item entirely is refused',
          mk7(mcRow('6464', '900')).fn('S', 'My Collection', 12, '2343', '117') === false);
@@ -12959,7 +12971,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
         // it just has to say yes so the delete path under test can run.
         const fn = new Function('rrRowStillIs', 'console', 'window', '_withTokenRetry',
           'fetch', 'accessToken', 'rrRowMovedToast', 'rrOutboxRowsMoved', '_rrWriteFailed',
-          'rrArchiveRowBeforeRemoval',
+          'rrArchiveRowBeforeRemoval', 'rrWhereIsRow', 'rrRowRefusedToast',   // FIND BY ID (2026-11-04)
           rawDel7.replace(/\basync\s+/g, '').replace(/\bawait /g, '') +
           '\n return sheetsDeleteRow;')(
             () => stillIs,
@@ -12971,7 +12983,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
             },
             'tok', () => { toasts++; }, () => { movedTold++; },
             (kind, where, e) => e,
-            () => true);
+            () => true,
+            // FIND BY ID: the delete now asks where the record is NOW, and
+            // refuses through rrRowRefusedToast with its why
+            (sid, tab, row) => stillIs ? { ok: true, row: row } : { ok: false, why: 'gone' },
+            () => { toasts++; });
         return { fn, posts, warns, t: () => toasts, m: () => movedTold };
       };
 
@@ -12988,8 +13004,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
       const allowed7 = mkDel7(true, 'My Collection');
       const allowedRet7 = allowed7.fn('S', 'My Collection', 12, { itemNum: '2343', inventoryId: '117' });
-      ok('a delete that is allowed through answers true',
-         allowedRet7 === true,
+      // FIND BY ID (2026-11-04): it answers the row it REALLY deleted (truthy),
+      // so callers renumber from that, not from the row they remembered.
+      ok('a delete that is allowed through answers the row it deleted',
+         allowedRet7 === 12,
          'got ' + String(allowedRet7));
       ok('…and really asked for that one row, by position, on that tab',
          allowed7.posts.length === 1 &&
@@ -13056,7 +13074,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /async function personalWriteRow\(rec, values\)/.test(ap7) &&
          /window\.personalWriteRow = personalWriteRow/.test(ap7));
       ok('it builds both the position and the identity from that one record',
-         /personalFullRowRange\(rec\.row\)[\s\S]{0,160}itemNum: rec\.itemNum, inventoryId: rec\.inventoryId/.test(ap7));
+         // FIND BY ID (2026-11-04): the identity is built first (the gate may report a new row back into it)
+         /const _exp = \{ itemNum: rec\.itemNum, inventoryId: rec\.inventoryId[\s\S]{0,160}personalFullRowRange\(rec\.row\)/.test(ap7));
       ok('sheetsUpdateRow reads its tab and row out of the range, not beside it',
          /const m = \/\^\(\.\*\)!\(\[A-Z\]\+\)\(\\d\+\)\(\?:\:\|\$\)\/\.exec/.test(sh7) &&
          /const tab = m\[1\];\s*\n\s*const rowNum = Number\(m\[3\]\);/.test(sh7));
@@ -13077,9 +13096,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('no full-row write goes straight to sheetsUpdate any more',
          rawFull.length === 0 && (ws7.match(/rrPersonalSafeWrite\(/g) || []).length === 2,
          rawFull.join(',') || '(none raw)');
-      ok('…and the two that remain each ask rrRowStillIs themselves first',
-         (ws7.match(/rrRowStillIs\(state\.personalSheetId, PERSONAL_TAB, existing\.row,/g) || []).length === 2,
-         String((ws7.match(/rrRowStillIs\(state\.personalSheetId, PERSONAL_TAB, existing\.row,/g) || []).length));
+      // FIND BY ID (2026-11-04): they ask rrWhereIsRow (where is it NOW?) instead.
+      ok('…and the two that remain each ask rrWhereIsRow themselves first',
+         (ws7.match(/rrWhereIsRow\(state\.personalSheetId, PERSONAL_TAB, existing\.row,/g) || []).length === 2,
+         String((ws7.match(/rrWhereIsRow\(state\.personalSheetId, PERSONAL_TAB, existing\.row,/g) || []).length));
       ok('the box row appends rather than overwriting a row that moved',
          /_bxUpdated[\s\S]{0,400}appending a new box row instead/.test(ws7));
       ok('the fill-item write throws the sentinel rather than saving quietly',
@@ -15589,11 +15609,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('234 the guarded writer exists in sheets.js', a34 > 0 && b34 > a34);
       const mk34 = (verdict) => {
         const calls = { wrote: [], toasts: [] };
-        const fn = new Function('rrRowStillIs', 'sheetsUpdate', 'showToast',
+        // FIND BY ID (2026-11-04): the writer asks rrWhereIsRow and aims the range at its row
+        const fn = new Function('rrWhereIsRow', 'sheetsUpdate', 'showToast', '_rrRangeAtRow', 'rrRowRefusedWords',
           sh34.slice(a34, b34) + ' return rrVerifiedRowUpdate;')(
-            async () => verdict,
+            async (sid, tab, row) => verdict ? { ok: true, row: row } : { ok: false, why: 'moved' },
             async (id, range, vals) => { calls.wrote.push(range); },
-            (msg) => { calls.toasts.push(msg); });
+            (msg) => { calls.toasts.push(msg); },
+            (range) => range, () => 'refused');
         return { fn, calls };
       };
       {
@@ -15626,7 +15648,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
               if (!ROWISH.test(line)) return;
               const at = src.indexOf(line);
               const back = src.slice(Math.max(0, at - 900), at);
-              if (/rrRowStillIs/.test(back)) { inlineGuarded++; return; }   // §203-style inline guard
+              if (/rrRowStillIs|rrWhereIsRow/.test(back)) { inlineGuarded++; return; }   // §203-style inline guard (FIND BY ID: rrWhereIsRow too)
               if (f === 'contacts.js') { contactsRaw++; return; }           // the one named exception
               strays.push(f + ':' + (li + 1) + ' ' + line.trim().slice(0, 90));
             });
@@ -15639,8 +15661,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
         // v0.9.2038: 4 -> 3. savePart's edit moved to rrVerifiedRowUpdate.
         // v0.9.2039: 3 -> 1. The two wizard-save whole-row rewrites moved to
         // rrPersonalSafeWrite (app.js — it re-reads the row and refuses another item).
-        ok('234 …the inline-guarded set is exactly the one known site',
-           inlineGuarded === 1, String(inlineGuarded));
+        // FIND BY ID (2026-11-04): 1 -> 2. The outbox replay (write-outbox.js
+        // _replay) now re-finds a queued row write's record with rrWhereIsRow and
+        // sends it to where that record is when it goes.
+        ok('234 …the inline-guarded set is exactly the two known sites',
+           inlineGuarded === 2, String(inlineGuarded));
         // v0.9.2047 (known-problems sweep, C18): the exception is GONE — 1 → 0.
         // The v1284 reason ("a rename replaces cell A") is from before ids:
         // column A is the contact's id now, the name is column B, and the
@@ -16067,13 +16092,15 @@ META_WRITES.length = 0; TOASTS.length = 0;
         // blanks it. Lifted out on its own, it needs that helper supplied —
         // same as the delete harness above. Archiving is proved for real in
         // tests/deleted_archive_tests.js; here it only has to say yes.
+        // FIND BY ID (2026-11-04): the gate finds the row first (here: unmoved)
         const fn = new Function('rrVerifiedRowUpdate', 'showToast', 'rrSaveError',
-          'rrArchiveRowBeforeRemoval',
+          'rrArchiveRowBeforeRemoval', 'rrWhereIsRow', '_rrRangeAtRow', 'rrRowRefusedWords',
           sh38.slice(a38, b38) + ' return rrRemoveRowConfirmed;')(
             behaviour,
             (msg, ms, isErr) => { calls.toasts.push({ msg: String(msg), isErr: !!isErr }); },
             (e, what) => 'Could not save ' + what + '. [' + String(e && e.message) + ']',
-            async () => true);
+            async () => true,
+            async (sid, tab, row) => ({ ok: true, row: row }), (range) => range, () => 'refused');
         return { fn, calls };
       };
 
@@ -18636,9 +18663,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('268 …the box-row rewrite is fed by rrRowStillIs',
          // v0.9.1941: the only thing between the check and the write is building the
          // row it writes (kept, so the record in memory is built from it)
-         /_bxUpdated = await rrRowStillIs\([\s\S]{0,200}?if \(_bxUpdated\) \{\s*\n\s*_bxWritten = rrCarryPersonalRow\([^;]*\);[\s\S]{0,200}?_bxUpdated = await rrPersonalSafeWrite\(/.test(ws));   // v0.9.2039
+         // FIND BY ID (2026-11-04): fed by rrWhereIsRow (the box row where it is NOW)
+         /_bxW = await rrWhereIsRow\([\s\S]{0,300}?_bxUpdated = !!_bxW\.ok;\s*\n\s*if \(_bxUpdated\) \{\s*\n\s*_bxWritten = rrCarryPersonalRow\([^;]*\);[\s\S]{0,200}?_bxUpdated = await rrPersonalSafeWrite\(/.test(ws));   // v0.9.2039
       ok('268 …the main-row rewrite verifies-or-throws ROW_MOVED first',
-         /await rrRowStillIs\([\s\S]{0,200}?\)\)\) \{\s*\n\s*throw new Error\('ROW_MOVED'\);\s*\n\s*\}\s*\n\s*_mainWrittenRow = rrCarryPersonalRow\([^;]*\);[\s\S]{0,200}?if \(!\(await rrPersonalSafeWrite\([^\n]*\)\)\) \{\s*\n\s*throw new Error\('ROW_MOVED'\);/.test(ws));   // v0.9.1941, v0.9.2039
+         // FIND BY ID (2026-11-04): rrWhereIsRow first; refused → ROW_MOVED (with the why's words)
+         /_fillW = await rrWhereIsRow\([\s\S]{0,200}?if \(!_fillW\.ok\) \{[\s\S]{0,400}?throw _fillErr;\s*\n\s*\}[\s\S]{0,120}?_mainWrittenRow = rrCarryPersonalRow\([^;]*\);[\s\S]{0,200}?if \(!\(await rrPersonalSafeWrite\([^\n]*\)\)\) \{\s*\n\s*throw new Error\('ROW_MOVED'\);/.test(ws));   // v0.9.1941, v0.9.2039
       // ── the backfills go through the guarded writer with itemNum identity
       //    and a deliberately empty invId ──
       const bkInv = /rrVerifiedRowUpdate\(state\.personalSheetId, PERSONAL_TAB, existingItem\.row,[\s\S]{0,200}?\[\[existingInvId\]\], \{ num: existingItem\.itemNum \|\| '', invId: '' \}, 'collection'\)/.test(ws);

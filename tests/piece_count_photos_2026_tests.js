@@ -64,6 +64,7 @@ async function counts(pg) {
     const rows = [];
     window.sheetsAppend = async (id, r, v) => { rows.push(v[0]); return 10 + rows.length; };
     window.rrVerifiedRowUpdate = async () => true; window.rrRowStillIs = async () => true;
+    window.rrWhereIsRow = async (sid, tab, row) => ({ ok: true, row: row });   // FIND BY ID (2026-11-04): the gates ask where it is NOW — same stand-in: unmoved
     window.driveEnsureSetup = async () => {}; window.driveEnsureItemFolder = async () => 'F'; window.driveUploadPhoto = async () => ({});
     window.buildDashboard = () => {}; window.renderBrowse = () => {}; window.showToast = () => {}; window.rrMaybeShowAddHelp = () => {};
     document.getElementById('app').classList.add('active');

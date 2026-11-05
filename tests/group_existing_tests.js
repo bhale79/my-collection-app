@@ -89,6 +89,11 @@ async function scenario(pg) {
     const updates = [], stills = [], toasts = [], appended = [];
     let stillFalseRow = null, slowMs = 0, seq = 0;
     window.rrRowStillIs = async (id, tab, row) => { stills.push({ tab: tab, row: row, seq: ++seq }); return row !== stillFalseRow; };
+    // FIND BY ID (2026-11-04): the stamp now asks rrWhereIsRow (where is it NOW?)
+    // instead of rrRowStillIs. Same stand-in, same record of each check: the
+    // "changed row" is one that cannot be found — refused, as before.
+    // (Two-device moves themselves are proved in tests/find_by_id_tests.js.)
+    window.rrWhereIsRow = async (id, tab, row) => { stills.push({ tab: tab, row: row, seq: ++seq }); return row !== stillFalseRow ? { ok: true, row: row } : { ok: false, why: 'gone' }; };
     window.rrVerifiedRowUpdate = async (id, tab, row, range, vals, expect) => {
       if (slowMs) await new Promise(r => setTimeout(r, slowMs));
       const still = await window.rrRowStillIs(id, tab, row, expect && expect.num, expect && expect.invId);

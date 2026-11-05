@@ -1761,7 +1761,7 @@ async function rrRemoveSetGroup(groupId) {
           // state.forSaleData from this same number was plain wrong — a For
           // Sale row 13 is not a My Collection row 13 — and it corrupted every
           // listing below that number each time a set member was removed.
-          _adjustRowsAfterDelete(state.personalData, pd.row, PERSONAL_TAB);
+          _adjustRowsAfterDelete(state.personalData, _setGone, PERSONAL_TAB);   // FIND BY ID: the row really deleted
         }
       }
       delete state.personalData[key];

@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2109';
+const APP_VERSION = 'v0.9.2110';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -5350,6 +5350,24 @@ const RR_SAFE_SAVE = {
   blank: '(blank)',
 };
 if (typeof window !== 'undefined') window.RR_SAFE_SAVE = RR_SAFE_SAVE;
+
+// ══ FIND BY ID — every save finds the item where it is NOW (sheets.js rrWhereIsRow) ══
+// [stated] Brad 2026-11-04 20:55 CT "Yes" to PLAN_2026-11-04_FIND_BY_ID.md. When
+// another device removed something higher up, every row below moved; the app
+// now finds the item by its Inventory ID and saves where it is, instead of
+// refusing. These are the only times it still stops, and the words it uses.
+// retryWaitsMs: how long to wait between asks when Google is busy (429 / a
+// server hiccup) before giving up WITHOUT writing — never "write anyway".
+const RR_FIND_BY_ID = {
+  retryWaitsMs: [3000, 8000, 15000],
+  gone: 'No. {num} was removed on another device \u2014 nothing was changed.',
+  twice: 'No. {num} is in your sheet twice, so nothing was changed (the app will not guess which one). Refresh, then try again.',
+  busy: 'Google is busy right now, so nothing was saved. Try again in a minute.',
+  saleKept: 'The sale of No. {num} is saved, but it is still in your collection \u2014 open it and remove it, or refresh and try again.',
+  saleStopped: 'No. {num} could not be found in your collection right now, so the sale was not recorded. Refresh, then try again.',
+  outboxDropped: 'A change to No. {num} was not sent \u2014 that item was removed on another device.',
+};
+if (typeof window !== 'undefined') window.RR_FIND_BY_ID = RR_FIND_BY_ID;
 
 // ══ THE GIFT WISH LIST — Stage 1, owner-only beta (gift-list.js) ══════════
 // [stated] Brad 2026-10-31: turn the Want list into a birthday / Christmas

@@ -299,10 +299,12 @@ if (typeof window !== 'undefined') window._rrGridHeal = _rrGridHeal;
 // mismatch, so it must not be treated as one — that is the difference between
 // a guard and an outage.
 //
-// A definite MISMATCH refuses the write. A failed CHECK does not: a network
-// hiccup is not evidence of a mismatch, and refusing on one would make
-// editing fail whenever the connection wobbles. That leaves the pre-existing
-// behaviour exactly as it was in the only case this cannot improve on.
+// A definite MISMATCH is no longer the end: since FIND BY ID (below) the record
+// is looked for by its Inventory ID and the write goes where it is now. A
+// failed CHECK no longer writes anyway (it did until 2026-11-04 — the audit
+// caught it skipping the guard exactly when a second device made Google busy):
+// the check waits and asks again, and only offline does the write go ahead —
+// into the outbox, carrying who it is for, re-checked before it is sent.
 
 // Where each tab keeps its per-copy Inventory ID, derived from the header
 // arrays that already define these tabs rather than written out as letters.
@@ -334,51 +336,186 @@ function _rrTabIdentity(tab) {
   }
 }
 
+// ══ FIND BY ID (2026-11-04, [stated] Brad "Yes" — PLAN_2026-11-04_FIND_BY_ID.md) ══
+//
+// A remembered row number is a POSITION. When another device removes an item
+// higher up, Google deletes that row and every row below moves up one, so this
+// device's numbers all point one row too low. The guard used to stop there —
+// "That row moved… Refresh and try again" — which was safe but lost the edit,
+// refused the Remove, and left a sale half recorded (audit F7: the sale went to
+// Sold, the collection row was refused, "✓ Added to Sold!" anyway).
+//
+// rrWhereIsRow answers "where is this record NOW?":
+//   • the row still holds it                         → { ok:true, row }
+//   • it moved, and its Inventory ID is found ONCE    → { ok:true, row:<new>, moved:true }
+//     — and the same read puts every record of that tab on this device back
+//       at its right row (one read heals them all; _rrRenumberTab)
+//   • its ID is nowhere on the tab                    → { ok:false, why:'gone' }
+//   • its ID is on two rows                           → { ok:false, why:'twice' }
+//   • no ID to look for, and the row holds another    → { ok:false, why:'moved' } (old rows: as before)
+//   • Google could not be asked (busy / hiccup), after
+//     waiting and asking again (RR_FIND_BY_ID.retryWaitsMs) → { ok:false, why:'busy' }
+//   • offline                                        → { ok:true, row, offline:true }
+//     — the write goes to the outbox as before, carrying who it is for, and is
+//       checked again here before it is sent (write-outbox.js _replay).
+// NEVER "write anyway": a check that could not be made is not a check that passed.
+//
 // expectedNum   — the item number the caller believes is in column A
 // expectedInvId — the per-copy Inventory ID the caller believes is on the row.
 //                 Optional, and worth passing wherever it is in hand: it is the
-//                 only value here that identifies ONE COPY rather than a model.
-async function rrRowStillIs(spreadsheetId, tab, rowNum, expectedNum, expectedInvId) {
-  if (!rowNum || Number(rowNum) === 99999) return false;
+//                 only value here that identifies ONE COPY rather than a model,
+//                 and the only one the row can be FOUND again by.
+function _rrFindWords() { return (typeof RR_FIND_BY_ID !== 'undefined' && RR_FIND_BY_ID) || {}; }
+// A read worth asking again: Google said "too many requests", a server hiccup,
+// or the network dropped for a moment. A sign-in problem is not — it has its
+// own door (_withTokenRetry) and its own words.
+function _rrReadRetryable(e) {
+  const m = String((e && e.message) || e || '');
+  return /\b(429|500|502|503|504)\b|Quota exceeded|rate limit|Failed to fetch|NetworkError|network|timed? ?out/i.test(m)
+      && !/SESSION_EXPIRED|Not signed in|Cannot refresh/i.test(m);
+}
+// The one read every identity check makes. { ok:true, values } | { ok:false, offline } | { ok:false, err }.
+// A reply that carries an error is a FAILED read, never an empty row.
+async function _rrIdentityRead(spreadsheetId, range) {
+  const waits = (_rrFindWords().retryWaitsMs || []).slice();
+  for (let i = 0; ; i++) {
+    if (_rrOfflineNow()) return { ok: false, offline: true };
+    let err = null;
+    try {
+      const res = await sheetsGet(spreadsheetId, range);
+      if (res && res.error) err = new Error('Sheets API error ' + (res.error.code || '') + ': ' + (res.error.message || ''));
+      else return { ok: true, values: (res && res.values) || [] };
+    } catch (e) { err = e; }
+    if (_rrOfflineNow()) return { ok: false, offline: true };
+    if (i >= waits.length || !_rrReadRetryable(err)) return { ok: false, err: err };
+    console.warn('[rows] could not read ' + range + ' (' + (err && err.message) + ') — asking again in ' + waits[i] + ' ms');
+    await new Promise(function (r) { setTimeout(r, waits[i]); });
+  }
+}
+// Which in-memory list holds the records of a tab, and the tab's first data row.
+function _rrTabData(tab) {
+  if (typeof state === 'undefined' || !state) return null;
+  if (typeof PERSONAL_TAB !== 'undefined' && tab === PERSONAL_TAB) return state.personalData || null;
+  if (tab === 'For Sale') return state.forSaleData || null;
+  if (tab === 'Sold') return state.soldData || null;
+  if (tab === 'Want-Upgrade List') return state.upgradeData || null;   // want rows carry no id; upgrade rows do
+  return null;
+}
+const RR_FIRST_DATA_ROW = 3;   // two header rows, like every table in this workbook
+// Put every record of `tab` on this device back at the row its Inventory ID is
+// on now. Records whose id is not on the tab are left alone (they are someone
+// else's question). Returns how many moved.
+function _rrRenumberTab(tab, idCells) {
+  const data = _rrTabData(tab); if (!data) return 0;
+  const at = {}, dup = {};
+  (idCells || []).forEach(function (r, i) {
+    const id = String((r && r[0]) == null ? '' : r[0]).trim().replace(/^'/, '');
+    if (!id) return;
+    if (at[id]) dup[id] = true; else at[id] = i + RR_FIRST_DATA_ROW;
+  });
+  let n = 0;
+  Object.keys(data).forEach(function (k) {
+    const rec = data[k]; if (!rec || !rec.row || rec.row === 99999) return;
+    const id = String(rec.inventoryId == null ? '' : rec.inventoryId).trim();
+    if (!id || dup[id] || !at[id] || at[id] === rec.row) return;
+    rec.row = at[id]; n++;
+  });
+  if (n) {
+    console.warn('[rows] ' + tab + ': ' + n + ' record(s) on this device had moved — put back at their rows by Inventory ID');
+    // Anything already queued names an old position; the outbox re-checks
+    // entries that carry who they are for, and holds the rest (write-outbox.js).
+    try { if (typeof rrOutboxRowsMoved === 'function') rrOutboxRowsMoved(); } catch (e) {}
+  }
+  return n;
+}
+async function rrWhereIsRow(spreadsheetId, tab, rowNum, expectedNum, expectedInvId) {
+  if (!rowNum || Number(rowNum) === 99999) return { ok: false, why: 'norow' };
+  rowNum = Number(rowNum);
   const wantNum = String(expectedNum == null ? '' : expectedNum).trim();
   const wantId  = String(expectedInvId == null ? '' : expectedInvId).trim();
-  if (!wantNum && !wantId) return true;      // nothing to compare — do not block
+  if (!wantNum && !wantId) return { ok: true, row: rowNum };      // nothing to compare — do not block
 
   const ident = wantId ? _rrTabIdentity(tab) : null;
   const range = ident
     ? tab + '!A' + rowNum + ':' + ident.col + rowNum
     : tab + '!A' + rowNum + ':A' + rowNum;
-
-  let cells;
-  try {
-    const res = await sheetsGet(spreadsheetId, range);
-    cells = (((res && res.values) || [[]])[0] || []);
-  } catch (e) {
-    console.warn('[rows] could not verify ' + tab + ' row ' + rowNum + ' — writing anyway:', e && e.message);
-    return true;
+  const rd = await _rrIdentityRead(spreadsheetId, range);
+  if (rd.offline) return { ok: true, row: rowNum, offline: true };
+  if (!rd.ok) {
+    console.warn('[rows] could not check ' + tab + ' row ' + rowNum + ' — NOT writing:', rd.err && rd.err.message);
+    return { ok: false, why: 'busy', err: rd.err };
   }
-  const _cell = function (i) { return String(cells[i] == null ? '' : cells[i]).trim(); };
+  const cells = (rd.values[0] || []);
+  const _cell = function (i) { return String(cells[i] == null ? '' : cells[i]).trim().replace(/^'/, ''); };
   const gotNum = _cell(0);
   const gotId  = ident ? _cell(ident.idx) : '';
 
-  // The id settles it in both directions when both sides have one.
-  if (wantId && gotId) {
-    if (gotId === wantId) return true;
-    console.warn('[rows] ' + tab + ' row ' + rowNum + ' now holds Inventory ID "' + gotId +
-                 '", expected "' + wantId + '" — refusing to write. The sheet was changed somewhere else.');
-    return false;
+  // The id settles it when both sides have one.
+  if (wantId && gotId && gotId === wantId) return { ok: true, row: rowNum };
+  // No id on either side to settle it: the item number, as this guard always did.
+  // Weaker — item numbers repeat — but an absent id cannot prove a mismatch.
+  if (wantId && !gotId && wantNum && gotNum === wantNum) return { ok: true, row: rowNum };
+  if (!wantId) {
+    if (!wantNum || gotNum === wantNum) return { ok: true, row: rowNum };
+    console.warn('[rows] ' + tab + ' row ' + rowNum + ' now holds "' + gotNum + '", expected "' + wantNum +
+                 '" — refusing to write: no Inventory ID to find it by.');
+    return { ok: false, why: 'moved' };
   }
-  // No id to compare on one side or the other. Fall back to the item number,
-  // which is what this guard has always done. Weaker — item numbers repeat —
-  // but an absent id cannot prove a mismatch, and refusing here would break
-  // editing on every row written before Inventory IDs existed.
-  if (!wantNum) return true;
-  if (gotNum === wantNum) return true;
-  console.warn('[rows] ' + tab + ' row ' + rowNum + ' now holds "' + gotNum + '", expected "' + wantNum +
-               '" — refusing to write. The sheet was changed somewhere else.');
-  return false;
+  // It moved. Find it by its Inventory ID — one read of that tab's id column.
+  if (!ident) return { ok: false, why: 'moved' };
+  const col = await _rrIdentityRead(spreadsheetId, tab + '!' + ident.col + RR_FIRST_DATA_ROW + ':' + ident.col);
+  if (col.offline) return { ok: false, why: 'moved' };
+  if (!col.ok) return { ok: false, why: 'busy', err: col.err };
+  const hits = [];
+  col.values.forEach(function (r, i) {
+    if (String((r && r[0]) == null ? '' : r[0]).trim().replace(/^'/, '') === wantId) hits.push(i + RR_FIRST_DATA_ROW);
+  });
+  if (hits.length === 0) {
+    console.warn('[rows] ' + tab + ': Inventory ID "' + wantId + '" is no longer on the tab (was row ' + rowNum + ') — removed elsewhere.');
+    return { ok: false, why: 'gone' };
+  }
+  if (hits.length > 1) {
+    console.warn('[rows] ' + tab + ': Inventory ID "' + wantId + '" is on rows ' + hits.join(', ') + ' — refusing to guess.');
+    return { ok: false, why: 'twice' };
+  }
+  console.warn('[rows] ' + tab + ': Inventory ID "' + wantId + '" moved from row ' + rowNum + ' to row ' + hits[0] + ' — saving there.');
+  _rrRenumberTab(tab, col.values);
+  return { ok: true, row: hits[0], moved: true };
+}
+if (typeof window !== 'undefined') window.rrWhereIsRow = rrWhereIsRow;
+// The yes/no form, for callers that only ask "is it STILL there": true only
+// when the row has not moved (a moved record is the caller's cue to ask
+// rrWhereIsRow instead). Offline counts as yes, exactly as before — the write
+// is queued, carries who it is for, and is checked again when it is sent.
+async function rrRowStillIs(spreadsheetId, tab, rowNum, expectedNum, expectedInvId) {
+  const r = await rrWhereIsRow(spreadsheetId, tab, rowNum, expectedNum, expectedInvId);
+  return !!(r.ok && Number(r.row) === Number(rowNum));
 }
 if (typeof window !== 'undefined') window.rrRowStillIs = rrRowStillIs;
+// Rewrite a single-row range ("For Sale!A12:J12", "My Collection!AB12") to
+// another row. Every row number in it must be the old row — anything else is
+// not a single-row range and is left for the caller to refuse.
+function _rrRangeAtRow(range, oldRow, newRow) {
+  const m = /^(.*)!(.*)$/.exec(String(range || ''));
+  if (!m) return null;
+  let bad = false;
+  const cells = m[2].replace(/([A-Z]+)(\d+)/g, function (all, c, n) { if (Number(n) !== Number(oldRow)) bad = true; return c + newRow; });
+  return bad ? null : m[1] + '!' + cells;
+}
+if (typeof window !== 'undefined') window._rrRangeAtRow = _rrRangeAtRow;
+// The words for a refusal, by why. num = the item number to name.
+function rrRowRefusedWords(r, num) {
+  const W = _rrFindWords(), n = String(num || '').trim() || 'this item';
+  const fill = function (t) { return String(t || '').replace('{num}', n); };
+  if (r && r.why === 'gone')  return fill(W.gone);
+  if (r && r.why === 'twice') return fill(W.twice);
+  if (r && r.why === 'busy')  return fill(W.busy);
+  return RR_ROW_MOVED_MSG;
+}
+function rrRowRefusedToast(r, num) {
+  try { if (typeof showToast === 'function') showToast(rrRowRefusedWords(r, num), 5500, true); } catch (e) {}
+}
+if (typeof window !== 'undefined') { window.rrRowRefusedWords = rrRowRefusedWords; window.rrRowRefusedToast = rrRowRefusedToast; }
 
 // v0.9.1267 (R3): the message the user sees when a write is refused. One copy,
 // because it is going to appear at ~20 call sites and "roughly the same
@@ -421,13 +558,16 @@ async function sheetsUpdateRow(spreadsheetId, range, values, expected) {
   const tab = m[1];
   const rowNum = Number(m[3]);
   const _exp = (expected && typeof expected === 'object') ? expected : { itemNum: expected, inventoryId: '' };
-  const _still = await rrRowStillIs(spreadsheetId, tab, rowNum, _exp.itemNum, _exp.inventoryId);
-  if (!_still) {
-    console.warn('[rows] refusing to replace ' + range + ' — it is not the record we meant.');
-    rrRowMovedToast();
+  // FIND BY ID: where the record is NOW (it may have moved — another device removed a row above it).
+  const _w = await rrWhereIsRow(spreadsheetId, tab, rowNum, _exp.itemNum, _exp.inventoryId);
+  const _range = _w.ok ? _rrRangeAtRow(range, rowNum, _w.row) : null;
+  if (!_w.ok || !_range) {
+    console.warn('[rows] refusing to replace ' + range + ' — ' + (_w.why || 'not a single-row range') + '.');
+    rrRowRefusedToast(_w, _exp.itemNum);
     return false;
   }
-  await sheetsUpdate(spreadsheetId, range, values);
+  await sheetsUpdate(spreadsheetId, _range, values, { expect: { tab: tab, row: _w.row, num: _exp.itemNum || '', invId: _exp.inventoryId || '' } });
+  if (expected && typeof expected === 'object') expected.foundRow = _w.row;   // the caller may want the row it landed on
   return true;
 }
 if (typeof window !== 'undefined') window.sheetsUpdateRow = sheetsUpdateRow;
@@ -447,6 +587,12 @@ async function sheetsSetupUpdate(spreadsheetId, range, values) {
 if (typeof window !== 'undefined') window.sheetsSetupUpdate = sheetsSetupUpdate;
 
 async function sheetsUpdate(spreadsheetId, range, values, opts) {
+  // FIND BY ID: a guarded row write tells the outbox WHO it is for (opts.expect =
+  // { tab, row, num, invId }), so a queued write is checked again — and moved to
+  // where the record is by then — before it is ever sent (write-outbox.js _replay).
+  // Built here, not in a helper: suites lift sheetsUpdate on its own.
+  const _args = { sheetId: spreadsheetId, range: range, values: values };
+  if (opts && opts.expect && (opts.expect.invId || opts.expect.num)) _args.expect = opts.expect;
   // v0.9.985 (perf): any write = data changed — invalidate cached page renders.
   try { window._rrDataRev = (window._rrDataRev || 0) + 1; } catch (e) {}
   // v0.9.1599 (Brad: work the lists at a train show with no wifi): an
@@ -456,7 +602,7 @@ async function sheetsUpdate(spreadsheetId, range, values, opts) {
   // contract downstream; only the bookkeeping and the words changed.
   if (_rrOfflineNow()) {
     if (typeof showToast === 'function') showToast('You\u2019re offline \u2014 saved on this device. It goes to your sheet when you\u2019re back on.', 3500);
-    throw _rrWriteFailed('update', { sheetId: spreadsheetId, range: range, values: values }, new Error('offline'));
+    throw _rrWriteFailed('update', _args, new Error('offline'));
   }
   // v0.9.840 (Phase C): no subscription = view-and-export-only.
   // v0.9.1900: except the app's own set-up writes (sheetsSetupUpdate above);
@@ -490,7 +636,7 @@ async function sheetsUpdate(spreadsheetId, range, values, opts) {
     try { if (typeof rrOutboxSupersede === 'function') rrOutboxSupersede(spreadsheetId, range); } catch (e) {}
     return json;
   } catch (e) {
-    throw _rrWriteFailed('update', { sheetId: spreadsheetId, range: range, values: values }, e);
+    throw _rrWriteFailed('update', _args, e);
   }
 }
 
@@ -636,15 +782,20 @@ if (typeof window !== 'undefined') window.sheetsClear = sheetsClear;
 // surrounding code tolerates a failed write may ignore the return; callers
 // that celebrate success must check it.
 async function rrVerifiedRowUpdate(spreadsheetId, tab, rowNum, range, values, expect, what) {
-  const _ok = await rrRowStillIs(spreadsheetId, tab, rowNum,
-    (expect && expect.num) || '', (expect && expect.invId) || '');
-  if (!_ok) {
+  // FIND BY ID: the record's row NOW, and the same write aimed there.
+  const _num = (expect && expect.num) || '', _inv = (expect && expect.invId) || '';
+  const _w = await rrWhereIsRow(spreadsheetId, tab, rowNum, _num, _inv);
+  const _range = _w.ok ? _rrRangeAtRow(range, rowNum, _w.row) : null;
+  if (!_w.ok || !_range) {
     if (typeof showToast === 'function') {
-      showToast('Your ' + (what || tab) + ' changed somewhere else — nothing was written. Refresh and try again.', 5000, true);
+      showToast((_w.why === 'gone' || _w.why === 'twice' || _w.why === 'busy')
+        ? rrRowRefusedWords(_w, _num)
+        : 'Your ' + (what || tab) + ' changed somewhere else — nothing was written. Refresh and try again.', 5500, true);
     }
     return false;
   }
-  await sheetsUpdate(spreadsheetId, range, values);
+  await sheetsUpdate(spreadsheetId, _range, values, { expect: { tab: tab, row: _w.row, num: _num, invId: _inv } });
+  if (expect && typeof expect === 'object') expect.foundRow = _w.row;
   return true;
 }
 if (typeof window !== 'undefined') window.rrVerifiedRowUpdate = rrVerifiedRowUpdate;
@@ -680,8 +831,21 @@ async function rrRemoveRowConfirmed(spreadsheetId, tab, rowNum, range, values, e
     // v0.9.1944: a caller may name the reason (expect.why) — a sale tags its
     // rows so the Returned button can find them again (app-pages.js).
     const _why = (expect && typeof expect === 'object' && expect.why) ? String(expect.why) : ('cleared from ' + (what || tab));
-    if (!(await rrArchiveRowBeforeRemoval(spreadsheetId, tab, rowNum, _why, expect))) return false;
-    return await rrVerifiedRowUpdate(spreadsheetId, tab, rowNum, range, values, expect, what);
+    // FIND BY ID first, so the copy kept in Deleted Rows is of the row that is
+    // really this record's now (and the blank lands on the same row).
+    const _num = (expect && expect.num) || '', _inv = (expect && expect.invId) || '';
+    const _w = await rrWhereIsRow(spreadsheetId, tab, rowNum, _num, _inv);
+    const _range = _w.ok ? _rrRangeAtRow(range, rowNum, _w.row) : null;
+    if (!_w.ok || !_range) {
+      if (typeof showToast === 'function') {
+        showToast((_w.why === 'gone' || _w.why === 'twice' || _w.why === 'busy')
+          ? rrRowRefusedWords(_w, _num)
+          : 'Your ' + (what || tab) + ' changed somewhere else — nothing was written. Refresh and try again.', 5500, true);
+      }
+      return false;
+    }
+    if (!(await rrArchiveRowBeforeRemoval(spreadsheetId, tab, _w.row, _why, expect))) return false;
+    return await rrVerifiedRowUpdate(spreadsheetId, tab, _w.row, _range, values, expect, what);
   } catch (e) {
     if (typeof showToast === 'function') {
       showToast((typeof rrSaveError === 'function')
@@ -852,8 +1016,11 @@ async function rrArchiveRowBeforeRemoval(spreadsheetId, sheetName, rowNumber, wh
     return false;
   }
   try {
-    const got = await sheetsGet(spreadsheetId, sheetName + '!A' + rowNumber + ':BZ' + rowNumber);
-    const cells = (((got && got.values) || [[]])[0] || []);
+    // FIND BY ID: the same patient read as the identity check — Google being
+    // busy for a moment is asked again, not taken as "can't keep a copy".
+    const _rd = await _rrIdentityRead(spreadsheetId, sheetName + '!A' + rowNumber + ':BZ' + rowNumber);
+    if (!_rd.ok) throw (_rd.err || new Error('offline'));
+    const cells = ((_rd.values[0]) || []);
     if (!cells.length || !cells.join('').trim()) return true;   // already empty — nothing to keep
     await _rrTrashEnsureTab(spreadsheetId);
     const _e = (expect && typeof expect === 'object') ? expect : {};
@@ -1023,12 +1190,15 @@ async function sheetsDeleteRow(spreadsheetId, sheetName, rowNumber, expected) {
                     sheetName + ' row ' + rowNumber + ' before deleting it. See the note above sheetsDeleteRow.');
   }
   const _exp = (expected && typeof expected === 'object') ? expected : { itemNum: expected, inventoryId: '' };
-  const _still = await rrRowStillIs(spreadsheetId, sheetName, rowNumber, _exp.itemNum, _exp.inventoryId);
-  if (!_still) {
-    console.warn('[rows] refusing to delete ' + sheetName + ' row ' + rowNumber + ' — it is not the record we meant.');
-    rrRowMovedToast();
+  // FIND BY ID: delete the row the record is on NOW. Returns THAT row number
+  // (truthy) — callers renumber from it, never from the row they remembered.
+  const _w = await rrWhereIsRow(spreadsheetId, sheetName, rowNumber, _exp.itemNum, _exp.inventoryId);
+  if (!_w.ok) {
+    console.warn('[rows] refusing to delete ' + sheetName + ' row ' + rowNumber + ' — ' + _w.why + '.');
+    rrRowRefusedToast(_w, _exp.itemNum);
     return false;
   }
+  rowNumber = _w.row;   // offline: unchanged — the copy-first step below says "you're offline" and stops, as before
   // v0.9.1762: keep a copy before it goes. No copy, no delete — and the row is
   // read here, while it is still the record the guard above just confirmed.
   if (!(await rrArchiveRowBeforeRemoval(spreadsheetId, sheetName, rowNumber, _exp.why ? String(_exp.why) : 'removed', _exp))) return false;   // v0.9.1944: _exp.why — see rrRemoveRowConfirmed
@@ -1069,7 +1239,7 @@ async function sheetsDeleteRow(spreadsheetId, sheetName, rowNumber, expected) {
       }]
     })
   }));
-  return true;
+  return rowNumber;   // FIND BY ID: the row really deleted (truthy) — callers renumber from THIS
   } catch (e) {
     // Recorded so it can be SHOWN. Never replayed — see write-outbox.js.
     throw _rrWriteFailed('delete', { sheetId: spreadsheetId, sheetName: sheetName, rowNumber: rowNumber }, e);

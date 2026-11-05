@@ -197,8 +197,13 @@ section('The guard below is still a guard — it just is not the one that catche
 const sh = APP('sheets.js');
 ok('sheetsDeleteRow still demands to be told what it believes it is deleting',
    /throw new Error\('sheetsDeleteRow: `expected` is required/.test(sh));
-ok('rrRowStillIs still settles on the Inventory ID whenever both sides have one',
-   /if \(wantId && gotId\) \{\s*\n\s*if \(gotId === wantId\) return true;/.test(sh));
+// 2026-11-04 (findbyid, [stated] Brad "Yes" to PLAN_2026-11-04_FIND_BY_ID.md): the check
+// moved into rrWhereIsRow — the id still settles it when both sides have one, and a
+// MISMATCHED id is now looked for on the tab instead of refused (rrRowStillIs is its
+// yes/no wrapper). Old pin: /if \(wantId && gotId\) \{ if \(gotId === wantId\) return true;/.
+ok('rrWhereIsRow (behind rrRowStillIs) still settles on the Inventory ID whenever both sides have one',
+   /if \(wantId && gotId && gotId === wantId\) return \{ ok: true, row: rowNum \};/.test(sh)
+   && /async function rrRowStillIs[\s\S]{0,200}rrWhereIsRow\(/.test(sh));
 ok('…and it still says out loud that the item-number fallback is the weaker one',
    /item numbers repeat/.test(sh));
 

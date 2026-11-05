@@ -87,6 +87,8 @@ async function boot(browser, files) {
     rrSaveLocations([{ name: 'Garage', type: 'Room', details: ['Shelf 4', 'Shelf 5'] }, { name: 'Basement', type: 'Room', details: ['Tote 2'] }]);
     window.__w = []; window.__toasts = []; window.__rects = []; window.__saved = null; window.__docs = [];
     window.rrRowStillIs = async function () { return true; };
+    // FIND BY ID (2026-11-04): the gates ask rrWhereIsRow (where is it NOW?) — same stand-in: unmoved
+    window.rrWhereIsRow = async function (sid, tab, row) { return { ok: true, row: row }; };
     window.sheetsUpdate = async function (id, range, values) { window.__w.push({ range: range, v: values[0][0] }); await new Promise(z => setTimeout(z, 30)); return {}; };
     window._cachePersonalData = function () {};
     window.appConfirm = async function () { return true; };

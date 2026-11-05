@@ -3010,6 +3010,20 @@ async function markForSaleAsSold(fsKey, askingPrice) {
     soldTo: _det.soldTo, soldAt: _det.soldAt,
     src: collEntry || {},
   });
+  // FIND BY ID (2026-11-04, audit F7): find the copy in My Collection BEFORE the
+  // sale is written — gone / on two rows / Google could not be asked → nothing
+  // is written and the person is told why (the catch below says the words).
+  if (collEntry && collEntry.row && collEntry.row !== 99999 && typeof rrWhereIsRow === 'function') {
+    const _sw = await rrWhereIsRow(state.personalSheetId, PERSONAL_TAB, collEntry.row, collEntry.itemNum || itemNum, collEntry.inventoryId || '');
+    if (!_sw.ok) {
+      const _swErr = new Error('SALE_STOPPED');
+      _swErr.rrWords = (_sw.why === 'busy' && typeof rrRowRefusedWords === 'function')
+        ? rrRowRefusedWords(_sw, itemNum)
+        : String(((typeof RR_FIND_BY_ID !== 'undefined' && RR_FIND_BY_ID.saleStopped) || '')).replace('{num}', collEntry.itemNum || itemNum);
+      throw _swErr;
+    }
+    if (!_sw.offline) collEntry.row = _sw.row;
+  }
   const _soldApRow = (await sheetsAppend(state.personalSheetId, 'Sold!A:' + soldEndCol(), [soldRow])) || 0;   // v0.9.1196
 
   // If this sold copy had an Upgrade entry linked to it, convert to Want.

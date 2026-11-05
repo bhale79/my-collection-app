@@ -71,6 +71,7 @@ async function scenario(pg, full) {
     const appended = [];
     window.sheetsAppend = async (id, range, rows) => { appended.push(rows[0]); return 200 + appended.length; };
     window.rrVerifiedRowUpdate = async () => true; window.rrRowStillIs = async () => true;
+    window.rrWhereIsRow = async (sid, tab, row) => ({ ok: true, row: row });   // FIND BY ID (2026-11-04): the gates ask where it is NOW — same stand-in: unmoved
     window.driveEnsureSetup = async () => {}; window.driveEnsureItemFolder = async (n) => 'FOLDER-' + n; window.driveUploadPhoto = async () => ({});
     window.buildDashboard = () => {}; window.loadPersonalData = async () => {};
     const toasts = []; window.showToast = (m) => { toasts.push(String(m)); };

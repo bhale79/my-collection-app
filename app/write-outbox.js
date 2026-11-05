@@ -245,13 +245,27 @@
     if (!entry) return false;
     if (_AUTO_RETRYABLE.indexOf(entry.kind) === -1) return false;  // delete, clear: never
     if (entry.session !== _session()) return false;         // not across a reload
-    if (entry.movedAt !== _rowsMovedAt) return false;       // rows shifted since
+    // rows shifted since: only an entry that says who it is for may still go — _replay finds it again
+    if (entry.movedAt !== _rowsMovedAt && !(entry.kind === 'update' && entry.args && entry.args.expect)) return false;
     return true;
   }
 
   // ── retrying ─────────────────────────────────────────────────────
   async function _replay(entry) {
     var a = entry.args || {};
+    // FIND BY ID (2026-11-04): a queued row write that says who it is for is
+    // checked again NOW and sent to the row that record is on now. Gone / on two
+    // rows → it is never sent (DROP — the caller tells the person once).
+    if (entry.kind === 'update' && a.expect && typeof rrWhereIsRow === 'function' && typeof _rrRangeAtRow === 'function') {
+      var x = a.expect;
+      var w = await rrWhereIsRow(a.sheetId, x.tab, x.row, x.num, x.invId);
+      if (!w.ok && (w.why === 'gone' || w.why === 'twice')) { var dropErr = new Error('DROP'); dropErr.rrDrop = w.why; throw dropErr; }
+      if (!w.ok) throw new Error(w.why === 'busy' ? 'busy' : 'ROW_MOVED');
+      if (w.offline) throw new Error('offline');
+      var r2 = _rrRangeAtRow(a.range, x.row, w.row);
+      if (!r2) throw new Error('ROW_MOVED');
+      return sheetsUpdate(a.sheetId, r2, a.values, { expect: { tab: x.tab, row: w.row, num: x.num, invId: x.invId } });
+    }
     if (entry.kind === 'update') return sheetsUpdate(a.sheetId, a.range, a.values);
     if (entry.kind === 'append') return sheetsAppend(a.sheetId, a.range, a.values);
     throw new Error('not replayable');
@@ -283,6 +297,16 @@
           await _replay(e);
           sent++;
         } catch (err) {
+          if (err && err.rrDrop) {
+            // FIND BY ID: the record this write was for is no longer on the sheet
+            // (removed on another device) — never send it; say so once.
+            rrSyncLog('drop', ((e.args && e.args.range) || '') + ' why=' + err.rrDrop);
+            try {
+              var _dw = (typeof RR_FIND_BY_ID !== 'undefined' && RR_FIND_BY_ID.outboxDropped) || '';
+              if (_dw && typeof showToast === 'function') showToast(String(_dw).replace('{num}', String((e.args && e.args.expect && e.args.expect.num) || 'an item')), 6000, true);
+            } catch (eT) {}
+            continue;
+          }
           e.tries = (e.tries || 0) + 1;
           e.why = String((err && err.message) || err || '');
           still.push(e); kept++;
@@ -528,6 +552,9 @@
     var thing = what || 'your change';
     var kept = opts.kept !== false && rrOutboxCount() > 0;
     var tail = kept ? ' It is kept on this device and will go up on its own.' : '';
+    // FIND BY ID (2026-11-04): a refusal that already knows its own words
+    // (a sale stopped before anything was written) says exactly those.
+    if (err && err.rrWords) return String(err.rrWords);
 
     if (raw === 'readonly') {
       // v0.9.1900: one wording, by account state (RR_READONLY_TEXT via vault.js).
