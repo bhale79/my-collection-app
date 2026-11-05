@@ -115,11 +115,119 @@ function rrStoreLinksInstall(win) {
   return true;
 }
 
+// ══ THE STORE READER — rrStoreProduct(url) (Gift list Stage 2, 2026-11-05) ══
+// [stated] Brad 2026-11-04 "can we go ahead and do these" → PLAN_2026-11-04_
+// GIFT_LIST_STAGE2_AND_BOUGHT.md; 2026-11-05 05:22 CT "any reason we can't do
+// both?" → "yes": TWO ways to read a store, ONE reader that picks:
+//   • DIRECT — the stores in RR_STORE_READ.direct (Trainz, Mr. Muffin's). Their
+//     addresses are on the page's security list (index.html rr-csp, connect-src),
+//     and every Shopify store answers /products/<page>.js to any website.
+//   • THE BACKEND — every other address goes to relay action 'store_read'
+//     (vault.js vaultPost, relay v5.0+). A relay that does not know the action
+//     yet answers 400, which reads as 'unreadable' — the Stage 1 behaviour.
+// What comes back, ALWAYS (this never throws and never waits past the timeout):
+//   { state: 'ok', name, image, price (dollars, a number or null), inStock, via }
+//   { state: 'gone', via }        the store says the page is not there (404)
+//   { state: 'unreadable', via }  not a store product page, or it could not be asked
+// Read only — nothing here writes anywhere. Answers are kept for the visit
+// (force:true asks again); an 'unreadable' answer is never kept, so a dropped
+// connection does not stick.
+function _rrStoreCfg() {
+  try { if (typeof RR_STORE_READ !== 'undefined' && RR_STORE_READ) return RR_STORE_READ; } catch (e) {}
+  return (typeof window !== 'undefined' && window.RR_STORE_READ) || { direct: [], timeoutMs: 8000 };
+}
+// The product page's name and chosen variant — only a /products/<name> address
+// (a /collections/<x>/products/<name> address too) is a product page.
+function _rrStorePage(url) {
+  try {
+    var s = String(url == null ? '' : url).trim();
+    if (!/^https?:\/\//i.test(s)) return null;
+    var u = new URL(s);
+    var m = /\/products\/([^\/?#.]+)/i.exec(u.pathname);
+    if (!m) return null;
+    return { host: u.hostname.toLowerCase(), handle: decodeURIComponent(m[1]), variant: String(u.searchParams.get('variant') || '') };
+  } catch (e) { return null; }
+}
+// The DIRECT store this host belongs to (the domain or a sub-address of it,
+// never a look-alike — the same test as rrAffiliateStoreFor), or null.
+function _rrStoreDirect(host) {
+  var list = _rrStoreCfg().direct || [];
+  for (var i = 0; i < list.length; i++) {
+    var site = String((list[i] && list[i].site) || '').toLowerCase();
+    if (site && (host === site || host.slice(-(site.length + 1)) === '.' + site)) return list[i];
+  }
+  return null;
+}
+// A Shopify product (the /products/<name>.js shape: prices in CENTS) → our shape.
+function _rrStoreShape(p, variantId, via) {
+  if (!p || typeof p !== 'object' || !p.title) return { state: 'unreadable', via: via };
+  var vs = Array.isArray(p.variants) ? p.variants : [];
+  var v = null;
+  for (var i = 0; i < vs.length; i++) if (variantId && String(vs[i].id) === String(variantId)) v = vs[i];
+  var cents = v ? v.price : p.price;
+  var price = (typeof cents === 'number' && isFinite(cents) && cents > 0) ? Math.round(cents) / 100 : null;
+  var img = (v && v.featured_image && v.featured_image.src) || p.featured_image || '';
+  img = String(img || '');
+  if (img.indexOf('//') === 0) img = 'https:' + img;
+  if (!/^https:\/\//i.test(img)) img = '';
+  var inStock = v ? !!v.available : !!p.available;
+  var name = String(p.title) + (v && v.title && v.title !== 'Default Title' ? ' — ' + v.title : '');
+  return { state: 'ok', name: name, image: img, price: price, inStock: inStock, via: via };
+}
+var _rrStoreKept = {};
+function rrStoreProduct(url, opts) {
+  opts = opts || {};
+  var key = String(url == null ? '' : url).trim();
+  if (!opts.force && _rrStoreKept[key]) return _rrStoreKept[key];
+  var page = _rrStorePage(key);
+  if (!page) return Promise.resolve({ state: 'unreadable', via: '' });
+  var cfg = _rrStoreCfg(), direct = _rrStoreDirect(page.host);
+  var wait = Math.max(1000, cfg.timeoutMs || 8000);
+  var ask;
+  if (direct) {
+    ask = new Promise(function (resolve) {
+      var done = false, ctl = (typeof AbortController === 'function') ? new AbortController() : null;
+      var t = setTimeout(function () { if (!done) { done = true; try { ctl && ctl.abort(); } catch (e) {} resolve({ state: 'unreadable', via: 'direct' }); } }, wait);
+      var target = String(direct.origin).replace(/\/+$/, '') + '/products/' + encodeURIComponent(page.handle) + '.js';
+      fetch(target, { credentials: 'omit', cache: 'no-store', signal: ctl ? ctl.signal : undefined })
+        .then(function (res) {
+          if (res.status === 404) return { state: 'gone', via: 'direct' };
+          if (!res.ok) return { state: 'unreadable', via: 'direct' };
+          return res.json().then(function (p) { return _rrStoreShape(p, page.variant, 'direct'); },
+                                 function () { return { state: 'unreadable', via: 'direct' }; });
+        }, function () { return { state: 'unreadable', via: 'direct' }; })
+        .then(function (r) { if (!done) { done = true; clearTimeout(t); resolve(r); } });
+    });
+  } else {
+    ask = new Promise(function (resolve) {
+      var done = false;
+      var t = setTimeout(function () { if (!done) { done = true; resolve({ state: 'unreadable', via: 'relay' }); } }, wait + 4000);
+      // Written out as vaultPost({ action: … }) so tests/relay_proof_tests.js sees and sorts this call.
+      var call = (typeof vaultPost === 'function') ? Promise.resolve().then(function () { return vaultPost({ action: 'store_read', url: key }); }) : Promise.resolve(null);
+      call.then(function (out) {
+        var r = { state: 'unreadable', via: 'relay' };
+        if (out && out.status === 200 && out.state === 'gone') r = { state: 'gone', via: 'relay' };
+        else if (out && out.status === 200 && out.state === 'ok') r = _rrStoreShape(out.product, page.variant, 'relay');
+        return r;
+      }, function () { return { state: 'unreadable', via: 'relay' }; })
+        .then(function (r) { if (!done) { done = true; clearTimeout(t); resolve(r); } });
+    });
+  }
+  var kept = ask.then(function (r) {
+    if (!r || r.state === 'unreadable') delete _rrStoreKept[key];
+    return r || { state: 'unreadable', via: '' };
+  });
+  _rrStoreKept[key] = kept;
+  return kept;
+}
+
 if (typeof window !== 'undefined') {
   window.rrAffiliateUrl = rrAffiliateUrl;
   window.rrAffiliateStoreFor = rrAffiliateStoreFor;
+  window.rrStoreProduct = rrStoreProduct;
   rrStoreLinksInstall(window);
 }
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { rrAffiliateUrl: rrAffiliateUrl, rrAffiliateStoreFor: rrAffiliateStoreFor, rrStoreLinksInstall: rrStoreLinksInstall };
+  module.exports = { rrAffiliateUrl: rrAffiliateUrl, rrAffiliateStoreFor: rrAffiliateStoreFor, rrStoreLinksInstall: rrStoreLinksInstall,
+                     rrStoreProduct: rrStoreProduct, _rrStorePage: _rrStorePage, _rrStoreShape: _rrStoreShape };
 }

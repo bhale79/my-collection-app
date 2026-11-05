@@ -14,6 +14,8 @@ publish: privacy
 publish: preview-1051ec16
 # After Stripe checkout: counts a free trial for Google Ads, then opens the app
 publish: welcome
+# The family gift page (2026-11-05): therailroster.com/gift/?l=<code> — a collector's shared gift list
+publish: gift
 # The app
 publish: app
 # The old root service worker — unregisters itself on browsers that installed

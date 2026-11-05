@@ -82,7 +82,9 @@ const VAULT = {
   // never carry it: the Privacy page promises the daily ping, Collector's
   // Market contributions and barcode suggestions are not tied to you.
   IDENTITY_ACTIONS: ['sub_check', 'ai_identify', 'ai_identify2', 'ai_verify_photo',
-                     'ref_photo', 'ai_card', 'ai_quota', 'import_map'],
+                     'ref_photo', 'ai_card', 'ai_quota', 'import_map',
+                     'store_read',    // 2026-11-05 relay v5.0: a store page read for the gift list (signed in, counted per account)
+                     'gift_publish', 'gift_link', 'gift_stop'],   // 2026-11-05 relay v5.0: the family gift page (never gift_marks — the collector does not see what was bought)
   ANONYMOUS_ACTIONS: ['heartbeat', 'submit', 'get_market', 'get_counts',
                       'delete_token', 'barcode_pair', 'image_wanted'],
   // v0.9.1924 — the quiet renewal (relay v4.6). These carry their OWN key and

@@ -22,7 +22,23 @@
 //     store-link last stop (rrAffiliateUrl, store-links.js) at the moment the
 //     message is built. The disclosure line (RR_GIFT.disclosure, Brad's
 //     wording) shows only when a link actually carries a code.
-//   • Nothing here reads a store's website (that is Stage 2).
+//   • STAGE 2 (2026-11-05, PLAN_2026-11-04_GIFT_LIST_STAGE2_AND_BOUGHT.md):
+//     a pasted or saved link is READ through the ONE store reader
+//     (rrStoreProduct, store-links.js) — the store's photo, name, price and
+//     In stock / Sold out show beside it. The store's price NEVER replaces his
+//     "about" price by itself ([stated] Brad 2026-11-03 "we dont need to
+//     quietly fill anything") — only the "Use store price" button does. A link
+//     the store has taken down ("gone") can't be confirmed, and is LEFT OFF
+//     what goes out; Preview reads every link fresh first. Sold out is shown,
+//     never blocks. A store that can't be read says so; he checks it himself.
+//   • THE FAMILY LINK (Release B, same plan): "Turn on the family link" keeps
+//     a copy of the list on The Rail Roster's backend (relay v5.0
+//     gift_publish — one code per account; every Preview after that sends the
+//     list again so the page matches). The email, text and printout then
+//     carry the page's address (therailroster.com/gift/?l=<code>), where the
+//     family marks what they bought. THIS FILE NEVER ASKS FOR THE MARKS — the
+//     collector does not see what was bought ([stated] Brad 2026-10-31). "Stop
+//     sharing" deletes the list and its marks (gift_stop).
 //
 // Saved in its own tab on the collector's sheet ("Gift List", created on the
 // first save), one row per Want item, keyed by item number + variation. It
@@ -77,10 +93,99 @@
     return null;
   }
 
+  // ── what the store says (Stage 2) ────────────────────────────────────
+  function _W(k) { return ((_G().words || {})[k]) || ''; }
+  // Ask the ONE store reader about a link; keep the answer for this visit.
+  function _read(url, force) {
+    if (!url || typeof window.rrStoreProduct !== 'function') return Promise.resolve(null);
+    return Promise.resolve(window.rrStoreProduct(url, { force: !!force })).then(function (r) {
+      _live[url] = r || { state: 'unreadable' };
+      return _live[url];
+    }, function () { _live[url] = { state: 'unreadable' }; return _live[url]; });
+  }
+  function _isGone(url) { return !!(_live[url] && _live[url].state === 'gone'); }
+  // The little card beside a link: photo, name, price, In stock / Sold out —
+  // or that the page is gone, or can't be read. Every word from a store is
+  // drawn as words (rrEsc); its picture only from an https address.
+  function _liveHtml(url, reading) {
+    var r = _live[url];
+    if (!r) return reading ? '<div data-gift-live="checking" style="font-size:0.8rem;color:var(--text-dim)">' + _esc(_W('checking')) + '</div>' : '';
+    if (r.state === 'gone') return '<div data-gift-live="gone" style="font-size:0.82rem;color:var(--t-red);font-weight:600">' + _esc(_W('gone'))
+      + '<div style="font-weight:400;color:var(--text-dim)">' + _esc(_W('goneHelp')) + '</div></div>';
+    if (r.state !== 'ok') return '<div data-gift-live="unreadable" style="font-size:0.8rem;color:var(--text-dim)">' + _esc(_W('unreadable')) + '</div>';
+    var img = /^https:\/\//i.test(String(r.image || '')) ? '<img src="' + _esc(r.image) + '" alt="" loading="lazy" style="width:52px;height:52px;object-fit:contain;border-radius:6px;background:white;flex:none">' : '';
+    return '<div data-gift-live="ok" style="display:flex;gap:0.55rem;align-items:center;font-size:0.82rem;margin:0.2rem 0">' + img
+      + '<div><div style="color:var(--text)">' + _esc(r.name || '') + '</div>'
+      + '<div style="color:var(--text-dim)">' + (r.price ? _esc(_W('storePrice').replace('{price}', _price(r.price))) + ' · ' : '')
+      + '<span data-gift-stock="' + (r.inStock ? 'in' : 'out') + '" style="color:' + (r.inStock ? 'var(--t-green)' : 'var(--t-red)') + '">' + _esc(r.inStock ? _W('inStock') : _W('soldOut')) + '</span></div></div></div>';
+  }
+  // Every confirmed link on a ticked item, read fresh — Preview runs this
+  // before it shows anything, and so does "Check prices and links".
+  function _readAll() {
+    var urls = [];
+    _wants().forEach(function (e) {
+      var g = _rows[_key(e.itemNum, e.variation)];
+      if (g && g.on) (g.links || []).forEach(function (L) { if (L.url && urls.indexOf(L.url) < 0) urls.push(L.url); });
+    });
+    return Promise.all(urls.map(function (u) { return _read(u, true); }));
+  }
+
+  // ── the family link (Release B) ──────────────────────────────────────
+  function _F(k) { return ((_G().family || {})[k]) || ''; }
+  var _family = { code: '', asked: false, busy: false };
+  function _familyUrl() { return _family.code ? _F('pageUrl').replace('{code}', encodeURIComponent(_family.code)) : ''; }
+  // Every backend call is written out as vaultPost({ action: … }) inside
+  // _post(function) so tests/relay_proof_tests.js sees and sorts each one.
+  function _post(fn) {
+    try { return Promise.resolve((typeof vaultPost === 'function') ? fn() : null); } catch (e) { return Promise.resolve(null); }
+  }
+  // Is his list already shared? Asked once per opening of the screen.
+  function _askFamily() {
+    if (_family.asked) return Promise.resolve();
+    _family.asked = true;
+    return _post(function () { return vaultPost({ action: 'gift_link' }); }).then(function (r) {
+      if (r && r.status === 200) _family.code = String(r.listId || '');
+    }, function () {});
+  }
+  // EXACTLY what the preview shows goes to the page — the same _outgoing
+  // (coded links, gone links left off). Nothing else of his collection.
+  function _publishList(o) {
+    return { title: _title(), who: _who(), disclosure: o.disclosure || '', footer: _G().footer || '',
+      items: o.items.map(function (it) {
+        return { key: it.key, name: it.name, price: it.price, image: it.image || '',
+                 links: it.links.map(function (L) { return { store: L.store, url: L.url, soldOut: !!L.soldOut }; }) };
+      }) };
+  }
+  function _publish() {
+    var o = _outgoing();
+    if (!o.items.length) return Promise.resolve(false);
+    return _post(function () { return vaultPost({ action: 'gift_publish', list: _publishList(o) }); }).then(function (r) {
+      if (r && r.status === 200 && r.listId) { _family.code = String(r.listId); return true; }
+      return false;
+    }, function () { return false; });
+  }
+  function _familyHtml() {
+    var h = '<div data-gift-family="1" style="margin-top:0.8rem;padding:0.7rem 0.8rem;border:1px dashed var(--border);border-radius:10px">'
+      + '<div style="font-weight:600;color:var(--text)">' + _esc(_F('title')) + '</div>'
+      + '<div style="font-size:0.8rem;color:var(--text-dim);margin:0.2rem 0 0.5rem">' + _esc(_F('explain')) + '</div>';
+    if (_family.code) {
+      var u = _familyUrl();
+      h += '<div data-gift-family-url="1" style="font-size:0.84rem;word-break:break-all;margin-bottom:0.45rem"><a href="' + _esc(u) + '" target="_blank" rel="noopener" style="color:var(--t-link)">' + _esc(u) + '</a></div>'
+        + '<div style="display:flex;gap:0.45rem;flex-wrap:wrap">'
+        +   '<button class="rr-btn" onclick="rrGiftFamilyCopy()">' + _esc(_F('copy')) + '</button>'
+        +   '<button class="rr-btn rr-btn--quiet" data-gift-family-stop="1" onclick="rrGiftFamilyStop()">' + _esc(_F('stop')) + '</button>'
+        + '</div>';
+    } else {
+      h += '<button class="rr-btn fill" data-gift-family-on="1" onclick="rrGiftFamilyOn()"' + (_family.busy ? ' disabled' : '') + '>' + _esc(_F('turnOn')) + '</button>';
+    }
+    return h + '</div>';
+  }
+
   // ── the saved rows ───────────────────────────────────────────────────
   var _rows = {};          // key → { row, itemNum, variation, on, price, links:[{store,url,confirmed}], notes }
   var _loaded = false;
   var _pending = {};       // key → { url, store, opened } — pasted, not yet confirmed
+  var _live = {};          // url → what the store said (rrStoreProduct) — this visit only, never saved
 
   function _parse(values) {
     var out = {};
@@ -255,6 +360,15 @@
         +   '<span style="color:var(--text-dim)">checked ' + _esc(typeof _formatDate === 'function' ? _formatDate(L.confirmed) : L.confirmed) + '</span>'
         +   '<button class="rr-btn rr-btn--quiet" onclick="rrGiftRemoveLink(\'' + ka + '\',' + i + ')" title="Take this link off" style="padding:0.2rem 0.55rem;min-height:32px">Remove</button>'
         + '</div>';
+      var r = _live[L.url];
+      if (r) {
+        h += '<div data-gift-link-live="' + _esc(k) + '|' + i + '" style="margin:0 0 0.35rem 1.3rem">' + _liveHtml(L.url, false);
+        var mine = (typeof _money === 'function') ? _money(g.price) : parseFloat(g.price);
+        if (r.state === 'ok' && r.price && !(isFinite(mine) && Math.abs(mine - r.price) < 0.005)) {
+          h += '<button class="rr-btn rr-btn--quiet" data-gift-use-price="' + _esc(k) + '|' + i + '" onclick="rrGiftUseStorePrice(\'' + ka + '\',' + i + ')" style="padding:0.2rem 0.55rem;min-height:32px">' + _esc(_W('useStorePrice')) + '</button>';
+        }
+        h += '</div>';
+      }
     });
     if ((g.links || []).length < (_G().maxLinks || 2)) {
       var p = _pending[k] || {};
@@ -270,8 +384,9 @@
         +     '<select data-gift-store="' + _esc(k) + '" onchange="rrGiftPendingStore(\'' + ka + '\',this.value)" style="padding:0.4rem;border-radius:7px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-size:1rem">' + opts + '</select>'
         +     '<input data-gift-url="' + _esc(k) + '" value="' + _esc(p.url || '') + '" placeholder="paste the item’s page address" oninput="rrGiftPendingUrl(\'' + ka + '\',this.value)" style="flex:1;min-width:12rem;padding:0.4rem 0.55rem;border-radius:7px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-size:1rem">'
         +   '</div>'
+        +   '<div data-gift-pending-live="' + _esc(k) + '" style="margin-top:0.35rem">' + (p.url ? _liveHtml(p.url, true) : '') + '</div>'
         +   '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-top:0.4rem">'
-        +     '<button class="rr-btn" data-gift-open="' + _esc(k) + '" onclick="rrGiftOpenPending(\'' + ka + '\')"' + (p.url ? '' : ' disabled') + '>Open it to check</button>'
+        +     '<button class="rr-btn" data-gift-open=""' + _esc(k) + '" onclick="rrGiftOpenPending(\'' + ka + '\')"' + (p.url ? '' : ' disabled') + '>Open it to check</button>'
         +     '<button class="rr-btn fill rr-btn--green" data-gift-confirm="' + _esc(k) + '" onclick="rrGiftConfirm(\'' + ka + '\')"' + (p.url && p.opened ? '' : ' disabled') + '>Yes, that’s it</button>'
         +   '</div>'
         + '</div>';
@@ -282,27 +397,36 @@
   // Everything that goes out — the same list for the preview, the email, the
   // text and the printout. Links are coded HERE, as the message is built.
   function _outgoing() {
-    var items = [], coded = false;
+    var items = [], coded = false, leftOff = 0;
     _wants().forEach(function (e) {
       var g = _rows[_key(e.itemNum, e.variation)];
       if (!g || !g.on) return;
-      var links = (g.links || []).filter(function (L) { return L.url && L.confirmed; }).map(function (L) {
+      var image = '';
+      var links = (g.links || []).filter(function (L) {
+        if (!L.url || !L.confirmed) return false;
+        if (_isGone(L.url)) { leftOff++; return false; }     // the store took the page down — it never goes out
+        return true;
+      }).map(function (L) {
+        var r = _live[L.url];
+        if (!image && r && r.state === 'ok' && r.image) image = r.image;
         var out = (typeof rrAffiliateUrl === 'function') ? rrAffiliateUrl(L.url) : L.url;
         if (out !== L.url) coded = true;
-        return { store: L.store || _hostOf(L.url), url: out, confirmed: L.confirmed };
+        return { store: L.store || _hostOf(L.url), url: out, confirmed: L.confirmed,
+                 soldOut: !!(r && r.state === 'ok' && !r.inStock) };
       });
-      items.push({ name: _name(e), price: _price(g.price), links: links });
+      items.push({ key: _key(e.itemNum, e.variation), name: _name(e), price: _price(g.price), links: links, image: image });
     });
-    return { items: items, coded: coded, disclosure: coded ? (_G().disclosure || '') : '' };
+    return { items: items, coded: coded, leftOff: leftOff, disclosure: coded ? (_G().disclosure || '') : '' };
   }
   function _who() { try { return (typeof rrUserName === 'function' && rrUserName()) || ''; } catch (e) { return ''; } }
   function _title() { var w = _who(); return (_G().title || 'Gift ideas') + (w ? ' — from ' + w : ''); }
   function _text(o) {
     var lines = [_title(), ''];
+    if (_family.code) { lines.push(_F('textLine').replace('{link}', _familyUrl())); lines.push(''); }
     o.items.forEach(function (it, i) {
       lines.push((i + 1) + '. ' + it.name + (it.price ? ' — about ' + it.price : ''));
       if (!it.links.length) lines.push('   Ask me where to find this one.');
-      it.links.forEach(function (L) { lines.push('   ' + L.store + ': ' + L.url); });
+      it.links.forEach(function (L) { lines.push('   ' + L.store + (L.soldOut ? ' (' + _W('soldOut').toLowerCase() + ' right now)' : '') + ': ' + L.url); });
     });
     if (o.disclosure) { lines.push(''); lines.push(o.disclosure); }
     lines.push(''); lines.push(_G().footer || 'Made with The Rail Roster.');
@@ -313,19 +437,23 @@
     var o = _outgoing();
     if (!o.items.length) return '<div style="padding:1.5rem 0;color:var(--text-dim)">Nothing is ticked yet. Go back and tick the items for the gift list.</div>'
       + '<button class="rr-btn" onclick="rrGiftView(\'edit\')">Back</button>';
-    var h = '<div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:0.6rem">This is exactly what she will see.</div>'
+    var h = (o.leftOff ? '<div data-gift-leftoff="' + o.leftOff + '" style="font-size:0.84rem;color:var(--t-red);font-weight:600;margin-bottom:0.5rem">' + _esc(_W('leftOff').replace('{n}', o.leftOff)) + '</div>' : '')
+      + '<div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:0.6rem">This is exactly what she will see.</div>'
       + '<div data-gift-preview="1" style="border:1px solid var(--border);border-radius:10px;padding:0.8rem;background:var(--bg-card)">'
       + '<div style="font-weight:700;margin-bottom:0.5rem;color:var(--text)">' + _esc(_title()) + '</div>';
     o.items.forEach(function (it, i) {
-      h += '<div style="margin-bottom:0.6rem"><div style="color:var(--text)">' + (i + 1) + '. ' + _esc(it.name) + (it.price ? ' <span style="color:var(--text-dim)">— about ' + _esc(it.price) + '</span>' : '') + '</div>';
+      h += '<div style="margin-bottom:0.6rem;display:flex;gap:0.6rem;align-items:flex-start">'
+        + (it.image ? '<img src="' + _esc(it.image) + '" alt="" loading="lazy" style="width:56px;height:56px;object-fit:contain;border-radius:6px;background:white;flex:none">' : '')
+        + '<div><div style="color:var(--text)">' + (i + 1) + '. ' + _esc(it.name) + (it.price ? ' <span style="color:var(--text-dim)">— about ' + _esc(it.price) + '</span>' : '') + '</div>';
       if (!it.links.length) h += '<div style="font-size:0.84rem;color:var(--text-dim);margin-left:1.1rem">Ask me where to find this one.</div>';
       it.links.forEach(function (L) {
-        h += '<div style="font-size:0.84rem;margin-left:1.1rem"><a href="' + _esc(L.url) + '" target="_blank" rel="noopener" style="color:var(--t-link)">' + _esc(L.store) + '</a></div>';
+        h += '<div style="font-size:0.84rem;margin-left:1.1rem"><a href="' + _esc(L.url) + '" target="_blank" rel="noopener" style="color:var(--t-link)">' + _esc(L.store) + '</a>'
+          + (L.soldOut ? ' <span style="color:var(--text-dim)">(' + _esc(_W('soldOut').toLowerCase()) + ' right now)</span>' : '') + '</div>';
       });
-      h += '</div>';
+      h += '</div></div>';
     });
     if (o.disclosure) h += '<div data-gift-disclosure="1" style="font-size:0.75rem;color:var(--text-dim);margin-top:0.4rem">' + _esc(o.disclosure) + '</div>';
-    h += '</div>'
+    h += '</div>' + _familyHtml()
       + '<div style="display:flex;gap:0.45rem;flex-wrap:wrap;margin-top:0.8rem">'
       +   '<button class="rr-btn fill rr-btn--accent" onclick="rrGiftEmail()">Email</button>'
       +   '<button class="rr-btn fill" onclick="rrGiftText()">Text</button>'
@@ -340,7 +468,10 @@
     var body = list.length ? list.map(_itemHtml).join('')
       : '<div style="padding:1rem 0;color:var(--text-dim)">Your Want list is empty. Add the items you are hoping for, then come back here.</div>';
     var on = list.filter(function (e) { var g = _rows[_key(e.itemNum, e.variation)]; return g && g.on; }).length;
+    var anyLinks = list.some(function (e) { var g = _rows[_key(e.itemNum, e.variation)]; return g && g.on && (g.links || []).length; });
     return _storesHtml()
+      + (anyLinks ? '<div style="margin-bottom:0.7rem"><button class="rr-btn" data-gift-check-all="1" onclick="rrGiftCheckAll()"' + (_checkingAll ? ' disabled' : '') + '>'
+          + _esc(_checkingAll ? _W('checkingAll') : _W('checkAll')) + '</button></div>' : '')
       + '<div style="font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.35rem">Tick what goes on the gift list</div>'
       + body
       + '<div style="position:sticky;bottom:0;background:var(--surface);padding:0.6rem 0 calc(0.6rem + var(--rr-safe-b, 0px));border-top:1px solid var(--border);display:flex;gap:0.5rem;align-items:center">'
@@ -348,9 +479,11 @@
       + '</div>';
   }
 
+  var _checkingAll = false, _viewTurn = 0;
   function _paint() {
     var box = document.getElementById('gift-body');
     if (!box) return;
+    if (_view === 'checking') { box.innerHTML = '<div data-gift-checking="1" style="padding:1.2rem 0;color:var(--text-dim)">' + _esc(_W('checkingAll')) + '</div>'; return; }
     box.innerHTML = (_view === 'preview') ? _previewHtml() : _editHtml();
   }
 
@@ -384,10 +517,64 @@
     _watchContacts();
     try { if ((!state.contactsData || !state.contactsData.length) && typeof window._ctLoadContacts === 'function') await window._ctLoadContacts(); } catch (e) {}
     await _load();
+    _family.asked = false;
     _paint();
   };
   window.rrGiftClose = _close;
-  window.rrGiftView = function (v) { if (!_on()) return; _view = (v === 'preview') ? 'preview' : 'edit'; _paint(); };
+  // Preview reads every link fresh FIRST (Stage 2), so a page the store took
+  // down is left off and a sold-out one is marked before anything can be sent.
+  // A Back pressed while it reads wins (the turn number).
+  window.rrGiftView = async function (v) {
+    if (!_on()) return;
+    var turn = ++_viewTurn;
+    if (v !== 'preview') { _view = 'edit'; _paint(); return; }
+    _view = 'checking'; _paint();
+    try { await _readAll(); } catch (e) {}
+    // A list that is already shared is sent again, so the family page shows
+    // exactly this preview (Release B).
+    try { await _askFamily(); if (_family.code && turn === _viewTurn) await _publish(); } catch (e) {}
+    if (turn !== _viewTurn) return;
+    _view = 'preview'; _paint();
+  };
+  window.rrGiftFamilyOn = async function () {
+    if (!_on() || _family.busy) return;
+    _family.busy = true; _paint();
+    var okd = await _publish();
+    _family.busy = false;
+    if (!okd) _toast(_F('notYet'), 5000, true);
+    if (_view === 'preview') _paint();
+  };
+  window.rrGiftFamilyStop = async function () {
+    if (!_on() || !_family.code || _family.busy) return;
+    var yes = await appConfirm(_F('stopAsk'), { title: _F('stop'), ok: _F('stop'), cancel: _F('keep'), danger: true });
+    if (!yes) return;
+    _family.busy = true;
+    var r = await _post(function () { return vaultPost({ action: 'gift_stop' }); });
+    _family.busy = false;
+    if (r && r.status === 200) { _family.code = ''; _toast(_F('stopped'), 4500); }
+    else _toast((typeof rrSaveError === 'function') ? rrSaveError(new Error('stop'), 'the family link') : 'Could not stop sharing \u2014 try again.', 5000, true);
+    if (_view === 'preview') _paint();
+  };
+  window.rrGiftFamilyCopy = function () {
+    var u = _familyUrl(); if (!u) return;
+    try { navigator.clipboard.writeText(u).then(function () { _toast(_F('copied'), 3000); }, function () { _toast(u, 8000); }); } catch (e) { _toast(u, 8000); }
+  };
+  window.rrGiftCheckAll = async function () {
+    if (!_on() || _checkingAll) return;
+    _checkingAll = true; _paint();
+    try { await _readAll(); } catch (e) {}
+    _checkingAll = false;
+    if (_view === 'edit') _paint();
+  };
+  // The ONLY way the store's price becomes his "about" price: his tap.
+  window.rrGiftUseStorePrice = function (k, i) {
+    if (!_on() || !_rows[k]) return;
+    var L = (_rows[k].links || [])[i], r = L && _live[L.url];
+    if (!r || r.state !== 'ok' || !r.price) return;
+    _rows[k].price = String(r.price);
+    _paint();
+    _save(k);
+  };
 
   window.rrGiftTick = function (k, on) {
     if (!_on()) return;
@@ -425,7 +612,23 @@
     if (cb) cb.disabled = true;
     var sel = document.querySelector('[data-gift-store="' + (window.CSS && CSS.escape ? CSS.escape(k) : k) + '"]');
     if (sel && s) sel.value = s.site;
+    // Read the store's page once he stops typing / pasting (only a real web
+    // address is asked about); the answer is drawn in the link's own box.
+    clearTimeout(_pendTimer[k]);
+    var box = document.querySelector('[data-gift-pending-live="' + (window.CSS && CSS.escape ? CSS.escape(k) : k) + '"]');
+    if (!_hostOf(p.url)) { if (box) box.innerHTML = ''; return; }
+    if (box) box.innerHTML = _liveHtml(p.url, true);
+    var asked = p.url;
+    _pendTimer[k] = setTimeout(function () {
+      _read(asked, false).then(function () {
+        var now = _pending[k];
+        if (!now || now.url !== asked) return;     // he changed it meanwhile
+        var b = document.querySelector('[data-gift-pending-live="' + (window.CSS && CSS.escape ? CSS.escape(k) : k) + '"]');
+        if (b) b.innerHTML = _liveHtml(asked, false);
+      });
+    }, 500);
   };
+  var _pendTimer = {};
   function _checkPending(k) {
     var p = _pending[k] || {};
     var host = _hostOf(p.url);
@@ -453,6 +656,7 @@
     if (!p.url || !p.opened) { _toast('Open the link first and check it is the right item.', 4000, true); return; }
     var bad = _checkPending(k);
     if (bad) { _toast(bad, 5000, true); return; }
+    if (_isGone(p.url)) { _toast(_W('gone') + '. ' + _W('goneHelp'), 6000, true); return; }
     var g = _rows[k];
     if ((g.links || []).length >= (_G().maxLinks || 2)) return;
     var s = (p.store && p.store !== '__other') ? _stores().find(function (x) { return x.site === p.store; }) : null;
@@ -537,9 +741,11 @@
     };
     var rows = o.items.map(function (it, i) {
       var links = it.links.length ? it.links.map(function (L) {
-        return '<div class="lk"><div class="qr" data-qr-url="' + _esc(L.url) + '">' + qr(L.url) + '</div><div><b>' + _esc(L.store) + '</b><br><span class="u">' + _esc(L.url) + '</span></div></div>';
+        return '<div class="lk"><div class="qr" data-qr-url="' + _esc(L.url) + '">' + qr(L.url) + '</div><div><b>' + _esc(L.store) + '</b>'
+          + (L.soldOut ? ' <span class="so">(' + _esc(_W('soldOut').toLowerCase()) + ' right now)</span>' : '') + '<br><span class="u">' + _esc(L.url) + '</span></div></div>';
       }).join('') : '<div class="ask">Ask me where to find this one.</div>';
-      return '<div class="it"><div class="nm">' + (i + 1) + '. ' + _esc(it.name) + (it.price ? ' <span class="pr">— about ' + _esc(it.price) + '</span>' : '') + '</div>' + links + '</div>';
+      var pic = /^https:\/\//i.test(String(it.image || '')) ? '<img class="ph" src="' + _esc(it.image) + '" alt="">' : '';
+      return '<div class="it">' + pic + '<div class="nm">' + (i + 1) + '. ' + _esc(it.name) + (it.price ? ' <span class="pr">— about ' + _esc(it.price) + '</span>' : '') + '</div>' + links + '</div>';
     }).join('');
     return '<!doctype html><html><head><meta charset="utf-8"><title>' + _esc(_title()) + '</title><style>'
       + 'body{font-family:Georgia,serif;color:black;background:white;max-width:720px;margin:24px auto;padding:0 18px}'
@@ -547,7 +753,11 @@
       + '.pr{color:dimgray}.lk{display:flex;gap:12px;align-items:center;margin:4px 0 4px 18px}.qr svg{width:104px;height:104px}'
       + '.u{font-size:10px;color:dimgray;word-break:break-all}.ask{margin-left:18px;color:dimgray;font-style:italic}'
       + '.dc{font-size:11px;color:dimgray;margin-top:18px}.ft{font-size:11px;color:gray;margin-top:6px}'
-      + '</style></head><body><h1>' + _esc(_title()) + '</h1>' + rows
+      + '.ph{float:right;width:90px;height:90px;object-fit:contain;margin:0 0 6px 10px}.so{color:dimgray;font-style:italic}.it{overflow:hidden}'
+      + '.fam{display:flex;gap:12px;align-items:center;border:1px dashed gray;padding:8px;margin:0 0 16px}'
+      + '</style></head><body><h1>' + _esc(_title()) + '</h1>'
+      + (_family.code ? '<div class="fam" data-family-qr="1"><div class="qr">' + qr(_familyUrl()) + '</div><div><b>' + _esc(_F('printLine')) + '</b><br><span class="u">' + _esc(_familyUrl()) + '</span></div></div>' : '')
+      + rows
       + (o.disclosure ? '<div class="dc">' + _esc(o.disclosure) + '</div>' : '')
       + '<div class="ft">' + _esc(_G().footer || 'Made with The Rail Roster.') + ' Scan a code with a phone camera to open the store.</div>'
       + '</body></html>';
@@ -570,6 +780,6 @@
   };
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { _parse: _parse, _rowValues: _rowValues, _outgoing: _outgoing, _text: _text, _printHtml: _printHtml, _hostIs: _hostIs, TAB: TAB };
+    module.exports = { _parse: _parse, _rowValues: _rowValues, _outgoing: _outgoing, _text: _text, _printHtml: _printHtml, _hostIs: _hostIs, _liveHtml: _liveHtml, TAB: TAB };
   }
 })();

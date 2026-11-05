@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<!-- THE FAMILY GIFT PAGE — therailroster.com/gift/?l=<code> (2026-11-05).
+     [stated] Brad 2026-10-31: the bought marks must be hidden from the
+     collector; 2026-11-05 05:19 CT "yes" to hiding them on this page behind an
+     "I'm shopping for … — show what's been bought" tap. Plan:
+     PLAN_2026-11-04_GIFT_LIST_STAGE2_AND_BOUGHT.md (Release B).
+     The list comes from the backend (relay v5.0 gift_get — never the marks);
+     the marks are asked for (gift_marks) only AFTER the tap; "I bought this" /
+     "Undo" write one mark (gift_mark). No sign-in, nothing stored on the device.
+     Everything from the list is drawn as text (textContent), a link only when
+     it is an http(s) address, a picture only when https.
+     ENDPOINT must equal VAULT.ENDPOINT in app/vault.js — tests/gift_family_tests.js
+     holds the two together. -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src https: data:; connect-src https://script.google.com https://script.googleusercontent.com; base-uri 'none'; form-action 'none'">
+<title>Gift list — The Rail Roster</title>
+<style>
+  :root { --bg:#f6edd8; --card:#fffaf0; --ink:#2a2015; --dim:#6f6450; --line:#e2d5b0; --accent:#c84406; --ok:#2e7d32; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#14161f; --card:#1d2030; --ink:#f3ead6; --dim:#b3a98f; --line:#343a52; --accent:#ff8a4c; --ok:#7bd88f; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:18px/1.5 Georgia, 'Times New Roman', serif; }
+  main { max-width:720px; margin:0 auto; padding:1.5rem 1rem 3rem; }
+  h1 { font-size:1.6rem; margin:0 0 0.3rem; }
+  .sub { color:var(--dim); margin:0 0 1.2rem; font-size:1rem; }
+  .item { display:flex; gap:0.9rem; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:0.9rem; margin:0 0 0.8rem; }
+  .item img { width:84px; height:84px; object-fit:contain; background:white; border-radius:8px; flex:none; }
+  .name { font-weight:bold; }
+  .price { color:var(--dim); }
+  .links a { color:var(--accent); display:inline-block; margin:0.25rem 0.9rem 0 0; font-size:1rem; }
+  .so { color:var(--dim); font-size:0.9rem; }
+  .ask { color:var(--dim); font-style:italic; font-size:0.95rem; }
+  button { font:inherit; font-size:1rem; border-radius:10px; padding:0.6rem 1rem; cursor:pointer; border:1px solid var(--line); background:var(--card); color:var(--ink); min-height:44px; }
+  button.main { background:var(--accent); color:white; border:none; font-weight:bold; }
+  .reveal { margin:0 0 1.2rem; }
+  .bought { color:var(--ok); font-weight:bold; margin-right:0.6rem; }
+  .mark { margin-top:0.5rem; }
+  .note { color:var(--dim); font-size:0.85rem; margin-top:1.4rem; }
+  .msg { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:1.2rem; }
+</style>
+</head>
+<body>
+<main id="page"><p class="sub">Loading the gift list…</p></main>
+<script>
+(function () {
+  'use strict';
+  var ENDPOINT = 'https://script.google.com/macros/s/AKfycbyRVcw19tYbtYIwCfjOPqslSYYBpaq1O8wahOJu131pHd-j_qN4fX1AIVgcttxPKuaqiA/exec';
+  var WORDS = {
+    reveal: 'I’m shopping for {who} — show what’s been bought',
+    revealNote: 'Keep this to yourselves — {who} isn’t meant to see what has been bought.',
+    bought: 'Bought ✓',
+    buy: 'I bought this',
+    undo: 'Undo',
+    ask: 'Ask {who} where to find this one.',
+    soldOut: 'sold out right now',
+    gone: 'This gift list is no longer shared.',
+    trouble: 'The gift list could not be loaded right now. Please try again in a minute.',
+    busy: 'Too many people are looking at once — please try again in a minute.',
+  };
+  var page = document.getElementById('page');
+  var code = '';
+  try { code = String(new URLSearchParams(location.search).get('l') || '').toLowerCase(); } catch (e) {}
+  var list = null, marks = null, busy = false;
+
+  function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = String(text); return n; }
+  function who() { return (list && list.who) ? list.who : 'them'; }
+  function w(k) { return WORDS[k].split('{who}').join(who()); }
+  function call(body) {
+    return fetch(ENDPOINT, { method: 'POST', body: JSON.stringify(body), headers: { 'Content-Type': 'text/plain' }, credentials: 'omit' })
+      .then(function (r) { return r.json(); });
+  }
+  function message(text) { page.textContent = ''; page.appendChild(el('div', 'msg', text)); }
+  function safeLink(u) { u = String(u || ''); return /^https?:\/\/[^\s]+$/i.test(u) ? u : ''; }
+  function safePic(u) { u = String(u || ''); return /^https:\/\/[^\s]+$/i.test(u) ? u : ''; }
+
+  function draw() {
+    page.textContent = '';
+    page.appendChild(el('h1', '', list.title || 'Gift ideas'));
+    page.appendChild(el('p', 'sub', 'Tap a store to see the item.'));
+    if (marks === null) {
+      var rv = el('div', 'reveal');
+      var b = el('button', 'main', w('reveal'));
+      b.setAttribute('data-reveal', '1');
+      b.onclick = reveal;
+      rv.appendChild(b);
+      page.appendChild(rv);
+    } else {
+      page.appendChild(el('p', 'sub', w('revealNote')));
+    }
+    (list.items || []).forEach(function (it, i) {
+      var box = el('div', 'item');
+      box.setAttribute('data-item', it.key);
+      var pic = safePic(it.image);
+      if (pic) { var im = el('img'); im.src = pic; im.alt = ''; im.loading = 'lazy'; box.appendChild(im); }
+      var body = el('div');
+      var nm = el('div', 'name', (i + 1) + '. ' + (it.name || ''));
+      body.appendChild(nm);
+      if (it.price) body.appendChild(el('div', 'price', 'About ' + it.price));
+      var links = el('div', 'links');
+      (it.links || []).forEach(function (L) {
+        var u = safeLink(L.url);
+        if (!u) return;
+        var a = el('a', '', L.store || 'Store');
+        a.href = u; a.target = '_blank'; a.rel = 'noopener noreferrer';
+        links.appendChild(a);
+        if (L.soldOut) links.appendChild(el('span', 'so', '(' + WORDS.soldOut + ') '));
+      });
+      if (!links.childNodes.length) links.appendChild(el('div', 'ask', w('ask')));
+      body.appendChild(links);
+      if (marks !== null) {
+        var row = el('div', 'mark');
+        if (marks.indexOf(it.key) >= 0) {
+          row.appendChild(el('span', 'bought', WORDS.bought));
+          var u2 = el('button', '', WORDS.undo); u2.setAttribute('data-undo', it.key);
+          u2.onclick = function () { setMark(it.key, false); };
+          row.appendChild(u2);
+        } else {
+          var bb = el('button', '', WORDS.buy); bb.setAttribute('data-buy', it.key);
+          bb.onclick = function () { setMark(it.key, true); };
+          row.appendChild(bb);
+        }
+        body.appendChild(row);
+      }
+      box.appendChild(body);
+      page.appendChild(box);
+    });
+    if (list.disclosure) page.appendChild(el('p', 'note', list.disclosure));
+    page.appendChild(el('p', 'note', list.footer || 'Made with The Rail Roster.'));
+  }
+  function answer(r) {
+    if (!r) { message(WORDS.trouble); return false; }
+    if (r.status === 404) { message(WORDS.gone); return false; }
+    if (r.status === 429) { message(WORDS.busy); return false; }
+    if (r.status !== 200) { message(WORDS.trouble); return false; }
+    return true;
+  }
+  // The marks are asked for ONLY here — after the tap.
+  function reveal() {
+    if (busy) return; busy = true;
+    call({ action: 'gift_marks', listId: code }).then(function (r) {
+      busy = false;
+      if (!answer(r)) return;
+      marks = (r.keys || []).map(String);
+      draw();
+    }, function () { busy = false; message(WORDS.trouble); });
+  }
+  function setMark(key, on) {
+    if (busy) return; busy = true;
+    call({ action: 'gift_mark', listId: code, itemKey: key, on: on }).then(function (r) {
+      busy = false;
+      if (!answer(r)) return;
+      marks = marks.filter(function (k) { return k !== key; });
+      if (on) marks.push(key);
+      draw();
+    }, function () { busy = false; message(WORDS.trouble); });
+  }
+
+  if (!/^[a-f0-9]{32}$/.test(code)) { message(WORDS.gone); return; }
+  call({ action: 'gift_get', listId: code }).then(function (r) {
+    if (!answer(r)) return;
+    list = r.list || { items: [] };
+    document.title = (list.title || 'Gift list') + ' — The Rail Roster';
+    draw();
+  }, function () { message(WORDS.trouble); });
+  window._giftPage = { reveal: reveal, setMark: setMark };
+})();
+</script>
+</body>
+</html>

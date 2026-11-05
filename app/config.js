@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2115';
+const APP_VERSION = 'v0.9.2116';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -5395,8 +5395,62 @@ const RR_GIFT = {
   disclosure: 'Some links on this list may earn The Rail Roster a small commission, at no extra cost to you.',
   suggestedStores: [{ name: 'Trainz', site: 'trainz.com' }],
   mailUrlMax: 7500,
+  // ── Stage 2 (2026-11-05, PLAN_2026-11-04_GIFT_LIST_STAGE2_AND_BOUGHT.md) ──
+  // What the gift list says about a store link once the store has been read
+  // (rrStoreProduct, store-links.js). {price} is the store's price.
+  words: {
+    checking: 'Checking the store\u2026',
+    inStock: 'In stock',
+    soldOut: 'Sold out',
+    gone: 'This link no longer works',
+    goneHelp: 'The store took this page down. Remove it and find the item again, or use your other store.',
+    unreadable: 'This store\u2019s page can\u2019t be read \u2014 check it yourself.',
+    storePrice: 'Store price {price}',
+    useStorePrice: 'Use store price',
+    checkAll: 'Check prices and links',
+    checkingAll: 'Checking every store link\u2026',
+    leftOff: '{n} link(s) no longer work and were left off. Go back to fix them.',
+  },
+  // ── the family gift page (2026-11-05, Release B of the same plan) ──
+  // [stated] Brad 2026-10-31 07:02 CT the bought boxes "should be hidden from
+  // the main user"; 2026-11-05 05:19 CT "yes" to hiding the marks on the page
+  // behind an "I'm shopping for …" tap. The list is kept on The Rail Roster's
+  // backend (relay v5.0 gift_publish) under one code per account; the page
+  // is gift/index.html on the website. The APP never asks for the marks.
+  family: {
+    pageUrl: 'https://therailroster.com/gift/?l={code}',
+    title: 'Family link',
+    explain: 'Your family opens this link, sees the list and marks what they bought \u2014 so nobody buys the same thing twice. You will never see what was marked.',
+    turnOn: 'Turn on the family link',
+    copy: 'Copy the link',
+    copied: 'Link copied.',
+    stop: 'Stop sharing',
+    keep: 'Keep sharing',
+    stopAsk: 'Stop sharing your gift list? The family link stops working, and what was marked as bought is deleted.',
+    stopped: 'Sharing stopped \u2014 the family link no longer works.',
+    notYet: 'The family link isn\u2019t ready yet \u2014 try again later.',
+    textLine: 'See the list and mark what you\u2019ve bought: {link}',
+    printLine: 'Scan this code to see the list online and mark what you bought.',
+  },
 };
 if (typeof window !== 'undefined') window.RR_GIFT = RR_GIFT;
+
+// ══ THE STORE READER's settings (rrStoreProduct, store-links.js) ══════════
+// [stated] Brad 2026-11-05 05:22 CT "any reason we can't do both?" → "yes".
+//   direct     stores the APP reads itself. Each origin must ALSO be on the
+//              page's security list (index.html rr-csp, connect-src) —
+//              tests/gift_stage2_tests.js holds the two lists together.
+//              Every other store is read through the backend (relay
+//              'store_read', v5.0+).
+//   timeoutMs  how long one read may take before it counts as "can't read"
+const RR_STORE_READ = {
+  direct: [
+    { site: 'trainz.com',          origin: 'https://www.trainz.com' },
+    { site: 'mrmuffinstrains.com', origin: 'https://mrmuffinstrains.com' },
+  ],
+  timeoutMs: 8000,
+};
+if (typeof window !== 'undefined') window.RR_STORE_READ = RR_STORE_READ;
 
 // ═══════════════════════════════════════════════════════════════
 // PRINTING A REPORT — 2026-11-02 ([stated] Brad "yes" to the plan; hand-test

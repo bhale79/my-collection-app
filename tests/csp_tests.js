@@ -72,7 +72,7 @@ ok('frames only from Google sign-in', (D['frame-src'] || []).join(' ') === 'http
 const LINK_ONLY = [
   'drive.google.com', 'docs.google.com', 'sheets.google.com', 'mail.google.com', 'gmail.com', 'www.google.com',
   'lens.google.com', 'maps.google.com', 'maps.apple.com', 'console.cloud.google.com', 'developers.google.com',
-  'therailroster.com', 'cornucopiaoftoytrains.com', 'www.ebay.com', 'www.trainz.com', 'www.lionelcollectors.org',
+  'therailroster.com', 'cornucopiaoftoytrains.com', 'www.ebay.com', 'www.lionelcollectors.org',   // 2026-11-05: www.trainz.com left this list — the gift list now READS it (connect-src, RR_STORE_READ)
   'www.youtube.com', 'www.atlasrr.com', 'shop.atlasrr.com', 'download.atlasrr.com', 'www.lionelsupport.com',
   'www.lionelstore.com', 'www.lionel.com', 'www.lgb.com', 'www.get3rparts.com', 'static.maerklin.de',
   'reindeerpass.com', 'mthpartsandsales.com', 'estore.bachmanntrains.com', 'd2frr7198pxftr.cloudfront.net',
