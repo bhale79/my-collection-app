@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2114';
+const APP_VERSION = 'v0.9.2115';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -4711,6 +4711,7 @@ const RR_ADD_TYPED = {
   useTyped:    'Use {num} as typed, not in the catalog',
   useTypedSub: 'Saves with the details you enter on the next steps',
   contains:    '{maker} · contains {num}',   // the maker word, then why this row turned up
+  zeroTwin:    '{maker} · listed as {num}',  // 2026-11-05: 01511 typed, the catalog's 1511 (PLAN_2026-11-05_LEADING_ZEROS)
 };
 if (typeof window !== 'undefined') window.RR_ADD_TYPED = RR_ADD_TYPED;
 

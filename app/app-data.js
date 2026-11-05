@@ -914,7 +914,12 @@ function rrMasterByRowId(id) {
 function _rrRowIdFits(row, itemNum, variation) {
   if (!row) return false;
   var _kn = String(row.itemNum).trim(), _in = String(itemNum == null ? '' : itemNum).trim();
-  if (!(_kn === _in || (typeof baseItemNum === 'function' && baseItemNum(_in) === _kn))) return false;
+  // 2026-11-05: or the same number apart from leading zeros — a copy saved as
+  // 1511 keeps its Row ID link when the catalog row gets its real 01511 back
+  // (PLAN_2026-11-05_LEADING_ZEROS step 2). The Row ID is the identity; this
+  // check only refuses a stale or foreign ID, and a zero twin is neither.
+  var _zt = (typeof rrNumZeroTwin === 'function') && (rrNumZeroTwin(_kn, _in) || (typeof baseItemNum === 'function' && rrNumZeroTwin(_kn, baseItemNum(_in))));
+  if (!(_kn === _in || (typeof baseItemNum === 'function' && baseItemNum(_in) === _kn) || _zt)) return false;
   var v = String(variation == null ? '' : variation).trim();
   if (!v) return true;
   var rv = String(row.variation == null ? '' : row.variation).trim();
@@ -1115,6 +1120,14 @@ function rrCatalogCandidates(itemNum) {
       }
     });
   });
+  // 2026-11-05: nothing under the number as written — the catalog may hold it
+  // with (or without) its leading zeros (a copy saved as 1511 before the
+  // catalog's S-Helper 01511 got its zero back). Fills a blank only.
+  if (!out.length && typeof _zeroKinRows === 'function') {
+    [state.masterByItem, state.masterByItemAll].forEach(function (idx) {
+      keys.forEach(function (k) { _zeroKinRows(idx, k).forEach(take); });
+    });
+  }
   return out;
 }
 if (typeof window !== 'undefined') window.rrCatalogCandidates = rrCatalogCandidates;
@@ -1145,7 +1158,8 @@ function findMaster(itemNum, variation, prefer) {
     // the bridge the rest of the app already uses for exactly this.
     if (_byKey) {
       var _kn = String(_byKey.itemNum).trim(), _in = String(itemNum).trim();
-      if (_kn === _in || (typeof baseItemNum === 'function' && baseItemNum(_in) === _kn)) return _byKey;
+      if (_kn === _in || (typeof baseItemNum === 'function' && baseItemNum(_in) === _kn)
+          || (typeof rrNumZeroTwin === 'function' && rrNumZeroTwin(_kn, _in))) return _byKey;   // 2026-11-05: 1511 saved, 01511 in the catalog
     }
   }
   // v0.9.971 (Brad): ONE lookup, TWO layers. Layer 1 is the loaded (enabled-
@@ -1168,6 +1182,14 @@ function findMaster(itemNum, variation, prefer) {
   // right-catalog one.
   var _want = _preferEraOf(prefer);
   var _r = _findMasterCore(state.masterByItem, itemNum, variation, prefer);
+  // 2026-11-05: a Layer-1 answer that is only the number's leading-zero twin
+  // (01511 → 1511) does not end the search either — the full catalog may hold
+  // the number exactly as written, and an exact row always wins.
+  var _rTwin = !!(_r && typeof rrNumZeroTwin === 'function' && rrNumZeroTwin(_r.itemNum, itemNum));
+  if (_r && _rTwin && state.masterByItemAll) {
+    var _rX = _findMasterCore(state.masterByItemAll, itemNum, variation, prefer);
+    if (_rX && !rrNumZeroTwin(_rX.itemNum, itemNum) && (!_want || String(_rX._era || '') === _want)) return _rX;
+  }
   if (_r && (!_want || String(_r._era || '') === _want)) return _r;
   if (state.masterByItemAll) {
     var _r2 = _findMasterCore(state.masterByItemAll, itemNum, variation, prefer);
@@ -1234,6 +1256,45 @@ function _letterKinRows(idx, bare) {
   return ent.map.get(bare) || [];
 }
 if (typeof window !== 'undefined') window._letterKinRows = _letterKinRows;
+// ══ 2026-11-05 — THE LEADING ZERO (PLAN_2026-11-05_LEADING_ZEROS) ═══════════
+// The same bridge as _letterKinRows, for the zeros: the catalog rows whose
+// number is the asked number apart from its leading zeros (01511 ↔ 1511), the
+// asked spelling itself never included. Built FROM the master — only a
+// spelling the catalog holds is ever offered — and, like the letter bridge,
+// consulted ONLY when the number as written has nothing for the catalog being
+// asked about (_findMasterCore, findAllMaster). The rule is rrNumZeroKey
+// (app.js); this only indexes it.
+var _zkCache = (typeof WeakMap !== 'undefined') ? new WeakMap() : null;
+function _zeroKinRows(idx, num) {
+  if (!idx || typeof idx.forEach !== 'function' || typeof rrNumZeroKey !== 'function') return [];
+  var asked = String(num == null ? '' : num).trim();
+  if (!/^\d/.test(asked)) return [];
+  var ent = _zkCache && _zkCache.get(idx);
+  if (!ent || ent.n !== idx.size) {
+    // only the keys that START with a zero need an entry: a key without one
+    // is already its own zero-key and is reached by idx.get below
+    var m = new Map();
+    idx.forEach(function (rows, key) {
+      var s = String(key || '');
+      if (!/^0\d/.test(s) || !Array.isArray(rows)) return;
+      var z = rrNumZeroKey(s).toLowerCase(), cur = m.get(z);
+      if (!cur) { cur = []; m.set(z, cur); }
+      for (var i = 0; i < rows.length; i++) if (cur.indexOf(rows[i]) < 0) cur.push(rows[i]);
+    });
+    ent = { n: idx.size, map: m };
+    if (_zkCache) _zkCache.set(idx, ent);
+  }
+  var z0 = rrNumZeroKey(asked), out = [];
+  var add = function (r) {
+    if (!r || out.indexOf(r) >= 0) return;
+    if (String(r.itemNum == null ? '' : r.itemNum).trim().toLowerCase() === asked.toLowerCase()) return;   // the asked spelling is never its own twin
+    out.push(r);
+  };
+  ((idx.get(z0)) || []).forEach(add);                   // 01511 asked → the 1511 rows (the index keeps the catalog's own capitals)
+  (ent.map.get(z0.toLowerCase()) || []).forEach(add);   // 1511 / 01511 asked → the 01511 / 001511 rows
+  return out;
+}
+if (typeof window !== 'undefined') window._zeroKinRows = _zeroKinRows;
 
 function _findMasterCore(idx, itemNum, variation, prefer) {
   const k = String(itemNum).trim();
@@ -1360,6 +1421,17 @@ function _findMasterCore(idx, itemNum, variation, prefer) {
     // bucket holds nothing for the catalog that was asked about: by
     // construction these are the only rows that answer the question.
     if (_kin.length) pool = _kin.concat(exact);
+  }
+  // 2026-11-05 — the leading zero (_zeroKinRows, rule rrNumZeroKey in app.js).
+  // The SAME gate as the letter bridge, asked of everything found so far: only
+  // when nothing answers for the catalog the caller named (or, naming none,
+  // nothing at all) may 01511 reach the catalog's 1511. Lionel's 022 and 22 are
+  // two real items — with 022 in the catalog asked about, 22 is never offered.
+  if (/^\d/.test(k) && typeof _zeroKinRows === 'function'
+      && !(_kinNamed ? pool.some(_kinSatisfied) : pool.length)) {
+    const _zk = _zeroKinRows(idx, k)
+      .filter(r => pool.indexOf(r) < 0 && (!_kinNamed || _kinBelongs(r)));
+    if (_zk.length) pool = _zk.concat(pool);
   }
   // Non-suffixed item whose exact key exists = the common case → keep legacy
   // behavior exactly (variation match, else first) so nothing regresses —
@@ -1662,6 +1734,18 @@ function findAllMaster(itemNum) {
       });
     });
     if (merged.length) b = merged;
+  }
+  // 2026-11-05 — still nothing: the catalog may hold it with (or without) its
+  // leading zeros (01511 ↔ 1511). Fills a blank only, as the letter bridge does.
+  if (!b.length && /^\d/.test(k) && typeof _zeroKinRows === 'function') {
+    const seenZ = {}, mergedZ = [];
+    [state.masterByItem, state.masterByItemAll].forEach(function (ix) {
+      _zeroKinRows(ix, k).forEach(function (r) {
+        const s = (r.itemNum || '') + '|' + (r.variation || '') + '|' + (r._tab || '');
+        if (!seenZ[s]) { seenZ[s] = 1; mergedZ.push(r); }
+      });
+    });
+    if (mergedZ.length) b = mergedZ;
   }
   return b;
 }

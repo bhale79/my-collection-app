@@ -54,6 +54,11 @@ eval(grab(dat, '_mIsMotive'));
 eval(grab(dat, '_mSuffix'));
 eval(grab(dat, '_letterKinRows'));
 eval(grab(dat, '_findMasterCore'));
+// 2026-11-05: the leading-zero bridge (PLAN_2026-11-05_LEADING_ZEROS) — a new lookup path, so it is here
+const _app0 = fs.readFileSync(path.join(__dirname, '..', 'app', 'app.js'), 'utf8');
+eval(grab(_app0, 'rrNumZeroKey')); eval(grab(_app0, 'rrNumZeroTwin'));
+eval(grab(dat, '_zeroKinRows'));
+const _zkCache = new WeakMap();
 const _lkCache = new WeakMap();
 window._wizPeriodOfRow = _wizPeriodOfRow;
 function baseItemNum(n) { return String(n || '').replace(/-?[PDTC]$/i, ''); }
@@ -348,6 +353,19 @@ T('regression: 238 no hint still load order',
   _findMasterCore(state.masterByItem, '238', null, null).yearProd, '1936-1940');
 T('regression: 9099 scale hint still HO',
   _findMasterCore(state.masterByItem, '9099', null, { scale: 'HO' })._era, 'lionel_ho');
+
+// ── CANARY: the leading zero (2026-11-05) — 022 and 22 are two Lionel items;
+// S-Helper's 01511 sits in the catalog as 1511 until step 2 puts the zero back.
+{
+  const pw022 = { itemNum: '022', _era: 'pw', _tab: 'Lionel PW - Items', itemType: 'Track' };
+  const pw22  = { itemNum: '22',  _era: 'pw', _tab: 'Lionel PW - Items', itemType: 'Track' };
+  const sh    = { itemNum: '1511', _era: 'shelper', _tab: 'S-Helper Service S', itemType: 'Reefer' };
+  const Z = new Map([['022', [pw022]], ['22', [pw22]], ['1511', [sh]]]);
+  T('zero: 022 stays 022', (_findMasterCore(Z, '022', null, null) || {}).itemNum, '022');
+  T('zero: 22 stays 22', (_findMasterCore(Z, '22', null, null) || {}).itemNum, '22');
+  T('zero: 01511 (nothing exact) -> the 1511 twin', (_findMasterCore(Z, '01511', null, null) || {})._tab, 'S-Helper Service S');
+  T('zero: 01511 with Postwar named -> nothing', _findMasterCore(Z, '01511', null, { eras: ['pw'] }), null);
+}
 
 console.log(fails ? ('\n' + fails + ' CANARY FAILURE(S) — a lookup path regressed.') : '\nALL CANARIES GREEN');
 process.exit(fails ? 1 : 0);

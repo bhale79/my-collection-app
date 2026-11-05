@@ -349,6 +349,12 @@ function updateItemSuggestions(query) {
     }
 
     var seen = new Set();
+    // 2026-11-05 (PLAN_2026-11-05_LEADING_ZEROS): rows that are the typed
+    // number only apart from its leading zeros (01511 typed, the catalog's
+    // 1511) are held aside here, and join the list ONLY when no row IS the
+    // typed number — Lionel's 022 and 22 are two real items, so with 022 in
+    // the list 22 never joins it. The rule: rrNumZeroTwin (app.js).
+    var _zeroTwins = [], _exactNumSeen = false;
     // Session 156: Box Only — hide Boxes-tab rows unless the user explicitly
     // asked for boxes via the Box Only checkbox. Keeps the Step 1 list clean
     // (only one row per number) for normal item searches.
@@ -375,11 +381,15 @@ function updateItemSuggestions(query) {
 
       const haystack = ((m.roadName || '') + ' ' + (m.description || '') + ' ' + (m.varDesc || '') + ' ' + (m.itemType || '')).toLowerCase();
 
-      let matches = false;
+      let matches = false, _isZeroTwin = false;
       if (startsWithDigit) {
         // Number-led search: item number must match first token; extra words filter by description
-        if (!m.itemNum.toLowerCase().includes(numPart) && !rrNumSameAsTyped(m.itemNum, numPart)) return;
+        if (!m.itemNum.toLowerCase().includes(numPart) && !rrNumSameAsTyped(m.itemNum, numPart)) {
+          if (!(typeof rrNumZeroTwin === 'function' && rrNumZeroTwin(m.itemNum, numPart))) return;
+          _isZeroTwin = true;   // held aside below — joins only if no row IS the number
+        }
         if (keyParts.length > 0 && !keyParts.every(kp => haystack.includes(kp))) return;
+        if (!_isZeroTwin && rrNumSameAsTyped(m.itemNum, numPart)) _exactNumSeen = true;
         matches = true;
       } else {
         // Text-only search: match anywhere in road name, description, or item type
@@ -397,7 +407,8 @@ function updateItemSuggestions(query) {
       if (!seen.has(_dedupeKey)) {
         seen.add(_dedupeKey);
         const road = m.roadName || '';
-        candidates.push({
+        (_isZeroTwin ? _zeroTwins : candidates).push({
+          _zeroTwin:   _isZeroTwin,   // 2026-11-05: "listed in our catalog as …"
           num:         m.itemNum,
           roadName:    road,
           itemType:    m.itemType    || '',
@@ -433,13 +444,14 @@ function updateItemSuggestions(query) {
     // kick the load and re-render when it lands.
     var _eraScoped = !!_eraTabSet;
     var _anyDropFilter = !!(_filterMfr || _filterPeriod || _filterType);  // Session 176
-    if (candidates.length === 0 && (q.length >= 1 || _anyDropFilter) && _eraScoped
+    if (candidates.length === 0 && _zeroTwins.length === 0 && (q.length >= 1 || _anyDropFilter) && _eraScoped   // 2026-11-05: an in-era zero twin is an answer — no widening past it
         && wizard.data && wizard.data._era && wizard.data._era !== 'all'
         && tab !== 'sold' && tab !== 'forsale') {
       var _allData = (typeof _allErasSearchCache !== 'undefined') ? _allErasSearchCache : null;
       if (_allData && _allData.length) {
         seen = new Set();
         candidates = [];
+        _zeroTwins = []; _exactNumSeen = false;   // 2026-11-05: the wider pass decides afresh
         _scanRows(_allData, false);
       } else if (typeof _getAllErasMasterForSearch === 'function') {
         _getAllErasMasterForSearch().then(function() {
@@ -448,6 +460,11 @@ function updateItemSuggestions(query) {
         }).catch(function() {});
       }
     }
+
+    // 2026-11-05 (PLAN_2026-11-05_LEADING_ZEROS): the held-aside zero twins
+    // join ONLY when no row is the typed number itself — a fallback, never a
+    // second match. Each says "listed in our catalog as …" when drawn below.
+    if (startsWithDigit && !_exactNumSeen && _zeroTwins.length) candidates = candidates.concat(_zeroTwins);
 
     // 2026-11-01 (Lars typed the set 1467W here): a Lionel Postwar SET number.
     // The set list answers too, each set through THE one filter test
@@ -606,7 +623,7 @@ function updateItemSuggestions(query) {
   try {
     if (tab !== 'sold' && tab !== 'forsale' && /^\d/.test(_hlNum) && !_rrIsWheelArrangement(_hlNum) && candidates.length) {
       _numQ = String(query || '').trim().split(/\s+/).filter(function (t) { return t.toLowerCase() === _hlNum; })[0] || _hlNum;
-      if (!candidates.some(function (c) { return rrNumSameAsTyped(c.num, _hlNum); })) _typedNum = _numQ;
+      if (!candidates.some(function (c) { return rrNumSameAsTyped(c.num, _hlNum) || c._zeroTwin; })) _typedNum = _numQ;   // 2026-11-05: a zero twin IS the number
     }
   } catch (eTN) {}
   if (_typedNum) {
@@ -665,7 +682,7 @@ function updateItemSuggestions(query) {
     // or auto-filled number, it gets the green edge + tint so the eye
     // lands on it instantly. No icons — Brad's rule.
     try {
-      if (_hlNum && rrNumSameAsTyped(c.num, _hlNum)) {
+      if (_hlNum && (rrNumSameAsTyped(c.num, _hlNum) || c._zeroTwin)) {   // 2026-11-05: so is its zero twin
         row.style.background = 'rgba(46,204,113,0.10)';
         row.style.border = '1.5px solid #2ecc71';
       }
@@ -725,6 +742,17 @@ function updateItemSuggestions(query) {
 
     // v0.9.2031: a row that only CONTAINS the typed number says so, with its
     // maker — "MTH · contains 66238" — so nobody takes it for the number typed.
+    // 2026-11-05: a leading-zero twin says what it is instead — "S-Helper ·
+    // listed as 1511" — so nobody wonders why 1511 answered 01511.
+    if (c._zeroTwin) {
+      const zSpan = document.createElement('span');
+      zSpan.setAttribute('data-zero-twin', String(c.num || ''));
+      zSpan.style.cssText = 'font-size:0.7rem;font-weight:700;letter-spacing:0.04em;'
+        + 'color:var(--text-dim);background:transparent;border:1px solid currentColor;'
+        + 'padding:0.1rem 0.4rem;border-radius:4px;flex-shrink:0;white-space:nowrap';
+      zSpan.textContent = rrTypedWords('zeroTwin', String(c.num || ''), rrRowMakerWord(c));
+      line1.appendChild(zSpan);
+    } else
     if (_numQ && !rrNumSameAsTyped(c.num, _hlNum) && String(c.num || '').toLowerCase().indexOf(_hlNum) !== 0) {
       const containsSpan = document.createElement('span');
       containsSpan.setAttribute('data-contains-num', _numQ);
@@ -1192,7 +1220,10 @@ function _wizNumberInCatalog(num) {
   var hit = function (r) { return r && rrNumSameAsTyped(r.itemNum, lc); };   // 2026-11-02: any form of the number
   if ((state.masterData || []).some(hit)) return true;
   var _all = (typeof _allErasSearchCache !== 'undefined') ? _allErasSearchCache : null;
-  return !!(_all && _all.some && _all.some(hit));
+  if (_all && _all.some && _all.some(hit)) return true;
+  // 2026-11-05: only then its leading-zero twin (01511 ↔ 1511)
+  var twin = function (r) { return r && typeof rrNumZeroTwin === 'function' && rrNumZeroTwin(r.itemNum, lc); };
+  return !!((state.masterData || []).some(twin) || (_all && _all.some && _all.some(twin)));
 }
 function _wizNothingFoundHtml(num) {
   var W = (typeof window !== 'undefined' && window.RR_ADD_FILTERS) || {};
@@ -1354,6 +1385,13 @@ function _wizResolveAddRow(numText, opts) {
   var rows = ((typeof state !== 'undefined' && state.masterData) || []).filter(function (i) {
     return rrNumSameAsTyped(i.itemNum, numLC) && fits(i);   // 2026-11-02: 6-31705 = 31705
   });
+  // 2026-11-05 (PLAN_2026-11-05_LEADING_ZEROS): no row IS the number — its
+  // leading-zero twin may be (01511 typed, the catalog's 1511). Fallback only.
+  if (!rows.length && typeof rrNumZeroTwin === 'function') {
+    rows = ((typeof state !== 'undefined' && state.masterData) || []).filter(function (i) {
+      return rrNumZeroTwin(i.itemNum, numLC) && fits(i);
+    });
+  }
   var cur = (typeof wizard !== 'undefined' && wizard) ? wizard.matchedItem : null;
   if (cur && rrNumSameAsTyped(cur.itemNum, numLC) && fits(cur)
       && (!prefType || String(cur.itemType || '').trim() === prefType)) return cur;

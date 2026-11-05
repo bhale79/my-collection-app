@@ -1773,6 +1773,36 @@ function baseItemNum(n) {
   return normalizeItemNum(n).replace(/[-]?[PDTC]$/i, '');
 }
 
+// ── 2026-11-05: THE leading-zero rule (PLAN_2026-11-05_LEADING_ZEROS) ───────
+// [stated] Brad 06:16 CT: "on the leading zero, does are app not handle that
+// with the search rules" → 07:34 CT "yes" to the fallback-only rule.
+// Office commits before v0.9.2044 dropped the zeros off 1,931 catalog numbers
+// (S-Helper "01511" became 1511), and nothing found "01511" again. But a zero
+// is sometimes the WHOLE difference: on the live catalog 253 numbers exist on
+// the same tab both ways and are DIFFERENT items (Lionel 022 switches vs No.
+// 22, Pre-War 001 vs 1, Atlas O 0804 vs 804, Williams 00251 vs 251). So:
+//   • rrNumZeroKey(n)   — a number with its leading zeros taken off (022 → 22,
+//                         0111-7 → 111-7, 0 stays 0); anything not starting
+//                         with a digit is returned as written
+//   • rrNumZeroTwin(a,b)— the two are the SAME number apart from leading
+//                         zeros, and NOT the same as written
+// A twin is a FALLBACK, never a match: every caller asks it ONLY when nothing
+// answers to the number exactly as written (findMaster's _zeroKinRows, the
+// Add list, the Master Catalog search). An exact match always wins, so no
+// answer that works today can change. The rule lives here and nowhere else —
+// zero_twin_tests scans for a second copy.
+function rrNumZeroKey(n) {
+  var s = String(n == null ? '' : n).trim();
+  return /^\d/.test(s) ? s.replace(/^0+(?=\d)/, '') : s;   // capitals kept: the index is keyed as the catalog writes
+}
+function rrNumZeroTwin(a, b) {
+  var x = String(a == null ? '' : a).trim().toLowerCase();
+  var y = String(b == null ? '' : b).trim().toLowerCase();
+  if (!x || !y || x === y || !/^\d/.test(x) || !/^\d/.test(y)) return false;
+  return rrNumZeroKey(x) === rrNumZeroKey(y);
+}
+if (typeof window !== 'undefined') { window.rrNumZeroKey = rrNumZeroKey; window.rrNumZeroTwin = rrNumZeroTwin; }
+
 // ── v0.9.1901 — THE catalog number order (Brad: "i should be seeing 004
 // first, then 4, before i see 1008") ───────────────────────────────────────
 // The Master Catalog sorted by number ONLY in Era All + Maker Any; every

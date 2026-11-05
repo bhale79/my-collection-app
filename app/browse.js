@@ -4884,6 +4884,22 @@ function _rrBrowseCore(_co) {
   // copy like the filters below, so only the copy set to 12 is drawn.
   // A bare "12" is never one (rrCmdIdQuery, command-ids.js).
   var _cmdQ = (typeof rrCmdIdQuery === 'function') ? rrCmdIdQuery(state.filters.search || '') : null;
+  // 2026-11-05 (PLAN_2026-11-05_LEADING_ZEROS): a search that is ONE number
+  // may also reach the catalog's leading-zero twin (01511 typed, S-Helper's
+  // 1511) — but only when no row passing every other filter IS that number
+  // (Lionel 022 and 22 are two real items). Twins are let through here and
+  // dropped again right after the filter if an exact row turned up.
+  var _zQ = String(state.filters.search || '').trim();
+  if (_cmdQ || !/^\d\S*$/.test(_zQ) || typeof rrNumZeroTwin !== 'function') _zQ = '';
+  var _zAdmitted = _zQ ? new Set() : null;
+  // the one "keep the twins?" step, used on every list _rowPasses makes
+  // (the screen's rows and every count beside a picker option)
+  function _zKeep(list) {
+    if (!_zAdmitted || !_zAdmitted.size || !Array.isArray(list)) return list;
+    var _zLC = _zQ.toLowerCase();
+    var exact = list.some(function (it) { return !_zAdmitted.has(it) && String(it && it.itemNum || '').trim().toLowerCase() === _zLC; });
+    return exact ? list.filter(function (it) { return !_zAdmitted.has(it); }) : list;
+  }
   function _copiesOfRow(it) {
     if (!state.filters.owned || it._personalOnly) return [];
     if (!_copiesByNum) {
@@ -5012,6 +5028,9 @@ function _rrBrowseCore(_co) {
       // yourGrade did in v1506, notes were simply missed. Owned rows only
       // (pd is null for the other 141K), so the cost is ~nothing.
       const haystack = `${item.itemNum} ${item.roadName||''} ${item.description||''} ${item.itemType||''} ${item.category||''} ${item.alsoSoldAs||''} ${(pd&&pd.yourDescription)||''} ${(pd&&pd.yourGrade)||''} ${(pd&&pd.notes)||''}`.toLowerCase();
+      // 2026-11-05: a leading-zero twin of a one-number search is let through
+      // and held (_zAdmitted) — _zKeep drops it again beside an exact row.
+      if (_zQ && rrNumZeroTwin(item.itemNum, _zQ) && !_aliasSearch(haystack, search)) { _zAdmitted.add(item); return true; }
       if (!_aliasSearch(haystack, search)) return false;
     }
     return true;
@@ -5056,7 +5075,7 @@ function _rrBrowseCore(_co) {
       // v0.9.1878: a count variant that changes the Type changes the lit chip too
       // (rrCollShowSection) — the rows are drawn from where the pick would go.
       _collSec = _secDesk ? rrCollShowSection(_secStored, type) : 'all';
-      var _pre = baseList.filter(_rowPasses);
+      var _pre = _zKeep(baseList.filter(_rowPasses));
       // The instruction sheets the combined view draws beneath the rows — part
       // of "N items", so part of the number — for a Type value under a section.
       var _isN = function (tv, sec) { return _isRowsNow(tv, sec).length; };
@@ -5106,7 +5125,7 @@ function _rrBrowseCore(_co) {
         // SECTION option ("📄 Paper Items") is counted by its SECTION, exactly
         // as the row test routes it — it used to be counted by bucket label,
         // which is why "Paper Items" never carried a number.
-        var _preAll = (_collSec === 'all') ? _pre : (function () { _collSec = 'all'; return baseList.filter(_rowPasses); })();
+        var _preAll = (_collSec === 'all') ? _pre : (function () { _collSec = 'all'; return _zKeep(baseList.filter(_rowPasses)); })();
         var _byLbl = {}, _bySec = {};
         _expandCopies(_preAll).forEach(function (r) {
           var l = (typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(r) : r.itemType) || '';
@@ -5124,7 +5143,7 @@ function _rrBrowseCore(_co) {
       } else {
         (_co.variants || []).forEach(function (v) {
           _stp3b = v.chips; state.filters.ownMaker = v.ownMaker || ''; _setF(v.f);
-          _coOut[v.id] = _foldSets(_expandCopies(_pre.filter(_rowPasses))).length + _isN(type, _collSec);
+          _coOut[v.id] = _foldSets(_expandCopies(_zKeep(_pre.filter(_rowPasses)))).length + _isN(type, _collSec);
         });
       }
     } finally {
@@ -5133,7 +5152,9 @@ function _rrBrowseCore(_co) {
     }
     return _coOut;
   }
-  state.filteredData = baseList.filter(_rowPasses);
+  // 2026-11-05: the leading-zero twins stay only when no passing row IS the
+  // number as typed — a fallback, never a second match (_zKeep).
+  state.filteredData = _zKeep(baseList.filter(_rowPasses));
 
   // Sort My Collection: by item number, with grouped items together
   // (default). Skipped when the user has clicked a column header to sort.

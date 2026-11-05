@@ -1,0 +1,2318 @@
+{
+ "read": "2026-11-05 live master, export CSV (cells as displayed)",
+ "pairs": [
+  {
+   "tab": "Lionel PW - Items",
+   "zero": "0111-7",
+   "plain": "111-7",
+   "zeroType": "Packet",
+   "plainType": "Packet",
+   "zeroDesc": "HO Trestle Components",
+   "plainDesc": "Trestle Components"
+  },
+  {
+   "tab": "Lionel PW - Items",
+   "zero": "012",
+   "plain": "12",
+   "zeroType": "Accessory",
+   "plainType": "Accessory",
+   "zeroDesc": "12V Lamp and Signal Case",
+   "plainDesc": "6V Clear Lamp"
+  },
+  {
+   "tab": "Lionel PW - Items",
+   "zero": "0209",
+   "plain": "209",
+   "zeroType": "Separate Sale",
+   "plainType": "Diesel Locomotive",
+   "zeroDesc": "Wooden Barrels",
+   "plainDesc": "Alco Diesel"
+  },
+  {
+   "tab": "Lionel PW - Items",
+   "zero": "022",
+   "plain": "22",
+   "zeroType": "Track",
+   "plainType": "Track",
+   "zeroDesc": "Remote Control O Gauge Switch",
+   "plainDesc": "Remote Control Switches"
+  },
+  {
+   "tab": "Lionel PW - Items",
+   "zero": "025",
+   "plain": "25",
+   "zeroType": "Accessory",
+   "plainType": "Accessory",
+   "zeroDesc": "Track Bumper",
+   "plainDesc": "Track Bumper"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "001",
+   "plain": "1",
+   "zeroType": "Steam Locomotive",
+   "plainType": "Diesel Locomotive",
+   "zeroDesc": "4-6-4 Locomotive (OO)",
+   "plainDesc": "Bild-A-Motor (O)"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "002",
+   "plain": "2",
+   "zeroType": "Steam Locomotive",
+   "plainType": "Diesel Locomotive",
+   "zeroDesc": "4-6-4 Locomotive (OO)",
+   "plainDesc": "Bild-A-Motor (O)"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "003",
+   "plain": "3",
+   "zeroType": "Steam Locomotive",
+   "plainType": "Trolley",
+   "zeroDesc": "4-6-4 Locomotive (OO)",
+   "plainDesc": "Trolley (std)"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "004",
+   "plain": "4",
+   "zeroType": "Steam Locomotive",
+   "plainType": "Electric Locomotive",
+   "zeroDesc": "4-6-4 Locomotive (OO)",
+   "plainDesc": "Electric Locomotive 0-4-0 (O)"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "011",
+   "plain": "11",
+   "zeroType": "Track",
+   "plainType": "Flatcar",
+   "zeroDesc": "Non derailing switches",
+   "plainDesc": "Flatcar, early (std)"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "012",
+   "plain": "12",
+   "zeroType": "Track",
+   "plainType": "Gondola",
+   "zeroDesc": "Switches, pair (O)",
+   "plainDesc": "Gondola, early (std)"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "013",
+   "plain": "13",
+   "zeroType": "Track",
+   "plainType": "Stock Car",
+   "zeroDesc": "012 Switches and 439 panel board",
+   "plainDesc": "Cattle Car, early (std)"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "0014",
+   "plain": "14",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "Boxcar (OO)",
+   "plainDesc": "Boxcar, early (std)"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "0015",
+   "plain": "15",
+   "zeroType": "Tank Car",
+   "plainType": "Tank Car",
+   "zeroDesc": "Tank Car (OO)",
+   "plainDesc": "Oil Car, early (std)"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "0016",
+   "plain": "16",
+   "zeroType": "Hopper",
+   "plainType": "Operating Freight",
+   "zeroDesc": "Hopper Car (OO)",
+   "plainDesc": "Ballast Dump Car, early (std)"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "0017",
+   "plain": "17",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "Caboose (OO)",
+   "plainDesc": "Caboose, early (std)"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "020",
+   "plain": "20",
+   "zeroType": "Track",
+   "plainType": "Track",
+   "zeroDesc": "90-degree Crossover (O)",
+   "plainDesc": "90-degree Crossover (std)"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "020X",
+   "plain": "20X",
+   "zeroType": "Track",
+   "plainType": "Track",
+   "zeroDesc": "45-degree Crossover (O)",
+   "plainDesc": "45-degree Crossover (std)"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "021",
+   "plain": "21",
+   "zeroType": "Track",
+   "plainType": "Track",
+   "zeroDesc": "Switches, pair (O)",
+   "plainDesc": "90-degree Crossover (std)"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "022",
+   "plain": "22",
+   "zeroType": "Track",
+   "plainType": "Track",
+   "zeroDesc": "Remote Control Switches, pair (O)",
+   "plainDesc": "Manual Switches, pair (std)"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "023",
+   "plain": "23",
+   "zeroType": "Track",
+   "plainType": "Track",
+   "zeroDesc": "Bumper (O)",
+   "plainDesc": "Bumper (std)"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "0024",
+   "plain": "24",
+   "zeroType": "Boxcar",
+   "plainType": "Accessory",
+   "zeroDesc": "Pennsylvania Boxcar (OO)",
+   "plainDesc": "Open Railway Station (std)"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "0025",
+   "plain": "25",
+   "zeroType": "Tank Car",
+   "plainType": "Accessory",
+   "zeroDesc": "Tank Car (OO)",
+   "plainDesc": "Open Station (std)"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "025",
+   "plain": "25",
+   "zeroType": "Track",
+   "plainType": "Accessory",
+   "zeroDesc": "Bumper (O)",
+   "plainDesc": "Open Station (std)"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "0027",
+   "plain": "27",
+   "zeroType": "Caboose",
+   "plainType": "Set",
+   "zeroDesc": "Caboose (OO)",
+   "plainDesc": "Lighting Set"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "0031",
+   "plain": "31",
+   "zeroType": "Track",
+   "plainType": "Passenger Car",
+   "zeroDesc": "2-rail 13\" Curve Track (OO)",
+   "plainDesc": "Combine Car (std)"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "0032",
+   "plain": "32",
+   "zeroType": "Track",
+   "plainType": "Passenger Car",
+   "zeroDesc": "2-rail 12\" Straight Track (OO)",
+   "plainDesc": "Mail Car (std)"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "0034",
+   "plain": "34",
+   "zeroType": "Track",
+   "plainType": "Electric Locomotive",
+   "zeroDesc": "2-rail 13\" Curve Track, electrical conne",
+   "plainDesc": "Electric Locomotive 0-6-0, early (std)"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "042",
+   "plain": "42",
+   "zeroType": "Track",
+   "plainType": "Electric Locomotive",
+   "zeroDesc": "Switches, pair (O)",
+   "plainDesc": "Electric Locomotive 0-4-4-0, square hood"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "0045",
+   "plain": "45",
+   "zeroType": "Tank Car",
+   "plainType": "Accessory",
+   "zeroDesc": "Tank Car (OO)",
+   "plainDesc": "Automatic Gateman (std)"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "045",
+   "plain": "45",
+   "zeroType": "Accessory",
+   "plainType": "Accessory",
+   "zeroDesc": "Automatic Gateman (O)",
+   "plainDesc": "Automatic Gateman (std)"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "0046",
+   "plain": "46",
+   "zeroType": "Hopper",
+   "plainType": "Accessory",
+   "zeroDesc": "Hopper Car (OO)",
+   "plainDesc": "Single Crossing Gate"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "0047",
+   "plain": "47",
+   "zeroType": "Caboose",
+   "plainType": "Accessory",
+   "zeroDesc": "Caboose (OO)",
+   "plainDesc": "Double Crossing Gate"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "0051",
+   "plain": "51",
+   "zeroType": "Track",
+   "plainType": "Steam Locomotive",
+   "zeroDesc": "7\" Curve Track (OO)",
+   "plainDesc": "0-4-0 Locomotive, late, 8-wheel (std)"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "0052",
+   "plain": "52",
+   "zeroType": "Track",
+   "plainType": "Accessory",
+   "zeroDesc": "7\" Straight Track (OO)",
+   "plainDesc": "Lamp Post"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "0054",
+   "plain": "54",
+   "zeroType": "Track",
+   "plainType": "Electric Locomotive",
+   "zeroDesc": "7\" Curve Track, electrical connectors (O",
+   "plainDesc": "Electric Locomotive 0-4-4-0, early (std)"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "060",
+   "plain": "60",
+   "zeroType": "Accessory",
+   "plainType": "Accessory",
+   "zeroDesc": "Telegraph Post (O)",
+   "plainDesc": "Telegraph Post (std)"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "0061",
+   "plain": "61",
+   "zeroType": "Track",
+   "plainType": "Accessory",
+   "zeroDesc": "7\" Curve Track, tubular (OO)",
+   "plainDesc": "Lamp Post, one globe"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "0062",
+   "plain": "62",
+   "zeroType": "Track",
+   "plainType": "Accessory",
+   "zeroDesc": "7\" Straight Track, tubular (OO)",
+   "plainDesc": "Semaphore"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "0063",
+   "plain": "63",
+   "zeroType": "Track",
+   "plainType": "Accessory",
+   "zeroDesc": "Half Curve Track, tubular (OO)",
+   "plainDesc": "Semaphore, single arm"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "0064",
+   "plain": "64",
+   "zeroType": "Track",
+   "plainType": "Accessory",
+   "zeroDesc": "7\" Curve Track, tubular, electrical conn",
+   "plainDesc": "Lamp Post"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "0065",
+   "plain": "65",
+   "zeroType": "Track",
+   "plainType": "Accessory",
+   "zeroDesc": "Half Straight Track, tubular (OO)",
+   "plainDesc": "Semaphore, one-arm"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "0066",
+   "plain": "66",
+   "zeroType": "Track",
+   "plainType": "Accessory",
+   "zeroDesc": "5 5/8\" Straight Track (OO)",
+   "plainDesc": "Semaphore, two-arm"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "068",
+   "plain": "68",
+   "zeroType": "Accessory",
+   "plainType": "Accessory",
+   "zeroDesc": "Warning Signal (O)",
+   "plainDesc": "Warning Signal (std)"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "069",
+   "plain": "69",
+   "zeroType": "Accessory",
+   "plainType": "Accessory",
+   "zeroDesc": "Electric Warning Bell Signal (O)",
+   "plainDesc": "Electric Warning Bell Signal (std)"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "0070",
+   "plain": "70",
+   "zeroType": "Accessory",
+   "plainType": "Set",
+   "zeroDesc": "90-degree Crossing",
+   "plainDesc": "Outfit: 62 (2), 59 (1), 68 (1)"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "071",
+   "plain": "71",
+   "zeroType": "Set",
+   "plainType": "Set",
+   "zeroDesc": "060 Telegraph Post Set, 6 pieces (O)",
+   "plainDesc": "60 Telegraph Post Set, 6 pieces (std)"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "076",
+   "plain": "76",
+   "zeroType": "Accessory",
+   "plainType": "Accessory",
+   "zeroDesc": "Block Signal (O)",
+   "plainDesc": "Warning Bell and Shack"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "0077",
+   "plain": "77",
+   "zeroType": "Caboose",
+   "plainType": "Accessory",
+   "zeroDesc": "Caboose (OO)",
+   "plainDesc": "Crossing Gate"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "078",
+   "plain": "78",
+   "zeroType": "Accessory",
+   "plainType": "Accessory",
+   "zeroDesc": "Train Control Block Signal  1924 – 1932",
+   "plainDesc": "Train Control Block Signal"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "084",
+   "plain": "84",
+   "zeroType": "Accessory",
+   "plainType": "Accessory",
+   "zeroDesc": "Semaphore (O)",
+   "plainDesc": "Semaphore (std)"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "092",
+   "plain": "92",
+   "zeroType": "Accessory",
+   "plainType": "Operating Freight",
+   "zeroDesc": "Signal Tower",
+   "plainDesc": "Floodlight Tower"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "096",
+   "plain": "96",
+   "zeroType": "Accessory",
+   "plainType": "Accessory",
+   "zeroDesc": "Telegraph Post (O)",
+   "plainDesc": "Coal Elevator, manual"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "097",
+   "plain": "97",
+   "zeroType": "Accessory",
+   "plainType": "Accessory",
+   "zeroDesc": "Telegraph Post and Signal Set (O)",
+   "plainDesc": "Coal Elevator"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "zero": "0209",
+   "plain": "209",
+   "zeroType": "Accessory",
+   "plainType": "Accessory",
+   "zeroDesc": "Barrels, wooden, 6 pieces (O)",
+   "plainDesc": "Barrels, wooden, 4 pieces (std)"
+  },
+  {
+   "tab": "Lionel MPC-Modern",
+   "zero": "0512",
+   "plain": "512",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "Toy Fair Reefer",
+   "plainDesc": "uncataloged refrigerator car"
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0804",
+   "plain": "804",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0854",
+   "plain": "854",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0806",
+   "plain": "806",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0856",
+   "plain": "856",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0807",
+   "plain": "807",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0857",
+   "plain": "857",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0808",
+   "plain": "808",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0858",
+   "plain": "858",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0528",
+   "plain": "528",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0578",
+   "plain": "578",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0536",
+   "plain": "536",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0586",
+   "plain": "586",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0537",
+   "plain": "537",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0587",
+   "plain": "587",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0538",
+   "plain": "538",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0588",
+   "plain": "588",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0531",
+   "plain": "531",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0581",
+   "plain": "581",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0532",
+   "plain": "532",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0582",
+   "plain": "582",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0533",
+   "plain": "533",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0583",
+   "plain": "583",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0534",
+   "plain": "534",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0584",
+   "plain": "584",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0526",
+   "plain": "526",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0576",
+   "plain": "576",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0527",
+   "plain": "527",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0577",
+   "plain": "577",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0529",
+   "plain": "529",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0579",
+   "plain": "579",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0501",
+   "plain": "501",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0551",
+   "plain": "551",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0511",
+   "plain": "511",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0561",
+   "plain": "561",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0512",
+   "plain": "512",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0562",
+   "plain": "562",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0513",
+   "plain": "513",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0563",
+   "plain": "563",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0506",
+   "plain": "506",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0556",
+   "plain": "556",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0507",
+   "plain": "507",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0557",
+   "plain": "557",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0508",
+   "plain": "508",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0558",
+   "plain": "558",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0509",
+   "plain": "509",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0559",
+   "plain": "559",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0502",
+   "plain": "502",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0552",
+   "plain": "552",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0503",
+   "plain": "503",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0553",
+   "plain": "553",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0504",
+   "plain": "504",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0554",
+   "plain": "554",
+   "zeroType": "Boxcar",
+   "plainType": "Boxcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0606",
+   "plain": "606",
+   "zeroType": "Stock Car",
+   "plainType": "Stock Car",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0656",
+   "plain": "656",
+   "zeroType": "Stock Car",
+   "plainType": "Stock Car",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0607",
+   "plain": "607",
+   "zeroType": "Stock Car",
+   "plainType": "Stock Car",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0657",
+   "plain": "657",
+   "zeroType": "Stock Car",
+   "plainType": "Stock Car",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0608",
+   "plain": "608",
+   "zeroType": "Stock Car",
+   "plainType": "Stock Car",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0658",
+   "plain": "658",
+   "zeroType": "Stock Car",
+   "plainType": "Stock Car",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0609",
+   "plain": "609",
+   "zeroType": "Stock Car",
+   "plainType": "Stock Car",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0659",
+   "plain": "659",
+   "zeroType": "Stock Car",
+   "plainType": "Stock Car",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0601",
+   "plain": "601",
+   "zeroType": "Stock Car",
+   "plainType": "Stock Car",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0651",
+   "plain": "651",
+   "zeroType": "Stock Car",
+   "plainType": "Stock Car",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0602",
+   "plain": "602",
+   "zeroType": "Stock Car",
+   "plainType": "Stock Car",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0652",
+   "plain": "652",
+   "zeroType": "Stock Car",
+   "plainType": "Stock Car",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0603",
+   "plain": "603",
+   "zeroType": "Stock Car",
+   "plainType": "Stock Car",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0653",
+   "plain": "653",
+   "zeroType": "Stock Car",
+   "plainType": "Stock Car",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0604",
+   "plain": "604",
+   "zeroType": "Stock Car",
+   "plainType": "Stock Car",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0654",
+   "plain": "654",
+   "zeroType": "Stock Car",
+   "plainType": "Stock Car",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0931",
+   "plain": "931",
+   "zeroType": "Flatcar",
+   "plainType": "Flatcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0981",
+   "plain": "981",
+   "zeroType": "Flatcar",
+   "plainType": "Flatcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0932",
+   "plain": "932",
+   "zeroType": "Flatcar",
+   "plainType": "Flatcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0982",
+   "plain": "982",
+   "zeroType": "Flatcar",
+   "plainType": "Flatcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0933",
+   "plain": "933",
+   "zeroType": "Flatcar",
+   "plainType": "Flatcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0983",
+   "plain": "983",
+   "zeroType": "Flatcar",
+   "plainType": "Flatcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0934",
+   "plain": "934",
+   "zeroType": "Flatcar",
+   "plainType": "Flatcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0984",
+   "plain": "984",
+   "zeroType": "Flatcar",
+   "plainType": "Flatcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0926",
+   "plain": "926",
+   "zeroType": "Flatcar",
+   "plainType": "Flatcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0976",
+   "plain": "976",
+   "zeroType": "Flatcar",
+   "plainType": "Flatcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0927",
+   "plain": "927",
+   "zeroType": "Flatcar",
+   "plainType": "Flatcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0977",
+   "plain": "977",
+   "zeroType": "Flatcar",
+   "plainType": "Flatcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0928",
+   "plain": "928",
+   "zeroType": "Flatcar",
+   "plainType": "Flatcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0978",
+   "plain": "978",
+   "zeroType": "Flatcar",
+   "plainType": "Flatcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0929",
+   "plain": "929",
+   "zeroType": "Flatcar",
+   "plainType": "Flatcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0979",
+   "plain": "979",
+   "zeroType": "Flatcar",
+   "plainType": "Flatcar",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0644",
+   "plain": "644",
+   "zeroType": "Gondola",
+   "plainType": "Gondola",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0694",
+   "plain": "694",
+   "zeroType": "Gondola",
+   "plainType": "Gondola",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0645",
+   "plain": "645",
+   "zeroType": "Gondola",
+   "plainType": "Gondola",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0695",
+   "plain": "695",
+   "zeroType": "Gondola",
+   "plainType": "Gondola",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0646",
+   "plain": "646",
+   "zeroType": "Gondola",
+   "plainType": "Gondola",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0696",
+   "plain": "696",
+   "zeroType": "Gondola",
+   "plainType": "Gondola",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0647",
+   "plain": "647",
+   "zeroType": "Gondola",
+   "plainType": "Gondola",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0697",
+   "plain": "697",
+   "zeroType": "Gondola",
+   "plainType": "Gondola",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0648",
+   "plain": "648",
+   "zeroType": "Gondola",
+   "plainType": "Gondola",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0698",
+   "plain": "698",
+   "zeroType": "Gondola",
+   "plainType": "Gondola",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0649",
+   "plain": "649",
+   "zeroType": "Gondola",
+   "plainType": "Gondola",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0699",
+   "plain": "699",
+   "zeroType": "Gondola",
+   "plainType": "Gondola",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0631",
+   "plain": "631",
+   "zeroType": "Gondola",
+   "plainType": "Gondola",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0681",
+   "plain": "681",
+   "zeroType": "Gondola",
+   "plainType": "Gondola",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0632",
+   "plain": "632",
+   "zeroType": "Gondola",
+   "plainType": "Gondola",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0682",
+   "plain": "682",
+   "zeroType": "Gondola",
+   "plainType": "Gondola",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0633",
+   "plain": "633",
+   "zeroType": "Gondola",
+   "plainType": "Gondola",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0683",
+   "plain": "683",
+   "zeroType": "Gondola",
+   "plainType": "Gondola",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0634",
+   "plain": "634",
+   "zeroType": "Gondola",
+   "plainType": "Gondola",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0684",
+   "plain": "684",
+   "zeroType": "Gondola",
+   "plainType": "Gondola",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0626",
+   "plain": "626",
+   "zeroType": "Gondola",
+   "plainType": "Gondola",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0676",
+   "plain": "676",
+   "zeroType": "Gondola",
+   "plainType": "Gondola",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0627",
+   "plain": "627",
+   "zeroType": "Gondola",
+   "plainType": "Gondola",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0677",
+   "plain": "677",
+   "zeroType": "Gondola",
+   "plainType": "Gondola",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0628",
+   "plain": "628",
+   "zeroType": "Gondola",
+   "plainType": "Gondola",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0678",
+   "plain": "678",
+   "zeroType": "Gondola",
+   "plainType": "Gondola",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0629",
+   "plain": "629",
+   "zeroType": "Gondola",
+   "plainType": "Gondola",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0679",
+   "plain": "679",
+   "zeroType": "Gondola",
+   "plainType": "Gondola",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0745",
+   "plain": "745",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0795",
+   "plain": "795",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0746",
+   "plain": "746",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0796",
+   "plain": "796",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0747",
+   "plain": "747",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0797",
+   "plain": "797",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0748",
+   "plain": "748",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0798",
+   "plain": "798",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0749",
+   "plain": "749",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0799",
+   "plain": "799",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0739",
+   "plain": "739",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0789",
+   "plain": "789",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0740",
+   "plain": "740",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0790",
+   "plain": "790",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0741",
+   "plain": "741",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0791",
+   "plain": "791",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0742",
+   "plain": "742",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0792",
+   "plain": "792",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0743",
+   "plain": "743",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0793",
+   "plain": "793",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0744",
+   "plain": "744",
+   "zeroType": "Caboose",
+   "plainType": "Set",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0794",
+   "plain": "794",
+   "zeroType": "Caboose",
+   "plainType": "Set",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0735",
+   "plain": "735",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0785",
+   "plain": "785",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0736",
+   "plain": "736",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0786",
+   "plain": "786",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0737",
+   "plain": "737",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0787",
+   "plain": "787",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0738",
+   "plain": "738",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0788",
+   "plain": "788",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0731",
+   "plain": "731",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0781",
+   "plain": "781",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0732",
+   "plain": "732",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0782",
+   "plain": "782",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0733",
+   "plain": "733",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0783",
+   "plain": "783",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0726",
+   "plain": "726",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0776",
+   "plain": "776",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0727",
+   "plain": "727",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0777",
+   "plain": "777",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0728",
+   "plain": "728",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0778",
+   "plain": "778",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0729",
+   "plain": "729",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0779",
+   "plain": "779",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0711",
+   "plain": "711",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0761",
+   "plain": "761",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0712",
+   "plain": "712",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0762",
+   "plain": "762",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0713",
+   "plain": "713",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0763",
+   "plain": "763",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0714",
+   "plain": "714",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0764",
+   "plain": "764",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0706",
+   "plain": "706",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0756",
+   "plain": "756",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0707",
+   "plain": "707",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0757",
+   "plain": "757",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0708",
+   "plain": "708",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0758",
+   "plain": "758",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0709",
+   "plain": "709",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0759",
+   "plain": "759",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0701",
+   "plain": "701",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0751",
+   "plain": "751",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0702",
+   "plain": "702",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0752",
+   "plain": "752",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0703",
+   "plain": "703",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0753",
+   "plain": "753",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0704",
+   "plain": "704",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0754",
+   "plain": "754",
+   "zeroType": "Caboose",
+   "plainType": "Caboose",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0835",
+   "plain": "835",
+   "zeroType": "Hopper",
+   "plainType": "Hopper",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0885",
+   "plain": "885",
+   "zeroType": "Hopper",
+   "plainType": "Hopper",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0836",
+   "plain": "836",
+   "zeroType": "Hopper",
+   "plainType": "Hopper",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0886",
+   "plain": "886",
+   "zeroType": "Hopper",
+   "plainType": "Hopper",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0837",
+   "plain": "837",
+   "zeroType": "Hopper",
+   "plainType": "Hopper",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0887",
+   "plain": "887",
+   "zeroType": "Hopper",
+   "plainType": "Hopper",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0838",
+   "plain": "838",
+   "zeroType": "Hopper",
+   "plainType": "Hopper",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas O",
+   "zero": "0888",
+   "plain": "888",
+   "zeroType": "Hopper",
+   "plainType": "Hopper",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Atlas HO",
+   "zero": "0909",
+   "plain": "909",
+   "zeroType": "Gondola",
+   "plainType": "Gondola",
+   "zeroDesc": "",
+   "plainDesc": ""
+  },
+  {
+   "tab": "Williams O",
+   "zero": "00251",
+   "plain": "251",
+   "zeroType": "Tools & Supplies",
+   "plainType": "Rolling Stock",
+   "zeroDesc": "00251 Bottle of Smoke Fluid -1.5 oz.",
+   "plainDesc": "251 New York Central Green O Gauge Madis"
+  },
+  {
+   "tab": "Williams O",
+   "zero": "00301",
+   "plain": "301",
+   "zeroType": "Passenger Car",
+   "plainType": "Gondola",
+   "zeroDesc": "00301 Texas Special F3 AB O Gauge Diesel",
+   "plainDesc": "301 Union Pacific Gondola"
+  },
+  {
+   "tab": "Williams O",
+   "zero": "00304",
+   "plain": "304",
+   "zeroType": "Set",
+   "plainType": "Diesel Locomotive",
+   "zeroDesc": "00304 GM Norfolk & Westerm Blue Ridge Ha",
+   "plainDesc": "304 C&NW GP-9 Power A w/Horn"
+  },
+  {
+   "tab": "Williams O",
+   "zero": "00305",
+   "plain": "305",
+   "zeroType": "Set",
+   "plainType": "Diesel Locomotive",
+   "zeroDesc": "00305 O Baltimore & Ohio Timesaver Fast ",
+   "plainDesc": "305 O Gauge Wabash GP-9 Pwd. Diesel Loco"
+  },
+  {
+   "tab": "Williams O",
+   "zero": "00307",
+   "plain": "307",
+   "zeroType": "Set",
+   "plainType": "Passenger Car",
+   "zeroDesc": "00307 Girl's Steam Freight Train Set",
+   "plainDesc": "307 Great Northern Locomotive & 3 Car Pa"
+  },
+  {
+   "tab": "Williams O",
+   "zero": "00308",
+   "plain": "308",
+   "zeroType": "Passenger Car",
+   "plainType": "Rolling Stock",
+   "zeroDesc": "00308 Girl's Pennsylvania GG-1 O Gauge E",
+   "plainDesc": "308 Erie Lackawanna #8371 w/ Horn"
+  },
+  {
+   "tab": "Williams O",
+   "zero": "00321",
+   "plain": "321",
+   "zeroType": "Passenger Car",
+   "plainType": "Rolling Stock",
+   "zeroDesc": "00321 Santa Fe Flyer O Gauge Diesel Pass",
+   "plainDesc": "321 O Santa Fe Flyer Train Set"
+  },
+  {
+   "tab": "Williams O",
+   "zero": "00323",
+   "plain": "323",
+   "zeroType": "Set",
+   "plainType": "Diesel Locomotive",
+   "zeroDesc": "00323 Christmas Special O Gauge Steam Fr",
+   "plainDesc": "323 Burlington GP-9 Pwd. Diesel Loco w/H"
+  },
+  {
+   "tab": "Lionel Parts",
+   "zero": "0565-45",
+   "plain": "565-45",
+   "zeroType": "Part",
+   "plainType": "Part",
+   "zeroDesc": "HO Male Connection Pin",
+   "plainDesc": "Lamp Contact Socket"
+  },
+  {
+   "tab": "Lionel Parts",
+   "zero": "060-9",
+   "plain": "60-9",
+   "zeroType": "Part",
+   "plainType": "Part",
+   "zeroDesc": "Cross Bar & Insulators",
+   "plainDesc": "Cross Arm for Telegraph Post"
+  },
+  {
+   "tab": "Lionel Parts",
+   "zero": "068-9",
+   "plain": "68-9",
+   "zeroType": "Part",
+   "plainType": "Part",
+   "zeroDesc": "Post Cap",
+   "plainDesc": "Small Nickel Lamp Post Cap"
+  },
+  {
+   "tab": "Atlas Parts",
+   "zero": "092500",
+   "plain": "92500",
+   "zeroType": "Part",
+   "plainType": "Part",
+   "zeroDesc": "BODY",
+   "plainDesc": "COUPLER POCKET SET"
+  }
+ ]
+}
