@@ -3441,10 +3441,9 @@
   // v0.9.1753: Remove on a part line — the Parts Needed page's ONE remover, then the card, bench, badge and preview redraw
   window._maintPartRemove = async function (partId) {
     var p = (typeof _partsFind === 'function') ? _partsFind(partId) : null;
-    if (!p || typeof removePart !== 'function') return;
-    var copy = window.PARTS_COPY || {};
-    if (!(await appConfirm(String(copy.removeCard || 'Take \u201c%s\u201d off your Parts Needed list?').replace('%s', rrEsc(p.description || p.partNum || 'part')), { title: 'Take it off the list', ok: 'Take it off', danger: true }))) return;
-    if (!(await removePart(p.id))) return;   // refused → removePart has re-read the list and redrawn this card
+    if (!p || typeof removePartAsk !== 'function') return;
+    // Audit finding 15 (2026-11-04): the question now lives in ONE place, removePartAsk (app-pages.js)
+    if (!(await removePartAsk(p.id))) return;   // said No, or refused → removePart has re-read the list and redrawn this card
     _maintPartsRedraw();
   };
 

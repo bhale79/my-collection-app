@@ -932,7 +932,9 @@ function _buildWizardModal() {
       });
     });
     // Close on backdrop click
-    bindOverlayClose(_pickerEl, function() { closePhotoPicker(); });
+    // noBack: this sheet is built once and hidden; showPhotoSourcePicker pushes
+    // 'photo-picker' when it OPENS (audit findings 5/11/12 — see rrDismissGuard)
+    bindOverlayClose(_pickerEl, function() { closePhotoPicker(); }, { noBack: true });
     document.body.appendChild(_pickerEl);
   }
 
@@ -1059,7 +1061,9 @@ function _buildWizardModal() {
     // element up by id — and it is created ON DEMAND when the wizard first
     // opens, which is always AFTER load. So that handler found null every
     // time and wired nothing: dead code that read like coverage.
-    rrDismissGuard(_identEl, function () { closeIdentify(); });
+    // noBack: built once and hidden — openIdentify pushes its Back entry when it
+    // OPENS, closeIdentify pops it (audit findings 5/11/12 — see rrDismissGuard)
+    rrDismissGuard(_identEl, function () { closeIdentify(); }, { noBack: true });
     document.body.appendChild(_identEl);
     // Wire interactive bits AFTER DOM insert (handlers live in wizard-photos.js).
     if (typeof _wireIdentifyModalV2 === 'function') _wireIdentifyModalV2();
@@ -1639,6 +1643,9 @@ function _doCloseWizard() {
   // v0.9.1942: likewise the Photo ID / Lens shot held for this add — a cancelled
   // add's picture showed in the NEXT add's header (Brad's booth recording).
   _rrClearHeldIdPhoto();
+  // Review 2026-11-05 (A1): the "← Back to your listing / sale / adding" button
+  // belongs to this window — it goes when the window goes.
+  try { var _rp = document.getElementById('wiz-return-pill'); if (_rp) _rp.remove(); } catch (eRP) {}
   // v0.9.1929/1930: the "Add a picture first" side view and chooser live
   // beside the modal, so they are taken down with it.
   try { var _pfp = document.getElementById('wiz-picfirst-panel'); if (_pfp) _pfp.remove(); } catch (ePF) {}
@@ -1787,8 +1794,38 @@ if (typeof window !== 'undefined') window.rrRemoveSetGroup = rrRemoveSetGroup;
 // commitment worth prompting over. Once the user has picked a specific
 // item and stepped forward, closeWizard's guard still applies via the
 // toolbar Cancel button.
+// Audit findings 5, 6 and 11 (2026-11-04): List for Sale, Record Sale and Add
+// Photos open this wizard PART-WAY in, from an item page (the steps before are
+// already known). They skipped openWizard, so (a) the device Back button was
+// never wired and did nothing, and (b) the wizard's own Back on their first
+// screen walked into the skipped steps ("What is the item number?"). An opener
+// that jumps ahead calls this once it has: the step it opened at is the floor —
+// Back there closes the window, like Back on the first step of a normal add.
+function rrWizardOpenedAt(wasOpen) {
+  if (!wizard) return;
+  // Review 2026-11-05 (A2): picked from "Or pick from your collection" INSIDE an
+  // Add that was already open — Back must still walk back to that picker, and
+  // openWizard already wired device Back. No floor, no second entry.
+  if (wasOpen) return;
+  wizard._floorStep = wizard.step;
+  if (window.BackStack) window.BackStack.push('wizard', _wizardBackHandler);
+}
+if (typeof window !== 'undefined') window.rrWizardOpenedAt = rrWizardOpenedAt;
+
 function _wizardBackHandler() {
   // BackStack has already popped our entry when it dispatched us.
+  // Review 2026-11-05 (A1): the window is only HIDDEN behind "View Item Details"
+  // (_wizPeekDetail / _rrOwnedOpen) — device Back means "back to my listing",
+  // exactly the floating return button. It never closes (and so never throws
+  // away) the listing or sale in progress.
+  try {
+    var _pk = document.getElementById('wizard-modal'), _pill = document.getElementById('wiz-return-pill');
+    if (_pk && !_pk.classList.contains('open') && _pill) {
+      _pill.click();
+      if (window.BackStack) window.BackStack.push('wizard', _wizardBackHandler);
+      return;
+    }
+  } catch (ePk) {}
   if (!wizard || wizard.step <= 0) {
     _doCloseWizard();
   } else {
@@ -7793,6 +7830,9 @@ function wizardBack() {
   }
 
   if (wizard.step <= 0) return false;
+  // Audit findings 5/6/11: a window opened part-way in never goes below where it opened.
+  var _floor = (typeof wizard._floorStep === 'number') ? wizard._floorStep : 0;
+  if (wizard.step <= _floor) return false;
   // Clear the save lock — the user is navigating back, not saving.
   // v0.9.1325: _qeSaving deleted along with the two dead guards that read it
   // (see saveWizardItem). It was only ever assigned false, here and nowhere
@@ -7816,7 +7856,7 @@ function wizardBack() {
         var _pid = _hist[_hist.length - 1];
         var _pidx = -1;
         for (var _hi = 0; _hi < wizard.steps.length; _hi++) { if (wizard.steps[_hi].id === _pid) { _pidx = _hi; break; } }
-        if (_pidx >= 0 && _pidx < wizard.step) { wizard.step = _pidx; renderWizardStep(); return true; }
+        if (_pidx >= _floor && _pidx < wizard.step) { wizard.step = _pidx; renderWizardStep(); return true; }
         _hist.pop();   // that step no longer exists in this flow — keep looking back
       }
     }
@@ -7841,7 +7881,7 @@ function wizardBack() {
   // Session 159: removed Session-115 itemCategory revive. The era-picker step
   // is gone; if Back can't find an earlier visible step, just refuse — Step 1
   // hides Back anyway via current > 1 check at render time.
-  if (target < 0) return false;
+  if (target < _floor) return false;
   wizard.step = target;
   renderWizardStep();
   return true;

@@ -97,18 +97,24 @@ function appConfirm(message, opts) {
     document.body.appendChild(ov);
     // v0.9.804 (TODO-012): device Back button cancels the confirm (BackStack
     // rule) instead of navigating the page underneath it.
-    const done = function(val) { ov.remove(); if (window.BackStack) BackStack.pop('app-confirm'); resolve(val); };
+    // v-next (audit finding 4, 2026-11-04): the Escape listener used to be
+    // {once:true}, so ANY key pressed first (Tab, a letter) used it up and
+    // Escape stopped answering. It now stays until the question closes, and
+    // every way of closing takes it away.
+    let keyHandler = null;
+    const _unkey = function() { if (keyHandler) { document.removeEventListener('keydown', keyHandler); keyHandler = null; } };
+    const done = function(val) { _unkey(); ov.remove(); if (window.BackStack) BackStack.pop('app-confirm'); resolve(val); };
     // v0.9.2053: a question whose "No" button DOES something (the Photo Inbox's
     // "Add it as …?" — "It's something else" opens the no-number add) needs the
     // device Back button and ESC to mean "neither". opts.dismiss is what they
     // answer; without it they answer false, exactly as before.
     const dismissVal = Object.prototype.hasOwnProperty.call(opts, 'dismiss') ? opts.dismiss : false;
-    if (window.BackStack) BackStack.push('app-confirm', function() { ov.remove(); resolve(dismissVal); });
+    if (window.BackStack) BackStack.push('app-confirm', function() { _unkey(); ov.remove(); resolve(dismissVal); });
     ov.querySelector('#_ac-no').onclick = function() { done(false); };
     ov.querySelector('#_ac-yes').onclick = function() { done(true); };
     // ESC closes as cancel
-    const keyHandler = function(e) { if (e.key === 'Escape') { document.removeEventListener('keydown', keyHandler); done(dismissVal); } };
-    document.addEventListener('keydown', keyHandler, { once: true });
+    keyHandler = function(e) { if (e.key === 'Escape') done(dismissVal); };
+    document.addEventListener('keydown', keyHandler);
   });
 }
 window.appConfirm = appConfirm;
@@ -140,7 +146,11 @@ function appPrompt(message, defaultValue, opts) {
     document.body.appendChild(ov);
     var inp = ov.querySelector('#_ap-input');
     var keyHandler;
-    var done = function(val) { ov.remove(); if (keyHandler) document.removeEventListener('keydown', keyHandler); resolve(val); };
+    // v-next (audit finding 8, 2026-11-04): the device Back button closes this
+    // box as Cancel (null), the same BackStack rule appConfirm follows — it used
+    // to leave the box up and take the page underneath back instead.
+    var done = function(val) { ov.remove(); if (keyHandler) document.removeEventListener('keydown', keyHandler); if (window.BackStack) BackStack.pop('app-prompt'); resolve(val); };
+    if (window.BackStack) BackStack.push('app-prompt', function() { ov.remove(); if (keyHandler) document.removeEventListener('keydown', keyHandler); resolve(null); });
     keyHandler = function(e) {
       if (e.key === 'Escape') done(null);
       else if (e.key === 'Enter') done(inp ? inp.value : null);

@@ -280,6 +280,10 @@ function openIdentify(context) {
   const modal = document.getElementById('identify-modal');
   if (!modal) { if (typeof showToast === 'function') showToast('Identify is still loading — try again in a second', 3000, true); return; }
   modal.classList.add('open');
+  // Audit findings 5/11/12 (2026-11-04): the device Back button closes Photo ID
+  // while it is OPEN — pushed here, popped in closeIdentify (it used to be wired
+  // once at build, while hidden, which swallowed a Back press elsewhere).
+  if (window.BackStack && !BackStack.has('identify-modal')) BackStack.push('identify-modal', closeIdentify);
   try { if (typeof rrAiQuotaRefresh === 'function') rrAiQuotaRefresh(); } catch (eQ2) {}   // v0.9.1472: fill the reads-left counter
   // Auto-focus the input so a bare Ctrl+V lands in it as a normal paste —
   // DESKTOP ONLY (v0.9.675, Brad: on phones this opened the keyboard and
@@ -598,6 +602,7 @@ function _identifyReadClipboard(auto) {
 
 function closeIdentify() {
   document.getElementById('identify-modal').classList.remove('open');
+  if (window.BackStack) BackStack.pop('identify-modal');   // no-op when Back already took it
   _identifyCallerContext = null;
   window._researchActive = false;
   _identifySelectedNum = null;

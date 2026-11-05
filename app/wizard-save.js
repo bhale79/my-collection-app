@@ -3133,6 +3133,20 @@ async function saveWizardItem() {
       }, 250);
     }
     renderBrowse();
+    // Audit finding 7 (2026-11-04): a listing made from the item page left that
+    // page saying "List for Sale" (it is drawn once and nothing redrew it).
+    // Repaint it by identity once the window has closed — the same repaint the
+    // photo save uses; it does nothing if the page shows another item.
+    if (tab === 'forsale') {
+      try {
+        var _dpFs = document.getElementById('page-itemdetail');
+        // review 2026-11-05 (A3): and only if it is STILL the page when the repaint fires
+        if (_dpFs && _dpFs.classList.contains('active') && typeof rrDetailRepaint === 'function') setTimeout(function () {
+          var _dpNow = document.getElementById('page-itemdetail');
+          if (_dpNow && _dpNow.classList.contains('active')) rrDetailRepaint(0);
+        }, 250);
+      } catch (eFs) {}
+    }
     if (tab === 'sold' && _rrSaleKeptNum) {
       // FIND BY ID: never "✓ Added to Sold!" over a copy that is still owned.
       showToast(String(((typeof RR_FIND_BY_ID !== 'undefined' && RR_FIND_BY_ID.saleKept) || '')).replace('{num}', _rrSaleKeptNum), 9000, true);

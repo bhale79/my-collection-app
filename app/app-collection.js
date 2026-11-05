@@ -3009,6 +3009,7 @@ function showItemDetailPage_forsale(idx) {
 
 // ── BROWSE ROW CLICK — offer to add or view ─────────────────────
 function openPhotoWizard(itemNum, variation, pdKey) {
+  var _rrWasOpen = !!(document.getElementById('wizard-modal') && document.getElementById('wizard-modal').classList.contains('open'));   // review A2: continuing an open Add?
   // Open wizard on the photo step for an existing item
   const pd = state.personalData[pdKey] || {};
   // v0.9.982 (colliding item numbers): resolve the catalog row from THIS owned
@@ -3051,6 +3052,7 @@ function openPhotoWizard(itemNum, variation, pdKey) {
     if (autoSkip.has(s.id) || (s.skipIf && s.skipIf(wizard.data))) wizard.step++;
     else break;
   }
+  if (typeof rrWizardOpenedAt === 'function') rrWizardOpenedAt(_rrWasOpen);   // audit findings 5/6/11: Back closes here, device Back too
   renderWizardStep();
 }
 
@@ -3932,6 +3934,7 @@ function _adjustRowsAfterDelete(dataObj, deletedRow, fromTab) {
 }
 
 function sellFromCollection(idx, pdKey) {
+  var _rrWasOpen = !!(document.getElementById('wizard-modal') && document.getElementById('wizard-modal').classList.contains('open'));   // review A2: continuing an open Add?
   const pd = state.personalData[pdKey] || {};
   const item = state.masterData[idx] || {
     itemNum: pd.itemNum, variation: pd.variation || '',
@@ -3965,10 +3968,12 @@ function sellFromCollection(idx, pdKey) {
     if (autoSkip.has(s.id) || (s.skipIf && s.skipIf(wizard.data))) wizard.step++;
     else break;
   }
+  if (typeof rrWizardOpenedAt === 'function') rrWizardOpenedAt(_rrWasOpen);   // audit findings 5/6/11: Back closes here, device Back too
   renderWizardStep();
 }
 
 function listForSaleFromCollection(idx, pdKey) {
+  var _rrWasOpen = !!(document.getElementById('wizard-modal') && document.getElementById('wizard-modal').classList.contains('open'));   // review A2: continuing an open Add?
   const pd = state.personalData[pdKey] || {};
   const item = state.masterData[idx] || {
     itemNum: pd.itemNum, variation: pd.variation || '',
@@ -4000,6 +4005,7 @@ function listForSaleFromCollection(idx, pdKey) {
     if (autoSkip.has(s.id) || (s.skipIf && s.skipIf(wizard.data))) wizard.step++;
     else break;
   }
+  if (typeof rrWizardOpenedAt === 'function') rrWizardOpenedAt(_rrWasOpen);   // audit findings 5/6/11: Back closes here, device Back too
   renderWizardStep();
 }
 

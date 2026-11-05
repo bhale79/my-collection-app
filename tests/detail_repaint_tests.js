@@ -257,7 +257,8 @@ section('rule 3 — no repaint may go back to a remembered position');
   // v0.9.2025: eleven — Add a Piece to Group, after the piece saves (wizard-save.js _rrAddPieceRepaint).
   // v0.9.2029: twelve — Add Another Item, after the item saves into the group (wizard-save.js _rrAddToGroupRepaint).
   // 2026-11-03: thirteen — A Piece I Already Own, after the owned item joins the group (app-collection.js rrAddPieceStart kind 'owned').
-  ok('exactly the thirteen known repaint sites call the helper', mentions - 1 === 13,
+  // 2026-11-05 (audit finding 7): fourteen — a listing made from the item page, after the For Sale save (wizard-save.js, tab 'forsale').
+  ok('exactly the fourteen known repaint sites call the helper', mentions - 1 === 14,
      'found ' + (mentions - 1) + ' call sites');
 }
 

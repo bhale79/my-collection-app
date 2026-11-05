@@ -160,7 +160,10 @@ ok('…which is exactly the preview\'s rule (linked = on an OPEN task), so card 
 const rmCard = grabFrom(maint, 'window._maintPartRemove = async function (partId)');
 // 2026-11-02 (parts_stale): the four redraws live in ONE place now, _maintPartsRedraw — the card's Remove calls it
 const partsRedraw = grabFrom(maint, 'function _maintPartsRedraw()');
-ok('the card\'s Remove asks first (v0.9.1819: the app\'s own box), then goes through removePart (the one remover) and redraws card, bench, badge, preview', /await appConfirm\(/.test(rmCard) && /await removePart\(p\.id\)/.test(rmCard) && /_maintPartsRedraw\(\)/.test(rmCard)
+// Audit finding 15 (2026-11-04): the question moved into ONE helper, removePartAsk
+// (app-pages.js), which the Parts page's Remove button now uses too.
+const rmAsk = grabFrom(pages, 'async function removePartAsk(partId)');
+ok('the card\'s Remove asks first (v0.9.1819: the app\'s own box — now the one removePartAsk), then goes through removePart (the one remover) and redraws card, bench, badge, preview', /await removePartAsk\(p\.id\)/.test(rmCard) && /await appConfirm\(/.test(rmAsk) && /return removePart\(p\.id\)/.test(rmAsk) && /_maintPartsRedraw\(\)/.test(rmCard)
    && /_maintRenderTasks\(\)/.test(partsRedraw) && /_wbBuild\(\); _wbBadge\(\)/.test(partsRedraw) && /_maintRenderPreview/.test(partsRedraw));
 const rmPage = grabFrom(pages, 'async function removePart(partId)');
 ok('removePart blanks the WHOLE row (13 cells, A–M) where the lifecycle columns exist', /\['', '', '', '', '', '', '', '', '', '', '', '', ''\]/.test(rmPage) && /\(_wide \? 'M' : 'H'\)/.test(rmPage));

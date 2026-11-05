@@ -407,9 +407,10 @@ const CFG = fs.readFileSync(path.join(APPDIR, 'config.js'), 'utf8');
 const BOC = CFG.slice(CFG.indexOf('window.bindOverlayClose = function'),
                       CFG.indexOf('window.bindOverlayClose = function') + 900);
 ok('bindOverlayClose still exists, so its 14 call sites did not have to churn',
-   /window\.bindOverlayClose = function \(ov, closeFn\)/.test(BOC));
+   // 2026-11-05 (audit findings 5/11/12): a third argument, opts — { noBack: true } for a box built once and only hidden/shown
+   /window\.bindOverlayClose = function \(ov, closeFn, opts\)/.test(BOC));
 ok('…and it DELEGATES to the one guard instead of closing anything',
-   /rrDismissGuard\(ov, closeFn\)/.test(BOC));
+   /rrDismissGuard\(ov, closeFn, opts\)/.test(BOC));
 ok('…it closes nothing itself — no remove, no closeFn on a click',
    !/\.remove\(\)/.test(BOC) && !/closeFn\(e\)/.test(BOC));
 ok('…and the drag-safety it needed only BECAUSE it closed is gone with it',

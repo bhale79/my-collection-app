@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2111';
+const APP_VERSION = 'v0.9.2112';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -681,9 +681,9 @@ if (typeof window !== 'undefined') {
 // The NAME and the signature stay, so fourteen call sites do not churn, and
 // closeFn is still used: it is handed to BackStack, so the device Back button
 // runs the overlay's own close and any cleanup in it still happens.
-window.bindOverlayClose = function (ov, closeFn) {
+window.bindOverlayClose = function (ov, closeFn, opts) {
   if (!ov) return;
-  if (window.rrDismissGuard) { window.rrDismissGuard(ov, closeFn); return; }
+  if (window.rrDismissGuard) { window.rrDismissGuard(ov, closeFn, opts); return; }
   // app.js has not loaded yet (pre-auth). Swallow it here rather than leaving
   // the old behaviour in place as a fallback — a fallback to the bug is a bug.
   ov.addEventListener('click', function (e) {

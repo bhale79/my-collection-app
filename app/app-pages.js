@@ -4176,7 +4176,7 @@ function buildUpgradePage() {
             : `<button onclick="event.stopPropagation();upgradeGotIt('${_ugEntryKey(u)}')" style="min-width:0;padding:0.45rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:var(--t-green);font-family:var(--font-body);font-weight:600">✓ Got It</button>`}
           ${_isWant
             ? `<button onclick="event.stopPropagation();removeWantItem('${u.itemNum}','${escVar}',${u.row})" style="min-width:0;padding:0.45rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--t-red);font-family:var(--font-body)">Remove</button>`
-            : `<button onclick="event.stopPropagation();removeUpgradeItem('${_ugEntryKey(u)}')" style="min-width:0;padding:0.45rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--t-red);font-family:var(--font-body)">Remove</button>`}
+            : `<button onclick="event.stopPropagation();removeUpgradeItemAsk('${_ugEntryKey(u)}')" style="min-width:0;padding:0.45rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--t-red);font-family:var(--font-body)">Remove</button>`}
         </div>
       </div>`;
     }).join('');
@@ -4273,7 +4273,7 @@ function buildUpgradePage() {
             : `<button onclick="event.stopPropagation();upgradeGotIt('${_ugEntryKey(u)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:var(--t-green);font-family:var(--font-body);font-weight:600;margin-right:0.2rem">✓ Got It</button>`}
           ${_isWant
             ? `<button onclick="event.stopPropagation();removeWantItem('${u.itemNum}','${escVar}',${u.row})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--t-red);font-family:var(--font-body)">Remove</button>`
-            : `<button onclick="event.stopPropagation();removeUpgradeItem('${_ugEntryKey(u)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--t-red);font-family:var(--font-body)">Remove</button>`}
+            : `<button onclick="event.stopPropagation();removeUpgradeItemAsk('${_ugEntryKey(u)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--t-red);font-family:var(--font-body)">Remove</button>`}
         </td>
       </tr>
       ${!_isWant ? `<tr id="${photoId}-row"${rrSampleAttrs(u)} style="display:none"><td colspan="${_WU_COLS.length + 1}" style="padding:0.5rem 1rem;background:var(--surface2)"><div id="${photoId}-pic"></div></td></tr>` : ''}`;
@@ -4720,6 +4720,16 @@ async function _saveUpgradeItemNow(itemNum, variation, existingRow, invId) {
     console.error(e);
   }
 }
+
+// Audit finding 9 (2026-11-04): the Upgrade row's Remove BUTTON asks first,
+// the same way the Want row's does (removeWantItem). The question lives here,
+// at the button, because removeUpgradeItem is also the quiet last step of
+// "Got It" (_upgradeGotItFinish), where the person has already decided.
+async function removeUpgradeItemAsk(ugKey) {
+  if (!(await appConfirm('Remove this item from your Upgrade List?', { danger: true, ok: 'Remove' }))) return;
+  return removeUpgradeItem(ugKey);
+}
+if (typeof window !== 'undefined') window.removeUpgradeItemAsk = removeUpgradeItemAsk;
 
 // Phase 3: signature is now (ugKey). ugKey is the inventoryId (or
 // 'legacy-row-N' fallback) of the Upgrade entry to remove.
@@ -5273,7 +5283,7 @@ function _renderPartsList() {
       + ((p.forInv && state.personalData && state.personalData[p.forInv] && (p.status || 'wanted') !== 'installed') ? '<button onclick="markPartInstalled(\'' + rrJsArg(p.id) + '\')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:var(--t-green);font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">\u2713 Installed</button>' : '')
       + '<button onclick="googlePart(\'' + esc(p.partNum) + '\',\'' + esc(p.forItem) + '\',\'' + esc(p.description) + '\',\'' + esc(p.forInv || '') + '\')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 10%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">Google</button>'
       + '<button onclick="showAddPartModal(\'' + rrJsArg(p.id) + '\')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.75rem;cursor:pointer">Edit</button>'
-      + '<button onclick="removePart(\'' + rrJsArg(p.id) + '\')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:var(--t-danger);font-family:var(--font-body);font-size:0.75rem;cursor:pointer">Remove</button>'
+      + '<button onclick="removePartAsk(\'' + rrJsArg(p.id) + '\')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:var(--t-danger);font-family:var(--font-body);font-size:0.75rem;cursor:pointer">Remove</button>'
       + '</div></div></div>';
   }).join('');
   if (_lc && (_instCount || window._partsShowInstalled)) {
@@ -5514,6 +5524,19 @@ async function savePart(existingId) {
   } catch (e) { if (typeof showToast === 'function') showToast(rrSaveError(e, 'the part'), 4000, true); }
 }
 if (typeof window !== 'undefined') window.savePart = savePart;
+
+// Audit finding 15 (2026-11-04): the Parts Needed page's Remove BUTTON asks
+// first — the question the Workbench card already asked, now in ONE place
+// (the Workbench calls this too). removePart itself stays quiet: it is also the
+// last step of "Installed", where the person has already decided.
+async function removePartAsk(partId) {
+  var p = (typeof _partsFind === 'function') ? _partsFind(partId) : null;
+  if (!p) return removePart(partId);   // removePart says it is gone
+  var copy = (typeof PARTS_COPY !== 'undefined' && PARTS_COPY) || {};
+  if (!(await appConfirm(String(copy.removeCard || 'Take \u201c%s\u201d off your Parts Needed list?').replace('%s', rrEsc(p.description || p.partNum || 'part')), { title: 'Take it off the list', ok: 'Take it off', danger: true }))) return false;
+  return removePart(p.id);
+}
+if (typeof window !== 'undefined') window.removePartAsk = removePartAsk;
 
 // v0.9.2038 (A4): removePart(partId) — by the part's id, never a remembered row.
 async function removePart(partId) {

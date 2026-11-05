@@ -1745,7 +1745,7 @@ if (typeof window !== 'undefined') {
   window.rrOnboardingSeenByCurrentAccount = rrOnboardingSeenByCurrentAccount;
 }
 
-window.rrDismissGuard = function (ov, closeFn) {
+window.rrDismissGuard = function (ov, closeFn, opts) {
   if (!ov || ov._rrGuarded) return;
   ov._rrGuarded = true;
   // Swallow the backdrop click. Not "ask first" — nothing at all.
@@ -1758,6 +1758,14 @@ window.rrDismissGuard = function (ov, closeFn) {
   // v0.9.1791: closeFn is optional and is passed straight through. Without it
   // Back removes the element; with it, Back runs the overlay's own close, so
   // an overlay that has cleanup to do still gets to do it.
+  //
+  // Audit findings 5/11/12 (2026-11-04): opts.noBack is for a box that is BUILT
+  // ONCE and then only hidden and shown (the photo chooser, Photo ID). Wiring
+  // registers with BackStack at once — for such a box that meant an entry while
+  // it sat HIDDEN, so the next device Back press anywhere closed nothing and
+  // seemed dead (two such boxes = "Back needs three presses"). Those boxes push
+  // their own entry when they OPEN and pop it when they close.
+  if (opts && opts.noBack) return;
   try { if (window.BackStack && BackStack.wire) BackStack.wire(ov, closeFn); } catch (e) {}
 };
 
@@ -4845,10 +4853,12 @@ function _initBackButton() {
     // ── Case 1: Wizard is open ──
     var wizModal = document.getElementById('wizard-modal');
     if (wizModal && wizModal.classList.contains('open')) {
-      if (typeof wizard !== 'undefined' && wizard.step > 0) {
+      // review 2026-11-05 (A2): never below the step a part-way window opened at (wizard._floorStep)
+      var _wFloor = (typeof wizard !== 'undefined' && wizard && typeof wizard._floorStep === 'number') ? wizard._floorStep : 0;
+      if (typeof wizard !== 'undefined' && wizard.step > _wFloor) {
         wizard.step--;
         // Step back over any skipIf steps
-        while (wizard.step > 0 && wizard.steps[wizard.step] && wizard.steps[wizard.step].skipIf && wizard.steps[wizard.step].skipIf(wizard.data)) {
+        while (wizard.step > _wFloor && wizard.steps[wizard.step] && wizard.steps[wizard.step].skipIf && wizard.steps[wizard.step].skipIf(wizard.data)) {
           wizard.step--;
         }
         if (typeof renderWizardStep === 'function') renderWizardStep();
