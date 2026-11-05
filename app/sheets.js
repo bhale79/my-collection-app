@@ -606,6 +606,11 @@ async function sheetsUpdate(spreadsheetId, range, values, opts) {
   // Built here, not in a helper: suites lift sheetsUpdate on its own.
   const _args = { sheetId: spreadsheetId, range: range, values: values };
   if (opts && opts.expect && (opts.expect.invId || opts.expect.num)) _args.expect = opts.expect;
+  // Audit finding 14 (2026-11-04): the app's OWN set-up writes (titles, headers,
+  // the Dashboard tab, the format stamp — sheetsSetupUpdate) are marked, so a
+  // failed one is not queued and shown as "a change YOU made has not reached
+  // your Google Sheet". Every one of them is written again on the next start.
+  if (opts && opts.setup) _args.setup = true;
   // v0.9.985 (perf): any write = data changed — invalidate cached page renders.
   try { window._rrDataRev = (window._rrDataRev || 0) + 1; } catch (e) {}
   // v0.9.1599 (Brad: work the lists at a train show with no wifi): an
@@ -614,7 +619,8 @@ async function sheetsUpdate(spreadsheetId, range, values, opts) {
   // network failure, so it reaches the sheet after reconnect. Same throw
   // contract downstream; only the bookkeeping and the words changed.
   if (_rrOfflineNow()) {
-    if (typeof showToast === 'function') showToast('You\u2019re offline \u2014 saved on this device. It goes to your sheet when you\u2019re back on.', 3500);
+    // audit finding 14: the app's own set-up write is not "saved on this device" — it is not kept at all
+    if (!(opts && opts.setup) && typeof showToast === 'function') showToast('You\u2019re offline \u2014 saved on this device. It goes to your sheet when you\u2019re back on.', 3500);
     throw _rrWriteFailed('update', _args, new Error('offline'));
   }
   // v0.9.840 (Phase C): no subscription = view-and-export-only.

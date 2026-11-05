@@ -185,6 +185,12 @@
       // A blocked write is not a failed one. The trial gate said no on
       // purpose; queueing it would save something the app refused to save.
       if (why === 'readonly') return null;
+      // Audit finding 14 (2026-11-04): the app's own set-up write (sheetsSetupUpdate —
+      // a title, a header row, the Dashboard tab) is not the person's change: it is
+      // written again on the next start, so it is never queued or shown as theirs.
+      // (Sent again from here it would also lose its set-up handling: the formulas
+      // would land as text.)
+      if (args && args.setup) { try { console.warn('[outbox] the app\u2019s own set-up write did not land (' + (args.range || '') + ') — it is written again on the next start; not queued'); } catch (eS) {} return null; }
       var list = _load();
       var entry = {
         id: String(_now()) + '.' + Math.random().toString(36).slice(2, 6),

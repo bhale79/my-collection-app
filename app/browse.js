@@ -4545,17 +4545,38 @@ function _rrBrowseCore(_co) {
     // v0.9.906 (Brad, item [10]): light-blue "pick a filter" prompt instead of
     // loading all 60,000+ items at once. The last-used era/manufacturer/scale
     // filter is remembered across visits (lv_era + lv_browse_filter_state).
+    // Audit finding 13 (2026-11-04): on a PHONE the table is hidden and only the
+    // card list shows — the prompt went into the table and the cards were
+    // emptied, so a phone saw an empty white box. And the phone's Filters
+    // button (the only way to search there) is made at the END of a full
+    // render, which this early return skipped — it only appeared once My
+    // Collection had been opened. The same prompt now goes in both places
+    // (phone words: the filters are behind the Filters button, not "above"),
+    // and the button is made here too.
+    const _gCount = ((typeof BRAND_CATALOG_COUNT === 'string') ? BRAND_CATALOG_COUNT : '160,000+');
+    const _gPrompt = function (phone) {
+      return '<div style="max-width:520px;margin:0 auto;background:rgba(41,128,185,0.10);border:1px solid #2980b9;border-radius:12px;padding:1.5rem 1.2rem">'
+        + '<div style="font-size:2rem;margin-bottom:0.5rem">🔍</div>'
+        + '<p style="font-weight:700;font-size:1rem;margin-bottom:0.45rem;color:var(--t-link)">Please select a filter to start viewing the catalog.</p>'
+        + '<p style="font-size:0.85rem;color:var(--text-mid);line-height:1.5">'
+        + (phone ? 'Tap Filters to pick an era, manufacturer, or scale — or to type an item number, road name, or description and search all '
+                 : 'Pick an era, manufacturer, or scale above — or type an item number, road name, or description to search all ')
+        + _gCount + ' items across every era.</p>'
+        + '</div>';
+    };
     if (_gtbody) _gtbody.innerHTML = '<tr><td colspan="10"><div style="padding:2.5rem 1rem;text-align:center">'
-      + '<div style="max-width:520px;margin:0 auto;background:rgba(41,128,185,0.10);border:1px solid #2980b9;border-radius:12px;padding:1.5rem 1.2rem">'
-      + '<div style="font-size:2rem;margin-bottom:0.5rem">🔍</div>'
-      + '<p style="font-weight:700;font-size:1rem;margin-bottom:0.45rem;color:var(--t-link)">Please select a filter to start viewing the catalog.</p>'
-      + '<p style="font-size:0.85rem;color:var(--text-mid);line-height:1.5">Pick an era, manufacturer, or scale above — or type an item number, road name, or description to search all '
-      + ((typeof BRAND_CATALOG_COUNT === 'string') ? BRAND_CATALOG_COUNT : '160,000+')
-      + ' items across every era.</p>'
-      + '</div>'
+      + _gPrompt(false)
       + '</div></td></tr>';
+    // the Filters button first: the card prompt says "Tap Filters" only when the
+    // button is really there (review 2026-11-05: a phone held sideways shows the
+    // cards but is too wide for the button — its filters are on screen "above")
+    try { if (typeof _rrFilterBtnSync === 'function') _rrFilterBtnSync(); } catch (eFb) {}
+    const _gHasBtn = !!document.getElementById('rr-filter-btn');
     const _gcards = document.getElementById('browse-cards');
-    if (_gcards) _gcards.innerHTML = '';
+    if (_gcards) _gcards.innerHTML = '<div id="rr-catalog-prompt" style="padding:1.5rem 0.25rem;text-align:center">' + _gPrompt(_gHasBtn) + '</div>';
+    // the card list starts hidden (inline display:none beats the phone CSS); the
+    // full render shows it on a phone — this return must too, the same way
+    if (_gcards && typeof rrIsPhone === 'function') _gcards.style.display = rrIsPhone() ? 'flex' : 'none';
     // Session 119: clear the count/info elements so leftover stale text
     // (e.g. "0 items" from a previous zero-result render) doesn't linger.
     // (v0.9.1711: #browse-pagination / #browse-count were never built.)
