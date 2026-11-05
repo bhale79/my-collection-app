@@ -432,10 +432,15 @@ async function rrWhereIsRow(spreadsheetId, tab, rowNum, expectedNum, expectedInv
   if (!rowNum || Number(rowNum) === 99999) return { ok: false, why: 'norow' };
   rowNum = Number(rowNum);
   const wantNum = String(expectedNum == null ? '' : expectedNum).trim();
-  const wantId  = String(expectedInvId == null ? '' : expectedInvId).trim();
+  const _idIn   = String(expectedInvId == null ? '' : expectedInvId).trim();
+  // Review 2026-11-05 (finding R1): a tab with NO Inventory ID column (My Sets,
+  // Instruction Sheets …) cannot be searched by id — an id the caller passes is
+  // ignored there, and the row is judged by the item number exactly as before
+  // (an own set with no number was refused on every try otherwise).
+  const ident = _idIn ? _rrTabIdentity(tab) : null;
+  const wantId = ident ? _idIn : '';
   if (!wantNum && !wantId) return { ok: true, row: rowNum };      // nothing to compare — do not block
 
-  const ident = wantId ? _rrTabIdentity(tab) : null;
   const range = ident
     ? tab + '!A' + rowNum + ':' + ident.col + rowNum
     : tab + '!A' + rowNum + ':A' + rowNum;
@@ -443,6 +448,11 @@ async function rrWhereIsRow(spreadsheetId, tab, rowNum, expectedNum, expectedInv
   if (rd.offline) return { ok: true, row: rowNum, offline: true };
   if (!rd.ok) {
     console.warn('[rows] could not check ' + tab + ' row ' + rowNum + ' — NOT writing:', rd.err && rd.err.message);
+    // Review R5: only a read Google was too busy to answer is "busy". Anything
+    // else (signed out, a bad range) is thrown — the same error the write would
+    // have hit — so the caller's catch shows the right words (rrSaveError: the
+    // sign-in pill). Nothing is written either way.
+    if (!_rrReadRetryable(rd.err)) throw (rd.err || new Error('Sheets read failed'));
     return { ok: false, why: 'busy', err: rd.err };
   }
   const cells = (rd.values[0] || []);
@@ -465,7 +475,7 @@ async function rrWhereIsRow(spreadsheetId, tab, rowNum, expectedNum, expectedInv
   if (!ident) return { ok: false, why: 'moved' };
   const col = await _rrIdentityRead(spreadsheetId, tab + '!' + ident.col + RR_FIRST_DATA_ROW + ':' + ident.col);
   if (col.offline) return { ok: false, why: 'moved' };
-  if (!col.ok) return { ok: false, why: 'busy', err: col.err };
+  if (!col.ok) { if (!_rrReadRetryable(col.err)) throw (col.err || new Error('Sheets read failed')); return { ok: false, why: 'busy', err: col.err }; }
   const hits = [];
   col.values.forEach(function (r, i) {
     if (String((r && r[0]) == null ? '' : r[0]).trim().replace(/^'/, '') === wantId) hits.push(i + RR_FIRST_DATA_ROW);
@@ -479,7 +489,10 @@ async function rrWhereIsRow(spreadsheetId, tab, rowNum, expectedNum, expectedInv
     return { ok: false, why: 'twice' };
   }
   console.warn('[rows] ' + tab + ': Inventory ID "' + wantId + '" moved from row ' + rowNum + ' to row ' + hits[0] + ' — saving there.');
-  _rrRenumberTab(tab, col.values);
+  // Review R7: the in-memory lists belong to the collection that is OPEN — a read
+  // of another collection's sheet (a move, an archive, a replay after a switch)
+  // never renumbers them; inventory ids repeat across collections.
+  if (typeof state !== 'undefined' && state && spreadsheetId === state.personalSheetId) _rrRenumberTab(tab, col.values);
   return { ok: true, row: hits[0], moved: true };
 }
 if (typeof window !== 'undefined') window.rrWhereIsRow = rrWhereIsRow;
@@ -633,7 +646,7 @@ async function sheetsUpdate(spreadsheetId, range, values, opts) {
     // now a stale older value. Clear it before it can replay on top of what
     // just went up (the other half of the coalesce in write-outbox.js). Guarded
     // and best-effort: never let outbox bookkeeping fail a successful save.
-    try { if (typeof rrOutboxSupersede === 'function') rrOutboxSupersede(spreadsheetId, range); } catch (e) {}
+    try { if (typeof rrOutboxSupersede === 'function') rrOutboxSupersede(spreadsheetId, range, (opts && opts.expect) || null); } catch (e) {}
     return json;
   } catch (e) {
     throw _rrWriteFailed('update', _args, e);

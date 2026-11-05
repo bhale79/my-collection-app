@@ -11474,7 +11474,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /async function rrRowStillIs\(spreadsheetId, tab, rowNum, expectedNum, expectedInvId\)/.test(sh) &&
        /window\.rrRowStillIs = rrRowStillIs/.test(sh));
     ok('an absent fifth argument is read as "no id", not as a mismatch',
-       /wantId\s*=\s*String\(expectedInvId == null \? '' : expectedInvId\)/.test(sh));
+       // review R1 (2026-11-05): read into _idIn, used only where the tab has an id column
+       /_idIn\s*=\s*String\(expectedInvId == null \? '' : expectedInvId\)/.test(sh));
     ok('it loads before the page that uses it',
        idx.indexOf('<script src="./sheets.js?v=') < idx.indexOf('<script src="./app-pages.js?v='));
 
@@ -11493,7 +11494,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const mkWarns = [];
       const mk = (cell, throws) => new Function('sheetsGet', 'console', 'RR_FIND_BY_ID', '_rrOfflineNow', '_rrTabIdentity', 'state',
         src + '\n return rrRowStillIs;')(
-          () => { if (throws) throw new Error('offline'); return { values: [[cell]] }; },
+          () => { if (throws) throw new Error(typeof throws === 'string' ? throws : 'offline'); return { values: [[cell]] }; },
           { warn: function () { mkWarns.push([].slice.call(arguments).join(' ')); } },
           { retryWaitsMs: [] }, () => false, () => null, {});
 
@@ -11508,7 +11509,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // "writing anyway" the four-platform audit caught skipping the guard on
       // a 429. Now a check that cannot be made stops the write.
       ok('a failed CHECK stops the write — never "writing anyway"',
-         mk('', true)('S', 'Parts Needed', 5, 'PART-7') === false);
+         mk('', 'Failed to fetch')('S', 'Parts Needed', 5, 'PART-7') === false);
+      // review R5 (2026-11-05): a read that failed for another reason (signed out, a bad
+      // range) is THROWN — the caller's catch says it in its own words; nothing is written
+      ok('…and a check that failed for another reason throws (the caller says why), never writes',
+         (() => { try { mk('', 'SESSION_EXPIRED')('S', 'Parts Needed', 5, 'PART-7'); return false; } catch (e) { return /SESSION_EXPIRED/.test(e.message); } })());
       ok('nothing to compare against does not block the write',
          mk('PART-9')('S', 'Parts Needed', 5, '') === true);
       ok('a missing row is refused',
@@ -18664,7 +18669,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
          // v0.9.1941: the only thing between the check and the write is building the
          // row it writes (kept, so the record in memory is built from it)
          // FIND BY ID (2026-11-04): fed by rrWhereIsRow (the box row where it is NOW)
-         /_bxW = await rrWhereIsRow\([\s\S]{0,300}?_bxUpdated = !!_bxW\.ok;\s*\n\s*if \(_bxUpdated\) \{\s*\n\s*_bxWritten = rrCarryPersonalRow\([^;]*\);[\s\S]{0,200}?_bxUpdated = await rrPersonalSafeWrite\(/.test(ws));   // v0.9.2039
+         // review R6 (2026-11-05): the busy/twice stop now sits between the two — widened 300 → 1200
+         /_bxW = await rrWhereIsRow\([\s\S]{0,1200}?_bxUpdated = !!_bxW\.ok;\s*\n\s*if \(_bxUpdated\) \{\s*\n\s*_bxWritten = rrCarryPersonalRow\([^;]*\);[\s\S]{0,200}?_bxUpdated = await rrPersonalSafeWrite\(/.test(ws));   // v0.9.2039
       ok('268 …the main-row rewrite verifies-or-throws ROW_MOVED first',
          // FIND BY ID (2026-11-04): rrWhereIsRow first; refused → ROW_MOVED (with the why's words)
          /_fillW = await rrWhereIsRow\([\s\S]{0,200}?if \(!_fillW\.ok\) \{[\s\S]{0,400}?throw _fillErr;\s*\n\s*\}[\s\S]{0,120}?_mainWrittenRow = rrCarryPersonalRow\([^;]*\);[\s\S]{0,200}?if \(!\(await rrPersonalSafeWrite\([^\n]*\)\)\) \{\s*\n\s*throw new Error\('ROW_MOVED'\);/.test(ws));   // v0.9.1941, v0.9.2039

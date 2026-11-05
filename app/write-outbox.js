@@ -172,6 +172,13 @@
 
   // ── recording ────────────────────────────────────────────────────
   // kind: 'update' | 'append' | 'delete'
+  // Review R2 (2026-11-05): a range's SHAPE — the tab and the columns, the row
+  // numbers taken out ("'My Collection'!C5" → "'My Collection'!C#"). Two writes
+  // for the same record with the same shape are writes to the same cells.
+  function _rangeShape(r) {
+    var s = String(r || ''), i = s.lastIndexOf('!');
+    return i < 0 ? s : s.slice(0, i + 1) + s.slice(i + 1).replace(/([A-Za-z]+)\d+/g, '$1#');
+  }
   function rrOutboxRecord(kind, args, err) {
     try {
       var why = String((err && err.message) || err || '');
@@ -203,9 +210,15 @@
       // same target. 'append' and 'delete' are never coalesced (an append has
       // no fixed target; a delete is never replayed at all).
       if (kind === 'update' && args && args.sheetId && args.range) {
+        // Review R2 (2026-11-05): …and the same cells of the same RECORD (expect.invId),
+        // even when the two writes named different rows for it.
+        var _inv = (args.expect && args.expect.invId) ? String(args.expect.invId) : '';
+        var _shape = _rangeShape(args.range);
         list = list.filter(function (e) {
-          return !(e.kind === 'update' && e.args &&
-                   e.args.sheetId === args.sheetId && e.args.range === args.range);
+          if (!(e.kind === 'update' && e.args && e.args.sheetId === args.sheetId)) return true;
+          if (e.args.range === args.range) return false;
+          var x = e.args.expect;
+          return !(_inv && x && String(x.invId || '') === _inv && (!args.expect.tab || !x.tab || x.tab === args.expect.tab) && _rangeShape(e.args.range) === _shape);
         });
       }
       list.push(entry);
@@ -246,7 +259,9 @@
     if (_AUTO_RETRYABLE.indexOf(entry.kind) === -1) return false;  // delete, clear: never
     if (entry.session !== _session()) return false;         // not across a reload
     // rows shifted since: only an entry that says who it is for may still go — _replay finds it again
-    if (entry.movedAt !== _rowsMovedAt && !(entry.kind === 'update' && entry.args && entry.args.expect)) return false;
+    // Review R3: only an entry that carries an Inventory ID can be found again; one
+    // that names only an item number (a Want row, an older copy) is held as before.
+    if (entry.movedAt !== _rowsMovedAt && !(entry.kind === 'update' && entry.args && entry.args.expect && entry.args.expect.invId)) return false;
     return true;
   }
 
@@ -696,13 +711,24 @@
   // attempt at the same range before it can replay over the new value. Same
   // reasoning as the coalesce on record, from the other side: whichever write
   // is newest wins, whether the newer one was queued or sent live.
-  function rrOutboxSupersede(sheetId, range) {
+  // Review 2026-11-05 (R2): a range is a POSITION. A queued write made when this
+  // device remembered row 12, and a newer save of the SAME cells of the SAME
+  // record that found it at row 11, have different ranges — so the newer save
+  // did not cancel the older one, and the older value could be replayed over
+  // it. A write that says who it is for (expect.invId) now also cancels any
+  // queued write for that record and those cells, whatever row it named.
+  function rrOutboxSupersede(sheetId, range, expect) {
     try {
       if (!sheetId || !range) return;
       var list = _load();
+      var inv = (expect && expect.invId) ? String(expect.invId) : '';
+      var shape = _rangeShape(range);
       var kept = list.filter(function (e) {
-        return !(e.kind === 'update' && e.args &&
-                 e.args.sheetId === sheetId && e.args.range === range);
+        if (!(e.kind === 'update' && e.args && e.args.sheetId === sheetId)) return true;
+        if (e.args.range === range) return false;
+        var x = e.args.expect;
+        if (inv && x && String(x.invId || '') === inv && (!expect.tab || !x.tab || x.tab === expect.tab) && _rangeShape(e.args.range) === shape) return false;
+        return true;
       });
       if (kept.length !== list.length) { _save(kept); _paint(); }
     } catch (e) {}

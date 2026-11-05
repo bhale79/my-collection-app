@@ -80,6 +80,7 @@ function boot(opts) {
     }
     if (method === 'GET' && /\/values\//.test(u)) {
       const range = (u.match(/\/values\/([^?]+)/) || [])[1];
+      if (opts.signedOut) { calls.push({ kind: 'readSignedOut', range }); return Promise.reject(new Error('SESSION_EXPIRED: sign in again')); }
       if (busyLeft > 0) { busyLeft--; calls.push({ kind: 'read429', range }); return reply({ error: { code: 429, message: 'Quota exceeded' } }, 429); }
       calls.push({ kind: 'read', range });
       const p = parse(range); const rows = tabs[p.tab] || [];
@@ -297,6 +298,72 @@ const STANDARD = () => ({ mc: [mcRow('2343', 10), mcRow('2343', 11), mcRow('2245
     }
   }
 
+  section('R · the independent review (2026-11-05) — seven findings, each fixed and proved');
+  {
+    // R1: a tab with NO Inventory ID column (My Sets): an own set with no number, passed by id only
+    const t = boot(STANDARD());
+    const r = await t.sandbox.rrWhereIsRow(MINE, 'My Sets', 4, '', 'OWN-7');
+    ok('R1 My Sets (no id column) with an id but no number → not refused (judged as before: nothing to compare)', r.ok && r.row === 4, JSON.stringify(r));
+    const r2 = await t.sandbox.rrWhereIsRow(MINE, 'My Sets', 4, 'PE-1', 'OWN-7');
+    ok('R1b …and with a number it is judged by the number, as before (the stand-in row 4 is empty → moved)', !r2.ok && r2.why === 'moved', JSON.stringify(r2));
+  }
+  {
+    // R5: signed out → the read error is THROWN (the caller says "sign in"), never "Google is busy"; nothing written
+    const t = boot(Object.assign(STANDARD(), { signedOut: true }));
+    let threw = '';
+    try { await t.sandbox.sheetsUpdateRow(MINE, 'My Collection!A4:H4', [mcRow('2343', 11)], { itemNum: '2343', inventoryId: '11' }); } catch (e) { threw = e.message; }
+    ok('R5 signed out: the save throws the sign-in error (rrSaveError gives the sign-in words)', /SESSION_EXPIRED/.test(threw), threw);
+    ok('R5b …nothing written, and no "Google is busy" message', !t.calls.some(c => c.kind === 'write') && !t.toasts.some(x => x === CONFIG_WORDS.busy), t.toasts.join(' | '));
+  }
+  {
+    // R7: a read of ANOTHER collection's sheet never renumbers the open collection's records
+    const t = boot(STANDARD()); t.removeElsewhere(MC, 3);
+    const r = await t.sandbox.rrWhereIsRow('other-collection', MC, 5, '2245', '12');
+    const pd = t.sandbox.state.personalData;
+    ok('R7 found on the other sheet, but the open collection\'s rows are untouched', r.ok && r.row === 4 && pd['11'].row === 4 && pd['12'].row === 5 && pd['13'].row === 6, JSON.stringify(Object.values(pd).map(p => p.inventoryId + '@' + p.row)));
+  }
+  {
+    // R2 + R3: the outbox
+    const t = boot(Object.assign(STANDARD(), { offline: true }));
+    const store = {};
+    t.sandbox.localStorage = { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; } };
+    t.sandbox.document = { getElementById: () => null, querySelector: () => null, createElement: () => ({ style: {}, appendChild() {}, setAttribute() {}, addEventListener() {} }), body: { appendChild() {} }, addEventListener() {} };
+    t.sandbox.addEventListener = () => {};
+    vm.runInContext(APP('write-outbox.js'), t.sandbox, { filename: 'write-outbox.js' });
+    // an OLD price queued while this device still remembered row 5 for 2245 (#12)
+    try { await t.sandbox.sheetsUpdate(MINE, 'My Collection!C5', [['OLD']], { expect: { tab: MC, row: 5, num: '2245', invId: '12' } }); } catch (e) {}
+    ok('R2 (set-up) the old value is queued', t.sandbox.rrOutboxCount() === 1);
+    // back online: a NEWER save of the same cell of the same copy, which found it at row 4
+    t.sandbox.navigator.onLine = true;
+    await t.sandbox.sheetsUpdate(MINE, 'My Collection!C4', [['NEW']], { expect: { tab: MC, row: 4, num: '2245', invId: '12' } });
+    ok('R2 a newer save of the same cells of the same copy cancels the older queued value (row numbers differ)', t.sandbox.rrOutboxCount() === 0, JSON.stringify(t.sandbox.rrOutboxList().map(e => e.args.range)));
+    // record-time: two failed writes for the same copy at different rows → only the newest kept
+    t.sandbox.navigator.onLine = false;
+    try { await t.sandbox.sheetsUpdate(MINE, 'My Collection!C5', [['A']], { expect: { tab: MC, row: 5, num: '2245', invId: '12' } }); } catch (e) {}
+    try { await t.sandbox.sheetsUpdate(MINE, 'My Collection!C4', [['B']], { expect: { tab: MC, row: 4, num: '2245', invId: '12' } }); } catch (e) {}
+    const q = t.sandbox.rrOutboxList();
+    ok('R2b two queued values for the same cells of the same copy → only the newest is kept', q.length === 1 && q[0].args.values[0][0] === 'B', JSON.stringify(q.map(e => e.args.values)));
+    // R3: after this device deletes a row, only an entry WITH an id may still go by itself
+    try { await t.sandbox.sheetsUpdate(MINE, 'Want-Upgrade List!D7', [['High']], { expect: { tab: 'Want-Upgrade List', row: 7, num: '6464-1', invId: '' } }); } catch (e) {}
+    t.sandbox.rrOutboxRowsMoved();
+    const L = t.sandbox.rrOutboxList();
+    const withId = L.find(e => e.args.expect && e.args.expect.invId), noId = L.find(e => e.args.expect && !e.args.expect.invId);
+    ok('R3 rows moved: an entry with an Inventory ID may still go (it is found again)…', !!withId && t.sandbox.rrOutboxCanAutoRetry(withId) === true);
+    ok('R3b …one that names only an item number is held, as before', !!noId && t.sandbox.rrOutboxCanAutoRetry(noId) === false);
+  }
+  {
+    const WSr = APP('wizard-save.js');
+    // R4: the sold copy leaves the screen by ITS OWN answer, not by a group piece's
+    ok('R4 the sold copy is dropped from the screen when ITS row went (a kept group piece does not keep it)',
+       /_rrSaleKeptNum = collectionEntry\.itemNum \|\| itemNum;\s*\n\s*_rrLeadKept = true;/.test(WSr)
+       && /if \(!_rrLeadKept && _collKey && state\.personalData\[_collKey\]\) delete state\.personalData\[_collKey\];/.test(WSr)
+       && !/if \(!_rrSaleKeptNum && _collKey/.test(WSr));
+    // R6: the box re-save stops on busy / twice instead of appending a second box row
+    const bx = WSr.slice(WSr.indexOf('var _bxW = await rrWhereIsRow('), WSr.indexOf("var _bxApRow = await sheetsAppend("));
+    ok('R6 the box save stops (its own words) when Google is busy or the id is on two rows — before any append',
+       /if \(!_bxW\.ok && \(_bxW\.why === 'busy' \|\| _bxW\.why === 'twice'\)\) \{[\s\S]{0,260}throw _bxErr;/.test(bx));
+  }
+
   section('E · a sale finds its copy BEFORE it writes, and never says "✓" over a copy still owned');
   const WS = APP('wizard-save.js'), AP = APP('app-pages.js'), APPJS = APP('app.js'), AC = APP('app-collection.js'), WZ = APP('wizard.js');
   const soldBranch = (() => { const a = WS.indexOf("} else if (tab === 'sold') {"); return WS.slice(a, WS.indexOf("} else if (tab === 'want')", a)); })();
@@ -307,7 +374,7 @@ const STANDARD = () => ({ mc: [mcRow('2343', 10), mcRow('2343', 11), mcRow('2245
   ok('E2 one-box sale (markForSaleAsSold): found before the Sold row is appended', saleOrderOk(mfs, /sheetsAppend\(state\.personalSheetId, 'Sold!A:'/) && /SALE_STOPPED/.test(mfs));
   ok('E3 a refused take-off names the copy (saleKept) instead of "✓ Added to Sold!"', /_rrSaleKeptNum = collectionEntry\.itemNum/.test(soldBranch)
      && /if \(tab === 'sold' && _rrSaleKeptNum\) \{[\s\S]{0,200}RR_FIND_BY_ID\.saleKept/.test(WS));
-  ok('E3b …and the copy is only forgotten when the sheet let go of it', /if \(!_rrSaleKeptNum && _collKey && state\.personalData\[_collKey\]\) delete state\.personalData\[_collKey\]/.test(soldBranch));
+  ok('E3b …and the copy is only forgotten when the sheet let go of it', /if \(!_rrLeadKept && _collKey && state\.personalData\[_collKey\]\) delete state\.personalData\[_collKey\]/.test(soldBranch));
   const GROUP_KEPT = 'else if (!_rrSaleKeptNum) _rrSaleKeptNum = (_sp && _sp.itemNum) || itemNum;';
   ok('E3c a group piece the sheet kept is named too (no "✓" over it)', /if \(_spBlanked\) delete state\.personalData\[_gs\.sellPd\[_i\]\];/.test(soldBranch) && soldBranch.indexOf(GROUP_KEPT) > 0);
   ok('E4 rrSaveError says a refusal\'s own words (err.rrWords)', /if \(err && err\.rrWords\) return String\(err\.rrWords\);/.test(APP('write-outbox.js')));
@@ -369,6 +436,43 @@ const STANDARD = () => ({ mc: [mcRow('2343', 10), mcRow('2343', 11), mcRow('2245
     const t = boot(Object.assign(STANDARD(), { sheetsSrc: planted })); t.removeElsewhere(MC, 3);
     await t.sandbox.rrVerifiedRowUpdate(MINE, MC, 5, 'My Collection!C5', [['8']], { num: '2245', invId: '12' }, 'collection');
     ok('P5 PLANTED write to the remembered range → B2 would fail (6464-1 changed)', t.tabs[MC][2][2] === '8');
+  }
+
+  // R plants
+  {
+    const a = "  const wantId = ident ? _idIn : '';";
+    ok('P-R1 anchor present (once)', SHEETS.split(a).length === 2);
+    const t = boot(Object.assign(STANDARD(), { sheetsSrc: SHEETS.replace(a, "  const wantId = _idIn;") }));
+    const r = await t.sandbox.rrWhereIsRow(MINE, 'My Sets', 4, '', 'OWN-7');
+    ok('P-R1 PLANTED an id used on a tab with no id column → R1 would fail (refused)', !r.ok, JSON.stringify(r));
+  }
+  {
+    const a = "  if (typeof state !== 'undefined' && state && spreadsheetId === state.personalSheetId) _rrRenumberTab(tab, col.values);";
+    ok('P-R7 anchor present (once)', SHEETS.split(a).length === 2);
+    const t = boot(Object.assign(STANDARD(), { sheetsSrc: SHEETS.replace(a, '  _rrRenumberTab(tab, col.values);') })); t.removeElsewhere(MC, 3);
+    await t.sandbox.rrWhereIsRow('other-collection', MC, 5, '2245', '12');
+    ok('P-R7 PLANTED renumber from any sheet → R7 would fail', t.sandbox.state.personalData['12'].row === 4);
+  }
+  {
+    const a = "    if (!_rrReadRetryable(rd.err)) throw (rd.err || new Error('Sheets read failed'));\n";
+    ok('P-R5 anchor present (once)', SHEETS.split(a).length === 2);
+    const t = boot(Object.assign(STANDARD(), { signedOut: true, sheetsSrc: SHEETS.replace(a, '') }));
+    let threw = ''; try { await t.sandbox.sheetsUpdateRow(MINE, 'My Collection!A4:H4', [mcRow('2343', 11)], { itemNum: '2343', inventoryId: '11' }); } catch (e) { threw = e.message; }
+    ok('P-R5 PLANTED sign-in read error treated as busy → R5 would fail', !/SESSION_EXPIRED/.test(threw) && t.toasts.some(x => x === CONFIG_WORDS.busy), threw + ' | ' + t.toasts.join(' | '));
+  }
+  {
+    const WOr = APP('write-outbox.js');
+    const a = "if (entry.movedAt !== _rowsMovedAt && !(entry.kind === 'update' && entry.args && entry.args.expect && entry.args.expect.invId)) return false;";
+    ok('P-R3 anchor present (once)', WOr.split(a).length === 2);
+    const bad = WOr.replace(a, "if (entry.movedAt !== _rowsMovedAt && !(entry.kind === 'update' && entry.args && entry.args.expect)) return false;");
+    const t = boot(Object.assign(STANDARD(), { offline: true })); const store = {};
+    t.sandbox.localStorage = { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; } };
+    t.sandbox.document = { getElementById: () => null, querySelector: () => null, createElement: () => ({ style: {}, appendChild() {}, setAttribute() {}, addEventListener() {} }), body: { appendChild() {} }, addEventListener() {} };
+    t.sandbox.addEventListener = () => {};
+    vm.runInContext(bad, t.sandbox, { filename: 'write-outbox.js' });
+    try { await t.sandbox.sheetsUpdate(MINE, 'Want-Upgrade List!D7', [['High']], { expect: { tab: 'Want-Upgrade List', row: 7, num: '6464-1', invId: '' } }); } catch (e) {}
+    t.sandbox.rrOutboxRowsMoved();
+    ok('P-R3 PLANTED number-only entries let through after rows moved → R3b would fail', t.sandbox.rrOutboxCanAutoRetry(t.sandbox.rrOutboxList()[0]) === true);
   }
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');

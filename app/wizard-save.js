@@ -1695,6 +1695,7 @@ function _normalizeEnteredItemNum(raw) {
 async function saveWizardItem() {
   const d = wizard.data;
   var _rrSaleKeptNum = '';   // FIND BY ID: set when a sale is saved but its copy could not be taken off My Collection
+  var _rrLeadKept = false;   // review R4 (2026-11-05): the SOLD copy itself was not taken off (a group piece is separate)
   // Guided walkthrough is on screen — never write to the sheet.
   if (typeof document !== 'undefined' && document.getElementById('wiz-coach')) { if (typeof _coachPlaying !== 'undefined') _coachPlaying = false; return; }
   // Guard: prevent any save if a save already completed this wizard session
@@ -1917,6 +1918,15 @@ async function saveWizardItem() {
           // FIND BY ID: the box row where it is NOW — a moved box is updated where
           // it went, never appended a second time.
           var _bxW = await rrWhereIsRow(state.personalSheetId, PERSONAL_TAB, existing.row, existing.itemNum, existing.inventoryId || '');
+          // Review R6 (2026-11-05): Google busy, or the box's id on two rows → stop and
+          // say so. Falling through would APPEND a second box row (a duplicate box once
+          // Google answers). Only a box row that is really gone, or an old row with no
+          // id that moved, gets a new row — as before.
+          if (!_bxW.ok && (_bxW.why === 'busy' || _bxW.why === 'twice')) {
+            var _bxErr = new Error('ROW_MOVED');
+            if (typeof rrRowRefusedWords === 'function') _bxErr.rrWords = rrRowRefusedWords(_bxW, existing.itemNum);
+            throw _bxErr;
+          }
           if (_bxW.ok && !_bxW.offline) existing.row = _bxW.row;
           _bxUpdated = !!_bxW.ok;
           if (_bxUpdated) {
@@ -2524,6 +2534,7 @@ async function saveWizardItem() {
           // say THAT (below, instead of "✓ Added to Sold!") and keep it on screen.
           console.warn('[sold] My Collection row was not removed — the sale is saved, the copy is still owned.');
           _rrSaleKeptNum = collectionEntry.itemNum || itemNum;
+          _rrLeadKept = true;
         } else if (typeof _adjustRowsAfterDelete === 'function') {
           _adjustRowsAfterDelete(state.personalData, _soldGone, PERSONAL_TAB);   // the rows below it moved up
         }
@@ -2531,7 +2542,9 @@ async function saveWizardItem() {
       // Session 176: drop the sold item from state right away so Items-I-Own and the
       // collection list update immediately (don't wait for the background reload).
       // FIND BY ID: only when the sheet really let go of it.
-      if (!_rrSaleKeptNum && _collKey && state.personalData[_collKey]) delete state.personalData[_collKey];
+      // Review R4: by THIS copy's own answer — a group piece the sheet kept does not
+      // keep the sold copy on screen after its row was deleted.
+      if (!_rrLeadKept && _collKey && state.personalData[_collKey]) delete state.personalData[_collKey];
       // Bugfix 2026-04-14: clear any matching For Sale row when an item is marked sold.
       // Wizard sold path used to leave a stale row on the For Sale tab even though the
       // item was also in Sold. Mirror the cleanup that markForSaleAsSold already does.
