@@ -163,7 +163,8 @@ function scanBuilderCalls(files) {
   const ad = all['app-data.js'];
   T('A4 the loader reads them where the headers put them',
     new RegExp('soldTo: _ss\\(r\\[' + H.indexOf('Sold To') + '\\]\\), soldAt: _ss\\(r\\[' + H.indexOf('Sold At') + '\\]\\)').test(ad)
-    && /sheetsGet\(sheetId, 'Sold!A3:' \+ soldEndCol\(\)\)/.test(ad));
+    // audit finding 3 (2026-11-04): Sold is now one range of the load's single request (_rrReadTabs) — still the full width
+    && /'Sold!A3:' \+ soldEndCol\(\),/.test(ad) && /await _rrReadTabs\(sheetId, \[/.test(ad));
 })();
 
 // ── the stand-in spreadsheet ────────────────────────────────────────────────
@@ -238,6 +239,9 @@ async function boot(browser, planted) {
       }
       if (/values:batchGet/.test(u)) {
         const ranges = [...u.matchAll(/ranges=([^&]+)/g)].map(m => decodeURIComponent(m[1]));
+        // audit finding 3 (2026-11-04): the load reads several tabs in ONE request now.
+        // Like Google, one tab that errors fails the whole request.
+        if (S.failGet && ranges.some(r => parse(r).t === S.failGet)) return { ok: false, status: 503, json: async () => ({ error: { code: 503, message: 'The service is currently unavailable.' } }), text: async () => 'unavailable' };
         return ok({ valueRanges: ranges.map(r => ({ range: r, values: get(r) })) });
       }
       if (S.slow && method !== 'GET') await new Promise(r => setTimeout(r, S.slow));   // a slow connection: writes take a while

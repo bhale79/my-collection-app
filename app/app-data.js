@@ -2583,6 +2583,42 @@ function rrForSaleEntryFromRow(r, rowNum) {
 }
 if (typeof window !== 'undefined') window.rrForSaleEntryFromRow = rrForSaleEntryFromRow;
 
+// Audit finding 3 (2026-11-04, four-platform audit P0): one app load made
+// ~18 separate Google reads, and Google allows 60 a minute per person across
+// ALL their devices — two devices loading together ran out, and saves then
+// failed ("too many requests"). Tabs that every sheet has are now read in ONE
+// request (values:batchGet answers them in the order asked). If that one
+// request fails for any reason — a missing tab, an error reply, a network
+// drop — the tabs are read one by one exactly as before, so a failure costs
+// what it always did and nothing new can go wrong.
+async function _rrReadTabs(sheetId, ranges, labels) {
+  const _failAll = function (why) {
+    return ranges.map(function (r, i) { console.warn('[' + labels[i] + ' load failed]', why); return { values: [], _failed: true }; });
+  };
+  const _busy = function (m) { return /\b429\b|Quota exceeded|RESOURCE_EXHAUSTED|rate limit/i.test(String(m || '')); };
+  try {
+    const bg = await sheetsBatchGet(sheetId, ranges);
+    const vr = (bg && !bg.error && Array.isArray(bg.valueRanges)) ? bg.valueRanges : null;
+    if (vr && vr.length === ranges.length && vr.every(function (v) { return v && typeof v.range === 'string'; })) {
+      // an empty tab answers { range } with no values — the same shape a single read gives
+      return vr.map(function (v) { return Object.assign({ values: [] }, v); });
+    }
+    const _em = bg && bg.error ? (bg.error.message || bg.error.status || bg.error.code || '') : '';
+    // Google is out of reads for this minute: reading tab by tab would only
+    // spend more. Each tab is "not read" — what is on screen is kept, exactly
+    // as when each single read failed.
+    if (bg && bg.error && (bg.error.code === 429 || _busy(_em))) return _failAll('Google is busy (too many requests): ' + _em);
+    console.warn('[Personal load] one-request read did not answer every tab — reading them one by one', _em);
+  } catch (e) {
+    if (_busy(e && e.message)) return _failAll(e && e.message);
+    console.warn('[Personal load] one-request read failed — reading the tabs one by one:', e && e.message);
+  }
+  return Promise.all(ranges.map(function (r, i) {
+    return sheetsGet(sheetId, r).catch(function (e) { console.warn('[' + labels[i] + ' load failed]', e && e.message); return { values: [], _failed: true }; });
+  }));
+}
+if (typeof window !== 'undefined') window._rrReadTabs = _rrReadTabs;
+
 async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   // Use temporary objects — only commit to state if fetch succeeds
   // This prevents a failed/slow fetch from wiping items that were just saved
@@ -2602,16 +2638,18 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   // Primary tabs (5) are needed immediately for dashboard + list pages.
   // Secondary tabs (8) are loaded after primary commits state so UI renders
   // faster. Total wait time drops from max-of-13-fetches to max-of-5.
-  const [collRes, soldRes, forSaleRes, wishlistRes] = await Promise.all([
+  // Audit finding 3: the four primary tabs in ONE request (_rrReadTabs —
+  // tab by tab only if that fails). Ranges unchanged.
+  const [collRes, soldRes, forSaleRes, wishlistRes] = await _rrReadTabs(sheetId, [
     // v0.9.989 (unified inventory Phase 1): read range is schema-driven. The old
     // hardcoded A3:AF (32 cols) silently DROPPED the last 3 schema columns —
     // gauge, dateAdded, purchasedFrom were saved but never loaded (why the
     // Date Added column always showed "—").
-    sheetsGet(sheetId, PERSONAL_TAB + '!A3:' + personalColLetter(PERSONAL_SCHEMA[PERSONAL_SCHEMA.length - 1].field)).catch((e) => { console.warn('[My Collection load failed]', e && e.message); return {values:[], _failed:true}; }),
-    sheetsGet(sheetId, 'Sold!A3:' + soldEndCol()).catch((e) => { console.warn('[Sold load failed]', e && e.message); return {values:[], _failed:true}; }),
-    sheetsGet(sheetId, 'For Sale!A3:J').catch((e) => { console.warn('[For Sale load failed]', e && e.message); return {values:[], _failed:true}; }),
-    sheetsGet(sheetId, 'Want-Upgrade List!A3:I').catch((e) => { console.warn('[Want-Upgrade load failed]', e && e.message); return {values:[], _failed:true}; }),
-  ]);
+    PERSONAL_TAB + '!A3:' + personalColLetter(PERSONAL_SCHEMA[PERSONAL_SCHEMA.length - 1].field),
+    'Sold!A3:' + soldEndCol(),
+    'For Sale!A3:J',
+    'Want-Upgrade List!A3:I',
+  ], ['My Collection', 'Sold', 'For Sale', 'Want-Upgrade']);
   // v0.9.2058 (collections, rule 3): the collection changed while this read
   // was out — its answer is another collection's lists. Drop it.
   if (typeof rrLoadIsStale === 'function' && rrLoadIsStale(sheetId)) { console.warn('[Personal load] collection changed during the read — answer dropped'); return; }
@@ -2634,6 +2672,13 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   // this device while it runs makes the read older than the list (rrPartsTake).
   const _partsGen0 = (typeof rrPartsGen === 'function') ? rrPartsGen() : null;
   // Secondary tabs fire off in parallel, NOT awaited in the main flow
+  // Audit finding 3: the four set / instruction-sheet tabs (made at sign-in by
+  // ensureEphemeraSheets) in ONE request. Parts Needed and Contacts stay
+  // separate: a new account has neither tab yet, and one missing tab fails a
+  // whole one-request read.
+  const _setTabs = _rrReadTabs(sheetId,
+    ['Instruction Sheets!A3:K', 'Science Sets!A3:O', 'Construction Sets!A3:O', 'My Sets!A3:N'],
+    ['Instruction Sheets', 'Science Sets', 'Construction Sets', 'My Sets']);
   const _secondaryFetch = Promise.all([
     // v0.9.992 (unified inventory Phase 5): the four ephemera tabs are
     // LEGACY-renamed and their items live in My Collection now — skip the
@@ -2643,10 +2688,10 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     Promise.resolve({values:[]}),   // Paper Items — retired (unified inventory)
     Promise.resolve({values:[]}),   // Mock-Ups — retired (unified inventory)
     Promise.resolve({values:[]}),   // the fourth section's old tab (Memorabilia; "Other Lionel" before v0.9.1843) — retired (unified inventory)
-    sheetsGet(sheetId, 'Instruction Sheets!A3:K').catch((e) => { console.warn('[Instruction Sheets load failed]', e && e.message); return {values:[], _failed:true}; }),
-    sheetsGet(sheetId, 'Science Sets!A3:O').catch((e) => { console.warn('[Science Sets load failed]', e && e.message); return {values:[], _failed:true}; }),
-    sheetsGet(sheetId, 'Construction Sets!A3:O').catch((e) => { console.warn('[Construction Sets load failed]', e && e.message); return {values:[], _failed:true}; }),
-    sheetsGet(sheetId, 'My Sets!A3:N').catch((e) => { console.warn('[My Sets load failed]', e && e.message); return {values:[], _failed:true}; }),
+    _setTabs.then(function (a) { return a[0]; }),   // Instruction Sheets
+    _setTabs.then(function (a) { return a[1]; }),   // Science Sets
+    _setTabs.then(function (a) { return a[2]; }),   // Construction Sets
+    _setTabs.then(function (a) { return a[3]; }),   // My Sets
     // v0.9.827 (Brad): Parts + Contacts join the offline snapshot — small
     // lists you want at a train show (part numbers, dealer phone numbers).
     sheetsGet(sheetId, 'Parts Needed!A3:M').catch((e) => { console.warn('[Parts Needed load failed]', e && e.message); return {values:[], _failed:true}; }),
@@ -2824,8 +2869,15 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   // The Phase 2e conditional retry didn't fire — too restrictive. Now we
   // always log the initial state and retry if empty.
   console.log('[Wishlist load] initial state has', Object.keys(state.upgradeData).length, 'upgrade entries; fetch returned', (wishlistRes.values || []).length, 'rows');
+  // Audit finding 3: this re-read ran on EVERY load where the person has no
+  // Upgrade entries (most people) — one more read each time, for nothing.
+  // It now runs only when there is something to heal: the read did not land,
+  // or it landed WITH Upgrade rows and none reached the list.
+  const _ugRowsRead = (wishlistRes.values || []).filter(function (r) { return r && String(r[2] == null ? '' : r[2]).toLowerCase() === 'upgrade'; }).length;
+  const _ugReadLanded = _plAnswered(wishlistRes);
   setTimeout(function() {
     if (Object.keys(state.upgradeData).length > 0) return;
+    if (_ugReadLanded && _ugRowsRead === 0) return;   // the sheet holds no Upgrade rows — nothing to heal
     console.log('[Upgrade self-heal] state empty after load — retrying fetch...');
     sheetsGet(sheetId, 'Want-Upgrade List!A3:I').then(function(retryRes) {
       console.log('[Upgrade self-heal] retry returned', (retryRes.values || []).length, 'rows');
