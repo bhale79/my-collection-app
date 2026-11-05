@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2108';
+const APP_VERSION = 'v0.9.2109';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -1788,10 +1788,11 @@ const ERAS = {
   // v0.9.1686 (Session 90, Brad's tab plan for the Greenberg AF 2017 guide):
   // three S-gauge makers get their own eras + tabs — A.C. Gilbert's
   // original American Flyer line (1946-66, plus its catalogs and paper),
-  // American Models (1981-), and S-Helper Service (1994-2012).
+  // American Models (1981-), and S-Helper Service (1990-2012 — NASG dates S-Helper's first
+  // trucks 1990, before its 1994 cars; Brad 2026-11-04 "Widen it").
   af_gilbert: { id: 'af_gilbert', label: 'American Flyer S (Gilbert)', years: '1946-1966', prefix: 'American Flyer', manufacturer: 'A.C. Gilbert' },
   am_s:       { id: 'am_s',       label: 'American Models S',          years: 'All',       prefix: 'American Models', manufacturer: 'American Models' },
-  shelper:    { id: 'shelper',    label: 'S-Helper Service S',         years: '1994-2012', prefix: 'S-Helper',        manufacturer: 'S-Helper Service' },
+  shelper:    { id: 'shelper',    label: 'S-Helper Service S',         years: '1990-2012', prefix: 'S-Helper',        manufacturer: 'S-Helper Service' },
   // v0.9.1690 (Session 90, Brad: "can we get marklin trains?"): Maerklin's
   // own product database (maerklin.de/en/service/product-database) is the
   // source — three gauges, three tabs, the house rule. LGB is Maerklin-owned
