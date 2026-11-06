@@ -2714,11 +2714,20 @@ function _allScaleIds() {
 // one collected line is in it. The old stored scale list is read only by
 // _legacyEnabledScales, to convert a pre-v1909 save.
 function _getEnabledScales() {
-  var out = [];
+  // rosstab (2026-11-05, [stated] Brad "Yes, don't add scales"): a catalog whose
+  // scale is blank ON PURPOSE (GarGraves — sold in six scales — Bachmann All
+  // Scales, Kato parts) is still picked under each of its scales, but it does
+  // not WIDEN the Scale picker: an HO-only collector who gets GarGraves with
+  // the HO button is offered HO alone (the v0.9.1812 rule), and sees GarGraves's
+  // HO track by each row's own gauge. Only when such catalogs are ALL a member
+  // collects do their scales count, so the picker is never left empty.
+  var out = [], mixed = [];
   rrCollectedLines().forEach(function (e) {
-    rrLineScales(e).forEach(function (s) { if (out.indexOf(s) < 0) out.push(s); });
+    var blank = (typeof ERA_SCALE !== 'undefined') && Object.prototype.hasOwnProperty.call(ERA_SCALE, e) && !ERA_SCALE[e];
+    var into = blank ? mixed : out;
+    rrLineScales(e).forEach(function (s) { if (into.indexOf(s) < 0) into.push(s); });
   });
-  return out;
+  return out.length ? out : mixed;
 }
 function _isScaleEnabled(scaleId) {
   if (!scaleId) return true; // unknown scale -> don't hide
@@ -3013,7 +3022,7 @@ if (typeof window !== 'undefined') { window.rrAlsoSoldAsNames = rrAlsoSoldAsName
 // Brand LABEL for an item, derived from the master catalog (Lionel/MTH/Atlas/...).
 // Single source of truth for 'what brand is this item' on every SAVE path.
 // Returns '' when the item isn't in the catalog (manual entry) so callers fall back.
-var _BRAND_LABELS = { lionel:'Lionel', mth:'MTH', atlas:'Atlas', menards:'Menards', '3rd rail':'3rd Rail', thirdrail:'3rd Rail', sunset:'3rd Rail', 'usa trains':'USA Trains', usatrains:'USA Trains', lgb:'LGB', williams:'Williams', weaver:'Weaver', rmt:'RMT', kline:'K-Line', 'k-line':'K-Line', 'k line':'K-Line', marx:'Marx', ives:'Ives', american:'American Flyer', 'american flyer':'American Flyer' };
+var _BRAND_LABELS = { lionel:'Lionel', mth:'MTH', atlas:'Atlas', menards:'Menards', '3rd rail':'3rd Rail', thirdrail:'3rd Rail', sunset:'3rd Rail', 'usa trains':'USA Trains', usatrains:'USA Trains', lgb:'LGB', williams:'Williams', weaver:'Weaver', rmt:'RMT', kline:'K-Line', 'k-line':'K-Line', 'k line':'K-Line', marx:'Marx', ives:'Ives', american:'American Flyer', 'american flyer':'American Flyer', 'ross custom switches':'Ross Custom Switches', gargraves:'GarGraves' };   // rosstab: else the fallback saves "Ross custom switches" / "Gargraves"
 function _brandLabel(key) {
   if (!key) return '';
   var k = String(key).toLowerCase().trim();

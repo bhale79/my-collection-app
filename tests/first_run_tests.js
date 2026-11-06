@@ -123,7 +123,8 @@ function T(n, cond, detail) { console.log((cond ? 'PASS' : 'FAIL') + '  ' + n + 
     return { on, pressed: chip && chip.getAttribute('aria-pressed'), saveOff: document.getElementById('onboarding-era-save').disabled };
   }, id);
   const o1 = await pick('O');
-  const wantO = ['prewar', 'pw', 'mpc', 'atlas', 'mth_o', 'mth_tinplate', 'weaver', 'rmt', 'menards', 'thirdrail', 'kline', 'williams', 'marx', 'other_o', 'bachmann_o'];
+  const wantO = ['prewar', 'pw', 'mpc', 'atlas', 'mth_o', 'mth_tinplate', 'weaver', 'rmt', 'menards', 'thirdrail', 'kline', 'williams', 'marx', 'other_o', 'bachmann_o',
+    'ross', 'gargraves'];   // rosstab 2026-11-05: Ross Custom Switches (O) and GarGraves (O among its six scales, [stated] Brad "Under all six scales")
   T('C5  tapping O ticks every maker\'s O line (Pre-War and MTH Tinplate too — both O and Standard)', wantO.every(k => o1.on.indexOf(k) >= 0), wantO.filter(k => o1.on.indexOf(k) < 0));
   T('C6  …and nothing that is not O (no HO, no On30)', o1.on.every(k => wantO.indexOf(k) >= 0), o1.on.filter(k => wantO.indexOf(k) < 0));
   T('C7  …the O button shows as on, and Save comes on', o1.pressed === 'true' && o1.saveOff === false, o1);
@@ -133,7 +134,7 @@ function T(n, cond, detail) { console.log((cond ? 'PASS' : 'FAIL') + '  ' + n + 
     onboardScaleToggle('Standard'); onboardScaleToggle('O');   // Standard on, then O off
     return Array.from(document.querySelectorAll('#onboarding-era-rows input[data-era]')).filter(b => b.checked).map(b => b.getAttribute('data-era'));
   });
-  T('C7c with Standard also on, turning O off keeps the lines Standard still wants', JSON.stringify(both.sort()) === JSON.stringify(['mth_tinplate', 'prewar']), both);
+  T('C7c with Standard also on, turning O off keeps the lines Standard still wants', JSON.stringify(both.sort()) === JSON.stringify(['gargraves', 'mth_tinplate', 'prewar']), both);   // rosstab: GarGraves sells Standard track too, so Standard keeps it
   await pg.evaluate(() => { onboardScaleToggle('Standard'); onboardScaleToggle('O'); });   // back to: O on only
   const o2 = await pick('O');
   T('C8  tapping O again unticks them all', o2.on.length === 0 && o2.pressed === 'false', o2);

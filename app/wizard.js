@@ -448,7 +448,15 @@ function _wizRowFitsFilters(m, f) {
       var bt = (typeof getTypeBucketLabel === 'function') ? getTypeBucketLabel(m) : String(m.itemType || '').trim();
       if (bt !== f.type) return false;
     }
-    if (f.scale && _wizScaleOfRow(m) !== f.scale) return false;
+    if (f.scale && _wizScaleOfRow(m) !== f.scale) {
+      // rosstab (2026-11-05): a catalog whose scale is blank ON PURPOSE (GarGraves,
+      // Bachmann All Scales, Kato parts — several scales on one tab) answers with
+      // the ROW's own Gauge, exactly as the Master Catalog does (_scalesOfGauge).
+      // Before, every one of its rows failed any Scale pick here, so GarGraves's
+      // 101 vanished under Scale O while the Master Catalog showed it.
+      var _blankOnPurpose = !!(m && m._era && typeof ERA_SCALE !== 'undefined' && Object.prototype.hasOwnProperty.call(ERA_SCALE, m._era) && !ERA_SCALE[m._era]);
+      if (!_blankOnPurpose || typeof _scalesOfGauge !== 'function' || _scalesOfGauge(m.gauge).indexOf(String(f.scale).toLowerCase()) < 0) return false;
+    }
     if (f.road && String(m.roadName || '').trim() !== f.road) return false;
   } catch (e) {}
   return true;

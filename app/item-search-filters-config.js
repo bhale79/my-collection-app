@@ -137,6 +137,7 @@ window.ITEM_SEARCH_FILTERS = {
     'mth', 'lionel', 'atlas', 'weaver', 'williams', 'rmt', 'k-line', 'kline',
     'menards', 'bachmann', 'premier', 'railking', 'rail-king', 'tinplate',
     '3rd', 'rail', 'sunset', 'lgb',
+    'gargraves',   // rosstab (2026-11-05): a maker word — "101 gargraves" means GarGraves's 101. ("ross" is NOT here: Betsy Ross; wizard-suggestions.js decides it)
     'standard', 'o', 'ho', 's', 'g', 'gauge', 'scale', 'the', 'by',
   ],
 };

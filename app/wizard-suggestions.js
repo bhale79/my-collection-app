@@ -298,7 +298,17 @@ function updateItemSuggestions(query) {
     // 2026-11-02: the number token itself is never a description word, in
     // whichever form it was typed ("6-31705" gave the search 31705, then asked
     // the description for "6-31705" too — and found nothing).
-    const keyParts = qParts.filter(p => p && p !== _searchNum && rrNumLinePrefixOff(p) !== _searchNum && !_stopWords.has(p));
+    // rosstab (2026-11-05): "ross" is also a road and a name (Betsy Ross), so it
+    // names the maker Ross Custom Switches ONLY beside a number ("902 ross") or
+    // in the maker's own words ("ross custom", "ross switches") — never on its
+    // own in a word search, where "betsy ross" must keep finding the Betsy Ross car.
+    const _rossPhrase = /(^|\s)ross\s+(custom|switch|switches)(\s|$)/.test(q);
+    // Beside a number it counts only when it is the ONLY other word ("902 ross") —
+    // "19999 betsy ross" is a description, and must never save as Ross.
+    const _rossBesideNum = startsWithDigit && (function () { var o = qParts.filter(function (p) { return p && p !== _searchNum && !(rrNumLinePrefixOff(p) === _searchNum); }); return o.length === 1 && o[0] === 'ross'; })();   // (written apart from keyParts' test below, which line_prefix_number_tests plants by its exact text)
+    const _rossAsMaker = (_rossBesideNum || _rossPhrase) && qParts.indexOf('ross') >= 0;
+    const _rossWords = _rossAsMaker ? (_rossPhrase ? ['ross', 'custom', 'switch', 'switches'] : ['ross']) : [];
+    const keyParts = qParts.filter(p => p && p !== _searchNum && rrNumLinePrefixOff(p) !== _searchNum && !_stopWords.has(p) && _rossWords.indexOf(p) < 0);
     // Session 157: for a pure-text search, strip ONLY stop words (maker /
     // line / filler words like "weaver", "lionel", "gauge") and keep every
     // real description word, including the first one. keyParts must NOT be
@@ -317,10 +327,11 @@ function updateItemSuggestions(query) {
     // Session 172: typed maker/period words act as FILTERS (so "lionel seaboard"
     // shows only Lionel and "postwar hudson" only Postwar) instead of being
     // ignored. Recognized words are pulled out of the text match below.
-    var _MFR_WORDS = { lionel:'Lionel', atlas:'Atlas', mth:'MTH', weaver:'Weaver', rmt:'RMT', williams:'Williams', marx:'Marx', menards:'Menards', '3rd rail':'3rd Rail', sunset:'3rd Rail', 'usa trains':'USA Trains', lgb:'LGB', bachmann:'Bachmann', kline:'K-Line', 'k-line':'K-Line' };
+    var _MFR_WORDS = { lionel:'Lionel', atlas:'Atlas', mth:'MTH', weaver:'Weaver', rmt:'RMT', williams:'Williams', marx:'Marx', menards:'Menards', '3rd rail':'3rd Rail', sunset:'3rd Rail', 'usa trains':'USA Trains', lgb:'LGB', bachmann:'Bachmann', kline:'K-Line', 'k-line':'K-Line', gargraves:'GarGraves' };   // rosstab: "101 gargraves" filters to GarGraves ("ross" is handled above — only beside a number or in its own words)
     var _PERIOD_WORDS = { prewar:'prewar', 'pre-war':'prewar', postwar:'postwar', 'post-war':'postwar', modern:'modern' };
     var _typedMfr = '', _typedPeriod = '';
     qParts.forEach(function(p){ if (_MFR_WORDS[p]) _typedMfr = _MFR_WORDS[p]; if (_PERIOD_WORDS[p]) _typedPeriod = _PERIOD_WORDS[p]; });
+    if (_rossAsMaker && !_typedMfr) _typedMfr = 'Ross Custom Switches';   // rosstab: see _rossAsMaker above
     var _effMfr = _filterMfr || _typedMfr;   // dropdown filter wins, else typed word
     var _effPeriod = _filterPeriod || _typedPeriod;   // Session 176: Era dropdown wins, else typed period word
     // v0.9.1463: stash the recognized typed period word so the "✓ Found"
@@ -336,7 +347,7 @@ function updateItemSuggestions(query) {
     // The filters this scan answers to — read ONCE, asked of every row below.
     var _fits = (typeof _wizRowFitsFilters === 'function') ? _wizRowFitsFilters : null;
     var _fset = (typeof _wizAddFilters === 'function') ? _wizAddFilters() : null;
-    var _searchParts = qParts.filter(function(p){ return p && !_stopWords.has(p) && !_MFR_WORDS[p] && !_PERIOD_WORDS[p]; });
+    var _searchParts = qParts.filter(function(p){ return p && !_stopWords.has(p) && !_MFR_WORDS[p] && !_PERIOD_WORDS[p] && _rossWords.indexOf(p) < 0; });
 
     // Session 115 fix: era scope guard. If the wizard has a selected era
     // (set at wizard start or via the era pill), restrict suggestions to
@@ -404,6 +415,12 @@ function updateItemSuggestions(query) {
       var _dedupFields = (window.ITEM_SEARCH_FILTERS && window.ITEM_SEARCH_FILTERS.dedupKeyFields)
         || ['itemNum', 'roadName'];
       var _dedupeKey = _dedupFields.map(function(f) { return (m[f] || ''); }).join('|');
+      // rosstab (2026-11-05, [stated] Brad "Yes, one row per maker"): two MAKERS'
+      // rows never merge — Lionel's 902 Elevated Trestle and Ross's 902 Mating Pins
+      // share number, type and a blank road, so the list showed Lionel's alone.
+      // Keyed on the maker (not the catalog), so Lionel postwar and modern still
+      // merge exactly as before.
+      _dedupeKey += '|' + _sgMakerOfRow(m);
       if (!seen.has(_dedupeKey)) {
         seen.add(_dedupeKey);
         const road = m.roadName || '';
@@ -1643,3 +1660,15 @@ function _wizLocAddNew() {
   _wizLocToggleAdd(false);
   if (typeof showToast === 'function') showToast('Added ' + name);
 }
+
+// rosstab (2026-11-05): the maker a catalog row belongs to, for the Add list's
+// one-row-per-maker rule — the SAME answer the row's maker tag and the Maker
+// filter give (rrRowMakerWord: the row's own Manufacturer cell, else its
+// catalog's maker), folded to letters and digits so "3rd Rail" = "3rd rail".
+function _sgMakerOfRow(m) {
+  try {
+    var w = (typeof rrRowMakerWord === 'function') ? rrRowMakerWord(m) : ((m && m.manufacturer) || '');
+    return String(w || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  } catch (x) { return ''; }
+}
+if (typeof window !== 'undefined') window._sgMakerOfRow = _sgMakerOfRow;

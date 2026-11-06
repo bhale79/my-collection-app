@@ -367,5 +367,39 @@ T('regression: 9099 scale hint still HO',
   T('zero: 01511 with Postwar named -> nothing', _findMasterCore(Z, '01511', null, { eras: ['pw'] }), null);
 }
 
+// ── CANARY: Ross Custom Switches (rosstab, 2026-11-05) — a new catalog, so its
+// collisions are here: Ross's 902 Mating Pins and Lionel's 902 Elevated Trestle,
+// Ross's 120 and Lionel's 120 Super-O crossing, and Ross's own 0100 / 100 pair.
+// Rows as the live master holds them (tests/fixtures/rosstab_tabs_2026-11-05.json).
+{
+  const L902 = { itemNum: '902', _era: 'pw', _tab: 'Lionel PW - Items', itemType: 'Accessory', description: 'Elevated Trestle Set' };
+  const R902 = { itemNum: '902', _era: 'ross', _tab: 'Ross Custom Switches', itemType: 'Accessory', description: '#902 Gauge Mating Pins' };
+  const L120 = { itemNum: '120', _era: 'pw', _tab: 'Lionel PW - Items', itemType: 'Track', description: 'Super-O 90-Degree Crossing' };
+  const R120 = { itemNum: '120', _era: 'ross', _tab: 'Ross Custom Switches', itemType: 'Track', description: 'Ross 120' };
+  const R0100 = { itemNum: '0100', _era: 'ross', _tab: 'Ross Custom Switches', itemType: 'Track', description: 'Ross 0100' };
+  const R100 = { itemNum: '100', _era: 'ross', _tab: 'Ross Custom Switches', itemType: 'Track', description: 'Ross 100' };
+  const X = new Map([['902', [L902, R902]], ['120', [L120, R120]], ['0100', [R0100]], ['100', [R100]]]);
+  ERA_TABS.pw = { items: 'Lionel PW - Items' }; ERA_TABS.ross = { items: 'Ross Custom Switches' };   // as config.js names them
+  global.ERAS7.ross = 'Ross Custom Switches';                                                         // canary 7's maker map, + Ross
+  T('ross: 902 + maker Ross -> the Ross row', (_findMasterCore(X, '902', null, { manufacturer: 'Ross Custom Switches' }) || {})._era, 'ross');
+  T('ross: 902 + maker Lionel -> the Lionel row', (_findMasterCore(X, '902', null, { manufacturer: 'Lionel' }) || {})._era, 'pw');
+  T('ross: 902 + Postwar named -> the Lionel row', (_findMasterCore(X, '902', null, { era: 'pw' }) || {})._era, 'pw');
+  T('ross: 902 + Ross named -> the Ross row', (_findMasterCore(X, '902', null, { era: 'ross' }) || {})._era, 'ross');
+  T('ross: 120 + Ross named -> the Ross row', (_findMasterCore(X, '120', null, { era: 'ross' }) || {})._era, 'ross');
+  T('ross: 120 + Postwar named -> the Lionel row', (_findMasterCore(X, '120', null, { era: 'pw' }) || {})._era, 'pw');
+  const Y = new Map([['902', [R902, L902]]]);   // Ross FIRST in load order — the answers must not move
+  T('ross: 902, Ross loaded first, maker Lionel -> still Lionel', (_findMasterCore(Y, '902', null, { manufacturer: 'Lionel' }) || {})._era, 'pw');
+  T('ross: 902, Ross loaded first, Postwar named -> still Lionel', (_findMasterCore(Y, '902', null, { era: 'pw' }) || {})._era, 'pw');
+  T('ross: 0100 stays 0100', (_findMasterCore(X, '0100', null, { era: 'ross' }) || {}).itemNum, '0100');
+  T('ross: 100 stays 100', (_findMasterCore(X, '100', null, { era: 'ross' }) || {}).itemNum, '100');
+  // the Add list's pick under the maker filter
+  const saveMD = state.masterData; state.masterData = [L902, R902];
+  wizard.data = { _searchFilterManufacturer: 'Ross Custom Switches' };
+  T('ross: Add pick 902 under maker Ross -> the Ross row', (_wizPickMasterRow('902') || {})._era, 'ross');
+  wizard.data = { _searchFilterManufacturer: 'Lionel' };
+  T('ross: Add pick 902 under maker Lionel -> the Lionel row', (_wizPickMasterRow('902') || {})._era, 'pw');
+  state.masterData = saveMD; wizard.data = {}; delete ERA_TABS.pw; delete ERA_TABS.ross;
+}
+
 console.log(fails ? ('\n' + fails + ' CANARY FAILURE(S) — a lookup path regressed.') : '\nALL CANARIES GREEN');
 process.exit(fails ? 1 : 0);

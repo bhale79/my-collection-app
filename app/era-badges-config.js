@@ -66,6 +66,8 @@ const ERA_BADGES = {
     bachmann_on30:  'BO30',
     bachmann_hon30: 'BH30',
     bachmann_all:   'BAS',
+    ross:           'ROSS',   // rosstab: Ross Custom Switches
+    gargraves:      'GAR',    // rosstab: GarGraves
     // Session 86: Menards per-scale split ('MENARDS_HO' uppercased is noise).
     menards_ho:     'MNHO',
   },

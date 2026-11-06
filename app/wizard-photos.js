@@ -2591,7 +2591,7 @@ function _eraForMfr(mfr) {
   var m = String(mfr || '').trim().toLowerCase();
   // Session 85: Aristo-Craft and Accucraft are unambiguous (one era each);
   // Bachmann spans five eras so it stays ambiguous, like Lionel/Williams.
-  var map = { atlas: 'atlas', weaver: 'weaver', rmt: 'rmt', menards: 'menards', /* S86: O stays the hint — dominant tab (705 vs 64 rows), the mth->mth_o pattern */ '3rd rail': 'thirdrail', 'sunset models': 'thirdrail', 'usa trains': 'usatrains', lgb: 'lgb', mth: 'mth_o', williams: '', 'k-line': '', 'aristo-craft': 'aristocraft', aristocraft: 'aristocraft', accucraft: 'accucraft', bachmann: '' };
+  var map = { atlas: 'atlas', weaver: 'weaver', rmt: 'rmt', menards: 'menards', /* S86: O stays the hint — dominant tab (705 vs 64 rows), the mth->mth_o pattern */ '3rd rail': 'thirdrail', 'sunset models': 'thirdrail', 'usa trains': 'usatrains', lgb: 'lgb', mth: 'mth_o', williams: '', 'k-line': '', 'aristo-craft': 'aristocraft', aristocraft: 'aristocraft', accucraft: 'accucraft', bachmann: '', 'ross custom switches': 'ross', ross: 'ross', gargraves: 'gargraves', 'gar graves': 'gargraves' };   // rosstab
   return map[m] || '';
 }
 

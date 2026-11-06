@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2116';
+const APP_VERSION = 'v0.9.2117';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -1124,7 +1124,9 @@ const RR_MAKER_ALIASES = {                // spelling on the submission → the 
   'lionel trains': 'lionel', 'american flyer': 'a.c. gilbert', 'a. c. gilbert': 'a.c. gilbert',
   'atlas o': 'atlas', 'atlas model railroad': 'atlas', 'weaver models': 'weaver', 'rmt (ready made toys)': 'rmt',
   'ready made toys': 'rmt', 'menards inc': 'menards', '3rd rail division of sunset models': '3rd rail',
-  'usa trains': 'usa trains', 'lgb of america': 'lgb', 'aristocraft': 'aristo-craft', 'aristo craft': 'aristo-craft'
+  'usa trains': 'usa trains', 'lgb of america': 'lgb', 'aristocraft': 'aristo-craft', 'aristo craft': 'aristo-craft',
+  'ross': 'ross custom switches', 'ross switches': 'ross custom switches',   // rosstab
+  'gar graves': 'gargraves', 'gargraves trackage': 'gargraves'                 // rosstab: GarGraves
 };
 // Words are matched whole (word boundaries), case-insensitive. Keep them lowercase.
 const RR_PRESORT_WORDS = {
@@ -1199,7 +1201,12 @@ const RR_MAKER_WORDS = [
   [/s[\s\-]?helper/i, 's-helper service', 'S-Helper Service'],
   [/t[\s\-]?reproductions/i, 't-reproductions', 'T-Reproductions'],
   [/aristo[\s\-]?craft/i, 'aristo-craft', 'Aristo-Craft'],
-  [/\baccucraft\b/i, 'accucraft', 'Accucraft']
+  [/\baccucraft\b/i, 'accucraft', 'Accucraft'],
+  // rosstab (2026-11-05): "Ross" alone only when it IS the whole maker field — inside a
+  // longer text (a photo read's whole answer) it needs "Ross Custom" or "Ross Switches",
+  // so a road or person named Ross never reads as the maker.
+  [/^\s*ross\s*$|\bross\s+custom\b|\bross\s+switch(?:es)?\b/i, 'ross custom switches', 'Ross Custom Switches'],
+  [/\bgar[\s\-]?graves\b/i, 'gargraves', 'GarGraves']   // rosstab: GarGraves Trackage
 ];
 // Words that sit where a maker goes but name a product LINE or nothing at all.
 // "Premier" is MTH's top line AND Atlas's — it can never settle a brand, so it
@@ -1931,9 +1938,23 @@ const ERAS = {
   bachmann_on30:  { id: 'bachmann_on30',  label: 'Bachmann On30',      years: 'All', prefix: 'Bachmann On30',       manufacturer: 'Bachmann' },
   bachmann_hon30: { id: 'bachmann_hon30', label: 'Bachmann HOn30',     years: 'All', prefix: 'Bachmann HOn30',      manufacturer: 'Bachmann' },
   bachmann_all:   { id: 'bachmann_all',   label: 'Bachmann All Scales', years: 'All', prefix: 'Bachmann All Scales', manufacturer: 'Bachmann' },
+  // rosstab (2026-11-05, [stated] Brad "yes" to PLAN_2026-11-05_ROSS_TAB): Ross Custom
+  // Switches — O-gauge track, switches and accessories. The master tab "Ross Custom
+  // Switches" (215 rows, rossswitches.com) was imported 2026-11-03 but no list named it,
+  // so the app never loaded it (Lars's RB2024 track-cleaning car was invisible). Ross
+  // gives no years — 'All', not an invented range. label = prefix = the tab's name, so
+  // _rrCatalogRowMaker's tab-prefix match finds the maker.
+  ross:           { id: 'ross',           label: 'Ross Custom Switches', years: 'All', prefix: 'Ross Custom Switches', manufacturer: 'Ross Custom Switches' },
+  // rosstab, part 2 ([stated] Brad "Yes, add GarGraves too"): GarGraves — flexible
+  // track, switches and accessories, every product on gargraves.com (521 rows, tab
+  // "GarGraves", written 2026-11-05 by the catalog-approval chat). It sells O, S, G,
+  // HO, N, OO and Standard on one tab, so ERA_SCALE is blank on purpose (each row's
+  // Gauge column says which, the bachmann_all pattern) and ERA_SCALES_MULTI lists the
+  // scales its line belongs to in What I Collect. No years from the maker — 'All'.
+  gargraves:      { id: 'gargraves',      label: 'GarGraves',            years: 'All', prefix: 'GarGraves',            manufacturer: 'GarGraves' },
 };
 // Real-era IDs in load priority order (excluding 'all' meta-era).
-const REAL_ERA_IDS = ['pw', 'mpc', 'mod_ho', 'mod_s', 'af_gilbert', 'am_s', 'shelper', 'prewar', 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'marklin_h0', 'marklin_z', 'marklin_1', 'kato_n', 'kato_ho', 'kato_parts', 'microtrains_n', 'trepro', 'lionel_parts', 'mth_parts', 'traintender_parts', 'lionelstore_parts', 'atlas_parts', 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb', 'kline', 'williams', 'marx', 'other_o', 'aristocraft', 'accucraft', 'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o', 'bachmann_on30', 'bachmann_hon30', 'bachmann_all'];
+const REAL_ERA_IDS = ['pw', 'mpc', 'mod_ho', 'mod_s', 'af_gilbert', 'am_s', 'shelper', 'prewar', 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'marklin_h0', 'marklin_z', 'marklin_1', 'kato_n', 'kato_ho', 'kato_parts', 'microtrains_n', 'trepro', 'lionel_parts', 'mth_parts', 'traintender_parts', 'lionelstore_parts', 'atlas_parts', 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb', 'kline', 'williams', 'marx', 'other_o', 'aristocraft', 'accucraft', 'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o', 'bachmann_on30', 'bachmann_hon30', 'bachmann_all', 'ross', 'gargraves'];
 // v0.9.1749: eras that exist for LOOKUPS ONLY. They are in REAL_ERA_IDS (so
 // the background full-catalog index fetches and caches them, and the
 // Yardmaster can file rows into their tab) but _isEraEnabled says no for
@@ -1958,6 +1979,8 @@ const ERA_SCALE = {
   prewar: 'Standard', mth_tinplate: 'Standard',
   pw: 'O', mpc: 'O', mod_ho: 'HO', mod_s: 'S', atlas: 'O', mth_o: 'O', weaver: 'O', rmt: 'O', menards: 'O', menards_ho: 'HO', thirdrail: 'O',
   kline: 'O', williams: 'O', marx: 'O', other_o: 'O',
+  ross: 'O',   // rosstab — O gauge (one row is O-27; the row's Gauge column says so)
+  gargraves: '',   // rosstab — O, S, G, HO, N, OO and Standard on one tab; blank on purpose (the row's Gauge column says which)
   usatrains: 'g', lgb: 'g',
   // Session 85 (Phase C). On30/HOn30 are their own scales (Brad: "a
   // different thing to shop for"); bachmann_all is track/tools/scenery
@@ -1992,7 +2015,8 @@ if (typeof window !== 'undefined') window.ERA_SCALE = ERA_SCALE;
 // Menards sells O and HO lines (Brad, same session) -- one catalog for now.
 // Session 86: menards REMOVED — the tab is pure O now that Menards HO
 // exists (25 HO rows moved there 2026-08-26). One catalog, one scale.
-const ERA_SCALES_MULTI = { prewar: ['O', 'Standard'], mth_tinplate: ['O', 'Standard'] };
+const ERA_SCALES_MULTI = { prewar: ['O', 'Standard'], mth_tinplate: ['O', 'Standard'],
+  gargraves: ['O', 'S', 'G', 'HO', 'N', 'Standard'] };   // rosstab: the scales GarGraves sells ([stated] Brad 2026-11-05 "Under all six scales"); its OO rows read as Standard (_scalesOfGauge)
 if (typeof window !== 'undefined') window.ERA_SCALES_MULTI = ERA_SCALES_MULTI;
 
 // v0.9.1504 (task #29, Brad: "we should be able to pick scale and era by
@@ -2141,6 +2165,8 @@ const ERA_TABS = {
   bachmann_on30:  { items: 'Bachmann On30' },
   bachmann_hon30: { items: 'Bachmann HOn30' },
   bachmann_all:   { items: 'Bachmann All Scales' },
+  ross:           { items: 'Ross Custom Switches' },   // rosstab — the tab's exact name
+  gargraves:      { items: 'GarGraves' },              // rosstab — the tab's exact name
 };
 
 // ═══════════════════════════════════════════════════════════════════
