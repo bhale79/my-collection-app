@@ -32,12 +32,38 @@ function _wupControls(){
 }
 if (typeof window!=='undefined'){ window._setWupView=_setWupView; window._wupRetryParts=_wupRetryParts; }
 
+// ══ The ready-made report-builder reports ═══════════════════════════════
+// A row on the Reports page whose report IS a builder definition — it runs,
+// exports, prints and opens in Edit exactly like a saved report.
+//   cmdids   2026-10-31 the Command ID Report (command-ids.js rrCmdIdReportDef)
+//   forsale  2026-11-07 the For Sale List ([stated] Brad 2026-10-24 "yes on the
+//            sale report" → 2026-11-07 "its own" + "yes"): everything listed
+//            for sale, with asking prices, by item number.
+// ONE answer to "is this a ready-made report, and what is it" — buildReport,
+// exportReport and the library's Edit button all ask rrReadyReportDef.
+function rrForSaleReportDef() {
+  const cols = ['itemNum', 'description', 'manufacturer', 'roadName', 'variation', 'condition', 'askingPrice', 'userEstWorth', 'dateListed', 'saleNotes'];
+  const on = {}; cols.forEach(k => { on[k] = true; });
+  return {
+    id: null, name: _rbFsWord('reportName', 'For Sale List'),
+    colOrder: cols, colEnabled: on,
+    filters: { forSale: 'Yes' },
+    sort: [{ field: 'itemNum', dir: 'asc' }],
+  };
+}
+function rrReadyReportDef(id) {
+  if (id === 'cmdids') return (typeof rrCmdIdReportDef === 'function') ? rrCmdIdReportDef() : null;
+  if (id === 'forsale') return rrForSaleReportDef();
+  return null;
+}
+if (typeof window !== 'undefined') { window.rrForSaleReportDef = rrForSaleReportDef; window.rrReadyReportDef = rrReadyReportDef; }
+
 function buildReport() {
   const type = document.getElementById('report-type')?.value || 'insurance';
 
-  // 2026-10-31: the ready-made Command ID report — a report-builder report
-  // (command-ids.js holds its definition), so it runs like any saved one.
-  if (type === 'cmdids' && typeof rrCmdIdReportDef === 'function') { buildCustomReport(rrCmdIdReportDef()); return; }
+  // A ready-made report-builder report (the Command ID Report, the For Sale
+  // List) runs like any saved one.
+  { const _ready = rrReadyReportDef(type); if (_ready) { buildCustomReport(_ready); return; } }
   // Custom saved report
   if (type.startsWith('custom:')) {
     const id = type.replace('custom:','');
@@ -362,7 +388,7 @@ function _repKeepCsv(blob, name) {
 function exportReport() {
   const type = document.getElementById('report-type')?.value || '';
 
-  if (type === 'cmdids' && typeof rrCmdIdReportDef === 'function') { exportCustomReport(rrCmdIdReportDef()); return; }   // 2026-10-31
+  { const _ready = rrReadyReportDef(type); if (_ready) { exportCustomReport(_ready); return; } }   // the Command ID Report, the For Sale List
   if (type.startsWith('custom:')) {
     const id = type.replace('custom:','');
     const def = (state.savedReports||[]).find(r=>r.id===id);
@@ -479,6 +505,8 @@ const REPORT_COL_GROUPS = [
 // The fixed columns. `field` names the personal-sheet field, so the one-line
 // help (rrFieldHelp, config.js) can be shown on hover. The user's own fields
 // are added from RR_USER_FIELDS by _rbColumns() — never typed here.
+// 2026-11-07 (fsreport): one word of the For Sale List report (config.js RR_FORSALE_REPORT).
+function _rbFsWord(k, fallback) { const w = (typeof window !== 'undefined' && window.RR_FORSALE_REPORT) || {}; return w[k] || fallback; }
 const REPORT_COLS = [
   { key:'itemNum',       label:'Item #',          group:'item',  field:'itemNum' },
   { key:'description',   label:'Description',     group:'item',  field:'description' },
@@ -501,10 +529,15 @@ const REPORT_COLS = [
   { key:'priceItem',     label:'Amount Paid',     group:'money', field:'priceItem' },
   { key:'userEstWorth',  label:'Est. Worth',      group:'money', field:'userEstWorth' },
   { key:'datePurchased', label:'Date Acquired',   group:'money', field:'datePurchased' },
+  // 2026-11-07 (fsreport): the copy's For Sale listing — read through rrForSaleOf
+  // (app-pages.js, by inventory ID). Words: RR_FORSALE_REPORT (config.js).
+  { key:'askingPrice',   label:_rbFsWord('colAsking', 'Asking Price'), group:'money' },
+  { key:'dateListed',    label:_rbFsWord('colListed', 'Listed'),       group:'money' },
   { key:'purchasedFrom', label:'Bought From',     group:'money', field:'purchasedFrom' },
   { key:'location',      label:'Location',        group:'where', field:'location' },
   { key:'hasPhoto',      label:'Has Photo',       group:'notes', field:'photoItem' },
   { key:'notes',         label:'Notes',           group:'notes', field:'notes' },
+  { key:'saleNotes',     label:_rbFsWord('colSaleNotes', 'Sale Notes'), group:'notes' },
   { key:'yourDescription', label:'Your Description', group:'notes', field:'yourDescription' },
   { key:'dateAdded',     label:'Date Added',      group:'notes', field:'dateAdded' },
 ];
@@ -512,9 +545,11 @@ const REPORT_COLS = [
 // Location; every other one is the user's own.
 const _RB_USER_FIELD_GROUP = { locationDetail: 'where', shipper: 'where' };
 // The words each kind of column sorts by.
-const _RB_NUM_KEYS  = { condition:1, priceItem:1, userEstWorth:1, boxCond:1 };
+const _RB_NUM_KEYS  = { condition:1, priceItem:1, userEstWorth:1, boxCond:1, askingPrice:1 };
+// THE money columns: shown with the currency sign and totalled at the foot of a report.
+const _RB_MONEY_KEYS = ['priceItem', 'userEstWorth', 'askingPrice'];
 const _RB_YEAR_KEYS = { yearMade:1 };
-const _RB_DATE_KEYS = { datePurchased:1, dateAdded:1 };
+const _RB_DATE_KEYS = { datePurchased:1, dateAdded:1, dateListed:1 };
 
 // Every column a report can show, in group order: the fixed ones, then each
 // user field (RR_USER_FIELDS) that is switched on, holds data in one of the
@@ -787,6 +822,7 @@ function _rbFiltersHTML() {
       <div class="rb-filter-row"><div class="rb-filter-label">All Original</div><div class="rb-filter-chips">${yne('allOriginal')}</div></div>
       <div class="rb-filter-row"><div class="rb-filter-label">Has Photo</div><div class="rb-filter-chips">${yne('hasPhoto')}</div></div>
       <div class="rb-filter-row"><div class="rb-filter-label">${rrEsc((window.RR_CMDID && RR_CMDID.reportFilter) || 'Has a Command ID')}</div><div class="rb-filter-chips">${yne('hasCmdId')}</div></div>
+      <div class="rb-filter-row"><div class="rb-filter-label">${rrEsc(_rbFsWord('filterLabel', 'Listed for sale'))}</div><div class="rb-filter-chips">${yne('forSale')}</div></div>
       <div class="rb-filter-row"><div class="rb-filter-label">Condition (1–10)</div>
         <div class="rb-range">${fld('Min','condMin','min="1" max="10"')} <span class="rb-to">to</span> ${fld('Max','condMax','min="1" max="10"')}</div></div>
       <div class="rb-filter-row"><div class="rb-filter-label">Year Made</div>
@@ -1340,7 +1376,40 @@ function _rbAllRows() {
   [['is', state.isData], ['science', state.scienceData], ['construction', state.constructionData]].forEach(([sec, bucket]) => {
     Object.values(bucket || {}).forEach(rec => { if (rec) out.push(_rbRowOf(_rbFromOwnTab(rec, sec), {}, sec)); });
   });
+  _rbAttachForSale(out);
   return out;
+}
+// 2026-11-07 (fsreport — [stated] Brad "its own" + "yes"): every row learns its
+// copy's For Sale listing (rrForSaleOf, by inventory ID). A listing the For
+// Sale page counts but no row above carries (an older row with no inventory
+// ID, a copy no longer in the list, a box-only copy) gets a row of its own,
+// built from the listing, its catalog row found the For Sale page's way
+// (_fsMaster: the copy decides, never the number alone). So the For Sale List
+// always counts what the For Sale page counts.
+function _rbAttachForSale(out) {
+  const listed = (typeof rrForSaleListed === 'function') ? rrForSaleListed() : [];
+  const listedSet = new Set(listed);
+  const carried = new Set();
+  out.forEach(r => {
+    const e = (typeof rrForSaleOf === 'function') ? rrForSaleOf(r.pd) : null;
+    r.fs = e || null;
+    r.fsListed = !!e && listedSet.has(e);
+    if (r.fsListed) carried.add(e);
+  });
+  listed.forEach(fs => {
+    if (carried.has(fs)) return;
+    const own = (fs.inventoryId && state.personalData && state.personalData[fs.inventoryId]) || null;
+    const pd = own || {
+      itemNum: fs.itemNum || '', variation: fs.variation || '', condition: fs.condition || '',
+      manufacturer: fs.manufacturer || '', inventoryId: fs.inventoryId || '',
+      userEstWorth: fs.estWorth || '', priceItem: fs.originalPrice || '',
+    };
+    const master = (typeof _fsMaster === 'function' ? _fsMaster(fs) : null) || {};
+    const r = _rbRowOf(pd, master, _rbSectionOfPd(pd, master));
+    r.fs = fs; r.fsListed = true; r._saleOnly = true;
+    carried.add(fs);
+    out.push(r);
+  });
 }
 
 // Does a row pass the filters? `skip` names filter groups to leave out (the
@@ -1363,6 +1432,12 @@ function _rbRowPasses(row, f, skip) {
   // 2026-10-31 (Command IDs, [stated] Brad 16:02 CT "the report needs to filter
   // items that have a command id"): a real filter, usable on any report.
   if (f.hasCmdId && f.hasCmdId!=='Either') { const h=(typeof rrCmdIdHas==='function') && rrCmdIdHas(pd); if(f.hasCmdId==='Yes'&&!h) return false; if(f.hasCmdId==='No'&&h) return false; }
+  // 2026-11-07 (fsreport): "Listed for sale". Yes = listed as the For Sale page
+  // counts it (rrForSaleListed); No = no listing at all. A piece sold as part
+  // of its group's lead is neither. A listing whose copy is not in the
+  // collection list (_saleOnly) shows ONLY on a "Yes" report.
+  if (row._saleOnly && f.forSale !== 'Yes') return false;
+  if (f.forSale && f.forSale!=='Either') { if (f.forSale==='Yes' && !row.fsListed) return false; if (f.forSale==='No' && row.fs) return false; }
   if (f.quickEntry && f.quickEntry!=='Include') { const q=!!pd.quickEntry; if(f.quickEntry==='Exclude'&&q) return false; if(f.quickEntry==='Only'&&!q) return false; }
   const num = (v) => parseFloat(String(v == null ? '' : v).replace(/[^0-9.\-]/g, ''));
   const rng = (fMin, fMax, v) => {
@@ -1427,6 +1502,9 @@ function _rbCellVal(key, pd, master, row) {
     case 'priceItem':     return pd.priceComplete || pd.priceItem || '';
     case 'userEstWorth':  return pd.userEstWorth || '';
     case 'datePurchased': return pd.datePurchased || '';
+    case 'askingPrice':   return (row.fs && row.fs.askingPrice) || '';   // 2026-11-07: the copy's For Sale listing
+    case 'dateListed':    return (row.fs && row.fs.dateListed) || '';
+    case 'saleNotes':     return (row.fs && row.fs.notes) || '';
     case 'location':      return pd.location || '';
     case 'notes':         return pd.notes || '';
     case 'hasPhoto':      return pd.photoItem ? 'Yes' : 'No';
@@ -1446,7 +1524,7 @@ function _rbCellVal(key, pd, master, row) {
 
 function _rbCellHTML(key, val) {
   if (!val || val==='—') {
-    if (['priceItem','userEstWorth'].includes(key)) return '—';
+    if (_RB_MONEY_KEYS.includes(key)) return '—';
     return '<span class="text-dim">—</span>';
   }
   const sym = (typeof _currencySymbol === 'function') ? _currencySymbol() : '$';
@@ -1454,6 +1532,7 @@ function _rbCellHTML(key, val) {
     case 'itemNum':      return `<span class="item-num">${rrEsc(val)}</span>`;
     case 'itemType':     return `<span class="tag">${rrEsc(val)}</span>`;
     case 'priceItem':
+    case 'askingPrice':
     case 'userEstWorth': { const n = parseFloat(String(val).replace(/[^0-9.\-]/g, '')); return isNaN(n) ? rrEsc(val) : `<span style="font-family:var(--font-mono);color:var(--accent2)">${sym}${n.toLocaleString()}</span>`; }
     case 'hasPhoto':     return val==='Yes' ? '<span style="color:var(--t-green)">✓</span>' : '<span class="text-dim">—</span>';
     default:             return rrEsc(val);
@@ -1499,7 +1578,7 @@ function buildCustomReport(def) {
   ).join('');
 
   // Totals row for money columns
-  const moneyCols = cols.filter(c=>['priceItem','userEstWorth'].includes(c.key));
+  const moneyCols = cols.filter(c=>_RB_MONEY_KEYS.includes(c.key));
   if (moneyCols.length) {
     const sym = (typeof _currencySymbol === 'function') ? _currencySymbol() : '$';
     const totals = Object.fromEntries(moneyCols.map(c=>[c.key, items.reduce((s,r)=>s+(parseFloat(String(_rbCellVal(c.key,r.pd,r.master,r)).replace(/[^0-9.\-]/g,''))||0),0)]));

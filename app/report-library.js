@@ -20,6 +20,15 @@ var REPORT_DEFS = [
 if (typeof window !== 'undefined' && window.RR_CMDID) {
   REPORT_DEFS.push({ id: 'cmdids', name: window.RR_CMDID.reportName, desc: window.RR_CMDID.reportDesc, builder: true });
 }
+// 2026-11-07 ([stated] Brad: For Sale "its own" row → "yes"): the ready-made
+// For Sale List, right after Want / Upgrade / Parts — so Want, For Sale and
+// Parts all print from this one page. A report-builder report too
+// (rrForSaleReportDef, reports.js); its words are RR_FORSALE_REPORT (config.js).
+if (typeof window !== 'undefined' && window.RR_FORSALE_REPORT) {
+  var _repWantAt = REPORT_DEFS.findIndex(function (d) { return d.id === 'wantupgrade'; });
+  REPORT_DEFS.splice(_repWantAt >= 0 ? _repWantAt + 1 : REPORT_DEFS.length, 0,
+    { id: 'forsale', name: window.RR_FORSALE_REPORT.reportName, desc: window.RR_FORSALE_REPORT.reportDesc, builder: true });
+}
 
 function _repMeta() { try { return JSON.parse(localStorage.getItem('lv_report_meta') || '{}'); } catch (e) { return {}; } }
 function _repStamp(id) { var m = _repMeta(); m[id] = new Date().toISOString(); try { localStorage.setItem('lv_report_meta', JSON.stringify(m)); } catch (e) {} }
@@ -64,7 +73,7 @@ function renderReportLibrary() {
         '<div style="position:relative"><button id="rep-export-' + _repEsc(d.id) + '" onclick="_repToggleMenu(event,\'' + _repEsc(d.id) + '\')" style="' + btn + '">Export &#9662;</button>' + menu + '</div>' +
         '<button onclick="_repPrintRow(\'' + _repEsc(d.id) + '\')" style="' + btn + '">Print</button>' +
         (d.custom ? '<button onclick="openReportBuilder(\'' + _repEsc(d.custom) + '\')" style="' + btn + '">Edit</button>' : '') +
-        (d.builder ? '<button id="rep-edit-' + _repEsc(d.id) + '" onclick="openReportBuilder(null, rrCmdIdReportDef())" style="' + btn + '">Edit</button>' : '') +
+        (d.builder ? '<button id="rep-edit-' + _repEsc(d.id) + '" onclick="openReportBuilder(null, rrReadyReportDef(\'' + _repEsc(d.id) + '\'))" style="' + btn + '">Edit</button>' : '') +
       '</div>' +
     '</div>';
   }).join('');

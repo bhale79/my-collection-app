@@ -1849,6 +1849,31 @@ function _fsMaster(fs) {
     ? state.personalData[fs.inventoryId] : null;
   return findMaster(fs.itemNum, fs.variation, pd || fs) || {};
 }
+// 2026-11-07 (fsreport — the For Sale List report): TWO answers the Reports
+// page asks, kept beside the For Sale page that owns the list.
+//   rrForSaleListed()  THE list of what is listed for sale, as this page counts
+//                      it ("N listed"): a sale being recorded right now is off,
+//                      and a grouped companion (box / sheet / other piece of a
+//                      group) folds into its lead. buildForSalePage starts here.
+//   rrForSaleOf(pd)    one copy's For Sale entry — by its inventory ID, never
+//                      its number — or null.
+function rrForSaleListed() {
+  return Object.values((typeof state !== 'undefined' && state.forSaleData) || {}).filter(function (fs) {
+    if (!fs || fs._saleBusy) return false;   // v0.9.1947: being sold right now — off the list the moment Mark sold is pressed
+    // Grouped companions (box / instruction sheet) fold into their lead —
+    // show and count the group as ONE item, like the collection list.
+    if (typeof window !== 'undefined' && typeof window._fsIsGroupedCompanion === 'function' && window._fsIsGroupedCompanion(fs)) return false;
+    return true;
+  });
+}
+function rrForSaleOf(pd) {
+  var inv = pd ? String(pd.inventoryId || '').trim() : '';
+  if (!inv || typeof state === 'undefined' || !state.forSaleData) return null;
+  var e = state.forSaleData[inv];
+  if (e && String(e.inventoryId || '').trim() === inv) return e;
+  return Object.values(state.forSaleData).find(function (x) { return x && String(x.inventoryId || '').trim() === inv; }) || null;
+}
+if (typeof window !== 'undefined') { window.rrForSaleListed = rrForSaleListed; window.rrForSaleOf = rrForSaleOf; window._fsMaster = _fsMaster; window._fsPd = _fsPd; }
 function _fsSortVal(fs, col) {
   var m = _fsMaster(fs);
   if (col==='mfr') return String(rrMakerOf({ copy: fs }) || '').toLowerCase();   // 2026-11-03: the listing's own maker
@@ -2077,12 +2102,10 @@ function buildForSalePage() {
   // 'no asking price' and fill them in anytime" — and no such filter existed.
   // His own import flagged 160 items for sale with no price and left him no
   // way to work through them. A promise on screen has to be true.
-  let fsEntries = Object.values(state.forSaleData).filter(fs => {
-    if (fs && fs._saleBusy) return false;   // v0.9.1947: being sold right now — off the list the moment Mark sold is pressed
+  // 2026-11-07: THE listed set (rrForSaleListed — busy sales off, companions
+  // folded into their lead), then this page's own view filters.
+  let fsEntries = rrForSaleListed().filter(fs => {
     if (state._fsNeedsPrice && parseFloat(fs.askingPrice) > 0) return false;
-    // Grouped companions (box / instruction sheet) fold into their lead —
-    // show and count the group as ONE item, like the collection list.
-    if (typeof window !== 'undefined' && typeof window._fsIsGroupedCompanion === 'function' && window._fsIsGroupedCompanion(fs)) return false;
     // Era filter
     if (typeof _isInCurrentEra === 'function' && !_isInCurrentEra(fs.itemNum)) return false;
     if (!_fq) return true;

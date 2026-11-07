@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2119';
+const APP_VERSION = 'v0.9.2120';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -2595,6 +2595,21 @@ window.RR_USER_FIELDS = [
     ownCard: 'cmdid', digits: 5, words: ['other'],
     importRe: /^other\s*(command\s*)?(id|#|no\.?|num(ber)?|address|addr\.?)$/ },
 ];
+// ═══════════════════════════════════════════════════════════════
+// 2026-11-07 ([stated] Brad 2026-10-24 "yes on the sale report" → 2026-11-07
+// "its own" + "yes"): the ready-made For Sale List report — a report-builder
+// report, like the Command ID one (rrForSaleReportDef, reports.js). Every
+// word it says is HERE: its row on the Reports page, the builder's "Listed
+// for sale" filter and the three For Sale columns any report may use.
+// ═══════════════════════════════════════════════════════════════
+window.RR_FORSALE_REPORT = {
+  reportName: 'For Sale List',
+  reportDesc: 'Everything you have listed for sale, with asking prices \u2014 ready to print or send to a buyer or dealer.',
+  filterLabel: 'Listed for sale',
+  colAsking: 'Asking Price',
+  colListed: 'Listed',
+  colSaleNotes: 'Sale Notes',
+};
 // ═══════════════════════════════════════════════════════════════
 // COMMAND IDs — 2026-10-31 ([stated] Brad: "a clickable button on the item
 // add and item detail page that when you click it you can add the code …
