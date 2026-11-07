@@ -97,6 +97,18 @@ if (typeof document !== 'undefined' && !window._wizPhotoPasteOn) {
 window._wizPhotoPaste = _wizPhotoPaste;
 window._wizPhotoPasteTarget = _wizPhotoPasteTarget;
 
+// 2026-11-07 (audit finding 10): ONE place an add's upload is written down. If that add
+// was discarded before the upload landed, the picture goes straight to Drive's trash.
+function _rrNoteAddUpload(d, entry) {
+  try {
+    if (!d || !entry || !entry.id) return;
+    if (d._rrDiscarded) {
+      if (typeof window.rrDiscardAddUploads === 'function') window.rrDiscardAddUploads([entry]).catch(function () {});
+      return;
+    }
+    (d._rrAddUploads = d._rrAddUploads || []).push(entry);
+  } catch (e) {}
+}
 async function uploadWizardPhoto(file, stepId, viewKey) {
   // v0.9.1592 (Session 87 offline audit): refuse up front, in honest words.
   // The catch below already toasted, but only AFTER the spinner dance, and
@@ -194,7 +206,9 @@ async function uploadWizardPhoto(file, stepId, viewKey) {
       const _ephTitle = String((wizard.data && (wizard.data.eph_title || wizard.data.itemNum)) || 'untitled').trim().substring(0, 60) || 'untitled';
       const _ephFolder = await driveFindOrCreateFolder(_ephTitle, driveCache.ephPhotosId);
       const _ephExt = (file.name.split('.').pop() || 'jpg');
-      await driveUploadPhoto(file, _ephTitle + ' ' + viewKey + '.' + _ephExt, _ephFolder);
+      const _ephUp = await driveUploadPhoto(file, _ephTitle + ' ' + viewKey + '.' + _ephExt, _ephFolder);
+      // 2026-11-07 (audit finding 10, review): a paper / catalog picture is an upload of this add too
+      if (_ephUp && _ephUp.id) _rrNoteAddUpload(d, { id: _ephUp.id, folderId: _ephFolder, itemNum: _ephTitle, invId: '', existing: !!d._updatePdKey });
       url = (typeof driveFolderLink === 'function') ? driveFolderLink(_ephFolder) : ('https://drive.google.com/drive/folders/' + _ephFolder);
     } else {
       url = await driveUploadItemPhoto(file, itemNum, viewKey, _invId || undefined, _fileLabel,
@@ -203,6 +217,13 @@ async function uploadWizardPhoto(file, stepId, viewKey) {
           // edits that photo and not whichever one Drive lists first.
           if (!wizard.data._photoFileIds) wizard.data._photoFileIds = {};
           wizard.data._photoFileIds[stepId + '|' + viewKey] = up.id;
+          // 2026-11-07 (audit finding 10): every upload of THIS add, so a Discard can take
+          // them back (rrDiscardAddUploads, drive.js). A slot's map above keeps only the
+          // latest picture per slot; this list keeps them all. Kept on `d` — the data this
+          // upload STARTED with — so a picture that lands after the add was already
+          // discarded (review 2026-11-07) is taken back at once, never left behind and
+          // never charged to a later add.
+          _rrNoteAddUpload(d, { id: up.id, folderId: up.folderId || '', itemNum: itemNum, invId: _invId || '', existing: !!(d._existingInventoryId || d._photoOnly || d._updatePdKey) });
           // v0.9.1939: the bytes just uploaded ARE this file — hand them to the
           // session picture cache, so a redraw (a move, Next → Back) shows the
           // photo at once by its id instead of going black.

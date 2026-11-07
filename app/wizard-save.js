@@ -727,6 +727,7 @@ function launchSetItemWizard() {
 
   const _setLocoNum      = d._setLocoNum || (items[0] || '');
   const _setMemberPhotos = d._setMemberPhotos || null;   // v0.9.1117
+  const _setUploadsAll   = d._setUploadsAll || [];      // 2026-11-07 (finding 10): the saved members' pictures, for a cancelled set
   const _setPrice        = d._setPrice || '';
   const _setDate         = d._setDate  || '';
   const _setWorth        = d._setWorth || '';
@@ -751,6 +752,7 @@ function launchSetItemWizard() {
     _setDate,
     _setWorth,
     _setMemberPhotos,
+    _setUploadsAll,
     set_hasBox: _setHasBox,
     set_boxCond: _setBoxCond,
     set_boxPhotos: _setBoxPhotos,
@@ -2897,6 +2899,7 @@ async function saveWizardItem() {
       const _setWorth = _curIdx === 0 ? (d.userEstWorth || '') : (d._setWorth || '');
 
       wizard.data._setItemsSaved = _saved;
+      wizard.data._setUploadsAll = (d._setUploadsAll || []).concat(d._rrAddUploads || []);   // 2026-11-07 (finding 10): this member's pictures, kept for a cancelled set
       wizard.data._setItemIndex  = _nextIdx;
       wizard.data._setPrice      = _setPrice;
       wizard.data._setDate       = _setDate;

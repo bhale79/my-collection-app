@@ -1657,6 +1657,50 @@ async function _driveRetireEmptyItemFolder(folderId, key) {
   }
 }
 
+// ══ 2026-11-07 (audit finding 10, proven on all five platforms) — DISCARD TAKES ITS PICTURES ══
+// An Add Photos pick uploads the picture the moment it is picked. Cancel →
+// "Discard this item?" → Discard used to send nothing to Drive: the picture
+// stayed, un-trashed, in the copy's own folder, with no link in the sheet, so
+// nothing showed it — until the NEXT photo save for that copy wrote the folder
+// link, and both pictures appeared ("saved twice", same name, two ids).
+// This is THE one place a discarded add's uploads are taken back: every file
+// the add uploaded goes to Drive's trash (recoverable), and a folder the add
+// left empty goes too, so the number folder is not a shell for a copy that
+// never existed. The folder cache forgets a folder that went. Called by
+// _doCloseWizard (wizard.js) with the list wizard-photos.js keeps; never by a
+// save. Offline, Drive is not reachable — the pictures stay and the log says so.
+// An entry marked `existing` (an upload into an existing copy's folder) is
+// trashed but its folder is left alone.
+async function rrDiscardAddUploads(list) {
+  const done = { trashed: 0, failed: 0, folders: 0 };
+  const folders = {};
+  for (const u of (list || [])) {
+    if (!u || !u.id) continue;
+    try { await driveRequest('PATCH', '/files/' + u.id + '?fields=id', { trashed: true }); done.trashed++; }
+    catch (e) { done.failed++; console.warn('[Drive] discarded add: picture not trashed:', u.id, (e && e.message) || e); }
+    // a folder that belongs to an EXISTING copy (Update Info / Pictures) is never
+    // the add's to tidy away — the sheet may link to it (review 2026-11-07)
+    if (u.folderId && !u.existing) folders[u.folderId] = u;
+  }
+  const _cache = driveCache.itemFolders;
+  for (const fid of Object.keys(folders)) {
+    const u = folders[fid];
+    const key = u.invId ? (u.itemNum + '/' + u.invId) : String(u.itemNum || '');
+    if (await _driveRetireEmptyItemFolder(fid, key || fid)) {
+      done.folders++;
+      try { if (key) delete _cache[key]; } catch (e) {}
+      // the copy's folder went — the item-number folder above it may be a shell now too
+      if (u.invId && u.itemNum && _cache[String(u.itemNum)]) {
+        const itemFid = _cache[String(u.itemNum)];
+        if (await _driveRetireEmptyItemFolder(itemFid, String(u.itemNum))) { done.folders++; try { delete _cache[String(u.itemNum)]; } catch (e) {} }
+      }
+    }
+  }
+  try { if (typeof rrSyncLog === 'function') rrSyncLog('photo', 'discarded add: ' + done.trashed + ' picture(s) to Drive trash, ' + done.folders + ' empty folder(s)' + (done.failed ? ', ' + done.failed + ' NOT trashed' : '')); } catch (e) {}
+  return done;
+}
+if (typeof window !== 'undefined') window.rrDiscardAddUploads = rrDiscardAddUploads;
+
 async function driveMoveToSold(itemNum, inventoryId) {
   await driveEnsureSetup();
   const key = String(itemNum);

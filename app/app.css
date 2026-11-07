@@ -2965,6 +2965,14 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
   #hierarchy-chip-row .ph-idle { display: none !important; }
   #hierarchy-chip-row #ph-filters-btn { display: inline-flex !important; }
 }
+/* ── 2026-11-07 (audit finding 16, iPhone + iPad): the "Install The Rail Roster on
+   this device?" offer (app-misc.js _pwaOfferInit) comes up 8 s after sign-in and
+   stayed ON TOP of a window opened after it — on the iPhone it covered the Add
+   window's Cancel / Next row. While any pop-up is open <html> wears rr-pop-open
+   (back-stack.js, THE one decider); the offer steps aside for as long as that
+   lasts and is back when the pop-up closes. Not the install-steps card: it is a
+   dialog of its own that stays until closed. ─────────────────────────────── */
+html.rr-pop-open #pwa-install-offer { display: none !important; }
 @media (max-width: 620px) {
   #hierarchy-chip-row { padding: 0.3rem 0.4rem; }
   #browse-search-wrap { flex: 1 1 100% !important; }

@@ -1632,12 +1632,13 @@ function closeWizard() {
   var _hasData = !!(
     d.itemNum || d.variation || d.condition || d.pricePaid || d.priceItem ||
     d.userEstWorth || d.notes || d.salePrice || d.askingPrice ||
-    (d._drivePhotos && d._drivePhotos.length > 0) || d.manualItemNum
+    (d._drivePhotos && d._drivePhotos.length > 0) || d.manualItemNum ||
+    (d._rrAddUploads && d._rrAddUploads.length > 0)   // 2026-11-07: a picture already uploaded is something to ask about
   );
   if (_hasData) {
     appConfirm('Cancel and discard the info you\'ve entered? This cannot be undone.',
       { danger: true, ok: 'Discard', cancel: 'Keep editing', title: 'Discard this item?' })
-      .then(function (ok) { if (ok) _doCloseWizard(); });
+      .then(function (ok) { if (ok) { try { d._rrDiscardConfirmed = true; } catch (e) {} _doCloseWizard(); } });   // 2026-11-07: Discard was CHOSEN — the add's pictures go too
     return;
   }
   _doCloseWizard();
@@ -1680,6 +1681,25 @@ function _doCloseWizard() {
   // refreshed the 2-hour personal-data cache, so the next app load REVERTED
   // to pre-save data. Every wizard flow closes through here.
   try { if (typeof _cachePersonalData === 'function') _cachePersonalData(); } catch (eC) {}
+  // 2026-11-07 (audit finding 10): a DISCARDED add takes its uploaded pictures with
+  // it — they were in Drive from the moment they were picked (rrDiscardAddUploads).
+  // Only when Discard was CHOSEN in the question above (or a set entry was
+  // cancelled, _confirmSetCancel): a saved add keeps every one, and so does a
+  // silent close (Back on the first step, the window's own ← Back) — the
+  // picture stays where it was, as before (review 2026-11-07).
+  try {
+    var _wdU = (wizard && wizard.data) || {};
+    var _disc = !!(_wdU._rrDiscardConfirmed && !_wdU._saveComplete);
+    var _ups = (_disc && _wdU._rrAddUploads && _wdU._rrAddUploads.length) ? _wdU._rrAddUploads.slice() : [];
+    if (_disc) { _wdU._rrAddUploads = []; _wdU._rrDiscarded = true; }   // an upload still landing goes straight to the trash (wizard-photos.js)
+    if (_ups.length && typeof window.rrDiscardAddUploads === 'function') {
+      if (window._offlineMode || (typeof navigator !== 'undefined' && navigator.onLine === false)) {
+        try { if (window.rrSyncLog) window.rrSyncLog('photo', 'discarded add offline: ' + _ups.length + ' picture(s) stay in Drive'); } catch (eL) {}
+      } else {
+        window.rrDiscardAddUploads(_ups).catch(function (eD) { console.warn('[wizard] discarded add: pictures not taken back', eD); });
+      }
+    }
+  } catch (eU) {}
   const returnTo = (wizard && wizard.data && wizard.data._returnPage) || window._rrLastPage;
   document.getElementById('wizard-modal').classList.remove('open');
   document.body.style.overflow = '';
@@ -1887,6 +1907,17 @@ async function _confirmSetCancel() {
       if (wizard && wizard.data && wizard.data._pinSetStagedFiles && typeof window.rrPinReleaseSetHolds === 'function')
         window.rrPinReleaseSetHolds(wizard.data._pinSetStagedFiles, true);
     } catch (eRS) {}
+    // 2026-11-07 (audit finding 10, review): the members' rows just went — the pictures
+    // their adds uploaded (carried member to member in _setUploadsAll) and this
+    // unfinished member's go to Drive's trash with them. A picture that went into a
+    // copy the person ALREADY owned (`existing`) stays: that copy keeps its row.
+    try {
+      var _wdS = (wizard && wizard.data) || {};
+      var _all = (_wdS._setUploadsAll || []).concat(_wdS._rrAddUploads || []).filter(function (u) { return u && !u.existing; });
+      _wdS._setUploadsAll = []; _wdS._rrAddUploads = []; _wdS._rrDiscarded = true;
+      if (_all.length && typeof window.rrDiscardAddUploads === 'function' && !(window._offlineMode || (typeof navigator !== 'undefined' && navigator.onLine === false)))
+        window.rrDiscardAddUploads(_all).catch(function (eD) { console.warn('[wizard] cancelled set: pictures not taken back', eD); });
+    } catch (eSU) {}
     overlay.remove();
     showToast('Set entry canceled \u2014 ' + _nRemoved + ' item' + (_nRemoved !== 1 ? 's' : '') + ' removed');
     _doCloseWizard();

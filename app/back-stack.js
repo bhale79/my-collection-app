@@ -41,8 +41,44 @@
   // calls set the same true, the first popstate cleared it, and the SECOND
   // was taken for the user pressing Back: it closed whatever sat below
   // (pic_first_tests G2 caught it — the picture box vanished).
-  var _ignorePops = 0;             // self-made history.back() calls still to come
+  var _ignorePops = 0;             // self-made history traversals still to come (one per _flushBacks)
   var _inited = false;
+  // ══ 2026-11-07 (audit finding 17, Safari engine — iPhone, iPad, Mac) ══════
+  // Two overlays closing in the same instant used to make TWO history.back()
+  // calls. The Chrome engine answers each with its own popstate; the Safari
+  // engine MERGES the two traversals and answers ONCE ("back back push pop"
+  // in the audit's trace, against "back back push pop pop" on Android). The
+  // count above then stayed one too high, and the person's NEXT real Back
+  // (swipe-back, Back button) was taken for a self-made one and swallowed:
+  // the Add window stayed open. Now every history step this file asks for in
+  // one script run is gathered into ONE history.go(-n), asked for the moment
+  // that run ends (a microtask — the same beat the old history.back() was
+  // queued at, so nothing else can slip in between) — one traversal, one
+  // popstate on every engine — and the count goes up by exactly one. A push
+  // while a step is still owed REPLACES the top history entry instead of
+  // adding one (the step owed and the new entry cancel out), so "close one,
+  // open another" — and the review's pop, push, pop in one run — never ask
+  // for two traversals.
+  var _backsPending = 0, _backFlushQueued = false;
+  function _queueBack() {
+    _backsPending++;
+    if (_backFlushQueued) return;
+    _backFlushQueued = true;
+    try { Promise.resolve().then(_flushBacks); }
+    catch (e) { setTimeout(_flushBacks, 0); }
+  }
+  function _flushBacks() {
+    _backFlushQueued = false;
+    var n = _backsPending; _backsPending = 0;
+    if (!n) return;
+    // never ask for more steps than the history holds — a traversal that goes
+    // nowhere fires no popstate, and the count would stay up for good
+    try { var have = (history.length || 1) - 1; if (n > have) n = have; } catch (e) {}
+    if (n <= 0) return;
+    _ignorePops++;
+    try { history.go(-n); }
+    catch (e) { _ignorePops = Math.max(0, _ignorePops - 1); }
+  }
 
   function _log() {
     if (!CFG.debug) return;
@@ -98,8 +134,15 @@
     }
     var state = {};
     state[CFG.stateKey] = id;
-    try { history.pushState(state, '', ''); }
-    catch (e) { console.warn('[BackStack] pushState failed:', e); }
+    if (_backsPending > 0) {
+      // 2026-11-07: a step still owed + a new entry = the top entry changes hands, no traversal
+      _backsPending--;
+      try { history.replaceState(state, '', ''); }
+      catch (e) { console.warn('[BackStack] replaceState failed:', e); }
+    } else {
+      try { history.pushState(state, '', ''); }
+      catch (e) { console.warn('[BackStack] pushState failed:', e); }
+    }
     _stack.push({ id: id, closeFn: closeFn });
     _log('push', id, 'stack size now', _stack.length);
   }
@@ -123,10 +166,9 @@
     }
     _log('pop', id || '(top)', 'stack size now', _stack.length);
     // Rewind one history step to match the pushState we did on open,
-    // so the next back press isn't a no-op for the user.
-    _ignorePops++;
-    try { history.back(); }
-    catch (e) { _ignorePops = Math.max(0, _ignorePops - 1); }
+    // so the next back press isn't a no-op for the user. Gathered with any
+    // other pop of this tick into ONE traversal (finding 17, above).
+    _queueBack();
   }
 
   // Public — one-line wiring for modals that close by REMOVING their root

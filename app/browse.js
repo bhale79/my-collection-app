@@ -4566,9 +4566,10 @@ function _rrBrowseCore(_co) {
         + _gCount + ' items across every era.</p>'
         + '</div>';
     };
-    if (_gtbody) _gtbody.innerHTML = '<tr><td colspan="10"><div style="padding:2.5rem 1rem;text-align:center">'
+    if (_gtbody) _gtbody.innerHTML = '<tr><td colspan="10" id="rr-catalog-prompt-td"><div style="padding:2.5rem 1rem;text-align:center">'
       + _gPrompt(false)
       + '</div></td></tr>';
+    try { _rrCatalogPromptFit(); } catch (eFit) {}   // audit finding 18 (2026-11-07): the prompt stays inside the visible pane
     // the Filters button first: the card prompt says "Tap Filters" only when the
     // button is really there (review 2026-11-05: a phone held sideways shows the
     // cards but is too wide for the button — its filters are on screen "above")
@@ -6310,6 +6311,29 @@ function _rrFilterSheetClose() {
   if (ov) ov.remove();
 }
 // Put a "Filters" button in the page title, left of Add / Share (phones only).
+// ══ 2026-11-07 (audit finding 18, iPad 810 px wide) ═══════════════════════════
+// The "Please select a filter…" prompt sits in a cell that spans the catalog
+// table, and the table is wider than the pane on an iPad in portrait (it scrolls
+// sideways, scrollbar hidden). The prompt box centred itself on the TABLE, so
+// the right half of its words was off the edge ("…viewing the ca"). Now the
+// box is pinned to the left edge of the pane (sticky) and made exactly as
+// wide as what is visible, here and again whenever the window changes size.
+// ONE place; renderBrowse calls it right after it paints the prompt.
+function _rrCatalogPromptFit() {
+  var td = document.getElementById('rr-catalog-prompt-td');
+  if (!td) return;
+  var box = td.firstElementChild;
+  var wrap = td.closest ? td.closest('.browse-table-wrap') : null;
+  if (!box || !wrap) return;
+  var w = wrap.clientWidth || 0;
+  if (!w) return;
+  try { var cs = getComputedStyle(td); w -= (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0) + (parseFloat(cs.borderLeftWidth) || 0) + (parseFloat(cs.borderRightWidth) || 0) + 1; } catch (e) {}   // the cell's own padding and borders, and a pixel to spare
+  if (w <= 0) return;
+  box.style.position = 'sticky';
+  box.style.left = '0';
+  box.style.boxSizing = 'border-box';
+  box.style.width = w + 'px';
+}
 function _rrFilterBtnSync() {
   var title = document.querySelector('#page-browse > .page-title');
   if (!title) return;
@@ -6330,7 +6354,8 @@ if (typeof window !== 'undefined') {
   window._rrFilterSheetOpen = _rrFilterSheetOpen;
   window._rrFilterSheetClose = _rrFilterSheetClose;
   window._rrFilterBtnSync = _rrFilterBtnSync;
-  window.addEventListener('resize', function () { try { _rrFilterBtnSync(); } catch (e) {} });
+  window._rrCatalogPromptFit = _rrCatalogPromptFit;
+  window.addEventListener('resize', function () { try { _rrFilterBtnSync(); } catch (e) {} try { _rrCatalogPromptFit(); } catch (e) {} });
 }
 
 // v0.9.1546: show the search box's \u00d7 only when there is something to clear.

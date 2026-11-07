@@ -56,9 +56,12 @@ async function run(browser, src) {
     const now = await run(browser, SRC);
     T('1 two overlays closing in the same instant leave the one below open', now.first.closedA === 0 && now.first.size === 1, now.first);
     T('2 a real Back press afterwards still closes it — nothing was swallowed', !!now.second && now.second.closedA === 1 && now.second.size === 0, now.second);
+    // 2026-11-07 (finding 17): one tick's pops are ONE history.go(-n) now, so the old
+    // flag alone no longer shows — the plant is the whole old way: a history.back() per
+    // pop AND the true/false flag.
     const old = SRC.replace(/var _ignorePops = 0;[^\n]*/, 'var _ignorePops = false;')
       .replace('if (_ignorePops > 0) {\n      _ignorePops--;', 'if (_ignorePops) {\n      _ignorePops = false;')
-      .replace('_ignorePops++;', '_ignorePops = true;');
+      .replace('    _queueBack();\n  }', '    _ignorePops = true; try { history.back(); } catch (e) {}\n  }');
     if (old === SRC) T('3 PLANTED: could plant the old flag', false);
     else {
       const was = await run(browser, old);
