@@ -4694,7 +4694,8 @@ function _rrBrowseCore(_co) {
       }
       if (!_rows.length) return;                                 // truly off-catalog — personal-only lane
       var _pEra = (typeof _rrEraKeyOf === 'function') ? _rrEraKeyOf(p.era) : String(p.era || '').toLowerCase();
-      var _pPaper = /\b(paper|promo|promotional|box|boxes|catalog|display|instruction)\b/i.test(String(p.itemType || ''));
+      // 2026-11-07 (onerow): the copy's own kind asks THE rule too (app-data.js rrDemotedRow) — this was a second word list
+      var _pPaper = (typeof window.rrDemotedRow === 'function') ? window.rrDemotedRow({ itemType: String(p.itemType || '') }) : false;
       var _best = null, _bestS = -1;
       _rows.forEach(function (r) {
         var s = 0;

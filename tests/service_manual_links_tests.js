@@ -127,8 +127,10 @@ section('B · where the block sits');
 const builder = grab(maint, '_maintDiagramLinksHtml');
 const lccaBranch = builder.slice(builder.indexOf("if (route === 'lcca') {"), builder.indexOf("} else if (route === 'atlas' && _atlasHit)"));
 const slotAt = lccaBranch.indexOf("h += _smSlotHtml(item, where)");
-const guardAt = lccaBranch.indexOf('if (!window.IS_MOBILE_UA) {');
-ok('the slot is in the LCCA branch, before the phone guard (so above the LCCA button, and on phones too)', slotAt > 0 && guardAt > slotAt);
+// 2026-11-07 ([stated] Brad: the LCCA button removed completely): no phone guard is left — the
+// slot is FIRST in the branch, above the Trainz buttons, on every device.
+const tzAt = lccaBranch.indexOf('h += tzHtml;');
+ok('the slot is first in the branch — above the Trainz buttons, on every device (no phone guard left)', slotAt > 0 && tzAt > slotAt && !/IS_MOBILE_UA/.test(lccaBranch.replace(/\/\/[^\n]*/g, '')));
 ok('the slot is for era \'pw\' only', /if \(String\(eraKey \|\| ''\)\.toLowerCase\(\) === 'pw'\) h \+= _smSlotHtml\(item, where\);/.test(lccaBranch));
 
 section('C · reading the tab');
@@ -240,7 +242,7 @@ section('G · the loader');
   ok('H1 the tab name typed into maintenance.js is caught', nameTypedElsewhere(APP_FILES.map(([f, t]) => [f, f === 'maintenance.js' ? t + "\nvar T = 'Lionel PW - Service Manual';" : t])).indexOf('maintenance.js') >= 0);
   ok('H2 the slot moved under the LCCA button is caught', (() => {
     const b = lccaBranch.replace("      if (String(eraKey || '').toLowerCase() === 'pw') h += _smSlotHtml(item, where);\n", '') + "\n h += _smSlotHtml(item, where);";
-    const s = b.indexOf('h += _smSlotHtml(item, where)'), g = b.indexOf('if (!window.IS_MOBILE_UA) {');
+    const s = b.indexOf('h += _smSlotHtml(item, where)'), g = b.indexOf('h += tzHtml;');
     return !(s > 0 && g > s); })());
   ok('H3 the pw gate dropped (prewar borrows postwar sheets) is caught', !/=== 'pw'\) h \+= _smSlotHtml/.test(lccaBranch.replace("if (String(eraKey || '').toLowerCase() === 'pw') h += _smSlotHtml", 'h += _smSlotHtml')));
   const P = s => load(s)._smParse(VALUES);

@@ -79,6 +79,8 @@ function build(findMasterSrc) {
   eval(grab(dat, '_mSuffix'));
   eval(grab(dat, '_letterKinRows'));
   eval(grab(dat, '_findMasterCore'));
+  eval(require('./lib/row-kind').rowKindSource());   // 2026-11-07 (onerow): THE row-kind rule + era cleaner
+  eval(grab(dat, '_rrRealRowsOf'));
   eval(grab(dat, 'rrMasterByKey'));
   eval(grab(dat, '_preferEraOf'));
   eval(findMasterSrc);

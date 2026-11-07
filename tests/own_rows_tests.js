@@ -59,6 +59,7 @@ const app = read('app.js'), dat = read('app-data.js');
     d: { owned: true, itemNum: '4C', era: 'Manual' },            // names no catalog
     e: { owned: true, itemNum: '520-30', era: 'lionel_parts' },  // lookup-only never loads for display
   } };
+  eval(require('./lib/row-kind').rowKindSource());   // 2026-11-07 (onerow): _preferEraOf cleans the era word
   eval(grab(dat, '_preferEraOf'));
   eval(app.match(/var RR_OWNED_ERAS_KEY = '[^']+';/)[0]);
   eval(grab(app, '_isLoadableEra'));

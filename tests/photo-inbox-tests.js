@@ -130,6 +130,10 @@ function reg(id) { const e = mkEl('div'); e.id = id; REG[id] = e; return e; }
 
 global.window = global;
 global.navigator = { userAgent: 'node', maxTouchPoints: 0 };
+// 2026-11-07 (onerow): the "is this row the thing itself?" rule lives in app-data.js
+// (rrRowKind / rrDemotedRow, words in config.js) — app-data.js loads before the Photo
+// Inbox in index.html, so this sandbox gets the REAL one, read from the app's files.
+require('./lib/row-kind').installRowKind(global);
 // v0.9.1785: rrDismissGuard is an app.js global, and index.html loads app.js
 // BEFORE photo-inbox.js, so in the real app it is always there. This sandbox
 // stands in for app.js, and the recorded rule is that such a sandbox must gain
@@ -1877,7 +1881,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
      (sd.match(/function _pinIsSetRow/g) || []).length === 1 &&
      // v0.9.1119 added a third consumer: _pinDemotedRow folds the set rule
      // into the promo/paper demotion — still one definition, three callers.
-     (sd.match(/_pinIsSetRow\(row\)\) return/g) || []).length === 3);
+     // 2026-11-07 (onerow): the set rule itself moved to app-data.js rrRowKind
+     // (_pinIsSetRow asks it); _pinDemotedRow asks rrDemotedRow, which folds
+     // sets in there — the inbox's own two callers remain.
+     (sd.match(/_pinIsSetRow\(row\)\) return/g) || []).length === 2 &&
+     /return rrRowKind\(row\) === 'set';/.test(sd));
 
   section('74. The white-stamp pass — light numbers on a coloured body');
   const ws = require('./lib/pin-source').pinSource();
@@ -2288,8 +2296,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
   m8 = window.__BestMaster('2338', '', null);
   ok('a promo row still wins when it is the only row there is', /Nabisco/.test(m8.description));
   const dm1 = require('./lib/pin-source').pinSource();
+  // 2026-11-07 (onerow): the words moved to config.js RR_ROW_KIND_WORDS (one list); the
+  // inbox asks rrDemotedRow. Word edges still keep Boxcar and friends out.
   ok('word boundaries keep Boxcar and friends out of the demotion',
-     /\\b\(promo\|promotional\|paper\|boxes\|catalog\|catalogs\|display\|displays\|instruction\|instructions\)\\b/.test(dm1));
+     /return rrDemotedRow\(row\);/.test(dm1) && !rrDemotedRow({ itemType: 'Boxcar' }) && rrDemotedRow({ itemType: 'Box' }) && !rrDemotedRow({ itemType: 'Instruction Car' }));
 
   section('98. Blank-variation items light exactly one catalog row (Brad\'s 1562W)');
   // Members saved without a variation were lighting the BOX/paper rows for
@@ -2297,8 +2307,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
   // transformer — number+blank-variation lookalikes across tabs and eras.
   const brw = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'browse.js'), 'utf8');
   const pin8 = require('./lib/pin-source').pinSource();
+  // 2026-11-07 (onerow): window.rrDemotedRow is set ONCE, in app-data.js, beside findMaster
+  const dat8 = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'app-data.js'), 'utf8');
   ok('the demotion rule is shared, not duplicated',
-     /window\.rrDemotedRow = _pinDemotedRow/.test(pin8) && /window\.rrDemotedRow === 'function'/.test(brw));
+     /window\.rrDemotedRow = rrDemotedRow/.test(dat8) && !/window\.rrDemotedRow =(?!=)/.test(pin8) && /window\.rrDemotedRow === 'function'/.test(brw));
   ok('adoption scores the saved era first',
      /_pEra && r\._era === _pEra\) s \+= 4/.test(brw));
   ok('row kind must agree with the item\'s own kind',
@@ -6969,7 +6981,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
       pds.forEach(function (p, i) { state.personalData['k' + i] = p; });
       const ctx = {
         state: state,
-        window: { rrDemotedRow: function (r) { return !!r._paper; } },
+        // 2026-11-07 (onerow): a row marked _paper here, otherwise THE rule — browse.js now asks it
+        // about the copy's own type too ({ itemType }), where it used to keep a word list of its own
+        window: { rrDemotedRow: function (r) { return !!r._paper || rrDemotedRow(r); } },
         _displayItemNum: function (m) { return m.itemNum; },
         _rrEraKeyOf: function (e) { return String(e || '').toLowerCase(); },
         _pdIndexCache: null,

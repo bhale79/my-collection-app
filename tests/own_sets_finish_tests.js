@@ -67,6 +67,7 @@ try {
     liftFn(APPJS, '_manufacturerOfEra'), liftFn(APPJS, '_manufacturerOfItem'), liftFn(APPJS, '_itemEraKey'),
     liftFn(APPJS, '_brandLabel'), liftFn(APPJS, '_brandOfItem'),
     liftFn(ADATA, '_preferEraOf'),
+    require('./lib/row-kind').rowKindFnSource(),   // 2026-11-07 (onerow): _preferEraOf cleans the era word through _rrPreferEraKey
     makerOfSource(), liftFn(APPJS, 'rrMySetItems'), liftFn(APPJS, 'rrMySetMaker'),
     liftFn(WSAVE, 'rrIsOwnSetAdd'), liftFn(WSAVE, 'rrOwnSetRow'),
   ].join('\n'), ctx, { filename: 'lifted.js' });

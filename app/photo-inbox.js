@@ -2106,15 +2106,13 @@
   // actual item row with the same number exists — the Nabisco Train-O-Rama's
   // 2338 was outranking the GP-7 locomotive itself purely by load order.
   // Word boundaries keep this away from "Boxcar" and friends.
+  // 2026-11-07 (onerow): the rule moved beside findMaster — app-data.js
+  // rrRowKind / rrDemotedRow, words in config.js RR_ROW_KIND_WORDS — so the
+  // catalog lookup, the dashboard and the Trainz button ask the SAME question
+  // the Photo Inbox always asked. This name stays for the inbox's callers.
   function _pinDemotedRow(row) {
-    if (!row) return false;
-    if (_pinIsSetRow(row)) return true;
-    return /\b(promo|promotional|paper|boxes|catalog|catalogs|display|displays|instruction|instructions)\b/i
-      .test(String(row.itemType || '') + ' ' + String(row._tab || ''));
+    return rrDemotedRow(row);
   }
-  // v0.9.1120: browse.js consults the same rule when deciding which catalog
-  // row an owned item lights up — one definition, shared everywhere.
-  window.rrDemotedRow = _pinDemotedRow;
 
   // ── v0.9.1371, rehomed in v0.9.1372 ──────────────────────────────────────
   // Brad's 6436-110. The reader gets 6436; the catalogue has no plain 6436,

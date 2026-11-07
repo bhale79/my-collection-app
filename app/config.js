@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2122';
+const APP_VERSION = 'v0.9.2123';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -950,6 +950,42 @@ const CATALOG_REFRESH_MAX_AGE_DAYS = 7;
 // manual (one row per sheet; Scan link = our scan on the master's Drive).
 // Maintenance reads it on demand for Lionel postwar items. The name lives HERE
 // only — maintenance.js and the tests read this constant.
+// 2026-11-07 (onerow) — THE words that say a catalog row is NOT the thing itself
+// (app-data.js rrRowKind reads ONLY this). Measured on the master 2026-11-07:
+// item tabs carry Promotional, Paper, Catalog, Sales Material (109), Memorabilia
+// (419), Ephemera (89), Manual (87), Magazine, Record, Certificate, Newsletter,
+// Packet (109), Separate Sale (35) and Part rows; "Instruction Car" (MPC
+// 6-36834) is a real car, so `item` is asked first. Word edges keep "Boxcar",
+// "Partial" and friends out.
+const RR_ROW_KIND_WORDS = {
+  set:   { type: /\bset\b/i, tab: /\bsets?\b/i },
+  item:  /\binstruction\s+car\b/i,
+  paper: { type: /\b(promo|promotional|paper|catalogs?|display|displays|instruction\s+sheets?|sales\s+material|memorabilia|ephemera|manuals?|magazines?|records?|certificates?|newsletters?|box|boxes)\b/i,
+           tab:  /\b(boxes|paper|catalogs|instruction\s+sheets)\b/i },
+  part:  { type: /\b(packets?|separate\s+sale|parts?)\b/i, tab: /\bparts\b/i }
+};
+if (typeof window !== 'undefined') window.RR_ROW_KIND_WORDS = RR_ROW_KIND_WORDS;
+// 2026-11-07 ([stated] Brad: "Dim the screen behind the Parts diagrams pop-up
+// much more — too cluttered"): how dark the screen behind the Parts diagrams
+// pop-up goes (0 = clear, 1 = black). Every other pop-up keeps 0.6. ONE setting.
+const RR_DIAGRAMS_DIM = 0.88;
+if (typeof window !== 'undefined') window.RR_DIAGRAMS_DIM = RR_DIAGRAMS_DIM;
+// 2026-11-07 (onerow): Trainz diagram pages whose title reads like postwar but
+// whose PAGE sells modern Lionel products ("Lionel 6-6427 …") — read from all
+// 715 pages on 2026-11-07. The weekly crawl now writes these numbers into each
+// entry's `m` (Task38_crawl/weekly/trainz_diagrams_live.py); this table answers
+// for a list that has no `m` yet (the built-in list, an older weekly list).
+// page name → the numbers on it that are MODERN Lionel. Never a store, never a guess.
+const RR_TRAINZ_MODERN_PAGES = {
+  'lionel-6427-6426-6428-parts-list-and-explode-view-parts-diagram': '6427|6426|6428',
+  'lionel-6420-6427-6426-6428-parts-list-and-explode-view-parts-diagram': '6420|6427|6426|6428',   // the page lists 6-6420 too
+  'lionel-6700-parts-list-and-explode-view-parts-diagram': '6700',
+  'lionel-2323-2129-parts-list-and-explode-view-parts-diagram': '2323|2129',
+  'lionel-2324-parts-list-and-explode-view-parts-diagram': '2324',
+  'lionel-8355-parts-list-and-explode-view-parts-diagram': '8355',
+  'lionel-58-8400-8459-parts-list-and-explode-view-parts-diagram': '8459'
+};
+if (typeof window !== 'undefined') window.RR_TRAINZ_MODERN_PAGES = RR_TRAINZ_MODERN_PAGES;
 const SERVICE_MANUAL_TAB = 'Lionel PW - Service Manual';
 if (typeof window !== 'undefined') window.SERVICE_MANUAL_TAB = SERVICE_MANUAL_TAB;
 

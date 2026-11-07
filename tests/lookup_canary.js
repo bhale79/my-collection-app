@@ -54,6 +54,8 @@ eval(grab(dat, '_mIsMotive'));
 eval(grab(dat, '_mSuffix'));
 eval(grab(dat, '_letterKinRows'));
 eval(grab(dat, '_findMasterCore'));
+// 2026-11-07 (onerow): the ONE "is this row the thing itself?" rule + the era cleaner findMaster now asks
+eval(require('./lib/row-kind').rowKindSource());
 // 2026-11-05: the leading-zero bridge (PLAN_2026-11-05_LEADING_ZEROS) — a new lookup path, so it is here
 const _app0 = fs.readFileSync(path.join(__dirname, '..', 'app', 'app.js'), 'utf8');
 eval(grab(_app0, 'rrNumZeroKey')); eval(grab(_app0, 'rrNumZeroTwin'));
@@ -287,7 +289,8 @@ T('6456 untouched: plain row is a real item', (fmX('6456', null, LIVE) || {}).it
 // tests/row_id_tests.js (D) and tests/row_id_collection_tests.js.
 {
   const parts = ['function rrMasterKeyOf(', 'function rrMasterByKey(', 'function rrMasterRowIdOf(', 'function _rrIndexByRowId(',
-    'function rrMasterByRowId(', 'function _rrRowIdFits(', 'function findMaster(', 'function _preferEraOf('].map(n => grab(dat, n.replace(/^function /, '').replace(/\($/, '')));
+    'function rrMasterByRowId(', 'function _rrRowIdFits(', 'function findMaster(', 'function _preferEraOf(', 'function _rrRealRowsOf('].map(n => grab(dat, n.replace(/^function /, '').replace(/\($/, '')))
+    .concat([require('./lib/row-kind').rowKindSource()]);   // 2026-11-07 (onerow)
   const motor = { itemNum: '800', variation: '', _era: 'prewar', _tab: 'Lionel Pre-War', itemType: 'Motorized Unit', rowId: 'MMMMMMMMMM' };
   const boxO  = { itemNum: '800', variation: '', _era: 'prewar', _tab: 'Lionel Pre-War', itemType: 'Boxcar', rowId: 'BBBBBBBBBB' };
   const st6 = { masterByItem: new Map([['800', [motor, boxO]]]), masterByItemAll: null };

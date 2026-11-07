@@ -110,8 +110,8 @@ function grabSig(src, sig) {   // v0.9.2042: the kind check's tables are "var X 
   for (let k = src.indexOf('{', i); k < src.length; k++) { if (src[k] === '{') d++; else if (src[k] === '}') { d--; if (!d) return src.slice(i, k + 1) + (sig.indexOf('var ') === 0 ? ';' : ''); } }
   throw new Error('unbalanced ' + sig);
 }
-const tz = new Function('window', 'var _tzLookup = null;\n' + grab(maint, '_tzFamily') + '\n' + grab(maint, '_tzItemFamily') + '\n'
-  + ['var _TZ_BUCKET_KIND = {', 'function _tzItemKind(item)', 'function _tzTitleKinds(e)', 'var _TZ_KIN = {', 'function _tzKindsAgree(a, b)', 'function _tzFits(itemKind, e)', 'function _tzJunkKey(k, title)', 'function _tzDiagrams(item, eraKey)', 'function _tzDiagram(item, eraKey)'].map(sig => grabSig(maint, sig)).join('\n') + '\nreturn _tzDiagram;')({ TRAINZ_DIAGRAMS: cfg });
+const tz = new Function('window', 'var _tzLookup = null;\n' + (() => { const C = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'config.js'), 'utf8'); const a = C.indexOf('const RR_TRAINZ_MODERN_PAGES = {'); return C.slice(a, C.indexOf('};', a) + 2).replace('const ', 'var '); })() + '\n' /* 2026-11-07 (onerow): the page-name table */ + grab(maint, '_tzFamily') + '\n' + grab(maint, '_tzItemFamily') + '\n'
+  + ['var _TZ_BUCKET_KIND = {', 'function _tzItemKind(item)', 'function _tzTitleKinds(e)', 'var _TZ_KIN = {', 'function _tzKindsAgree(a, b)', 'function _tzFits(itemKind, e)', 'function _tzJunkKey(k, title)', 'function _tzDiagrams(item, eraKey)', 'function _tzDiagram(item, eraKey)', 'function _tzModernNums(e)'].map(sig => grabSig(maint, sig)).join('\n') + '\nreturn _tzDiagram;')({ TRAINZ_DIAGRAMS: cfg });
 const hit = (n, era) => { const e = tz({ itemNum: n }, era || 'pw'); return e ? e.h : null; };
 ok('2338 → the GP-7 page', hit('2338') === e2338.h);
 ok('2343C → 2343\'s page (the suffix falls away)', hit('2343C') && /2343/.test(hit('2343C')));

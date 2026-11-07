@@ -47,13 +47,18 @@ function grab(src, sig) {
 }
 function plant(src, a, b) { if (src.indexOf(a) < 0) throw new Error('plant target not found: ' + a.slice(0, 80)); return src.replace(a, b); }
 const SIGS = ['function _tzFamily(e)', 'function _tzItemFamily(eraKey)', 'var _TZ_BUCKET_KIND = {', 'function _tzItemKind(item)', 'function _tzTitleKinds(e)',
-  'var _TZ_KIN = {', 'function _tzKindsAgree(a, b)', 'function _tzFits(itemKind, e)', 'function _tzJunkKey(k, title)', 'function _tzDiagrams(item, eraKey)', 'function _tzDiagram(item, eraKey)'];
+  'var _TZ_KIN = {', 'function _tzKindsAgree(a, b)', 'function _tzFits(itemKind, e)', 'function _tzJunkKey(k, title)', 'function _tzDiagrams(item, eraKey)', 'function _tzDiagram(item, eraKey)',
+  'function _tzModernNums(e)'];   // 2026-11-07 (onerow): the page's own modern numbers
+// 2026-11-07 (onerow): the page-name table the matcher reads when a list has no `m` — lifted from config.js, never copied
+const CFG = read('config.js');
+const MODERN_PAGES = (() => { const a = CFG.indexOf('const RR_TRAINZ_MODERN_PAGES = {'); return CFG.slice(a, CFG.indexOf('};', a) + 2).replace('const ', 'var '); })();
 function matcher(src) {
   const c = { console: { log() {}, warn() {} } };
   c.window = c;
   vm.createContext(c);
   vm.runInContext(read('type-groups.js'), c);
   vm.runInContext(read('trainz-diagrams-config.js'), c);
+  vm.runInContext(MODERN_PAGES, c);
   vm.runInContext('var _tzLookup = null;\n' + SIGS.map(s => grab(src, s)).join('\n'), c);
   return (num, type, desc, era) => c._tzDiagrams({ itemNum: num, itemType: type || '', description: desc || '' }, era || 'pw').map(e => e.t);
 }
@@ -77,7 +82,11 @@ section('B · two right answers → both buttons');
   ok('726 → the Early and the Late Berkshire', t726.length === 2 && has(t726, /726 Early/) && has(t726, /726 Late/), t726);
   ok('2025 → Early (2-6-2) and Late (2-6-4)', tz('2025', 'Steam Locomotive').length === 2);
   ok('ZW → both transformer sheets', tz('ZW', 'Transformer/Power', 'Transformer').length === 2);
-  ok('6427 caboose → the Porthole and the Transfer caboose sheets', tz('6427', 'Caboose', 'Caboose').length === 2);
+  // 2026-11-07 (onerow; Brad's hand-test T-2026-11-04-02): the "6427 6426 6428 Transfer Caboose"
+  // page sells 6-6426 / 6-6427 / 6-6428 — modern work cabooses. Postwar 6427 (the N5c Porthole)
+  // gets ONE sheet now; the modern 6-6427 gets the Transfer Caboose. (This line asserted two until then.)
+  const pw6427 = tz('6427', 'Caboose', 'Lionel Lines N5c Porthole Caboose');
+  ok('postwar 6427 Porthole caboose → the Porthole sheet only (never the modern Transfer Caboose)', pw6427.length === 1 && /Porthole/.test(pw6427[0]), pw6427);
 }
 
 section('C · kinds that share a sheet are not torn apart');
@@ -105,7 +114,7 @@ section('D · numbers a title shows as something else');
 section('E · the panel draws one button per diagram');
 {
   const panel = grab(MAINT, 'function _maintDiagramLinksHtml(item, where)');
-  ok('_maintDiagramLinksHtml loops _tzDiagrams — one "Trainz diagram:" button each', /_tzDiagrams\(item, eraKey\)\.forEach\(function \(tzd\)/.test(panel) && /Trainz diagram: ' \+ _esc\(tzd\.t\)/.test(panel));
+  ok('_maintDiagramLinksHtml loops _tzDiagrams — one "Trainz diagram:" button each', /_tzDiagrams\(item, eraKey\)\.forEach\(function \(tzd\)/.test(panel) && /Trainz diagram: ' \+ _esc\(_tzLabel\(tzd, item\.itemNum\)\)/.test(panel));   // 2026-11-07: the short label (title on hover)
 }
 
 section('P · planted offenders');

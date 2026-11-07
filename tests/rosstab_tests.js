@@ -161,6 +161,7 @@ function lookupWorld() {
     grab(DAT, 'function _findMasterCore('), grab(DAT, 'function _preferEraOf('),
     grab(DAT, 'function rrMasterByKey('), grab(DAT, 'function rrMasterByRowId('), grab(DAT, 'function _rrRowIdFits('),
     grab(DAT, 'function findMaster('),
+    require('./lib/row-kind').rowKindSource(), grab(DAT, 'function _rrRealRowsOf('),   // 2026-11-07 (onerow): the row-kind rule + era cleaner
     'this.__index = function (rows, allRows) {',
     '  var mk = function (rs) { var m = new Map(); rs.forEach(function (r) { var k = String(r.itemNum).trim(); if (!m.has(k)) m.set(k, []); m.get(k).push(r); }); return m; };',
     '  state.masterByItem = mk(rows); state.masterByItemAll = allRows ? mk(allRows) : null;',

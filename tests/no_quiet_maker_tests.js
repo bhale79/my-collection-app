@@ -82,6 +82,7 @@ try {
     liftFn(APPJS, '_manufacturerOfEra'), liftFn(APPJS, '_manufacturerOfItem'), liftFn(APPJS, '_itemEraKey'),
     liftFn(APPJS, '_brandLabel'), liftFn(APPJS, '_brandOfItem'), liftFn(APPJS, '_getEraManufacturer'),
     liftFn(ADATA, '_preferEraOf'),
+    require('./lib/row-kind').rowKindFnSource(),   // 2026-11-07 (onerow): _preferEraOf cleans the era word through _rrPreferEraKey
     makerOfSource(),
     liftFn(WSAVE, '_rrAddChosenMaker'), liftFn(WSAVE, '_rrAddNeedsMaker'),
     liftFn(TOOLS, 'rrCheckMakersList'),

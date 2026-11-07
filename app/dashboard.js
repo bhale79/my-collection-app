@@ -59,11 +59,10 @@ function _dashGroupTap(name) { return "rrCollGroupOpen('" + name + "')"; }
 // card and the Collection by Type line say the same thing.
 var _DASH_GROUPS = RR_COLL_GROUPS;
 function _ownedBucketOf(pd) {
-  if (!pd || typeof getTypeBucket !== 'function') return '';
-  var m = _valueMasterOf(pd);                       // findMaster(num, variation, the owned row) — a manual row gets null
-  if (m) return getTypeBucket(m) || '';
-  var t = String(pd.itemType || '').trim();
-  return t ? (getTypeBucket({ itemType: t }) || '') : '';
+  // 2026-11-07 (onerow): THE copy-type rule is app-data.js rrCopyBucket — the
+  // catalog row's type wins; the copy's own column only for a manual entry.
+  if (!pd || typeof rrCopyBucket !== 'function') return '';
+  return rrCopyBucket(pd, _valueMasterOf(pd));      // findMaster(num, variation, the owned row) — a manual row gets null
 }
 // The group an owned item is counted under — THE answer the Total cards, the
 // Collection by Type card, the sheet's Dashboard tab AND My Collection's group
@@ -224,12 +223,11 @@ function _valueTypeLabel(pd, master, wantScale) {
   if (_valueScaleId(pd, master) !== wantScale) return 'Other scales';
   var t = '';
   try { t = String((master && master.itemType) || pd.itemType || ''); } catch (e) {}
+  // 2026-11-07 (onerow): getTypeBucketLabel takes a ROW, not a bucket name —
+  // handed the name it answered "Other" for every line of Value by type.
+  // The bucket is THE copy's bucket (rrCopyBucket: the catalog row wins).
   try {
-    if (typeof getTypeBucket === 'function') {
-      var b = getTypeBucket({ itemType: t });
-      if (b && typeof getTypeBucketLabel === 'function') return getTypeBucketLabel(b) || 'Other';
-      if (b) return b;
-    }
+    if (typeof getTypeBucketLabel === 'function' && (master || t)) return getTypeBucketLabel(master || { itemType: t }) || 'Other';
   } catch (e2) {}
   return t || 'Other';
 }

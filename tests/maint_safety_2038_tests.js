@@ -572,8 +572,8 @@ const ONCE = grab(MAINT, 'async function _once(key, fn)');
   const tzRun = (src) => {
     const c = sandbox();
     // v0.9.2042: the matcher grew a kind check and returns every right diagram (_tzDiagrams)
-    load(c, TZCFG + '\nvar _tzLookup = null;\n' + grab(src, 'function _tzFamily(e)') + '\n' + grab(src, 'function _tzItemFamily(eraKey)') + '\n'
-      + ['var _TZ_BUCKET_KIND = {', 'function _tzItemKind(item)', 'function _tzTitleKinds(e)', 'var _TZ_KIN = {', 'function _tzKindsAgree(a, b)', 'function _tzFits(itemKind, e)', 'function _tzJunkKey(k, title)', 'function _tzDiagrams(item, eraKey)', 'function _tzDiagram(item, eraKey)'].map(sig => grab(src, sig) + (sig.indexOf('var ') === 0 ? ';' : '')).join('\n'));
+    load(c, TZCFG + '\n' + (() => { const C = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'config.js'), 'utf8'); const a = C.indexOf('const RR_TRAINZ_MODERN_PAGES = {'); return C.slice(a, C.indexOf('};', a) + 2).replace('const ', 'var '); })() /* 2026-11-07 (onerow) */ + '\nvar _tzLookup = null;\n' + grab(src, 'function _tzFamily(e)') + '\n' + grab(src, 'function _tzItemFamily(eraKey)') + '\n'
+      + ['var _TZ_BUCKET_KIND = {', 'function _tzItemKind(item)', 'function _tzTitleKinds(e)', 'var _TZ_KIN = {', 'function _tzKindsAgree(a, b)', 'function _tzFits(itemKind, e)', 'function _tzJunkKey(k, title)', 'function _tzDiagrams(item, eraKey)', 'function _tzDiagram(item, eraKey)', 'function _tzModernNums(e)'].map(sig => grab(src, sig) + (sig.indexOf('var ') === 0 ? ';' : '')).join('\n'));
     return (num, era) => { const e = c._tzDiagram({ itemNum: num }, era); return e ? e.t : null; };
   };
   section('B14 · a Trainz diagram is matched by maker + era + number');
@@ -603,17 +603,18 @@ const ONCE = grab(MAINT, 'async function _once(key, fn)');
     c._itemEraKey = (it) => it._era;
     c._lionelBoxNum = n => n;
     load(c, grab(src, 'var PWSM_FILES = {') + '\n' + line(src, 'var PWSM_BASE = ') + '\n' + line(src, 'var PWSM_HOME = ') + '\n' + grab(src, 'var PWSM_TOK = {') + '\nvar _pwsmLookup = null;\n'
-      + grab(src, 'function _pwsmFile(num)') + '\n' + grab(src, 'function _docsUrl(route, item)'));
+      + grab(src, 'function _pwsmFile(num)'));   // 2026-11-07: _docsUrl lost its LCCA route (B16)
     return c;
   };
   section('B16 · a prewar item never gets a POSTWAR LCCA section');
   {
-    const c = pwsmRun(MAINT);
-    const pre = c._docsUrl('lcca', { itemNum: '211', _era: 'prewar' }), post = c._docsUrl('lcca', { itemNum: '211', _era: 'pw' });
-    ok('prewar 211 → the archive home (no section); postwar 211 → its own section PDF', !/\.pdf/.test(pre) && /loc_211\.pdf/.test(post), [pre, post]);
-    ok('the panel and the Covers suggestion ask the era too (postwar only)', /\(route === 'lcca' && String\(eraKey \|\| ''\)\.toLowerCase\(\) === 'pw'\) \? _pwsmFile/.test(MAINT) && /\(String\(_sEra \|\| ''\)\.toLowerCase\(\) === 'pw'\) \? _pwsmFile/.test(MAINT));
-    const p = pwsmRun(plant(MAINT, "var pf = (String(_uEra || '').toLowerCase() === 'pw') ? _pwsmFile(num) : null;", 'var pf = _pwsmFile(num);'));
-    ok('PLANTED: the old link → prewar 211 opens the postwar section', /\.pdf/.test(p._docsUrl('lcca', { itemNum: '211', _era: 'prewar' })));
+    // 2026-11-07 ([stated] Brad: "Remove the LCCA 'Service Manual pages' button
+    // completely"): the LCCA link (_docsUrl 'lcca', the button, _maintLccaGo) is
+    // gone, so the link half of B16 retired with it — tests/one_catalog_row_tests.js
+    // F1/P6 guard that it stays gone. The LCCA index still prefills "Covers" on a
+    // saved document, postwar only — that half stays.
+    ok('the Covers suggestion asks the era (postwar only)', /\(String\(_sEra \|\| ''\)\.toLowerCase\(\) === 'pw'\) \? _pwsmFile/.test(MAINT));
+    ok('no LCCA link builder is left (_docsUrl has no lcca route)', !/if \(route === 'lcca'\) \{\n\s*\/\/ v0\.9\.2038 \(B16\)/.test(MAINT));
   }
   section('B17 · LCCA finds powered units however they are spelled');
   {
@@ -694,6 +695,7 @@ const ONCE = grab(MAINT, 'async function _once(key, fn)');
       c._maintDiagramsClose = () => {};
       c._dgSideBySide = () => false; c._cardOpen = () => ''; c._cardHead = () => ''; c._esc = s => String(s); c._dgListHtml = () => '';
       c._dgDraggable = () => {}; c._dgShiftPop = () => {}; c.rrDismissGuard = () => {};
+      c._dgDim = () => 'rgba(0,0,0,0.88)'; c._dgDimPop = () => {};   // 2026-11-07 (onerow): the darker backdrop — tests/one_catalog_row_tests.js F2–F4
       c.MutationObserver = function () { this.observe = () => {}; this.disconnect = () => {}; }; c._dgObs = null;
       load(c, line(src, "var DG_ID = ") + '\n' + grab(src, 'window._maintDiagramsOpen = function ()'));
       els['maint-diagrams-pop'] = { open: true };     // it is already open

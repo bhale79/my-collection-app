@@ -73,57 +73,44 @@ function judge(html) {
   };
 }
 
+// ── 2026-11-07 ([stated] Brad: "Remove the LCCA 'Service Manual pages' button
+// completely (my decision 2026-11-07)"). The phone rule above (v1846) is
+// superseded: the button is gone on EVERY device. Rule 1 holds for the desktop
+// now too; rule 2 is retired; rule 3 (no Olsen's) stays. The planted offender
+// is the v0.9.2117 block itself, read from git.
 // ── A · the real block ─────────────────────────────────────────────────────
-section('A · the real block from maintenance.js');
+section('A · the real block from maintenance.js — no LCCA button anywhere');
 const real = liftBlock(maint);
 ok('block lifted', real.length > 200, 'length ' + real.length);
 
 [true, false].forEach(function (hit) {
   const tag = hit ? ' (item with a mapped manual)' : ' (no mapped manual)';
-  const phone = judge(runBlock(real, true, hit));
-  ok('phone: no LCCA button' + tag, !phone.lccaBtn);
-  ok('phone: no LCCA note box' + tag, !phone.lccaNote);
-  ok('phone: the word LCCA appears nowhere' + tag, !phone.lccaWords);
-  ok('phone: no Olsen\'s button (v1850)' + tag, !phone.olsen);
-
-  const desk = judge(runBlock(real, false, hit));
-  ok('desktop: LCCA button kept' + tag, desk.lccaBtn);
-  ok('desktop: LCCA note box kept' + tag, desk.lccaNote);
-  ok('desktop: "Requires LCCA membership" kept' + tag, /Requires LCCA membership/.test(runBlock(real, false, hit)));
-  ok('desktop: no Olsen\'s button (v1850)' + tag, !desk.olsen);
+  [['phone', true], ['desktop', false]].forEach(function ([dev, isPhone]) {
+    const html = runBlock(real, isPhone, hit), j = judge(html);
+    ok(dev + ': no LCCA button' + tag, !j.lccaBtn);
+    ok(dev + ': no LCCA note box' + tag, !j.lccaNote);
+    ok(dev + ': the word LCCA appears nowhere' + tag, !j.lccaWords);
+    ok(dev + ': no Olsen\'s button (v1850)' + tag, !j.olsen);
+  });
 });
 
-// ── B · phone-ness comes from the ONE flag ─────────────────────────────────
-section('B · the block asks window.IS_MOBILE_UA, nothing else');
-function usesOneFlag(block) {
-  return /window\.IS_MOBILE_UA/.test(block)
-    && !/navigator\.userAgent|innerWidth|maxTouchPoints|matchMedia|ontouchstart/.test(block);
-}
-ok('the real block uses window.IS_MOBILE_UA only', usesOneFlag(real));
-ok('config.js still defines window.IS_MOBILE_UA',
+// ── B · nothing device-specific is left in the block ───────────────────────
+section('B · the block no longer branches on the device');
+ok('no IS_MOBILE_UA branch left in the LCCA route (it drew only the LCCA button)', !/IS_MOBILE_UA/.test(real.replace(/\/\/[^\n]*/g, '')));
+ok('config.js still defines window.IS_MOBILE_UA (other screens use it)',
    /window\.IS_MOBILE_UA\s*=/.test(fs.readFileSync(path.join(__dirname, '..', 'app', 'config.js'), 'utf8')));
 
 // ── C · offenders: each rule must be able to fail ──────────────────────────
 section('C · planted offenders are caught');
-// C1 — the v1845 block: the button drawn on every device.
-const v1845 = real
-  .replace(/if \(!window\.IS_MOBILE_UA\) \{\n/, '{\n');
-ok('(the guard is in the block, so the offender below differs from it)', v1845 !== real);
-const o1 = judge(runBlock(v1845, true, true));
-ok('C1 v1845 (button on every device) is caught on the phone', o1.lccaBtn && o1.lccaNote,
-   'offender did not reproduce the old behaviour');
-// C2 — the Olsen's button put back (v1849's line): caught on both devices
+let old = '';
+try { old = require('child_process').execSync('git show fb3beb1c:app/maintenance.js', { cwd: path.join(__dirname, '..'), encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }); } catch (e) {}
+const oldBlock = old ? liftBlock(old) : '';
+ok('C1 the v0.9.2117 block (LCCA button on the desktop) is caught', !!oldBlock && judge(runBlock(oldBlock, false, true)).lccaBtn && judge(runBlock(oldBlock, false, true)).lccaWords,
+   old ? 'offender did not reproduce the old behaviour' : 'git history needed (full clone)');
 const o2src = real.slice(0, -1) + "h += '<div><button onclick=\"window.open(\\'https://www.olsenstoy.com/searchcd1.htm\\',\\'_blank\\')\">Olsen\\'s service library (free, no login) →</button></div>';\n}";
 ok('C2 the Olsen\'s button put back is caught on phone AND desktop', o2src !== real && judge(runBlock(o2src, true, true)).olsen && judge(runBlock(o2src, false, true)).olsen);
-// C3 — the guard inverted: the desktop loses the button.
-const o3src = real.replace('if (!window.IS_MOBILE_UA) {', 'if (window.IS_MOBILE_UA) {');
-ok('C3 inverted guard is caught on the desktop', o3src !== real && !judge(runBlock(o3src, false, true)).lccaBtn);
-// C4 — a private screen-width guess instead of the one flag.
-const o4src = real.replace('if (!window.IS_MOBILE_UA) {', 'if (!(window.innerWidth <= 640)) {');
-ok('C4 a width guess instead of the flag is caught', o4src !== real && !usesOneFlag(o4src));
-// C5 — a private user-agent test instead of the one flag.
-const o5src = real.replace('if (!window.IS_MOBILE_UA) {', 'if (!/Android/i.test(navigator.userAgent)) {');
-ok('C5 a private UA test instead of the flag is caught', o5src !== real && !usesOneFlag(o5src));
+const o3src = real.slice(0, -1) + "h += '<button onclick=\"_maintLccaGo(1)\">LCCA</button>';\n}";
+ok('C3 an LCCA button planted back is caught', judge(runBlock(o3src, false, true)).lccaBtn);
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

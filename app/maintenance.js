@@ -1004,6 +1004,55 @@
     if (/\bmpc\b|\blti\b/.test(t)) return 'modern';
     return 'postwar';
   }
+  // 2026-11-07 (onerow; [stated] Brad: "fix the family rule … in the weekly
+  // crawl and _tzLiveCheck alike"). A title's words are not enough: Trainz
+  // calls the modern 6-6426 / 6-6427 / 6-6428 work cabooses "Lionel 6427 6426
+  // 6428 Transfer Caboose" — no MPC, no LTI — so it was filed postwar and
+  // Brad's postwar 6427 Porthole Caboose got a second, wrong button (and the
+  // postwar 6426 flatcar and 6428 mail car would too). The PAGE lists its
+  // products as "Lionel 6-6427 …"; the weekly crawl reads that and writes the
+  // numbers in `m`. Read on 2026-11-07 from all 715 pages: 6 diagrams carry
+  // modern numbers under a plain title. A list without `m` (the built-in list,
+  // an older weekly file) asks RR_TRAINZ_MODERN_PAGES (config.js) by page name.
+  function _tzModernNums(e) {
+    var m = (typeof e.m === 'string') ? e.m
+      : ((typeof RR_TRAINZ_MODERN_PAGES !== 'undefined' && RR_TRAINZ_MODERN_PAGES[e.h]) || '');
+    var out = {};
+    m.split('|').forEach(function (k) { if (k) out[k] = 1; });
+    return out;
+  }
+  // 2026-11-07 ([stated] Brad: "the Trainz button label is cut off at 60
+  // characters ("…2329 Re") — show a clean short label"). The crawl keeps 60
+  // characters of Trainz's title (135 of 715 are cut). The button says what
+  // the drawing IS — the title less "Lionel", less the item numbers it lists
+  // (they are in `n`), less a word cut in half at the 60th character; the full
+  // title stays as the button's hover words.
+  function _tzLabel(e, itemNum) {
+    var t = String(e.t || '');
+    var cut = t.length >= 60;
+    var nums = {};
+    String(e.n || '').split('|').forEach(function (k) { if (k) nums[k] = 1; });
+    var words = t.replace(/^\s*lionel\s+/i, '').split(/\s+/);
+    if (cut && words.length > 1) words.pop();
+    // only a catalog NUMBER goes (it starts with a digit); a model name the
+    // number rule also keeps (SD18, GP20, Dash-8-40B) stays, and so does a
+    // number the title shows as a size or a gauge ("44 Ton", "O27") — _tzJunkKey.
+    // "2530,2531,2541" (numbers run together with commas) goes as a whole.
+    var _numTok = function (p) { var k = p.replace(/[^A-Za-z0-9]/g, '').toUpperCase(); return !!(k && nums[k] && /^\d/.test(k) && !_tzJunkKey(k, t)); };
+    var keep = words.filter(function (w) {
+      var parts = w.split(',').filter(function (p) { return p.replace(/[^A-Za-z0-9]/g, ''); });
+      return !(parts.length && parts.every(_numTok));
+    });
+    var s = keep.join(' ').replace(/(^|\s)[&\/,]+(?=\s|$)/g, ' ').replace(/\s*,\s*(,\s*)+/g, ', ')
+      .replace(/^[\s,&\/-]+|[\s,&\/-]+$/g, '').replace(/\s{2,}/g, ' ');
+    // nothing left but the line's name (a title that is all numbers, cut at 60):
+    // name the drawing by THIS item's number instead
+    if (!s.replace(/\b(mpc|lti|postwar|prewar|pre-war|american\s+flyer)\b/ig, '').replace(/[\s,&\/-]/g, '')) {
+      var own = String(itemNum || '').trim() || String(e.n || '').split('|')[0];
+      s = (s ? s + ' ' : '') + 'No. ' + own;
+    }
+    return s;
+  }
   function _tzItemFamily(eraKey) {
     var e = String(eraKey || '').toLowerCase();
     if (e === 'pw') return 'postwar';
@@ -1087,10 +1136,11 @@
     if (!_tzLookup) {
       _tzLookup = { af: {}, prewar: {}, modern: {}, postwar: {} };
       list.forEach(function (e) {
-        var f = _tzFamily(e);
+        var f = _tzFamily(e), mod = _tzModernNums(e);
         e.n.split('|').forEach(function (k) {
           if (!k || _tzJunkKey(k, e.t)) return;
-          var b = _tzLookup[f][k] || (_tzLookup[f][k] = []);
+          var fk = mod[k] ? 'modern' : f;           // 2026-11-07: the PAGE says 6-6427 → modern, whatever the title says
+          var b = _tzLookup[fk][k] || (_tzLookup[fk][k] = []);
           if (b.indexOf(e) < 0) b.push(e);
         });
       });
@@ -1177,8 +1227,16 @@
     var seen = {};
     for (var i = 0; i < d.length; i++) {
       var e = d[i];
-      if (!e || typeof e !== 'object' || Object.keys(e).sort().join(',') !== 'h,n,t') return 'entry ' + i + ' is malformed';
+      var _ks = (e && typeof e === 'object') ? Object.keys(e).sort().join(',') : '';
+      if (_ks !== 'h,n,t' && _ks !== 'h,m,n,t') return 'entry ' + i + ' is malformed';
       if (typeof e.n !== 'string' || !/^[A-Z0-9|]*$/.test(e.n)) return 'entry ' + i + ': item numbers';
+      // 2026-11-07: `m` = the numbers the page sells as modern Lionel (6-NNNN) —
+      // each one of the entry's own numbers, nothing else
+      if (_ks === 'h,m,n,t') {
+        if (typeof e.m !== 'string' || !/^[A-Z0-9|]*$/.test(e.m)) return 'entry ' + i + ': modern numbers';
+        var _nn = '|' + e.n + '|';
+        if (e.m.split('|').some(function (k) { return k && _nn.indexOf('|' + k + '|') < 0; })) return 'entry ' + i + ': a modern number it does not list';
+      }
       if (typeof e.t !== 'string' || !e.t || e.t.length > 60) return 'entry ' + i + ': title';
       // the page name goes inside the link the button opens: lower-case
       // letters, digits and dashes ONLY — never a quote, a slash or a space
@@ -1687,13 +1745,6 @@
   // ── URL builders (all open in a new tab; no API keys anywhere) ─
   function _docsUrl(route, item) {
     var num = String(item && item.itemNum || '').trim();
-    if (route === 'lcca') {
-      // v0.9.2038 (B16): a section only for a POSTWAR item; prewar gets the archive home
-      var _uEra = null;
-      try { _uEra = (typeof _itemEraKey === 'function') ? _itemEraKey(item) : (item && (item._era || item.era)) || null; } catch (eU) {}
-      var pf = (String(_uEra || '').toLowerCase() === 'pw') ? _pwsmFile(num) : null;
-      return pf ? (PWSM_BASE + pf + '.pdf' + (PWSM_TOK[pf] ? '?sfvrsn=' + PWSM_TOK[pf] : '')) : PWSM_HOME;
-    }
     if (route === 'lionel')
       // v0.9.1649 (Brad supplied the working URL): lionelsupport's real
       // search param is ?keywords= (the ?q= guess rendered empty).
@@ -2026,33 +2077,7 @@
     _favPanelRedraw(prefKey, selectId);   // the list stays open, one line shorter
   };
 
-  // ── v0.9.1641: the LCCA two-step (copy link + open site) ─────
-  // PROVEN: LCCA's member cookie is SameSite-strict — it rides only on
-  // user-initiated navigations (address-bar paste, bookmarks), NEVER on
-  // links clicked from another site, token or no token (Brad tested
-  // every form). So the button copies the exact PDF link and opens
-  // lionelcollectors.org; the user pastes in that tab's address bar.
-  window._maintLccaGo = function (url, noteId) {
-    var done = function (ok) {
-      // v0.9.1642: the new tab covers the app instantly, so a toast plays
-      // to an empty room (Brad never saw it). The instruction lives IN
-      // the panel now — still there when the user switches back.
-      // v0.9.1857: the note's id comes from the builder (the popup has its own).
-      var note = document.getElementById(noteId || 'maint-lcca-note');
-      if (note) {
-        note.style.display = 'block';
-        note.innerHTML = ok
-          ? '<b>Link copied!</b> Due to LCCA\'s permissions, please <b>log in</b> on the LCCA tab that just opened (check <b>Remember Me</b> — you only have to do this once). Once logged in, <b>right-click the web address bar</b> and hit <b>Paste and go</b> — that takes you straight to the manual pages.'
-          : 'Could not copy the link automatically — here it is to copy by hand:<br><span style="user-select:all;word-break:break-all">' + _esc(url) + '</span>';
-      }
-      if (typeof showToast === 'function' && !ok)
-        showToast('Could not copy the link — see the Maintenance panel.', 5000, true);
-      window.open('https://www.lionelcollectors.org', '_blank');
-    };
-    try {
-      navigator.clipboard.writeText(url).then(function(){ done(true); }, function(){ done(false); });
-    } catch (e) { done(false); }
-  };
+  // (v0.9.1641's LCCA two-step, _maintLccaGo, removed 2026-11-07 with the LCCA button — [stated] Brad)
 
   // ── the panel ────────────────────────────────────────────────
   var _panelItem = null;
@@ -2153,11 +2178,8 @@
     // v0.9.2038 (B16): the LCCA map is the POSTWAR Service Manual — a prewar
     // 211 / 617 / 45 / 68 / 60 is another train with the same number. Prewar
     // keeps the archive button, without a section that is not its own.
-    var _pwsmHit = (route === 'lcca' && String(eraKey || '').toLowerCase() === 'pw') ? _pwsmFile(String(item.itemNum || '')) : null;
     var _atlasHit = (route === 'atlas') ? _atlasMatch(item, eraKey) : null;
-    var routeLabel = _maintRouteLabel(route, item, _pwsmHit, _atlasHit);
     var linkBtn = _btn('blue');
-    var noteId = 'maint-lcca-note' + (where ? '-' + where : '');
     // v0.9.1644 (Brad's spec): MANUFACTURER source first — direct
     // PDF when we have it, honest "there isn't one" when we don't —
     // then always: Google the parts diagram + Trainz parts diagrams.
@@ -2175,7 +2197,7 @@
     // postwar) and Trainz comes right after them.
     var tzHtml = '';
     _tzDiagrams(item, eraKey).forEach(function (tzd) {
-      tzHtml += '<div class="maint-tz-row" style="margin-bottom:0.5rem"><button onclick="window.open(\'https://www.trainz.com/pages/parts-diagram/' + _esc(tzd.h) + '\',\'_blank\')" ' + linkBtn + '>Trainz diagram: ' + _esc(tzd.t) + ' →</button></div>';
+      tzHtml += '<div class="maint-tz-row" style="margin-bottom:0.5rem"><button title="' + _esc(tzd.t) + '" onclick="window.open(\'https://www.trainz.com/pages/parts-diagram/' + _esc(tzd.h) + '\',\'_blank\')" ' + linkBtn + '>Trainz diagram: ' + _esc(_tzLabel(tzd, item.itemNum)) + ' →</button></div>';
     });
     if (route !== 'lcca') h += tzHtml;
     // ── the manufacturer row ──
@@ -2186,23 +2208,13 @@
       // button below goes when the set is complete ([stated] Brad).
       if (String(eraKey || '').toLowerCase() === 'pw') h += _smSlotHtml(item, where);
       h += tzHtml;   // 2026-11-01: right after the service manual sheets (a prewar item has none: Trainz first)
-      // v0.9.1846 ([stated] Brad: "just remove the lcca button from the
-      // mobile app all together but keep it on the desktop"). The LCCA
-      // route is copy-the-link + paste it in the browser's address bar
-      // (LCCA's member cookie only rides on a typed/pasted address). A
-      // phone opens the link in Chrome's small in-app window, which has
-      // NO address bar — and Chrome refuses to hand an installed app's
-      // link to full Chrome (intent-to-self = navigate in place). So on
-      // a phone there is nowhere to paste: the button is not shown.
-      // Phone-ness = window.IS_MOBILE_UA, the ONE flag (config.js).
-      // v0.9.1850 ([stated] Brad: "the olsenstoy.com button, we just need to
-      // remove it as it never works" → "both mobile and desktop"): gone
-      // everywhere. The Google + Trainz rows below follow on every device.
-      if (!window.IS_MOBILE_UA) {
-      h += '<button onclick="_maintLccaGo(\'' + rrJsArg(_docsUrl(route, item)) + '\',\'' + rrJsArg(noteId) + '\')" ' + linkBtn + '>' + _esc(routeLabel) + ' →</button>'
-        + '<div id="' + noteId + '" style="display:none;font-size:0.8rem;color:var(--text);background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 12%, var(--surface2));border:1px solid #2980b9;border-radius:8px;padding:0.55rem 0.7rem;margin-top:0.55rem"></div>'
-        + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">' + (_pwsmHit ? 'Copies the link to this item\'s manual section and opens LCCA in a new tab — see the note above after you tap.' : 'No direct section mapped — the button copies the archive link; paste it in the LCCA tab.') + ' Requires LCCA membership.</div>';
-      }
+      // 2026-11-07 ([stated] Brad: "Remove the LCCA 'Service Manual pages'
+      // button completely (my decision 2026-11-07)"). It was a copy-the-link-
+      // and-paste route into LCCA's members' archive (desktop only since
+      // v0.9.1846). Measured before removing it (PLAN_2026-11-07_ONE_CATALOG_ROW):
+      // of 1,396 real postwar item numbers 428 have a scanned sheet of ours and
+      // 13 a closest-similar sheet; 461 more are on the Service Manual tab with
+      // their scans still to upload. The Trainz and Google rows below stay.
     } else if (route === 'atlas' && _atlasHit) {
       // v0.9.1744: the whole family — body, chassis, trucks — not just the first sheet
       var _atlasAll = _atlasMatchAll(item, eraKey) || [_atlasHit];
@@ -2277,13 +2289,6 @@
       +   '<button onclick="window.open(\'' + rrJsArg(gq) + '\',\'_blank\')" ' + _btnQuiet() + '>Google the parts diagram →</button>'
       + '</div>';
     return h;
-  }
-  function _maintRouteLabel(route, item, _pwsmHit, _atlasHit) {
-    return route === 'lcca' ? (_pwsmHit ? 'Service Manual pages for ' + _esc(String(item.itemNum || '')) + ' (LCCA members)' : 'LCCA Postwar Service Manual archive (members)')
-         : route === 'lionel' ? 'Lionel Support (manuals & parts diagrams)'
-         : route === 'mth' ? 'MTH Parts & Sales (diagrams & parts)'
-         : route === 'atlas' ? (_atlasHit ? 'Parts diagram: ' + _atlasHit.t : 'Atlas parts diagrams')
-         : 'Search the web for docs';
   }
 
   window._maintOpenPanel = function (idx, itemNum, variation, invId) {
@@ -3671,6 +3676,32 @@
     var pop = document.getElementById('maint-parts-pop');
     if (pop) pop.style.right = side ? '50vw' : '0';
   }
+  // 2026-11-07: the backdrop colour while the Parts diagrams pop-up is open —
+  // ONE setting, RR_DIAGRAMS_DIM (config.js). The Need-a-part card's own
+  // backdrop goes just as dark while the pop-up sits beside it, and back to its
+  // usual 0.6 when the pop-up closes.
+  var _DG_POP_DIM_USUAL = 'rgba(0,0,0,0.6)';
+  var DG_DIM_ID = 'maint-dg-dim';
+  function _dgDim() {
+    var d = (typeof RR_DIAGRAMS_DIM === 'number' && RR_DIAGRAMS_DIM >= 0 && RR_DIAGRAMS_DIM <= 1) ? RR_DIAGRAMS_DIM : 0.6;
+    return 'rgba(0,0,0,' + d + ')';
+  }
+  // on: Need-a-part's backdrop goes dark and, side by side, a FIXED dark layer
+  // covers the right half under the pop-up (it never moves with a drag, and a
+  // tap on it lands on it — never on the app's buttons underneath). off: both back.
+  function _dgDimPop(on, side) {
+    var pop = document.getElementById('maint-parts-pop');
+    if (pop) pop.style.background = on ? _dgDim() : _DG_POP_DIM_USUAL;
+    var old = document.getElementById(DG_DIM_ID);
+    if (old && old.parentNode) old.parentNode.removeChild(old);
+    if (on && side) {
+      var dim = document.createElement('div');
+      dim.id = DG_DIM_ID;
+      // just under the pop-up (100032), above Need-a-part (100030) — tests/maint_layers_tests.js holds the order
+      dim.style.cssText = 'position:fixed;top:0;bottom:0;right:0;width:50vw;z-index:100031;background:' + _dgDim();
+      document.body.appendChild(dim);
+    }
+  }
   function _dgSavedHtml(item) {
     var docs = _docCovers(item).filter(function (d) { return String(d.type || '') !== 'video'; });
     if (!docs.length) return '';
@@ -3688,6 +3719,7 @@
     var el = document.getElementById(DG_ID);
     if (el && el.parentNode) el.parentNode.removeChild(el);
     _dgShiftPop(false);
+    _dgDimPop(false);
     if (_dgObs) { try { _dgObs.disconnect(); } catch (e) {} _dgObs = null; }
   };
   // back to the list from a section's sheets
@@ -3759,7 +3791,10 @@
     // above the Need-a-part card (100030), under the parts chooser (100035)
     // and the app's confirm boxes — tests/maint_layers_tests.js holds the order
     el.style.cssText = 'position:fixed;top:0;bottom:0;right:0;z-index:100032;display:flex;align-items:flex-start;justify-content:center;padding:2rem 1rem;'
-      + (side ? 'width:50vw;box-sizing:border-box;pointer-events:none' : 'left:0;background:rgba(0,0,0,0.6)');
+      // 2026-11-07: the screen behind goes much darker (RR_DIAGRAMS_DIM). Side by
+      // side, this wrapper MOVES when the card is dragged, so the right half's
+      // dark layer is a separate, fixed one (_dgDimPop) — never on the wrapper.
+      + (side ? 'width:50vw;box-sizing:border-box;pointer-events:none' : 'left:0;background:' + _dgDim());
     // 2026-10-30 ([stated] Brad "yes"): padding sat OUTSIDE the widths (the
     // app's global border-box reset has never applied — app.css note): the
     // right-half wrapper (50vw + its 2 x 1rem) reached 32 px past the middle,
@@ -3775,6 +3810,7 @@
     // the WRAPPER moves (it carries no zoom), so the card follows the pointer 1:1
     if (side) _dgDraggable(el, document.getElementById('maint-dg-head'));
     _dgShiftPop(side);
+    _dgDimPop(true, side);
     // a stray tap never closes it; device Back does, through the SAME close as the ✕
     try { if (window.rrDismissGuard) window.rrDismissGuard(el, window._maintDiagramsClose); } catch (eG) {}
     // the two leave together: Need-a-part gone (✕, a part added…) → this goes;
@@ -3783,7 +3819,7 @@
       _dgObs = new MutationObserver(function () {
         var mine = document.getElementById(DG_ID), pop = document.getElementById('maint-parts-pop');
         if (!pop && mine) { window._maintDiagramsClose(); return; }
-        if (!mine) { _dgShiftPop(false); if (_dgObs) { try { _dgObs.disconnect(); } catch (e) {} _dgObs = null; } }
+        if (!mine) { _dgShiftPop(false); _dgDimPop(false); if (_dgObs) { try { _dgObs.disconnect(); } catch (e) {} _dgObs = null; } }
       });
       _dgObs.observe(document.body, { childList: true });
     } catch (eO) {}

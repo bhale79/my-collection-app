@@ -67,12 +67,14 @@ const PAGE = '<!doctype html><html><head><meta charset="utf-8"><style>' + css + 
   + '<div id="maint-parts-pop" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100030;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem">'
   + '<div class="rr-card maint-card" style="max-width:520px"><input id="maint-pop-part"><div style="height:1500px">Find your part</div></div></div></body></html>';
 
+const DIM = (() => { const C = fs.readFileSync(path.join(__dirname, '..', 'app', 'config.js'), 'utf8'); const m = C.match(/const RR_DIAGRAMS_DIM = ([0-9.]+);/); return m ? m[1] : 'undefined'; })();
 function harness(src) {
   return `(function () {
     var state = window.state = { masterSheetId: 'M', masterVersion: { v: '1' }, myManuals: [
       { title: '2338 gp7 reassemble step by step', url: 'https://youtube.com/watch?v=x', type: 'video', covers: '2338' },
       { title: 'My GP7 exploded view', url: 'https://drive.google.com/file/d/mine/view', type: 'picture', covers: '2338' } ] };
     var SERVICE_MANUAL_TAB = 'Lionel PW - Service Manual', CATALOG_REFRESH_MAX_AGE_DAYS = 7, MASTER_SHEET_ID = 'M';
+    var RR_DIAGRAMS_DIM = ${DIM};   // 2026-11-07: read from config.js, never typed here
     var sheetsGet = function () { return Promise.resolve({ values: ${JSON.stringify(VALUES)} }); };
     var SECT = 'font-size:0.72rem;text-transform:uppercase;margin-bottom:0.6rem';
     function _esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
@@ -141,6 +143,18 @@ const text = (page, sel) => page.evaluate(s => (document.querySelector(s) || {})
       ok(w + 'x' + h + ': the pop-up stays in the right half, Need-a-part in the left', c && n && c.l >= w / 2 - 1 && c.r <= w + 1 && n.r <= w / 2 + 1, JSON.stringify({ card: c, needAPart: n }));
     }
 
+    // 2026-11-07 ([stated] Brad: "Dim the screen behind the Parts diagrams pop-up much more — too cluttered")
+    section('B2 · the screen behind goes much darker (RR_DIAGRAMS_DIM), and back when it closes');
+    {
+      const bg = sel => p.evaluate(s => { const e = document.querySelector(s); return e ? getComputedStyle(e).backgroundColor : null; }, sel);
+      ok('the right half behind the pop-up is dark (0.88) — a FIXED layer, not the wrapper that moves', await bg('#maint-dg-dim') === 'rgba(0, 0, 0, ' + DIM + ')' && await bg('#maint-diagrams-pop') === 'rgba(0, 0, 0, 0)', await bg('#maint-dg-dim'));
+      const dimR = await rect(p, '#maint-dg-dim');
+      ok('…covering exactly the right half', dimR && Math.abs(dimR.l - 800) <= 1 && dimR.r >= 1599, JSON.stringify(dimR));
+      ok('…and a tap on the dark half lands on the dark layer, never on the app underneath', await p.evaluate(() => { const e = document.elementFromPoint(1590, 880); return !!e && e.id === 'maint-dg-dim'; }));
+      ok('the left half behind Need-a-part goes just as dark while it is open', await bg('#maint-parts-pop') === 'rgba(0, 0, 0, ' + DIM + ')', await bg('#maint-parts-pop'));
+      await p.screenshot({ path: '/tmp/onerow_dim_computer.png' }).catch(() => {});
+    }
+
     section('C · what it lists');
     const list = await text(p, '#maint-dg-body');
     ok('the Lionel Service Manual section button', /LOC 2328 — 4 sheets/.test(list), list.slice(0, 200));
@@ -163,6 +177,8 @@ const text = (page, sel) => page.evaluate(s => (document.querySelector(s) || {})
     await p.mouse.move(h.x, h.y); await p.mouse.down(); await p.mouse.move(h.x - 300, h.y + 50, { steps: 5 }); await p.mouse.up();
     const after = await rect(p, '#maint-dg-card');
     ok('dragging the title bar moves it with the pointer (300 px left)', Math.abs((before.l - after.l) - 300) <= 2, before.l + ' → ' + after.l);
+    const dimAfter = await rect(p, '#maint-dg-dim');
+    ok('…and the dark layer stays where it was (it never moves with a drag)', dimAfter && Math.abs(dimAfter.l - 800) <= 1, JSON.stringify(dimAfter));
     const x = await p.evaluate(() => { const r = document.getElementById('dg-x').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
     const t0 = await p.evaluate(() => document.getElementById('maint-diagrams-pop').style.transform);
     await p.mouse.move(x.x, x.y); await p.mouse.down(); await p.mouse.move(x.x - 200, x.y, { steps: 3 }); await p.mouse.up();
@@ -172,6 +188,7 @@ const text = (page, sel) => page.evaluate(s => (document.querySelector(s) || {})
     await p.evaluate(() => { if (!document.getElementById('maint-diagrams-pop')) window._maintDiagramsOpen(); });
     await p.click('#dg-x');
     ok('✕ closes it', !(await has(p, '#maint-diagrams-pop')));
+    ok('…and Need-a-part\'s backdrop is back to its usual 0.6, the dark layer gone', await p.evaluate(() => getComputedStyle(document.getElementById('maint-parts-pop')).backgroundColor) === 'rgba(0, 0, 0, 0.6)' && !(await has(p, '#maint-dg-dim')));
     ok('…and Need-a-part is back across the whole window', (await rect(p, '#maint-parts-pop')).r >= 1600 - 1);
     await p.evaluate(() => window._maintDiagramsOpen());
     await p.evaluate(() => window.__guard.close());
@@ -180,6 +197,7 @@ const text = (page, sel) => page.evaluate(s => (document.querySelector(s) || {})
     await p.evaluate(() => document.getElementById('maint-parts-pop').remove());
     await p.waitForTimeout(50);
     ok('Need-a-part closing takes the pop-up with it', !(await has(p, '#maint-diagrams-pop')));
+    ok('…and its dark layer', !(await has(p, '#maint-dg-dim')));
     ok('no page errors', p.__errs.length === 0, p.__errs.join(' | '));
     await p.close();
 
@@ -187,6 +205,8 @@ const text = (page, sel) => page.evaluate(s => (document.querySelector(s) || {})
     p = await open(browser, maint, { phone: true });
     const pc = await rect(p, '#maint-diagrams-pop');
     ok('full screen, not side by side', pc && pc.l <= 1 && pc.w >= 399, JSON.stringify(pc));
+    ok('…on a phone the screen behind is dark too (0.88)', await p.evaluate(() => getComputedStyle(document.getElementById('maint-diagrams-pop')).backgroundColor) === 'rgba(0, 0, 0, ' + DIM + ')');
+    await p.screenshot({ path: '/tmp/onerow_dim_phone.png' }).catch(() => {});
     ok('Need-a-part is not shifted', (await rect(p, '#maint-parts-pop')).r >= 399);
     const back = p.locator('#maint-dg-body button', { hasText: 'Back to Find your part' });
     ok('"← Back to Find your part" is there', await back.count() === 1);

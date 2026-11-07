@@ -84,6 +84,7 @@ function liftResolver(datText) {
     'function rrMasterRowIdOf(', 'function rrMasterByRowId(', 'function _rrRowIdFits(', 'function findMaster(', 'function _preferEraOf(',
     'function _mIsMotive(', 'function _mSuffix(', 'function _letterKinRows(', 'function _findMasterCore('];
   const body = names.map(n => grab(datText, n)).join('\n')
+    + '\n' + require('./lib/row-kind').rowKindSource(undefined, datText) + '\n' + grab(datText, 'function _rrRealRowsOf(')   // 2026-11-07 (onerow)
     + '\nvar _lkCache = new WeakMap();'
     + '\nreturn { dedupe: _deduplicateMaster, index: _rrIndexByRowId, keyOf: rrMasterKeyOf, byKey: rrMasterByKey, idOf: rrMasterRowIdOf, byId: rrMasterByRowId, fits: _rrRowIdFits, fm: findMaster, eraOf: _preferEraOf };';
   const rrSameVar = new Function(pdl.slice(pdl.indexOf('function _pdLookupKey'), pdl.indexOf("if (typeof window !== 'undefined') { window.rrSameVar")) + '; return rrSameVar;')();

@@ -72,6 +72,7 @@ function world(maintSrc) {
   const code = [
     grab(appjs, 'normalizeItemNum'), grab(appjs, 'baseItemNum'), grab(dat, '_mIsMotive'), grab(dat, '_mSuffix'), grab(dat, 'rrMasterByKey'),
     grab(dat, '_preferEraOf'), grab(dat, '_letterKinRows'), grab(dat, '_findMasterCore'), grab(dat, 'findMaster'),
+    require('./lib/row-kind').rowKindSource(), grab(dat, '_rrRealRowsOf'),   // 2026-11-07 (onerow)
     'var _lkCache = new WeakMap();',
     'var _realFindMaster = findMaster; findMaster = function (n, v, h) { calls.push([n, v, h]); return _realFindMaster(n, v, h); };',
     grab(maintSrc, '_maintResolveItem'),

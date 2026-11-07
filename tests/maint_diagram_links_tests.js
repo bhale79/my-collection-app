@@ -65,9 +65,11 @@ function build(src, item, opts) {
     _lionelBoxNum: n => n,
     _smSlotHtml: () => '<!--SM-SLOT-->',   // v0.9.1896: our service-manual scans (own suite: service_manual_links_tests.js)
     _tzLiveRefresh: () => null,            // 2026-11-03: the site's Trainz list, read in the background (own suite: trainz_live_tests.js)
+    _tzLabel: e => 'GP-7, GP-9',            // 2026-11-07: the short label (own checks: one_catalog_row_tests.js D13–D16)
   };
   const names = Object.keys(env);
-  const fn = new Function(...names, grab(src, '_maintDiagramLinksHtml') + '\n' + grab(src, '_maintRouteLabel') + '\nreturn _maintDiagramLinksHtml;');
+  // 2026-11-07: _maintRouteLabel went with the LCCA button; the v0.9.2117 copy (planted below) still has it
+  const fn = new Function(...names, grab(src, '_maintDiagramLinksHtml') + '\n' + (src.indexOf('function _maintRouteLabel(') >= 0 ? grab(src, '_maintRouteLabel') : '') + '\n_tzLabel = _tzLabel || function (e) { return e.t; };\nreturn _maintDiagramLinksHtml;');
   return fn(...names.map(n => env[n]))(item, opts.where || '');
 }
 const GP7 = { itemNum: '2338', roadName: 'Milwaukee Road' };
@@ -84,28 +86,23 @@ ok('the Parts diagrams button comes right after the pop-up\'s header, before the
 ok('the popup no longer sends the user away (its "Find manuals & diagrams →" walk-away button is gone; the launcher\'s own button stays)', !/Find manuals &amp; diagrams \u2192<\/button>/.test(maint) && /_maintShowGrp\(\\'docs\\'\)" ' \+ bigBtn \+ '>Find manuals &amp; diagrams</.test(maint));
 const once = (re) => (maint.match(re) || []).length === 1;
 ok('the Google button is written ONCE in the file', once(/>Google the parts diagram \u2192<\/button>/g));
-ok('the Trainz button is written ONCE', once(/>Trainz diagram: ' \+ _esc\(tzd\.t\)/g));
-ok('the LCCA button is written ONCE', once(/_maintLccaGo\(\\'' \+ rrJsArg\(_docsUrl\(route, item\)\)/g));
-ok('the panel keeps no private copy of the route / label (one place works them out)',
-   !/var routeLabel = route === 'lcca'/.test(maint) && (maint.match(/var routeLabel = _maintRouteLabel\(/g) || []).length === 1);
+ok('the Trainz button is written ONCE', once(/>Trainz diagram: ' \+ _esc\(_tzLabel\(tzd, item\.itemNum\)\)/g));
+// 2026-11-07 ([stated] Brad: "Remove the LCCA 'Service Manual pages' button completely"): no LCCA button, no LCCA label is left
+ok('no LCCA button is written anywhere', !/_maintLccaGo\(/.test(maint.replace(/\/\/[^\n]*/g, '')) && !/\(LCCA members\)/.test(maint));
 
-section('B · the LCCA note is keyed by where');
-ok('the note\'s id is noteId, built from where', /var noteId = 'maint-lcca-note' \+ \(where \? '-' \+ where : ''\);/.test(maint) && /'<div id="' \+ noteId \+ '" style="display:none/.test(maint));
-ok('the LCCA button hands _maintLccaGo that id', /_maintLccaGo\(\\'' \+ rrJsArg\(_docsUrl\(route, item\)\) \+ '\\',\\'' \+ rrJsArg\(noteId\) \+ '\\'\)/.test(maint));
-ok('_maintLccaGo(url, noteId) reads the note by that id (falls back to the panel\'s)', /window\._maintLccaGo = function \(url, noteId\)/.test(maint) && /document\.getElementById\(noteId \|\| 'maint-lcca-note'\)/.test(maint));
+section('B · (retired 2026-11-07 — the LCCA note went with the LCCA button)');
 
 section('C · the real builder, run');
 const desk = build(maint, GP7);
-ok('postwar 2338 on the desktop: the LCCA Service Manual button', /_maintLccaGo\(/.test(desk) && /Service Manual pages for 2338 \(LCCA members\)/.test(desk));
+ok('postwar 2338 on the desktop: NO LCCA button any more (2026-11-07)', !/_maintLccaGo\(/.test(desk) && !/LCCA/.test(desk));
 ok('…the Trainz diagram button, to Trainz\'s current page', /trainz\.com\/pages\/parts-diagram\/lionel-2028-2328-2337-2338-2339-2346-2348-2329-parts-list-and-exploded-view-parts-diagram/.test(desk));
 ok('…and the Google button with the maker, number and model words', /google\.com\/search\?q=[^"']*%22Lionel%22[^"']*%222338%22[^"']*GP-7/.test(desk) && /Google the parts diagram/.test(desk));
-ok('…the note carries the PANEL id when where = \'\'', /id="maint-lcca-note"/.test(desk) && !/maint-lcca-note-/.test(desk));
 const pop = build(maint, GP7, { where: 'pop' });
-ok('where = \'pop\': the note carries the popup\'s own id, and the button names it', /id="maint-lcca-note-pop"/.test(pop) && /_maintLccaGo\([^)]*maint-lcca-note-pop/.test(pop) && !/id="maint-lcca-note"/.test(pop));
+ok('where = \'pop\': the same list, no LCCA note anywhere', !/maint-lcca-note/.test(pop) && /trainz\.com\/pages\/parts-diagram/.test(pop));
 const phone = build(maint, GP7, { phone: true });
 ok('on a phone: no LCCA button (v1846), Trainz + Google still there', !/_maintLccaGo\(/.test(phone) && /trainz\.com\/pages\/parts-diagram/.test(phone) && /Google the parts diagram/.test(phone));
-// v0.9.1896: our service-manual scans sit ABOVE the LCCA button, on phones too, postwar only
-ok('postwar: our service-manual slot comes before the LCCA button', desk.indexOf('<!--SM-SLOT-->') >= 0 && desk.indexOf('<!--SM-SLOT-->') < desk.indexOf('_maintLccaGo('));
+// v0.9.1896: our service-manual scans come first, on phones too, postwar only
+ok('postwar: our service-manual slot comes before the Trainz button', desk.indexOf('<!--SM-SLOT-->') >= 0 && desk.indexOf('<!--SM-SLOT-->') < desk.indexOf('trainz.com/pages/parts-diagram'));
 ok('…and stays on a phone (Drive opens anywhere)', phone.indexOf('<!--SM-SLOT-->') >= 0);
 ok('prewar (same LCCA route) gets no service-manual slot', build(maint, GP7, { era: 'prewar' }).indexOf('<!--SM-SLOT-->') < 0);
 const noTz = build(maint, GP7, { tz: null });
@@ -123,24 +120,25 @@ section('C2 · 2026-11-01: the Trainz diagram comes FIRST ([stated] Brad "add tr
     modern: at(build(src, { itemNum: '18860' }, { route: 'lionel', era: 'mpc' })), mth: at(build(src, { itemNum: '30-2101-1' }, { route: 'mth', era: 'mth_o', maker: 'MTH' })),
   });
   const rule = (o) => ({
-    pwDesk: o.pwDesk.sm >= 0 && o.pwDesk.sm < o.pwDesk.tz && o.pwDesk.tz < o.pwDesk.lcca && o.pwDesk.lcca < o.pwDesk.google,
+    pwDesk: o.pwDesk.sm >= 0 && o.pwDesk.sm < o.pwDesk.tz && o.pwDesk.tz < o.pwDesk.google && o.pwDesk.lcca < 0,   // 2026-11-07: no LCCA row
     pwPhone: o.pwPhone.sm >= 0 && o.pwPhone.sm < o.pwPhone.tz && o.pwPhone.tz < o.pwPhone.google && o.pwPhone.lcca < 0,
-    prewar: o.prewar.sm < 0 && o.prewar.tz >= 0 && o.prewar.tz < o.prewar.lcca,
+    prewar: o.prewar.sm < 0 && o.prewar.tz >= 0 && o.prewar.tz < o.prewar.google && o.prewar.lcca < 0,
     modern: o.modern.tz >= 0 && o.modern.tz < o.modern.lionel && o.modern.lionel < o.modern.google,
     mth: o.mth.tz >= 0 && o.mth.tz < o.mth.mth && o.mth.mth < o.mth.google,
   });
   const o = order(maint), r = rule(o);
   ok('C2a a modern Lionel item: Trainz first, then Lionel Support, then Google', r.modern, JSON.stringify(o.modern));
   ok('C2b another maker (MTH): Trainz first, then the maker\'s own row', r.mth, JSON.stringify(o.mth));
-  ok('C2c a Lionel POSTWAR item: the service manual sheets FIRST (Brad\'s 2026-10-08 standard), Trainz right after, then LCCA, then Google', r.pwDesk, JSON.stringify(o.pwDesk));
+  ok('C2c a Lionel POSTWAR item: the service manual sheets FIRST (Brad\'s 2026-10-08 standard), Trainz right after, then Google (no LCCA since 2026-11-07)', r.pwDesk, JSON.stringify(o.pwDesk));
   ok('C2d …the same on a phone (no LCCA button there)', r.pwPhone, JSON.stringify(o.pwPhone));
-  ok('C2e a prewar item (no service manual sheets): Trainz first, then the LCCA row', r.prewar, JSON.stringify(o.prewar));
+  ok('C2e a prewar item (no service manual sheets): Trainz first, then Google', r.prewar, JSON.stringify(o.prewar));
   ok('C2f the Trainz buttons are drawn ONCE per list', (build(maint, { itemNum: '18860' }, { route: 'lionel', era: 'mpc' }).match(/trainz\.com\/pages\/parts-diagram/g) || []).length === 1);
   // PLANTED: the old place (after the maker's row, just above Google)
   const old = maint.replace("    if (route !== 'lcca') h += tzHtml;\n", '').replace('    // (the Trainz buttons moved to the top of this list — see tzHtml above)\n', '    h += tzHtml;\n')
     .replace("      h += tzHtml;   // 2026-11-01: right after the service manual sheets (a prewar item has none: Trainz first)\n", '');
   const ro = rule(order(old));
-  ok('C2g PLANTED: Trainz back at the bottom → C2a, C2b and C2e fail', old !== maint && !ro.modern && !ro.mth && !ro.prewar);
+  // (2026-11-07: with no LCCA row a prewar list is Trainz then Google either way, so C2e no longer separates the two)
+  ok('C2g PLANTED: Trainz back at the bottom → C2a and C2b fail', old !== maint && !ro.modern && !ro.mth);
   // PLANTED: Trainz above Brad's own service manual sheets on a postwar item
   const above = maint.replace("      if (String(eraKey || '').toLowerCase() === 'pw') h += _smSlotHtml(item, where);\n      h += tzHtml;",
     "      h += tzHtml;\n      if (String(eraKey || '').toLowerCase() === 'pw') h += _smSlotHtml(item, where);");
@@ -153,8 +151,12 @@ ok('D1 the popup going back to the walk-away button is caught', /Find manuals &a
 ok('D2 a second Google button pasted into the popup is caught', !(() => { const o = maint + "\n// x\n'>Google the parts diagram \u2192</button>'"; return (o.match(/>Google the parts diagram \u2192<\/button>/g) || []).length === 1; })());
 ok('D3 the popup calling the builder WITHOUT its own where (two notes, one id) is caught',
    !/_maintDiagramLinksHtml\(item, 'pop'\)/.test(maint.replace("_maintDiagramLinksHtml(item, 'pop')", "_maintDiagramLinksHtml(item, '')")));
-ok('D4 a builder that ignores where is caught by the run', (() => { const o = maint.replace("var noteId = 'maint-lcca-note' + (where ? '-' + where : '');", "var noteId = 'maint-lcca-note';"); return !/maint-lcca-note-pop/.test(build(o, GP7, { where: 'pop' })); })());
-ok('D5 the LCCA guard removed (button on a phone) is caught by the run', (() => { const o = maint.replace(/if \(!window\.IS_MOBILE_UA\) \{\n/, '{\n'); return o !== maint && /_maintLccaGo\(/.test(build(o, GP7, { phone: true })); })());
+// D4/D5 retired 2026-11-07 with the LCCA button; its planted offender is the v0.9.2117 file:
+{
+  let old = '';
+  try { old = require('child_process').execSync('git show fb3beb1c:app/maintenance.js', { cwd: path.join(__dirname, '..'), encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }); } catch (e) {}
+  ok('D4 the v0.9.2117 builder (LCCA button on the desktop) is caught by the run', !!old && /_maintLccaGo\(/.test(build(old, GP7)), old ? '' : 'git history needed');
+}
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

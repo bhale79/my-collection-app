@@ -1132,6 +1132,95 @@ function rrCatalogCandidates(itemNum) {
 }
 if (typeof window !== 'undefined') window.rrCatalogCandidates = rrCatalogCandidates;
 
+// ══ 2026-11-07 (onerow) — WHICH CATALOG ROW IS THIS ITEM: THE ONE RULE ════
+// [stated] Brad: "ONE place that decides 'which catalog row is this item', used
+// by everything". His postwar 2338 GP-7 had no Trainz diagram button because
+// the copy was tied to the Nabisco cereal-promo row that shares its number (it
+// holds Var 1 and sits in front of the engine): Promotional → Accessory, and an
+// accessory never matches a diesel drawing. Brad's 2.08–2.21 decision: "the
+// 2338 is a nabisco cereal prize. so it is an accessory. the 2338 lionel
+// engine, is an engine" — both rows are right; the LOOKUP was wrong.
+// rrRowKind is THE answer to "is this catalog row the thing itself?". It used
+// to live in the Photo Inbox (photo-inbox.js _pinDemotedRow, v0.9.1119) and
+// only two places asked it; findMaster, the backfills, the dashboard and the
+// Trainz button never did. Measured on the master 2026-11-07: 31 such rows
+// share a tab and a number with a real item; the old word list caught 11
+// (promos only — no packet, no replacement part) and wrongly caught the MPC
+// "Instruction Car" (a real car).
+//   'set'   — a set row (sets tab, or a type with the word Set)
+//   'paper' — promos, paper, catalogs, displays, instruction SHEETS, sales
+//             material, memorabilia, ephemera, manuals, magazines, records,
+//             certificates, newsletters, boxes (type or tab)
+//   'part'  — parts packets, "Separate Sale" replacement parts, parts rows /
+//             parts catalogs
+//   'item'  — everything else: the thing itself
+// The words live in RR_ROW_KIND_WORDS (config.js) — one list.
+function rrRowKind(row) {
+  if (!row) return 'item';
+  var W = (typeof RR_ROW_KIND_WORDS !== 'undefined') ? RR_ROW_KIND_WORDS : null;
+  if (!W) return 'item';
+  var t = String(row.itemType || '').trim(), tab = String(row._tab || '').trim();
+  if (W.set.type.test(t) || W.set.tab.test(tab)) return 'set';
+  if (W.item.test(t)) return 'item';                 // "Instruction Car" — a real car
+  if (W.paper.type.test(t) || W.paper.tab.test(tab)) return 'paper';
+  if (W.part.type.test(t) || W.part.tab.test(tab)) return 'part';
+  return 'item';
+}
+// The Photo Inbox and My Collection's tie-break demote sets and paper (a photo
+// of a car is never the set or the box it came in) — the same rule, read
+// through here. Parts rows are NOT demoted there: a photo of a part is read
+// against the parts catalogs as before (only findMaster holds parts back).
+function rrDemotedRow(row) { var k = rrRowKind(row); return k === 'set' || k === 'paper'; }
+// findMaster's question: a promo / paper / box / part row must never WIN a
+// lookup on its own while a real item answers the same number. Sets are NOT
+// held back here — a collector owns a diesel set as one thing.
+function _rrLookupDemoted(row) { var k = rrRowKind(row); return k === 'paper' || k === 'part'; }
+// The owner of the box, the promo sheet or the part says so in the copy's own
+// type (the v0.9.1731 box-owner rule) — then nothing is held back.
+function _rrPreferWantsDemoted(prefer) {
+  if (!prefer) return false;
+  var t = String(prefer.type || prefer.itemType || '').trim();
+  return !!t && _rrLookupDemoted({ itemType: t });
+}
+// The era a caller names, as an ERA_TABS key — "Postwar" / "Lionel Postwar"
+// (what set-member saves write) and "pw" all mean pw. The ONE era cleaner is
+// _rrEraKeyOf (wizard-pdlookup.js, which My Collection already uses); before
+// this, findMaster read ERA_TABS["Postwar"], found nothing, and gave the
+// postwar row no weight at all.
+function _rrPreferEraKey(v) {
+  var s = String(v == null ? '' : v).trim();
+  if (!s) return '';
+  var k = (typeof _rrEraKeyOf === 'function') ? _rrEraKeyOf(s) : s;
+  try { if (typeof ERA_TABS !== 'undefined') { if (ERA_TABS[k]) return k; if (ERA_TABS[s]) return s; } } catch (e) {}
+  return '';
+}
+// THE catalog row of an OWNED copy, and THE type that goes with it. When a
+// catalog row answers, its type wins everywhere (the dashboard, reports,
+// labels, the Trainz button); the copy's own Item Type column only speaks for
+// an item with no catalog row (a manual entry). Brad's 58 snow plow carried
+// "Accessory" in its own column while its catalog row says Motorized Unit.
+function rrCopyRow(pd) {
+  try {
+    if (!pd || !pd.itemNum || typeof findMaster !== 'function') return null;
+    return findMaster(pd.itemNum, pd.variation, pd);
+  } catch (e) { return null; }
+}
+function rrCopyTypeWord(pd, row) {
+  var m = (row === undefined) ? rrCopyRow(pd) : row;
+  return String((m && m.itemType) || (pd && pd.itemType) || '').trim();
+}
+function rrCopyBucket(pd, row) {
+  if (!pd || typeof getTypeBucket !== 'function') return '';
+  var m = (row === undefined) ? rrCopyRow(pd) : row;
+  if (m) return getTypeBucket(m) || '';
+  var t = String(pd.itemType || '').trim();
+  return t ? (getTypeBucket({ itemType: t }) || '') : '';
+}
+if (typeof window !== 'undefined') {
+  window.rrRowKind = rrRowKind; window.rrDemotedRow = rrDemotedRow;
+  window.rrCopyRow = rrCopyRow; window.rrCopyTypeWord = rrCopyTypeWord; window.rrCopyBucket = rrCopyBucket;
+}
+
 function findMaster(itemNum, variation, prefer) {
   if (!itemNum) return null;
   // v0.9.732 (Brad's 4C, FINAL): when the caller passes the personal row as
@@ -1156,6 +1245,17 @@ function findMaster(itemNum, variation, prefer) {
     // key says pw|520|1 — so the plain comparison refused EVERY stored key on a
     // -P / -D / -T row and sent it to the guessing path below. baseItemNum is
     // the bridge the rest of the app already uses for exactly this.
+    // 2026-11-07 (onerow): a key with a BLANK variation names no row on
+    // purpose — on 772 postwar numbers the only blank-variation row is the
+    // BOX ("pw|6427|" → Lionel PW - Boxes). It answers only for the box's
+    // owner or when the era holds no real item under that number. It is
+    // swapped for that real row — same number, same catalog — never dropped
+    // (dropping it let the scorer below pick another catalog's 810).
+    if (_byKey && _rrLookupDemoted(_byKey) && !_rrPreferWantsDemoted(prefer)
+        && !String(prefer.masterKey).split('|').slice(2).join('|').trim()) {
+      var _kReal = _rrRealRowsOf(_byKey);
+      if (_kReal.length) _byKey = _kReal[0];
+    }
     if (_byKey) {
       var _kn = String(_byKey.itemNum).trim(), _in = String(itemNum).trim();
       if (_kn === _in || (typeof baseItemNum === 'function' && baseItemNum(_in) === _kn)
@@ -1197,6 +1297,16 @@ function findMaster(itemNum, variation, prefer) {
   }
   return _r || null;
 }
+// The real item rows (rrRowKind 'item' or 'set') filed under a row's number in
+// the same era — the test for "something real answers this number".
+function _rrRealRowsOf(row) {
+  try {
+    var k = String(row.itemNum || '').trim();
+    var a = (state.masterByItem && state.masterByItem.get(k)) || [];
+    var b = (state.masterByItemAll && state.masterByItemAll.get(k)) || [];
+    return a.concat(b).filter(function (r) { return r && r._era === row._era && !_rrLookupDemoted(r); });
+  } catch (e) { return []; }
+}
 // The catalog an owned row names: its stored key first (exact), else its era
 // column. Only a REAL era counts — 'Manual', a label, or a blank names nothing.
 function _preferEraOf(prefer) {
@@ -1206,8 +1316,8 @@ function _preferEraOf(prefer) {
     if (mr) { var rr0 = rrMasterByRowId(mr); if (rr0 && rr0._era && typeof ERA_TABS !== 'undefined' && ERA_TABS[rr0._era]) return rr0._era; }
     var mk = String(prefer.masterKey || '');
     if (mk.indexOf('|') > 0) { var e1 = mk.split('|')[0]; if (typeof ERA_TABS !== 'undefined' && ERA_TABS[e1]) return e1; }
-    var e2 = String(prefer.era || '').trim();
-    if (e2 && typeof ERA_TABS !== 'undefined' && ERA_TABS[e2]) return e2;
+    var e2 = _rrPreferEraKey(prefer.era);    // 2026-11-07: "Postwar" = pw
+    if (e2) return e2;
   } catch (e) {}
   return '';
 }
@@ -1310,7 +1420,8 @@ function _findMasterCore(idx, itemNum, variation, prefer) {
     _prefScale = String(prefer.scale || '').trim();     // v0.9.1483
     _prefMfr = String(prefer.manufacturer || '').trim().toLowerCase();
     try {
-      if (prefer.era && typeof ERA_TABS !== 'undefined' && ERA_TABS[prefer.era] && ERA_TABS[prefer.era].items) _prefTab = ERA_TABS[prefer.era].items;
+      var _pEraK = _rrPreferEraKey(prefer.era);   // 2026-11-07: "Postwar" = pw, the ONE era cleaner
+      if (_pEraK && ERA_TABS[_pEraK].items) _prefTab = ERA_TABS[_pEraK].items;
     } catch (e) {}
   }
   function _prefBoost(m) {
@@ -1346,7 +1457,7 @@ function _findMasterCore(idx, itemNum, variation, prefer) {
   // only ever narrow what the bridge offers.
   const _prefEraList = (prefer && Array.isArray(prefer.eras) && prefer.eras.length)
     ? prefer.eras.map(e => String(e))
-    : (_prefTab && prefer && prefer.era ? [String(prefer.era)] : []);
+    : (_prefTab && prefer && prefer.era ? [_rrPreferEraKey(prefer.era)] : []);
   // "Belongs to the catalog the caller named" is a question about the ERA, not
   // about which tab inside it. An era names a whole catalog — its items, its
   // boxes, its paper — so once the caller has given one, the era alone settles
@@ -1436,17 +1547,39 @@ function _findMasterCore(idx, itemNum, variation, prefer) {
   // Non-suffixed item whose exact key exists = the common case → keep legacy
   // behavior exactly (variation match, else first) so nothing regresses —
   // unless a prefer hint is given and there are multiple candidates.
+  // 2026-11-07 (onerow): a promo / paper / box / part row never wins on its
+  // own while a real item answers the SAME NUMBER in the SAME CATALOG (the
+  // Nabisco 2338 held Var 1 and sat in front of the GP-7). The pick itself is
+  // unchanged — the old scoring chooses the catalog — and only then a held row
+  // is swapped for the real row of its own number and catalog (the best-scoring
+  // one). Measured on the whole master 2026-11-07: a penalty inside the scoring
+  // let another catalog's row win (77, 3462P — found by the independent review);
+  // the swap can never leave the row's own number or catalog. A variation the
+  // copy NAMES still answers exactly, and the owner of the box / promo / part
+  // (his own type says so) is never held back.
+  const _demOk = _rrPreferWantsDemoted(prefer);
+  const _swap = (m, from) => {
+    if (_demOk || !m || !_rrLookupDemoted(m)) return m;
+    const n0 = String(m.itemNum || '').trim(), e0 = String(m._era || '');
+    let best = null, bs = -Infinity;
+    (from || pool).forEach(r => {
+      if (!r || r === m || _rrLookupDemoted(r) || String(r.itemNum || '').trim() !== n0 || String(r._era || '') !== e0) return;
+      const sc = _prefBoost(r);
+      if (sc > bs) { best = r; bs = sc; }
+    });
+    return best || m;
+  };
   if (!suf && pool.length) {
     if (variation != null && variation !== '') {
       const hit = pool.find(r => String(r.variation || '') === String(variation));
-      if (hit) return hit;
+      if (hit) return hit;      // named: exact, as before
     }
     if (prefer && pool.length > 1) {
       let bestE = pool[0], bsE = _prefBoost(pool[0]);
       for (let i = 1; i < pool.length; i++) { const s2 = _prefBoost(pool[i]); if (s2 > bsE) { bestE = pool[i]; bsE = s2; } }
-      return bestE;
+      return _swap(bestE);
     }
-    return pool[0];
+    return _swap(pool[0]);
   }
   // Build candidate pool = exact bucket + base bucket (for suffixed/missing).
   let cands = pool.slice();
@@ -1482,7 +1615,7 @@ function _findMasterCore(idx, itemNum, variation, prefer) {
   }
   let best = cands[0], bestS = score(cands[0]);
   for (let i = 1; i < cands.length; i++) { const sc = score(cands[i]); if (sc > bestS) { best = cands[i]; bestS = sc; } }
-  return best;
+  return _swap(best, cands);   // 2026-11-07 (onerow): same number, same catalog only
 }
 
 // v0.9.971 (Brad): merged bucket across the loaded index AND the full-catalog
@@ -1929,7 +2062,18 @@ function _auditCatalogResolution() {
       return pd && pd.owned && pd.itemNum && !(typeof _isBoxItemNum === 'function' && _isBoxItemNum(pd.itemNum));
     });
     if (!owned.length) return;
-    var bad = owned.filter(function (pd) { return !findMaster(pd.itemNum, pd.variation, pd); });
+    var _rowOf = new Map();
+    owned.forEach(function (pd) { _rowOf.set(pd, findMaster(pd.itemNum, pd.variation, pd)); });
+    var bad = owned.filter(function (pd) { return !_rowOf.get(pd); });
+    // 2026-11-07 (onerow): a copy tied to a promo / paper / box / part row
+    // while a real item answers the same number is named here too — Brad's
+    // 2338 sat on the Nabisco promo row for a month without a word.
+    var onDemoted = owned.filter(function (pd) {
+      var m = _rowOf.get(pd);
+      return m && _rrLookupDemoted(m) && _rrRealRowsOf(m).length;   // listed even when the copy's own type agrees — that type was usually copied from the row
+    });
+    window._rrCopiesOnDemotedRows = onDemoted.map(function (p) { return { inventoryId: p.inventoryId, itemNum: p.itemNum }; });
+    if (onDemoted.length) console.warn('[Catalog Audit] ' + onDemoted.length + ' owned item(s) are tied to a promo / paper / box / part row while the real item has its own row: ' + onDemoted.slice(0, 25).map(function (p) { return p.itemNum; }).join(', '));
     _catalogAuditDone = true;
     if (bad.length) {
       console.warn('[Catalog Audit] ' + bad.length + ' owned item(s) did NOT resolve to a catalog entry (Type/Description/Road will be blank): ' + bad.slice(0, 25).map(function (p) { return p.itemNum; }).join(', '));

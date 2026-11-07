@@ -63,6 +63,9 @@ function lookupWorld(datSrc, appSrc) {
     grab(datSrc, 'function _findMasterCore('), grab(datSrc, 'function _preferEraOf('),
     grab(datSrc, 'function rrMasterByKey('), grab(datSrc, 'function rrMasterByRowId('), grab(datSrc, 'function _rrRowIdFits('),
     grab(datSrc, 'function findMaster('), grab(datSrc, 'function _mbAllGet('), grab(datSrc, 'function findAllMaster('),
+    // 2026-11-07 (onerow): THE row-kind rule + era cleaner findMaster asks (from this app-data.js when it has them)
+    require('./lib/row-kind').rowKindSource(undefined, datSrc.indexOf('function rrRowKind(') >= 0 ? datSrc : undefined),
+    grab(datSrc.indexOf('function _rrRealRowsOf(') >= 0 ? datSrc : DAT, 'function _rrRealRowsOf('),
     grab(datSrc, 'function rrCatalogCandidates('),
     'this.__index = function (rows, allRows) {',
     '  var mk = function (rs) { var m = new Map(); rs.forEach(function (r) { var k = String(r.itemNum).trim(); if (!m.has(k)) m.set(k, []); m.get(k).push(r); }); return m; };',

@@ -1413,11 +1413,10 @@
   // off a photo must not confirm against set rows; this session's Ballast
   // Tamper taught the WORD index the same lesson, so the rule lives in one
   // place and every index asks the same question.
+  // 2026-11-07 (onerow): THE set rule is app-data.js rrRowKind (words in
+  // config.js RR_ROW_KIND_WORDS) — the same two word tests, one copy.
   function _pinIsSetRow(row) {
-    if (!row) return false;
-    if (/\bsets?\b/i.test(String(row._tab || ''))) return true;
-    if (/\bset\b/i.test(String(row.itemType || ''))) return true;
-    return false;
+    return rrRowKind(row) === 'set';
   }
 
   // Words that appear on half the catalog and identify nothing.

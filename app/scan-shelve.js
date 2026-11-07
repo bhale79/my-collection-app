@@ -267,7 +267,8 @@ function rrShelveItemName(pd) {
   if (!pd) return '';
   var m = null;
   try { m = (typeof findMaster === 'function') ? findMaster(pd.itemNum, pd.variation, pd) : null; } catch (e) {}
-  var words = (pd.roadName || (m && m.roadName) || '') + ' ' + (pd.itemType || (m && m.itemType) || '');
+  // 2026-11-07 (onerow): the type word is THE copy's (rrCopyTypeWord — the catalog row wins)
+  var words = (pd.roadName || (m && m.roadName) || '') + ' ' + ((typeof rrCopyTypeWord === 'function') ? rrCopyTypeWord(pd, m) : (pd.itemType || (m && m.itemType) || ''));
   if (!words.trim()) words = pd.description || (m && m.description) || '';
   var s = (String(pd.itemNum || '') + ' ' + words.replace(/\s+/g, ' ').trim()).trim();
   return s.length > 48 ? s.slice(0, 47) + '…' : s;
