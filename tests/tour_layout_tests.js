@@ -78,8 +78,20 @@ function planted(name, from, to) {
   const shortWalk = await walkTour(pg, 'Collection Tools');
   await pg.close();
   const toolsShort = shortWalk[shortWalk.length - 1];
-  T('A12 on a short window (1568x706) the Collection Tools ring leaves no clean room, the card has to sit on it — and it stays full size (≥560) rather than shrinking',
-    toolsShort && toolsShort.title === 'Collection Tools' && toolsShort.hole && overlaps(toolsShort.card, toolsShort.hole, 2) && toolsShort.card[2] >= 560, toolsShort && [toolsShort.card, toolsShort.hole, toolsShort.vh]);
+  // 2026-11-07 (tourfix, [stated] Brad "Fix forward"): a ring too tall AND too wide to
+  // leave the card any room no longer makes the card sit ON it — the ring takes the TOP
+  // of the list and the card stands under it, still full size (the Reports list with six
+  // reports on Brad's 1844x914 window hit the same wall: A5).
+  T('A12 on a short window (1568x706) the Collection Tools ring, too tall to leave room, rings the TOP of the tools — the card stands under it, clear of it, full size (≥560)',
+    toolsShort && toolsShort.title === 'Collection Tools' && toolsShort.hole && !overlaps(toolsShort.card, toolsShort.hole, 2) && toolsShort.card[1] >= toolsShort.hole[1] + toolsShort.hole[3] && toolsShort.hole[3] >= 120 && toolsShort.card[2] >= 560 && toolsShort.card[1] + toolsShort.card[3] <= toolsShort.vh, toolsShort && [toolsShort.card, toolsShort.hole, toolsShort.vh]);
+  { const srcTrim = planted('A5/A12 trim', "          if (_trimAt - _tr0.top >= 120) {", "          if (false) {");
+    if (srcTrim) {
+      ({ pg, errs } = await openApp(browser, { w: 1568, h: 706, withData: true, tutorial: srcTrim }));
+      const noTrim = await walkTour(pg, 'Collection Tools');
+      await pg.close();
+      const t3 = noTrim[noTrim.length - 1];
+      T('PLANTED A12: the trimmed ring taken out → the card sits ON the Tools ring again (caught)', t3 && t3.hole && overlaps(t3.card, t3.hole, 2), t3 && [t3.card, t3.hole]);
+    } }
   const srcA12 = planted('A12', "if (_gtOnRing(el)) { _gtWidthCap = 0; _placeOnce(el); }", '');
   if (srcA12) {
     ({ pg, errs } = await openApp(browser, { w: 1568, h: 706, withData: true, tutorial: srcA12 }));

@@ -1552,7 +1552,22 @@ function _guidedTour(steps) {
   // outside the card entirely, and a clean home appears. Narrowing costs a
   // little more wrapping; covering a button costs the user the step.
   var _gtWidthCap = 0;
+  // 2026-11-07 (tourfix — [stated] Brad "Fix forward"): a ring as WIDE as the
+  // page and too TALL to leave room above, below or beside it — the Reports
+  // list once it holds six reports (v0.9.2120 added the For Sale List) — left a
+  // reading card nowhere to stand but ON the ring. Then, and only then, the ring
+  // takes the TOP of that list, leaving the card's room under it. Set by
+  // place() for the element it is placing; anything else is drawn as before.
+  var _gtRingTrim = 0, _gtRingTrimEl = null;
+  function _gtRectOf(el) {
+    var r = el.getBoundingClientRect();
+    if (_gtRingTrim > 0 && el === _gtRingTrimEl && r.bottom > _gtRingTrim) {
+      return { left: r.left, right: r.right, top: r.top, width: r.width, bottom: _gtRingTrim, height: Math.max(0, _gtRingTrim - r.top) };
+    }
+    return r;
+  }
   function place(el) {
+    _gtRingTrim = 0; _gtRingTrimEl = null;
     // v0.9.1869 — a READING card is placed once, at full size, against its
     // ring. None of the escalation below applies: it exists to keep a card
     // off controls, and nothing behind a reading card can be pressed. The one
@@ -1579,6 +1594,18 @@ function _guidedTour(steps) {
         // ring, now small as well. Shrinking bought nothing; the card goes
         // back to full size and takes the bottom-of-screen fallback as it is.
         if (_gtOnRing(el)) { _gtWidthCap = 0; _placeOnce(el); }
+        // Still on it: no room anywhere at full height. Ring the top of the
+        // list and stand the card under it — when that still shows a real
+        // part of the list (120px); otherwise keep the old fallback.
+        if (_gtOnRing(el)) {
+          var _tr0 = el.getBoundingClientRect();
+          var _trimAt = window.innerHeight - callout.offsetHeight - 14 - 8 - 6;   // the card, its gap, the margin, the ring's pad
+          if (_trimAt - _tr0.top >= 120) {
+            _gtRingTrim = _trimAt; _gtRingTrimEl = el;
+            _placeOnce(el);
+            if (_gtOnRing(el)) { _gtRingTrim = 0; _gtRingTrimEl = null; _placeOnce(el); }
+          }
+        }
       }
       var _hMax = window.innerHeight - 16;
       if (callout.offsetHeight > _hMax) { _gtCapTo(_hMax); _placeOnce(el); }
@@ -1716,7 +1743,7 @@ function _guidedTour(steps) {
   function _gtOnRing(el) {
     try {
       var L = parseFloat(callout.style.left), T = parseFloat(callout.style.top);
-      var w = callout.offsetWidth, h = callout.offsetHeight, r = el.getBoundingClientRect();
+      var w = callout.offsetWidth, h = callout.offsetHeight, r = _gtRectOf(el);
       if (!isFinite(L) || !isFinite(T)) return false;
       return !(L + w <= r.left + 2 || L >= r.right - 2 || T + h <= r.top + 2 || T >= r.bottom - 2);
     } catch (e) { return false; }
@@ -1768,7 +1795,7 @@ function _guidedTour(steps) {
       return;
     }
     hole.style.opacity = '1';
-    var r = el.getBoundingClientRect(), pad = 6;
+    var r = _gtRectOf(el), pad = 6;   // 2026-11-07: the ring's own box (trimmed only by place(), see _gtRingTrim)
     // ── v0.9.1397 (Brad: "whats up with the orange box?") ─────────────────
     // The variation list is far taller than the window, so the ring was drawn
     // at its full height — running off the top AND the bottom of the screen
