@@ -1,0 +1,537 @@
+{
+ "_about": "Every distinct Gauge spelling on the live master (every tab in ERA_TABS, read 2026-11-06 from the public export) and what _scalesOfGauge answers for it with no era. Frozen so a reader change that moves any OTHER maker's rows is caught. In gargauge only \"O & S\", \"G & S\" and \"G & O\" changed (they were [\"o\"], [] and []).",
+ "values": {
+  "9": {
+   "expect": [
+    "n"
+   ],
+   "rows": 12,
+   "tabs": [
+    "Kato Parts"
+   ]
+  },
+  "": {
+   "expect": [],
+   "rows": 99030,
+   "tabs": [
+    "Lionel PW - Items",
+    "Lionel PW - Boxes",
+    "Lionel PW - Science",
+    "Lionel PW - Construction"
+   ]
+  },
+  "027 Gauge": {
+   "expect": [
+    "o"
+   ],
+   "rows": 8,
+   "tabs": [
+    "Lionel PW - Items"
+   ]
+  },
+  "1:13.7 / 45 mm": {
+   "expect": [
+    "g"
+   ],
+   "rows": 1,
+   "tabs": [
+    "Accucraft G"
+   ]
+  },
+  "1:19 / 45 (32) mm Adjustable": {
+   "expect": [
+    "g"
+   ],
+   "rows": 4,
+   "tabs": [
+    "Accucraft G"
+   ]
+  },
+  "1:19 / 45 mm": {
+   "expect": [
+    "g"
+   ],
+   "rows": 68,
+   "tabs": [
+    "Accucraft G"
+   ]
+  },
+  "1:19 / 45 or 32 mm": {
+   "expect": [
+    "g"
+   ],
+   "rows": 14,
+   "tabs": [
+    "Accucraft G"
+   ]
+  },
+  "1:19 / 45/32 mm": {
+   "expect": [
+    "g"
+   ],
+   "rows": 5,
+   "tabs": [
+    "Accucraft G"
+   ]
+  },
+  "1:20.3 / 45 mm": {
+   "expect": [
+    "g"
+   ],
+   "rows": 358,
+   "tabs": [
+    "Accucraft G"
+   ]
+  },
+  "1:24 / 45 mm": {
+   "expect": [
+    "g"
+   ],
+   "rows": 6,
+   "tabs": [
+    "Accucraft G"
+   ]
+  },
+  "1:29 / 45 mm": {
+   "expect": [
+    "g"
+   ],
+   "rows": 74,
+   "tabs": [
+    "Accucraft G"
+   ]
+  },
+  "1:32 / 45 mm": {
+   "expect": [
+    "g"
+   ],
+   "rows": 240,
+   "tabs": [
+    "Accucraft G"
+   ]
+  },
+  "2-7/8": {
+   "expect": [
+    "standard"
+   ],
+   "rows": 18,
+   "tabs": [
+    "Lionel Pre-War"
+   ]
+  },
+  "3¼\"": {
+   "expect": [],
+   "rows": 44,
+   "tabs": [
+    "T-Reproductions"
+   ]
+  },
+  "G": {
+   "expect": [
+    "g"
+   ],
+   "rows": 2760,
+   "tabs": [
+    "Lionel MPC-Modern",
+    "MTH G Scale",
+    "Train Tender Parts",
+    "Aristo-Craft G"
+   ]
+  },
+  "G & O": {
+   "expect": [
+    "g",
+    "o"
+   ],
+   "rows": 1,
+   "tabs": [
+    "GarGraves"
+   ]
+  },
+  "G & S": {
+   "expect": [
+    "g",
+    "s"
+   ],
+   "rows": 1,
+   "tabs": [
+    "GarGraves"
+   ]
+  },
+  "G Scale": {
+   "expect": [
+    "g"
+   ],
+   "rows": 3894,
+   "tabs": [
+    "K-Line O",
+    "USA Trains G",
+    "LGB G"
+   ]
+  },
+  "G scale 1:29 (AML)": {
+   "expect": [
+    "g"
+   ],
+   "rows": 2,
+   "tabs": [
+    "Accucraft G"
+   ]
+  },
+  "Gauge 1": {
+   "expect": [
+    "g"
+   ],
+   "rows": 805,
+   "tabs": [
+    "Marklin Gauge 1"
+   ]
+  },
+  "HO": {
+   "expect": [
+    "ho"
+   ],
+   "rows": 26394,
+   "tabs": [
+    "Atlas HO",
+    "MTH HO",
+    "Marklin H0",
+    "Kato HO"
+   ]
+  },
+  "HO 1:87": {
+   "expect": [
+    "ho"
+   ],
+   "rows": 1209,
+   "tabs": [
+    "Bachmann HO"
+   ]
+  },
+  "HO Scale": {
+   "expect": [
+    "ho"
+   ],
+   "rows": 90,
+   "tabs": [
+    "K-Line O",
+    "Williams O",
+    "Marx O",
+    "Menards HO"
+   ]
+  },
+  "Large – Runs on 45mm Track": {
+   "expect": [
+    "g"
+   ],
+   "rows": 187,
+   "tabs": [
+    "Bachmann Large G"
+   ]
+  },
+  "Multi-Scale": {
+   "expect": [],
+   "rows": 19,
+   "tabs": [
+    "K-Line O",
+    "Williams O",
+    "Menards O"
+   ]
+  },
+  "N": {
+   "expect": [
+    "n"
+   ],
+   "rows": 28284,
+   "tabs": [
+    "Atlas N",
+    "Kato N",
+    "Kato Parts",
+    "Micro-Trains N"
+   ]
+  },
+  "N 1:160": {
+   "expect": [
+    "n"
+   ],
+   "rows": 511,
+   "tabs": [
+    "Bachmann N"
+   ]
+  },
+  "N Scale": {
+   "expect": [
+    "n"
+   ],
+   "rows": 1,
+   "tabs": [
+    "K-Line O"
+   ]
+  },
+  "N/HO": {
+   "expect": [
+    "n",
+    "ho"
+   ],
+   "rows": 33,
+   "tabs": [
+    "Kato N",
+    "Kato Parts"
+   ]
+  },
+  "Narrow Gauge HO Scale that runs on N Gauge (9mm) Track": {
+   "expect": [
+    "hon30"
+   ],
+   "rows": 47,
+   "tabs": [
+    "Bachmann HOn30"
+   ]
+  },
+  "O": {
+   "expect": [
+    "o"
+   ],
+   "rows": 84064,
+   "tabs": [
+    "Lionel Pre-War",
+    "Lionel PW - Items",
+    "Lionel PW - Boxes",
+    "Lionel PW - Sets"
+   ]
+  },
+  "O & S": {
+   "expect": [
+    "o",
+    "s"
+   ],
+   "rows": 1,
+   "tabs": [
+    "GarGraves"
+   ]
+  },
+  "O 1:48 - (Trains run on AC power 3-rail track)": {
+   "expect": [
+    "o"
+   ],
+   "rows": 55,
+   "tabs": [
+    "Bachmann O"
+   ]
+  },
+  "O Gauge": {
+   "expect": [
+    "o"
+   ],
+   "rows": 10766,
+   "tabs": [
+    "Lionel PW - Items",
+    "Lionel MPC-Modern",
+    "Lionel Modern HO - Items",
+    "K-Line O"
+   ]
+  },
+  "O Scale": {
+   "expect": [
+    "o"
+   ],
+   "rows": 197,
+   "tabs": [
+    "3rd Rail O"
+   ]
+  },
+  "O Scale 2 Rail": {
+   "expect": [
+    "o"
+   ],
+   "rows": 10,
+   "tabs": [
+    "K-Line O",
+    "Williams O"
+   ]
+  },
+  "O-27": {
+   "expect": [
+    "o"
+   ],
+   "rows": 1,
+   "tabs": [
+    "Lionel MPC-Modern"
+   ]
+  },
+  "O-27 Gauge": {
+   "expect": [
+    "o"
+   ],
+   "rows": 2,
+   "tabs": [
+    "Ross Custom Switches",
+    "GarGraves"
+   ]
+  },
+  "O27": {
+   "expect": [
+    "o"
+   ],
+   "rows": 324,
+   "tabs": [
+    "Lionel PW - Items",
+    "Lionel PW - Boxes",
+    "Lionel PW - Sets",
+    "Lionel MPC-Modern"
+   ]
+  },
+  "OO": {
+   "expect": [
+    "standard"
+   ],
+   "rows": 172,
+   "tabs": [
+    "Lionel Pre-War",
+    "Train Tender Parts",
+    "GarGraves"
+   ]
+  },
+  "On3 / On30": {
+   "expect": [
+    "o"
+   ],
+   "rows": 75,
+   "tabs": [
+    "Accucraft G"
+   ]
+  },
+  "On30 Narrow gauge 1:48 - Runs on 16.5mm track": {
+   "expect": [
+    "o"
+   ],
+   "rows": 49,
+   "tabs": [
+    "Bachmann On30"
+   ]
+  },
+  "Other Scales": {
+   "expect": [
+    "o"
+   ],
+   "rows": 2,
+   "tabs": [
+    "K-Line O"
+   ]
+  },
+  "S": {
+   "expect": [
+    "s"
+   ],
+   "rows": 929,
+   "tabs": [
+    "MTH S Gauge",
+    "Lionel Modern S - Items",
+    "Lionel Parts"
+   ]
+  },
+  "S Gauge": {
+   "expect": [
+    "s"
+   ],
+   "rows": 4541,
+   "tabs": [
+    "Lionel Modern S - Items",
+    "American Flyer S - Gilbert",
+    "American Models S",
+    "S-Helper Service S"
+   ]
+  },
+  "Standard": {
+   "expect": [
+    "standard"
+   ],
+   "rows": 2758,
+   "tabs": [
+    "Lionel Pre-War",
+    "MTH Tinplate",
+    "GarGraves"
+   ]
+  },
+  "Standard & O": {
+   "expect": [
+    "standard",
+    "o"
+   ],
+   "rows": 161,
+   "tabs": [
+    "Lionel Pre-War",
+    "GarGraves"
+   ]
+  },
+  "Standard O": {
+   "expect": [
+    "o"
+   ],
+   "rows": 837,
+   "tabs": [
+    "Lionel MPC-Modern"
+   ]
+  },
+  "Std (Tinplate)": {
+   "expect": [
+    "standard"
+   ],
+   "rows": 27,
+   "tabs": [
+    "MTH Tinplate"
+   ]
+  },
+  "Std Gauge": {
+   "expect": [
+    "standard"
+   ],
+   "rows": 1,
+   "tabs": [
+    "Williams O"
+   ]
+  },
+  "Suitable For Any Scale": {
+   "expect": [],
+   "rows": 10,
+   "tabs": [
+    "Bachmann All Scales"
+   ]
+  },
+  "Super O": {
+   "expect": [
+    "o"
+   ],
+   "rows": 69,
+   "tabs": [
+    "Lionel PW - Sets"
+   ]
+  },
+  "Super O Gauge": {
+   "expect": [
+    "o"
+   ],
+   "rows": 21,
+   "tabs": [
+    "Lionel PW - Items"
+   ]
+  },
+  "Toy": {
+   "expect": [],
+   "rows": 43,
+   "tabs": [
+    "Marx O"
+   ]
+  },
+  "Z": {
+   "expect": [
+    "z"
+   ],
+   "rows": 1426,
+   "tabs": [
+    "Atlas Z",
+    "Marklin Z"
+   ]
+  }
+ }
+}

@@ -260,7 +260,7 @@ async function addChecks(pg) {
     const Y = await start(browser, LAPTOP, {
       'item-search-filters-config.js': plant(isf, "    'gargraves',   //", '    //', 'stop words'),
       'wizard-suggestions.js': plant(plant(plant(sug, "      _dedupeKey += '|' + _sgMakerOfRow(m);\n", '', 'dedupe'), "if (_rossAsMaker && !_typedMfr) _typedMfr = 'Ross Custom Switches';", '', 'typed ross'), "const _rossAsMaker = (_rossBesideNum || _rossPhrase) &&", 'const _rossAsMaker = false &&', 'ross as maker'),
-      'wizard.js': plant(wz, "_scalesOfGauge(m.gauge).indexOf(String(f.scale).toLowerCase()) < 0) return false;", "true) return false;", 'scale') });
+      'wizard.js': plant(wz, "_scalesOfGauge(m.gauge, m._era).indexOf(String(f.scale).toLowerCase()) < 0) return false;", "true) return false;", 'scale') });   // gargauge: the call now passes the era
     const y = await addChecks(Y.pg);
     ok('X2  PLANTED (no maker in the duplicate key): 902 shows ONE row again — Ross\'s hidden behind Lionel\'s', /^1 match\b/.test(y.a902.replace(/^.*?(\d+ match)/, '$1')) && !/ROSS CUSTOM SWITCHES/.test(y.a902), y.a902.slice(0, 200));
     ok('X3  PLANTED (no Ross maker rule): "902 ross" no longer finds Ross\'s 902', !/902 ROSS CUSTOM SWITCHES/.test(y.t902ross), y.t902ross.slice(0, 200));

@@ -455,7 +455,7 @@ function _wizRowFitsFilters(m, f) {
       // Before, every one of its rows failed any Scale pick here, so GarGraves's
       // 101 vanished under Scale O while the Master Catalog showed it.
       var _blankOnPurpose = !!(m && m._era && typeof ERA_SCALE !== 'undefined' && Object.prototype.hasOwnProperty.call(ERA_SCALE, m._era) && !ERA_SCALE[m._era]);
-      if (!_blankOnPurpose || typeof _scalesOfGauge !== 'function' || _scalesOfGauge(m.gauge).indexOf(String(f.scale).toLowerCase()) < 0) return false;
+      if (!_blankOnPurpose || typeof _scalesOfGauge !== 'function' || _scalesOfGauge(m.gauge, m._era).indexOf(String(f.scale).toLowerCase()) < 0) return false;   // gargauge: + the era, for "All Gauges"
     }
     if (f.road && String(m.roadName || '').trim() !== f.road) return false;
   } catch (e) {}

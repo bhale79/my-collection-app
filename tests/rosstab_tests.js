@@ -114,7 +114,7 @@ const scans = [
   ['W16 typing "gargraves" in the Add box is a maker FILTER, not a description word', SUG, /'k-line':'K-Line', gargraves:'GarGraves' \};/, ["'k-line':'K-Line', gargraves:'GarGraves' };", "'k-line':'K-Line' };"]],
   ['W16b "ross" is a maker only beside a number or in its own words ("ross custom", "ross switches") — never alone in a word search (Betsy Ross)', SUG, /const _rossAsMaker = \(_rossBesideNum \|\| _rossPhrase\)/, ["const _rossAsMaker = (_rossBesideNum || _rossPhrase) &&", "const _rossAsMaker = true ||"]],
   ['W16c "ross" is NOT a stop word (so "betsy ross" keeps the word); "gargraves" is', read('item-search-filters-config.js'), /\n\s*'gargraves',\s*\/\//, ["    'gargraves',   //", "    'ross', 'gargraves',   //"]],
-  ['W17 the Add screen\'s Scale filter asks a mixed catalog\'s ROW gauge (GarGraves 101 under O), as the Master Catalog does', WZ, /_blankOnPurpose[\s\S]{0,200}_scalesOfGauge\(m\.gauge\)/, ["_scalesOfGauge(m.gauge).indexOf(String(f.scale).toLowerCase()) < 0) return false;", "true) return false;"]],
+  ['W17 the Add screen\'s Scale filter asks a mixed catalog\'s ROW gauge (GarGraves 101 under O), as the Master Catalog does', WZ, /_blankOnPurpose[\s\S]{0,200}_scalesOfGauge\(m\.gauge(, m\._era)?\)/, ["_scalesOfGauge(m.gauge, m._era).indexOf(String(f.scale).toLowerCase()) < 0) return false;", "true) return false;"]],   // gargauge: + the era
   ['W14 the saved maker is spelled "Ross Custom Switches" (not the fallback\'s "Ross custom switches")', AJ, /'ross custom switches':'Ross Custom Switches'/, [", 'ross custom switches':'Ross Custom Switches', ", ', ']],
 ];
 scans.forEach(([name, src, re, [from, to]]) => {
@@ -237,8 +237,10 @@ function lookupWorld() {
   const A = M.loadApp();
   const t = M.auditTabs(A).filter(x => x.tab === GT);
   const r = t.length ? M.checkTab(A, t[0], FX.gargraves.values) : { rowsChecked: 0, flags: [], headerOk: false };
-  ok('G8  the audit walks the tab: all 521 rows; its only flags are the 2 two-gauge spellings it does not know ("G & S", "G & O") — reported, not hidden',
-     t.length === 1 && r.rowsChecked === 521 && r.headerOk && r.flags.length === 2 && r.flags.every(f => f.rule === 'gauge-unknown'), JSON.stringify(r.flags.map(f => f.value)));
+  // gargauge (2026-11-06): the reader now knows "G & S" and "G & O" (tests/gargauge_tests.js),
+  // so the two flags this check used to expect are gone — the tab is clean.
+  ok('G8  the audit walks the tab: all 521 rows, header right, 0 flags (the two-gauge spellings read since gargauge)',
+     t.length === 1 && r.rowsChecked === 521 && r.headerOk && r.flags.length === 0, JSON.stringify(r.flags.map(f => f.value)));
   const GG = rowsOf(FX.gargraves, 'gargraves');
   // the sandbox's ERA_TABS knows pw and ross; add gargraves the way config.js names it
   const Lg = lookupWorld();

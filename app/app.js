@@ -2753,9 +2753,20 @@ function _scaleOfEra(era) {
 // Before this, browse.js kept its OWN spelling table for a personal row's
 // gauge, which turned 'Standard' into 'std' — a word no scale chip uses — so a
 // personal Standard gauge row was hidden under the Standard chip too.
-function _scalesOfGauge(gauge) {
+function _scalesOfGauge(gauge, era) {
   var g = String(gauge == null ? '' : gauge).toLowerCase().trim();
   if (!g) return [];
+  // gargauge (2026-11-06, [stated] Brad "yes"): "All Gauges" — GarGraves's track
+  // pins, screws, wire, bulbs and switch machines fit every gauge it sells. On a
+  // tab that sells several scales (ERA_SCALES_MULTI — GarGraves's six) it means
+  // EVERY one of them, so those rows show under each scale chip, not only under
+  // Any Scale. Anywhere else (no era, or a one-scale tab) it reads as unknown:
+  // "all" can only be counted against a known list. Bachmann's "Suitable For
+  // Any Scale" is a different spelling and is not changed here.
+  if (g === 'all' || g === 'all gauges' || g === 'all scales' || g === 'any gauge') {
+    var _multi = (era && typeof ERA_SCALES_MULTI !== 'undefined' && ERA_SCALES_MULTI) ? ERA_SCALES_MULTI[String(era).toLowerCase()] : null;
+    return Array.isArray(_multi) ? _multi.map(function (s) { return String(s).toLowerCase(); }) : [];
+  }
   // "Standard & O" / "Standard and O" / "O & Standard" — sold for either gauge.
   if (/^(standard|std)(\s*gauge)?\s*(&|and|\+)\s*o(\s*gauge)?$/.test(g)
       || /^o(\s*gauge)?\s*(&|and|\+)\s*(standard|std)(\s*gauge)?$/.test(g)) return ['standard', 'o'];
@@ -2776,6 +2787,27 @@ function _scalesOfGauge(gauge) {
   // "Standard & O" is, so those items show under the N and the HO browse.
   if (/^n(\s*(scale|gauge))?\s*(\/|&|and|\+)\s*ho(\s*(scale|gauge))?$/.test(g)
       || /^ho(\s*(scale|gauge))?\s*(\/|&|and|\+)\s*n(\s*(scale|gauge))?$/.test(g)) return ['n', 'ho'];
+  // gargauge (2026-11-06): ANY gauges joined by "&", "and" or "+" carry every
+  // gauge named — GarGraves's flex track sold for two gauges ("O & S", "G & S",
+  // "G & O") shows under both, exactly as "Standard & O" does. Only when EVERY
+  // part reads on its own (a part the reader does not know leaves the whole
+  // spelling to the rules below). "/" is NOT a joiner here: "N/HO" is handled
+  // above, and "Standard/O Gauge", "G/One Gauge" and "1:32 / 45 mm" mean other
+  // things below.
+  var _joined = (g.indexOf('&') >= 0 || g.indexOf('+') >= 0 || / and /.test(g)) ? g.split(/\s*(?:&|\+|\band\b)\s*/) : null;
+  if (_joined && _joined.length > 1) {
+    var _all = [], _okAll = true;
+    for (var _ji = 0; _ji < _joined.length; _ji++) {
+      var _pw = _joined[_ji];
+      // a part that starts with "o" counts only when it IS an O spelling — the
+      // catch-all below ("starts with o" = O) must not turn "Other Scales" or
+      // "other" into O inside a joined spelling ("HO & Other Scales")
+      var _part = (_pw && (_pw.charAt(0) !== 'o' || /^(o|o\s*gauge|o\s*scale|o-?27(\s*gauge)?|o-?72|super o(\s*gauge)?)$/.test(_pw))) ? _scalesOfGauge(_pw) : [];
+      if (!_part.length) { _okAll = false; break; }
+      for (var _pk = 0; _pk < _part.length; _pk++) if (_all.indexOf(_part[_pk]) < 0) _all.push(_part[_pk]);
+    }
+    if (_okAll) return _all;
+  }
   if (g === 'standard o' || g === 'super o' || g === 'super o gauge' || g === '027 gauge' || g === 'o27 gauge' || g === 'o-27 gauge') return ['o'];
   if (g === 'std gauge') return ['standard'];
   if (g === 'ho 1:87' || g === 'ho scale 1:87') return ['ho'];
@@ -2802,7 +2834,7 @@ function _scalesOfItem(item) {
   if (!item) return [];
   var era = _itemEraKey ? _itemEraKey(item) : ((item._era || item.era || '').toLowerCase());
   var eraScale = _scaleOfEra(era);
-  var gs = _scalesOfGauge(item.gauge);
+  var gs = _scalesOfGauge(item.gauge, era);   // gargauge: the era lets "All Gauges" count the tab's scales
   // v0.9.1933: a row whose own gauge names TWO scales, one of them its tab's,
   // carries both (a Kato N row marked "N/HO" also shows under HO). Never
   // narrower than the tab; never a scale the tab's gauge does not include.
@@ -2819,7 +2851,7 @@ function _scaleOfItem(item) {
   var era = _itemEraKey ? _itemEraKey(item) : ((item._era || item.era || '').toLowerCase());
   var eraScale = _scaleOfEra(era);
   if (eraScale) return eraScale;
-  var a = _scalesOfGauge(item.gauge);
+  var a = _scalesOfGauge(item.gauge, era);
   return a.length === 1 ? a[0] : null;
 }
 

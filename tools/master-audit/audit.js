@@ -66,6 +66,21 @@ function constBlock(src, name) {
   if (j < 0) throw new Error('unterminated const ' + name);
   return src.slice(i, j + close.length) + '\n';
 }
+// gargauge (2026-11-06): ERA_SCALES_MULTI is one statement over two lines with a
+// comment after its "};" — taken up to that "};" so _scalesOfGauge can read
+// "All Gauges" exactly as the app does.
+function multiBlock(src) {
+  const i = src.indexOf('const ERA_SCALES_MULTI = ');
+  if (i < 0) throw new Error('could not find const ERA_SCALES_MULTI');
+  const j = src.indexOf('};', i);
+  if (j < 0) throw new Error('unterminated const ERA_SCALES_MULTI');
+  const out = src.slice(i, j + 2);
+  // the slice must be a plain object of scale lists, GarGraves's included —
+  // if config.js ever wraps or nests it, stop loudly instead of guessing
+  let v; try { v = new Function(out + '\nreturn ERA_SCALES_MULTI;')(); } catch (e) { throw new Error('ERA_SCALES_MULTI could not be lifted from config.js: ' + e.message); }
+  if (!v || !Array.isArray(v.gargraves) || !v.gargraves.length) throw new Error('ERA_SCALES_MULTI lifted from config.js has no gargraves list — check its formatting');
+  return out + '\n';
+}
 function constLine(src, name) {
   const i = src.indexOf('const ' + name + ' = ');
   if (i < 0) throw new Error('could not find const ' + name);
@@ -98,6 +113,7 @@ function loadApp() {
     grab(ad, '_normHdr') + '\n' + grab(ad, 'buildMasterColMap') + '\n' + grab(ad, '_mcell') + '\n' +
     grab(ad, '_fmtYearProd') + '\n' + grab(ad, 'parseMasterRow') + '\n' +
     grab(ad, '_mvCompare') + '\n' + grab(ad, '_mvDateKey') + '\n' + grab(ad, '_mvPickLatest') + '\n' +
+    multiBlock(cfg) +                                     // gargauge: "All Gauges" counts the tab's scales
     grab(app, '_scalesOfGauge') + '\n' +
     dedupeKeyFn(ad) + '\n' +
     'return { MASTER_SHEET_ID, ERAS, REAL_ERA_IDS, LOOKUP_ONLY_ERAS, ERA_TABS, MASTER_TAB_KEYS, ' +
@@ -305,7 +321,7 @@ const RULES = [
     test: (m, ctx) => { if (!ctx.yearSpan) return ''; const ys = yearsOf(_fmtYear(m._yearRaw)); if (!ys || !ys.length) return ''; const bad = ys.filter(y => y < ctx.yearSpan.from || y > ctx.yearSpan.to); return bad.length ? (m._yearRaw + ' vs era ' + ctx.yearSpan.from + '-' + ctx.yearSpan.to) : ''; } },
   // ── the gauge ──
   { id: 'gauge-unknown', sev: 'look', field: 'gauge', title: 'a gauge spelling the app cannot read (harmless where the era has one scale; the words to teach _scalesOfGauge)',
-    test: (m, ctx) => (m.gauge.trim() && !ctx.A._scalesOfGauge(m.gauge).length) ? JSON.stringify(m.gauge) : '' },
+    test: (m, ctx) => (m.gauge.trim() && !ctx.A._scalesOfGauge(m.gauge, ctx.era).length) ? JSON.stringify(m.gauge) : '' },   // gargauge: + the era
   { id: 'gauge-missing-prewar', sev: 'check', field: 'gauge', title: 'blank gauge on Lionel Pre-War (the one tab where gauge is load-bearing)',
     test: (m, ctx) => (ctx.era === 'prewar' && !m.gauge.trim() && m.itemNum.trim()) ? 'blank' : '' },
   // ── the link ──
