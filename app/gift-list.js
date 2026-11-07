@@ -92,6 +92,16 @@
     for (var i = 0; i < list.length; i++) if (_hostIs(h, list[i].site)) return list[i];
     return null;
   }
+  // THE name a link is shown under — everywhere (his screen, preview, email,
+  // text, print, the family page). The store's name AS IT IS NOW, from the
+  // website; the name saved with the link only when the store is not one of
+  // his stores. 2026-11-07 ([stated] Brad 12:40 CT "It says trainz and
+  // trainz.com"): a link saved before the store had its name kept "trainz.com"
+  // while a newer one said "Trainz".
+  function _storeLabel(L) {
+    var s = _storeForUrl(L && L.url);
+    return (s && s.name) || (L && L.store) || _hostOf(L && L.url).replace(/^www\./, '');
+  }
 
   // ── what the store says (Stage 2) ────────────────────────────────────
   function _W(k) { return ((_G().words || {})[k]) || ''; }
@@ -381,7 +391,7 @@
     (g.links || []).forEach(function (L, i) {
       h += '<div style="display:flex;align-items:center;gap:0.45rem;flex-wrap:wrap;font-size:0.84rem;margin:0.25rem 0">'
         +   '<span style="color:var(--t-green)">✓</span>'
-        +   '<a href="' + _esc(L.url) + '" target="_blank" rel="noopener" style="color:var(--t-link)">' + _esc(L.store || _hostOf(L.url)) + '</a>'
+        +   '<a href="' + _esc(L.url) + '" target="_blank" rel="noopener" style="color:var(--t-link)">' + _esc(_storeLabel(L)) + '</a>'
         +   '<span style="color:var(--text-dim)">checked ' + _esc(typeof _formatDate === 'function' ? _formatDate(L.confirmed) : L.confirmed) + '</span>'
         +   '<button class="rr-btn rr-btn--quiet" onclick="rrGiftRemoveLink(\'' + ka + '\',' + i + ')" title="Take this link off" style="padding:0.2rem 0.55rem;min-height:32px">Remove</button>'
         + '</div>';
@@ -439,7 +449,7 @@
         var clean = _clean(L.url);
         var out = (typeof rrAffiliateUrl === 'function') ? rrAffiliateUrl(clean) : clean;
         if (out !== clean) coded = true;
-        return { store: L.store || _hostOf(L.url), url: out, confirmed: L.confirmed,
+        return { store: _storeLabel(L), url: out, confirmed: L.confirmed,
                  soldOut: !!(r && r.state === 'ok' && !r.inStock) };
       });
       items.push({ key: _key(e.itemNum, e.variation), name: _name(e, true), price: _price(g.price), links: links, image: image });

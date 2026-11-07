@@ -36,7 +36,13 @@
   .ask { color:var(--dim); font-style:italic; font-size:0.95rem; }
   button { font:inherit; font-size:1rem; border-radius:10px; padding:0.6rem 1rem; cursor:pointer; border:1px solid var(--line); background:var(--card); color:var(--ink); min-height:44px; }
   button.main { background:var(--accent); color:white; border:none; font-weight:bold; }
-  .reveal { margin:0 0 1.2rem; }
+  .reveal { margin:1.4rem 0 0.4rem; }
+  .reveal button { width:100%; }
+  /* 2026-11-07 ([stated] Brad: "The whole line should be clickable"): an item
+     with ONE store opens it from anywhere on its box */
+  .item.tap { cursor:pointer; }
+  .item.tap:active { background:var(--line); }
+  .go { color:var(--accent); font-weight:bold; margin-top:0.25rem; }
   .bought { color:var(--ok); font-weight:bold; margin-right:0.6rem; }
   .mark { margin-top:0.5rem; display:flex; align-items:center; gap:0.6rem; }
   /* 2026-11-07 (giftfixes): Undo sits at the FAR side, away from where
@@ -54,7 +60,11 @@
   'use strict';
   var ENDPOINT = 'https://script.google.com/macros/s/AKfycbyRVcw19tYbtYIwCfjOPqslSYYBpaq1O8wahOJu131pHd-j_qN4fX1AIVgcttxPKuaqiA/exec';
   var WORDS = {
-    reveal: 'I’m shopping for {who} — show what’s been bought',
+    // 2026-11-07 ([stated] Brad 12:43 CT): the LAST thing she does, so it sits
+    // at the bottom, and it says what it is for
+    reveal: 'Did you buy an item on this list? Mark it bought.',
+    tapItem: 'Tap an item to see it at the store.',
+    oneStore: 'See it at {store} ›',
     revealNote: 'Keep this to yourselves — {who} isn’t meant to see what has been bought.',
     bought: 'Bought ✓',
     saving: 'Saving…',
@@ -91,17 +101,8 @@
   function draw() {
     page.textContent = '';
     page.appendChild(el('h1', '', list.title || 'Gift ideas'));
-    page.appendChild(el('p', 'sub', 'Tap a store to see the item.'));
-    if (marks === null) {
-      var rv = el('div', 'reveal');
-      var b = el('button', 'main', w('reveal'));
-      b.setAttribute('data-reveal', '1');
-      b.onclick = reveal;
-      rv.appendChild(b);
-      page.appendChild(rv);
-    } else {
-      page.appendChild(el('p', 'sub', w('revealNote')));
-    }
+    page.appendChild(el('p', 'sub', WORDS.tapItem));
+    if (marks !== null) page.appendChild(el('p', 'sub', w('revealNote')));
     (list.items || []).forEach(function (it, i) {
       var box = el('div', 'item');
       box.setAttribute('data-item', it.key);
@@ -112,16 +113,31 @@
       body.appendChild(nm);
       if (it.price) body.appendChild(el('div', 'price', 'About ' + it.price));
       var links = el('div', 'links');
-      (it.links || []).forEach(function (L) {
+      var good = (it.links || []).filter(function (L) { return !!safeLink(L.url); });
+      good.forEach(function (L) {
         var u = safeLink(L.url);
-        if (!u) return;
-        var a = el('a', '', L.store || 'Store');
+        // one store: the whole box opens it, and its line says so; two or more
+        // stores: each is its own link (one box can't open two places)
+        var a = el('a', good.length === 1 ? 'go' : '', good.length === 1 ? WORDS.oneStore.split('{store}').join(L.store || 'the store') : (L.store || 'Store'));
         a.href = u; a.target = '_blank'; a.rel = 'noopener noreferrer';
+        a.setAttribute('data-store-link', it.key);
         links.appendChild(a);
         if (L.soldOut) links.appendChild(el('span', 'so', '(' + WORDS.soldOut + ') '));
       });
       if (!links.childNodes.length) links.appendChild(el('div', 'ask', w('ask')));
       body.appendChild(links);
+      if (good.length === 1) {
+        var only = links.querySelector('a');
+        box.className = 'item tap';
+        box.setAttribute('data-tap', it.key);
+        box.onclick = function (ev) {
+          // a tap on a button ("I bought this", "Undo") or on the link itself
+          // does its own job — only the rest of the box opens the store
+          var t = ev && ev.target;
+          while (t && t !== box) { if (t.tagName === 'BUTTON' || t.tagName === 'A') return; t = t.parentNode; }
+          if (only) only.click();
+        };
+      }
       if (marks !== null) {
         var row = el('div', 'mark');
         if (marks.indexOf(it.key) >= 0) {
@@ -140,6 +156,14 @@
       box.appendChild(body);
       page.appendChild(box);
     });
+    if (marks === null) {
+      var rv = el('div', 'reveal');
+      var b = el('button', 'main', w('reveal'));
+      b.setAttribute('data-reveal', '1');
+      b.onclick = reveal;
+      rv.appendChild(b);
+      page.appendChild(rv);
+    }
     if (list.disclosure) page.appendChild(el('p', 'note', list.disclosure));
     page.appendChild(el('p', 'note', list.footer || 'Made with The Rail Roster.'));
     flash = null;
@@ -160,6 +184,10 @@
       if (!answer(r)) return;
       marks = (r.keys || []).map(String);
       draw();
+      // she tapped at the BOTTOM; the "I bought this" buttons are up on the
+      // items — take her back to the first one
+      var first = page.querySelector('[data-item]');
+      try { if (first && first.scrollIntoView) first.scrollIntoView({ behavior: 'smooth', block: 'start' }); else window.scrollTo(0, 0); } catch (eS) {}
     }, function () { busy = false; message(WORDS.trouble); });
   }
   function setMark(key, on, btn) {

@@ -205,6 +205,15 @@ function familyPage(db, url, opts) {
     } });
   return dom.window;
 }
+async function twoStoreStory(opts) {
+  const db = relay();
+  db.lists.mine = { title: 'Gift ideas — from Brad', who: 'Brad', items: [
+    { key: '2245C|', name: 'Lionel 2245C', price: '$700', image: '', links: [{ store: 'Trainz', url: 'https://www.trainz.com/products/c' }, { store: "Mr. Muffin's", url: 'https://mrmuffinstrains.com/products/c' }] } ] };
+  const w = familyPage(db, null, opts || {});
+  await tick(w, 60);
+  const d = w.document, a = Array.from(d.querySelectorAll('[data-item="2245C|"] .links a'));
+  return { twoLinks: a.length === 2 && a[0].textContent === 'Trainz' && a[1].textContent === "Mr. Muffin's" && !d.querySelector('[data-tap]') };
+}
 async function pageStory(opts) {
   opts = opts || {};
   const R = {};
@@ -220,7 +229,26 @@ async function pageStory(opts) {
   R.endpoint = w._posts[0] && w._posts[0].url === ENDPOINT;
   R.listShown = d.querySelectorAll('[data-item]').length === 3 && /Gift ideas — from Brad/.test(d.querySelector('h1').textContent);
   R.noMarksYet = !w._posts.some(p => p.body.action === 'gift_marks') && !/Bought ✓/.test(d.getElementById('page').textContent) && !d.querySelector('[data-buy]');
-  R.revealWords = /I’m shopping for Brad — show what’s been bought/.test((d.querySelector('[data-reveal]') || {}).textContent || '');
+  // 2026-11-07 ([stated] Brad 12:43 CT): the button is the LAST thing, and says what it is for
+  R.revealWords = /^Did you buy an item on this list\? Mark it bought\.$/.test((d.querySelector('[data-reveal]') || {}).textContent || '');
+  {
+    const rv = d.querySelector('[data-reveal]'), items = d.querySelectorAll('[data-item]'), notes = d.querySelectorAll('.note');
+    const after = (a, b) => !!a && !!b && !!(b.compareDocumentPosition(a) & w.Node.DOCUMENT_POSITION_FOLLOWING);
+    R.revealAtBottom = after(rv, items[items.length - 1]) && after(notes[0], rv);
+  }
+  R.tapItemWords = Array.from(d.querySelectorAll('.sub')).some(p => p.textContent === 'Tap an item to see it at the store.');
+  // the whole box of an item with ONE store opens it ([stated] Brad "The whole line should be clickable")
+  w._opened = [];
+  d.addEventListener('click', ev => { const a = ev.target && ev.target.closest && ev.target.closest('a'); if (a) { ev.preventDefault(); w._opened.push(a.getAttribute('href')); } }, true);
+  const nm = d.querySelector('[data-item="2343|"] .name');
+  if (nm) nm.click();
+  R.boxOpens = w._opened.length === 1 && w._opened[0] === 'https://www.trainz.com/products/a?ref=X' && !!d.querySelector('[data-tap="2343|"]');
+  R.goWords = /^See it at Trainz ›$/.test((d.querySelector('[data-item="2343|"] .links a') || {}).textContent || '');
+  const noLink = d.querySelector('[data-item="1317-2|"]');
+  if (noLink) noLink.click();
+  R.noLinkNoTap = w._opened.length === 1 && !d.querySelector('[data-tap="1317-2|"]');
+  w._scrolled = [];
+  w.Element.prototype.scrollIntoView = function () { w._scrolled.push(this.getAttribute('data-item')); };
   R.escaped = !d.querySelector('[data-item] .name img') && /<img src=x onerror/.test(d.querySelector('[data-item]').textContent);
   const links = Array.from(d.querySelectorAll('.links a')).map(a => a.getAttribute('href'));
   R.noJsLink = links.length === 2 && !links.some(h => /^javascript:/i.test(h)) && links[0] === 'https://www.trainz.com/products/a?ref=X';
@@ -231,6 +259,7 @@ async function pageStory(opts) {
   R.disclosure = /Some links may earn a commission/.test(d.body.textContent);
   // the tap
   d.querySelector('[data-reveal]').click(); await tick(w, 60);
+  R.scrolledToFirst = w._scrolled.length === 1 && w._scrolled[0] === '2343|';
   R.marksAfterTap = w._posts.some(p => p.body.action === 'gift_marks' && p.body.listId === CODE) && /Bought ✓/.test(d.querySelector('[data-item="6464|"]').textContent) && !!d.querySelector('[data-buy="2343|"]');
   // 2026-11-07 (giftfixes, [stated] Brad "many people will double tap it"):
   // a tap right after the list is drawn is ignored …
@@ -240,7 +269,9 @@ async function pageStory(opts) {
   R.calmAfterDraw = w._posts.filter(p => p.body.action === 'gift_mark').length === marks0 && !db.marks['2343|'];
   await tick(w, 900);
   // … "Saving…" shows the moment it is tapped, before the backend answers …
+  const opened0 = w._opened.length;
   const buyBtn = click('[data-buy="2343|"]');
+  R.buyDoesNotOpen = w._opened.length === opened0;
   R.savingAtOnce = !!buyBtn && buyBtn.textContent === 'Saving…' && buyBtn.disabled === true;
   await tick(w, 60);
   R.buy = !!db.marks['2343|'] && !!d.querySelector('[data-undo="2343|"]');
@@ -312,10 +343,19 @@ async function pageStory(opts) {
 
   section('C. The family page');
   const C = await pageStory();
+  const T2 = await twoStoreStory();
+  ok('an item with two stores: one link per store, the box itself opens neither', T2.twoLinks);
   ok('it asks the app\'s own backend address', C.endpoint);
   ok('the list is shown (title, every item)', C.listShown);
   ok('the marks are NOT asked for until the tap — none shown', C.noMarksYet);
-  ok('the tap reads "I\'m shopping for Brad — show what\'s been bought"', C.revealWords);
+  ok('the button reads "Did you buy an item on this list? Mark it bought."', C.revealWords);
+  ok('the button is the LAST thing — after every item, before the notes', C.revealAtBottom);
+  ok('the line under the title says to tap an item', C.tapItemWords);
+  ok('an item with one store: tapping anywhere on its box opens that store', C.boxOpens);
+  ok('…and its line reads "See it at Trainz ›"', C.goWords);
+  ok('an item with no link is not a tap target', C.noLinkNoTap);
+  ok('after the button (at the bottom) the page goes back up to the first item', C.scrolledToFirst);
+  ok('"I bought this" inside the box does NOT open the store', C.buyDoesNotOpen);
   ok('words are drawn as words (a name with markup stays text)', C.escaped);
   ok('a javascript: link never becomes a link', C.noJsLink);
   ok('an item with no usable link says "Ask Brad where to find this one"', C.askWhenNoLink);
@@ -363,12 +403,20 @@ async function pageStory(opts) {
     "                 links: it.links.map(function (L) { return { store: L.store, url: String(L.url).split('?')[0], soldOut: !!L.soldOut }; }) };", R => !R.sentCoded);
   await plantApp('stop without asking', "    if (!yes) return;\n    _family.busy = true;", "    yes = true;\n    _family.busy = true;", R => !R.stopAsks);
   await plantPage('marks read on load', "  call({ action: 'gift_get', listId: code }).then(function (r) {", "  call({ action: 'gift_marks', listId: code });\n  call({ action: 'gift_get', listId: code }).then(function (r) {", R => !R.noMarksYet);
-  await plantPage('any link made a link', "var u = safeLink(L.url);", "var u = String(L.url || '');", R => !R.noJsLink);
+  await plantPage('any link made a link', "var good = (it.links || []).filter(function (L) { return !!safeLink(L.url); });\n      good.forEach(function (L) {\n        var u = safeLink(L.url);", "var good = (it.links || []).filter(function (L) { return !!L.url; });\n      good.forEach(function (L) {\n        var u = String(L.url || '');", R => !R.noJsLink);
   await plantPage('a name drawn as markup', "var nm = el('div', 'name', (i + 1) + '. ' + (it.name || ''));", "var nm = el('div', 'name'); nm.innerHTML = (i + 1) + '. ' + (it.name || '');", R => !R.escaped);
   await plantPage('no pause after drawing (a double tap lands on Undo)', "if (busy || Date.now() < calmUntil) return;", "if (busy) return;", R => !R.doubleTapSafe);
   await plantPage('no "Saving…" while it saves', "if (btn) { btn.disabled = true; btn.textContent = WORDS.saving; }", '', R => !R.savingAtOnce);
   await plantPage('a busy save wipes the page', "if (r && r.status === 429) { failed(WORDS.busy); return; }", "if (r && r.status === 429) { busy = false; answer(r); return; }", R => !R.busyUnderItem);
   await plantPage('the failure words at the top, not under the item', "if (flash && flash.key === it.key) body.appendChild(el('p', 'flash', flash.text));", "if (flash && flash.key === it.key) page.insertBefore(el('p', 'flash', flash.text), page.firstChild);", R => !R.failUnderItem);
+  {
+    const html2 = PAGE.split("if (good.length === 1) {\n        var only").join("if (good.length >= 1) {\n        var only");
+    ok('PLANT a two-store box made tappable — caught', html2 !== PAGE && !(await twoStoreStory({ html: html2 })).twoLinks);
+  }
+  await plantPage('the button back at the top', "    if (marks !== null) page.appendChild(el('p', 'sub', w('revealNote')));", "    if (marks !== null) page.appendChild(el('p', 'sub', w('revealNote')));\n    if (marks === null) { var rt = el('button', 'main', w('reveal')); rt.setAttribute('data-reveal', '1'); rt.onclick = reveal; page.appendChild(rt); }", R => !R.revealAtBottom);
+  await plantPage('a button tap opens the store too', "while (t && t !== box) { if (t.tagName === 'BUTTON' || t.tagName === 'A') return; t = t.parentNode; }", "while (t && t !== box) { if (t.tagName === 'A') return; t = t.parentNode; }", R => !R.buyDoesNotOpen);
+  await plantPage('the box not tappable', "box.onclick = function (ev) {", "box.onclickX = function (ev) {", R => !R.boxOpens);
+  await plantPage('no trip back up after the button', "try { if (first && first.scrollIntoView)", "try { if (false && first && first.scrollIntoView)", R => !R.scrolledToFirst);
   await plantPage('Undo back in the same spot', "var u2 = el('button', 'undo', WORDS.undo);", "var u2 = el('button', '', WORDS.undo);", R => !R.undoApart);
   await plantPage('a bad code sent to the backend', "if (!/^[a-f0-9]{32}$/.test(code)) { message(WORDS.gone); return; }", '', R => !R.badCode);
   {

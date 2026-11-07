@@ -217,6 +217,28 @@ async function oldLinkStory(opts) {
   const mail = decodeURIComponent(w._opened[w._opened.length - 1] || '');
   return { oldLinkClean: mail.indexOf('https://www.trainz.com/products/lionel-2245c?variant=7') >= 0 && mail.indexOf('srsltid') < 0 };
 }
+// a link saved under an OLD name ("trainz.com") shows the store's name now ("Trainz")
+// — [stated] Brad 2026-11-07 12:40 CT "It says trainz and trainz.com"
+async function labelStory(opts) {
+  const w = page(Object.assign({ giftRows: [
+    ['2245C', '', 'Yes', '700', 'trainz.com', 'https://www.trainz.com/products/lionel-2245c', '2026-11-07', '', '', '', ''],
+    ['2245-P', '1', 'Yes', '121.61', 'Bobs Trains', 'https://www.bobstrains.com/p/2245p', '2026-11-07', '', '', '', ''],
+  ] }, opts || {}));
+  await w.rrGiftOpen(); await tick(w, 30);
+  const mine = Array.from(w.document.querySelectorAll('#gift-body a')).map(a => a.textContent);
+  await w.rrGiftView('preview'); await tick(w, 30);
+  const prev = Array.from(w.document.querySelectorAll('[data-gift-preview] a')).map(a => a.textContent);
+  w.rrGiftEmail();
+  const mail = decodeURIComponent(w._opened[w._opened.length - 1] || '');
+  await w.rrGiftFamilyOn(); await tick(w, 30);
+  const sent = ((w._pub[w._pub.length - 1] || {}).list || { items: [] }).items.map(it => (it.links || []).map(L => L.store).join(',')).join('|');
+  return {
+    nowName: mine.indexOf('Trainz') >= 0 && mine.indexOf('trainz.com') < 0 && prev.indexOf('Trainz') >= 0 && prev.indexOf('trainz.com') < 0
+      && /Trainz: https:\/\/www\.trainz\.com\/products\/lionel-2245c/.test(mail) && !/trainz\.com: /.test(mail) && /Trainz/.test(sent) && !/trainz\.com/.test(sent),
+    otherKept: mine.indexOf('Bobs Trains') >= 0 && /Bobs Trains: https:\/\/www\.bobstrains\.com/.test(mail),
+    detail: JSON.stringify({ mine, prev, sent }),
+  };
+}
 // the family link: one retry; the right words
 async function familyStory(pub, opts) {
   const w = page(Object.assign({ pub: pub }, opts || {}));
@@ -302,6 +324,11 @@ async function twinStory(opts) {
     O = await oldLinkStory();
     ok('a link saved earlier with ?srsltid= leaves clean (its variant=… kept)', O.oldLinkClean);
 
+    section('4b. One name per store, everywhere');
+    const LB = await labelStory();
+    ok('a link saved as "trainz.com" shows "Trainz" — his screen, preview, email and the family page', LB.nowName, LB.detail);
+    ok('a store that is not one of his keeps the name it was saved with', LB.otherKept, LB.detail);
+
     section('5. The family link: one retry, the right words');
     F1 = await familyStory([null, { status: 200, listId: 'c'.repeat(32) }]);
     ok('no answer once → tried again by itself → on', F1.tries === 2 && F1.on, JSON.stringify(F1));
@@ -364,6 +391,7 @@ async function twinStory(opts) {
     await plant('every failure asked twice', "return once().then(function (ok) { return (ok || _family.why !== 'net') ? ok : once(); });", "return once().then(function (ok) { return (ok || _family.why === 'old') ? ok : once(); });", o => familyStory([{ status: 401, message: 'proof' }], o), P => P.tries === 2);
     await plant('no text at all when the link fails', "if (!okd) { _toast(_familyFailWords() + ' ' + _F('textFull'), 6000, true); _sendText(_text(o), true); return; }", "if (!okd) { _toast(_familyFailWords(), 6000, true); return; }", o => textStory([null, null], o), P => !/1\. Lionel 2245C/.test(P.text));
     await plant('two versions sent with the same name', "      if (seen[it.name] < 2) return;", "      return;", twinStory, P => !P.distinct);
+    await plant('the saved name wins over the store\'s name', "return (s && s.name) || (L && L.store) || _hostOf(L && L.url).replace(/^www\\./, '');", "return (L && L.store) || (s && s.name) || _hostOf(L && L.url).replace(/^www\\./, '');", labelStory, P => !P.nowName);
     await plant('the photo floated off to the side again', ".it{display:flex;gap:14px;align-items:flex-start}", ".it{overflow:hidden}", story, P => !P.printBeside);
   }
 
