@@ -6075,8 +6075,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // The sheet plumbing: a new last column is exactly what gets left behind.
     ok('the header row is written out to Q', /'!A1:Q1', \[HEADERS\]/.test(ct));
     ok('an existing sheet gets Q back-filled, idempotently', /'!M1:Q1'/.test(ct));
+    // 2026-11-07 (giftfixes): the range now lives in ONE place, config.js
+    // RR_CONTACTS.readRange, read by contacts.js AND app-data.js's background
+    // load (which said A2:P and dropped this very flag) — giftfixes_tests.js.
     ok('the load range reaches Q, or the flag would never be read back',
-       /TAB \+ '!A2:Q'/.test(ct));
+       /TAB \+ '!' \+ RR_CONTACTS\.readRange/.test(ct)
+       && /const RR_CONTACTS = \{\s*readRange: 'A2:Q',/.test(fs.readFileSync(require('path').join(__dirname, '..', 'app', 'config.js'), 'utf8')));
     ok('save writes and appends to Q', /':Q' \+ row, \[rowVals\]/.test(ct) && /'!A:Q', \[rowVals\]/.test(ct));
     ok('...and NO range stops at P any more', !/!A2:P'|:P' \+ row|'!A:P'|'!A1:P1'/.test(ct));
     ok('delete blanks a row as wide as HEADERS, not a hand-typed row of quotes',

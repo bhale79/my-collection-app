@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2118';
+const APP_VERSION = 'v0.9.2119';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -5420,6 +5420,11 @@ const RR_GIFT = {
   footer: 'Made with The Rail Roster.',
   disclosure: 'Some links on this list may earn The Rail Roster a small commission, at no extra cost to you.',
   suggestedStores: [{ name: 'Trainz', site: 'trainz.com' }],
+  // "Find it at …" for a store with its OWN search page: {q} = maker + number
+  // ([stated] Brad 2026-11-07, Trainz: their search, not Google's; checked
+  // 2026-11-07 — "Lionel 2245P" lists the Texas Special first). Any store not
+  // here is searched on Google, limited to its website.
+  storeSearch: { 'trainz.com': 'https://www.trainz.com/search?q={q}' },
   mailUrlMax: 7500,
   // ── Stage 2 (2026-11-05, PLAN_2026-11-04_GIFT_LIST_STAGE2_AND_BOUGHT.md) ──
   // What the gift list says about a store link once the store has been read
@@ -5436,6 +5441,8 @@ const RR_GIFT = {
     checkAll: 'Check prices and links',
     checkingAll: 'Checking every store link\u2026',
     leftOff: '{n} link(s) no longer work and were left off. Go back to fix them.',
+    // two versions of one item on the list, with no description to tell them apart
+    anotherVersion: 'version {n}',
   },
   // ── the family gift page (2026-11-05, Release B of the same plan) ──
   // [stated] Brad 2026-10-31 07:02 CT the bought boxes "should be hidden from
@@ -5455,11 +5462,33 @@ const RR_GIFT = {
     stopAsk: 'Stop sharing your gift list? The family link stops working, and what was marked as bought is deleted.',
     stopped: 'Sharing stopped \u2014 the family link no longer works.',
     notYet: 'The family link isn\u2019t ready yet \u2014 try again later.',
+    // 2026-11-07 (giftfixes): no answer from the server is NOT "not ready"
+    noConnect: 'Couldn\u2019t connect \u2014 check your connection and try again.',
+    refused: 'The family link couldn\u2019t be turned on \u2014 try again in a minute.',
+    textFull: 'Sending the full list instead.',
+    turningOn: 'Turning on\u2026',
+    // Text = one line + the link ([stated] Brad 2026-11-07 08:12 CT "do 1")
+    textShort: '{title} \u2014 see the list and mark what you\u2019ve bought: {link}',
+    textAsk: 'A text sends a short link to your list. Turn on the family link?',
+    textAskOk: 'Turn on and text',
+    textAgain: 'The family link is on \u2014 tap Text again to send it.',
     textLine: 'See the list and mark what you\u2019ve bought: {link}',
     printLine: 'Scan this code to see the list online and mark what you bought.',
   },
 };
 if (typeof window !== 'undefined') window.RR_GIFT = RR_GIFT;
+
+// ══ THE CONTACTS TAB's read range — ONE place (2026-11-07, giftfixes) ═══════
+// Both loaders read it: contacts.js _load and the background load in
+// app-data.js. The background load read 'A2:P' — one column short — so every
+// refresh dropped column Q, "Preferred Vendor": the gift list's stores and the
+// photo inbox's store search lost every store until the Contacts page was
+// opened again (found in Brad's hand-test 2026-11-07, "No stores yet").
+// tests/giftfixes_tests.js holds it equal to contacts.js's HEADERS.
+const RR_CONTACTS = {
+  readRange: 'A2:Q',
+};
+if (typeof window !== 'undefined') window.RR_CONTACTS = RR_CONTACTS;
 
 // ══ THE STORE READER's settings (rrStoreProduct, store-links.js) ══════════
 // [stated] Brad 2026-11-05 05:22 CT "any reason we can't do both?" → "yes".
@@ -5477,6 +5506,17 @@ const RR_STORE_READ = {
   timeoutMs: 8000,
 };
 if (typeof window !== 'undefined') window.RR_STORE_READ = RR_STORE_READ;
+
+// ══ TRACKING CODES taken off a store link (rrStripTrackers, store-links.js) ══
+// 2026-11-07 (giftfixes): a Trainz link copied from a Google result carried
+// "?srsltid=AYCX9…" into the email and onto the printout. These ad/search
+// tracking codes are dropped from a pasted gift-list link and again when a
+// message is built; everything else in the address (a variant=…) is kept.
+const RR_LINK_TRACKERS = {
+  names: ['srsltid', 'gclid', 'gbraid', 'wbraid', 'gclsrc', 'dclid', 'fbclid', 'msclkid', 'yclid', 'igshid', 'mc_cid', 'mc_eid', '_gl', '_ga'],
+  prefixes: ['utm_'],
+};
+if (typeof window !== 'undefined') window.RR_LINK_TRACKERS = RR_LINK_TRACKERS;
 
 // ═══════════════════════════════════════════════════════════════
 // PRINTING A REPORT — 2026-11-02 ([stated] Brad "yes" to the plan; hand-test

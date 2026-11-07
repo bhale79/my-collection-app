@@ -704,7 +704,7 @@
     // v0.9.827 (TODO-003): offline — the phone snapshot already has them.
     if (window._offlineMode) { return state.contactsData || []; }
     try {
-      var r = await sheetsGet(_ctSheet(), TAB + '!A2:Q');
+      var r = await sheetsGet(_ctSheet(), TAB + '!' + RR_CONTACTS.readRange);   // 2026-11-07: the ONE range (config.js) — app-data.js reads the same
       state.contactsData = _ctParseRows(r && r.values);
       return state.contactsData;
     } catch (e) { state.contactsData = state.contactsData || []; return state.contactsData; }
@@ -721,6 +721,10 @@
     return (w[w.length - 1] + ' ' + n).toLowerCase();
   }
   window._ctLastNameKey = _ctLastNameKey;
+  // 2026-11-07: THE sort key for a contact — its person's last name, or its
+  // store name when there is no person (a store-only contact, giftfixes).
+  function _ctSortKey(c) { return _ctLastNameKey((c && (c.name || c.business)) || ''); }
+  window._ctSortKey = _ctSortKey;
 
   // ── page ───────────────────────────────────────────────────────
   window.buildContactsPage = async function () {
@@ -754,14 +758,23 @@
   }
   // [{name, site}] — ticked contacts that have a usable web address. A contact
   // ticked with no website is skipped here and told about on their card.
+  // 2026-11-07 (giftfixes, [stated] Brad "it pops up scott griggs, who is the
+  // owner"): a store is called by its STORE name — the Business column, else
+  // its website — never a person's name. Two contacts on one website (the
+  // owner, and the store itself): the one with a Business name speaks for it.
   function _ctPreferredVendors() {
-    var out = [], seen = {};
+    var out = [], at = {};
     (state.contactsData || []).forEach(function (c) {
       if (!c || !c.preferredVendor) return;
       var d = _ctVendorDomain(c.website);
-      if (!d || seen[d]) return;
-      seen[d] = 1;
-      out.push({ name: (c.business || c.name || d), site: d });
+      if (!d) return;
+      var label = String(c.business || '').trim() || d;
+      if (at[d] !== undefined) {
+        if (out[at[d]].name === d && label !== d) out[at[d]].name = label;
+        return;
+      }
+      at[d] = out.length;
+      out.push({ name: label, site: d });
     });
     return out;
   }
@@ -776,7 +789,7 @@
       if (!q) return true;
       return (c.name + ' ' + c.business + ' ' + (c.title || '') + ' ' + c.specialties + ' ' + c.notes + ' ' + c.metAt).toLowerCase().indexOf(q) >= 0;
     });
-    rows.sort(function (a, b) { return _ctLastNameKey(a.name).localeCompare(_ctLastNameKey(b.name)); });
+    rows.sort(function (a, b) { return _ctSortKey(a).localeCompare(_ctSortKey(b)); });
     if (!rows.length) {
       el.innerHTML = '<div class="empty-state"><p>' + (q ? 'No contacts match.' : 'No contacts yet — add your first dealer, repair shop, or collector friend.') + '</p></div>';
       return;
@@ -797,8 +810,8 @@
         + '<div style="display:flex;align-items:flex-start;gap:0.6rem;flex-wrap:wrap">'
         + '<div style="flex:1;min-width:170px">'
         +   '<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;line-height:1.25">'
-        +     '<span style="font-weight:800;color:var(--text);font-size:0.92rem">' + _esc(c.name)
-        +       (c.business ? ' <span style="font-weight:400;color:var(--text-mid);font-size:0.78rem">· ' + _esc(c.business) + '</span>' : '') + '</span>'
+        +     '<span style="font-weight:800;color:var(--text);font-size:0.92rem">' + _esc(c.name || c.business)
+        +       (c.business && c.name ? ' <span style="font-weight:400;color:var(--text-mid);font-size:0.78rem">· ' + _esc(c.business) + '</span>' : '') + '</span>'
         +     (persM ? '<img data-card-thumb="' + persM[1] + '" alt="" style="width:26px;height:26px;object-fit:cover;border-radius:50%;border:1px solid var(--border);cursor:pointer;background:#111" onclick="window.open(\'' + rrJsArg(c.personPhoto) + '\', \'_blank\')">' : '')
         +     (cardM ? '<img data-card-thumb="' + cardM[1] + '" alt="card" class="ct-cthumb" style="width:48px;height:30px;object-fit:cover;border-radius:5px;border:1px solid var(--border);cursor:pointer;background:#111" onclick="window.open(\'' + rrJsArg(c.cardLink) + '\', \'_blank\')">'
         +       '<a class="ct-clink" href="' + _esc(c.cardLink) + '" target="_blank" rel="noopener" style="display:none;font-size:0.72rem;color:var(--accent2);text-decoration:none">📇 Card</a>' : '')
@@ -872,7 +885,7 @@
     d.id = 'ct-bought-modal';
     d.style.cssText = 'position:fixed;inset:0;z-index:10050;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;padding:1rem';
     d.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:420px;width:100%;padding:1rem;max-height:80vh;max-height:80dvh;overflow-y:auto">'
-      + '<div style="font-family:var(--font-head);font-size:1rem;color:var(--text);margin-bottom:0.6rem">🛒 Bought from ' + _esc((c && c.name) || 'this contact') + '</div>'
+      + '<div style="font-family:var(--font-head);font-size:1rem;color:var(--text);margin-bottom:0.6rem">🛒 Bought from ' + _esc((c && (c.name || c.business)) || 'this contact') + '</div>'
       + items.map(function (pd) {
           var label = 'No. ' + _esc(pd.itemNum || '?') + (pd.customName ? ' — ' + _esc(pd.customName) : (pd.description ? ' — ' + _esc(String(pd.description).substring(0, 40)) : ''));
           var when = pd.datePurchased ? ' <span style="color:var(--text-dim);font-size:0.72rem">' + _esc(pd.datePurchased) + '</span>' : '';
@@ -888,8 +901,9 @@
   // via the phone's share sheet (desktop: copied to the clipboard).
   function _ctShareText(c) {
     var lines = [];
-    lines.push(c.name + (c.title ? ' — ' + c.title : ''));
-    if (c.business) lines.push(c.business);
+    // 2026-11-07: a store-only contact (no person) leads with the store
+    if (c.name) { lines.push(c.name + (c.title ? ' — ' + c.title : '')); if (c.business) lines.push(c.business); }
+    else if (c.business) lines.push(c.business);
     var ph = [];
     if (c.phone) ph.push('Store: ' + c.phone);
     if (c.cellPhone) ph.push('Cell: ' + c.cellPhone);
@@ -901,7 +915,7 @@
     return lines.join('\n');
   }
   window._ctShareOpen = function () {
-    var rows = (state.contactsData || []).slice().sort(function (a, b) { return _ctLastNameKey(a.name).localeCompare(_ctLastNameKey(b.name)); });
+    var rows = (state.contactsData || []).slice().sort(function (a, b) { return _ctSortKey(a).localeCompare(_ctSortKey(b)); });
     if (!rows.length) { showToast('No contacts to share yet', 2500); return; }
     window._ctClose('ct-share-modal');
     var d = document.createElement('div');
@@ -913,7 +927,7 @@
       + rows.map(function (c) {
           return '<label style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0.2rem;border-bottom:1px solid var(--border);cursor:pointer;font-size:0.88rem;color:var(--text)">'
             + '<input type="checkbox" data-ct-share-id="' + _esc(c.id) + '" style="width:18px;height:18px">'
-            + _esc(c.name) + (c.business ? ' <span style="color:var(--text-mid);font-size:0.78rem">· ' + _esc(c.business) + '</span>' : '')
+            + _esc(c.name || c.business) + (c.business && c.name ? ' <span style="color:var(--text-mid);font-size:0.78rem">· ' + _esc(c.business) + '</span>' : '')
             + '</label>';
         }).join('')
       + '</div>'
@@ -972,7 +986,7 @@
   // v0.9.773 (Brad): Delete straight from the list card (Edit | Delete split).
   window._ctDeleteRow = async function (row) {
     var c = (state.contactsData || []).find(function (x) { return x.row === row; });
-    var okDel = await appConfirm('Delete ' + ((c && c.name) ? rrEsc(c.name) : 'this contact') + '?', { danger: true, ok: 'Delete', title: 'Delete contact' });
+    var okDel = await appConfirm('Delete ' + ((c && (c.name || c.business)) ? rrEsc(c.name || c.business) : 'this contact') + '?', { danger: true, ok: 'Delete', title: 'Delete contact' });
     if (!okDel) return;
     try {
       // v0.9.1292: false means the row was not this contact any more and the
@@ -1244,7 +1258,10 @@
     ov.querySelector('#ct-save').onclick = async function () {
       var v = function (id) { var el = ov.querySelector('#' + id); return el ? el.value.trim() : ''; };
       var name = v('ct-f-name');
-      if (!name) { showToast('Give them at least a name', 3000, true); return; }
+      // 2026-11-07 (giftfixes, Brad's hand-test): a STORE needs no person —
+      // "+ Trainz" on the gift list filled Store and Website and then could
+      // not be saved ("Give them at least a name"). A name OR a store name.
+      if (!name && !v('ct-f-biz')) { showToast('Give them a name or a store name', 3000, true); return; }
       this.textContent = 'Saving…'; this.disabled = true;
       var chips = [].slice.call(ov.querySelectorAll('[data-ct-chip]')).filter(function (ch) { return ch.style.color === 'var(--accent2)'; }).map(function (ch) { return ch.getAttribute('data-ct-chip'); });
       var extra = v('ct-f-spec');
@@ -1261,11 +1278,11 @@
           var folderId = await driveFindOrCreateFolder('The Rail Roster - Contacts', _parentId);
           if (folderId) {
             if (_cardFile) {
-              var up = await driveUploadPhoto(_cardFile, (name + ' card ' + _today() + '.jpg'), folderId);
+              var up = await driveUploadPhoto(_cardFile, ((name || v('ct-f-biz')) + ' card ' + _today() + '.jpg'), folderId);
               if (up && up.id) cardLink = 'https://drive.google.com/file/d/' + up.id + '/view';
             }
             if (_personFile) {
-              var up2 = await driveUploadPhoto(_personFile, (name + ' photo ' + _today() + '.jpg'), folderId);
+              var up2 = await driveUploadPhoto(_personFile, ((name || v('ct-f-biz')) + ' photo ' + _today() + '.jpg'), folderId);
               if (up2 && up2.id) personLink = 'https://drive.google.com/file/d/' + up2.id + '/view';
             }
           }
@@ -1294,7 +1311,7 @@
         }
         else await sheetsAppend(_ctSheet(), TAB + '!A:Q', [rowVals]);
         window._ctClose('ct-modal');
-        showToast('✓ ' + name + ' saved to Contacts');
+        showToast('✓ ' + (name || v('ct-f-biz')) + ' saved to Contacts');
         try { await _load(); window._ctRenderList(); } catch (e3) { console.warn('[contact list refresh]', e3); }
         // v0.9.1228: somewhere else may have asked for this contact — the
         // Bought-from box in the add wizard opens this form when the seller

@@ -1366,7 +1366,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
         if (!pd || !pd.purchasedFrom) return null;
         var _ct = (state.contactsData || []).find(function (x) { return x.id === pd.purchasedFrom; });
         if (!_ct && typeof window._ctLoadContacts === 'function' && !(state.contactsData || []).length) { try { window._ctLoadContacts(); } catch (e) {} }
-        return _ct ? rrEsc(_ct.name + (_ct.business ? ' — ' + _ct.business : '')) : 'a saved contact';
+        return _ct ? rrEsc((typeof window._ctLabel === 'function') ? window._ctLabel(_ct.id) : (_ct.name || _ct.business)) : 'a saved contact';   // 2026-11-07: THE label (contacts.js _ctLabel) — a store-only contact has no person name
       })() },
     // v0.9.1506 (Session 81, Task #25): the import's testimony fields. Blank
     // for anything not imported, so non-importers see zero change (the

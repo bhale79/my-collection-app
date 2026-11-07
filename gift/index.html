@@ -38,7 +38,11 @@
   button.main { background:var(--accent); color:white; border:none; font-weight:bold; }
   .reveal { margin:0 0 1.2rem; }
   .bought { color:var(--ok); font-weight:bold; margin-right:0.6rem; }
-  .mark { margin-top:0.5rem; }
+  .mark { margin-top:0.5rem; display:flex; align-items:center; gap:0.6rem; }
+  /* 2026-11-07 (giftfixes): Undo sits at the FAR side, away from where
+     "I bought this" was, so a second tap on the same spot can't undo it */
+  .mark .undo { margin-left:auto; font-size:0.9rem; padding:0.45rem 0.8rem; color:var(--dim); }
+  .flash { color:var(--accent); font-weight:bold; margin:0.45rem 0 0; font-size:0.95rem; }
   .note { color:var(--dim); font-size:0.85rem; margin-top:1.4rem; }
   .msg { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:1.2rem; }
 </style>
@@ -53,6 +57,8 @@
     reveal: 'I’m shopping for {who} — show what’s been bought',
     revealNote: 'Keep this to yourselves — {who} isn’t meant to see what has been bought.',
     bought: 'Bought ✓',
+    saving: 'Saving…',
+    failed: 'That didn’t save — please try again.',
     buy: 'I bought this',
     undo: 'Undo',
     ask: 'Ask {who} where to find this one.',
@@ -65,6 +71,11 @@
   var code = '';
   try { code = String(new URLSearchParams(location.search).get('l') || '').toLowerCase(); } catch (e) {}
   var list = null, marks = null, busy = false;
+  // 2026-11-07 ([stated] Brad: "there is like a 3 or 4 second delay … many
+  // people will double tap it"): a tap shows "Saving…" AT ONCE, and a tap in
+  // the first moment after the list is drawn again is ignored — the second
+  // half of a double tap must never land on the new button (Undo).
+  var CALM_MS = 800, calmUntil = 0, flash = null;   // flash = { key, text } — shown under THAT item
 
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = String(text); return n; }
   function who() { return (list && list.who) ? list.who : 'them'; }
@@ -115,21 +126,24 @@
         var row = el('div', 'mark');
         if (marks.indexOf(it.key) >= 0) {
           row.appendChild(el('span', 'bought', WORDS.bought));
-          var u2 = el('button', '', WORDS.undo); u2.setAttribute('data-undo', it.key);
-          u2.onclick = function () { setMark(it.key, false); };
+          var u2 = el('button', 'undo', WORDS.undo); u2.setAttribute('data-undo', it.key);
+          u2.onclick = function () { setMark(it.key, false, u2); };
           row.appendChild(u2);
         } else {
           var bb = el('button', '', WORDS.buy); bb.setAttribute('data-buy', it.key);
-          bb.onclick = function () { setMark(it.key, true); };
+          bb.onclick = function () { setMark(it.key, true, bb); };
           row.appendChild(bb);
         }
         body.appendChild(row);
+        if (flash && flash.key === it.key) body.appendChild(el('p', 'flash', flash.text));
       }
       box.appendChild(body);
       page.appendChild(box);
     });
     if (list.disclosure) page.appendChild(el('p', 'note', list.disclosure));
     page.appendChild(el('p', 'note', list.footer || 'Made with The Rail Roster.'));
+    flash = null;
+    calmUntil = Date.now() + CALM_MS;
   }
   function answer(r) {
     if (!r) { message(WORDS.trouble); return false; }
@@ -148,15 +162,21 @@
       draw();
     }, function () { busy = false; message(WORDS.trouble); });
   }
-  function setMark(key, on) {
-    if (busy) return; busy = true;
+  function setMark(key, on, btn) {
+    if (busy || Date.now() < calmUntil) return;
+    busy = true;
+    if (btn) { btn.disabled = true; btn.textContent = WORDS.saving; }
+    // a save that did not land: the list stays, the words go under that item
+    var failed = function (words) { busy = false; flash = { key: key, text: words || WORDS.failed }; draw(); };
     call({ action: 'gift_mark', listId: code, itemKey: key, on: on }).then(function (r) {
+      if (r && r.status === 404) { busy = false; answer(r); return; }   // the list itself is gone
+      if (r && r.status === 429) { failed(WORDS.busy); return; }
+      if (!r || r.status !== 200) { failed(); return; }
       busy = false;
-      if (!answer(r)) return;
       marks = marks.filter(function (k) { return k !== key; });
       if (on) marks.push(key);
       draw();
-    }, function () { busy = false; message(WORDS.trouble); });
+    }, function () { failed(); });
   }
 
   if (!/^[a-f0-9]{32}$/.test(code)) { message(WORDS.gone); return; }

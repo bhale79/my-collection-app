@@ -173,8 +173,13 @@ async function appStory(opts) {
   await w.rrGiftFamilyStop(); await tick(w, 30);
   R.stopped = db.calls.some(c => c.action === 'gift_stop') && !db.lists.mine && !!$(w, '[data-gift-family-on]') && w._toasts.some(t => /Sharing stopped/.test(t));
   await tick(w, 1600);   // the quick-second-tap guard on Text (1.5 s) has to pass first
-  w.rrGiftText();
-  R.textAfterStop = !/therailroster\.com\/gift/.test((w._shared[w._shared.length - 1] || {}).text || '');
+  // 2026-11-07 (giftfixes, Brad "do 1"): with the link off, Text ASKS to turn
+  // it on — a "Cancel" shares nothing and turns nothing on
+  const shared0 = w._shared.length, asked0 = w._asked.length, pubs0 = db.calls.filter(c => c.action === 'gift_publish').length;
+  w.appConfirm = function (msg) { w._asked.push(msg); return Promise.resolve(false); };
+  await w.rrGiftText(); await tick(w, 30);
+  R.textAfterStop = w._shared.length === shared0 && w._asked.length === asked0 + 1 && /Turn on the family link\?/.test(w._asked[w._asked.length - 1] || '')
+    && db.calls.filter(c => c.action === 'gift_publish').length === pubs0 && !db.lists.mine;
   // the app never asked for the marks
   R.neverMarks = !db.calls.concat(relay().calls).some(c => /^gift_marks?$/.test(c.action));
   // an old backend (before the v5.0 paste)
@@ -227,10 +232,38 @@ async function pageStory(opts) {
   // the tap
   d.querySelector('[data-reveal]').click(); await tick(w, 60);
   R.marksAfterTap = w._posts.some(p => p.body.action === 'gift_marks' && p.body.listId === CODE) && /Bought ✓/.test(d.querySelector('[data-item="6464|"]').textContent) && !!d.querySelector('[data-buy="2343|"]');
-  d.querySelector('[data-buy="2343|"]').click(); await tick(w, 60);
+  // 2026-11-07 (giftfixes, [stated] Brad "many people will double tap it"):
+  // a tap right after the list is drawn is ignored …
+  const marks0 = w._posts.filter(p => p.body.action === 'gift_mark').length;
+  const click = sel => { const b = d.querySelector(sel); if (b) b.click(); return b; };   // a planted page may not draw the button
+  click('[data-buy="2343|"]'); await tick(w, 60);
+  R.calmAfterDraw = w._posts.filter(p => p.body.action === 'gift_mark').length === marks0 && !db.marks['2343|'];
+  await tick(w, 900);
+  // … "Saving…" shows the moment it is tapped, before the backend answers …
+  const buyBtn = click('[data-buy="2343|"]');
+  R.savingAtOnce = !!buyBtn && buyBtn.textContent === 'Saving…' && buyBtn.disabled === true;
+  await tick(w, 60);
   R.buy = !!db.marks['2343|'] && !!d.querySelector('[data-undo="2343|"]');
-  d.querySelector('[data-undo="2343|"]').click(); await tick(w, 60);
+  // … Undo sits apart (its own class, pushed to the far side) …
+  R.undoApart = !!d.querySelector('[data-undo="2343|"]') && d.querySelector('[data-undo="2343|"]').className === 'undo' && /\.mark \.undo \{ margin-left:auto;/.test(d.querySelector('style').textContent);
+  // … and the second half of a double tap never undoes it
+  click('[data-undo="2343|"]'); await tick(w, 60);
+  R.doubleTapSafe = !!db.marks['2343|'];
+  await tick(w, 900);
+  click('[data-undo="2343|"]'); await tick(w, 60);
   R.undo = !db.marks['2343|'] && !!d.querySelector('[data-buy="2343|"]');
+  // a save that does not land keeps the list, and says so UNDER that item
+  const realHandle = db.handle;
+  db.handle = b => b.action === 'gift_mark' ? { status: 429, message: 'busy' } : realHandle(b);
+  await tick(w, 900);
+  click('[data-buy="2343|"]'); await tick(w, 60);
+  const it2343 = d.querySelector('[data-item="2343|"]');
+  R.busyUnderItem = d.querySelectorAll('[data-item]').length === 3 && !!it2343 && /Too many people/.test((it2343.querySelector('.flash') || {}).textContent || '') && !!d.querySelector('[data-buy="2343|"]');
+  db.handle = b => b.action === 'gift_mark' ? null : realHandle(b);
+  await tick(w, 900);
+  click('[data-buy="2343|"]'); await tick(w, 60);
+  R.failUnderItem = d.querySelectorAll('[data-item]').length === 3 && /didn’t save/.test((d.querySelector('[data-item="2343|"] .flash') || {}).textContent || '') && !db.marks['2343|'];
+  db.handle = realHandle;
   // a second visitor sees the same marks (after their own tap)
   const w2 = familyPage(db, null, opts); await tick(w2, 60);
   w2.document.querySelector('[data-reveal]').click(); await tick(w2, 60);
@@ -265,7 +298,7 @@ async function pageStory(opts) {
   ok('a fresh opening of the screen knows the list is shared', A.remembered);
   ok('"Stop sharing" asks first — "Keep sharing" changes nothing', A.stopAsks);
   ok('"Stop sharing" → the backend deletes it, the screen says so', A.stopped);
-  ok('after stopping, the text no longer carries the page', A.textAfterStop);
+  ok('after stopping, Text asks first — Cancel turns nothing on and sends nothing', A.textAfterStop);
   ok('an old backend (before the v5.0 paste): "not ready yet", the preview still works', A.oldBackend);
 
   section('B. The collector never sees what was bought');
@@ -291,8 +324,14 @@ async function pageStory(opts) {
   ok('store links open in a new tab, with no way back into the page', C.newTab);
   ok('the disclosure line is shown', C.disclosure);
   ok('after the tap: the marks are read and shown, with "I bought this" on the rest', C.marksAfterTap);
+  ok('a tap in the first moment after the list is drawn is ignored (2026-11-07)', C.calmAfterDraw);
+  ok('"I bought this" shows "Saving…" at once, before the backend answers', C.savingAtOnce);
   ok('"I bought this" marks it', C.buy);
+  ok('"Undo" sits apart — at the far side, not where "I bought this" was', C.undoApart);
+  ok('the second half of a double tap does not undo it', C.doubleTapSafe);
   ok('"Undo" takes it back', C.undo);
+  ok('"too busy" while saving: the list stays, the words show under that item', C.busyUnderItem);
+  ok('a save with no answer: the list stays, "That didn\'t save" under that item', C.failUnderItem);
   ok('a second visitor sees the same marks after their own tap', C.shared);
   ok('a stopped list says "This gift list is no longer shared."', C.stoppedMsg);
   ok('a bad code asks nobody and says the same', C.badCode);
@@ -326,6 +365,11 @@ async function pageStory(opts) {
   await plantPage('marks read on load', "  call({ action: 'gift_get', listId: code }).then(function (r) {", "  call({ action: 'gift_marks', listId: code });\n  call({ action: 'gift_get', listId: code }).then(function (r) {", R => !R.noMarksYet);
   await plantPage('any link made a link', "var u = safeLink(L.url);", "var u = String(L.url || '');", R => !R.noJsLink);
   await plantPage('a name drawn as markup', "var nm = el('div', 'name', (i + 1) + '. ' + (it.name || ''));", "var nm = el('div', 'name'); nm.innerHTML = (i + 1) + '. ' + (it.name || '');", R => !R.escaped);
+  await plantPage('no pause after drawing (a double tap lands on Undo)', "if (busy || Date.now() < calmUntil) return;", "if (busy) return;", R => !R.doubleTapSafe);
+  await plantPage('no "Saving…" while it saves', "if (btn) { btn.disabled = true; btn.textContent = WORDS.saving; }", '', R => !R.savingAtOnce);
+  await plantPage('a busy save wipes the page', "if (r && r.status === 429) { failed(WORDS.busy); return; }", "if (r && r.status === 429) { busy = false; answer(r); return; }", R => !R.busyUnderItem);
+  await plantPage('the failure words at the top, not under the item', "if (flash && flash.key === it.key) body.appendChild(el('p', 'flash', flash.text));", "if (flash && flash.key === it.key) page.insertBefore(el('p', 'flash', flash.text), page.firstChild);", R => !R.failUnderItem);
+  await plantPage('Undo back in the same spot', "var u2 = el('button', 'undo', WORDS.undo);", "var u2 = el('button', '', WORDS.undo);", R => !R.undoApart);
   await plantPage('a bad code sent to the backend', "if (!/^[a-f0-9]{32}$/.test(code)) { message(WORDS.gone); return; }", '', R => !R.badCode);
   {
     const other = PAGE.replace(/var ENDPOINT = '[^']+'/, "var ENDPOINT = 'https://script.google.com/macros/s/OLD/exec'");

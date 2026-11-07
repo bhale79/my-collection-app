@@ -81,6 +81,14 @@ function page(opts) {
   w.showToast = function (m) { w._toasts.push(m); };
   w._ctPreferredVendors = function () { return [{ name: 'Trainz', site: 'trainz.com' }, { name: "Mr. Muffin's", site: 'mrmuffinstrains.com' }]; };
   w._ctOpenEdit = function () {};
+  // 2026-11-07 (giftfixes): Text asks to turn the family link on ([stated] Brad "do 1")
+  w._asked = []; w._published = [];
+  w.appConfirm = function (msg) { w._asked.push(msg); return Promise.resolve(opts.confirm !== false); };
+  w.vaultPost = function (p) {
+    if (p.action === 'gift_link') return Promise.resolve({ status: 200, listId: '' });
+    if (p.action === 'gift_publish') { w._published.push(p); return Promise.resolve({ status: 200, listId: 'b'.repeat(32) }); }
+    return Promise.resolve(null);
+  };
   w._withTokenRetry = function (fn) { return fn(); };
   w._tabExists = !!opts.tabExists;
   w.fetch = function (url, init) {
@@ -173,9 +181,11 @@ async function story(opts) {
   R.onlyTicked = !/Western Pacific/.test(($(w, '[data-gift-preview]') || {}).textContent || 'x') && /Santa Fe/.test(($(w, '[data-gift-preview]') || {}).textContent || '');
   w.rrGiftEmail();
   const mail = decodeURIComponent(String((w._opened[w._opened.length - 1] || [])[0] || ''));
-  w.rrGiftText();
+  await w.rrGiftText(); await tick(w, 30);
   const txt = (w._shared[w._shared.length - 1] || {}).text || '';
   R.mail = mail; R.txt = txt;
+  R.textAsked = w._asked.some(m => /Turn on the family link\?/.test(m));
+  R.textPublished = w._published.length === 1;
   R.disclosureShown = !!$(w, '[data-gift-disclosure]');
   // E — print
   await w.rrGiftPrint(); await tick(w, 500);
@@ -220,13 +230,15 @@ async function story(opts) {
   ok('email: the link leaves exactly as pasted', R.mail.indexOf('https://www.trainz.com/products/lionel-2343-santa-fe-f3\n') >= 0 || /lionel-2343-santa-fe-f3(\s|$)/.test(R.mail), R.mail.slice(0, 300));
   ok('email: no disclosure line when no link carries a code', R.mail.indexOf('commission') < 0);
   ok('preview: no disclosure line when no link carries a code', !R.disclosureShown);
-  ok('text: the item, its price and the store link', /2343/.test(R.txt) && /about \$375/.test(R.txt) && /Trainz: https:\/\/www\.trainz\.com/.test(R.txt), R.txt);
+  // 2026-11-07 (giftfixes, [stated] Brad "this looks terrible" → "do 1"): a text is ONE line + the family link
+  ok('text: asks to turn the family link on first (it was off)', R.textAsked && R.textPublished);
+  ok('text: one line — the title and the family link, no item list', /^Gift ideas — from Brad — see the list and mark what you’ve bought: https:\/\/therailroster\.com\/gift\/\?l=b{32}$/.test(R.txt), R.txt);
 
   section('D2. What goes out — a test store code');
   const C = await story({ aff: AFF_CODE });
   const coded = 'https://www.trainz.com/products/lionel-2343-santa-fe-f3?ref=TEST1';
   ok('email: the Trainz link carries the code', C.mail.indexOf(coded) >= 0, C.mail.slice(0, 400));
-  ok('text: the Trainz link carries the code', C.txt.indexOf(coded) >= 0);
+  ok('text: carries no store link at all (the family page does)', C.txt.indexOf('trainz.com/products') < 0 && /therailroster\.com\/gift\//.test(C.txt), C.txt);
   ok('email: the disclosure line, in Brad\'s words', C.mail.indexOf('Some links on this list may earn The Rail Roster a small commission, at no extra cost to you.') >= 0);
   ok('preview: the disclosure line is shown', C.disclosureShown);
   ok('the saved link is the PASTED one (the code is added only on the way out)', C.linkKept);
@@ -234,10 +246,12 @@ async function story(opts) {
   section('E. The printout');
   ok('a print page was written', /<h1>Gift ideas — from Brad<\/h1>/.test(C.printed), C.printed.slice(0, 200));
   ok('a QR code is drawn beside the link', /<svg/.test(C.printed) && /data-qr-url="https:\/\/www\.trainz\.com\/products\/lionel-2343-santa-fe-f3\?ref=TEST1"/.test(C.printed));
-  ok('the QR is made from the CODED link', C.qrData.length === 1 && C.qrData[0] === coded, JSON.stringify(C.qrData));
+  // (the family link is on by now — Text turned it on — so the page's own QR is printed too)
+  const storeQr = d => d.filter(x => !/therailroster\.com\/gift\//.test(x));
+  ok('the QR is made from the CODED link', storeQr(C.qrData).length === 1 && storeQr(C.qrData)[0] === coded, JSON.stringify(C.qrData));
   ok('the printout carries the disclosure when coded', /small commission/.test(C.printed));
   ok('each code has its blank border (a phone camera needs it to read the code)', /createSvgTag\(3, 4\)/.test(GIFT));
-  ok('code blank: the QR holds the link as pasted', R.qrData.length === 1 && R.qrData[0] === 'https://www.trainz.com/products/lionel-2343-santa-fe-f3');
+  ok('code blank: the QR holds the link as pasted', storeQr(R.qrData).length === 1 && storeQr(R.qrData)[0] === 'https://www.trainz.com/products/lionel-2343-santa-fe-f3');
   ok('code blank: no disclosure on the printout', !/commission/.test(R.printed));
   ok('nothing went wrong while printing (no error toasts)', !R.toasts.some(t => /could not|blocked/i.test(t)), JSON.stringify(R.toasts));
 
@@ -261,7 +275,7 @@ async function story(opts) {
   ok('the switch is RR_GIFT.feature through rrFeatureOn', /rrFeatureOn\(_G\(\)\.feature \|\| 'giftlist'\)/.test(GIFT) && /feature: 'giftlist'/.test(GIFT_CFG));
   ok('the disclosure words live only in config.js', GIFT.indexOf('small commission') < 0 && /disclosure: 'Some links on this list may earn The Rail Roster a small commission, at no extra cost to you\.'/.test(GIFT_CFG));
   ok('Trainz is only SUGGESTED (config), never hard-coded in the screen', !/trainz/i.test(GIFT.replace(/^\s*\/\/.*$/gm, '')) && /suggestedStores: \[\{ name: 'Trainz', site: 'trainz\.com' \}\]/.test(GIFT_CFG));
-  ok('every link out goes through the last stop (rrAffiliateUrl in _outgoing)', /function _outgoing\(\)[\s\S]{0,1400}rrAffiliateUrl\(L\.url\)/.test(GIFT));
+  ok('every link out goes through the last stop (rrAffiliateUrl in _outgoing), tracking codes off first', /function _outgoing\(\)[\s\S]{0,1800}var clean = _clean\(L\.url\);\s*var out = \(typeof rrAffiliateUrl === 'function'\) \? rrAffiliateUrl\(clean\) : clean;/.test(GIFT));
   ok('no "AI" in anything a person reads', !/\bAI\b|🤖/.test(GIFT.replace(/^\s*\/\/.*$/gm, '')));
   ok('no "bought" boxes (Brad: hidden or not at all)', !/bought/i.test(GIFT.replace(/^\s*\/\/.*$/gm, '')));
   ok('the pop-up uses the phone-safe height (dvh twin) and Back closes it', /max-height:94vh;max-height:94dvh/.test(GIFT) && /rrDismissGuard\(ov, _close\)/.test(GIFT));
@@ -277,7 +291,7 @@ async function story(opts) {
   await plant('items start ticked', "on: false,\n                                price:", "on: true,\n                                price:", P => P.noneTicked);
   await plant('confirm without opening', "if (!p.url || !p.opened) {", "if (!p.url) {", P => P.unopenedRefused);
   await plant('any website accepted for a store', "if (!_hostIs(host, p.store)) {", "if (false) {", P => P.wrongStoreRefused);
-  await plant('link leaves without the last stop', "var out = (typeof rrAffiliateUrl === 'function') ? rrAffiliateUrl(L.url) : L.url;", 'var out = L.url;', P => P.mail.indexOf('?ref=TEST1') >= 0 && P.qrData[0] === 'https://www.trainz.com/products/lionel-2343-santa-fe-f3?ref=TEST1', { aff: AFF_CODE });
+  await plant('link leaves without the last stop', "var out = (typeof rrAffiliateUrl === 'function') ? rrAffiliateUrl(clean) : clean;", 'var out = clean;', P => P.mail.indexOf('?ref=TEST1') >= 0 && P.qrData[0] === 'https://www.trainz.com/products/lionel-2343-santa-fe-f3?ref=TEST1', { aff: AFF_CODE });
   await plant('disclosure always shown', "disclosure: coded ? (_G().disclosure || '') : ''", "disclosure: (_G().disclosure || '')", P => P.mail.indexOf('commission') < 0 && !P.disclosureShown);
   await plant('a busy row drops the next change', "if (_busy[k]) { _again[k] = true; return _busy[k]; }", "if (_busy[k]) { return _busy[k]; }", P => P.priceLanded);
   await plant('a busy row writes twice at once', "if (_busy[k]) { _again[k] = true; return _busy[k]; }", "", P => P.oneAppendThenUpdate);

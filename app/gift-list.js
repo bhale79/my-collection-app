@@ -103,6 +103,7 @@
       return _live[url];
     }, function () { _live[url] = { state: 'unreadable' }; return _live[url]; });
   }
+  function _clean(url) { return (typeof window.rrStripTrackers === 'function') ? window.rrStripTrackers(url) : String(url || '').trim(); }
   function _isGone(url) { return !!(_live[url] && _live[url].state === 'gone'); }
   // The little card beside a link: photo, name, price, In stock / Sold out —
   // or that the page is gone, or can't be read. Every word from a store is
@@ -132,7 +133,7 @@
 
   // ── the family link (Release B) ──────────────────────────────────────
   function _F(k) { return ((_G().family || {})[k]) || ''; }
-  var _family = { code: '', asked: false, busy: false };
+  var _family = { code: '', asked: false, busy: false, why: '' };
   function _familyUrl() { return _family.code ? _F('pageUrl').replace('{code}', encodeURIComponent(_family.code)) : ''; }
   // Every backend call is written out as vaultPost({ action: … }) inside
   // _post(function) so tests/relay_proof_tests.js sees and sorts each one.
@@ -156,14 +157,26 @@
                  links: it.links.map(function (L) { return { store: L.store, url: L.url, soldOut: !!L.soldOut }; }) };
       }) };
   }
+  // true when the list is on the page. A failure says WHY in _family.why:
+  // 'old' (the backend has no family link — a relay before v5.0), 'net' (no
+  // answer at all, or the server itself failed — 5xx) or 'err' (the server
+  // answered and said no — sign-in, a refused list). ONLY 'net' is tried once
+  // more by itself — Brad's phone, 2026-11-07: the first try failed after
+  // ~10 s, the next worked in 3 s. A "no" from the server is not asked twice.
   function _publish() {
     var o = _outgoing();
     if (!o.items.length) return Promise.resolve(false);
-    return _post(function () { return vaultPost({ action: 'gift_publish', list: _publishList(o) }); }).then(function (r) {
-      if (r && r.status === 200 && r.listId) { _family.code = String(r.listId); return true; }
-      return false;
-    }, function () { return false; });
+    var once = function () {
+      return _post(function () { return vaultPost({ action: 'gift_publish', list: _publishList(o) }); }).then(function (r) {
+        if (r && r.status === 200 && r.listId) { _family.code = String(r.listId); _family.why = ''; return true; }
+        _family.why = (r && r.status === 400 && /unknown action/i.test(String(r.message || ''))) ? 'old'
+          : (!r || !r.status || r.status >= 500) ? 'net' : 'err';
+        return false;
+      }, function () { _family.why = 'net'; return false; });
+    };
+    return once().then(function (ok) { return (ok || _family.why !== 'net') ? ok : once(); });
   }
+  function _familyFailWords() { return _family.why === 'old' ? _F('notYet') : _family.why === 'err' ? _F('refused') : _F('noConnect'); }
   function _familyHtml() {
     var h = '<div data-gift-family="1" style="margin-top:0.8rem;padding:0.7rem 0.8rem;border:1px dashed var(--border);border-radius:10px">'
       + '<div style="font-weight:600;color:var(--text)">' + _esc(_F('title')) + '</div>'
@@ -176,7 +189,7 @@
         +   '<button class="rr-btn rr-btn--quiet" data-gift-family-stop="1" onclick="rrGiftFamilyStop()">' + _esc(_F('stop')) + '</button>'
         + '</div>';
     } else {
-      h += '<button class="rr-btn fill" data-gift-family-on="1" onclick="rrGiftFamilyOn()"' + (_family.busy ? ' disabled' : '') + '>' + _esc(_F('turnOn')) + '</button>';
+      h += '<button class="rr-btn fill" data-gift-family-on="1" onclick="rrGiftFamilyOn()"' + (_family.busy ? ' disabled' : '') + '>' + _esc(_family.busy ? _F('turningOn') : _F('turnOn')) + '</button>';
     }
     return h + '</div>';
   }
@@ -287,10 +300,13 @@
       .sort(function (a, b) { return String(a.itemNum).localeCompare(String(b.itemNum), undefined, { numeric: true }); });
   }
   function _master(e) { try { return (typeof findMaster === 'function') ? (findMaster(e.itemNum, e.variation || '', e) || {}) : {}; } catch (x) { return {}; } }
-  function _name(e) {
+  // forFamily: what SHE sees (preview, email, text, print, the family page)
+  // carries no variation number — [stated] Brad 2026-11-07 "she might thing a
+  // variation 2 means to buy 2 of them". His own edit screen keeps it.
+  function _name(e, forFamily) {
     var m = _master(e);
     var words = [m.roadName, m.description || m.itemType].filter(Boolean).join(' ');
-    return ((e.manufacturer ? e.manufacturer + ' ' : '') + e.itemNum + (e.variation ? ' (' + e.variation + ')' : '') + (words ? ' — ' + words : '')).trim();
+    return ((e.manufacturer ? e.manufacturer + ' ' : '') + e.itemNum + (e.variation && !forFamily ? ' (' + e.variation + ')' : '') + (words ? ' — ' + words : '')).trim();
   }
   function _rowFor(e) {
     var k = _key(e.itemNum, e.variation);
@@ -298,8 +314,17 @@
                                 price: e.expectedPrice || '', links: [], notes: '' };
     return _rows[k];
   }
+  // A store with its own search page (RR_GIFT.storeSearch) is searched THERE —
+  // [stated] Brad 2026-11-07, showing Trainz: their own search, not Google's.
+  // Its words are the maker and number the way stores spell it (2245-P →
+  // 2245P). Any other store: Google, limited to that store's website.
   function _searchUrl(e, store) {
     var m = _master(e);
+    var own = (_G().storeSearch || {})[String(store.site || '').toLowerCase()];
+    if (own) {
+      var num = String(e.itemNum || '').trim().replace(/-([A-Za-z]{1,2})$/, '$1');
+      return own.replace('{q}', encodeURIComponent([e.manufacturer, num].filter(Boolean).join(' ')));
+    }
     var words = [e.manufacturer, e.itemNum, m.roadName, m.description].filter(Boolean).join(' ').slice(0, 140);
     return 'https://www.google.com/search?q=' + encodeURIComponent(words + ' site:' + store.site);
   }
@@ -386,8 +411,8 @@
         +   '</div>'
         +   '<div data-gift-pending-live="' + _esc(k) + '" style="margin-top:0.35rem">' + (p.url ? _liveHtml(p.url, true) : '') + '</div>'
         +   '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-top:0.4rem">'
-        +     '<button class="rr-btn" data-gift-open=""' + _esc(k) + '" onclick="rrGiftOpenPending(\'' + ka + '\')"' + (p.url ? '' : ' disabled') + '>Open it to check</button>'
-        +     '<button class="rr-btn fill rr-btn--green" data-gift-confirm="' + _esc(k) + '" onclick="rrGiftConfirm(\'' + ka + '\')"' + (p.url && p.opened ? '' : ' disabled') + '>Yes, that’s it</button>'
+        +     '<button class="rr-btn" data-gift-open="' + _esc(k) + '" onclick="rrGiftOpenPending(\'' + ka + '\')"' + (p.url && !_isGone(p.url) ? '' : ' disabled') + '>Open it to check</button>'
+        +     '<button class="rr-btn fill rr-btn--green" data-gift-confirm="' + _esc(k) + '" onclick="rrGiftConfirm(\'' + ka + '\')"' + (p.url && p.opened && !_isGone(p.url) ? '' : ' disabled') + '>Yes, that’s it</button>'
         +   '</div>'
         + '</div>';
     }
@@ -409,12 +434,27 @@
       }).map(function (L) {
         var r = _live[L.url];
         if (!image && r && r.state === 'ok' && r.image) image = r.image;
-        var out = (typeof rrAffiliateUrl === 'function') ? rrAffiliateUrl(L.url) : L.url;
-        if (out !== L.url) coded = true;
+        // tracking codes off first (a link saved before 2026-11-07 may carry
+        // Google's ?srsltid=), THEN the last stop adds a store code if any
+        var clean = _clean(L.url);
+        var out = (typeof rrAffiliateUrl === 'function') ? rrAffiliateUrl(clean) : clean;
+        if (out !== clean) coded = true;
         return { store: L.store || _hostOf(L.url), url: out, confirmed: L.confirmed,
                  soldOut: !!(r && r.state === 'ok' && !r.inStock) };
       });
-      items.push({ key: _key(e.itemNum, e.variation), name: _name(e), price: _price(g.price), links: links, image: image });
+      items.push({ key: _key(e.itemNum, e.variation), name: _name(e, true), price: _price(g.price), links: links, image: image });
+    });
+    // Two versions of ONE item ticked (6464-1 var 1 and var 2): without the
+    // variation number their names would be the same, so each gets its own
+    // description — words, never a bare number she could read as "buy 2".
+    var seen = {};
+    items.forEach(function (it) { seen[it.name] = (seen[it.name] || 0) + 1; });
+    items.forEach(function (it) {
+      if (seen[it.name] < 2) return;
+      var e = _wants().find(function (x) { return _key(x.itemNum, x.variation) === it.key; }) || {};
+      var vd = String(_master(e).varDesc || '').trim().replace(/\s+/g, ' ');
+      if (vd.length > 60) vd = vd.slice(0, 57).replace(/\s+\S*$/, '') + '\u2026';
+      it.name += ' \u2014 ' + (vd ? vd.charAt(0).toUpperCase() + vd.slice(1).toLowerCase() : _W('anotherVersion').replace('{n}', e.variation || ''));
     });
     return { items: items, coded: coded, leftOff: leftOff, disclosure: coded ? (_G().disclosure || '') : '' };
   }
@@ -541,7 +581,7 @@
     _family.busy = true; _paint();
     var okd = await _publish();
     _family.busy = false;
-    if (!okd) _toast(_F('notYet'), 5000, true);
+    if (!okd) _toast(_familyFailWords(), 5000, true);
     if (_view === 'preview') _paint();
   };
   window.rrGiftFamilyStop = async function () {
@@ -603,11 +643,16 @@
   // A new address means it has not been looked at yet.
   window.rrGiftPendingUrl = function (k, url) {
     var p = _pending[k] = Object.assign({}, _pending[k] || {});
-    p.url = String(url || '').trim(); p.opened = false;
+    var raw = String(url || '').trim();
+    p.url = _clean(raw); p.opened = false;
     var s = _storeForUrl(p.url);
     if (s) p.store = s.site;
-    var ob = document.querySelector('[data-gift-open="' + (window.CSS && CSS.escape ? CSS.escape(k) : k) + '"]');
-    var cb = document.querySelector('[data-gift-confirm="' + (window.CSS && CSS.escape ? CSS.escape(k) : k) + '"]');
+    var q = (window.CSS && CSS.escape ? CSS.escape(k) : k);
+    // the box shows the clean address (tracking codes off, 2026-11-07)
+    var inp = document.querySelector('[data-gift-url="' + q + '"]');
+    if (inp && p.url !== raw) inp.value = p.url;
+    var ob = document.querySelector('[data-gift-open="' + q + '"]');
+    var cb = document.querySelector('[data-gift-confirm="' + q + '"]');
     if (ob) ob.disabled = !p.url;
     if (cb) cb.disabled = true;
     var sel = document.querySelector('[data-gift-store="' + (window.CSS && CSS.escape ? CSS.escape(k) : k) + '"]');
@@ -625,6 +670,13 @@
         if (!now || now.url !== asked) return;     // he changed it meanwhile
         var b = document.querySelector('[data-gift-pending-live="' + (window.CSS && CSS.escape ? CSS.escape(k) : k) + '"]');
         if (b) b.innerHTML = _liveHtml(asked, false);
+        // a page the store took down: neither button can be used (2026-11-07)
+        if (_isGone(asked)) {
+          var o2 = document.querySelector('[data-gift-open="' + (window.CSS && CSS.escape ? CSS.escape(k) : k) + '"]');
+          var c2 = document.querySelector('[data-gift-confirm="' + (window.CSS && CSS.escape ? CSS.escape(k) : k) + '"]');
+          if (o2) o2.disabled = true;
+          if (c2) c2.disabled = true;
+        }
       });
     }, 500);
   };
@@ -645,6 +697,7 @@
     var bad = _checkPending(k);
     if (bad) { _toast(bad, 5000, true); return; }
     var p = _pending[k];
+    if (_isGone(p.url)) { _toast(_W('gone') + '. ' + _W('goneHelp'), 6000, true); return; }
     try { window.open(p.url, '_blank', 'noopener'); } catch (x) {}
     p.opened = true;
     var cb = document.querySelector('[data-gift-confirm="' + (window.CSS && CSS.escape ? CSS.escape(k) : k) + '"]');
@@ -708,18 +761,40 @@
     }
     try { window.open(url, '_blank', 'noopener'); } catch (e) {}
   };
-  window.rrGiftText = function () {
-    if (!_on() || !_once('rrGiftText')) return;
-    var o = _outgoing(); if (!o.items.length) return;
-    var text = _text(o);
+  // A TEXT is one line and the family link ([stated] Brad 2026-11-07 "this
+  // looks terrible" at the whole list in one text → 08:12 CT "do 1"): when the
+  // link is off, Text ASKS to turn it on — one tap does both, never on its own.
+  // Email and Print keep the full list.
+  function _shortText() { return _F('textShort').replace('{title}', _title()).replace('{link}', _familyUrl()); }
+  function _sendText(text, again) {
     if (navigator.share) {
-      navigator.share({ title: _title(), text: text }).catch(function () {});
+      navigator.share({ title: _title(), text: text }).catch(function (e) {
+        // a share the phone refused because the tap was too long ago (the link
+        // took a moment to turn on): the link IS on — one more tap sends it
+        if (again && e && e.name === 'NotAllowedError') _toast(_F('textAgain'), 5000);
+      });
       return;
     }
     try {
       navigator.clipboard.writeText(text).then(function () { _toast('Copied — paste it into a text message.', 4000); },
-        function () { _toast('Could not copy the list on this device.', 4000, true); });
-    } catch (e) { _toast('Could not copy the list on this device.', 4000, true); }
+        function () { _toast(again ? _F('textAgain') : 'Could not copy on this device.', 5000, !again); });
+    } catch (e) { _toast(again ? _F('textAgain') : 'Could not copy on this device.', 5000, !again); }
+  }
+  window.rrGiftText = async function () {
+    if (!_on() || !_once('rrGiftText')) return;
+    var o = _outgoing(); if (!o.items.length) return;
+    if (_family.code) { _sendText(_shortText(), false); return; }
+    if (_family.busy) return;
+    var yes = await appConfirm(_F('textAsk'), { title: _F('title'), ok: _F('textAskOk'), cancel: 'Cancel' });
+    if (!yes) return;
+    _family.busy = true; if (_view === 'preview') _paint();
+    var okd = await _publish();
+    _family.busy = false;
+    if (_view === 'preview') _paint();
+    // the link could not be turned on (no signal at a show, an old backend):
+    // the text still goes — the full list, as before — and he is told why
+    if (!okd) { _toast(_familyFailWords() + ' ' + _F('textFull'), 6000, true); _sendText(_text(o), true); return; }
+    _sendText(_shortText(), true);
   };
   function _loadQr() {
     if (typeof window.qrcode === 'function') return Promise.resolve(window.qrcode);
@@ -745,7 +820,8 @@
           + (L.soldOut ? ' <span class="so">(' + _esc(_W('soldOut').toLowerCase()) + ' right now)</span>' : '') + '<br><span class="u">' + _esc(L.url) + '</span></div></div>';
       }).join('') : '<div class="ask">Ask me where to find this one.</div>';
       var pic = /^https:\/\//i.test(String(it.image || '')) ? '<img class="ph" src="' + _esc(it.image) + '" alt="">' : '';
-      return '<div class="it">' + pic + '<div class="nm">' + (i + 1) + '. ' + _esc(it.name) + (it.price ? ' <span class="pr">— about ' + _esc(it.price) + '</span>' : '') + '</div>' + links + '</div>';
+      // 2026-11-07: the photo sits BESIDE its item (it floated to the far right)
+      return '<div class="it">' + pic + '<div class="bd"><div class="nm">' + (i + 1) + '. ' + _esc(it.name) + (it.price ? ' <span class="pr">— about ' + _esc(it.price) + '</span>' : '') + '</div>' + links + '</div></div>';
     }).join('');
     return '<!doctype html><html><head><meta charset="utf-8"><title>' + _esc(_title()) + '</title><style>'
       + 'body{font-family:Georgia,serif;color:black;background:white;max-width:720px;margin:24px auto;padding:0 18px}'
@@ -753,7 +829,7 @@
       + '.pr{color:dimgray}.lk{display:flex;gap:12px;align-items:center;margin:4px 0 4px 18px}.qr svg{width:104px;height:104px}'
       + '.u{font-size:10px;color:dimgray;word-break:break-all}.ask{margin-left:18px;color:dimgray;font-style:italic}'
       + '.dc{font-size:11px;color:dimgray;margin-top:18px}.ft{font-size:11px;color:gray;margin-top:6px}'
-      + '.ph{float:right;width:90px;height:90px;object-fit:contain;margin:0 0 6px 10px}.so{color:dimgray;font-style:italic}.it{overflow:hidden}'
+      + '.ph{width:90px;height:90px;object-fit:contain;flex:none}.so{color:dimgray;font-style:italic}.it{display:flex;gap:14px;align-items:flex-start}.bd{flex:1;min-width:0}'
       + '.fam{display:flex;gap:12px;align-items:center;border:1px dashed gray;padding:8px;margin:0 0 16px}'
       + '</style></head><body><h1>' + _esc(_title()) + '</h1>'
       + (_family.code ? '<div class="fam" data-family-qr="1"><div class="qr">' + qr(_familyUrl()) + '</div><div><b>' + _esc(_F('printLine')) + '</b><br><span class="u">' + _esc(_familyUrl()) + '</span></div></div>' : '')

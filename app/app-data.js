@@ -2780,7 +2780,9 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     // lists you want at a train show (part numbers, dealer phone numbers).
     sheetsGet(sheetId, 'Parts Needed!A3:M').catch((e) => { console.warn('[Parts Needed load failed]', e && e.message); return {values:[], _failed:true}; }),
     // v0.9.2058: Contacts always come from the HOME collection (shared by the business).
-    sheetsGet((typeof rrHomeSheet === 'function' && rrHomeSheet()) || sheetId, 'Contacts!A2:P').catch((e) => { console.warn('[Contacts load failed]', e && e.message); return {values:[], _failed:true}; }),
+    // 2026-11-07 (giftfixes): the ONE range (config.js RR_CONTACTS) — this read
+    // said A2:P and dropped column Q, "Preferred Vendor", on every refresh.
+    sheetsGet((typeof rrHomeSheet === 'function' && rrHomeSheet()) || sheetId, 'Contacts!' + RR_CONTACTS.readRange).catch((e) => { console.warn('[Contacts load failed]', e && e.message); return {values:[], _failed:true}; }),
   ]);
   // Defaults — overwritten once the secondary promise resolves below
   let catRes={values:[]}, paperRes={values:[]}, mockRes={values:[]},

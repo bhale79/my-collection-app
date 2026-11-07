@@ -76,6 +76,38 @@ function rrAffiliateUrl(url) {
 
 // The link element a press landed on, if any (an icon or <svg> inside a link
 // counts as the link).
+// 2026-11-07 (giftfixes): the same address without search / ad tracking codes
+// (RR_LINK_TRACKERS, config.js). Only those codes go; the store's own part of
+// the address (path, a variant=…) is kept as it was. Anything that is not a
+// web address, or any error, comes back unchanged.
+function rrStripTrackers(url) {
+  try {
+    var s = String(url == null ? '' : url).trim();
+    if (!/^https?:\/\//i.test(s)) return s;
+    var cfg = (typeof RR_LINK_TRACKERS !== 'undefined' && RR_LINK_TRACKERS) || (typeof window !== 'undefined' && window.RR_LINK_TRACKERS) || {};
+    var names = (cfg.names || []).map(function (n) { return String(n).toLowerCase(); });
+    var pre = (cfg.prefixes || []).map(function (n) { return String(n).toLowerCase(); });
+    // Worked on the TEXT of the address, never rebuilt: every part that stays
+    // keeps its exact spelling (%20, a bare "flag", a comma) — only the
+    // tracking pairs are cut out. The query is what sits between the first
+    // "?" and the "#" (a "?" inside the #part is not a query).
+    var hashAt = s.indexOf('#');
+    var head = hashAt >= 0 ? s.slice(0, hashAt) : s, hash = hashAt >= 0 ? s.slice(hashAt) : '';
+    var q = head.indexOf('?');
+    if (q < 0) return s;
+    var base = head.slice(0, q), parts = head.slice(q + 1).split('&');
+    var kept = parts.filter(function (part) {
+      if (!part) return false;
+      var k = part.split('=')[0];
+      try { k = decodeURIComponent(k.replace(/\+/g, ' ')); } catch (eK) { /* keep the raw spelling */ }
+      k = k.toLowerCase();
+      return !(names.indexOf(k) >= 0 || pre.some(function (p) { return k.indexOf(p) === 0; }));
+    });
+    if (kept.length === parts.filter(Boolean).length) return s;   // nothing to cut: the very same string
+    return base + (kept.length ? '?' + kept.join('&') : '') + hash;
+  } catch (e) { return String(url == null ? '' : url); }
+}
+
 function _rrAffLinkOf(target) {
   var el = target;
   if (el && el.nodeType !== 1) el = el.parentElement || el.parentNode;
@@ -225,9 +257,11 @@ if (typeof window !== 'undefined') {
   window.rrAffiliateUrl = rrAffiliateUrl;
   window.rrAffiliateStoreFor = rrAffiliateStoreFor;
   window.rrStoreProduct = rrStoreProduct;
+  window.rrStripTrackers = rrStripTrackers;
   rrStoreLinksInstall(window);
 }
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { rrAffiliateUrl: rrAffiliateUrl, rrAffiliateStoreFor: rrAffiliateStoreFor, rrStoreLinksInstall: rrStoreLinksInstall,
-                     rrStoreProduct: rrStoreProduct, _rrStorePage: _rrStorePage, _rrStoreShape: _rrStoreShape };
+                     rrStoreProduct: rrStoreProduct, _rrStorePage: _rrStorePage, _rrStoreShape: _rrStoreShape,
+                     rrStripTrackers: rrStripTrackers };
 }
