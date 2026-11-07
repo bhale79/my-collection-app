@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2124';
+const APP_VERSION = 'v0.9.2125';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -2631,6 +2631,20 @@ window.RR_USER_FIELDS = [
     ownCard: 'cmdid', digits: 5, words: ['other'],
     importRe: /^other\s*(command\s*)?(id|#|no\.?|num(ber)?|address|addr\.?)$/ },
 ];
+// ═══════════════════════════════════════════════════════════════
+// 2026-11-07 ([stated] Brad "yes" — PLAN_2026-11-07_SET_WORDS): Add → Set
+// finds a set WORD BY WORD (rrSetMatches, wizard-suggestions.js). The words it
+// ignores (every set on the Postwar Sets tab is a Lionel Postwar set, and the
+// book calls one a set, an outfit or a train), the spellings that mean the same
+// gauge, and what the list says. Change a word HERE.
+// ═══════════════════════════════════════════════════════════════
+window.RR_SET_SEARCH = {
+  ignore: ['set', 'sets', 'outfit', 'outfits', 'train', 'trains', 'lionel', 'postwar', 'post-war', 'the', 'with', 'and', '&'],
+  same: [['o27', '027']],   // the first spelling is read as the second, in what is typed and in the set's own words
+  max: 15,                  // sets shown at once
+  more: '{shown} of {total} sets \u2014 add a word to narrow it',
+  none: 'No set has all of these words \u2014 try fewer.',
+};
 // ═══════════════════════════════════════════════════════════════
 // 2026-11-07 ([stated] Brad 2026-10-24 "yes on the sale report" → 2026-11-07
 // "its own" + "yes"): the ready-made For Sale List report — a report-builder

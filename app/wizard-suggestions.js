@@ -69,20 +69,89 @@ function _getAllErasMasterForSearch(force) {
 }
 window._getAllErasMasterForSearch = _getAllErasMasterForSearch;
 
+// ══ 2026-11-07 ([stated] Brad "yes" — PLAN_2026-11-07_SET_WORDS) ══════════
+// Add → Set used to match the WHOLE typed text as one piece: "santa fe
+// freight" found none of the 472 Postwar sets (measured), because no name
+// holds that exact phrase. Now EVERY typed word must be in the set somewhere —
+// any order, part of a word is enough:
+//   · its own words: number, name, year, gauge ("o27" = "027", RR_SET_SEARCH)
+//   · a piece's number (a number word starts a piece's number, as before)
+//   · its pieces' catalog words — road name, description, type, sub-type — so "hudson"
+//     finds the sets whose engine is a Hudson. Each piece is found with
+//     findMaster and the Postwar era (the set list is the Postwar Sets tab),
+//     never by its number alone, and worked out ONCE per catalog load.
+// Words every set shares ("set", "outfit", "train", "lionel", "postwar") are
+// ignored — RR_SET_SEARCH.ignore (config.js). rrSetMatches is THE rule:
+// 0 = no, 1 = by its own words, 2 = only through its pieces' words (listed
+// after the 1s).
+function _rrSetCfg() { return (typeof window !== 'undefined' && window.RR_SET_SEARCH) || { ignore: [], same: [], max: 15 }; }
+function _rrSetNorm(t) {
+  var out = String(t == null ? '' : t).toLowerCase();
+  (_rrSetCfg().same || []).forEach(function (pair) {
+    out = out.replace(new RegExp('(^|[^a-z0-9])' + pair[0] + '(?=[^a-z0-9]|$)', 'g'), '$1' + pair[1]);
+  });
+  return out;
+}
+// The words a person typed that a set must hold (filler words out, gauge spelled one way).
+function rrSetWords(query) {
+  var ign = {}; (_rrSetCfg().ignore || []).forEach(function (w) { ign[String(w).toLowerCase()] = 1; });
+  return _rrSetNorm(query).split(/\s+/).filter(function (w) { return w && !ign[w]; });
+}
+var _rrSetPieceCache = { sig: '', map: null };
+function _rrSetPieceWords(s) {
+  var sig = ((state.masterData || []).length) + '|' + ((state.setData || []).length);
+  if (_rrSetPieceCache.sig !== sig || !_rrSetPieceCache.map) _rrSetPieceCache = { sig: sig, map: new WeakMap() };
+  var hit = _rrSetPieceCache.map.get(s);
+  if (hit != null) return hit;
+  var words = [];
+  (s.items || []).concat(s.alts || []).forEach(function (n) {
+    if (!n) return;
+    var m = (typeof findMaster === 'function') ? findMaster(String(n), '', { era: 'pw' }) : null;
+    if (m && String(m._era || '') === 'pw') words.push(m.roadName || '', m.description || '', m.itemType || '', m.subType || '');   // subType holds "4-6-4 Hudson", "EMD F-3"
+  });
+  var out = _rrSetNorm(words.join(' '));
+  _rrSetPieceCache.map.set(s, out);
+  return out;
+}
+function rrSetMatches(s, words) {
+  if (!s || !words || !words.length) return 0;
+  var own = _rrSetNorm([s.setNum, s.setName, s.year, s.gauge].join(' '));
+  var nums = (s.items || []).concat(s.alts || []).map(function (n) { return String(n || '').toLowerCase(); });
+  var viaPieces = false;
+  for (var i = 0; i < words.length; i++) {
+    var w = words[i];
+    if (own.indexOf(w) >= 0) continue;
+    if (/^[0-9]/.test(w) && nums.some(function (n) { return n.indexOf(w) === 0; })) continue;
+    if (_rrSetPieceWords(s).indexOf(w) >= 0) { viaPieces = true; continue; }
+    return 0;
+  }
+  return viaPieces ? 2 : 1;
+}
+if (typeof window !== 'undefined') { window.rrSetMatches = rrSetMatches; window.rrSetWords = rrSetWords; }
+
 function updateSetSuggestions(query) {
   const el = document.getElementById('wiz-suggestions');
   if (!el) return;
   const q = (query || '').trim().toUpperCase();
   if (q.length < 1) { el.style.display = 'none'; el.innerHTML = ''; return; }
 
-  // Match by set number OR by item numbers within the set OR by set name
-  const candidates = state.setData
-    .filter(s => s.setNum.toUpperCase().includes(q)
-      || (s.setName || '').toUpperCase().includes(q)
-      || s.items.some(item => item.toUpperCase().startsWith(q)))
-    .slice(0, 15);
+  // 2026-11-07: every typed word, anywhere (rrSetMatches). Own-word matches first.
+  const _cfg = _rrSetCfg();
+  const _words = rrSetWords(query);
+  if (!_words.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  const _numWords = _words.filter(w => /^[0-9]/.test(w)).map(w => w.toUpperCase());
+  const _hits = [];
+  (state.setData || []).forEach((s, k) => { const t = rrSetMatches(s, _words); if (t) _hits.push({ s: s, t: t, k: k }); });
+  _hits.sort((a, b) => (a.t - b.t) || (a.k - b.k));
+  const _max = _cfg.max || 15;
+  const candidates = _hits.slice(0, _max).map(h => h.s);
 
-  if (!candidates.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  if (!candidates.length) {
+    // Say so — an empty box read as "the search is broken".
+    el.innerHTML = '<div style="padding:0.55rem 0.75rem;font-size:0.8rem;color:var(--text-dim)">' + rrEsc(_cfg.none || 'No set has all of these words.') + '</div>';
+    el.style.display = 'flex'; el.style.flexDirection = 'column';
+    return;
+  }
 
   el.innerHTML = '';
   candidates.forEach((s, i) => {
@@ -93,7 +162,7 @@ function updateSetSuggestions(query) {
 
     // Item number chips — highlight items that match the search query
     const chips = s.items.map(n => {
-      const isMatch = n.toUpperCase().startsWith(q);
+      const isMatch = _numWords.some(w => n.toUpperCase().startsWith(w));
       return `<span style="font-family:var(--font-mono);font-size:0.68rem;padding:1px 5px;border-radius:4px;border:1px solid ${isMatch ? 'var(--accent)' : 'var(--border)'};background:${isMatch ? 'rgba(240,80,8,0.15)' : 'var(--surface)'};color:${isMatch ? 'var(--t-accent)' : 'var(--text-dim)'};font-weight:${isMatch ? '700' : '400'}">${n}</span>`;
     }).join('');
     const altChips = s.alts.length ? s.alts.map(n =>
@@ -126,6 +195,12 @@ function updateSetSuggestions(query) {
       el.appendChild(div);
     }
   });
+  if (_hits.length > candidates.length) {
+    const more = document.createElement('div');
+    more.style.cssText = 'padding:0.4rem 0.75rem;font-size:0.75rem;color:var(--text-dim)';
+    more.textContent = String(_cfg.more || '{shown} of {total}').replace('{shown}', candidates.length).replace('{total}', _hits.length);
+    el.appendChild(more);
+  }
   el.style.display = 'flex';
   el.style.flexDirection = 'column';
 }
