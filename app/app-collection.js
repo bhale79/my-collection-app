@@ -3808,9 +3808,9 @@ async function removeCollectionItem(itemNum, variation, row, invId, opts) {
             var _msKey = _msEnt[0], _msRec = _msEnt[1];
             var _msOk = true;
             if (_msRec.row && typeof _msRec.row === 'number' && _msRec.row >= 3 && _msRec.row < 1000000) {
-              var _msBlanks = [Array(14).fill('')];
+              var _msBlanks = [Array(15).fill('')];   // A–O (2026-11-07: + O Manufacturer)
               _msOk = await rrRemoveRowConfirmed(state.personalSheetId, 'My Sets', _msRec.row,
-                'My Sets!A' + _msRec.row + ':N' + _msRec.row, _msBlanks,
+                'My Sets!A' + _msRec.row + ':O' + _msRec.row, _msBlanks,
                 { num: _msRec.setNum || _msRec.itemNum || '' }, 'sets list');
             }
             if (_msOk) delete state.mySetsData[_msKey];

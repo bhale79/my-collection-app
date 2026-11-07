@@ -2761,7 +2761,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   // separate: a new account has neither tab yet, and one missing tab fails a
   // whole one-request read.
   const _setTabs = _rrReadTabs(sheetId,
-    ['Instruction Sheets!A3:K', 'Science Sets!A3:O', 'Construction Sets!A3:O', 'My Sets!A3:N'],
+    ['Instruction Sheets!A3:K', 'Science Sets!A3:O', 'Construction Sets!A3:O', 'My Sets!A3:O'],   // 2026-11-07: + O Manufacturer (setmaker)
     ['Instruction Sheets', 'Science Sets', 'Construction Sets', 'My Sets']);
   const _secondaryFetch = Promise.all([
     // v0.9.992 (unified inventory Phase 5): the four ephemera tabs are
@@ -3142,6 +3142,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
       groupId: String(r[6]||''), setId: String(r[7]||''), hasSetBox: String(r[8]||''),
       boxCondition: String(r[9]||''), photoLink: String(r[10]||''), notes: String(r[11]||''),
       quickEntry: r[12] === 'Yes', inventoryId: String(r[13]||''),
+      manufacturer: String(r[14]||''),   // O — 2026-11-07 (setmaker): the maker saved on a set you built yourself
     };
   });
 

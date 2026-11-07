@@ -621,6 +621,7 @@ async function _quickEntrySaveSet(condition, worth, photoFiles) {
       '',                                  // L: Notes
       'Yes',                               // M: Quick Entry
       nextInventoryId(),                   // N: Inventory ID
+      isOwnSet ? (d._ownSetMaker || '') : '',   // O: Manufacturer — 2026-11-07 (setmaker): the maker you chose; a catalog set's comes from its pieces
     ];
     const _msApRow = await sheetsAppend(state.personalSheetId, 'My Sets!A:A', [mySetsRow]);   // v0.9.1196: keep the REAL row
     const _msInvId = mySetsRow[13];
@@ -629,6 +630,7 @@ async function _quickEntrySaveSet(condition, worth, photoFiles) {
       year, condition: String(condition), estWorth: worth, datePurchased: '',
       groupId, setId, hasSetBox: d.set_hasBox || 'No', boxCondition: '',
       photoLink, notes: '', quickEntry: true, inventoryId: _msInvId,
+      manufacturer: mySetsRow[14],
     };
   } catch(e) { rrSaveMissed(e, 'the set\u2019s entry in My Sets'); }   // v0.9.2048 (C17): was console-only — the items saved, the set's own row did not, unsaid
 
@@ -940,6 +942,7 @@ async function saveSet() {
       d.set_notes || '',                   // L: Notes
       'No',                                // M: Quick Entry
       nextInventoryId(),                   // N: Inventory ID
+      isOwnSet ? (d._ownSetMaker || '') : '',   // O: Manufacturer — 2026-11-07 (setmaker), as the quick-entry writer above
     ];
     const _msApRow2 = await sheetsAppend(state.personalSheetId, 'My Sets!A:A', [mySetsRow]);   // v0.9.1196
     const _msInvId2 = mySetsRow[13];
@@ -948,6 +951,7 @@ async function saveSet() {
       year, condition: mySetsRow[3], estWorth: d._setWorth || '', datePurchased: '',
       groupId, setId, hasSetBox: d.set_hasBox || 'No', boxCondition: mySetsRow[9],
       photoLink: '', notes: d.set_notes || '', quickEntry: false, inventoryId: _msInvId2,
+      manufacturer: mySetsRow[14],
     };
   } catch(e) { rrSaveMissed(e, 'the set\u2019s entry in My Sets'); }   // v0.9.2048 (C17): was console-only — the items saved, the set's own row did not, unsaid
 

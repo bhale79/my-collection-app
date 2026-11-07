@@ -88,9 +88,9 @@ window._catalogDisplayLabel = function (year, type, fallback) {
       notes:           function(e) { return e.notes || ''; },
       photoFolder:     function(e) { return e.photoLink || ''; },
       sheetTab:        'My Sets',
-      sheetCols:       'A:N',
+      sheetCols:       'A:O',
       bucketPath:      'mySetsData',
-      // My Sets row layout (A-N): see MY_SETS_HEADERS in app.js
+      // My Sets row layout (A-O): see MY_SETS_HEADERS in app.js
       rowSchema: [
         { col: 'A', key: 'setNum' },
         { col: 'B', key: 'setName' },
@@ -108,6 +108,7 @@ window._catalogDisplayLabel = function (year, type, fallback) {
         // string. _saveNonItemEdit special-cases this via boolToYesNo.
         { col: 'M', key: 'quickEntry', boolToYesNo: true },
         { col: 'N', key: 'inventoryId' },
+        { col: 'O', key: 'manufacturer' },   // 2026-11-07 (setmaker): who made a set you built yourself
       ],
       editFields: function(e) { return [
         { key: 'setNum',        label: 'Set #',                type: 'text',     locked: !(e.setId === 'OWN-SET') },
@@ -119,7 +120,16 @@ window._catalogDisplayLabel = function (year, type, fallback) {
         { key: 'boxCondition',  label: 'Box Condition (1-10)', type: 'number',   min: 1, max: 10 },
         { key: 'datePurchased', label: 'Date Purchased',       type: 'date' },
         { key: 'notes',         label: 'Notes',                type: 'textarea' },
-      ]; },
+      ].concat(
+        // 2026-11-07 ([stated] Brad "Yes" — PLAN_2026-11-07_SET_MAKER): a set you
+        // built yourself says who made it; a set saved before this can be told here.
+        // The same maker list the Add form offers (rrKnownMakers). A catalog set's
+        // maker is its pieces' — it gets no box.
+        (typeof rrMySetIsOwn === 'function' && rrMySetIsOwn(e))
+          ? [{ key: 'manufacturer', label: 'Made by', type: 'select',
+               options: (typeof rrKnownMakers === 'function') ? rrKnownMakers([e.manufacturer]) : (e.manufacturer ? [e.manufacturer] : []) }]
+          : []
+      ); },
       // Photo upload — Sets are dynamic. The slots are: one for the
       // set box + one per item in the master set definition.
       photoRootName:   'Set Photos',

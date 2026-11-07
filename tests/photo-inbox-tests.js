@@ -18861,7 +18861,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
       // ── (a) the run-once flag is the LAST thing the function does ──
       const ee0 = as.indexOf('async function ensureEphemeraSheets');
-      const ee1 = as.indexOf('\n}', as.indexOf("'My Sets!A2:N2'", ee0)) + 2;
+      const ee1 = as.indexOf('\n}', as.indexOf("'My Sets!A2:O2'", ee0)) + 2;   // 2026-11-07: My Sets is A–O (setmaker)
       ok('270 the ephemera slice was found', ee0 > 0 && ee1 > ee0);
       const ee = as.slice(ee0, ee1);
       // FIRST occurrence, not last: a drill that re-inserted the flag in the

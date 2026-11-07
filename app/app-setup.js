@@ -722,7 +722,7 @@ async function ensureEphemeraSheets(sheetId) {
     { title: 'Instruction Sheets', titleRange: 'Instruction Sheets!A1:A1', headerRange: 'Instruction Sheets!A2:K2', headers: IS_HEADERS },
     { title: 'Science Sets',       titleRange: 'Science Sets!A1:A1',       headerRange: 'Science Sets!A2:O2',       headers: SCIENCE_HEADERS },
     { title: 'Construction Sets',  titleRange: 'Construction Sets!A1:A1',  headerRange: 'Construction Sets!A2:O2',  headers: CONSTRUCTION_HEADERS },
-    { title: 'My Sets',            titleRange: 'My Sets!A1:A1',            headerRange: 'My Sets!A2:N2',            headers: MY_SETS_HEADERS },
+    { title: 'My Sets',            titleRange: 'My Sets!A1:A1',            headerRange: 'My Sets!A2:O2',            headers: MY_SETS_HEADERS },
   ];
   const toCreate = LIVE_TABS.filter(t => !existingTabs.includes(t.title))
     .map(t => ({ addSheet: { properties: { title: t.title } } }));

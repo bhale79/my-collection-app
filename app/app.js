@@ -796,7 +796,8 @@ const CONSTRUCTION_HEADERS = [
 const MY_SETS_HEADERS = [
   'Set Number','Set Name','Year','Condition (1-10)','Est. Worth',
   'Date Purchased','Group ID','Set ID','Has Set Box','Box Condition',
-  'Photo Link','Notes','Quick Entry','Inventory ID'
+  'Photo Link','Notes','Quick Entry','Inventory ID',
+  'Manufacturer'   // O — 2026-11-07 (setmaker): who made a set you built yourself (added at the END)
 ];
 
 // ── v0.9.1840 — which piece of an MTH cab-unit family a row is, by its words ──
@@ -3153,9 +3154,15 @@ function rrMySetItems(ms) {
   return Object.keys(state.personalData).map(function (k) { return state.personalData[k]; })
     .filter(function (pd) { return pd && pd.owned !== false && String(pd.groupId || '').trim() === gid; });
 }
-// Who made a My Sets row's set: its pieces' maker (the one maker rule). The
-// set catalog has no maker column — the pieces carry it. '' when none is known.
+// Who made a My Sets row's set. 2026-11-07 ([stated] Brad "Yes" — PLAN_2026-11-07
+// _SET_MAKER): the maker saved ON the set (column O — chosen on the "My set isn't
+// listed" form, or in the set's Edit) comes first. A set saved before that, or a
+// catalog set (O blank), still answers with its pieces' maker (the one maker
+// rule — the set catalog has no maker column). '' when none is known.
+// Every "Made by" line, the Sets list and its search ask THIS.
 function rrMySetMaker(ms) {
+  var saved = String((ms && ms.manufacturer) || '').trim();
+  if (saved) return saved;
   var items = rrMySetItems(ms);
   for (var i = 0; i < items.length; i++) {
     var m = '';

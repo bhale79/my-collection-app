@@ -218,7 +218,8 @@ async function scenario(pg, full) {
        R.aItems.join(',') === '30-4000-1|MTH|MTH4000,30-7777-1|MTH|,2343|MTH|', JSON.stringify(R.aItems));
     ok(t('A8 My Sets gets the name, number, year, condition, worth and the own-set Set ID (OWN-SET)'),
        !!R.aMySets && R.aMySets[0] === '30-4122-1' && R.aMySets[1] === 'My MTH Freight' && R.aMySets[2] === '2004' && R.aMySets[3] === '7' && R.aMySets[4] === '300'
-       && R.aMySets[7] === 'OWN-SET' && R.aMySets[9] === '', JSON.stringify(R.aMySets));
+       && R.aMySets[7] === 'OWN-SET' && R.aMySets[9] === ''
+       && R.aMySets.length === 15 && R.aMySets[14] === 'MTH', JSON.stringify(R.aMySets));   // 2026-11-07 (setmaker): O = the maker chosen on the form
     ok(t('L1 My Sets lists the own set, the two older unlisted rows and the own "1467W" — apart from the catalog'),
        R.lKeys.split(',').length === 4 && ['900', '901', '902'].every(k => R.lKeys.indexOf(k) >= 0), R.lKeys + ' ' + (R.lErr || ''));
     ok(t('L2 the own set reads its number, name, maker, year, pieces and "Your set"'),
@@ -226,10 +227,12 @@ async function scenario(pg, full) {
     ok(t('L3 the own set numbered 1467W never shows the catalog set 1467W'), R.lCatalogRows.length === 0, JSON.stringify(R.lCatalogRows));
     ok(t('L4 tapping it opens its own page — name, "Made by MTH"'), /My MTH Freight/.test(R.lPage) && /Made by/.test(R.lPage) && /MTH/.test(R.lPage), R.lPage.slice(0, 200));
     ok(t('U1 Update Info on an own set: the Set # is open'), R.uOpen);
-    ok(t('U2 …and a new number saves to that row (its own-set Set ID kept)'), !!R.uWrite && /My Sets!A60:N60/.test(R.uWrite[0]) && R.uWrite[1][0] === '30-4122-9' && R.uWrite[1][7] === 'OWN-SET', JSON.stringify(R.uWrite));
+    // 2026-11-07 (setmaker): the row is A–O now — O keeps the maker the set was saved with
+    ok(t('U2 …and a new number saves to that row (its own-set Set ID kept, its maker kept in O)'), !!R.uWrite && /My Sets!A60:O60/.test(R.uWrite[0]) && R.uWrite[1][0] === '30-4122-9' && R.uWrite[1][7] === 'OWN-SET' && R.uWrite[1][14] === 'MTH', JSON.stringify(R.uWrite));
     ok(t('U3 a catalog set\'s Set # stays locked'), R.uCatLocked);
     ok(t('C1 a Lionel Postwar catalog set: no own-set steps, straight to the set details'), R.cStep === 'setEntryMode' && !R.cOwn, R.cStep);
     ok(t('C2 …saved with ITS name, year and SET- id; its piece is the Lionel row'), !!R.cMySets && R.cMySets[0] === '1467W' && R.cMySets[1] === 'Freight Set' && R.cMySets[2] === '1955' && R.cMySets[7] === 'SET-1467W'
+       && R.cMySets.length === 15 && R.cMySets[14] === ''   // 2026-11-07 (setmaker): a catalog set's maker comes from its pieces — O stays blank
        && R.cItem === '2343|Lionel|PW2343', JSON.stringify([R.cMySets, R.cItem]));
     ok(t('P1 the new step fits — no sideways scroll, every box inside the screen'), R.pSide && R.pInputsFit, JSON.stringify([R.pSide, R.pInputsFit]));
     ok(t('P2 no page errors'), errs.length === 0, errs.join(' | '));

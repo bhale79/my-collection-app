@@ -3621,13 +3621,13 @@ async function _removeOwnedSet(key) {
   var ok = await appConfirm('Remove "' + rrEsc(label) + '" from your collection?', { title: 'Remove from collection', danger: true, ok: 'Remove' });
   if (!ok) return;
   if (entry.row && typeof entry.row === 'number' && entry.row >= 3 && entry.row < 1000000) {
-    const blanks = [Array(14).fill('')];
+    const blanks = [Array(15).fill('')];   // A–O (2026-11-07: + O Manufacturer)
     // v0.9.1288 (R3-3): wait for the answer. This used to fire the write and
     // fall straight through to "✓ Removed", so a refused write looked like a
     // successful one and the set vanished from the screen while sitting right
     // where it was in the sheet. On failure the set stays put, which is the
     // truth, and the helper has already said why.
-    if (!(await rrRemoveRowConfirmed(state.personalSheetId, 'My Sets', entry.row, 'My Sets!A' + entry.row + ':N' + entry.row, blanks, { num: entry.setNum || entry.itemNum || '', invId: entry.inventoryId || '' }, 'sets list'))) return;   // 2026-11-03: the Inventory ID too — an own set may have no number
+    if (!(await rrRemoveRowConfirmed(state.personalSheetId, 'My Sets', entry.row, 'My Sets!A' + entry.row + ':O' + entry.row, blanks, { num: entry.setNum || entry.itemNum || '', invId: entry.inventoryId || '' }, 'sets list'))) return;   // 2026-11-03: the Inventory ID too — an own set may have no number
   }
   delete state.mySetsData[key];
   if (typeof _cachePersonalData === 'function') _cachePersonalData();
