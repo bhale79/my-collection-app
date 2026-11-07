@@ -1,0 +1,744 @@
+{
+ "title": "Master fix 2026-11-07 — Ross Custom Switches track types + RMT O number cells (Master Version 2.83)",
+ "approved": "[stated] Brad 2026-11-07 09:48 CT \"lets fix those\" -> 09:56 CT \"yes\" to Fix 1 (review MASTER_FIX_ROSS_RMT_REVIEW_2026-11-07.xlsx)",
+ "rule": "Each cell is found by its Row ID and must still hold \"old\" before it is written. Ross: switches and track pieces typed Accessory take Item Type Track and Track Power \"3-Rail O\", as the tab's other 64 Track rows. RMT: a note in an Item Number cell moves to Notes; numbers proven by Trainz / Mr. Muffin's Trains RMT lists (read 2026-11-07); \"RMT-\" added where the tab's own convention has it; tank cars typed Tank Car as their sister rows.",
+ "sources": [
+  "rossswitches.com",
+  "readymadetoys.com",
+  "trainz.com RMT collection",
+  "mrmuffinstrains.com ready-made-trains collection"
+ ],
+ "not_in_this_fix": "8 duplicate RMT O rows (Part 2, a separate delete question) and the Skunk tank car (no number found).",
+ "cells": [
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "H4TFH4Z7EV",
+   "itemNum": "107GG",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "rowHint": 49
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "H4TFH4Z7EV",
+   "itemNum": "107GG",
+   "column": "Track Power",
+   "old": "",
+   "new": "3-Rail O",
+   "rowHint": 49
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "MQ3D8VD3MA",
+   "itemNum": "108GG",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "rowHint": 50
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "MQ3D8VD3MA",
+   "itemNum": "108GG",
+   "column": "Track Power",
+   "old": "",
+   "new": "3-Rail O",
+   "rowHint": 50
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "AQH3QZ5584",
+   "itemNum": "TR435",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "rowHint": 112
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "AQH3QZ5584",
+   "itemNum": "TR435",
+   "column": "Track Power",
+   "old": "",
+   "new": "3-Rail O",
+   "rowHint": 112
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "6EV38HM5VV",
+   "itemNum": "TR440",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "rowHint": 113
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "6EV38HM5VV",
+   "itemNum": "TR440",
+   "column": "Track Power",
+   "old": "",
+   "new": "3-Rail O",
+   "rowHint": 113
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "9CRY8VAA6P",
+   "itemNum": "TR445",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "rowHint": 114
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "9CRY8VAA6P",
+   "itemNum": "TR445",
+   "column": "Track Power",
+   "old": "",
+   "new": "3-Rail O",
+   "rowHint": 114
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "SJS64XFT4U",
+   "itemNum": "204",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "rowHint": 167
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "SJS64XFT4U",
+   "itemNum": "204",
+   "column": "Track Power",
+   "old": "",
+   "new": "3-Rail O",
+   "rowHint": 167
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "TUD2MGPJ8F",
+   "itemNum": "230",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "rowHint": 172
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "TUD2MGPJ8F",
+   "itemNum": "230",
+   "column": "Track Power",
+   "old": "",
+   "new": "3-Rail O",
+   "rowHint": 172
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "2WD5BMX4Z4",
+   "itemNum": "231",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "rowHint": 173
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "2WD5BMX4Z4",
+   "itemNum": "231",
+   "column": "Track Power",
+   "old": "",
+   "new": "3-Rail O",
+   "rowHint": 173
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "V24PZWZ5VX",
+   "itemNum": "240",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "rowHint": 174
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "V24PZWZ5VX",
+   "itemNum": "240",
+   "column": "Track Power",
+   "old": "",
+   "new": "3-Rail O",
+   "rowHint": 174
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "BAR66C5CY5",
+   "itemNum": "241",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "rowHint": 175
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "BAR66C5CY5",
+   "itemNum": "241",
+   "column": "Track Power",
+   "old": "",
+   "new": "3-Rail O",
+   "rowHint": 175
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "DJ9SVG7EFE",
+   "itemNum": "250",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "rowHint": 176
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "DJ9SVG7EFE",
+   "itemNum": "250",
+   "column": "Track Power",
+   "old": "",
+   "new": "3-Rail O",
+   "rowHint": 176
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "FKW4F244NX",
+   "itemNum": "251",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "rowHint": 177
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "FKW4F244NX",
+   "itemNum": "251",
+   "column": "Track Power",
+   "old": "",
+   "new": "3-Rail O",
+   "rowHint": 177
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "KXWCP4E3QH",
+   "itemNum": "RTP010",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "rowHint": 180
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "KXWCP4E3QH",
+   "itemNum": "RTP010",
+   "column": "Track Power",
+   "old": "",
+   "new": "3-Rail O",
+   "rowHint": 180
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "E3JCYRNEPE",
+   "itemNum": "101",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "rowHint": 189
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "E3JCYRNEPE",
+   "itemNum": "101",
+   "column": "Track Power",
+   "old": "",
+   "new": "3-Rail O",
+   "rowHint": 189
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "4AM7GQ3A6C",
+   "itemNum": "105",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "rowHint": 190
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "4AM7GQ3A6C",
+   "itemNum": "105",
+   "column": "Track Power",
+   "old": "",
+   "new": "3-Rail O",
+   "rowHint": 190
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "7JJR4KFE4Q",
+   "itemNum": "106",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "rowHint": 191
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "7JJR4KFE4Q",
+   "itemNum": "106",
+   "column": "Track Power",
+   "old": "",
+   "new": "3-Rail O",
+   "rowHint": 191
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "9UU9UVDHPA",
+   "itemNum": "110",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "rowHint": 192
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "9UU9UVDHPA",
+   "itemNum": "110",
+   "column": "Track Power",
+   "old": "",
+   "new": "3-Rail O",
+   "rowHint": 192
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "YQ3DR5Q5HJ",
+   "itemNum": "111",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "rowHint": 193
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "YQ3DR5Q5HJ",
+   "itemNum": "111",
+   "column": "Track Power",
+   "old": "",
+   "new": "3-Rail O",
+   "rowHint": 193
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "M5WMHJRRPP",
+   "itemNum": "115",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "rowHint": 194
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "M5WMHJRRPP",
+   "itemNum": "115",
+   "column": "Track Power",
+   "old": "",
+   "new": "3-Rail O",
+   "rowHint": 194
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "HZS346FX66",
+   "itemNum": "116",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "rowHint": 195
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "HZS346FX66",
+   "itemNum": "116",
+   "column": "Track Power",
+   "old": "",
+   "new": "3-Rail O",
+   "rowHint": 195
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "PVCDNR4GBH",
+   "itemNum": "120",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "rowHint": 196
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "PVCDNR4GBH",
+   "itemNum": "120",
+   "column": "Track Power",
+   "old": "",
+   "new": "3-Rail O",
+   "rowHint": 196
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "VQYZT5DX7Z",
+   "itemNum": "121",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "rowHint": 197
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "VQYZT5DX7Z",
+   "itemNum": "121",
+   "column": "Track Power",
+   "old": "",
+   "new": "3-Rail O",
+   "rowHint": 197
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "3NH227K4YK",
+   "itemNum": "125",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "rowHint": 198
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "3NH227K4YK",
+   "itemNum": "125",
+   "column": "Track Power",
+   "old": "",
+   "new": "3-Rail O",
+   "rowHint": 198
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "YC5EDH24NN",
+   "itemNum": "126",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "rowHint": 199
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "YC5EDH24NN",
+   "itemNum": "126",
+   "column": "Track Power",
+   "old": "",
+   "new": "3-Rail O",
+   "rowHint": 199
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "P3MMKVH6KX",
+   "itemNum": "130",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "rowHint": 200
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "P3MMKVH6KX",
+   "itemNum": "130",
+   "column": "Track Power",
+   "old": "",
+   "new": "3-Rail O",
+   "rowHint": 200
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "UHMTP2JS63",
+   "itemNum": "131",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "rowHint": 201
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "UHMTP2JS63",
+   "itemNum": "131",
+   "column": "Track Power",
+   "old": "",
+   "new": "3-Rail O",
+   "rowHint": 201
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "XXKK3GRB9W",
+   "itemNum": "140",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "rowHint": 202
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "XXKK3GRB9W",
+   "itemNum": "140",
+   "column": "Track Power",
+   "old": "",
+   "new": "3-Rail O",
+   "rowHint": 202
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "TCE2MJH674",
+   "itemNum": "141",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "rowHint": 203
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "TCE2MJH674",
+   "itemNum": "141",
+   "column": "Track Power",
+   "old": "",
+   "new": "3-Rail O",
+   "rowHint": 203
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "TDTYJ63UCQ",
+   "itemNum": "170",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "rowHint": 214
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "TDTYJ63UCQ",
+   "itemNum": "170",
+   "column": "Track Power",
+   "old": "",
+   "new": "3-Rail O",
+   "rowHint": 214
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "RR5J3TUJS4",
+   "itemNum": "171",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "rowHint": 215
+  },
+  {
+   "tab": "Ross Custom Switches",
+   "rowId": "RR5J3TUJS4",
+   "itemNum": "171",
+   "column": "Track Power",
+   "old": "",
+   "new": "3-Rail O",
+   "rowHint": 215
+  },
+  {
+   "tab": "RMT O",
+   "rowId": "75MUCYX3Y2",
+   "itemNum": "RMT-96474 / 964602",
+   "column": "Item Number",
+   "old": "RMT-96474 / 964602",
+   "new": "RMT-96460-2",
+   "rowHint": 21,
+   "why": "cell held two numbers; RMT-96474 is the SOO Line boxcar (its own row); Mr. Muffin's sells this Monon #75000 PS-1 as RMT-96460-2"
+  },
+  {
+   "tab": "RMT O",
+   "rowId": "75MUCYX3Y2",
+   "itemNum": "RMT-96474 / 964602",
+   "column": "Notes",
+   "old": "custom run - dealer pricing",
+   "new": "custom run - dealer pricing; Item Number was \"RMT-96474 / 964602\" until Master 2.83; Mr. Muffin's Trains sells it as RMT-96460-2 (RMT-96474 is the SOO Line boxcar)",
+   "rowHint": 21,
+   "why": "note moved out of the number cell"
+  },
+  {
+   "tab": "RMT O",
+   "rowId": "TPW7V8PQA6",
+   "itemNum": "86317 (verify - conflicts with MILW 86317)",
+   "column": "Item Number",
+   "old": "86317 (verify - conflicts with MILW 86317)",
+   "new": "RMT-86317",
+   "rowHint": 61,
+   "why": "Trainz and Mr. Muffin's both list RMT-86317 as the Union Pacific 2-bay covered hopper"
+  },
+  {
+   "tab": "RMT O",
+   "rowId": "TPW7V8PQA6",
+   "itemNum": "86317 (verify - conflicts with MILW 86317)",
+   "column": "Notes",
+   "old": "current - VERIFY",
+   "new": "current; Trainz and Mr. Muffin's both sell RMT-86317 as this Union Pacific car; RMT's own site prints 86317 on the Milwaukee Road page too",
+   "rowHint": 61,
+   "why": "VERIFY settled by two dealers"
+  },
+  {
+   "tab": "RMT O",
+   "rowId": "976AQUJRX9",
+   "itemNum": "RMT-86317",
+   "column": "Notes",
+   "old": "current",
+   "new": "current; RMT's site prints 86317 here and on the Union Pacific page; both dealers sell 86317 as the Union Pacific car, so this Milwaukee Road number is not proven",
+   "rowHint": 60,
+   "why": "side note on the twin"
+  },
+  {
+   "tab": "RMT O",
+   "rowId": "JP3RYT24K4",
+   "itemNum": "RMT-4371 (verify - page text says RMT-4391 which conflicts with EL #1233)",
+   "column": "Item Number",
+   "old": "RMT-4371 (verify - page text says RMT-4391 which conflicts with EL #1233)",
+   "new": "RMT-4371",
+   "rowHint": 352,
+   "why": "number kept; the note leaves the number cell"
+  },
+  {
+   "tab": "RMT O",
+   "rowId": "JP3RYT24K4",
+   "itemNum": "RMT-4371 (verify - page text says RMT-4391 which conflicts with EL #1233)",
+   "column": "Notes",
+   "old": "archive - discontinued 2003-2021 - VERIFY",
+   "new": "archive - discontinued 2003-2021; RMT's archive page prints RMT-4391 (the Erie-Lackawanna #1233's number); kept as RMT-4371, beside W&LE RMT-4372 / 4373 — not confirmed by a dealer",
+   "rowHint": 352,
+   "why": "note moved out of the number cell"
+  },
+  {
+   "tab": "RMT O",
+   "rowId": "G3WUQYG8AY",
+   "itemNum": "RMT-96709 (verify - same item# as current aeen1.html AEC ore car)",
+   "column": "Item Number",
+   "old": "RMT-96709 (verify - same item# as current aeen1.html AEC ore car)",
+   "new": "RMT-96709",
+   "rowHint": 378,
+   "why": "number kept; the note leaves the number cell"
+  },
+  {
+   "tab": "RMT O",
+   "rowId": "G3WUQYG8AY",
+   "itemNum": "RMT-96709 (verify - same item# as current aeen1.html AEC ore car)",
+   "column": "Notes",
+   "old": "archive - discontinued 2003-2021 - VERIFY",
+   "new": "archive - discontinued 2003-2021; Same RMT number as the current AEC ore car on RMT's site; Trainz sells RMT-96709 as the AEC ore-car 2-pack",
+   "rowHint": 378,
+   "why": "note moved out of the number cell"
+  },
+  {
+   "tab": "RMT O",
+   "rowId": "9M3DAF7WZW",
+   "itemNum": "92614",
+   "column": "Item Number",
+   "old": "92614",
+   "new": "RMT-92614",
+   "rowHint": 418,
+   "why": "the tab writes every number with \"RMT-\"; Trainz lists it as RMT 92614"
+  },
+  {
+   "tab": "RMT O",
+   "rowId": "XEWND9CBQA",
+   "itemNum": "92615",
+   "column": "Item Number",
+   "old": "92615",
+   "new": "RMT-92615",
+   "rowHint": 419,
+   "why": "the tab writes every number with \"RMT-\"; Trainz lists it as RMT 92615"
+  },
+  {
+   "tab": "RMT O",
+   "rowId": "ZGUF2XSGY9",
+   "itemNum": "92623",
+   "column": "Item Number",
+   "old": "92623",
+   "new": "RMT-92623",
+   "rowHint": 420,
+   "why": "the tab writes every number with \"RMT-\"; Trainz lists it as RMT 92623"
+  },
+  {
+   "tab": "RMT O",
+   "rowId": "9B7Q63F3CU",
+   "itemNum": "92715",
+   "column": "Item Number",
+   "old": "92715",
+   "new": "RMT-92715",
+   "rowHint": 421,
+   "why": "the tab writes every number with \"RMT-\"; Trainz lists it as RMT 92715"
+  },
+  {
+   "tab": "RMT O",
+   "rowId": "D2T64BFEW3",
+   "itemNum": "92723",
+   "column": "Item Number",
+   "old": "92723",
+   "new": "RMT-92723",
+   "rowHint": 422,
+   "why": "the tab writes every number with \"RMT-\"; Trainz lists it as RMT 92723"
+  },
+  {
+   "tab": "RMT O",
+   "rowId": "4RRWKMP4BT",
+   "itemNum": "96262",
+   "column": "Item Number",
+   "old": "96262",
+   "new": "RMT-96262",
+   "rowHint": 423,
+   "why": "the tab writes every number with \"RMT-\"; Trainz lists it as RMT 96262"
+  },
+  {
+   "tab": "RMT O",
+   "rowId": "CSMMJG6FKR",
+   "itemNum": "96562",
+   "column": "Item Number",
+   "old": "96562",
+   "new": "RMT-96562",
+   "rowHint": 425,
+   "why": "the tab writes every number with \"RMT-\"; Trainz lists it as RMT 96562"
+  },
+  {
+   "tab": "RMT O",
+   "rowId": "R7TY8Y8M6S",
+   "itemNum": "CAB621",
+   "column": "Item Number",
+   "old": "CAB621",
+   "new": "RMT-611-621",
+   "rowHint": 426,
+   "why": "RMT's lighted cabooses are RMT-611-NNN on this tab where Trainz writes CABNNN (2.59: CAB311/411/631 = 611-311/411/631); Trainz: \"RMT CAB621 US Air Force Lighted Caboose\""
+  },
+  {
+   "tab": "RMT O",
+   "rowId": "AX7BZ577SJ",
+   "itemNum": "RMT-96899-53",
+   "column": "Item Type",
+   "old": "Freight Car",
+   "new": "Tank Car",
+   "rowHint": 809,
+   "why": "a single-dome tank car; its sister Gas & Oil Legends cars on the tab say Tank Car"
+  },
+  {
+   "tab": "RMT O",
+   "rowId": "MRYQ8ZASP6",
+   "itemNum": "RMT-96899-54",
+   "column": "Item Type",
+   "old": "Freight Car",
+   "new": "Tank Car",
+   "rowHint": 810,
+   "why": "a single-dome tank car; its sister Gas & Oil Legends cars on the tab say Tank Car"
+  }
+ ]
+}
