@@ -778,8 +778,11 @@ function _buildWizardModal() {
         // so the word "Item Number" was paying for a whole row of screen.
         '<div style="flex:1;min-width:0">' +
           '<div class="modal-item-num" id="wizard-step-label"></div>' +
-          '<div class="modal-title" id="wizard-title"></div>' +
+          // 2026-11-08 setlayout (T-2026-11-04-03): on a phone the Item Type box
+          // sits ABOVE the step's question, so a question like "Do you know the
+          // set number?" stays right on top of its Yes / No (_syncWizKindBar).
           '<div id="wizard-kind-head" style="display:none;margin-top:0.15rem"></div>' +
+          '<div class="modal-title" id="wizard-title"></div>' +
         '</div>' +
         // v0.9.1369 (Brad): "i want a thumbnail at the top right that i can
         // click and bring up a large view". It lives between the title and the
@@ -1489,11 +1492,16 @@ function _syncWizKindBar(s) {
   }
   const cur = _wizCurrentKind();
   // v0.9.1039 (Brad): phones put it in the header, in place of the title.
+  // 2026-11-08 setlayout (T-2026-11-04-03, Brad's phone: the "Do you know the
+  // set number?" title was missing above Yes / No): only the item-number step
+  // gives its title up — there the box right below is plainly the number. Every
+  // other first step (Set, Paper, Catalogs, Mock-Ups, Other) asks a question,
+  // and the question stays, under the Item Type box.
   if (window.IS_MOBILE_UA && head) {
     { const _ks = document.getElementById('wizard-kind-side'); if (_ks) { _ks.style.display = 'none'; _ks.innerHTML = ''; } }   // v0.9.1970
     head.style.display = '';
     head.innerHTML = _wizKindSelectHtml(cur, true);
-    if (title) title.style.display = 'none';
+    if (title) title.style.display = (s && s.type === 'itemNumGrouping') ? 'none' : '';
     bar.style.display = 'none'; bar.innerHTML = '';
     return;
   }
@@ -2473,24 +2481,46 @@ function _renderAddingBannerItem() {
   // up reading "ADDING No. 2024 — Chesapeake & Ohio 'a' Unit" when the
   // user pasted a Lens response with year 2024).
   var _inManual = (d._manualEntry === true) || (d.itemCategory === 'manual');
+  // 2026-11-08 setlayout (T-2026-11-01-09, T-2026-11-04-05 — Brad: the strip
+  // "stays from an earlier step or item"). The strip names what is being added
+  // NOW, or nothing:
+  //  · the set's own steps (Set box, notes, the summary) name the SET — after a
+  //    walk the item number still holds the last piece walked (2625), and the
+  //    strip used to read "ADDING No. 2625" there;
+  //  · while a number is still being chosen (the item-number step, the set
+  //    number questions) there is nothing to name yet — unless the add holds a
+  //    catalog row (a tapped engine waiting for Engine / Engine + Tender). Back
+  //    from "Who made this item?" used to leave "ADDING No. 1511" on step 1.
+  var _bnStep = (wizard.steps && wizard.steps[wizard.step]) || {};
+  var _bnChoosing = _bnStep.type === 'itemNumGrouping' || _bnStep.id === 'itemNum'
+    || _bnStep.id === 'set_knowsNum' || _bnStep.id === 'set_num' || _bnStep.id === 'set_loco';
+  var _bnSetSteps = wizard.tab === 'set' && !d._setMode;
   var num;
-  if (_inManual) {
+  if (_bnSetSteps) {
+    if (_bnChoosing) { el.innerHTML = ''; return; }
+    var _bnRs = d._resolvedSet;
+    num = String((_bnRs && _bnRs.setNum) || (d._ownSet ? d._ownSetNum : d.set_num) || '').trim();
+  } else if (_inManual) {
     num = (d.manualItemNum || '').toString().trim();
   } else {
     num = (d.itemNum || d.manualItemNum || d.set_num || d.is_linkedItem || '').toString().trim();
     if (!num && d._resolvedSet && d._resolvedSet.setNum) num = d._resolvedSet.setNum;
   }
-  if (!num) { el.innerHTML = ''; return; }
+  // the set's own steps: an own set with a name but no number is named by its name
+  var _bnSetName = _bnSetSteps ? String((d._resolvedSet && d._resolvedSet.setName) || (d._ownSet ? d._ownSetName : '') || '').trim() : '';
+  if (!num && !_bnSetName) { el.innerHTML = ''; return; }
 
   // Resolve the description. In manual mode, prefer the user-typed manualDesc
   // and skip findMaster (which would surface unrelated catalog rows because
   // the manualItemNum isn't a master entry). In cataloged mode, master
   // lookup gives the rich description.
   var desc = '';
-  if (_inManual) {
+  var match = null;
+  if (_bnSetSteps) {
+    desc = _bnSetName;
+  } else if (_inManual) {
     desc = d.manualDesc || '';
   } else {
-    var match = null;
     // 2026-11-01 — ONE row for the whole add: the banner shows the row the add
     // holds (wizard.matchedItem — the "Found" lookup's or a tapped
     // suggestion's), and never looks the number up again. A held row that no
@@ -2534,7 +2564,9 @@ function _renderAddingBannerItem() {
   // hints (scale + type + manufacturer list) so the banner still tells the
   // user what they're working on. Example: "O gauge engine (possibly Weaver
   // or Williams)".
-  if (!desc) {
+  // Choosing a number and no catalog row held: nothing to name yet (see above).
+  if (_bnChoosing && !_bnSetSteps && !_inManual && !match) { el.innerHTML = ''; return; }
+  if (!desc && !_bnSetSteps) {
     var _hintScale = (d._identifyScaleHint || '').toString().trim();
     var _hintType  = (d._identifyTypeHint  || '').toString().trim();
     var _hintMfrs  = Array.isArray(d._identifyMfrHints) ? d._identifyMfrHints.slice() : [];
@@ -2553,7 +2585,7 @@ function _renderAddingBannerItem() {
 
   // Flow-aware prefix: box-only, paper/set/mock, tab context (want/forsale/sold)
   var isBox  = !!d.boxOnly;
-  var isSet  = !!(d._setMode || (d.itemCategory === 'set'));
+  var isSet  = !!(d._setMode || (d.itemCategory === 'set') || _bnSetSteps);
   var tab    = wizard.tab || 'collection';
   var verb;
   if (tab === 'want')         verb = 'Adding to Want List';
@@ -2587,11 +2619,11 @@ function _renderAddingBannerItem() {
       + 'font-size:0.8rem;color:var(--text-mid);overflow:hidden">'
     +   '<span style="flex-shrink:0;font-size:0.95rem;line-height:1">' + icon + '</span>'
     +   '<span style="font-size:0.62rem;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;color:var(--text-dim);flex-shrink:0;white-space:nowrap">' + _e(prefix) + '</span>'
-    +   '<span style="font-family:var(--font-mono);font-weight:700;color:var(--accent2);font-size:0.88rem;flex-shrink:0;white-space:nowrap">No.&nbsp;' + _e(num) + '</span>'
+    +   (num ? '<span style="font-family:var(--font-mono);font-weight:700;color:var(--accent2);font-size:0.88rem;flex-shrink:0;white-space:nowrap">No.&nbsp;' + _e(num) + '</span>' : '')
     // 2026-11-01: the maker · era tag of the add's row — the SAME helper the list uses
     +   ((match && typeof rrRowTagHtml === 'function') ? rrRowTagHtml(match, 'rr-row-tag-banner') : '')
     +   (desc
-          ? '<span style="color:var(--text-mid);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1">&mdash; ' + _e(desc) + '</span>'
+          ? '<span style="color:var(--text-mid);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1">' + (num ? '&mdash; ' : '') + _e(desc) + '</span>'
           : '<span style="flex:1"></span>')
     +   (_bannerExt ? '<span style="flex-shrink:0">' + _bannerExt + '</span>' : '')
     + '</div>';
@@ -3446,10 +3478,15 @@ function renderWizardStep() {
     const showBoxOnly = s.id === 'itemNum' && wizard.tab === 'collection';
     const boxOnlyChecked = wizard.data.boxOnly || false;
     const _showCollPicker = s.id === 'itemNum' && (wizard.tab === 'forsale' || wizard.tab === 'sold');
+    // 2026-11-08 setlayout (T-2026-11-04-03 / -05): the box is 100% wide PLUS its
+    // padding unless it counts the padding in (the app has no global
+    // box-sizing — app.css top note) — so the set-number box ran 34px past the
+    // phone's edge and gave the computer a sideways scrollbar. Same for the
+    // notes box below. tests/setlayout_tests.js measures both.
     body.innerHTML = `
       <div style="padding-top:0.75rem">
         <input type="text" id="wiz-input" value="${val}" placeholder="${_wizPlaceholder(s)}"
-          style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;
+          style="width:100%;box-sizing:border-box;background:var(--bg);border:1px solid var(--border);border-radius:8px;
           padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:1rem;outline:none"
           autocomplete="off"
           oninput="wizard.data['${s.id}']=this.value; if(this.id==='wiz-input' && wizard.steps[wizard.step].id==='itemNum') { debouncedItemSuggestions(this.value); _wizOwnedRefresh(); } if(this.id==='wiz-input' && wizard.steps[wizard.step].id==='set_num') updateSetSuggestions(this.value); if(this.id==='wiz-input' && wizard.steps[wizard.step].id==='eph_itemNumRef') updateMockupRefSuggestions(this.value); ${_showCollPicker ? '_filterCollPicker(this.value)' : ''}"
@@ -3639,7 +3676,10 @@ function renderWizardStep() {
     threeRow.style.cssText = 'display:flex;gap:0.4rem;align-items:stretch';
     // Est Worth
     const worthCol = document.createElement('div');
-    worthCol.style.cssText = 'flex:1;display:flex;flex-direction:column;gap:3px';
+    // 2026-11-08 setlayout (T-2026-11-04-03, Brad's phone: the Set Box field ran
+    // past the right edge): a number box is ~150px wide by nature, and a flex
+    // column will not shrink below what it holds unless told (min-width:0).
+    worthCol.style.cssText = 'flex:1;min-width:0;display:flex;flex-direction:column;gap:3px';
     worthCol.innerHTML = '<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim)">Est. Worth</div>'
       + '<div style="display:flex;align-items:center;gap:0.4rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.45rem 0.6rem;flex:1">'
       + '<span style="color:var(--text-dim);font-size:0.85rem">$</span>'
@@ -3648,7 +3688,7 @@ function renderWizardStep() {
       + '</div>';
     // Set Box checkbox
     const boxCol = document.createElement('div');
-    boxCol.style.cssText = 'flex:0.8;display:flex;flex-direction:column;gap:3px';
+    boxCol.style.cssText = 'flex:0.8;min-width:0;display:flex;flex-direction:column;gap:3px';
     const _seBoxChecked = _seD._setHasBoxChecked || false;
     boxCol.innerHTML = '<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim)">Set Box</div>'
       + '<label style="display:flex;align-items:center;justify-content:center;gap:0.4rem;background:var(--bg);border:1px solid ' + (_seBoxChecked ? 'var(--accent2)' : 'var(--border)') + ';border-radius:8px;padding:0.45rem 0.5rem;flex:1;cursor:pointer">'
@@ -4667,11 +4707,14 @@ function renderWizardStep() {
       }
 
       // Add item input
+      // 2026-11-08 setlayout: min-width:0 lets the box shrink — without it a
+      // text box keeps its natural width and, on a 360-wide phone, pushed the
+      // Add button 12px past the edge (tests/setlayout_tests.js F).
       const addRow = document.createElement('div');
       addRow.style.cssText = 'display:flex;gap:0.5rem;margin-bottom:0.75rem';
       addRow.innerHTML = `
         <input id="set-id-input" type="text" placeholder="Enter item # (e.g. 736, 6357, 1033)" autocomplete="off"
-          style="flex:1;padding:0.65rem 0.9rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:0.92rem;text-transform:uppercase"
+          style="flex:1;min-width:0;padding:0.65rem 0.9rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:0.92rem;text-transform:uppercase"
           onkeydown="if(event.key==='Enter'){event.preventDefault();window._setAddEntered();}">
         <button onclick="window._setAddEntered()" style="padding:0.65rem 1rem;border-radius:9px;border:none;background:#1e3a5f;color:white;font-family:var(--font-body);font-weight:600;cursor:pointer">Add</button>`;
       body.appendChild(addRow);
@@ -5699,7 +5742,7 @@ function renderWizardStep() {
     body.innerHTML = `
       <div style="padding-top:0.75rem">
         <textarea id="wiz-input" placeholder="Optional notes…"
-          style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;
+          style="width:100%;box-sizing:border-box;background:var(--bg);border:1px solid var(--border);border-radius:8px;
           padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;
           outline:none;resize:vertical;min-height:100px"
           oninput="wizard.data['${s.id}']=this.value">${rrEsc(val)}</textarea>
