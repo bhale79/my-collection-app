@@ -23465,7 +23465,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /_grpPhotoMembers\[0\]/.test(ac31.slice(ac31.indexOf('grp-photos-set')))
          || /leadPhotos\.filter\(isSet\)/.test(ac31), '');
       ok('331 member galleries EXCLUDE set shots — they have their own home now',
-         /\(photos \|\| \[\]\)\.filter\(function \(p\) \{ return !\/\\bSET\\b\/i\.test/.test(ac31), '');
+         // hintbox 2026-11-08: the SET test is the ONE helper rrIsSetShot now (same regex, one place)
+         /\(photos \|\| \[\]\)\.filter\(function \(p\) \{ return !rrIsSetShot\(p\); \}\)/.test(ac31)
+         && /function rrIsSetShot\(f\) \{ return \/\\bSET\\b\/i\.test/.test(ac31), '');
       ok('331 Add-group-photo names uploads through the ONE namer with the SET label',
          /_grpAddGroupPhoto/.test(ac31) && /' SET'/.test(ac31.slice(ac31.indexOf('_grpAddGroupPhoto = '))), '');
       ok('331 the side hero still prefers the together shot (unchanged)',

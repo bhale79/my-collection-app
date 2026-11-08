@@ -212,12 +212,16 @@ function _oauthRedirectUrl(prompt) {
   var redir = window.location.origin + window.location.pathname;
   // Strip trailing slash to match Google OAuth config exactly
   redir = redir.replace(/\/+$/, '');
+  // T-2026-11-05-03: the same hint as every request through the token door
+  // (_rrWithHint) — the signed-in account, never on the account chooser.
+  var _hint = (_rrWithHint({ prompt: prompt || 'select_account' }).login_hint) || '';
   return 'https://accounts.google.com/o/oauth2/v2/auth' +
     '?client_id=' + encodeURIComponent(CLIENT_ID) +
     '&redirect_uri=' + encodeURIComponent(redir) +
     '&response_type=token' +
     '&scope=' + encodeURIComponent(SCOPES) +
     '&prompt=' + (prompt || 'select_account') +
+    (_hint ? '&login_hint=' + encodeURIComponent(_hint) : '') +
     '&include_granted_scopes=true';
 }
 
@@ -1343,11 +1347,33 @@ function _rrLinkLastingScope(extraScope, onDone) {
 }
 if (typeof window !== 'undefined') window._rrLinkLastingScope = _rrLinkLastingScope;
 
+// ── THE HINT (T-2026-11-05-03) ───────────────────────────────────────────
+// The testing chat, 2026-11-07, on Brad's Android phone: while he scrolled an
+// item page, Google's "Select an account" box came up with the TEST account
+// pre-picked — while the app was signed in as bhale@. Google offers first
+// whichever account the request names in login_hint, and with no name it
+// offers the browser's own first account. So every request that goes through
+// this door names the account signed in to the app — unless the caller already
+// named one, or asked for Google's account chooser on purpose (the
+// "Continue with Google" button: a person choosing, maybe at a friend's house).
+// Only the hint is added: the scopes and the account are never changed.
+function _rrWithHint(opts) {
+  var o = {};
+  for (var k in (opts || {})) if (Object.prototype.hasOwnProperty.call(opts, k)) o[k] = opts[k];
+  // the chooser is asked for whenever the prompt list holds select_account
+  // (Google's prompt is space-separated: 'consent select_account' is a chooser too)
+  var chooser = String(o.prompt || '').split(/\s+/).indexOf('select_account') >= 0;
+  if (!o.login_hint && !chooser) {
+    var h = _rrQuietUser();
+    if (h) o.login_hint = h;
+  }
+  return o;
+}
 // THE door. Every requestAccessToken in the app reaches Google through this.
 function _rrWrapTokenClient(real) {
   return {
     requestAccessToken: function (opts) {
-      opts = opts || {};
+      opts = _rrWithHint(opts);   // T-2026-11-05-03: always name the signed-in account
       var quiet = (opts.prompt === '' || opts.prompt === undefined) && _rrQuietOn() && Date.now() >= _rrQuietDownUntil;
       if (quiet) {
         var dev = _rrQuietDevice();

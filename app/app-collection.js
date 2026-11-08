@@ -1335,7 +1335,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
           var worth = p.userEstWorth ? _currencySymbol() + parseFloat(p.userEstWorth).toLocaleString() : '';
           return '<div onclick="if(typeof _grpHeroSwap===\'function\')_grpHeroSwap(' + i + ')" title="' + ((window.innerWidth || 0) >= 1000 ? 'Show this unit\'s photo above' : 'Jump to this unit\'s photos') + '" style="cursor:pointer;flex:1;min-width:150px;max-width:230px;background:var(--surface2);border:1px solid ' + (me ? 'var(--accent3,#2ecc71)' : 'var(--border)') + ';border-radius:10px;padding:0.6rem 0.75rem">'
             + '<div style="font-size:0.64rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--accent3,#2ecc71)">' + ((typeof RR_TERM_FOR !== 'undefined' && RR_TERM_FOR.role[role]) ? rrTermWrap(RR_TERM_FOR.role[role], rrTypeWord(role)) : rrTypeWord(role)) + (me ? ' · this page' : '') + '</div>'
-            + '<div style="font-family:var(--font-mono);font-weight:700;color:var(--t-accent);font-size:0.95rem;margin:0.15rem 0">' + String(p.itemNum || '').replace(/</g, '&lt;') + (rrPhotoLinkOf(p) ? ' <span title="Has photos" style="font-size:0.78rem">📷</span>' : '') + '</div>'
+            + '<div style="font-family:var(--font-mono);font-weight:700;color:var(--t-accent);font-size:0.95rem;margin:0.15rem 0">' + String(p.itemNum || '').replace(/</g, '&lt;') + '<span data-rr-cam="' + rrEsc(_rrGrpCamKey(p)) + '">' + _rrGrpCamHtml(rrPieceHasPicture(p)) + '</span></div>'   // T-2026-11-02-02: a picture, not a folder link
             + '<div style="font-size:0.74rem;color:var(--text-mid);line-height:1.5">Cond ' + cond + (box ? ' · ' + box : '') + (worth ? '<br>Worth ' + worth : '') + '</div>'
             // v0.9.1569 (audit step 5): Remove sits beside Edit/Photos — the
             // ONLY place a single piece leaves the group. Confirms per piece.
@@ -1632,7 +1632,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
   if (_grpSideOK) {
     (async function () {
       var el = function () { return document.getElementById('grp-side-photo'); };
-      function isSet(p) { return /\bSET\b/i.test(String(p.name || '')); }
+      function isSet(p) { return rrIsSetShot(p); }   // the ONE together-shot rule
       var pick = null, pickFolder = '';
       try {
         var lead = _grpPhotoMembers[0];
@@ -1668,11 +1668,12 @@ function showItemDetailPage(idx, copyInvId, opts) {
   if (_grpPhotoMembers.length) {
     _grpPhotoMembers.forEach(function (p, gi) {
       driveGetFolderPhotos(rrPhotoLinkOf(p)).then(function (photos) {
+        _rrGrpCamSet(p, photos);   // T-2026-11-02-02: the card's 📷 follows what this read found
         var el = document.getElementById('grp-photos-' + gi);
         if (!el) return;
         // v0.9.1632 (Brad's design): set/together shots live in the GROUP
         // PHOTOS section above — a member's gallery shows only its own views.
-        photos = (photos || []).filter(function (p) { return !/\bSET\b/i.test(String(p.name || '')); });
+        photos = (photos || []).filter(function (p) { return !rrIsSetShot(p); });   // the ONE together-shot rule
         photos = rrPiecePhotos(p, photos);   // 2026-11-02: a box shows its box shots, even from the engine's folder
         if (!photos || !photos.length) { el.innerHTML = '<div style="grid-column:1/-1;color:var(--text-dim);font-size:0.78rem">No photos in this folder</div>'; return; }
         // v0.9.937 (Brad): hero + thumbnail-rail gallery per unit (rename via
@@ -1699,7 +1700,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
   if (_grpPhotoMembers.length) {
     (function () {
       var lead = _grpPhotoMembers[0];
-      function isSet(p) { return /\bSET\b/i.test(String(p.name || '')); }
+      function isSet(p) { return rrIsSetShot(p); }   // the ONE together-shot rule
       driveGetFolderPhotos(lead.photoItem).then(function (leadPhotos) {
         var el = document.getElementById('grp-photos-set');
         if (!el) return;
@@ -2022,7 +2023,7 @@ function _buildPhotoGallery(el, photos, opts) {
       var _vKey = _rrViewOfName(p.name);
       var _vDef = _vKey && (typeof ITEM_VIEWS !== 'undefined' ? ITEM_VIEWS : []).find(function (v) { return v.key === _vKey; });
       tl.textContent = (_vDef && _vDef.abbr)
-        || (/\bSET\b/i.test(String(p.name || '')) ? 'Set shot' : '')   // v0.9.1630
+        || (rrIsSetShot(p) ? 'Set shot' : '')   // v0.9.1630; the ONE together-shot rule
         || ((p.name || '').replace(/\.[^.]+$/, '').replace(/^\d{2}· /, '').split(' ').pop())
         || ('#' + (i + 1));
       t.appendChild(ti); t.appendChild(tl);
@@ -4231,6 +4232,45 @@ function rrPiecePhotos(pd, files) {
   return pd.photoItem ? files : [];   // the engine's folder with no box shot in it: nothing of the box's
 }
 if (typeof window !== 'undefined') window.rrPiecePhotos = rrPiecePhotos;
+// THE together-shot rule (v0.9.1630's SET label): a picture of the group's pieces
+// together. They live in the Group Photos section, never in a piece's own
+// gallery. Every place that tells a SET shot apart asks this (hintbox review).
+function rrIsSetShot(f) { return /\bSET\b/i.test(String((f && f.name) || '')); }
+if (typeof window !== 'undefined') window.rrIsSetShot = rrIsSetShot;
+// T-2026-11-02-02 (the testing chat, 2026-11-07: "engine 84631's Box card shows
+// a 📷 but that box folder is empty, so tapping it changes nothing"): THE ONE
+// answer to "does this piece have a picture?" for the 📷 on a group card. It
+// used to be only "has a folder link" (rrPhotoLinkOf) — a folder is not a picture.
+// The rule:
+//   · no folder link → no;
+//   · before the page has read the folder → yes, as before (a folder link is
+//     the best guess there is, and a slow or failed read, or another device,
+//     must never hide real pictures);
+//   · a read of the folder in hand (photos = its pictures, an array — the read
+//     the group page already makes for each piece's gallery) → yes only when at
+//     least one is this piece's OWN (rrPiecePhotos; the together shots have
+//     their own Group Photos section, exactly as the piece's gallery). An
+//     empty folder, or one holding only together shots, takes the 📷 away.
+// It never asks Drive anything itself: no new call per card, per render.
+function rrPieceHasPicture(pd, photos) {
+  if (!pd || !rrPhotoLinkOf(pd)) return false;
+  if (!Array.isArray(photos)) return true;
+  var own = photos.filter(function (f) { return !rrIsSetShot(f); });
+  return rrPiecePhotos(pd, own).length > 0;
+}
+if (typeof window !== 'undefined') window.rrPieceHasPicture = rrPieceHasPicture;
+// The 📷 itself, drawn in one place: the card paints it, the page's folder read
+// corrects it. Found by the piece's inventory id, never by its place in the strip.
+function _rrGrpCamKey(pd) { return String((pd && (pd.inventoryId || pd.itemNum)) || ''); }
+function _rrGrpCamHtml(on) { return on ? ' <span title="Has photos" style="font-size:0.78rem">📷</span>' : ''; }
+function _rrGrpCamSet(pd, photos) {
+  if (!Array.isArray(photos)) return;   // the read failed: what is shown stays
+  var key = _rrGrpCamKey(pd);
+  var on = rrPieceHasPicture(pd, photos);
+  document.querySelectorAll('[data-rr-cam]').forEach(function (s) {
+    if (s.getAttribute('data-rr-cam') === key) s.innerHTML = _rrGrpCamHtml(on);
+  });
+}
 // A box whose shots live in ANOTHER piece's folder: its gallery shows a part of
 // that folder, so it must not re-order it (that would change the engine's main
 // picture) — no dragging, no "Make this the main picture" there.
@@ -4426,7 +4466,7 @@ window._rrDetailGallery = async function (tr2, folderLink) {
       + (vKey ? ';font-weight:700' : '');
     const vDef = vKey && (typeof ITEM_VIEWS !== 'undefined' ? ITEM_VIEWS : []).find(function (v) { return v.key === vKey; });
     lbl.textContent = vDef ? vDef.abbr
-      : (/\bSET\b/i.test(String(p.name || '')) ? 'Set shot'   // v0.9.1630
+      : (rrIsSetShot(p) ? 'Set shot'   // v0.9.1630; the ONE together-shot rule
       : p.name.replace(/\.[^.]+$/, '').replace(/^\d{2}· /, '').split(' ').pop());
     a.appendChild(img);
     a.appendChild(lbl);
