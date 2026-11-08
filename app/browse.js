@@ -3078,6 +3078,8 @@ function renderBrowseTab(tab) {
     const el = document.getElementById(id);
     if (el) el.style.display = key === state._browseTab ? '' : 'none';
   });
+  _rrMySetsDoorSync();   // 2026-11-08 (mysets): My Collection's "My Sets" door follows the tab and the count
+  _rrMySetsBackSync();   // …and the phone's Back steps from My Sets to My Collection
 
   const filterBar = document.querySelector('#page-browse .filter-bar');
   const disclaimer = document.getElementById('disclaimer-browse');
@@ -3119,18 +3121,21 @@ function renderSetsTab() {
   if (!tbody) return;
   const inColl = !!state.filters.owned;
   const q = (document.getElementById('browse-sets-search')?.value || '').trim().toLowerCase();
+  // 2026-11-08 (mysets): in My Collection this panel IS "My Sets" — its
+  // heading and way back, and the phone's cards (a phone hides every table).
+  const _ui = _rrMySetsPanelUi(inColl);
 
-  // Build owned set lookup from My Sets personal tab.
-  // Session 115: also keep the My Sets KEY for each entry so action
-  // buttons can dispatch to _collection* handlers correctly.
+  // Build owned set lookup from My Sets personal tab (the Master Catalog's
+  // "✓ Owned" mark). Session 115's key-per-entry map is catRows now: each row
+  // carries its My Sets key, so its buttons and its tap reach that row.
   const ownedSets = {};       // keyed by setNum lowercase -> [mySet entries]
-  const mySetKeyByEntry = new Map();
   // 2026-11-03 (PLAN_2026-11-03_OWN_SETS): the collector's OWN sets (a set the
   // catalog doesn't list) are never matched to a catalog set by their number —
   // they are listed on their own below. So is any older row whose number the
   // catalog doesn't have (it used to vanish from this list).
   const _catSetNums = new Set((state.setData || []).map(function (s) { return String(s.setNum || '').toLowerCase(); }));
   const ownRows = [];   // [key, mySet]
+  const catRows = [];   // [key, mySet] — 2026-11-08 (mysets): a catalog set you own, ONE row per My Sets row
   Object.entries(state.mySetsData || {}).forEach(function(entry) {
     const k = entry[0], ms = entry[1];
     if (!ms) return;
@@ -3141,22 +3146,25 @@ function renderSetsTab() {
     }
     if (!ownedSets[setKey]) ownedSets[setKey] = [];
     ownedSets[setKey].push(ms);
-    mySetKeyByEntry.set(ms, k);
+    catRows.push(entry);
   });
 
   const _offShelfSets = inColl ? new Set() : (typeof _offShelfEras === 'function' ? _offShelfEras() : new Set());   // v0.9.1796
-  const sets = (state.setData || []).filter(s => {
+  // The Master Catalog's list: every catalog set. (2026-11-08, mysets: My
+  // Collection no longer filters this list down — that dropped a second copy
+  // of a set and a set saved with another year. It draws catList below.)
+  const sets = inColl ? [] : (state.setData || []).filter(s => {
     if (s._era && _offShelfSets.has(s._era)) return false;
-    const k = s.setNum.toLowerCase();
-    if (inColl) {
-      // Only show the specific year variant the user owns
-      if (!ownedSets[k]) return false;
-      const hasExactYear = ownedSets[k].some(ms => ms.year === s.year);
-      const hasAnyYear = ownedSets[k].some(ms => !ms.year);
-      if (!hasExactYear && !hasAnyYear) return false;
-    }
     if (!q) return true;
     return (s.setNum + ' ' + s.setName + ' ' + s.year + ' ' + s.gauge).toLowerCase().includes(q);
+  });
+  // 2026-11-08 (mysets): My Collection — each catalog set you own, by its own
+  // My Sets key, with the catalog's record beside it for the name, gauge and
+  // pieces (the year you saved, or the first printing of that number).
+  const catList = !inColl ? [] : catRows.map(function (e) { return [e[0], e[1], _rrCatalogSetOf(e[1])]; }).filter(function (r) {
+    if (!q) return true;
+    const ms = r[1], s = r[2] || {};
+    return [ms.setNum, s.setName || ms.setName, ms.year || s.year, s.gauge].join(' ').toLowerCase().includes(q);
   });
   // The collector's own sets — only in My Collection (the catalog view lists the catalog).
   const ownList = !inColl ? [] : ownRows.filter(function (e) {
@@ -3164,18 +3172,23 @@ function renderSetsTab() {
     const ms = e[1];
     return [ms.setNum, ms.setName, ms.year, (typeof rrMySetMaker === 'function' ? rrMySetMaker(ms) : '')].join(' ').toLowerCase().includes(q);
   });
-  const _nAll = sets.length + ownList.length;
-  const emptyMsg = inColl ? 'No sets in your collection yet' : 'No sets found';
+  const _nAll = sets.length + catList.length + ownList.length;
+  const emptyMsg = inColl ? RR_OWN_SETS.empty : 'No sets found';
   if (countEl) countEl.textContent = _nAll.toLocaleString() + ' set' + (_nAll !== 1 ? 's' : '');
-  if (!_nAll) { tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-dim)">${emptyMsg}</td></tr>`; return; }
+  if (_ui.cards) _ui.cards.innerHTML = '';
+  if (!_nAll) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-dim)">${emptyMsg}</td></tr>`;
+    if (_ui.cards) _ui.cards.innerHTML = '<div style="text-align:center;padding:2rem 0.5rem;color:var(--text-dim)">' + rrEsc(emptyMsg) + '</div>';
+    return;
+  }
   window._browseFilteredSets = sets;
+  const _chip = function (n) { return '<span style="font-family:var(--font-mono);font-size:0.67rem;padding:1px 5px;border-radius:3px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim)">' + rrEsc(String(n || '')) + '</span>'; };
   tbody.innerHTML = sets.map((s, si) => {
     const k = s.setNum.toLowerCase();
     const mySet = ownedSets[k] ? ownedSets[k].find(ms => ms.year === s.year) || ownedSets[k][0] : null;
     const owned = !!mySet;
     const isQE = mySet && mySet.quickEntry;
     const worthStr = mySet && mySet.estWorth ? _currencySymbol() + parseFloat(mySet.estWorth).toLocaleString() : '';
-    const condStr = mySet && mySet.condition ? mySet.condition : '';
     const itemChips = s.items.slice(0, 6).map(n =>
       `<span style="font-family:var(--font-mono);font-size:0.67rem;padding:1px 5px;border-radius:3px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim)">${n}</span>`
     ).join(' ') + (s.items.length > 6 ? `<span style="font-size:0.67rem;color:var(--text-dim)"> +${s.items.length - 6}</span>` : '');
@@ -3184,12 +3197,6 @@ function renderSetsTab() {
         + (isQE ? ' <span style="color:var(--t-orange);font-size:0.68rem;font-weight:700" title="Quick Entry">⚡</span>' : '')
         + (worthStr ? `<div style="font-size:0.72rem;color:var(--text-mid);margin-top:2px">${worthStr}</div>` : '')
       : '<span style="color:var(--text-dim);font-size:0.75rem">—</span>';
-    // Session 115: action buttons on owned set rows in collection view.
-    let actionsHTML = '';
-    if (inColl && owned && mySet && typeof _collectionActionsHTML === 'function') {
-      const setKey = mySetKeyByEntry.get(mySet);
-      if (setKey) actionsHTML = _collectionActionsHTML('sets', setKey, mySet);
-    }
     return `<tr onclick="showRefItemPopup(&apos;set&apos;,${si})" style="cursor:pointer${owned ? ';background:rgba(46,204,113,0.04)' : ''}">
       <td><span style="font-family:var(--font-mono);color:var(--accent2)">${s.setNum}</span></td>
       <td style="font-size:0.88rem">${s.setName || '—'}</td>
@@ -3197,8 +3204,31 @@ function renderSetsTab() {
       <td style="font-size:0.85rem;color:var(--text-mid)">${s.gauge || '—'}</td>
       <td style="font-size:0.82rem">${itemChips || '—'}</td>
       <td style="text-align:center">${ownedBadge}</td>
-      ${inColl ? '<td onclick="event.stopPropagation()" style="text-align:right;white-space:nowrap">' + actionsHTML + '</td>' : ''}
     </tr>`;
+  }).join('') + catList.map(function (r) {
+    // 2026-11-08 (mysets): a catalog set you own opens ITS OWN page (your
+    // copy — condition, worth, pieces), as an own set does; the catalog's
+    // popup is the Master Catalog's.
+    const k = r[0], ms = r[1], s = r[2] || { items: [] };
+    const its = s.items || [];
+    const chips = its.slice(0, 6).map(_chip).join(' ') + (its.length > 6 ? '<span style="font-size:0.67rem;color:var(--text-dim)"> +' + (its.length - 6) + '</span>' : '');
+    const worth = ms.estWorth ? _currencySymbol() + parseFloat(ms.estWorth).toLocaleString() : '';
+    const badge = '<span style="color:var(--green);font-size:0.75rem;font-weight:700">' + rrEsc(RR_OWN_SETS.ownedTag) + '</span>'
+      + (ms.quickEntry ? ' <span style="color:var(--t-orange);font-size:0.68rem;font-weight:700" title="Quick Entry">⚡</span>' : '')
+      + (worth ? '<div style="font-size:0.72rem;color:var(--text-mid);margin-top:2px">' + rrEsc(worth) + '</div>' : '');
+    const acts = (typeof _collectionActionsHTML === 'function') ? _collectionActionsHTML('sets', k, ms) : '';
+    const mine = (typeof rrMySetItems === 'function') ? rrMySetItems(ms) : [];   // the pieces you saved with it, as an own set's card counts them
+    if (_ui.cards) _ui.cards.insertAdjacentHTML('beforeend', _rrMySetCardHtml(k, ms.setNum || s.setNum, s.setName || ms.setName,
+      [ms.year || s.year, s.gauge, mine.length ? mine.length + ' piece' + (mine.length !== 1 ? 's' : '') : ''], false));
+    return '<tr data-my-set-key="' + rrEsc(k) + '" onclick="showNonItemDetailPage(\'sets\',\'' + rrJsArg(k) + '\')" style="cursor:pointer;background:rgba(46,204,113,0.04)">'
+      + '<td><span style="font-family:var(--font-mono);color:var(--accent2)">' + rrEsc(ms.setNum || s.setNum || '—') + '</span></td>'
+      + '<td style="font-size:0.88rem">' + rrEsc(s.setName || ms.setName || '—') + '</td>'
+      + '<td style="font-size:0.85rem;color:var(--text-mid)">' + rrEsc(ms.year || s.year || '—') + '</td>'
+      + '<td style="font-size:0.85rem;color:var(--text-mid)">' + rrEsc(s.gauge || '—') + '</td>'
+      + '<td style="font-size:0.82rem">' + (chips || '—') + '</td>'
+      + '<td style="text-align:center">' + badge + '</td>'
+      + '<td onclick="event.stopPropagation()" style="text-align:right;white-space:nowrap">' + acts + '</td>'
+      + '</tr>';
   }).join('') + ownList.map(function (e) {
     // 2026-11-03 (PLAN_2026-11-03_OWN_SETS): a set the catalog doesn't list —
     // the collector's own. Its pieces are the copies saved under its Group ID;
@@ -3214,6 +3244,8 @@ function renderSetsTab() {
       + (ms.quickEntry ? ' <span style="color:var(--t-orange);font-size:0.68rem;font-weight:700" title="Quick Entry">⚡</span>' : '')
       + (worth ? '<div style="font-size:0.72rem;color:var(--text-mid);margin-top:2px">' + rrEsc(worth) + '</div>' : '');
     const acts = (typeof _collectionActionsHTML === 'function') ? _collectionActionsHTML('sets', k, ms) : '';
+    if (_ui.cards) _ui.cards.insertAdjacentHTML('beforeend', _rrMySetCardHtml(k, ms.setNum, ms.setName,
+      [maker, ms.year, pieces.length ? pieces.length + ' piece' + (pieces.length !== 1 ? 's' : '') : RR_OWN_SETS.noItems], true));
     return '<tr data-own-set-key="' + rrEsc(k) + '" onclick="showNonItemDetailPage(\'sets\',\'' + rrJsArg(k) + '\')" style="cursor:pointer;background:rgba(46,204,113,0.04)">'
       + '<td><span style="font-family:var(--font-mono);color:var(--accent2)">' + (ms.setNum ? rrEsc(ms.setNum) : '—') + '</span></td>'
       + '<td style="font-size:0.88rem">' + rrEsc(ms.setName || '—') + (maker ? '<div style="font-size:0.72rem;color:var(--text-dim)">' + rrEsc(maker) + '</div>' : '') + '</td>'
@@ -3225,6 +3257,156 @@ function renderSetsTab() {
       + '</tr>';
   }).join('');
   if (typeof rrReapplyTableSort === 'function' && !(state.filters && state.filters.owned)) rrReapplyTableSort('browse-sets-tbody');   // v0.9.1916: keep the clicked column's order
+}
+
+// ── 2026-11-08 (mysets) — MY SETS: the door, the list's frame, the cards ──
+// Hand-test T-2026-11-04-03 FAILED: an own set saved and its page worked, but
+// "no screen in the app shows the My Sets list" — the phone's Sets button
+// opens Complete Sets (the catalog), and My Collection had no Sets entry. The
+// list existed (this panel, in My Collection mode) with no door to it, and on
+// a phone it drew nothing at all (the app hides every table on a phone).
+//
+// ONE door: rrOpenMySets(). ONE control calls it — the "My Sets (n)" button on
+// My Collection's title row, beside Share (and Filters on a phone), shown on
+// the phone and the computer alike whenever the collector owns a set. It sits
+// there, not on the computer's Show row, because the Show row is computer-only
+// and only appears when a collection has paper or catalog sections.
+// n = the rows the list shows: one per My Sets row (renderSetsTab files each
+// one, catalog or own, and drops none), so the number is the count of rows.
+function rrMySetsCount() {
+  return Object.values((typeof state !== 'undefined' && state.mySetsData) || {}).filter(Boolean).length;
+}
+function rrOpenMySets() {
+  if (!(state.filters && state.filters.owned)) {
+    showPage('browse', document.querySelector('.nav-item[onclick*="filterOwned"]') || document.getElementById('mnav-collection'));
+    filterOwned();
+  }
+  const s = document.getElementById('browse-sets-search'); if (s) s.value = '';
+  renderBrowseTab('sets');
+  try { const m = document.getElementById('main-content'); if (m) m.scrollTop = 0; window.scrollTo(0, 0); } catch (e) {}
+}
+// Shown only on My Collection's main list with at least one set, and never
+// while picking rows to share or to tag. renderBrowseTab and every repaint of
+// the page (_rrBrowseCore → _rrMySetsFollow) ask it, so it follows every
+// change: a set saved or removed, a sheet load that brings the sets in later.
+function _rrMySetsDoorSync() {
+  const title = document.querySelector('#page-browse > .page-title');
+  if (!title) return;
+  let btn = document.getElementById('rr-mysets-door');
+  const n = rrMySetsCount();
+  const picking = (typeof isShareMode === 'function' && isShareMode('collection')) || (typeof rrTagActive === 'function' && rrTagActive());
+  const show = !!(state.filters && state.filters.owned) && (state._browseTab || 'items') === 'items' && n > 0 && !picking;
+  if (!show) { if (btn) btn.style.display = 'none'; return; }
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.id = 'rr-mysets-door';
+    btn.type = 'button';
+    btn.className = 'btn';
+    btn.setAttribute('onclick', 'rrOpenMySets()');
+    btn.style.cssText = 'display:flex;align-items:center;gap:0.3rem;font-size:0.8rem;padding:0.4rem 0.75rem;min-height:38px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-weight:700;border-radius:7px;white-space:nowrap';
+  }
+  // Beside Share: in the title row's right-hand group (the same place
+  // filterOwned puts Share). That group is rebuilt at start-up, so the button
+  // is put back in it on every draw.
+  const host = title.querySelector('.qa-tr-actions') || title.querySelector(':scope > div') || title;
+  if (btn.parentNode !== host) host.insertBefore(btn, host.firstChild);
+  btn.textContent = RR_OWN_SETS.door.replace('{n}', n);
+  btn.style.display = 'flex';
+}
+// Is My Sets the list on screen right now (My Collection, its Sets tab, the
+// page showing)?
+function _rrMySetsOnScreen() {
+  const pg = document.getElementById('page-browse');
+  return !!(pg && pg.classList.contains('active') && state.filters && state.filters.owned && state._browseTab === 'sets');
+}
+// Every repaint of the page: the button, and — when My Sets is the list on
+// screen — the list itself (a removal, a save or a sheet load must not leave
+// a row behind that opens "Record not found"), and its Back entry.
+function _rrMySetsFollow() {
+  _rrMySetsDoorSync();
+  if (state.filters && state.filters.owned && state._browseTab === 'sets') renderSetsTab();
+  _rrMySetsBackSync();
+}
+// The phone's Back from My Sets goes to My Collection, through the app's ONE
+// back stack (back-stack.js). The entry is on the stack exactly while My Sets
+// is on screen: put there when it opens (or comes back, e.g. from a set's
+// page), taken off with a rewind when its own button or a tab switch leaves
+// it, and dropped WITHOUT a rewind when another page opens on top (that
+// page's history entry sits above ours — a rewind would undo the wrong step).
+var _RR_MYSETS_BACK = 'my-sets-list';
+var _rrMySetsPageWatch = null;
+function _rrMySetsBackSync() {
+  if (typeof BackStack === 'undefined' || !BackStack) return;
+  const on = _rrMySetsOnScreen();
+  if (on && !BackStack.has(_RR_MYSETS_BACK)) {
+    BackStack.push(_RR_MYSETS_BACK, function () { if (_rrMySetsOnScreen()) renderBrowseTab('items'); });
+    const pg = document.getElementById('page-browse');
+    if (!_rrMySetsPageWatch && pg && typeof MutationObserver === 'function') {
+      _rrMySetsPageWatch = new MutationObserver(function () {
+        if (!pg.classList.contains('active') && BackStack.has(_RR_MYSETS_BACK) && typeof BackStack.drop === 'function') BackStack.drop(_RR_MYSETS_BACK);
+      });
+      _rrMySetsPageWatch.observe(pg, { attributes: true, attributeFilter: ['class'] });
+    }
+  } else if (!on && BackStack.has(_RR_MYSETS_BACK)) {
+    const pg = document.getElementById('page-browse');
+    if (pg && !pg.classList.contains('active') && typeof BackStack.drop === 'function') BackStack.drop(_RR_MYSETS_BACK);
+    else BackStack.pop(_RR_MYSETS_BACK);
+  }
+}
+// The catalog's record for a catalog set you own. The set catalog is kept per
+// era, so a number can appear more than once: narrow by what the My Sets row
+// knows — the era of the pieces saved with it, the name it was saved with,
+// its year — and only then take the first (the row is listed either way).
+function _rrCatalogSetOf(ms) {
+  const num = String((ms && ms.setNum) || '').toLowerCase();
+  let same = (state.setData || []).filter(function (s) { return String(s.setNum || '').toLowerCase() === num; });
+  const narrow = function (test) { const hit = same.filter(test); if (hit.length) same = hit; };
+  const eras = {};
+  try { ((typeof rrMySetItems === 'function') ? rrMySetItems(ms) : []).forEach(function (pd) { if (pd && pd.era) eras[pd.era] = true; }); } catch (e) {}
+  if (Object.keys(eras).length) narrow(function (s) { return !!s._era && !!eras[s._era]; });
+  const nm = String((ms && ms.setName) || '').trim().toLowerCase();
+  if (nm) narrow(function (s) { return String(s.setName || '').trim().toLowerCase() === nm; });
+  if (ms && ms.year) narrow(function (s) { return s.year === ms.year; });
+  return same[0] || null;
+}
+// The panel's My Sets frame: a heading with its way back on top, the phone's
+// cards under the table. Built once; hidden on the Master Catalog's sets list.
+function _rrMySetsPanelUi(inColl) {
+  const panel = document.getElementById('browse-sets-panel');
+  if (!panel) return { cards: null };
+  panel.classList.toggle('rr-mysets', !!inColl);
+  let head = document.getElementById('rr-mysets-head');
+  if (!head) {
+    head = document.createElement('div');
+    head.id = 'rr-mysets-head';
+    head.innerHTML = '<button type="button" class="btn" onclick="renderBrowseTab(\'items\')" style="height:36px;padding:0 0.85rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer;margin-bottom:0.5rem">' + rrEsc(RR_OWN_SETS.back) + '</button>'
+      + '<div style="font-size:1.15rem;font-weight:700;color:var(--text);margin:0.15rem 0 0.5rem">' + rrEsc(RR_OWN_SETS.myTitle) + '</div>';
+    panel.insertBefore(head, panel.firstChild);
+  }
+  head.style.display = inColl ? '' : 'none';
+  let cards = document.getElementById('browse-sets-cards');
+  if (!cards) {
+    cards = document.createElement('div');
+    cards.id = 'browse-sets-cards';
+    panel.appendChild(cards);
+  }
+  if (!inColl) { cards.innerHTML = ''; return { cards: null }; }
+  return { cards: cards };
+}
+// One phone card. Tapping it opens the set's own page, exactly as its table row does.
+function _rrMySetCardHtml(k, num, name, subParts, own) {
+  const sub = (subParts || []).filter(function (x) { return x != null && String(x).trim() !== ''; }).join(' · ');
+  const badge = own
+    ? '<span data-own-set="1" style="color:var(--green);font-size:0.75rem;font-weight:700;white-space:nowrap">' + rrEsc(RR_OWN_SETS.listTag) + '</span>'
+    : '<span style="color:var(--green);font-size:0.75rem;font-weight:700;white-space:nowrap">' + rrEsc(RR_OWN_SETS.ownedTag) + '</span>';
+  return '<div class="browse-card" data-my-set-card="' + rrEsc(k) + '" onclick="showNonItemDetailPage(\'sets\',\'' + rrJsArg(k) + '\')">'
+    + '<div class="browse-card-left"><div class="browse-card-num">' + rrEsc(num || '—') + '</div>'
+    + '<div class="browse-card-name">' + rrEsc(name || '—') + '</div>'
+    + (sub ? '<div class="browse-card-sub">' + rrEsc(sub) + '</div>' : '') + '</div>'
+    + '<div class="browse-card-right">' + badge + '</div></div>';
+}
+if (typeof window !== 'undefined') {
+  window.rrOpenMySets = rrOpenMySets; window.rrMySetsCount = rrMySetsCount; window._rrMySetsDoorSync = _rrMySetsDoorSync;
 }
 
 function renderCatalogsTab() {
@@ -4438,6 +4620,10 @@ function _rrBrowseCore(_co) {
   // that helps is not doing it at all until someone can see it.
   // Deferred, never dropped — rrFlushRepaints() runs it once on close.
   if (typeof rrHoldRepaint === 'function' && rrHoldRepaint('browse', renderBrowse)) return;
+  // 2026-11-08 (mysets, review): every repaint of this page — a sheet load, a
+  // save, a removal, share on/off — keeps My Sets' button, list and Back
+  // entry true. Before the render-skip below, so a skipped draw still asks.
+  _rrMySetsFollow();
   // v0.9.985 (perf): if NOTHING this page is built from changed since the last
   // successful render (same filters, page, sort, section, era, chips — and no
   // data write since, tracked by _rrDataRev + a cheap collection fingerprint),

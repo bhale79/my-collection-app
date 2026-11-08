@@ -992,6 +992,9 @@
   /* Browse table wrapper: vertical + horizontal scroll with sticky headers */
   /* v0.9.1544: horizontal only — vertical scrolling belongs to the page. */
   .browse-table-wrap { overflow-x: auto; overflow-y: visible; }
+  /* 2026-11-08 (mysets): My Collection's My Sets list draws cards for the phone
+     (browse.js _rrMySetsPanelUi); the computer keeps the table. */
+  #browse-sets-cards { display: none; }
   /* ── v0.9.1543 (Brad: "i check location and location detail, and neither
      column showed up") ──────────────────────────────────────────────────
      They DID show up — underneath the Actions column, which was painting
@@ -1775,6 +1778,8 @@
     .browse-table-wrap { overflow-x: visible !important; }
     .item-table { display: none; }
     #browse-cards { display: flex; flex-direction: column; gap: 0.5rem; }
+    #browse-sets-panel.rr-mysets #browse-sets-cards { display: flex; flex-direction: column; gap: 0.5rem; }
+    #browse-sets-panel.rr-mysets .table-wrap { display: none; }
     .browse-card {
       background: var(--surface);
       border: 1px solid var(--border);

@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2128';
+const APP_VERSION = 'v0.9.2129';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -4889,6 +4889,16 @@ const RR_OWN_SETS = {
   listTag:      'Your set',
   noItems:      'No items saved with this set yet',
   mark:         'OWN',
+  // 2026-11-08 (mysets — hand-test T-2026-11-04-03 FAILED: "no screen in the
+  // app shows the My Sets list"). My Collection's door to the list of the sets
+  // you own, the list's heading, its way back, and the mark on a catalog set
+  // you own. {n} = how many sets the list shows.
+  door:         '🎁 My Sets ({n})',
+  myTitle:      'My Sets',
+  back:         '← Back to My Collection',
+  pageBack:     'Back to My Sets',   // a set's page, opened from My Sets (app-collection.js)
+  ownedTag:     '✓ Owned',
+  empty:        'No sets in your collection yet',
 };
 if (typeof window !== 'undefined') window.RR_OWN_SETS = RR_OWN_SETS;
 // Is this My Sets row the collector's own set? Its Set ID (column H) says so.

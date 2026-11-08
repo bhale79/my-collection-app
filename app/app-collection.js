@@ -195,7 +195,11 @@ function showNonItemDetailPage(type, key) {
   // Back button (mirror Items' tools-flow handling)
   var fromTools = window._detailReturn === 'tools';
   var fromDash  = window._detailReturn === 'dashboard';   // v0.9.845 (Brad)
-  var backLabel = fromTools ? 'Back to Collection Tools' : fromDash ? 'Back to Dashboard' : 'Back to Collection';
+  // 2026-11-08 (mysets, review): opened from My Sets, Back returns to My Sets
+  // (_detailBackToBrowse restores the tab) — so the button says so.
+  var fromMySets = !fromTools && !fromDash && !!(window._lastBrowseState && window._lastBrowseState.owned && window._lastBrowseState.tab === 'sets');
+  var backLabel = fromTools ? 'Back to Collection Tools' : fromDash ? 'Back to Dashboard'
+                : (fromMySets && typeof RR_OWN_SETS !== 'undefined') ? RR_OWN_SETS.pageBack : 'Back to Collection';
   var backFn    = fromTools ? 'delete window._detailReturn;showPage(&apos;tools&apos;);buildToolsPage()'
                 : fromDash  ? 'delete window._detailReturn;showPage(&apos;dashboard&apos;);if(typeof buildDashboard===&apos;function&apos;)buildDashboard()'
                 : '_detailBackToBrowse()';

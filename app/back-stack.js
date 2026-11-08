@@ -221,6 +221,18 @@
     return false;
   }
 
+  // Public — forget one entry WITHOUT rewinding history. For an in-page view
+  // the person left by opening another page: that page's own history entry
+  // now sits above ours, so pop()'s rewind would undo the wrong step. The
+  // step left behind is an ordinary one the app's own Back handling walks.
+  // 2026-11-08 (mysets: My Sets' Back entry when a set's page opens on top).
+  function drop(id) {
+    for (var i = _stack.length - 1; i >= 0; i--) {
+      if (_stack[i].id === id) { _stack.splice(i, 1); _log('drop', id, 'stack size now', _stack.length); return true; }
+    }
+    return false;
+  }
+
   // Public — how many entries on the stack right now.
   function size() { return _stack.length; }
 
@@ -347,6 +359,7 @@
     pop:   pop,
     wire:  wire,
     has:   has,
+    drop:  drop,
     size:  size,
     clear: clear,
     _cfg:  CFG,   // exposed for tests / one-line tweaks
