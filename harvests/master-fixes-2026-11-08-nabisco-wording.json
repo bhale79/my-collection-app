@@ -1,0 +1,179 @@
+{
+ "title": "Master fix 2026-11-08 — Lionel PW - Items: the ten Nabisco Shredded Wheat Train-O-Rama sheets get COTT's description and year",
+ "approved": "[stated] Brad 2026-11-08 13:07 CT \"Use the cott description\" -> 13:09 CT \"Yes\" (to the 10 descriptions + Year 1956 on the 9 blank rows, shown as a table)",
+ "rule": "The ten Train-O-Rama rows (Item Type Promotional, Sub-Type Nabisco Promo) carried an engine name as their Description, so the paper premium read like a locomotive. Description becomes \"Nabisco Shredded Wheat Train-O-Rama: \" + COTT's own heading for that sheet (cornucopiaoftoytrains.com/lionel-nabisco-shreaded-wheat-train-o-rama-1956-a/, COTT permission on file); Year Produced 1956 (COTT: \"Produced in 1956\") where blank (2360 already 1956). Only columns H and J; Row IDs, Variation # and every other cell unchanged.",
+ "tab": "Lionel PW - Items",
+ "cells": [
+  {
+   "rowId": "UCVKF2TGHK",
+   "sheetRow": 341,
+   "itemNum": "1615",
+   "column": "H",
+   "header": "Description",
+   "old": "Pennsylvania B-6 Steam Switcher",
+   "new": "Nabisco Shredded Wheat Train-O-Rama: Pennsylvania's B-6 Steam Switcher"
+  },
+  {
+   "rowId": "UCVKF2TGHK",
+   "sheetRow": 341,
+   "itemNum": "1615",
+   "column": "J",
+   "header": "Year Produced",
+   "old": "",
+   "new": "1956"
+  },
+  {
+   "rowId": "5AWU58GGH8",
+   "sheetRow": 521,
+   "itemNum": "2065",
+   "column": "H",
+   "header": "Description",
+   "old": "Santa Fe Hudson-Type Steam Locomotive",
+   "new": "Nabisco Shredded Wheat Train-O-Rama: Santa Fe's Hudson-Type Steam Locomotive"
+  },
+  {
+   "rowId": "5AWU58GGH8",
+   "sheetRow": 521,
+   "itemNum": "2065",
+   "column": "J",
+   "header": "Year Produced",
+   "old": "",
+   "new": "1956"
+  },
+  {
+   "rowId": "HB2BKKZH7H",
+   "sheetRow": 666,
+   "itemNum": "2331",
+   "column": "H",
+   "header": "Description",
+   "old": "Train Master Diesel",
+   "new": "Nabisco Shredded Wheat Train-O-Rama: Fairbanks-Morse Virginian"
+  },
+  {
+   "rowId": "HB2BKKZH7H",
+   "sheetRow": 666,
+   "itemNum": "2331",
+   "column": "J",
+   "header": "Year Produced",
+   "old": "",
+   "new": "1956"
+  },
+  {
+   "rowId": "984VYR3KRQ",
+   "sheetRow": 687,
+   "itemNum": "2338",
+   "column": "H",
+   "header": "Description",
+   "old": "Milwaukee Road GP7 Diesel",
+   "new": "Nabisco Shredded Wheat Train-O-Rama: GE's GP-7 Milwaukee"
+  },
+  {
+   "rowId": "984VYR3KRQ",
+   "sheetRow": 687,
+   "itemNum": "2338",
+   "column": "J",
+   "header": "Year Produced",
+   "old": "",
+   "new": "1956"
+  },
+  {
+   "rowId": "KQ3GZ5ECQM",
+   "sheetRow": 780,
+   "itemNum": "2360",
+   "column": "H",
+   "header": "Description",
+   "old": "GG-1 Electric",
+   "new": "Nabisco Shredded Wheat Train-O-Rama: GG-1 Pennsylvania"
+  },
+  {
+   "rowId": "PZH69CU3WJ",
+   "sheetRow": 1636,
+   "itemNum": "520",
+   "column": "H",
+   "header": "Description",
+   "old": "General Electric 80-Ton Diesel",
+   "new": "Nabisco Shredded Wheat Train-O-Rama: General Electric's 80-Ton Diesel"
+  },
+  {
+   "rowId": "PZH69CU3WJ",
+   "sheetRow": 1636,
+   "itemNum": "520",
+   "column": "J",
+   "header": "Year Produced",
+   "old": "",
+   "new": "1956"
+  },
+  {
+   "rowId": "DK4P3M8PXF",
+   "sheetRow": 1676,
+   "itemNum": "601",
+   "column": "H",
+   "header": "Description",
+   "old": "Seaboard Switcher",
+   "new": "Nabisco Shredded Wheat Train-O-Rama: Seaboard Switcher"
+  },
+  {
+   "rowId": "DK4P3M8PXF",
+   "sheetRow": 1676,
+   "itemNum": "601",
+   "column": "J",
+   "header": "Year Produced",
+   "old": "",
+   "new": "1956"
+  },
+  {
+   "rowId": "FVCT3MAQM8",
+   "sheetRow": 1965,
+   "itemNum": "621",
+   "column": "H",
+   "header": "Description",
+   "old": "Jersey Central Diesel Switcher",
+   "new": "Nabisco Shredded Wheat Train-O-Rama: Jersey Central's Diesel Switcher"
+  },
+  {
+   "rowId": "FVCT3MAQM8",
+   "sheetRow": 1965,
+   "itemNum": "621",
+   "column": "J",
+   "header": "Year Produced",
+   "old": "",
+   "new": "1956"
+  },
+  {
+   "rowId": "54DG2T2DR5",
+   "sheetRow": 2010,
+   "itemNum": "627",
+   "column": "H",
+   "header": "Description",
+   "old": "GE 44-Ton Diesel",
+   "new": "Nabisco Shredded Wheat Train-O-Rama: GE's 44-Ton Diesel"
+  },
+  {
+   "rowId": "54DG2T2DR5",
+   "sheetRow": 2010,
+   "itemNum": "627",
+   "column": "J",
+   "header": "Year Produced",
+   "old": "",
+   "new": "1956"
+  },
+  {
+   "rowId": "CW5P7K384C",
+   "sheetRow": 2742,
+   "itemNum": "736",
+   "column": "H",
+   "header": "Description",
+   "old": "Berkshire 14-Wheeler",
+   "new": "Nabisco Shredded Wheat Train-O-Rama: Berkshire 14 Wheeler"
+  },
+  {
+   "rowId": "CW5P7K384C",
+   "sheetRow": 2742,
+   "itemNum": "736",
+   "column": "J",
+   "header": "Year Produced",
+   "old": "",
+   "new": "1956"
+  }
+ ]
+}
