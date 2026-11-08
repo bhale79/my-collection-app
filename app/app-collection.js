@@ -5289,6 +5289,64 @@ function openISDetail(rowKey) {
   if (window.BackStack && BackStack.wire) BackStack.wire(overlay); // v0.9.806 TODO-012: device Back closes this pop-up
 }
 
+// ── 2026-11-08 phonetap: THE answer to "do I own this catalog row?" for a tap ──
+// [stated] Brad 20:33 CT "yes" (PLAN_2026-11-07_PHONE_CATALOG_TAP.md). The
+// testing chat found, on Brad's Android phone, that tapping a Master Catalog
+// card for an item he does NOT own (GarGraves 401SW) opened the owned-item page
+// — "✓ In Collection", Record Sale, List for Sale, Remove — while the same row
+// on the computer opened the catalog details screen.
+// This is the desktop row's own test (browseRowClick, unchanged in behaviour),
+// lifted out of it; the phone card's tap (rrCatalogCardTap, below) uses its
+// Science / Construction answer — for an ordinary item the card's own,
+// Row-ID-aware answer decides (see there).
+//   pdKey    the owned copy's key (findPDKey: number + variation, -P / -D units)
+//   special  owned Science / Construction set records (their own tabs)
+// null when the row is gone.
+function rrCatalogRowOwnership(idx) {
+  const item = state.masterData[idx];
+  if (!item) return null;
+  // Use findPDKey which handles P/D suffix fallback for AA/AB units
+  const pdKey = findPDKey(item.itemNum, item.variation) || null;
+  // Also check Science/Construction dedicated tabs
+  const _sciOwned = (item._tab === SHEET_TABS.science || item.itemType === 'Science Set')
+    ? Object.values(state.scienceData || {}).filter(s => String(s.itemNum) === String(item.itemNum) && String(s.variation || '') === String(item.variation || ''))
+    : [];
+  const _conOwned = (item._tab === SHEET_TABS.construction || item.itemType === 'Construction Set')
+    ? Object.values(state.constructionData || {}).filter(s => String(s.itemNum) === String(item.itemNum) && String(s.variation || '') === String(item.variation || ''))
+    : [];
+  return { item: item, pdKey: pdKey, special: _sciOwned.length > 0 ? _sciOwned : _conOwned };
+}
+if (typeof window !== 'undefined') window.rrCatalogRowOwnership = rrCatalogRowOwnership;
+
+// The phone's Master Catalog card tap (browse.js, phone layout, catalog view —
+// My Collection cards keep opening their own page). The CARD has already
+// worked out whether you own this row: _rrPdForRow (browse.js) is Row ID and
+// era aware and refuses the -P / -D and Manual-era look-alikes, and it is the
+// same answer the catalog's "✓ Owned" badge shows on the computer
+// (_browseBadgeOf). The tap trusts that answer — a number-only lookup
+// (findPDKey) would open the owned page for a Manual-era copy or a 2343-P
+// when you tapped a bare 2343 (fresh review, 2026-11-08).
+//   idx      the row's catalog position; <= -1000 = a row that exists only in
+//            your collection (no catalog row) — an owned copy by definition
+//   copyInv  the copy the card resolved ('' for none, or a pre-ID legacy copy)
+//   owned    the card's own answer: true / false
+// Owned → its page (the phone's page, not the desktop's small menu); an owned
+// Science / Construction set (their own tabs) → its menu; anything else → the
+// catalog details screen (Add to Collection, Want List, research links).
+// The arrows of the LAST list opened are cleared first: detail-nav.js only
+// re-captures lists whose rows call showItemDetailPage directly, so without
+// this a catalog page would show "1 of 4" from My Collection.
+function rrCatalogCardTap(idx, copyInv, owned) {
+  window._rrNav = null;
+  const inv = String(copyInv == null ? '' : copyInv).trim();
+  if (idx <= -1000 || owned === true || owned === 'true') { showItemDetailPage(idx, inv); return; }
+  const own = rrCatalogRowOwnership(idx);
+  if (!own) return;
+  if (own.special.length > 0) { _showSpecialOwnedMenu(idx, own.item, own.special); return; }
+  rrCatalogDetailsPopup(idx);   // not owned: the catalog details screen, as on the computer
+}
+if (typeof window !== 'undefined') window.rrCatalogCardTap = rrCatalogCardTap;
+
 function browseRowClick(event, idx) {
   // If click was on the varDesc popup span, don't intercept
   if (event.target.closest && event.target.closest('[onclick*="showVarDescPopup"]')) return;
@@ -5299,26 +5357,15 @@ function browseRowClick(event, idx) {
     if (pdKey) { showOwnedItemMenu(-1, pdKey); }
     return;
   }
-  const item = state.masterData[idx];
-  if (!item) return;
-  // Use findPDKey which handles P/D suffix fallback for AA/AB units
-  const pdKey = findPDKey(item.itemNum, item.variation);
-  const alreadyOwned = !!pdKey;
-  // Also check Science/Construction dedicated tabs
-  const _sciOwned = (item._tab === SHEET_TABS.science || item.itemType === 'Science Set')
-    ? Object.values(state.scienceData || {}).filter(s => String(s.itemNum) === String(item.itemNum) && String(s.variation || '') === String(item.variation || ''))
-    : [];
-  const _conOwned = (item._tab === SHEET_TABS.construction || item.itemType === 'Construction Set')
-    ? Object.values(state.constructionData || {}).filter(s => String(s.itemNum) === String(item.itemNum) && String(s.variation || '') === String(item.variation || ''))
-    : [];
-  const _specialOwned = _sciOwned.length + _conOwned.length;
-  if (alreadyOwned) {
-    showOwnedItemMenu(idx, pdKey);
+  const own = rrCatalogRowOwnership(idx);
+  if (!own) return;
+  if (own.pdKey) {
+    showOwnedItemMenu(idx, own.pdKey);
     return;
   }
-  if (_specialOwned > 0) {
+  if (own.special.length > 0) {
     // Show a simple owned menu for Science/Construction items
-    _showSpecialOwnedMenu(idx, item, _sciOwned.length > 0 ? _sciOwned : _conOwned);
+    _showSpecialOwnedMenu(idx, own.item, own.special);
     return;
   }
   // Not owned — straight to its details.

@@ -5834,7 +5834,17 @@ function _rrBrowseCore(_co) {
       const _inShareMode = typeof isShareMode === 'function' && isShareMode('collection');
       const _isShareSelected = _inShareMode && window._shareItems && window._shareItems[_shareKey];
       if (_inShareMode) { if (!window._shareDataMap) window._shareDataMap = {}; window._shareDataMap[_shareKey] = { itemNum: item.itemNum, variation: item.variation||'', pd: pd, master: item }; }
-      return `<div class="browse-card"${rrSampleAttrs(item)} id="share-card-${_shareKey}" onclick="${_inShareMode ? 'toggleShareItem(\'' + _shareKey + '\')' : 'showItemDetailPage(' + globalIdx + ", '" + _copyInv + "')"}" style="cursor:pointer${_isShareSelected ? ';outline:2px solid #2ecc71;background:rgba(46,204,113,0.08)' : ''}">
+      // 2026-11-08 phonetap ([stated] Brad "yes", PLAN_2026-11-07_PHONE_CATALOG_TAP.md):
+      // in the Master Catalog a card follows the desktop row's rule
+      // (rrCatalogCardTap, app-collection.js) — an item you do NOT own opens the
+      // catalog details screen, not the owned-item page. My Collection cards
+      // (every one an owned copy) keep opening their own page.
+      // The card's own answer (isOwned, above — the same resolver as the
+      // badge) goes with it, and the copy id is escaped (a free sheet cell).
+      const _cardTap = state.filters.owned
+        ? 'showItemDetailPage(' + globalIdx + ", '" + rrJsArg(_copyInv) + "')"
+        : 'rrCatalogCardTap(' + globalIdx + ", '" + rrJsArg(_copyInv) + "', " + (isOwned ? 'true' : 'false') + ')';
+      return `<div class="browse-card"${rrSampleAttrs(item)} id="share-card-${_shareKey}" onclick="${_inShareMode ? 'toggleShareItem(\'' + _shareKey + '\')' : _cardTap}" style="cursor:pointer${_isShareSelected ? ';outline:2px solid #2ecc71;background:rgba(46,204,113,0.08)' : ''}">
         <div style="display:flex;align-items:center;gap:0.5rem;width:100%;min-width:0">
           ${_inShareMode ? '<input type="checkbox" id="share-cb-' + _shareKey + '" ' + (_isShareSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _shareKey + '\')" style="width:1.1rem;height:1.1rem;accent-color:#2ecc71;flex-shrink:0">' : ''}
           <div style="flex:1;min-width:0">
