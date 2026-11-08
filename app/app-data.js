@@ -976,6 +976,10 @@ function rrLinkForVariation(itemNum, variation, masterKey, masterRowId) {
   var byKey = k ? rrMasterByKey(k) : null;
   var base = byId || byKey;
   if (!base) return out;
+  // 2026-11-07 the COTT renumber: a link that names a row the renumber moved (by
+  // Row ID or by key) is the catch-up's to change, never this — on a device whose catalog is still the old
+  // one, a moved copy would be flipped back to the Nabisco row (rrVarRenumberCatchUp).
+  if ((byId && _rrRnTouches(rrMasterRowIdOf(byId))) || (byKey && _rrRnTouches(rrMasterRowIdOf(byKey)))) { out.row = base; return out; }
   var fits = function (r) { return !r || _rrRowIdFits(r, num, variation); };
   if (fits(byId) && fits(byKey)) { out.row = base; return out; }
   // A Row ID that fits wins (it names one product); only a stale key moves then.
@@ -1084,6 +1088,295 @@ async function rrVarLinkRepair(opts) {
   }
 }
 if (typeof window !== 'undefined') { window.rrVarLinkRepairPlan = rrVarLinkRepairPlan; window.rrVarLinkRepair = rrVarLinkRepair; }
+// ── 2026-11-07 THE COTT RENUMBER CATCH-UP (table: RR_VAR_RENUMBER, config.js) ──
+// [stated] Brad: "we line up with the cott website when it comes to
+// variations" → "Yes". The master renumbered five engine numbers (the real
+// engines now start at 1, the Nabisco sheet went last). A collection saved
+// under the OLD numbers is brought along here — ONLY where a row says for
+// certain which catalog row it is, so nothing can ever be moved twice or
+// moved by a guess:
+//   · a My Collection copy with a Row ID in the table, still at that row's OLD
+//     number → the new number (the Row ID names the item; its variation was
+//     written in the old numbering);
+//   · a For Sale / Upgrade row tied to such a copy by Inventory ID, still at
+//     the copy's OLD number → the new number;
+//   · a Postwar copy with NO Row ID added BEFORE the master edit's day
+//     (RR_VAR_RENUMBER.from): it was written in the OLD numbering (saves and
+//     the back-fills never fill in a link for these numbers — buildPersonalRow
+//     and rrVarRenumberHolds — so a missing link stays missing) → the new
+//     number + its Row ID.
+// After a move the row is at the NEW number, which is never the old one, so a
+// second pass — on any device, any day — finds nothing to do. No mark, no
+// clock, no plan to keep.
+// NOT moved: Want and Sold rows. They carry no catalog link, so "2338 var 2"
+// cannot say which numbering it was written in. They are listed (the sync
+// diary, and the result's `listed`) and left exactly as they are.
+// Runs only when the catalog on THIS device shows every new number
+// (rrVarRenumberLive), online and not read-only, from a FRESH read of the
+// sheet (never memory). A copy is written link first, variation LAST, so a
+// pass cut off half way is finished by the next one. A device that finished a
+// sheet with nothing left over remembers it and stops asking.
+// Nothing else may re-point these rows: rrLinkForVariation leaves a link that
+// names one of them alone (an old catalog would flip a moved copy back to the
+// Nabisco row), and the two load-time back-fills never link these numbers
+// (rrVarRenumberHolds).
+function _rrRnBare(v) { return String(v == null ? '' : v).trim().replace(/^'/, ''); }
+function _rrRnSame(a, b) {
+  if (typeof rrSameVar === 'function') return rrSameVar(_rrRnBare(a), _rrRnBare(b));
+  return _rrRnBare(a).toUpperCase() === _rrRnBare(b).toUpperCase();
+}
+function _rrRnTable() {
+  return (typeof RR_VAR_RENUMBER !== 'undefined' && RR_VAR_RENUMBER && RR_VAR_RENUMBER.rows) ? RR_VAR_RENUMBER : null;
+}
+// A Row ID the renumber moved.
+function _rrRnTouches(rowId) { var T = _rrRnTable(); return !!(T && rowId && T.rows[_rrRnBare(rowId)]); }
+// "2338" → { "2": {id, old, nu}, … } — the OLD numbers of one item number.
+function _rrRnOldOf(num) {
+  var T = _rrRnTable(), out = null, n = _rrRnBare(num);
+  if (!T || !n) return null;
+  Object.keys(T.rows).forEach(function (id) {
+    var e = T.rows[id];
+    if (e[0] !== n) return;
+    out = out || {};
+    out[String(e[1]).toUpperCase()] = { id: id, old: e[1], nu: e[2] };
+  });
+  return out;
+}
+function _rrRnOldEntry(num, variation) {
+  var m = _rrRnOldOf(num); if (!m) return null;
+  return m[_rrRnBare(variation).toUpperCase()] || null;
+}
+// A copy of the renumbered catalog: its stored key says Postwar; with no key,
+// its era says Postwar and its maker is Lionel or blank.
+function _rrRnCopyIsOurs(p) {
+  var T = _rrRnTable();
+  var k = _rrRnBare(p.masterKey);
+  if (k) return k.split('|')[0] === T.era;
+  var e = (typeof _rrEraKeyOf === 'function') ? _rrEraKeyOf(p.era) : _rrRnBare(p.era).toLowerCase();
+  var m = _rrRnBare(p.manufacturer).toLowerCase();
+  return e === T.era && (!m || m === 'lionel');
+}
+// A copy with no Row ID was written in the OLD numbering when it was added
+// before the master edit's day (`from`); no date at all = an older row still.
+function _rrRnBeforeChange(dateAdded) {
+  var T = _rrRnTable(), f = T && T.from ? Date.parse(T.from + 'T00:00:00Z') : NaN;
+  if (!isFinite(f)) return false;
+  var ts = (typeof rrDateTs === 'function') ? rrDateTs(dateAdded) : Date.parse(dateAdded);
+  return !ts || ts < f;
+}
+// The catalog loaded on this device shows EVERY listed row at its new number.
+function rrVarRenumberLive() {
+  var T = _rrRnTable(); if (!T) return false;
+  if (typeof rrCatalogIndexStatus === 'function' && !rrCatalogIndexStatus().complete) return false;
+  if (typeof rrMasterByRowId !== 'function') return false;
+  var ids = Object.keys(T.rows);
+  if (!ids.length) return false;
+  for (var i = 0; i < ids.length; i++) {
+    var e = T.rows[ids[i]], row = rrMasterByRowId(ids[i]);
+    if (!row || _rrRnBare(row.itemNum) !== e[0] || !_rrRnSame(row.variation, e[2])) return false;
+  }
+  return true;
+}
+// The load-time back-fills ask this: true = never write a link for this copy
+// (one of the five numbers, Postwar or of unknown era) — the catch-up does.
+function rrVarRenumberHolds(p) {
+  if (!p || !_rrRnOldOf(p.itemNum)) return false;
+  var k = _rrRnBare(p.masterKey);
+  if (k) return k.split('|')[0] === _rrRnTable().era;
+  var e = (typeof _rrEraKeyOf === 'function') ? _rrEraKeyOf(p.era) : _rrRnBare(p.era).toLowerCase();
+  return !e || e === _rrRnTable().era;
+}
+// The tabs the pass reads. `id` = the Inventory ID column (0-based) or -1;
+// `v` = the Variation column; `m` = the maker column.
+function _rrRnTabs() {
+  var X = PERSONAL_FIELD_INDEX;
+  return {
+    P: { tab: PERSONAL_TAB, last: personalColLetter(PERSONAL_SCHEMA[PERSONAL_SCHEMA.length - 1].field), id: X.inventoryId, v: X.variation },
+    F: { tab: 'For Sale', last: 'J', id: 8, v: 1, m: 9 },
+    U: { tab: 'Want-Upgrade List', last: 'I', id: 6, v: 1, m: 8 },
+    S: { tab: 'Sold', last: (typeof soldEndCol === 'function' ? soldEndCol() : 'V'), id: 8, v: 1, m: 9 }
+  };
+}
+// THE plan, from rows as the sheet holds them now. Pure — tests call it.
+// sheet = { P: [[cells]…], F: […], WU: […], S: […] } (row 3 first).
+// plan entry: { t: 'P'|'F'|'U', r: sheet row, n: number, i: Inventory ID, o: old, v: new, id: Row ID (P) }
+// listed: the Want / Sold rows of these numbers at an old number — never moved.
+// stuck: copies of these numbers that are neither (no Row ID, no Postwar key or era).
+function rrVarRenumberPlanFrom(sheet) {
+  var T = _rrRnTable(), plan = [], listed = [], stuck = [];
+  if (!T || !sheet) return { plan: plan, listed: listed, stuck: stuck };
+  var B = _rrRnTabs(), copyTarget = {};
+  (sheet.P || []).forEach(function (cells, k) {
+    var p = rrPersonalRecordFromRow(cells || [], k + 3);
+    var n = _rrRnBare(p.itemNum); if (!n || !_rrRnOldOf(n) || String(p.era || '') === 'Manual') return;
+    var rid = _rrRnBare(p.masterRowId), inv = _rrRnBare(p.inventoryId), t = null;
+    if (rid) {
+      var e = T.rows[rid];
+      if (!e || e[0] !== n) return;                    // another catalog's row (or not a renumbered one)
+      t = { id: rid, old: e[1], nu: e[2] };
+      if (inv) copyTarget[inv] = t;
+      // still at the old number (a copy cut off half way is too: its variation is written LAST)
+      if (_rrRnSame(p.variation, t.old)) plan.push({ t: 'P', r: k + 3, n: n, i: inv, o: t.old, v: t.nu, id: rid });
+      return;
+    }
+    if (!_rrRnCopyIsOurs(p)) { if (!_rrRnBare(p.masterKey) && !_rrRnBare(p.era)) stuck.push('P row ' + (k + 3) + ' ' + n + ' var ' + _rrRnBare(p.variation)); return; }
+    t = _rrRnOldEntry(n, p.variation);
+    if (!t) return;
+    // added on or after the master edit's day → written in the NEW numbering (a save that found no row)
+    if (!_rrRnBeforeChange(p.dateAdded)) { stuck.push('P row ' + (k + 3) + ' ' + n + ' var ' + _rrRnBare(p.variation) + ' (added after the change)'); return; }
+    if (inv) copyTarget[inv] = t;
+    plan.push({ t: 'P', r: k + 3, n: n, i: inv, o: t.old, v: t.nu, id: t.id, noId: 1 });
+  });
+  var tied = function (rows, kind) {
+    (rows || []).forEach(function (c, k) {
+      c = c || []; var n = _rrRnBare(c[0]); if (!n) return;
+      if (kind === 'U' && _rrRnBare(c[2]).toLowerCase() !== 'upgrade') return;
+      var inv = _rrRnBare(c[B[kind].id]), t = copyTarget[inv];
+      if (!inv || !t || T.rows[t.id][0] !== n) return;
+      if (_rrRnSame(c[1], t.old)) plan.push({ t: kind, r: k + 3, n: n, i: inv, o: t.old, v: t.nu });
+    });
+  };
+  tied(sheet.F, 'F');
+  tied(sheet.WU, 'U');
+  var list = function (rows, kind) {
+    (rows || []).forEach(function (c, k) {
+      c = c || []; var n = _rrRnBare(c[0]); if (!n) return;
+      if (kind === 'W' && _rrRnBare(c[2]).toLowerCase() === 'upgrade') return;
+      var m = _rrRnBare(c[kind === 'W' ? 8 : 9]).toLowerCase();
+      if (m && m !== 'lionel') return;
+      if (_rrRnOldEntry(n, c[1])) listed.push(kind + ' row ' + (k + 3) + ' ' + n + ' var ' + _rrRnBare(c[1]));
+    });
+  };
+  list(sheet.WU, 'W');
+  list(sheet.S, 'S');
+  return { plan: plan, listed: listed, stuck: stuck };
+}
+// The tabs, each read on its own (a tab the sheet does not have is empty).
+async function _rrRnReadSheet(sid) {
+  var B = _rrRnTabs(), out = {};
+  var parts = [['P', B.P], ['F', B.F], ['WU', B.U], ['S', B.S]];
+  for (var i = 0; i < parts.length; i++) {
+    var d = parts[i][1], got = null;
+    try { got = await sheetsGet(sid, d.tab + '!A3:' + d.last); }
+    catch (e) {
+      if (/Unable to parse range/i.test(String((e && e.message) || e))) { out[parts[i][0]] = []; continue; }
+      return null;
+    }
+    if (got && got.error) {
+      if (/Unable to parse range/i.test(String(got.error.message || ''))) { out[parts[i][0]] = []; continue; }
+      return null;
+    }
+    out[parts[i][0]] = (got && got.values) || [];
+  }
+  return out;
+}
+function _rrRnLine(e) { return e.t + ' ' + e.n + ' var ' + e.o + ' -> ' + e.v + (e.i ? ' inv ' + e.i : '') + ' row ' + e.r; }
+// One planned row: 'fixed' | 'settled' (already new, or not that item any more
+// — left alone) | 'pending' (could not be checked or written; the next start
+// tries again). Found again by Inventory ID when it moved; checked on a fresh
+// read; written only while it still holds the same item at the OLD number.
+async function _rrRnApplyOne(sid, e, log) {
+  var B = _rrRnTabs(), d = B[e.t];
+  var row = e.r;
+  if (e.i) {
+    var w = await rrWhereIsRow(sid, d.tab, row, e.n, e.i);
+    if (!w.ok) { if (w.why === 'busy') return 'pending'; log('renumber-skip', _rrRnLine(e) + ' (' + w.why + ')'); return 'settled'; }
+    row = w.row;
+  }
+  var got = await sheetsGet(sid, d.tab + '!A' + row + ':' + d.last + row);
+  var cells = (((got && got.values) || [[]])[0]) || [];
+  if (_rrRnBare(cells[0]) !== e.n || (e.i && _rrRnBare(cells[d.id]) !== e.i)) { log('renumber-skip', _rrRnLine(e) + ' (row changed)'); return 'settled'; }
+  if (e.t === 'P') {   // the same copy: its Row ID is the planned one (or still blank for a copy saved before Row IDs) and it is this catalog's
+    var _c = rrPersonalRecordFromRow(cells, row), _rid = _rrRnBare(_c.masterRowId);
+    if (!(_rid === e.id || (e.noId && !_rid && _rrRnCopyIsOurs(_c)))) { log('renumber-skip', _rrRnLine(e) + ' (row changed)'); return 'settled'; }
+  }
+  if (!_rrRnSame(cells[d.v], e.o)) { log('renumber-skip', _rrRnLine(e) + ' (now var ' + _rrRnBare(cells[d.v]) + ')'); return 'settled'; }
+  var expect = { num: e.n, invId: e.i || '' };
+  if (e.t === 'P') {
+    var X = PERSONAL_FIELD_INDEX;
+    var cur = rrPersonalRecordFromRow(cells, row);
+    var target = rrMasterByRowId(e.id);
+    var curRow = rrRecordRow(cur);
+    var newRow = rrPersonalUpdateRow(cur, { variation: e.v, masterKey: target ? rrMasterKeyOf(target) : '', masterRowId: e.id });
+    // the link cells FIRST, the variation LAST: a pass cut off in between
+    // leaves the row at the old number, and the next pass finishes it
+    var linkCols = [X.masterKey, X.masterRowId].filter(function (c) {
+      return c !== undefined && _rrRnBare(newRow[c]) !== _rrRnBare(curRow[c]);
+    }).sort(function (a, b) { return a - b; });
+    // each write through THE guarded writer (it confirms the row still holds this
+    // copy, re-finding it by Inventory ID); refused → nothing more is written
+    var cells2 = rrColumnRuns(linkCols).map(function (r) { return [r[0], r[1]]; }).concat([[X.variation, X.variation]]);
+    for (var k = 0; k < cells2.length; k++) {
+      var ok = await rrVerifiedRowUpdate(sid, d.tab, row, d.tab + '!' + colLetter(cells2[k][0]) + row + ':' + colLetter(cells2[k][1]) + row,
+        [newRow.slice(cells2[k][0], cells2[k][1] + 1)], expect, 'collection');
+      if (!ok) { log('renumber-wait', _rrRnLine(e) + ' (refused at write)'); return 'pending'; }
+      if (expect.foundRow) row = expect.foundRow;
+    }
+    e._row = row; e._key = _rrRnBare(newRow[X.masterKey]);
+  } else {
+    if (!(await rrVerifiedRowUpdate(sid, d.tab, row, d.tab + '!B' + row + ':B' + row, [[e.v]], expect, d.tab))) { log('renumber-wait', _rrRnLine(e) + ' (refused at write)'); return 'pending'; }
+    if (expect.foundRow) row = expect.foundRow;
+    e._row = row;
+  }
+  log('renumber-fix', _rrRnLine(e));
+  return 'fixed';
+}
+// Memory learns what was written (found by sheet row + number).
+function _rrRnRemember(fixed) {
+  var at = function (list, row, num, inv) {   // by Inventory ID first, else sheet row + number
+    var hit = null;
+    if (inv) Object.keys(list || {}).some(function (k) { var x = list[k]; if (x && _rrRnBare(x.inventoryId) === inv && _rrRnBare(x.itemNum) === num) { hit = x; return true; } return false; });
+    if (!hit) Object.keys(list || {}).some(function (k) { var x = list[k]; if (x && Number(x.row) === Number(row) && _rrRnBare(x.itemNum) === num && (!inv || !_rrRnBare(x.inventoryId))) { hit = x; return true; } return false; });
+    return hit;
+  };
+  fixed.forEach(function (e) {
+    var x = null;
+    if (e.t === 'P') { x = at(state.personalData, e._row, e.n, e.i); if (x) { x.masterKey = e._key; x.masterRowId = e.id; } }
+    else if (e.t === 'F') x = at(state.forSaleData, e._row, e.n, e.i);
+    else if (e.t === 'U') x = at(state.upgradeData, e._row, e.n, e.i);
+    if (x) x.variation = e.v;
+  });
+  try { if (typeof _cachePersonalData === 'function') _cachePersonalData(); } catch (eC) {}
+}
+var _rrRnTried = {};
+function _rrRnDoneKey(sid) { return 'rr_var_renumber_done|' + _rrRnTable().id + '|' + sid; }
+// THE pass. At most once per sheet per session. Returns null (not now) or
+// { state: 'done'|'pending'|'unreachable', fixed, settled, pending, listed, stuck }.
+async function rrVarRenumberCatchUp() {
+  if (!_rrRnTable() || !state || !state.personalSheetId) return null;
+  var sid = state.personalSheetId;
+  if (_rrRnTried[sid]) return null;
+  try { if (localStorage.getItem(_rrRnDoneKey(sid))) return null; } catch (e) {}
+  if (window._readOnlyMode || (typeof _rrOfflineNow === 'function' && _rrOfflineNow())) return null;
+  if (!rrVarRenumberLive()) return null;
+  _rrRnTried[sid] = true;
+  var log = function (ev, info) { try { if (typeof rrSyncLog === 'function') rrSyncLog(ev, info); } catch (eL) {} };
+  var res = { state: '', fixed: 0, settled: 0, pending: 0, listed: [], stuck: [] };
+  var fresh = await _rrRnReadSheet(sid);
+  if (!fresh) { res.state = 'unreachable'; log('renumber-wait', 'the sheet could not be read'); return res; }
+  var made = rrVarRenumberPlanFrom(fresh);
+  res.listed = made.listed; res.stuck = made.stuck;
+  if (made.listed.length) log('renumber-listed', 'Want / Sold rows at an old number, NOT moved: ' + made.listed.join(' | ').slice(0, 600));
+  if (made.stuck.length) log('renumber-listed', 'copies with no era, no link — NOT moved: ' + made.stuck.join(' | ').slice(0, 600));
+  var fixed = [];
+  for (var i = 0; i < made.plan.length; i++) {
+    if (state.personalSheetId !== sid || window._readOnlyMode) { res.pending += made.plan.length - i; break; }
+    var e = Object.assign({}, made.plan[i]), out;
+    try { out = await _rrRnApplyOne(sid, e, log); }
+    catch (err) { out = 'pending'; log('renumber-wait', _rrRnLine(e) + ' (' + String((err && err.message) || err).slice(0, 60) + ')'); }
+    if (out === 'fixed') { res.fixed++; fixed.push(e); } else if (out === 'settled') res.settled++; else res.pending++;
+  }
+  if (fixed.length && state.personalSheetId === sid) _rrRnRemember(fixed);
+  if (res.pending) { res.state = 'pending'; return res; }
+  try { localStorage.setItem(_rrRnDoneKey(sid), '1'); } catch (eS) {}
+  res.state = 'done';
+  log('renumber-done', res.fixed + ' moved, ' + res.settled + ' already right or changed');
+  return res;
+}
+if (typeof window !== 'undefined') {
+  window.rrVarRenumberLive = rrVarRenumberLive; window.rrVarRenumberHolds = rrVarRenumberHolds;
+  window.rrVarRenumberPlanFrom = rrVarRenumberPlanFrom; window.rrVarRenumberCatchUp = rrVarRenumberCatchUp;
+}
 // ── v0.9.1882 (Step 4): every catalog row an owned copy COULD be ────────────
 // The rows under the copy's number and under its base number (2343-P → 2343),
 // every maker and era, from the whole-catalog index when it is up and the

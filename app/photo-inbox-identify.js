@@ -1129,6 +1129,7 @@
         var r = orig.apply(this, arguments);
         try {
           _pinPanelDrawLast();   // v0.9.1834: the inbox card's pictures are back before the browser paints
+          if (typeof window.rrVarRenumberCatchUp === 'function') window.rrVarRenumberCatchUp();   // 2026-11-07: the COTT renumber catch-up — BEFORE the back-fills (they ask rrVarRenumberHolds)
           _injectNav(); _flushPending(); _repairMissingPhotoLinks(); _backfillMasterKeys();
           _backfillMasterRowIds();   // v0.9.1882: runs once the full catalog index is complete (its completion rebuilds the dashboard)
           if (typeof window.rrVarLinkRepair === 'function') window.rrVarLinkRepair();   // 2026-10-31: a link that disagrees with its variation (OFF = dry run)

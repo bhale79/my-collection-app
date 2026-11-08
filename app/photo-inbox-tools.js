@@ -2688,6 +2688,7 @@
       var _storeKey = rows[i][0];
       var p = rows[i][1];
       if (!p || !p.owned || !p.itemNum || p.masterKey) continue;
+      if (typeof window.rrVarRenumberHolds === 'function' && window.rrVarRenumberHolds(p)) continue;   // 2026-11-07: one of the five COTT-renumbered numbers — only the catch-up links these (rrVarRenumberHolds)
       if (String(p.era || '') === 'Manual') continue;            // a manual entry's identity is its own
       if (!p.row || Number(p.row) === 99999) continue;           // a placeholder is not a row
       var k = String(p.inventoryId || _storeKey);
@@ -2738,6 +2739,7 @@
     Object.entries(state.personalData).forEach(function (ent) {
       var p = ent[1];
       if (!p || !p.owned || !p.itemNum || p.masterRowId) return;
+      if (typeof window.rrVarRenumberHolds === 'function' && window.rrVarRenumberHolds(p)) return;   // 2026-11-07: one of the five COTT-renumbered numbers — only the catch-up links these (rrVarRenumberHolds)
       if (String(p.era || '') === 'Manual') return;
       if (!p.row || Number(p.row) === 99999) return;
       var k = String(p.inventoryId || ent[0]);

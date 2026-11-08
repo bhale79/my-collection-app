@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2126';
+const APP_VERSION = 'v0.9.2127';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -159,6 +159,35 @@ const RR_INVITE_GATE_ON = false;
 // purpose: the suite that tests the repair switches it on in its page.
 var RR_VARLINK_REPAIR_ON = false;
 if (typeof window !== 'undefined') window.RR_VARLINK_REPAIR_ON = RR_VARLINK_REPAIR_ON;
+// ── THE COTT RENUMBER CATCH-UP — ONE table (2026-11-07) ─────────────────────
+// [stated] Brad 2026-11-07: "we line up with the cott website when it comes to
+// variations" → "Yes" to the plan. On Lionel PW - Items the Nabisco promo
+// sheet (a paper premium, its own item) held Variation 1 of five engine
+// numbers, pushing the real engines to 2, 3 … The master numbers the engines
+// 1, 2 … in COTT's order and puts the Nabisco sheet LAST, the way 1615, 2065,
+// 2360, 520 and 736 already were. rrVarRenumberCatchUp (app-data.js) brings a
+// collection saved under the old numbers along — only rows that say for certain
+// which catalog row they are: My Collection copies by Row ID, For Sale / Upgrade
+// rows tied to them by Inventory ID, and Postwar copies with no Row ID added
+// BEFORE `from` (the day of the master edit). Want / Sold rows are listed, not
+// moved. Nothing happens until the loaded catalog shows every new number.
+// Row ID: [item number, old variation, new variation]. Master Version 2.86.
+const RR_VAR_RENUMBER = {
+  id: 'cott-2026-11-07',
+  from: '2026-11-08',   // the master edit's day: a copy with no Row ID added before it is in the OLD numbering
+  era: 'pw',
+  tab: 'Lionel PW - Items',
+  rows: {
+    'YSGYWFPFA4': ['2338', '2', '1'], '7S6DAP48PX': ['2338', '3', '2'], 'U8RXHD39VP': ['2338', '4', '3'],
+    'MEHR9X925P': ['2338', '5', '4'], '984VYR3KRQ': ['2338', '1', '5'],
+    'JCKYF7Q7HG': ['2331', '2', '1'], '9G9JMW43RG': ['2331', '3', '2'], 'PCYWQ6FMHU': ['2331', '4', '3'],
+    'HB2BKKZH7H': ['2331', '1', '4'],
+    'UG2Z78UH4M': ['601', '2', '1'], 'BZ8ARY5HF5': ['601', '3', '2'], 'DK4P3M8PXF': ['601', '1', '3'],
+    'WJAMFGZ6Y5': ['621', '2', '1'], '2QD6KQHQ4V': ['621', '3', '2'], 'FVCT3MAQM8': ['621', '1', '3'],
+    'MRKQQXXRBB': ['627', '2', '1'], '54DG2T2DR5': ['627', '1', '2']
+  }
+};
+if (typeof window !== 'undefined') window.RR_VAR_RENUMBER = RR_VAR_RENUMBER;
 function rrInviteGateOn() {
   try { return typeof RR_INVITE_GATE_ON === 'undefined' ? false : !!RR_INVITE_GATE_ON; } catch (e) { return false; }
 }

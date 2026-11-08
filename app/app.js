@@ -598,7 +598,11 @@ function buildPersonalRow(fields) {
     // The wizard passes the user's CONFIRMED match explicitly; every other
     // caller gets the best save-time resolution. Never re-derived after this.
     const _mki = PERSONAL_FIELD_INDEX.masterKey;
-    if (_mki !== undefined && (fields.masterKey === undefined || fields.masterKey === '') && _mm
+    // 2026-11-07 the COTT renumber: for the five renumbered Postwar numbers a copy
+    // that carries no link keeps none here — on the new catalog its OLD number
+    // would name a different engine. The catch-up links it (rrVarRenumberCatchUp).
+    const _rnHold = (typeof rrVarRenumberHolds === 'function') && rrVarRenumberHolds({ itemNum: inum, masterKey: fields.masterKey || '', era: fields.era || '' });
+    if (_mki !== undefined && !_rnHold && (fields.masterKey === undefined || fields.masterKey === '') && _mm
         && typeof rrMasterKeyOf === 'function') {
       row[_mki] = rrMasterKeyOf(_mm);
     }
@@ -608,7 +612,7 @@ function buildPersonalRow(fields) {
     // own match. Never a guess over a stored key that resolves to nothing.
     // Blank until the master carries Row IDs (Master Version 2.20).
     const _mri = PERSONAL_FIELD_INDEX.masterRowId;
-    if (_mri !== undefined && (fields.masterRowId === undefined || fields.masterRowId === '')
+    if (_mri !== undefined && !_rnHold && (fields.masterRowId === undefined || fields.masterRowId === '')
         && typeof rrMasterRowIdOf === 'function') {
       let _idRow = null;
       if (fields.masterKey) {

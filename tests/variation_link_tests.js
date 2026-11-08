@@ -250,10 +250,16 @@ const DRAWN_CHECK = `(function () {
     ['app-data.js', 'out.masterKey = nk; out.masterRowId = nid', 'the helper itself'],
     ['app.js', 'masterKey: _lv.masterKey, masterRowId: _lv.masterRowId', 'buildPersonalRow, through the helper'],
     ['app.js', 'const _descPrefer =', 'a lookup hint, not a write'],
+    ['app.js', 'const _rnHold = (typeof rrVarRenumberHolds', 'the COTT renumber hold: a question about the link, not a write'],
     ['app-data.js', 'out.push({ pd: p, from: { masterKey:', 'the repair plan: what the copy holds now'],
     ['app-data.js', 'to: { masterKey: L.masterKey, masterRowId: L.masterRowId } });', 'the repair plan: L is rrLinkForVariation'],
     ['app-data.js', 'rrPersonalUpdateRow(cur, { masterKey: L.masterKey, masterRowId: L.masterRowId })', 'the repair: L is rrLinkForVariation of the re-read row'],
     ['app-data.js', 'p.masterKey = bare(newRow[X.masterKey]); p.masterRowId = bare(newRow[X.masterRowId]);', 'the repair: memory learns what was written'],
+    // 2026-11-07 the COTT renumber catch-up: the row is the one the copy's own Row ID
+    // names (RR_VAR_RENUMBER), now carrying the copy's NEW variation — the variation's own row
+    // by construction; tests/var_renumber_tests.js holds it.
+    ['app-data.js', "rrPersonalUpdateRow(cur, { variation: e.v, masterKey: target ? rrMasterKeyOf(target) : '', masterRowId: e.id })", 'the renumber catch-up: the Row ID\'s own row at its new number'],
+    ['app-data.js', 'x.masterKey = e._key; x.masterRowId = e.id;', 'the renumber catch-up: memory learns what was written'],
     ['import-ui.js', 'fields.masterKey = rrMasterKeyOf(m)', 'import → buildPersonalRow (rrLinkForVariation + rrFixRowLink)'],
     ['import-ui.js', 'fields.masterRowId = rrMasterRowIdOf(m)', 'same'],
     ['photo-inbox-tools.js', 'p.masterKey = key;', 'the key backfill — m went through rrRowForVariation'],
