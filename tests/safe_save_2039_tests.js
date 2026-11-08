@@ -208,8 +208,11 @@ async function twoPhones(browser, o) {
       const row = window.__rows[rec.row];
       const puts = window.__sheet.puts.map(p => p.range).filter(r => new RegExp('![A-Z]+' + rec.row + '(:|$)').test(r));
       const cell = f => PERSONAL_TAB + '!' + personalColLetter(f) + rec.row + ':' + personalColLetter(f) + rec.row;
-      const live = state.personalData.a;
+      // STALEPAGE (2026-11-08): a copy found removed on another device is
+      // forgotten on this device and its Update Info box closes — so it may be gone here.
+      const live = state.personalData.a || {};
       return {
+        stillHere: !!state.personalData.a, boxOpen: !!document.getElementById('item-panel-overlay'),
         notes: row[F.notes], cond: row[F.condition], inv: row[F.inventoryId],
         puts: puts, condCell: cell('condition'),
         asks: window.__asks.map(a => ({ msg: a.msg, title: a.opts && a.opts.title, ok: a.opts && a.opts.ok, cancel: a.opts && a.opts.cancel })),
@@ -271,6 +274,9 @@ async function twoPhones(browser, o) {
   // FIND BY ID (2026-11-04): the item's Inventory ID is on no row now, so it is
   // told "removed on another device" (why 'gone') instead of the row-moved notice.
   T('R4b ...and the person is told, once: it is gone from the sheet', r4.out.moved === 1 && r4.out.why === 'gone', r4.out);
+  // STALEPAGE (2026-11-08, T-2026-11-05-01): before, the box stayed open on the removed item.
+  T('R4c ...the Update Info box closes and this device forgets the removed copy', r4.out.boxOpen === false && r4.out.stillHere === false, r4.out);
+  T('R4d (contrast) a save that landed leaves the copy in memory', r3.out.stillHere === true, r3.out);
 
   const r5 = await twoPhones(browser, { offline: true });
   T('R5 offline → only the Condition cell is queued (no whole row waiting to overwrite later)', r5.out.queued.length === 1 && r5.out.queued[0] === r5.out.condCell, r5.out);

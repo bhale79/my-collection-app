@@ -457,7 +457,7 @@ function rrCheckMakerSave(i, btn) {
     try {
       var newRow = rrPersonalUpdateRow(pd, { manufacturer: mk, _noCatalogRow: true });
       var _out = {};
-      if (!(await rrPersonalSafeWrite(pd, newRow, base, { out: _out }))) return false;
+      if (!(await rrPersonalSafeWrite(pd, newRow, base, { out: _out, user: true }))) return false;   // STALEPAGE: the person's own save
       var _now = (_out.row && typeof rrSavedRecord === 'function') ? rrSavedRecord(_out.row, pd.row, {}) : {};
       Object.assign(live, { manufacturer: mk }, _now);
       if (typeof _cachePersonalData === 'function') _cachePersonalData();

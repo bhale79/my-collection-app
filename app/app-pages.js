@@ -3037,7 +3037,7 @@ async function markForSaleAsSold(fsKey, askingPrice) {
   // sale is written — gone / on two rows / Google could not be asked → nothing
   // is written and the person is told why (the catch below says the words).
   if (collEntry && collEntry.row && collEntry.row !== 99999 && typeof rrWhereIsRow === 'function') {
-    const _sw = await rrWhereIsRow(state.personalSheetId, PERSONAL_TAB, collEntry.row, collEntry.itemNum || itemNum, collEntry.inventoryId || '');
+    const _sw = await rrWhereIsRow(state.personalSheetId, PERSONAL_TAB, collEntry.row, collEntry.itemNum || itemNum, collEntry.inventoryId || '', { user: true });   // STALEPAGE: the person's own sale
     if (!_sw.ok) {
       const _swErr = new Error('SALE_STOPPED');
       _swErr.rrWords = (_sw.why === 'busy' && typeof rrRowRefusedWords === 'function')

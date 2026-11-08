@@ -13147,7 +13147,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /if \(_spBlanked\) delete state\.personalData/.test(ws7));
       // v0.9.2039: the edit-save's writer is rrPersonalSafeWrite (same refusal contract)
       ok('the edit-save gives the button back instead of leaving it on "Saving…"',
-         /if \(!\(await rrPersonalSafeWrite\(pd, newRow, _base, \{ out: _out \}\)\)\) \{[\s\S]{0,160}saveBtn\.disabled = false;\s*\n\s*return;/.test(coll7));
+         // 2026-11-08 (stalepage): the save now says it is the person's own (user: true) — same refusal contract
+         /if \(!\(await rrPersonalSafeWrite\(pd, newRow, _base, \{ out: _out(?:, user: true)? \}\)\)\) \{[\s\S]{0,160}saveBtn\.disabled = false;\s*\n\s*return;/.test(coll7));
 
       section('217e. One message, one place');
       ok('the refusal wording lives in exactly one constant',

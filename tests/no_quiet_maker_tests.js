@@ -371,7 +371,7 @@ section('S  scans of every app file');
      /html \+= '<div id="makers-body" style="display:none">' \+ CARD_CHECK_MAKERS \+ '<\/div>';/.test(TOOLS)
      && /SECTION_HEADER\('makers', 'Check Makers', 'Items whose maker needs a look', true\)/.test(TOOLS) && !/'<div id="universal-body">'[^\n]*CARD_CHECK_MAKERS/.test(TOOLS));
   ok('S10b …its save writes through the safe write with the copy\'s own key, one guard per save',
-     /rrOnce\('check-maker:' \+ e\.key, run, btn \|\| null\)/.test(TOOLS) && /rrPersonalSafeWrite\(pd, newRow, base, \{ out: _out \}\)/.test(TOOLS));
+     /rrOnce\('check-maker:' \+ e\.key, run, btn \|\| null\)/.test(TOOLS) && /rrPersonalSafeWrite\(pd, newRow, base, \{ out: _out(?:, user: true)? \}\)/.test(TOOLS));   // 2026-11-08 (stalepage): + user: true, the person's own save
   ok('S10c no "AI" in the new words', !/\bAI\b/.test(TOOLS.slice(TOOLS.indexOf('var CARD_CHECK_MAKERS'), TOOLS.indexOf('var CARD_SET_BUILDER'))));
 }
 

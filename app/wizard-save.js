@@ -366,7 +366,7 @@ async function rrLinkOwnedToGroup(copyKey, targetGid, opts) {
       for (var c = 0; c < members.length; c++) {
         var mc = all[members[c]];
         // FIND BY ID: where each member is NOW (a row above it may have been removed elsewhere).
-        var _wm = await rrWhereIsRow(sid, PERSONAL_TAB, mc.row, mc.itemNum || '', mc.inventoryId || '');
+        var _wm = await rrWhereIsRow(sid, PERSONAL_TAB, mc.row, mc.itemNum || '', mc.inventoryId || '', { user: true });   // STALEPAGE: the person's own link
         if (!_wm.ok) {
           if (typeof showToast === 'function') showToast((_wm.why === 'gone' || _wm.why === 'twice' || _wm.why === 'busy') && typeof rrRowRefusedWords === 'function'
             ? rrRowRefusedWords(_wm, mc.itemNum) : 'Your collection changed somewhere else — nothing was written. Refresh and try again.', 5000, true);
@@ -1375,13 +1375,14 @@ async function savePhotoOnlyUpdate() {
   if (folderLink && pd.row) {
     // Write folder link to col J (index 9) of the existing row
     try {
-      if (await rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, pd.row, PERSONAL_TAB + '!' + personalColLetter('photoItem') + pd.row, [[folderLink]], { num: pd.itemNum || '', invId: pd.inventoryId || '' }, 'collection'))
-        pd.photoItem = folderLink;
+      // STALEPAGE: user — the person's own save; a copy removed elsewhere closes this window and its page
+      var _phOk = await rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, pd.row, PERSONAL_TAB + '!' + personalColLetter('photoItem') + pd.row, [[folderLink]], { num: pd.itemNum || '', invId: pd.inventoryId || '', user: true }, 'collection');
+      if (_phOk) pd.photoItem = folderLink;
       try { if (typeof rrThumbBust === 'function') rrThumbBust(pd); } catch (eTB) {}   // v0.9.1201: photo set changed
       // v0.9.697: without this, the 2-hour personal-data cache reloads WITHOUT
       // the new photo link — "saved" data vanished on next app load (Brad).
       if (typeof _cachePersonalData === 'function') _cachePersonalData();
-      showToast('✓ Photos saved!');
+      if (_phOk) showToast('✓ Photos saved!');   // STALEPAGE: never "saved" over the refusal it just said
       // v0.9.696 (Brad): the detail page under the wizard is STALE — the new
       // photo never appeared at the bottom until back-and-reopen. Re-render.
       try {
@@ -1708,6 +1709,7 @@ async function saveWizardItem() {
   if (d._saveComplete) { console.warn('[Save] Blocked — save already completed this wizard session'); return; }
   // v0.9.2071: backstop — never write to a list switched off in this collection.
   if (wizard.tab && typeof rrAddAllowed === 'function' && !rrAddAllowed(wizard.tab)) return;
+  var _rrSoldLeft = [];   // STALEPAGE: the Inventory IDs this sale took out of the collection — their page follows (rrCopyLeftCollection)
   // Bug 11 (Session 154): make sure any in-flight photo uploads have finished
   // so their Drive URLs are in photosItem before we build the row.
   if (typeof _awaitPhotoUploads === 'function' && (d._photoUploadsInFlight || 0) > 0) {
@@ -2267,7 +2269,7 @@ async function saveWizardItem() {
         // built, and quickEntry is cleared on purpose — all four count as written.
         // FIND BY ID: the row this copy is on NOW; refused only when it is really
         // gone / on two rows / Google could not be asked — with those words.
-        var _fillW = await rrWhereIsRow(state.personalSheetId, PERSONAL_TAB, existing.row, existing.itemNum, existing.inventoryId || '');
+        var _fillW = await rrWhereIsRow(state.personalSheetId, PERSONAL_TAB, existing.row, existing.itemNum, existing.inventoryId || '', { user: true });   // STALEPAGE
         if (!_fillW.ok) {
           var _fillErr = new Error('ROW_MOVED');
           if ((_fillW.why === 'gone' || _fillW.why === 'twice' || _fillW.why === 'busy') && typeof rrRowRefusedWords === 'function') _fillErr.rrWords = rrRowRefusedWords(_fillW, existing.itemNum);
@@ -2463,7 +2465,7 @@ async function saveWizardItem() {
       // gone / on two rows / Google could not be asked → nothing is written.
       if (collectionEntry && collectionEntry.row && collectionEntry.row !== 99999 && typeof rrWhereIsRow === 'function') {
         var _sw = await rrWhereIsRow(state.personalSheetId, PERSONAL_TAB, collectionEntry.row,
-                                     collectionEntry.itemNum || itemNum, collectionEntry.inventoryId || '');
+                                     collectionEntry.itemNum || itemNum, collectionEntry.inventoryId || '', { user: true });   // STALEPAGE
         if (!_sw.ok) {
           var _swErr = new Error('SALE_STOPPED');
           _swErr.rrWords = (_sw.why === 'busy' && typeof rrRowRefusedWords === 'function')
@@ -2486,6 +2488,7 @@ async function saveWizardItem() {
           // an item disappears from the app while sitting in the spreadsheet.
           var _spBlanked = true;
           if (_sp && _sp.row) { try { _spBlanked = await rrPersonalRemoveRow(_sp, _saleTag); } catch(e){ _spBlanked = false; } }
+          if (_spBlanked) _rrSoldLeft.push(String(_gs.sellPd[_i]), String((_sp && _sp.inventoryId) || ''));   // STALEPAGE: its page follows (key, and id when it has one)
           if (_spBlanked) delete state.personalData[_gs.sellPd[_i]];
           // FIND BY ID (2026-11-04): a piece the sheet kept is named in the
           // last message, never "✓ Added to Sold!" over it.
@@ -2550,6 +2553,7 @@ async function saveWizardItem() {
       // FIND BY ID: only when the sheet really let go of it.
       // Review R4: by THIS copy's own answer — a group piece the sheet kept does not
       // keep the sold copy on screen after its row was deleted.
+      if (!_rrLeadKept && _collKey && state.personalData[_collKey]) _rrSoldLeft.push(String(_collKey), String((collectionEntry && collectionEntry.inventoryId) || ''));   // STALEPAGE: its page follows (key, and id when it has one)
       if (!_rrLeadKept && _collKey && state.personalData[_collKey]) delete state.personalData[_collKey];
       // Bugfix 2026-04-14: clear any matching For Sale row when an item is marked sold.
       // Wizard sold path used to leave a stale row on the For Sale tab even though the
@@ -3159,6 +3163,13 @@ async function saveWizardItem() {
       showToast(String(((typeof RR_FIND_BY_ID !== 'undefined' && RR_FIND_BY_ID.saleKept) || '')).replace('{num}', _rrSaleKeptNum), 9000, true);
     } else {
       showToast(`✓ Item ${itemNum} added to ${tab === 'collection' ? 'My Collection' : tab === 'forsale' ? 'For Sale' : tab === 'sold' ? 'Sold' : 'Want List'}!`);
+    }
+    // STALEPAGE (T-2026-11-05-01): the item page that sold copy was on said
+    // "In Collection · 3 of 4" until a reload. The page follows the sale — left
+    // for where it was opened from, the way Remove leaves — and a page showing
+    // a copy still owned (only a piece of its group was sold) is redrawn.
+    if (tab === 'sold' && typeof rrCopyLeftCollection === 'function') {
+      try { rrCopyLeftCollection(_rrSoldLeft, { repaint: true }); } catch (eLeft) { console.warn('[Sold] page after the sale:', eLeft); }
     }
     if (tab === 'collection') _rrAddToGroupRepaint(d);   // v0.9.2029
 

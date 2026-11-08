@@ -342,7 +342,7 @@
       rrCmdIdFields().forEach(function (f) { write[f.key] = r.vals[f.key] || ''; });
       var base = Object.assign({}, pd);
       var values = rrPersonalUpdateRow(pd, write);
-      var ok = await rrPersonalSafeWrite(pd, values, base, {});
+      var ok = await rrPersonalSafeWrite(pd, values, base, { user: true });   // STALEPAGE: the person's own save — a copy removed elsewhere closes its page
       if (!ok) { if (btn) btn.disabled = false; return false; }
       Object.keys(write).forEach(function (k) { pd[k] = write[k]; });
       try { if (typeof _cachePersonalData === 'function') _cachePersonalData(); } catch (e) {}

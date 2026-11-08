@@ -1864,15 +1864,23 @@ async function _removeFromCollectionDetail(idx, itemNum, variation) {
 // refused comes back, with a message. ONE helper for every detail-page remove.
 function rrRemoveLeaveNow() {
   var held = {};
+  var goneSince = (typeof rrGoneSeq === 'function') ? rrGoneSeq() : 0;   // STALEPAGE: "gone" learned during THIS remove only
   return {
     onConfirmed: function (keys) {
+      goneSince = (typeof rrGoneSeq === 'function') ? rrGoneSeq() : 0;
       keys.forEach(function (k) { if (state.personalData[k]) { held[k] = state.personalData[k]; delete state.personalData[k]; } });
       rrGoToCollectionAfterRemove();
       if (typeof showToast === 'function') showToast('Removing from your collection…', 2500);
     },
     onFailed: function (keys) {
       var back = 0;
-      keys.forEach(function (k) { if (held[k] && !state.personalData[k]) { state.personalData[k] = held[k]; back++; } });
+      // STALEPAGE: a copy the sheet said was removed on another device is NOT
+      // put back — it is gone, and "No. … was removed on another device" said so.
+      keys.forEach(function (k) {
+        if (!held[k] || state.personalData[k]) return;
+        if (typeof rrCopyKnownGone === 'function' && rrCopyKnownGone(held[k].inventoryId || k, goneSince)) return;
+        state.personalData[k] = held[k]; back++;
+      });
       if (!back) return;
       try { if (typeof _cachePersonalData === 'function') _cachePersonalData(); } catch (e) {}
       try { if (typeof renderBrowse === 'function') renderBrowse(); } catch (e) {}
@@ -1885,6 +1893,10 @@ window.rrRemoveLeaveNow = rrRemoveLeaveNow;
 // Back to the collection list the person came from (its filters kept), or
 // to My Collection.
 function rrGoToCollectionAfterRemove() {
+  // STALEPAGE (review): the item page is gone — take it off the visit trail
+  // (app.js showPage / the device Back), so ONE press of Back goes to where
+  // the person was before the list, never back onto the removed / sold item.
+  try { var _tr = window._rrPageTrail; while (_tr && _tr.length && _tr[_tr.length - 1] === 'itemdetail') _tr.pop(); } catch (eTr) {}
   var ls = window._lastBrowseState;
   if (ls && ls.owned && typeof _detailBackToBrowse === 'function') { _detailBackToBrowse(); return; }
   delete window._lastBrowseState;
@@ -1893,6 +1905,53 @@ function rrGoToCollectionAfterRemove() {
   try { if (typeof buildDashboard === 'function') buildDashboard(); } catch (e) {}
 }
 window.rrGoToCollectionAfterRemove = rrGoToCollectionAfterRemove;
+
+// STALEPAGE (2026-11-08, T-2026-11-05-01) — THE rule for a copy that has left
+// the collection while something on screen still shows it. Two callers:
+//   • Record Sale finished (wizard-save.js, the sold path) — the phone kept
+//     saying "In Collection · 3 of 4" until it reloaded;
+//   • a save, sale or remove learned the copy was removed on another device
+//     (sheets.js _rrForgetGoneCopy) — the Update Info box stayed open on the
+//     removed car after "No. … was removed on another device — nothing was
+//     changed."
+// What happens, by the copy's Inventory ID (or its store key), never a position:
+//   1. a box open on that copy closes: the Update Info box (#item-panel-overlay
+//      names its copy in data-rr-inv / data-rr-key) and the Add / Sell / List
+//      window when it is working on that copy;
+//   2. its item page is left for the same place Remove goes — the list it was
+//      opened from, else My Collection (rrGoToCollectionAfterRemove; Brad,
+//      v0.9.2016: "go back to the collection page … and not stay on the items
+//      page"). A sale from the For Sale list already goes back to that list;
+//   3. otherwise (the page shows another copy) opts.repaint redraws it by
+//      identity, and the lists are redrawn when a copy was forgotten.
+// Returns true when the page was left.
+function rrCopyLeftCollection(ids, opts) {
+  opts = opts || {};
+  var want = (ids || []).map(function (x) { return String(x == null ? '' : x).trim(); }).filter(Boolean);
+  if (!want.length) return false;
+  var mine = function (v) { v = String(v == null ? '' : v).trim(); return !!v && want.indexOf(v) >= 0; };
+  try {
+    var ov = document.getElementById('item-panel-overlay');
+    if (ov && (mine(ov.getAttribute('data-rr-inv')) || mine(ov.getAttribute('data-rr-key')))) ov.remove();
+  } catch (eOv) {}
+  try {
+    var wm = document.getElementById('wizard-modal');
+    var wd = (typeof wizard !== 'undefined' && wizard && wizard.data) || null;
+    if (wm && wm.classList.contains('open') && wd
+        && ['_collectionPdKey', 'selectedSoldKey', 'selectedForSaleKey', '_updatePdKey', '_fillTargetKey'].some(function (k) { return mine(wd[k]); })
+        && typeof _doCloseWizard === 'function') _doCloseWizard();   // no "discard?" question: the copy is not there to save to
+  } catch (eWz) {}
+  var dp = document.getElementById('page-itemdetail');
+  var onPage = !!(dp && dp.classList.contains('active'));
+  if (onPage && (mine(window._lastDetailCopyInv) || mine(window._lastDetailPdKey))) { rrGoToCollectionAfterRemove(); return true; }   // by id, or the store key of a copy with no id
+  if (onPage && opts.repaint && typeof rrDetailRepaint === 'function') rrDetailRepaint(0);
+  if (opts.forgot) {
+    try { if (typeof renderBrowse === 'function') renderBrowse(); } catch (e) {}
+    try { if (typeof buildDashboard === 'function') buildDashboard(); } catch (e) {}
+  }
+  return false;
+}
+window.rrCopyLeftCollection = rrCopyLeftCollection;
 
 // v0.9.837 (Brad): rotate/crop a photo from the item detail page. Fetches
 // the full-size image as an authorized blob (avoids canvas tainting), opens
@@ -3749,7 +3808,7 @@ async function removeCollectionItem(itemNum, variation, row, invId, opts) {
             // must not drop this sibling from memory, and must not strip its
             // For Sale / Upgrade listings. Skip the rest of this sibling.
             var _sibGone = await sheetsDeleteRow(state.personalSheetId, PERSONAL_TAB, sib.row,
-                                                 { itemNum: sib.itemNum, inventoryId: sib.inventoryId || '' });
+              { itemNum: sib.itemNum, inventoryId: sib.inventoryId || '', user: true });
             if (!_sibGone) { _sibFailed.push(sibKey); continue; }
             _adjustRowsAfterDelete(state.personalData, _sibGone, PERSONAL_TAB);   // FIND BY ID: the row really deleted
           } catch(e) { console.warn('Remove group row error:', sib.itemNum, e); _sibFailed.push(sibKey); continue; }
@@ -3848,7 +3907,7 @@ async function removeCollectionItem(itemNum, variation, row, invId, opts) {
       // copy — item number alone does not, and you can own three 2343s.
       var _delGone = await sheetsDeleteRow(state.personalSheetId, PERSONAL_TAB, _delRow,
                                            { itemNum: (thisPd && thisPd.itemNum) || itemNum,
-                                             inventoryId: (thisPd && thisPd.inventoryId) || '' });
+                                             inventoryId: (thisPd && thisPd.inventoryId) || '', user: true });   // STALEPAGE: the person's Remove
       // Refused: the row is not the record we meant, so it is still there and
       // nothing below it moved. The user has already been told to refresh.
       // Stop here rather than stripping the listings of an item we did not remove.
@@ -4542,6 +4601,10 @@ function showItemPanel(idx, pdKey, mode) {
 
   const overlay = document.createElement('div');
   overlay.id = 'item-panel-overlay';
+  // STALEPAGE: the box names the copy it is open on, so it can close when that
+  // copy leaves the collection (rrCopyLeftCollection).
+  overlay.setAttribute('data-rr-inv', String(_live.inventoryId || ''));
+  overlay.setAttribute('data-rr-key', String(pdKey || ''));
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
   // v0.9.988 (Brad): a stray click on the dark backdrop used to close this
   // panel and silently discard unsaved edits. Backdrop clicks now do nothing;
@@ -5235,7 +5298,8 @@ function showItemPanel(idx, pdKey, mode) {
         // written; a column another device changed since the panel opened is kept;
         // both changed the same column -> the person chooses (app.js).
         const _out = {};
-        if (!(await rrPersonalSafeWrite(pd, newRow, _base, { out: _out }))) {
+        // STALEPAGE: user — the person's own save; a copy removed elsewhere closes this box (sheets.js)
+        if (!(await rrPersonalSafeWrite(pd, newRow, _base, { out: _out, user: true }))) {
           saveBtn.textContent = '💾 Save All Changes'; saveBtn.disabled = false;
           return;
         }

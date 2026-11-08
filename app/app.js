@@ -380,7 +380,8 @@ async function rrPersonalSafeWrite(rec, values, base, opts) {
   // row moved (another device removed one above it) is saved where it is; the
   // save is refused only when it is really gone / on two rows / unreadable.
   if (!offline && typeof rrWhereIsRow === 'function') {
-    const _w = await rrWhereIsRow(state.personalSheetId, PERSONAL_TAB, rec.row, base.itemNum || rec.itemNum, rec.inventoryId || '');
+    const _w = await rrWhereIsRow(state.personalSheetId, PERSONAL_TAB, rec.row, base.itemNum || rec.itemNum, rec.inventoryId || '',
+                                  { user: !!(opts && opts.user) });   // STALEPAGE: opts.user — the person's own save waits on it (sheets.js)
     if (!_w.ok) {
       if (!(opts && opts.quiet) && typeof rrRowRefusedToast === 'function') rrRowRefusedToast(_w, base.itemNum || rec.itemNum);
       return false;

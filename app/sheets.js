@@ -428,7 +428,49 @@ function _rrRenumberTab(tab, idCells) {
   }
   return n;
 }
-async function rrWhereIsRow(spreadsheetId, tab, rowNum, expectedNum, expectedInvId) {
+// STALEPAGE (2026-11-08, T-2026-11-05-01): a copy whose Inventory ID is nowhere
+// on My Collection was removed on another device. When a PERSON's action on that
+// copy is waiting on this answer (the caller passes opts.user — the Update Info
+// save, the edit / finish-entry save, the sale, Remove), its screens follow:
+// this device forgets the copy and any box open on it closes and its page is
+// left (app-collection.js rrCopyLeftCollection). Before, the Update Info box
+// stayed open on the removed car after "No. … was removed on another device —
+// nothing was changed." Background lookups (the offline queue, the renumber
+// job, repairs, a box row) pass no opts and change nothing on screen, so a box
+// the person is typing in is never closed under them.
+// The mark (rrCopyKnownGone) says "this copy was found gone DURING the action
+// that started at seq" — keyed by the open collection's sheet AND the Inventory
+// ID (ids repeat across collections), and believed only for an action that
+// started before it was set (rrGoneSeq), so a copy that comes back later (a
+// reload, Returned) is never taken for gone. Its one reader is the Remove flow
+// (rrRemoveLeaveNow): a Remove refused for THAT reason does not put the copy
+// back on screen. Only the OPEN collection's My Collection tab (review R7).
+// Nothing is written to the sheet; a reload reads it all again anyway.
+const _rrGoneCopies = {};
+let _rrGoneCount = 0;
+function _rrGoneKey(sheetId, invId) { return String(sheetId || '') + '|' + String(invId == null ? '' : invId).trim(); }
+function rrGoneSeq() { return _rrGoneCount; }
+function rrCopyKnownGone(invId, since) {
+  const id = String(invId == null ? '' : invId).trim();
+  if (!id || typeof state === 'undefined' || !state) return false;
+  const at = _rrGoneCopies[_rrGoneKey(state.personalSheetId, id)];
+  return !!at && at > Number(since || 0);
+}
+if (typeof window !== 'undefined') { window.rrCopyKnownGone = rrCopyKnownGone; window.rrGoneSeq = rrGoneSeq; }
+function _rrForgetGoneCopy(spreadsheetId, tab, invId) {
+  if (typeof state === 'undefined' || !state || !invId || spreadsheetId !== state.personalSheetId) return;
+  if (typeof PERSONAL_TAB === 'undefined' || tab !== PERSONAL_TAB) return;
+  _rrGoneCopies[_rrGoneKey(spreadsheetId, invId)] = ++_rrGoneCount;
+  const data = state.personalData || {}, keys = [];
+  Object.keys(data).forEach(function (k) {
+    const rec = data[k];
+    if (k === invId || (rec && String(rec.inventoryId == null ? '' : rec.inventoryId).trim() === invId)) { keys.push(k); delete data[k]; }
+  });
+  if (keys.length) { try { if (typeof _cachePersonalData === 'function') _cachePersonalData(); } catch (e) {} }
+  try { if (typeof rrCopyLeftCollection === 'function') rrCopyLeftCollection([invId].concat(keys), { forgot: keys.length > 0 }); }
+  catch (e) { console.warn('[rows] screens for a copy removed elsewhere:', e && e.message); }
+}
+async function rrWhereIsRow(spreadsheetId, tab, rowNum, expectedNum, expectedInvId, opts) {
   if (!rowNum || Number(rowNum) === 99999) return { ok: false, why: 'norow' };
   rowNum = Number(rowNum);
   const wantNum = String(expectedNum == null ? '' : expectedNum).trim();
@@ -461,6 +503,7 @@ async function rrWhereIsRow(spreadsheetId, tab, rowNum, expectedNum, expectedInv
   const gotId  = ident ? _cell(ident.idx) : '';
 
   // The id settles it when both sides have one.
+  if (wantId && gotId && gotId === wantId) delete _rrGoneCopies[_rrGoneKey(spreadsheetId, wantId)];   // STALEPAGE: on the tab after all
   if (wantId && gotId && gotId === wantId) return { ok: true, row: rowNum };
   // No id on either side to settle it: the item number, as this guard always did.
   // Weaker — item numbers repeat — but an absent id cannot prove a mismatch.
@@ -482,12 +525,14 @@ async function rrWhereIsRow(spreadsheetId, tab, rowNum, expectedNum, expectedInv
   });
   if (hits.length === 0) {
     console.warn('[rows] ' + tab + ': Inventory ID "' + wantId + '" is no longer on the tab (was row ' + rowNum + ') — removed elsewhere.');
+    if (opts && opts.user) _rrForgetGoneCopy(spreadsheetId, tab, wantId);   // STALEPAGE: a person's action waits on it — forgotten, its box and page close
     return { ok: false, why: 'gone' };
   }
   if (hits.length > 1) {
     console.warn('[rows] ' + tab + ': Inventory ID "' + wantId + '" is on rows ' + hits.join(', ') + ' — refusing to guess.');
     return { ok: false, why: 'twice' };
   }
+  delete _rrGoneCopies[_rrGoneKey(spreadsheetId, wantId)];   // STALEPAGE: on the tab after all
   console.warn('[rows] ' + tab + ': Inventory ID "' + wantId + '" moved from row ' + rowNum + ' to row ' + hits[0] + ' — saving there.');
   // Review R7: the in-memory lists belong to the collection that is OPEN — a read
   // of another collection's sheet (a move, an archive, a replay after a switch)
@@ -803,7 +848,7 @@ if (typeof window !== 'undefined') window.sheetsClear = sheetsClear;
 async function rrVerifiedRowUpdate(spreadsheetId, tab, rowNum, range, values, expect, what) {
   // FIND BY ID: the record's row NOW, and the same write aimed there.
   const _num = (expect && expect.num) || '', _inv = (expect && expect.invId) || '';
-  const _w = await rrWhereIsRow(spreadsheetId, tab, rowNum, _num, _inv);
+  const _w = await rrWhereIsRow(spreadsheetId, tab, rowNum, _num, _inv, { user: !!(expect && expect.user) });   // STALEPAGE: expect.user — the person's own save
   const _range = _w.ok ? _rrRangeAtRow(range, rowNum, _w.row) : null;
   if (!_w.ok || !_range) {
     if (typeof showToast === 'function') {
@@ -1211,7 +1256,7 @@ async function sheetsDeleteRow(spreadsheetId, sheetName, rowNumber, expected) {
   const _exp = (expected && typeof expected === 'object') ? expected : { itemNum: expected, inventoryId: '' };
   // FIND BY ID: delete the row the record is on NOW. Returns THAT row number
   // (truthy) — callers renumber from it, never from the row they remembered.
-  const _w = await rrWhereIsRow(spreadsheetId, sheetName, rowNumber, _exp.itemNum, _exp.inventoryId);
+  const _w = await rrWhereIsRow(spreadsheetId, sheetName, rowNumber, _exp.itemNum, _exp.inventoryId, { user: !!_exp.user });   // STALEPAGE: _exp.user — a person's Remove / sale
   if (!_w.ok) {
     console.warn('[rows] refusing to delete ' + sheetName + ' row ' + rowNumber + ' — ' + _w.why + '.');
     rrRowRefusedToast(_w, _exp.itemNum);
