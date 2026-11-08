@@ -1,0 +1,146 @@
+{
+ "title": "Master fix 2026-11-08 — Lionel PW - Items: the five Nabisco numbers line up with COTT (engines 1..n in COTT order, the Nabisco promo sheet last)",
+ "approved": "[stated] Brad 2026-11-07 16:18 CT \"It's a variation 1. The Nabisco is a different item altogether. It's a paper promotional item for a 2338\" -> 16:22 CT \"we line up with the cott website when it comes to variations\" -> 16:24 CT \"Yes\" (PLAN_2026-11-07_COTT_RENUMBER.md) -> 22:38 CT \"yes, early sunday morning\"",
+ "rule": "On Lionel PW - Items the Nabisco Shredded Wheat promo sheet (a paper premium, its own item; COTT lists it on its separate Nabisco page) held Variation 1 of 2338, 2331, 601, 621 and 627, pushing the real engines to 2, 3 ... COTT's own pages list only the engines, in this order. The engines become 1..n in that order and the Nabisco sheet goes LAST, as 1615, 2065, 2360, 520 and 736 already are. Only column K (Variation #) changes; Row IDs are unchanged. Saved collections are brought along by the app (v0.9.2127, RR_VAR_RENUMBER / rrVarRenumberCatchUp).",
+ "tab": "Lionel PW - Items",
+ "column": "K",
+ "header": "Variation #",
+ "cells": [
+  {
+   "rowId": "HB2BKKZH7H",
+   "sheetRow": 666,
+   "itemNum": "2331",
+   "itemType": "Promotional",
+   "old": "1",
+   "new": "4"
+  },
+  {
+   "rowId": "JCKYF7Q7HG",
+   "sheetRow": 667,
+   "itemNum": "2331",
+   "itemType": "Diesel Locomotive",
+   "old": "2",
+   "new": "1"
+  },
+  {
+   "rowId": "9G9JMW43RG",
+   "sheetRow": 668,
+   "itemNum": "2331",
+   "itemType": "Diesel Locomotive",
+   "old": "3",
+   "new": "2"
+  },
+  {
+   "rowId": "PCYWQ6FMHU",
+   "sheetRow": 669,
+   "itemNum": "2331",
+   "itemType": "Diesel Locomotive",
+   "old": "4",
+   "new": "3"
+  },
+  {
+   "rowId": "984VYR3KRQ",
+   "sheetRow": 687,
+   "itemNum": "2338",
+   "itemType": "Promotional",
+   "old": "1",
+   "new": "5"
+  },
+  {
+   "rowId": "YSGYWFPFA4",
+   "sheetRow": 688,
+   "itemNum": "2338",
+   "itemType": "Diesel Locomotive",
+   "old": "2",
+   "new": "1"
+  },
+  {
+   "rowId": "7S6DAP48PX",
+   "sheetRow": 689,
+   "itemNum": "2338",
+   "itemType": "Diesel Locomotive",
+   "old": "3",
+   "new": "2"
+  },
+  {
+   "rowId": "U8RXHD39VP",
+   "sheetRow": 690,
+   "itemNum": "2338",
+   "itemType": "Diesel Locomotive",
+   "old": "4",
+   "new": "3"
+  },
+  {
+   "rowId": "MEHR9X925P",
+   "sheetRow": 691,
+   "itemNum": "2338",
+   "itemType": "Diesel Locomotive",
+   "old": "5",
+   "new": "4"
+  },
+  {
+   "rowId": "DK4P3M8PXF",
+   "sheetRow": 1676,
+   "itemNum": "601",
+   "itemType": "Promotional",
+   "old": "1",
+   "new": "3"
+  },
+  {
+   "rowId": "UG2Z78UH4M",
+   "sheetRow": 1677,
+   "itemNum": "601",
+   "itemType": "Diesel Locomotive",
+   "old": "2",
+   "new": "1"
+  },
+  {
+   "rowId": "BZ8ARY5HF5",
+   "sheetRow": 1678,
+   "itemNum": "601",
+   "itemType": "Diesel Locomotive",
+   "old": "3",
+   "new": "2"
+  },
+  {
+   "rowId": "FVCT3MAQM8",
+   "sheetRow": 1965,
+   "itemNum": "621",
+   "itemType": "Promotional",
+   "old": "1",
+   "new": "3"
+  },
+  {
+   "rowId": "WJAMFGZ6Y5",
+   "sheetRow": 1966,
+   "itemNum": "621",
+   "itemType": "Diesel Locomotive",
+   "old": "2",
+   "new": "1"
+  },
+  {
+   "rowId": "2QD6KQHQ4V",
+   "sheetRow": 1967,
+   "itemNum": "621",
+   "itemType": "Diesel Locomotive",
+   "old": "3",
+   "new": "2"
+  },
+  {
+   "rowId": "54DG2T2DR5",
+   "sheetRow": 2010,
+   "itemNum": "627",
+   "itemType": "Promotional",
+   "old": "1",
+   "new": "2"
+  },
+  {
+   "rowId": "MRKQQXXRBB",
+   "sheetRow": 2011,
+   "itemNum": "627",
+   "itemType": "Diesel Locomotive",
+   "old": "2",
+   "new": "1"
+  }
+ ]
+}
