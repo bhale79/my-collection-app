@@ -44,6 +44,10 @@
   .item.tap:active { background:var(--line); }
   .go { color:var(--accent); font-weight:bold; margin-top:0.25rem; }
   .bought { color:var(--ok); font-weight:bold; margin-right:0.6rem; }
+  /* 2026-11-08 ([stated] Brad 16:50 CT, on a bought item: "it shouldn't open
+     it"): a bought item's store name is plain words — nothing on its box opens
+     the store; only Undo works */
+  .links .off { color:var(--dim); display:inline-block; margin:0.25rem 0.9rem 0 0; font-size:1rem; }
   .mark { margin-top:0.5rem; display:flex; align-items:center; gap:0.6rem; }
   /* 2026-11-07 (giftfixes): Undo sits at the FAR side, away from where
      "I bought this" was, so a second tap on the same spot can't undo it */
@@ -114,7 +118,16 @@
       if (it.price) body.appendChild(el('div', 'price', 'About ' + it.price));
       var links = el('div', 'links');
       var good = (it.links || []).filter(function (L) { return !!safeLink(L.url); });
+      // bought (and the marks are showing): nothing on the box opens a store
+      var bought = marks !== null && marks.indexOf(it.key) >= 0;
       good.forEach(function (L) {
+        if (bought) {
+          var off = el('span', 'off', L.store || 'Store');
+          off.setAttribute('data-store-off', it.key);
+          links.appendChild(off);
+          if (L.soldOut) links.appendChild(el('span', 'so', '(' + WORDS.soldOut + ') '));
+          return;
+        }
         var u = safeLink(L.url);
         // one store: the whole box opens it, and its line says so; two or more
         // stores: each is its own link (one box can't open two places)
@@ -126,7 +139,7 @@
       });
       if (!links.childNodes.length) links.appendChild(el('div', 'ask', w('ask')));
       body.appendChild(links);
-      if (good.length === 1) {
+      if (good.length === 1 && !bought) {
         var only = links.querySelector('a');
         box.className = 'item tap';
         box.setAttribute('data-tap', it.key);
@@ -140,7 +153,7 @@
       }
       if (marks !== null) {
         var row = el('div', 'mark');
-        if (marks.indexOf(it.key) >= 0) {
+        if (bought) {
           row.appendChild(el('span', 'bought', WORDS.bought));
           var u2 = el('button', 'undo', WORDS.undo); u2.setAttribute('data-undo', it.key);
           u2.onclick = function () { setMark(it.key, false, u2); };

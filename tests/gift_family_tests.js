@@ -212,7 +212,15 @@ async function twoStoreStory(opts) {
   const w = familyPage(db, null, opts || {});
   await tick(w, 60);
   const d = w.document, a = Array.from(d.querySelectorAll('[data-item="2245C|"] .links a'));
-  return { twoLinks: a.length === 2 && a[0].textContent === 'Trainz' && a[1].textContent === "Mr. Muffin's" && !d.querySelector('[data-tap]') };
+  const twoLinks = a.length === 2 && a[0].textContent === 'Trainz' && a[1].textContent === "Mr. Muffin's" && !d.querySelector('[data-tap]');
+  // 2026-11-08: once it is bought (and the marks are showing), neither store is a link
+  db.marks['2245C|'] = 1;
+  const rv = d.querySelector('[data-reveal]'); if (rv) rv.click();
+  await tick(w, 60);
+  const bx = d.querySelector('[data-item="2245C|"]');
+  const offs = bx ? Array.from(bx.querySelectorAll('[data-store-off]')).map(s => s.textContent) : [];
+  const boughtTwoNoLinks = !!bx && /Bought ✓/.test(bx.textContent) && !bx.querySelector('a') && offs.join('|') === "Trainz|Mr. Muffin's";
+  return { twoLinks, boughtTwoNoLinks };
 }
 async function pageStory(opts) {
   opts = opts || {};
@@ -275,6 +283,28 @@ async function pageStory(opts) {
   R.savingAtOnce = !!buyBtn && buyBtn.textContent === 'Saving…' && buyBtn.disabled === true;
   await tick(w, 60);
   R.buy = !!db.marks['2343|'] && !!d.querySelector('[data-undo="2343|"]');
+  // 2026-11-08 ([stated] Brad 16:49 CT "with the green bought on the card, i
+  // click it and it takes me to trainz"; 16:50 CT "it shouldn't open it"):
+  // a bought item's box opens NOTHING — tap the green words, the name, the
+  // store name, the box itself; none of them may open the store
+  {
+    const opened1 = w._opened.length;
+    const bx = d.querySelector('[data-item="2343|"]');
+    // the very tap Brad made, on its own: the green words open nothing
+    const green = bx && bx.querySelector('.bought');
+    if (green) green.click();
+    R.greenTapOpensNothing = !!green && w._opened.length === opened1;
+    const tapAll = [bx && bx.querySelector('.bought'), bx && bx.querySelector('.name'), bx && bx.querySelector('[data-store-off]'), bx && bx.querySelector('.mark'), bx];
+    tapAll.forEach(t => { if (t) t.click(); });
+    R.boughtTapsReal = tapAll.every(Boolean);
+    R.boughtOpensNothing = R.boughtTapsReal && w._opened.length === opened1 && !bx.querySelector('a') && !bx.hasAttribute('data-tap') && !/\btap\b/.test(bx.className);
+    R.boughtStoreName = /^Trainz$/.test((bx && bx.querySelector('[data-store-off]') || {}).textContent || '');
+    // the item that was already bought when the marks came in is the same
+    const b6 = d.querySelector('[data-item="6464|"]');
+    if (b6) { const t6 = b6.querySelector('.bought'); if (t6) t6.click(); b6.click(); }
+    R.boughtOnLoadOpensNothing = !!b6 && w._opened.length === opened1 && !b6.querySelector('a');
+    R.boughtKeepsSoldOut = !!b6 && /sold out right now/.test(b6.textContent);
+  }
   // … Undo sits apart (its own class, pushed to the far side) …
   R.undoApart = !!d.querySelector('[data-undo="2343|"]') && d.querySelector('[data-undo="2343|"]').className === 'undo' && /\.mark \.undo \{ margin-left:auto;/.test(d.querySelector('style').textContent);
   // … and the second half of a double tap never undoes it
@@ -283,6 +313,13 @@ async function pageStory(opts) {
   await tick(w, 900);
   click('[data-undo="2343|"]'); await tick(w, 60);
   R.undo = !db.marks['2343|'] && !!d.querySelector('[data-buy="2343|"]');
+  // after Undo the box opens the store again
+  {
+    const opened2 = w._opened.length;
+    const nm2 = d.querySelector('[data-item="2343|"] .name');
+    if (nm2) nm2.click();
+    R.undoTapsAgain = w._opened.length === opened2 + 1 && w._opened[opened2] === 'https://www.trainz.com/products/a?ref=X';
+  }
   // a save that does not land keeps the list, and says so UNDER that item
   const realHandle = db.handle;
   db.handle = b => b.action === 'gift_mark' ? { status: 429, message: 'busy' } : realHandle(b);
@@ -370,6 +407,13 @@ async function pageStory(opts) {
   ok('"Undo" sits apart — at the far side, not where "I bought this" was', C.undoApart);
   ok('the second half of a double tap does not undo it', C.doubleTapSafe);
   ok('"Undo" takes it back', C.undo);
+  ok('a bought item: tapping the green "Bought ✓" opens nothing (Brad\'s tap, 2026-11-08)', C.greenTapOpensNothing);
+  ok('a bought item: the green "Bought ✓", the name, the store name, the box — none opens the store (2026-11-08)', C.boughtOpensNothing);
+  ok('…its store is named in plain words ("Trainz"), not a link', C.boughtStoreName);
+  ok('…an item already bought when the marks came in opens nothing either', C.boughtOnLoadOpensNothing);
+  ok('…after Undo, tapping the box opens the store again', C.undoTapsAgain);
+  ok('…a bought item still says "sold out right now"', C.boughtKeepsSoldOut);
+  ok('…a bought item with two stores: both named in plain words, neither a link', T2.boughtTwoNoLinks);
   ok('"too busy" while saving: the list stays, the words show under that item', C.busyUnderItem);
   ok('a save with no answer: the list stays, "That didn\'t save" under that item', C.failUnderItem);
   ok('a second visitor sees the same marks after their own tap', C.shared);
@@ -403,18 +447,31 @@ async function pageStory(opts) {
     "                 links: it.links.map(function (L) { return { store: L.store, url: String(L.url).split('?')[0], soldOut: !!L.soldOut }; }) };", R => !R.sentCoded);
   await plantApp('stop without asking', "    if (!yes) return;\n    _family.busy = true;", "    yes = true;\n    _family.busy = true;", R => !R.stopAsks);
   await plantPage('marks read on load', "  call({ action: 'gift_get', listId: code }).then(function (r) {", "  call({ action: 'gift_marks', listId: code });\n  call({ action: 'gift_get', listId: code }).then(function (r) {", R => !R.noMarksYet);
-  await plantPage('any link made a link', "var good = (it.links || []).filter(function (L) { return !!safeLink(L.url); });\n      good.forEach(function (L) {\n        var u = safeLink(L.url);", "var good = (it.links || []).filter(function (L) { return !!L.url; });\n      good.forEach(function (L) {\n        var u = String(L.url || '');", R => !R.noJsLink);
+  {
+    const a1 = "var good = (it.links || []).filter(function (L) { return !!safeLink(L.url); });", a2 = "        var u = safeLink(L.url);\n";
+    const html3 = PAGE.split(a1).join("var good = (it.links || []).filter(function (L) { return !!L.url; });").split(a2).join("        var u = String(L.url || '');\n");
+    ok('PLANT any link made a link — caught', PAGE.indexOf(a1) >= 0 && PAGE.indexOf(a2) >= 0 && !(await pageStory({ html: html3 })).noJsLink);
+  }
   await plantPage('a name drawn as markup', "var nm = el('div', 'name', (i + 1) + '. ' + (it.name || ''));", "var nm = el('div', 'name'); nm.innerHTML = (i + 1) + '. ' + (it.name || '');", R => !R.escaped);
   await plantPage('no pause after drawing (a double tap lands on Undo)', "if (busy || Date.now() < calmUntil) return;", "if (busy) return;", R => !R.doubleTapSafe);
   await plantPage('no "Saving…" while it saves', "if (btn) { btn.disabled = true; btn.textContent = WORDS.saving; }", '', R => !R.savingAtOnce);
   await plantPage('a busy save wipes the page', "if (r && r.status === 429) { failed(WORDS.busy); return; }", "if (r && r.status === 429) { busy = false; answer(r); return; }", R => !R.busyUnderItem);
   await plantPage('the failure words at the top, not under the item', "if (flash && flash.key === it.key) body.appendChild(el('p', 'flash', flash.text));", "if (flash && flash.key === it.key) page.insertBefore(el('p', 'flash', flash.text), page.firstChild);", R => !R.failUnderItem);
   {
-    const html2 = PAGE.split("if (good.length === 1) {\n        var only").join("if (good.length >= 1) {\n        var only");
+    const html2 = PAGE.split("if (good.length === 1 && !bought) {\n        var only").join("if (good.length >= 1 && !bought) {\n        var only");
     ok('PLANT a two-store box made tappable — caught', html2 !== PAGE && !(await twoStoreStory({ html: html2 })).twoLinks);
   }
   await plantPage('the button back at the top', "    if (marks !== null) page.appendChild(el('p', 'sub', w('revealNote')));", "    if (marks !== null) page.appendChild(el('p', 'sub', w('revealNote')));\n    if (marks === null) { var rt = el('button', 'main', w('reveal')); rt.setAttribute('data-reveal', '1'); rt.onclick = reveal; page.appendChild(rt); }", R => !R.revealAtBottom);
   await plantPage('a button tap opens the store too', "while (t && t !== box) { if (t.tagName === 'BUTTON' || t.tagName === 'A') return; t = t.parentNode; }", "while (t && t !== box) { if (t.tagName === 'A') return; t = t.parentNode; }", R => !R.buyDoesNotOpen);
+  await plantPage('a bought box still opens the store (the 2026-11-08 bug)', "if (good.length === 1 && !bought) {", "if (good.length === 1) {", R => !R.boughtOpensNothing);
+  await plantPage('a bought item keeps its store link', "        if (bought) {\n          var off", "        if (false) {\n          var off", R => !R.boughtOpensNothing);
+  {
+    const a1 = "if (good.length === 1 && !bought) {", a2 = "        if (bought) {\n          var off";
+    const old = PAGE.split(a1).join("if (good.length === 1) {").split(a2).join("        if (false) {\n          var off");
+    ok('PLANT the page as it was live (bought box + its link) — the green-words tap catches it', PAGE.indexOf(a1) >= 0 && PAGE.indexOf(a2) >= 0 && !(await pageStory({ html: old })).greenTapOpensNothing);
+    ok('PLANT a bought two-store item keeps its links — caught', !(await twoStoreStory({ html: PAGE.split(a2).join("        if (false) {\n          var off") })).boughtTwoNoLinks);
+  }
+  await plantPage('a bought item loses its sold-out note', "          if (L.soldOut) links.appendChild(el('span', 'so', '(' + WORDS.soldOut + ') '));\n          return;", "          return;", R => !R.boughtKeepsSoldOut);
   await plantPage('the box not tappable', "box.onclick = function (ev) {", "box.onclickX = function (ev) {", R => !R.boxOpens);
   await plantPage('no trip back up after the button', "try { if (first && first.scrollIntoView)", "try { if (false && first && first.scrollIntoView)", R => !R.scrolledToFirst);
   await plantPage('Undo back in the same spot', "var u2 = el('button', 'undo', WORDS.undo);", "var u2 = el('button', '', WORDS.undo);", R => !R.undoApart);
