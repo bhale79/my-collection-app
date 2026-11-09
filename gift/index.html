@@ -23,7 +23,7 @@
   :root { --bg:#f6edd8; --card:#fffaf0; --ink:#2a2015; --dim:#6f6450; --line:#e2d5b0; --accent:#c84406; --ok:#2e7d32; }
   @media (prefers-color-scheme: dark) { :root { --bg:#14161f; --card:#1d2030; --ink:#f3ead6; --dim:#b3a98f; --line:#343a52; --accent:#ff8a4c; --ok:#7bd88f; } }
   * { box-sizing:border-box; }
-  body { margin:0; background:var(--bg); color:var(--ink); font:18px/1.5 Georgia, 'Times New Roman', serif; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:18px/1.5 Georgia, 'Times New Roman', serif; overflow-wrap:anywhere; }
   main { max-width:720px; margin:0 auto; padding:1.5rem 1rem 3rem; }
   h1 { font-size:1.6rem; margin:0 0 0.3rem; }
   .sub { color:var(--dim); margin:0 0 1.2rem; font-size:1rem; }
@@ -49,6 +49,11 @@
      the store; only Undo works */
   .links .off { color:var(--dim); display:inline-block; margin:0.25rem 0.9rem 0 0; font-size:1rem; }
   .mark { margin-top:0.5rem; display:flex; align-items:center; gap:0.6rem; }
+  /* 2026-11-08 ([stated] Brad 20:14 CT "fix it"): the words beside the picture fill the
+     rest of the box, so Undo really sits at the FAR right — on an item with no picture it
+     sat in the middle. body's overflow-wrap lets any long words (a name, a store, the
+     title — even one unbroken run of letters) wrap instead of pushing the page wider */
+  .item > .body { flex:1; }
   /* 2026-11-07 (giftfixes): Undo sits at the FAR side, away from where
      "I bought this" was, so a second tap on the same spot can't undo it */
   .mark .undo { margin-left:auto; font-size:0.9rem; padding:0.45rem 0.8rem; color:var(--dim); }
@@ -112,7 +117,7 @@
       box.setAttribute('data-item', it.key);
       var pic = safePic(it.image);
       if (pic) { var im = el('img'); im.src = pic; im.alt = ''; im.loading = 'lazy'; box.appendChild(im); }
-      var body = el('div');
+      var body = el('div', 'body');
       var nm = el('div', 'name', (i + 1) + '. ' + (it.name || ''));
       body.appendChild(nm);
       if (it.price) body.appendChild(el('div', 'price', 'About ' + it.price));
