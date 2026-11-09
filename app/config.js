@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2132';
+const APP_VERSION = 'v0.9.2133';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -171,7 +171,11 @@ if (typeof window !== 'undefined') window.RR_VARLINK_REPAIR_ON = RR_VARLINK_REPA
 // rows tied to them by Inventory ID, and Postwar copies with no Row ID added
 // BEFORE `from` (the day of the master edit). Want / Sold rows are listed, not
 // moved. Nothing happens until the loaded catalog shows every new number.
-// Row ID: [item number, old variation, new variation]. Master Version 2.86.
+// Row ID: [item number, old variation, new variation]. Master Version 2.87.
+// 2026-11-08: the five Nabisco rows below (the old Variation 1s) are no longer
+// this pass's to move — RR_NAB_TO_PAPER takes every copy of a Nabisco sheet to
+// its Lionel PW - Paper row. The rows stay listed here as the record of 2.87
+// and so the link guard (rrLinkForVariation) keeps protecting them.
 const RR_VAR_RENUMBER = {
   id: 'cott-2026-11-07',
   from: '2026-11-08',   // the master edit's day: a copy with no Row ID added before it is in the OLD numbering
@@ -188,6 +192,36 @@ const RR_VAR_RENUMBER = {
   }
 };
 if (typeof window !== 'undefined') window.RR_VAR_RENUMBER = RR_VAR_RENUMBER;
+// ── THE NABISCO SHEETS GO TO THE PAPER TAB — ONE table (2026-11-08) ─────────
+// [stated] Brad 2026-11-08: "yes" to looking into the ten Train-O-Rama rows on
+// Lionel PW - Items → "yes" to the plan (PLAN_2026-11-08_NABISCO_PAPER_ONLY.md)
+// → "yes" to building it. All 12 Nabisco Shredded Wheat Train-O-Rama sheets
+// (1956) are on Lionel PW - Paper under COTT's codes (TO520 … TO2360); ten of
+// them were ALSO on Lionel PW - Items as the last "variation" of the engine's
+// number (Item Type Promotional) — the copy that made "2338" offer a paper
+// sheet among the GP-7s. Those ten Items rows are removed from the master; a
+// collection that saved one is brought to its Paper row by
+// rrNabPaperCatchUp (app-data.js) — and only once the loaded catalog no longer
+// has the Items rows and does have the Paper rows.
+// Items Row ID: [item number, its variation, its variation BEFORE the 2.87
+// renumber (RR_VAR_RENUMBER.from), the Paper tab's item number, its Row ID].
+const RR_NAB_TO_PAPER = {
+  id: 'nabpaper-2026-11-08',
+  era: 'pw',
+  rows: {
+    'PZH69CU3WJ': ['520',  '3',  '3',  'TO520',  'PVNX8WEWNZ'],
+    'DK4P3M8PXF': ['601',  '3',  '1',  'TO601',  'X98THFFMA9'],
+    'FVCT3MAQM8': ['621',  '3',  '1',  'TO621',  'BEM5TFWBSF'],
+    '54DG2T2DR5': ['627',  '2',  '1',  'TO627',  '7DHFWP7UNK'],
+    'CW5P7K384C': ['736',  '10', '10', 'TO736',  'MU3QRH4RXB'],
+    'UCVKF2TGHK': ['1615', '4',  '4',  'TO1615', '9C2B4KBUW2'],
+    '5AWU58GGH8': ['2065', '4',  '4',  'TO2065', '6FM7DBCGWV'],
+    'HB2BKKZH7H': ['2331', '4',  '1',  'TO2331', 'B8HD8RXQYJ'],
+    '984VYR3KRQ': ['2338', '5',  '1',  'TO2338', 'FU5GD3AXK9'],
+    'KQ3GZ5ECQM': ['2360', '6',  '6',  'TO2360', 'FMRGGK592A']
+  }
+};
+if (typeof window !== 'undefined') window.RR_NAB_TO_PAPER = RR_NAB_TO_PAPER;
 function rrInviteGateOn() {
   try { return typeof RR_INVITE_GATE_ON === 'undefined' ? false : !!RR_INVITE_GATE_ON; } catch (e) { return false; }
 }

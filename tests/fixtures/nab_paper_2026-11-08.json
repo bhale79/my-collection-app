@@ -1,0 +1,587 @@
+{
+ "source": "Lionel PW - Items + Lionel PW - Paper, read 2026-11-08 (export CSV) after Master Version 2.89",
+ "items": [
+  {
+   "itemNum": "1615",
+   "variation": "1",
+   "itemType": "Steam Locomotive",
+   "subType": "0-4-0 Switcher",
+   "roadName": "",
+   "description": "0-4-0 Steam Locomotive",
+   "varDesc": "1955\n\nENGINE\ndiecast shell painted black\nwhite rubber stamped numbers\nwithout or",
+   "yearProd": "1955",
+   "rowId": "2TUNBWD5KF"
+  },
+  {
+   "itemNum": "1615",
+   "variation": "2",
+   "itemType": "Steam Locomotive",
+   "subType": "0-4-0 Switcher",
+   "roadName": "",
+   "description": "0-4-0 Steam Locomotive",
+   "varDesc": "1955\n\nENGINE\ndiecast shell painted black\nwhite rubber stamped numbers\nwithout or",
+   "yearProd": "1955",
+   "rowId": "PCJJXHVBY5"
+  },
+  {
+   "itemNum": "1615",
+   "variation": "3",
+   "itemType": "Steam Locomotive",
+   "subType": "0-4-0 Switcher",
+   "roadName": "",
+   "description": "0-4-0 Steam Locomotive",
+   "varDesc": "1956\n\nENGINE\ndiecast shell painted black\nwhite heat stamped numbers\nwithout orna",
+   "yearProd": "1956",
+   "rowId": "XWQBRAQRBR"
+  },
+  {
+   "itemNum": "1615",
+   "variation": "4",
+   "itemType": "Promotional",
+   "subType": "Nabisco Promo",
+   "roadName": "",
+   "description": "Nabisco Shredded Wheat Train-O-Rama: Pennsylvania's B-6 Steam Switcher",
+   "varDesc": "Sheets 6 A-B-C new uncut",
+   "yearProd": "1956",
+   "rowId": "UCVKF2TGHK"
+  },
+  {
+   "itemNum": "2065",
+   "variation": "1",
+   "itemType": "Steam Locomotive",
+   "subType": "4-6-4 Hudson",
+   "roadName": "",
+   "description": "4-6-4 Steam Locomotive",
+   "varDesc": "1954\n\nENGINE\nwhite heat stamped numbers\nblack stack\nwithout flagstaffs\nornamenta",
+   "yearProd": "1954",
+   "rowId": "8URQ5H2KRP"
+  },
+  {
+   "itemNum": "2065",
+   "variation": "2",
+   "itemType": "Steam Locomotive",
+   "subType": "4-6-4 Hudson",
+   "roadName": "",
+   "description": "4-6-4 Steam Locomotive",
+   "varDesc": "1954\n\nENGINE\nwhite heat stamped numbers\nblack stack\nwithout flagstaffs\nornamenta",
+   "yearProd": "1954",
+   "rowId": "CTC5K7REEP"
+  },
+  {
+   "itemNum": "2065",
+   "variation": "3",
+   "itemType": "Steam Locomotive",
+   "subType": "4-6-4 Hudson",
+   "roadName": "",
+   "description": "4-6-4 Steam Locomotive",
+   "varDesc": "1956\n\nENGINE\nsilver rubber stamped numbers\nblack stack\nwithout flagstaffs\norname",
+   "yearProd": "1956",
+   "rowId": "7UPCTFANGU"
+  },
+  {
+   "itemNum": "2065",
+   "variation": "4",
+   "itemType": "Promotional",
+   "subType": "Nabisco Promo",
+   "roadName": "",
+   "description": "Nabisco Shredded Wheat Train-O-Rama: Santa Fe's Hudson-Type Steam Locomotive",
+   "varDesc": "Sheets 7 A-B-C new uncut",
+   "yearProd": "1956",
+   "rowId": "5AWU58GGH8"
+  },
+  {
+   "itemNum": "2331",
+   "variation": "4",
+   "itemType": "Promotional",
+   "subType": "Nabisco Promo",
+   "roadName": "Virginian",
+   "description": "Nabisco Shredded Wheat Train-O-Rama: Fairbanks-Morse Virginian",
+   "varDesc": "Sheets 9 A-B-C new uncut",
+   "yearProd": "1956",
+   "rowId": "HB2BKKZH7H"
+  },
+  {
+   "itemNum": "2331",
+   "variation": "1",
+   "itemType": "Diesel Locomotive",
+   "subType": "Fairbanks-Morse",
+   "roadName": "Virginian",
+   "description": "Train Master Diesel",
+   "varDesc": "GRAY SHELL PAINTED BOTH BLACK AND YELLOW, WITH GOLD RUBBER STAMPED LETTERING\nwit",
+   "yearProd": "1955",
+   "rowId": "JCKYF7Q7HG"
+  },
+  {
+   "itemNum": "2331",
+   "variation": "2",
+   "itemType": "Diesel Locomotive",
+   "subType": "Fairbanks-Morse",
+   "roadName": "Virginian",
+   "description": "Train Master Diesel",
+   "varDesc": "GRAY SHELL PAINTED BOTH BLUE AND YELLOW, WITH YELLOW RUBBER STAMPED LETTERING\nwi",
+   "yearProd": "1955",
+   "rowId": "9G9JMW43RG"
+  },
+  {
+   "itemNum": "2331",
+   "variation": "3",
+   "itemType": "Diesel Locomotive",
+   "subType": "Fairbanks-Morse",
+   "roadName": "Virginian",
+   "description": "Train Master Diesel",
+   "varDesc": "BLUE SHELL UNPAINTED, WITH YELLOW PAINTED STRIPES, WITH YELLOW RUBBER STAMPED LE",
+   "yearProd": "1956-1958",
+   "rowId": "PCYWQ6FMHU"
+  },
+  {
+   "itemNum": "2338",
+   "variation": "5",
+   "itemType": "Promotional",
+   "subType": "Nabisco Promo",
+   "roadName": "",
+   "description": "Nabisco Shredded Wheat Train-O-Rama: GE's GP-7 Milwaukee",
+   "varDesc": "Sheets 10 A-B-C new uncut",
+   "yearProd": "1956",
+   "rowId": "984VYR3KRQ"
+  },
+  {
+   "itemNum": "2338",
+   "variation": "1",
+   "itemType": "Diesel Locomotive",
+   "subType": "EMD GP-7",
+   "roadName": "Milwaukee Road",
+   "description": "GP7 Diesel",
+   "varDesc": "Orange molded cab with painted black roof & sides\ntranslucent orange shell with ",
+   "yearProd": "1955",
+   "rowId": "YSGYWFPFA4"
+  },
+  {
+   "itemNum": "2338",
+   "variation": "2",
+   "itemType": "Diesel Locomotive",
+   "subType": "EMD GP-7",
+   "roadName": "Milwaukee Road",
+   "description": "GP7 Diesel",
+   "varDesc": "translucent orange shell painted only flat black with black and white heat stamp",
+   "yearProd": "1955",
+   "rowId": "7S6DAP48PX"
+  },
+  {
+   "itemNum": "2338",
+   "variation": "3",
+   "itemType": "Diesel Locomotive",
+   "subType": "EMD GP-7",
+   "roadName": "Milwaukee Road",
+   "description": "GP7 Diesel",
+   "varDesc": "opaque orange shell painted only flat black with black and white heat stamped le",
+   "yearProd": "1956",
+   "rowId": "U8RXHD39VP"
+  },
+  {
+   "itemNum": "2338",
+   "variation": "4",
+   "itemType": "Diesel Locomotive",
+   "subType": "EMD GP-7",
+   "roadName": "Milwaukee Road",
+   "description": "GP7 Diesel",
+   "varDesc": "opaque orange shell painted only glossy black with black and white heat stamped ",
+   "yearProd": "1956",
+   "rowId": "MEHR9X925P"
+  },
+  {
+   "itemNum": "2360",
+   "variation": "1",
+   "itemType": "Electric Locomotive",
+   "subType": "GG-1 Electric",
+   "roadName": "Pennsylvania",
+   "description": "GG-1 Electric",
+   "varDesc": "PAINTED TUSCAN, WITH FIVE STRIPES, WITH STEPPED VENTILATORS\nwith two motors and ",
+   "yearProd": "1956",
+   "rowId": "DKFC433SV9"
+  },
+  {
+   "itemNum": "2360",
+   "variation": "2",
+   "itemType": "Electric Locomotive",
+   "subType": "GG-1 Electric",
+   "roadName": "Pennsylvania",
+   "description": "GG-1 Electric",
+   "varDesc": "PAINTED TUSCAN, WITH SINGLE LARGE RUBBER STAMPED GOLD STRIPE, WITH STEPPED VENTI",
+   "yearProd": "1957",
+   "rowId": "ZW52GN9254"
+  },
+  {
+   "itemNum": "2360",
+   "variation": "3",
+   "itemType": "Electric Locomotive",
+   "subType": "GG-1 Electric",
+   "roadName": "Pennsylvania",
+   "description": "GG-1 Electric",
+   "varDesc": "PAINTED TUSCAN, WITH SINGLE LARGE RUBBER STAMPED GOLD STRIPE, VENTILATORS SAME H",
+   "yearProd": "1957-1958",
+   "rowId": "JCRF8BB4EG"
+  },
+  {
+   "itemNum": "2360",
+   "variation": "4",
+   "itemType": "Electric Locomotive",
+   "subType": "GG-1 Electric",
+   "roadName": "Pennsylvania",
+   "description": "GG-1 Electric",
+   "varDesc": "PAINTED TUSCAN, WITH SINGLE LARGE PAINTED GOLD STRIPE, VENTILATORS SAME HEIGHT\nw",
+   "yearProd": "1961-1962",
+   "rowId": "QT765TJMJ5"
+  },
+  {
+   "itemNum": "2360",
+   "variation": "5",
+   "itemType": "Electric Locomotive",
+   "subType": "GG-1 Electric",
+   "roadName": "Pennsylvania",
+   "description": "GG-1 Electric",
+   "varDesc": "PAINTED TUSCAN, WITH SINGLE LARGE PAINTED GOLD STRIPE, WITH LARGE KEYSTONE DECAL",
+   "yearProd": "1962-1963",
+   "rowId": "68ETCYWVHH"
+  },
+  {
+   "itemNum": "2360",
+   "variation": "6",
+   "itemType": "Promotional",
+   "subType": "Nabisco Promo",
+   "roadName": "Pennsylvania",
+   "description": "Nabisco Shredded Wheat Train-O-Rama: GG-1 Pennsylvania",
+   "varDesc": "Nabisco Shredded Wheat TRAIN-O-RAMA's\nFRONT OF BOX ADVERTISING TRAIN-O-RAMA\nGive",
+   "yearProd": "1956",
+   "rowId": "KQ3GZ5ECQM"
+  },
+  {
+   "itemNum": "520",
+   "variation": "1",
+   "itemType": "Motorized Unit",
+   "subType": "Single-Motor Motorized",
+   "roadName": "Lionel Lines",
+   "description": "Box Cab Electric",
+   "varDesc": "UNPAINTED RED SHELL WITH WHITE HEAT STAMPED LETTERING\nWITH BLACK PANTOGRAPH\noper",
+   "yearProd": "1956-1957",
+   "rowId": "HST6953NFM"
+  },
+  {
+   "itemNum": "520",
+   "variation": "2",
+   "itemType": "Motorized Unit",
+   "subType": "Single-Motor Motorized",
+   "roadName": "Lionel Lines",
+   "description": "Box Cab Electric",
+   "varDesc": "UNPAINTED RED SHELL WITH WHITE HEAT STAMPED LETTERING\nWITH REDDISH PANTOGRAPH",
+   "yearProd": "1956-1957",
+   "rowId": "GUU2JWE8UN"
+  },
+  {
+   "itemNum": "520",
+   "variation": "3",
+   "itemType": "Promotional",
+   "subType": "Nabisco Promo",
+   "roadName": "",
+   "description": "Nabisco Shredded Wheat Train-O-Rama: General Electric's 80-Ton Diesel",
+   "varDesc": "ASSEMBLED\nSheets 1 A-B-C new uncut",
+   "yearProd": "1956",
+   "rowId": "PZH69CU3WJ"
+  },
+  {
+   "itemNum": "601",
+   "variation": "3",
+   "itemType": "Promotional",
+   "subType": "Nabisco Promo",
+   "roadName": "",
+   "description": "Nabisco Shredded Wheat Train-O-Rama: Seaboard Switcher",
+   "varDesc": "Sheets 2 A-B-C new uncut",
+   "yearProd": "1956",
+   "rowId": "DK4P3M8PXF"
+  },
+  {
+   "itemNum": "601",
+   "variation": "1",
+   "itemType": "Diesel Locomotive",
+   "subType": "Switcher",
+   "roadName": "Seaboard",
+   "description": "NW2 Switcher",
+   "varDesc": "BLACK AND RED PAINTED SHELL WITH THREE STRIPES WITH SQUARE ENDS, WITH WHITE HEAT",
+   "yearProd": "1956",
+   "rowId": "UG2Z78UH4M"
+  },
+  {
+   "itemNum": "601",
+   "variation": "2",
+   "itemType": "Diesel Locomotive",
+   "subType": "Switcher",
+   "roadName": "Seaboard",
+   "description": "NW2 Switcher",
+   "varDesc": "BLACK AND RED PAINTED SHELL WITH THREE STRIPES WITH ROUNDED ENDS, WITH WHITE HEA",
+   "yearProd": "1956",
+   "rowId": "BZ8ARY5HF5"
+  },
+  {
+   "itemNum": "621",
+   "variation": "3",
+   "itemType": "Promotional",
+   "subType": "Nabisco Promo",
+   "roadName": "",
+   "description": "Nabisco Shredded Wheat Train-O-Rama: Jersey Central's Diesel Switcher",
+   "varDesc": "Sheets 3 A-B-C new uncut",
+   "yearProd": "1956",
+   "rowId": "FVCT3MAQM8"
+  },
+  {
+   "itemNum": "621",
+   "variation": "1",
+   "itemType": "Diesel Locomotive",
+   "subType": "Switcher",
+   "roadName": "Jersey Central",
+   "description": "NW2 Switcher",
+   "varDesc": "DARK BLUE UNPAINTED SHELL WITH ORANGE HEAT STAMPED NUMBER, WITH ORANGE JERSEY CE",
+   "yearProd": "1956-1957",
+   "rowId": "WJAMFGZ6Y5"
+  },
+  {
+   "itemNum": "621",
+   "variation": "2",
+   "itemType": "Diesel Locomotive",
+   "subType": "Switcher",
+   "roadName": "Jersey Central",
+   "description": "NW2 Switcher",
+   "varDesc": "LIGHT BLUE UNPAINTED SHELL WITH ORANGE HEAT STAMPED NUMBER, WITH ORANGE JERSEY C",
+   "yearProd": "1956-1957",
+   "rowId": "2QD6KQHQ4V"
+  },
+  {
+   "itemNum": "627",
+   "variation": "2",
+   "itemType": "Promotional",
+   "subType": "Nabisco Promo",
+   "roadName": "",
+   "description": "Nabisco Shredded Wheat Train-O-Rama: GE's 44-Ton Diesel",
+   "varDesc": "Sheets 4 A-B-C new uncut",
+   "yearProd": "1956",
+   "rowId": "54DG2T2DR5"
+  },
+  {
+   "itemNum": "627",
+   "variation": "1",
+   "itemType": "Diesel Locomotive",
+   "subType": "GE 44-Ton Switcher",
+   "roadName": "Lehigh Valley",
+   "description": "44 Ton Switcher",
+   "varDesc": "Red unpainted shell with white rubber stamped stripe and heat stamped lettering\n",
+   "yearProd": "1956-1957",
+   "rowId": "MRKQQXXRBB"
+  },
+  {
+   "itemNum": "736",
+   "variation": "1",
+   "itemType": "Steam Locomotive",
+   "subType": "2-8-4 Berkshire",
+   "roadName": "2-8-4 Steam Locomotive",
+   "description": "2-8-4 Steam Locomotive",
+   "varDesc": "1950\n\nENGINE\nsilver rubber stamped numbers\nblack stack\nwithout hexagonal based b",
+   "yearProd": "1950",
+   "rowId": "B6NPBY874B"
+  },
+  {
+   "itemNum": "736",
+   "variation": "2",
+   "itemType": "Steam Locomotive",
+   "subType": "2-8-4 Berkshire",
+   "roadName": "2-8-4 Steam Locomotive",
+   "description": "2-8-4 Steam Locomotive",
+   "varDesc": "1951\n\nENGINE\nsilver rubber stamped numbers\nblack stack\nwith hexagonal based blac",
+   "yearProd": "1951",
+   "rowId": "9XCZWQGJKT"
+  },
+  {
+   "itemNum": "736",
+   "variation": "3",
+   "itemType": "Steam Locomotive",
+   "subType": "2-8-4 Berkshire",
+   "roadName": "2-8-4 Steam Locomotive",
+   "description": "2-8-4 Steam Locomotive",
+   "varDesc": "ENGINE\nwhite heat stamped numbers\nblack stack\nwith round based black flagstaffs\n",
+   "yearProd": "1953",
+   "rowId": "P6MZ2ZRHDT"
+  },
+  {
+   "itemNum": "736",
+   "variation": "4",
+   "itemType": "Steam Locomotive",
+   "subType": "2-8-4 Berkshire",
+   "roadName": "2-8-4 Steam Locomotive",
+   "description": "2-8-4 Steam Locomotive",
+   "varDesc": "1954\n\nENGINE\nwhite heat stamped numbers\nblack stack\nwith round based black flags",
+   "yearProd": "1954",
+   "rowId": "Q3ZC7TM4P3"
+  },
+  {
+   "itemNum": "736",
+   "variation": "5",
+   "itemType": "Steam Locomotive",
+   "subType": "2-8-4 Berkshire",
+   "roadName": "2-8-4 Steam Locomotive",
+   "description": "2-8-4 Steam Locomotive",
+   "varDesc": "1957\n\nENGINE\nwhite rubber stamped numbers\nblack stack\nwith round based black fla",
+   "yearProd": "1957",
+   "rowId": "2H8X7TP3Z4"
+  },
+  {
+   "itemNum": "736",
+   "variation": "6",
+   "itemType": "Steam Locomotive",
+   "subType": "2-8-4 Berkshire",
+   "roadName": "2-8-4 Steam Locomotive",
+   "description": "2-8-4 Steam Locomotive",
+   "varDesc": "1960\n\nENGINE\nwhite rubber stamped numbers\nblack stack\nwith round based black fla",
+   "yearProd": "1960",
+   "rowId": "PZGTS55GWE"
+  },
+  {
+   "itemNum": "736",
+   "variation": "7",
+   "itemType": "Steam Locomotive",
+   "subType": "2-8-4 Berkshire",
+   "roadName": "2-8-4 Steam Locomotive",
+   "description": "2-8-4 Steam Locomotive",
+   "varDesc": "1962\n\nENGINE\nwhite rubber stamped numbers\nblack stack\nwith round based shinny fl",
+   "yearProd": "1962",
+   "rowId": "MAYDA879C5"
+  },
+  {
+   "itemNum": "736",
+   "variation": "8",
+   "itemType": "Steam Locomotive",
+   "subType": "2-8-4 Berkshire",
+   "roadName": "2-8-4 Steam Locomotive",
+   "description": "2-8-4 Steam Locomotive",
+   "varDesc": "1965\n\nENGINE\nwhite rubber stamped numbers\nblack stack\nwith round based black fla",
+   "yearProd": "1965",
+   "rowId": "EHJT2DW453"
+  },
+  {
+   "itemNum": "736",
+   "variation": "9",
+   "itemType": "Steam Locomotive",
+   "subType": "2-8-4 Berkshire",
+   "roadName": "2-8-4 Steam Locomotive",
+   "description": "2-8-4 Steam Locomotive",
+   "varDesc": "1966\n\nENGINE\nsmall white rubber stamped numbers\nblack stack\nwith round based bla",
+   "yearProd": "1966",
+   "rowId": "ZG5YVYV5EX"
+  },
+  {
+   "itemNum": "736",
+   "variation": "10",
+   "itemType": "Promotional",
+   "subType": "Nabisco Promo",
+   "roadName": "",
+   "description": "Nabisco Shredded Wheat Train-O-Rama: Berkshire 14 Wheeler",
+   "varDesc": "Sheets 5 A-B-C new uncut",
+   "yearProd": "1956",
+   "rowId": "CW5P7K384C"
+  }
+ ],
+ "paper": [
+  {
+   "itemNum": "TO520",
+   "variation": "1",
+   "itemType": "Paper / Box / Misc",
+   "description": "No. 520 GENERAL ELECTRICS 80-TON DIESEL",
+   "varDesc": "no variation",
+   "rowId": "PVNX8WEWNZ"
+  },
+  {
+   "itemNum": "TO601",
+   "variation": "1",
+   "itemType": "Paper / Box / Misc",
+   "description": "No. 601 SEABOARD SWITCHER",
+   "varDesc": "no variation",
+   "rowId": "X98THFFMA9"
+  },
+  {
+   "itemNum": "TO621",
+   "variation": "1",
+   "itemType": "Paper / Box / Misc",
+   "description": "No. 621 JERSEY CENTRAL’S DIESEL SWITCHER",
+   "varDesc": "no variation",
+   "rowId": "BEM5TFWBSF"
+  },
+  {
+   "itemNum": "TO627",
+   "variation": "1",
+   "itemType": "Paper / Box / Misc",
+   "description": "No. 627 GE’s 44 – TON DIESEL",
+   "varDesc": "no variation",
+   "rowId": "7DHFWP7UNK"
+  },
+  {
+   "itemNum": "TO736",
+   "variation": "1",
+   "itemType": "Paper / Box / Misc",
+   "description": "No. 736 BERKSHIRE 14 WHEELER",
+   "varDesc": "no variation",
+   "rowId": "MU3QRH4RXB"
+  },
+  {
+   "itemNum": "TO1615",
+   "variation": "1",
+   "itemType": "Paper / Box / Misc",
+   "description": "No. 1615 PENNSYLVANIA’S B-6 STEAM SWITCHER",
+   "varDesc": "no variation",
+   "rowId": "9C2B4KBUW2"
+  },
+  {
+   "itemNum": "TO2065",
+   "variation": "1",
+   "itemType": "Paper / Box / Misc",
+   "description": "No. 2065 SANTA FE’S HUDSON-TYPE STEAM LOCOMOTIVE",
+   "varDesc": "no variation",
+   "rowId": "6FM7DBCGWV"
+  },
+  {
+   "itemNum": "TO2243",
+   "variation": "1",
+   "itemType": "Paper / Box / Misc",
+   "description": "No. 2243 SANTA FE’S TWIN UNIT DIESEL",
+   "varDesc": "no variation",
+   "rowId": "TVG2GHQZPB"
+  },
+  {
+   "itemNum": "TO2331",
+   "variation": "1",
+   "itemType": "Paper / Box / Misc",
+   "description": "No. 2331 FAIRBANKS-MORSE VIRGINIAN",
+   "varDesc": "no variation",
+   "rowId": "B8HD8RXQYJ"
+  },
+  {
+   "itemNum": "TO2338",
+   "variation": "1",
+   "itemType": "Paper / Box / Misc",
+   "description": "No. 2338 GE’s GP-7 MILWAUKEE",
+   "varDesc": "no variation",
+   "rowId": "FU5GD3AXK9"
+  },
+  {
+   "itemNum": "TO2350",
+   "variation": "1",
+   "itemType": "Paper / Box / Misc",
+   "description": "No. 2350 EP-5 NEW HAVEN",
+   "varDesc": "no variation",
+   "rowId": "3YDFPR585D"
+  },
+  {
+   "itemNum": "TO2360",
+   "variation": "1",
+   "itemType": "Paper / Box / Misc",
+   "description": "No. 2360 GG-1 PENNSYLVANIA",
+   "varDesc": "no variation",
+   "rowId": "FMRGGK592A"
+  }
+ ]
+}

@@ -32,6 +32,8 @@
 //      the catch-up gives a pre-Row-ID copy no link from the new numbers
 //      (buildPersonalRow); PLANTED → each one goes wrong
 //   I  the load order (scan, planted) and one table
+//   (2026-11-08: the five Nabisco rows stay in the table — the record of 2.87,
+//   and the link guard — but their copies are the Paper pass's: C4, C10.)
 // ═══════════════════════════════════════════════════════════════════════════
 'use strict';
 const fs = require('fs'), path = require('path');
@@ -222,17 +224,17 @@ const START = { want: '2,3,7,2,2', sold: '2' };
     T('C1  live = true once the loaded catalog shows every new number', r.live === true, r.live);
     T('C2  BY ROW ID: 2338 DE0097 copy 3 → 2, its link follows (pw|2338|2, same Row ID)', s.gp[0] === '2' && s.gp[1] === 'pw|2338|2' && s.gp[2] === '7S6DAP48PX', s.gp);
     T('C3  BY ROW ID: 601 copy 2 → 1, and its For Sale row and Upgrade row follow it (2 → 1)', s.sw[0] === '1' && s.sw[1] === 'pw|601|1' && s.fs === '1' && s.upg === '1', [s.sw, s.fs, s.upg]);
-    T('C4  a real Nabisco sheet owned as 627 var 1 → 2 (the sheet went last)', s.nab[0] === '2' && s.nab[1] === 'pw|627|2' && s.nab[2] === '54DG2T2DR5', s.nab);
+    T('C4  a real Nabisco sheet owned as 627 var 1 is NOT moved here — since 2026-11-08 it is the Paper pass\'s (rrNabPaperCatchUp, nab_paper_tests)', s.nab.join() === '1,pw|627|1,54DG2T2DR5', s.nab);
     T('C5  Brad\'s 2338 (already Var 1 on the orange-band GP-7) is NOT touched', s.brad.join() === '1,pw|2338|1,YSGYWFPFA4', s.brad);
     T('C6  a Postwar 2331 saved before Row IDs (key pw|2331|3) → 2, and gets its Row ID (9G9JMW43RG)', s.old[0] === '2' && s.old[1] === 'pw|2331|2' && s.old[2] === '9G9JMW43RG', s.old);
     T('C7  another maker\'s 2338 (MTH, var 2) is NOT touched', s.mth.join() === '2,mth|2338|,', s.mth);
     T('C7b a Postwar 2338 with no link added AFTER the change day (the new Var 1, the GP-7) is NOT moved to the Nabisco number — named as stuck', s.late.join() === '1,,' && r.res.stuck.some(x => /2338 var 1 \(added after the change\)/.test(x)), [s.late, r.res.stuck]);
     T('C8  Want and Sold rows are NOT moved (no catalog link says which numbering they are in)', s.want.join() === START.want && s.sold === START.sold, [s.want, s.sold]);
     T('C9  …they are LISTED instead: Want 2338 var 2, 2338 var 3, the no-maker 621 var 2, Sold 627 var 2 (not the MTH row, not var 7)', r.res.listed.length === 4 && r.res.listed.join('|').indexOf('2331') < 0 && /renumber-listed[^}]*W row 4 2338 var 2/.test(s.diary), [r.res.listed, s.diary.slice(0, 300)]);
-    T('C10 the plan came from the SHEET (memory was empty on purpose): 6 rows moved', r.res.fixed === 6 && r.res.state === 'done', r.res);
-    T('C11 only Variation / Master Key / Master Row ID cells (and list column B) changed — nothing else on any row', r.changed.every(c => /:(variation|masterKey|masterRowId)$/.test(c) || /^(For Sale|Want-Upgrade List)\d+:1$/.test(c)) && r.changed.length === 11, r.changed);
+    T('C10 the plan came from the SHEET (memory was empty on purpose): 5 rows moved (the Nabisco sheet is the Paper pass\'s)', r.res.fixed === 5 && r.res.state === 'done', r.res);
+    T('C11 only Variation / Master Key / Master Row ID cells (and list column B) changed — nothing else on any row', r.changed.every(c => /:(variation|masterKey|masterRowId)$/.test(c) || /^(For Sale|Want-Upgrade List)\d+:1$/.test(c)) && r.changed.length === 9, r.changed);
     T('C12 each copy: the link written FIRST, the variation LAST (2338 row 4: Master Key AK4 before Variation G4)', s.puts.indexOf('My Collection!AK4:AK4') >= 0 && s.puts.indexOf('My Collection!G4:G4') > s.puts.indexOf('My Collection!AK4:AK4'), s.puts);
-    T('C13 a diary line per change; PRIVACY: no price, note, location or photo link in it', (s.diary.match(/renumber-fix/g) || []).length === 6 && !/SECRET|SHELF|125\.00|drive\.google|"200"|"300"|"500"/.test(s.diary), s.diary.slice(0, 500));
+    T('C13 a diary line per change; PRIVACY: no price, note, location or photo link in it', (s.diary.match(/renumber-fix/g) || []).length === 5 && !/SECRET|SHELF|125\.00|drive\.google|"200"|"300"|"500"/.test(s.diary), s.diary.slice(0, 500));
     T('C14 once per session (a second start is a no-op)', r.again === null, r.again);
     console.log('\n== D · a second session, a second device → nothing moves again ==');
     T('D1  the next start on this device: not even asked (the device remembers)', r.res2 === null, r.res2);
@@ -281,7 +283,7 @@ const START = { want: '2,3,7,2,2', sold: '2' };
     const r = await pg.evaluate(`(async function () { ${world({ renumbered: true })};
       delete window.__rn.S['Sold'];
       const res = await rrVarRenumberCatchUp(); return { res, s: ${SNAP.replace("sold: S['Sold'][3][1]", "sold: ''")} }; })()`);
-    T('F1  no Sold tab: the pass still runs and finishes', r.res.state === 'done' && r.res.fixed === 6, r.res);
+    T('F1  no Sold tab: the pass still runs and finishes', r.res.state === 'done' && r.res.fixed === 5, r.res);
     T('F2  no page errors', errs.length === 0, errs);
     await pg.close();
   }

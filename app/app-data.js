@@ -1172,15 +1172,19 @@ function rrVarRenumberLive() {
   var ids = Object.keys(T.rows);
   if (!ids.length) return false;
   for (var i = 0; i < ids.length; i++) {
+    if (_rrNpOwns(ids[i])) continue;   // 2026-11-08: a Nabisco row — removed from the master; the Paper pass's (rrNabPaperCatchUp)
     var e = T.rows[ids[i]], row = rrMasterByRowId(ids[i]);
     if (!row || _rrRnBare(row.itemNum) !== e[0] || !_rrRnSame(row.variation, e[2])) return false;
   }
   return true;
 }
-// The load-time back-fills ask this: true = never write a link for this copy
-// (one of the five numbers, Postwar or of unknown era) — the catch-up does.
+// The load-time back-fills (and a save, buildPersonalRow) ask this: true =
+// never write a link for this copy — one of the five renumbered numbers, or
+// (2026-11-08) a copy at a Nabisco sheet's number + variation (now, or before
+// the renumber) — Postwar or of unknown era. The catch-ups link those: a
+// back-fill would tie a Nabisco copy to an ENGINE once its Items row is gone.
 function rrVarRenumberHolds(p) {
-  if (!p || !_rrRnOldOf(p.itemNum)) return false;
+  if (!p || !(_rrRnOldOf(p.itemNum) || _rrNpAt(p.itemNum, p.variation, false) || _rrNpAt(p.itemNum, p.variation, true))) return false;
   var k = _rrRnBare(p.masterKey);
   if (k) return k.split('|')[0] === _rrRnTable().era;
   var e = (typeof _rrEraKeyOf === 'function') ? _rrEraKeyOf(p.era) : _rrRnBare(p.era).toLowerCase();
@@ -1213,6 +1217,7 @@ function rrVarRenumberPlanFrom(sheet) {
     if (rid) {
       var e = T.rows[rid];
       if (!e || e[0] !== n) return;                    // another catalog's row (or not a renumbered one)
+      if (_rrNpOwns(rid)) return;                      // 2026-11-08: a Nabisco sheet — the Paper pass moves it (rrNabPaperCatchUp)
       t = { id: rid, old: e[1], nu: e[2] };
       if (inv) copyTarget[inv] = t;
       // still at the old number (a copy cut off half way is too: its variation is written LAST)
@@ -1223,7 +1228,10 @@ function rrVarRenumberPlanFrom(sheet) {
     t = _rrRnOldEntry(n, p.variation);
     if (!t) return;
     // added on or after the master edit's day → written in the NEW numbering (a save that found no row)
-    if (!_rrRnBeforeChange(p.dateAdded)) { stuck.push('P row ' + (k + 3) + ' ' + n + ' var ' + _rrRnBare(p.variation) + ' (added after the change)'); return; }
+    if (!_rrRnBeforeChange(p.dateAdded)) {
+      if (_rrNpAt(n, p.variation, false)) return;      // 2026-11-08: added after — that number is the Nabisco sheet's; the Paper pass's
+      stuck.push('P row ' + (k + 3) + ' ' + n + ' var ' + _rrRnBare(p.variation) + ' (added after the change)'); return; }
+    if (_rrNpOwns(t.id)) return;                       // 2026-11-08: the old Var 1 = a Nabisco sheet — the Paper pass's
     if (inv) copyTarget[inv] = t;
     plan.push({ t: 'P', r: k + 3, n: n, i: inv, o: t.old, v: t.nu, id: t.id, noId: 1 });
   });
@@ -1244,7 +1252,8 @@ function rrVarRenumberPlanFrom(sheet) {
       if (kind === 'W' && _rrRnBare(c[2]).toLowerCase() === 'upgrade') return;
       var m = _rrRnBare(c[kind === 'W' ? 8 : 9]).toLowerCase();
       if (m && m !== 'lionel') return;
-      if (_rrRnOldEntry(n, c[1])) listed.push(kind + ' row ' + (k + 3) + ' ' + n + ' var ' + _rrRnBare(c[1]));
+      var _o = _rrRnOldEntry(n, c[1]);
+      if (_o && !_rrNpOwns(_o.id)) listed.push(kind + ' row ' + (k + 3) + ' ' + n + ' var ' + _rrRnBare(c[1]));   // a Nabisco position is the Paper pass's to list
     });
   };
   list(sheet.WU, 'W');
@@ -1377,6 +1386,282 @@ if (typeof window !== 'undefined') {
   window.rrVarRenumberLive = rrVarRenumberLive; window.rrVarRenumberHolds = rrVarRenumberHolds;
   window.rrVarRenumberPlanFrom = rrVarRenumberPlanFrom; window.rrVarRenumberCatchUp = rrVarRenumberCatchUp;
 }
+// ── 2026-11-08 THE NABISCO SHEETS GO TO THE PAPER TAB (table: RR_NAB_TO_PAPER, config.js) ──
+// [stated] Brad 2026-11-08: "yes" → "yes" → "yes" (PLAN_2026-11-08_NABISCO_PAPER_ONLY.md).
+// The ten Nabisco Train-O-Rama rows are removed from Lionel PW - Items; each
+// sheet stays on Lionel PW - Paper (TO520 … TO2360). A copy saved on one of the
+// Items rows becomes that Paper row's copy — item number TO…, everything the
+// catalog entry decides (rrCopyFieldsFromEntry, the same rule as "Change
+// catalog entry") — ONLY where the row says for certain it is the sheet:
+//   · a My Collection copy whose Row ID is one of the ten, at that sheet's
+//     variation (the rule beside the plan: for the five the renumber moved, a
+//     blank variation or an unmoved old copy proves nothing) — any other copy
+//     with that Row ID is listed, not moved;
+//   · a Postwar copy of this catalog with NO Row ID at the sheet's position —
+//     the variation it held BEFORE the 2.87 renumber when added before that
+//     day (RR_VAR_RENUMBER.from), else the one it holds now;
+//   · a For Sale / Upgrade row tied to such a copy by Inventory ID.
+// After a move the row's number is TO…, which is not in the table, so a second
+// pass — any device, any day — finds nothing to move (it still lets a For Sale /
+// Upgrade row follow a moved copy). Only the changed cells are written, through
+// THE guarded writer: the link first, the item number last — a pass cut off half
+// way leaves the Paper row's link under the old number, and the next one finishes.
+// The Type written is the Paper Items section's ("Paper"), so the copy lists there.
+// NOT moved: Want and Sold rows — listed in the sync diary, left as they are
+// (Brad's 2026-11-07 rule for the renumber, kept).
+// Runs only when THIS device's catalog no longer has the ten Items rows and
+// does have the ten Paper rows (rrNabPaperLive) — never on an older catalog,
+// where the Items row is still the copy's real entry.
+function _rrNpTable() {
+  return (typeof RR_NAB_TO_PAPER !== 'undefined' && RR_NAB_TO_PAPER && RR_NAB_TO_PAPER.rows) ? RR_NAB_TO_PAPER : null;
+}
+// An Items-tab Row ID this pass owns.
+function _rrNpOwns(rowId) { var N = _rrNpTable(); return !!(N && rowId && N.rows[_rrRnBare(rowId)]); }
+// The entry whose sheet sits at `num` + `variation` (`before`: in the numbering
+// before the 2.87 renumber), or null. { id, e: [num, var, varBefore, paperNum, paperId] }
+function _rrNpAt(num, variation, before) {
+  var N = _rrNpTable(), n = _rrRnBare(num), v = _rrRnBare(variation), hit = null;
+  if (!N || !n || !v) return null;
+  Object.keys(N.rows).some(function (id) {
+    var e = N.rows[id];
+    if (e[0] === n && _rrRnSame(v, before ? e[2] : e[1])) { hit = { id: id, e: e }; return true; }
+    return false;
+  });
+  return hit;
+}
+// The entry whose PAPER row this Row ID is (a copy already moved, or half way), or null.
+function _rrNpByPaper(rowId) {
+  var N = _rrNpTable(), id = _rrRnBare(rowId), hit = null;
+  if (!N || !id) return null;
+  Object.keys(N.rows).some(function (k) { if (N.rows[k][4] === id) { hit = { id: k, e: N.rows[k] }; return true; } return false; });
+  return hit;
+}
+// The Type a moved copy is written with: the Paper Items section's own word
+// (EPHEMERA_TABS, config.js) — so it lists under Paper Items (the plan, A.2).
+function _rrNpPaperType() { var t = (typeof ephTab === 'function') ? ephTab('paper') : null; return (t && t.type) || 'Paper'; }
+function _rrNpNums() { var N = _rrNpTable(), o = {}; if (N) Object.keys(N.rows).forEach(function (id) { o[N.rows[id][0]] = 1; }); return o; }
+// The catalog on THIS device: every Items row gone, every Paper row there.
+function rrNabPaperLive() {
+  var N = _rrNpTable(); if (!N) return false;
+  if (typeof rrCatalogIndexStatus === 'function' && !rrCatalogIndexStatus().complete) return false;
+  if (typeof rrMasterByRowId !== 'function') return false;
+  var ids = Object.keys(N.rows);
+  if (!ids.length) return false;
+  for (var i = 0; i < ids.length; i++) {
+    var e = N.rows[ids[i]];
+    if (rrMasterByRowId(ids[i])) return false;                                   // the Items row is still in the catalog
+    var p = rrMasterByRowId(e[4]);
+    if (!p || _rrRnBare(p.itemNum) !== e[3]) return false;                       // the Paper row is not (yet)
+  }
+  return true;
+}
+// THE plan, from rows as the sheet holds them now. Pure — tests call it.
+// sheet = { P, F, WU, S } (row 3 first), as rrVarRenumberPlanFrom reads them.
+// plan entry: { t: 'P'|'F'|'U', r, n: number now, i: Inventory ID, v: variation now, to: paper number, pid: paper Row ID, id: Items Row ID, noId? }
+function rrNabPaperPlanFrom(sheet) {
+  var N = _rrNpTable(), plan = [], listed = [], stuck = [];
+  if (!N || !sheet) return { plan: plan, listed: listed, stuck: stuck };
+  var B = _rrRnTabs(), nums = _rrNpNums(), copyTarget = {};
+  (sheet.P || []).forEach(function (cells, k) {
+    var p = rrPersonalRecordFromRow(cells || [], k + 3);
+    var n = _rrRnBare(p.itemNum); if (!n || String(p.era || '') === 'Manual') return;
+    var rid = _rrRnBare(p.masterRowId), inv = _rrRnBare(p.inventoryId), hit = null, fin = false;
+    var bp = rid ? _rrNpByPaper(rid) : null;
+    if (bp) {
+      // already linked to its Paper row: moved (TO… — only its For Sale / Upgrade rows
+      // may still follow, e.g. after a refused write) or half way (still the engine's number)
+      if (n === bp.e[3]) { if (inv) copyTarget[inv] = { n: bp.e[0], to: bp.e[3], pid: bp.e[4], id: bp.id }; return; }
+      if (n !== bp.e[0]) return;
+      hit = bp; fin = true;
+    } else if (!nums[n]) {
+      return;
+    } else if (rid) {
+      var e = N.rows[rid];
+      if (!e || e[0] !== n) return;                    // another row (an engine, another catalog)
+      // the Row ID names the sheet AND the copy sits at the sheet's number. For the
+      // five the 2.87 renumber moved (the sheet WAS Var 1, where a number with no
+      // variation landed before 2026-11-07 — Brad's own GP-7 was tied to it so), a
+      // blank variation proves nothing, and a copy from before the renumber day at
+      // the sheet's NEW number counts only when the renumber pass wrote it there
+      // (its Master Key says that number); before the day, the OLD number. The
+      // other five never moved: now, or blank. Anything else is listed, never moved.
+      var moved = e[1] !== e[2], before = _rrRnBeforeChange(p.dateAdded);
+      var keyVar = _rrRnBare(p.masterKey).split('|')[2] || '';
+      var vOk = moved
+        ? (before ? (_rrRnSame(p.variation, e[2]) || (_rrRnSame(p.variation, e[1]) && _rrRnSame(keyVar, e[1]))) : _rrRnSame(p.variation, e[1]))
+        : (!_rrRnBare(p.variation) || _rrRnSame(p.variation, e[1]));
+      if (!vOk) { stuck.push('P row ' + (k + 3) + ' ' + n + ' var ' + _rrRnBare(p.variation) + ' (a Nabisco link on another variation)'); return; }
+      hit = { id: rid, e: e };
+    } else {
+      if (!_rrRnCopyIsOurs(p)) { if (!_rrRnBare(p.masterKey) && !_rrRnBare(p.era)) stuck.push('P row ' + (k + 3) + ' ' + n + ' var ' + _rrRnBare(p.variation)); return; }
+      hit = _rrNpAt(n, p.variation, _rrRnBeforeChange(p.dateAdded));
+      if (!hit) return;
+    }
+    var x = { t: 'P', r: k + 3, n: n, i: inv, v: _rrRnBare(p.variation), to: hit.e[3], pid: hit.e[4], id: hit.id };
+    if (!rid) x.noId = 1;
+    if (fin) x.fin = 1;
+    if (inv) copyTarget[inv] = x;
+    plan.push(x);
+  });
+  var tied = function (rows, kind) {
+    (rows || []).forEach(function (c, k) {
+      c = c || []; var n = _rrRnBare(c[0]); if (!n) return;
+      if (kind === 'U' && _rrRnBare(c[2]).toLowerCase() !== 'upgrade') return;
+      var inv = _rrRnBare(c[B[kind].id]), t = copyTarget[inv];
+      if (!inv || !t || t.n !== n) return;
+      plan.push({ t: kind, r: k + 3, n: n, i: inv, v: _rrRnBare(c[1]), to: t.to, pid: t.pid, id: t.id });
+    });
+  };
+  tied(sheet.F, 'F');
+  tied(sheet.WU, 'U');
+  var list = function (rows, kind) {
+    (rows || []).forEach(function (c, k) {
+      c = c || []; var n = _rrRnBare(c[0]); if (!n || !nums[n]) return;
+      if (kind === 'W' && _rrRnBare(c[2]).toLowerCase() === 'upgrade') return;
+      var m = _rrRnBare(c[kind === 'W' ? 8 : 9]).toLowerCase();
+      if (m && m !== 'lionel') return;
+      if (_rrNpAt(n, c[1], false) || _rrNpAt(n, c[1], true)) listed.push(kind + ' row ' + (k + 3) + ' ' + n + ' var ' + _rrRnBare(c[1]));
+    });
+  };
+  list(sheet.WU, 'W');
+  list(sheet.S, 'S');
+  return { plan: plan, listed: listed, stuck: stuck };
+}
+function _rrNpLine(e) { return e.t + ' ' + e.n + ' var ' + e.v + ' -> ' + e.to + (e.i ? ' inv ' + e.i : '') + ' row ' + e.r; }
+// One planned row: 'fixed' | 'settled' (not that copy any more, or already
+// moved — left alone) | 'pending' (the next start tries again).
+async function _rrNpApplyOne(sid, e, log) {
+  var B = _rrRnTabs(), d = B[e.t];
+  var row = e.r;
+  if (e.i) {
+    var w = await rrWhereIsRow(sid, d.tab, row, e.n, e.i);
+    if (!w.ok) { if (w.why === 'busy') return 'pending'; log('nabpaper-skip', _rrNpLine(e) + ' (' + w.why + ')'); return 'settled'; }
+    row = w.row;
+  }
+  var got = await sheetsGet(sid, d.tab + '!A' + row + ':' + d.last + row);
+  var cells = (((got && got.values) || [[]])[0]) || [];
+  if (_rrRnBare(cells[0]) !== e.n || (e.i && _rrRnBare(cells[d.id]) !== e.i) || !_rrRnSame(cells[d.v], e.v)) { log('nabpaper-skip', _rrNpLine(e) + ' (row changed)'); return 'settled'; }
+  var expect = { num: e.n, invId: e.i || '' };
+  if (e.t === 'P') {
+    var cur = rrPersonalRecordFromRow(cells, row), rid = _rrRnBare(cur.masterRowId);
+    if (!(rid === e.id || (e.fin && rid === e.pid) || (e.noId && !rid && _rrRnCopyIsOurs(cur)))) { log('nabpaper-skip', _rrNpLine(e) + ' (row changed)'); return 'settled'; }
+    var paper = rrMasterByRowId(e.pid);
+    if (!paper || _rrRnBare(paper.itemNum) !== e.to) { log('nabpaper-wait', _rrNpLine(e) + ' (the Paper row is not in this catalog)'); return 'pending'; }
+    var X = PERSONAL_FIELD_INDEX, curRow = rrRecordRow(cur);
+    // the catalog entry's fields (THE rule, rrCopyFieldsFromEntry), the Paper Items
+    // section's Type, the sheet's own number; Date Added named so a blank stays blank
+    var newRow = rrPersonalUpdateRow(cur, Object.assign({ itemNum: e.to, dateAdded: cur.dateAdded || '' },
+      rrCopyFieldsFromEntry(paper, cur), { itemType: _rrNpPaperType() }));
+    var ch = [];
+    newRow.forEach(function (v, c) { if (_rrRnBare(v) !== _rrRnBare(curRow[c])) ch.push(c); });
+    if (!ch.length) { log('nabpaper-skip', _rrNpLine(e) + ' (already right)'); return 'settled'; }
+    // ONLY the changed cells. The link FIRST, the item number LAST: a pass cut off in
+    // between leaves the copy on its Paper row's link under the old number, and the
+    // next pass finishes it (the plan's half-way case). Each through THE guarded writer.
+    var runs = rrColumnRuns(ch).map(function (r) { return [r[0], r[1]]; });
+    var isLink = function (r) { return [X.masterKey, X.masterRowId].some(function (c) { return c !== undefined && c >= r[0] && c <= r[1]; }); };
+    var hasNum = function (r) { return X.itemNum >= r[0] && X.itemNum <= r[1]; };
+    runs.sort(function (a, b) { return (hasNum(a) - hasNum(b)) || (isLink(b) - isLink(a)) || (a[0] - b[0]); });
+    for (var q = 0; q < runs.length; q++) {
+      var ok = await rrVerifiedRowUpdate(sid, d.tab, row, d.tab + '!' + colLetter(runs[q][0]) + row + ':' + colLetter(runs[q][1]) + row,
+        [newRow.slice(runs[q][0], runs[q][1] + 1)], expect, 'collection');
+      if (!ok) { log('nabpaper-wait', _rrNpLine(e) + ' (refused at write)'); return 'pending'; }
+      if (expect.foundRow) row = expect.foundRow;
+    }
+    e._row = row; e._cells = newRow;
+  } else {
+    if (!(await rrVerifiedRowUpdate(sid, d.tab, row, d.tab + '!A' + row + ':B' + row, [[e.to, '1']], expect, d.tab))) { log('nabpaper-wait', _rrNpLine(e) + ' (refused at write)'); return 'pending'; }
+    if (expect.foundRow) row = expect.foundRow;
+    e._row = row;
+  }
+  log('nabpaper-fix', _rrNpLine(e));
+  return 'fixed';
+}
+// Memory learns what was written (by Inventory ID first, else sheet row + number).
+function _rrNpRemember(fixed) {
+  var find = function (list, row, num, inv) {
+    var key = null;
+    if (inv) Object.keys(list || {}).some(function (k) { var x = list[k]; if (x && _rrRnBare(x.inventoryId) === inv && _rrRnBare(x.itemNum) === num) { key = k; return true; } return false; });
+    if (!key) Object.keys(list || {}).some(function (k) { var x = list[k]; if (x && Number(x.row) === Number(row) && _rrRnBare(x.itemNum) === num && (!inv || !_rrRnBare(x.inventoryId))) { key = k; return true; } return false; });
+    return key;
+  };
+  fixed.forEach(function (e) {
+    var list = e.t === 'P' ? state.personalData : (e.t === 'F' ? state.forSaleData : state.upgradeData);
+    var k = find(list, e._row, e.n, e.i); if (!k) return;
+    if (e.t === 'P') {
+      // as the sheet will hand it back: a cell written "as typed" ('2338 kept as text) reads without its '
+      var rec = rrPersonalRecordFromRow(e._cells.map(function (v) { return v == null ? '' : String(v).replace(/^'/, ''); }), e._row);
+      list[k] = Object.assign(list[k], rec);
+    } else { list[k].itemNum = e.to; list[k].variation = '1'; }
+  });
+  try { if (typeof _cachePersonalData === 'function') _cachePersonalData(); } catch (eC) {}
+}
+var _rrNpTried = {};
+function _rrNpDoneKey(sid) { return 'rr_nab_paper_done|' + _rrNpTable().id + '|' + sid; }
+// THE pass. At most once per sheet per session. Returns null (not now) or
+// { state: 'done'|'pending'|'unreachable', fixed, settled, pending, listed, stuck }.
+async function rrNabPaperCatchUp() {
+  if (!_rrNpTable() || !state || !state.personalSheetId) return null;
+  var sid = state.personalSheetId;
+  if (_rrNpTried[sid]) return null;
+  try { if (localStorage.getItem(_rrNpDoneKey(sid))) return null; } catch (e) {}
+  if (window._readOnlyMode || (typeof _rrOfflineNow === 'function' && _rrOfflineNow())) return null;
+  if (!rrNabPaperLive()) return null;
+  _rrNpTried[sid] = true;
+  var log = function (ev, info) { try { if (typeof rrSyncLog === 'function') rrSyncLog(ev, info); } catch (eL) {} };
+  var res = { state: '', fixed: 0, settled: 0, pending: 0, listed: [], stuck: [] };
+  var fresh = await _rrRnReadSheet(sid);
+  if (!fresh) { res.state = 'unreachable'; log('nabpaper-wait', 'the sheet could not be read'); return res; }
+  var made = rrNabPaperPlanFrom(fresh);
+  res.listed = made.listed; res.stuck = made.stuck;
+  if (made.listed.length) log('nabpaper-listed', 'Want / Sold rows at a Nabisco sheet\'s number, NOT moved: ' + made.listed.join(' | ').slice(0, 600));
+  if (made.stuck.length) log('nabpaper-listed', 'copies not certain to be a Nabisco sheet — NOT moved: ' + made.stuck.join(' | ').slice(0, 600));
+  var fixed = [], waiting = {};
+  for (var i = 0; i < made.plan.length; i++) {
+    if (state.personalSheetId !== sid || window._readOnlyMode) { res.pending += made.plan.length - i; break; }
+    var e = Object.assign({}, made.plan[i]), out;
+    // a For Sale / Upgrade row moves only once its copy has (the plan lists copies first)
+    if (e.t !== 'P' && e.i && waiting[e.i]) {
+      if (waiting[e.i] === 'pending') { res.pending++; log('nabpaper-wait', _rrNpLine(e) + ' (its copy is not moved yet)'); }
+      else { res.settled++; log('nabpaper-skip', _rrNpLine(e) + ' (its copy changed)'); }
+      continue;
+    }
+    try { out = await _rrNpApplyOne(sid, e, log); }
+    catch (err) { out = 'pending'; log('nabpaper-wait', _rrNpLine(e) + ' (' + String((err && err.message) || err).slice(0, 60) + ')'); }
+    if (out === 'fixed') { res.fixed++; fixed.push(e); } else if (out === 'settled') res.settled++; else res.pending++;
+    if (out !== 'fixed' && e.t === 'P' && e.i) waiting[e.i] = out;   // its For Sale / Upgrade rows stay where they are
+  }
+  if (fixed.length && state.personalSheetId === sid) _rrNpRemember(fixed);
+  if (res.pending) { res.state = 'pending'; return res; }
+  try { localStorage.setItem(_rrNpDoneKey(sid), '1'); } catch (eS) {}
+  res.state = 'done';
+  log('nabpaper-done', res.fixed + ' moved, ' + res.settled + ' already right or changed');
+  return res;
+}
+if (typeof window !== 'undefined') {
+  window.rrNabPaperLive = rrNabPaperLive; window.rrNabPaperPlanFrom = rrNabPaperPlanFrom; window.rrNabPaperCatchUp = rrNabPaperCatchUp;
+}
+// ── The fields a catalog entry decides on an owned copy (v0.9.1882 rule) ─────
+// ONE rule, used by "Change catalog entry" (app-collection.js) and the
+// Nabisco → Paper pass: a picked entry IS the identity — everything the entry
+// decides follows it, the way a fresh save of that row would write it.
+// Item Type is named only when the entry has one (a blank never wipes it).
+function rrCopyFieldsFromEntry(entry, copy) {
+  var out = {
+    masterRowId: (typeof rrMasterRowIdOf === 'function') ? rrMasterRowIdOf(entry) : '',
+    masterKey: (typeof rrMasterKeyOf === 'function') ? rrMasterKeyOf(entry) : '',
+    era: entry._era || (copy && copy.era) || '',
+    variation: String(entry.variation == null ? '' : entry.variation),
+    masterDescription: String(entry.description || ''),
+    variationDescription: String(entry.varDesc || ''),
+    manufacturer: rrMakerOf({ row: entry, copy: copy }),
+    roadName: String(entry.roadName || ''),
+    roadNumber: String(entry.roadNum || '')
+  };
+  if (entry.itemType) out.itemType = String(entry.itemType);
+  return out;
+}
+if (typeof window !== 'undefined') window.rrCopyFieldsFromEntry = rrCopyFieldsFromEntry;
 // ── v0.9.1882 (Step 4): every catalog row an owned copy COULD be ────────────
 // The rows under the copy's number and under its base number (2343-P → 2343),
 // every maker and era, from the whole-catalog index when it is up and the

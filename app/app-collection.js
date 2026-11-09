@@ -5217,16 +5217,9 @@ function showItemPanel(idx, pdKey, mode) {
       // The variation re-derivation below is skipped then: the entry answers.
       const _entry = pd._newEntry || null;
       if (_entry) {
-        pd.masterRowId = (typeof rrMasterRowIdOf === 'function') ? rrMasterRowIdOf(_entry) : '';
-        pd.masterKey = (typeof rrMasterKeyOf === 'function') ? rrMasterKeyOf(_entry) : '';
-        pd.era = _entry._era || pd.era || '';
-        pd.variation = String(_entry.variation == null ? '' : _entry.variation);
-        pd.masterDescription = String(_entry.description || '');
-        pd.variationDescription = String(_entry.varDesc || '');
-        pd.manufacturer = rrMakerOf({ row: _entry, copy: pd });
-        if (_entry.itemType) pd.itemType = String(_entry.itemType);
-        pd.roadName = String(_entry.roadName || '');
-        pd.roadNumber = String(_entry.roadNum || '');
+        // 2026-11-08: THE rule lives in app-data.js (rrCopyFieldsFromEntry) — the
+        // Nabisco → Paper pass writes a moved copy the same way
+        Object.assign(pd, rrCopyFieldsFromEntry(_entry, pd));
         delete pd._newEntry;
       }
       const _newVariation = String(pd.variation || item.variation || '');

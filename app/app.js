@@ -602,7 +602,7 @@ function buildPersonalRow(fields) {
     // 2026-11-07 the COTT renumber: for the five renumbered Postwar numbers a copy
     // that carries no link keeps none here — on the new catalog its OLD number
     // would name a different engine. The catch-up links it (rrVarRenumberCatchUp).
-    const _rnHold = (typeof rrVarRenumberHolds === 'function') && rrVarRenumberHolds({ itemNum: inum, masterKey: fields.masterKey || '', era: fields.era || '' });
+    const _rnHold = (typeof rrVarRenumberHolds === 'function') && rrVarRenumberHolds({ itemNum: inum, variation: vari, masterKey: fields.masterKey || '', era: fields.era || '' });   // 2026-11-08: + variation (a Nabisco sheet's position)
     if (_mki !== undefined && !_rnHold && (fields.masterKey === undefined || fields.masterKey === '') && _mm
         && typeof rrMasterKeyOf === 'function') {
       row[_mki] = rrMasterKeyOf(_mm);

@@ -240,8 +240,8 @@ const DRAWN_CHECK = `(function () {
   // Each known door: file + a piece of its line + why it is safe. A NEW line that
   // writes masterKey / masterRowId turns this red until it is looked at.
   const DOORS = [
-    ['app-collection.js', 'rrMasterRowIdOf(_entry)', 'Change catalog entry: the variation is SET from the picked entry, then rrPersonalUpdateRow'],
-    ['app-collection.js', 'rrMasterKeyOf(_entry)', 'same'],
+    ['app-data.js', 'rrMasterRowIdOf(entry)', 'rrCopyFieldsFromEntry (2026-11-08: Change catalog entry + the Nabisco → Paper pass): the variation is SET from the picked entry, then rrPersonalUpdateRow'],
+    ['app-data.js', 'rrMasterKeyOf(entry)', 'same'],
     ['app-collection.js', 'rrMasterKeyOf(_nm)', 'variation changed: findMaster WITH the variation, then rrPersonalUpdateRow (rrFixRowLink)'],
     ['app-collection.js', 'rrMasterRowIdOf(_nm)', 'same'],
     ['app-collection.js', "masterRowId: pd.masterRowId || ''", 'panel save → rrPersonalUpdateRow → buildPersonalRow + rrFixRowLink'],
