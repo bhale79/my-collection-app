@@ -1,6 +1,6 @@
 {
 "format": "rr-trainz-diagrams-1",
-"pulled": "2026-11-03",
+"pulled": "2026-11-09",
 "source": "newwishes.trainz.com/api/parts-diagrams/summary (Trainz’s own feed); every page opened, \"Diagram not found\" pages left out",
 "count": 715,
 "diagrams": [
@@ -3512,27 +3512,27 @@
 {
 "n": "SD70MAC",
 "t": "Lionel LTI SD70MAC - Command & Command Ready",
-"h": "lionel-lti-sd70mac-command-ready-command-controlled"
+"h": "lionel-lti-sd70mac-command-command-ready-parts-diagram"
 },
 {
 "n": "SD60MAC",
 "t": "Lionel LTI SD60MAC - Command & Command Ready",
-"h": "lionel-lti-sd70mac-command-ready-copy"
+"h": "lionel-lti-sd60mac-command-command-ready-parts-diagram"
 },
 {
 "n": "SD60MAC|SD70MAC",
 "t": "Lionel LTI SD60MAC & SD70MAC Command Ready & Command Equippe",
-"h": "lti-sd60mac-sd70mac-command-ready-command-equipped-wiring-schematic"
+"h": "lionel-lti-sd60mac-sd70mac-command-ready-command-equipped-wiring-schematic"
 },
 {
 "n": "618720",
 "t": "Lionel LTI 6-18720 Union Army 4-4-0 General",
-"h": "lionel-lti-6-18720-union-army-4-4-0-general"
+"h": "lionel-lti-6-18720-union-army-4-4-0-general-parts-diagram"
 },
 {
 "n": "",
 "t": "Lionel LTI FT Powered A unit Command Ready & Command",
-"h": "lionel-lti-ft-powered-a-unit-command-ready-command"
+"h": "lionel-lti-ft-powered-a-unit-command-ready-command-parts-diagram"
 },
 {
 "n": "",
@@ -3542,27 +3542,27 @@
 {
 "n": "",
 "t": "Lionel LTI FT Non-Powered B Unit",
-"h": "lionel-lti-ft-non-powered-b-unit"
+"h": "lionel-lti-ft-non-powered-b-unit-exploded-parts-diagram"
 },
 {
 "n": "",
 "t": "Lionel LTI FT Non-Powered A Unit",
-"h": "lionel-lti-ft-non-powered-a-unit"
+"h": "lionel-lti-ft-non-powered-a-unit-exploded-parts-diagram"
 },
 {
 "n": "618319",
 "t": "Lionel LTI 6-18319 New Haven EP-5 w/TMCC & Railsounds",
-"h": "lionel-lti-6-18319-new-haven-ep-5"
+"h": "lionel-lti-6-18319-new-haven-ep-5-w-tmcc-railsounds-parts-diagram"
 },
 {
 "n": "618965",
 "t": "Lionel LTI 6-18965 Santa Fe PB-1 w/Railsounds",
-"h": "lionel-lti-6-18965-santa-fe-pb-1-w-railsounds"
+"h": "lionel-lti-6-18965-santa-fe-pb-1-w-railsounds-parts-diagram"
 },
 {
 "n": "618966",
 "t": "Lionel LTI 6-18966 NYC PB-1 w/Railsounds",
-"h": "lionel-lti-6-18966-nyc-pb-1-w-railsounds"
+"h": "lionel-lti-6-18966-nyc-pb-1-w-railsounds-parts-diagram"
 },
 {
 "n": "618965|618966",
@@ -3571,8 +3571,8 @@
 },
 {
 "n": "618721",
-"t": "Lionel LTI 6-18721 Confederate Army 4-4-0 Genera",
-"h": "lionel-lti-6-18721-confederate-army-4-4-0-general-copy"
+"t": "Lionel LTI 6-18721 Confederate Army 4-4-0 General Tender",
+"h": "lionel-lti-6-18721-confederate-army-4-4-0-general-tender-parts-diagram"
 },
 {
 "n": "618720|618721",
