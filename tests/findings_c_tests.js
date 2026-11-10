@@ -17,6 +17,11 @@
 //       calls; the Safari engine merges them into ONE Back event, the Chrome
 //       engine fires two — and the app's count then swallowed the person's
 //       next real Back. Now one tick's pops become ONE history.go(-n).
+//       2026-11-09, second half (the live re-run still failed A7 on iPhone,
+//       iPad, Mac): the Safari engine ALSO drops a traversal asked for while
+//       an earlier one is still on its way (a beat apart, not the same tick —
+//       the Add window closes in two beats). Now ONE traversal is in flight
+//       at a time; the rest go out when its popstate lands (F17h–F17k).
 //   F18 the catalog's "Please select a filter…" prompt centred itself on the
 //       table, which is wider than the pane on an iPad in portrait — its right
 //       half was off the edge. Now it is pinned to the pane and as wide as it.
@@ -267,6 +272,114 @@ const launchWebkit = () => pw.webkit.launch();
     T('F17f pop, push, pop in one task: at most ONE traversal, and the person\'s next Back still closes what is below (Chrome engine)', r.two.filter(x => /^go/.test(x)).length <= 1 && r.sizeBefore === 1 && r.closedBase === 1 && r.size === 0, r);
     let wk2 = null; try { const w = await launchWebkit(); await w.close(); wk2 = launchWebkit; } catch (e) {}
     if (wk2) { const sr = await popPushPop(wk2); T('F17g …and on the Safari engine', sr.two.filter(x => /^go/.test(x)).length <= 1 && sr.sizeBefore === 1 && sr.closedBase === 1 && sr.size === 0, sr); }
+  }
+
+  // F17 second half (2026-11-09): two pops a BEAT apart — the second traversal must wait for the first's popstate
+  async function beatApart(engine, src, gap) {
+    const b = await engine(); const pg = await b.newPage();
+    // the listener goes in BEFORE back-stack.js loads, so it runs first (its own handler stops the event for everyone after it)
+    await pg.addInitScript(() => { window.__seq = []; window.addEventListener('popstate', () => { window.__seq.push('pop'); }); });
+    await pg.route('https://rr.test/**', r => r.fulfill({ contentType: 'text/html', body: '<!doctype html><body><script>' + src + '</script></body>' }));
+    await pg.goto('https://rr.test/app/');
+    const out = await pg.evaluate(async (gap) => {
+      window.__seq.length = 0; const hg = history.go.bind(history);
+      history.go = (n) => { window.__seq.push('go(' + n + ')'); return hg(n); };
+      window.__closedA = 0; BackStack.push('A', () => { window.__closedA++; });
+      BackStack.push('B', () => {}); BackStack.push('C', () => {});
+      BackStack.pop('C');
+      if (gap === 'microtask') { await Promise.resolve(); await Promise.resolve(); } else { await new Promise(r => setTimeout(r, 0)); }
+      BackStack.pop('B');                                 // a beat later — the element watcher's pop, the Add window's second step
+      await new Promise(r => setTimeout(r, 700));
+      const seq = window.__seq.slice(), stillOpen = BackStack.size(), closedBefore = window.__closedA;
+      history.back();                                     // the person presses Back
+      await new Promise(r => setTimeout(r, 700));
+      return { seq, stillOpen, closedBefore, closedA: window.__closedA, size: BackStack.size() };
+    }, gap);
+    await b.close(); return out;
+  }
+  {
+    const waited = s => s.seq.join(' ') === 'go(-1) pop go(-1) pop';     // the second ask only AFTER the first answer
+    for (const gap of ['microtask', 'task']) {
+      const c = await beatApart(launchChromium, BS, gap);
+      T('F17h two pops a ' + gap + ' apart: the second traversal waits for the first popstate (Chrome engine)', waited(c) && c.stillOpen === 1 && c.closedBefore === 0, c);
+      T('F17i …and the person\'s next Back closes the overlay below (Chrome engine, ' + gap + ')', c.closedA === 1 && c.size === 0, c);
+    }
+    let wk3 = null; try { const w = await launchWebkit(); await w.close(); wk3 = launchWebkit; } catch (e) {}
+    if (wk3) for (const gap of ['microtask', 'task']) {
+      const s = await beatApart(wk3, BS, gap);
+      T('F17j the SAME on the Safari engine (' + gap + ' apart): waited, overlay below open, the next Back closes it', waited(s) && s.stillOpen === 1 && s.closedBefore === 0 && s.closedA === 1 && s.size === 0, s);
+    }
+    // planted: no waiting — a traversal is asked for while the earlier one is still on its way
+    const guard = '    if (_goInFlight) return;               // _onPopState (or the timer) flushes again\n';
+    T('F17 P3 anchor present (once)', BS.split(guard).length === 2);
+    const eager = BS.replace(guard, '');
+    const pc = await beatApart(launchChromium, eager, 'microtask');
+    T('F17 P3 PLANTED (no waiting): the second traversal is asked for BEFORE the first answers → F17h would fail', pc.seq.slice(0, 2).join(' ') === 'go(-1) go(-1)', pc);
+    if (wk3) { const ps = await beatApart(wk3, eager, 'microtask'); T('F17 P4 PLANTED (no waiting) on the Safari engine: the person\'s Back is SWALLOWED → F17j would fail', ps.closedA === 0 && ps.size === 1, ps); }
+  }
+
+  // F17k a traversal the browser never answers (nowhere to go) is given up after a moment — a real Back is not swallowed for it
+  async function unanswered(engine, src) {
+    const b = await engine(); const pg = await b.newPage();
+    await pg.route('https://rr.test/**', r => r.fulfill({ contentType: 'text/html', body: '<!doctype html><body><script>' + src + '</script></body>' }));
+    await pg.goto('https://rr.test/app/');
+    const out = await pg.evaluate(async () => {
+      const hb = history.back.bind(history);
+      history.go = () => {};                               // the browser swallows the ask — no popstate ever comes
+      window.__closedB = 0; BackStack.push('A', () => {}); BackStack.push('B', () => { window.__closedB++; }); BackStack.push('C', () => {});
+      BackStack.pop('C');
+      await new Promise(r => setTimeout(r, 2200));         // past GO_ANSWER_MS
+      hb();                                                // the person presses Back → B must close
+      await new Promise(r => setTimeout(r, 600));
+      return { closedB: window.__closedB, size: BackStack.size() };
+    });
+    await b.close(); return out;
+  }
+  {
+    const u = await unanswered(launchChromium, BS);
+    T('F17k an unanswered traversal is given up after a moment: the person\'s Back still closes the overlay', u.closedB === 1 && u.size === 1, u);
+    let wk4 = null; try { const w = await launchWebkit(); await w.close(); wk4 = launchWebkit; } catch (e) {}
+    if (wk4) { const us = await unanswered(wk4, BS); T('F17k …and on the Safari engine (the one that drops a go with nowhere to go)', us.closedB === 1 && us.size === 1, us); }
+    const timer = '    _goTimer = setTimeout(_goUnanswered, GO_ANSWER_MS);\n';
+    T('F17 P5 anchor present (once)', BS.split(timer).length === 2);
+    const pu = await unanswered(launchChromium, BS.replace(timer, ''));
+    T('F17 P5 PLANTED (no give-up timer): the person\'s Back is SWALLOWED → F17k would fail', pu.closedB === 0 && pu.size === 2, pu);
+  }
+
+  // F17l a push while a traversal is on its way (no step owed) waits for its answer — the new entry is not stranded
+  async function pushInFlight(engine, src) {
+    const b = await engine(); const pg = await b.newPage();
+    await pg.addInitScript(() => { window.__pagePops = 0; window.addEventListener('popstate', () => { window.__pagePops++; }); });
+    await pg.route('https://rr.test/**', r => r.fulfill({ contentType: 'text/html', body: '<!doctype html><body><script>' + src + '</script></body>' }));
+    await pg.goto('https://rr.test/app/');
+    const out = await pg.evaluate(async () => {
+      const w = ms => new Promise(r => setTimeout(r, ms));
+      for (let i = 0; i < 3; i++) history.pushState({ floor: i }, '', '');   // room below the floor
+      const closed = []; const push = id => BackStack.push(id, () => { closed.push(id); });
+      push('A'); push('B'); BackStack.pop('B');            // go(-1) on its way…
+      await w(0); push('C');                               // …and a beat later a new window opens
+      await w(700);
+      const sizeBefore = BackStack.size(), lenBefore = history.length, popsBefore = window.__pagePops;
+      history.back(); await w(600);                         // closes C
+      history.back(); await w(600);                         // closes A — and must NOT step below the floor as well
+      const reached = window.__pagePops - popsBefore;       // page-level popstates (the init listener sees every one)
+      const landed = (history.state && history.state.floor !== undefined) ? history.state.floor : null;   // the floor entry (2) — or below it
+      return { sizeBefore, lenBefore, closed, size: BackStack.size(), reached, landed };
+    });
+    await b.close(); return out;
+  }
+  {
+    // two real Backs → two popstates (closes C, then A) and the page sits on the floor entry again; with the new entry stranded in the forward list the second Back lands BELOW the floor (one more Back than windows)
+    const ok = r => r.sizeBefore === 2 && r.closed.join('') === 'CA' && r.size === 0 && r.reached === 2 && r.landed === 2;
+    const c = await pushInFlight(launchChromium, BS);
+    T('F17l a window opened while a rewind is on its way: two Backs close the two windows, nothing more (Chrome engine)', ok(c), c);
+    let wk5 = null; try { const w = await launchWebkit(); await w.close(); wk5 = launchWebkit; } catch (e) {}
+    if (wk5) { const s = await pushInFlight(wk5, BS); T('F17l …and on the Safari engine', ok(s), s); }
+    const defer = '      _pushesDeferred++;                          // 2026-11-09: added the moment the traversal on its way lands\n';
+    T('F17 P6 anchor present (once)', BS.split(defer).length === 2);
+    const eager = BS.replace(defer, "      try { history.pushState(state, '', ''); } catch (e) {}\n");
+    const pc = await pushInFlight(launchChromium, eager);
+    T('F17 P6 PLANTED (pushed at once): the new entry is stranded — the second Back lands below the floor → F17l would fail', !ok(pc) && pc.landed !== 2, pc);
   }
 
   // ── F18 ──

@@ -59,9 +59,32 @@
   // adding one (the step owed and the new entry cancel out), so "close one,
   // open another" — and the review's pop, push, pop in one run — never ask
   // for two traversals.
+  // ══ 2026-11-08 (finding 17, second half — the live re-run still failed A7) ══
+  // Gathering one script run's steps was not enough: the Safari engine also
+  // drops a traversal asked for while an EARLIER one is still on its way
+  // (history.go is answered a moment later; a second go before that answer
+  // is merged into the first — one popstate for two asks). The Add window
+  // closes in beats, not at once: its own entry and the entries of the
+  // wired sub-overlays inside it (their element watchers pop a microtask
+  // later), so its steps were asked for a beat apart and Safari answered
+  // once. So now ONE traversal is in flight at a time: steps asked for while
+  // one is on its way wait, and go out together the moment its popstate
+  // lands. A push while one is on its way (and no step owed) waits the same
+  // moment — asked at once, its new entry would be stranded in the forward
+  // list when the traversal lands and the floor would sit one entry too low.
+  // A traversal that is never answered (nowhere to go) is given up after a
+  // moment and its ignore is taken back, so a real Back is never swallowed
+  // for it; the give-up itself waits one more turn first, so an answer that
+  // is already queued behind it gets its turn.
   var _backsPending = 0, _backFlushQueued = false;
+  var _goInFlight = false, _goTimer = null, _pushesDeferred = 0;
+  var GO_ANSWER_MS = 1500;     // a same-document traversal answers in a few ms; this is a safety net
   function _queueBack() {
+    if (_pushesDeferred > 0) { _pushesDeferred--; return; }   // an entry not yet added and a step owed cancel out
     _backsPending++;
+    _queueFlush();
+  }
+  function _queueFlush() {
     if (_backFlushQueued) return;
     _backFlushQueued = true;
     try { Promise.resolve().then(_flushBacks); }
@@ -69,6 +92,7 @@
   }
   function _flushBacks() {
     _backFlushQueued = false;
+    if (_goInFlight) return;               // _onPopState (or the timer) flushes again
     var n = _backsPending; _backsPending = 0;
     if (!n) return;
     // never ask for more steps than the history holds — a traversal that goes
@@ -76,9 +100,36 @@
     try { var have = (history.length || 1) - 1; if (n > have) n = have; } catch (e) {}
     if (n <= 0) return;
     _ignorePops++;
+    _goInFlight = true;
+    _goTimer = setTimeout(_goUnanswered, GO_ANSWER_MS);
     try { history.go(-n); }
-    catch (e) { _ignorePops = Math.max(0, _ignorePops - 1); }
+    catch (e) { _goAnswered(true); }
   }
+  function _goAnswered(failed) {
+    if (_goTimer) { clearTimeout(_goTimer); _goTimer = null; }
+    _goUnanswered._again = false;
+    _goInFlight = false;
+    if (failed) _ignorePops = Math.max(0, _ignorePops - 1);
+    while (_pushesDeferred > 0) {                 // the entries that waited for this answer
+      _pushesDeferred--;
+      try { history.pushState(_stateFor(_stack.length ? _stack[_stack.length - 1].id : ''), '', ''); }
+      catch (e) { console.warn('[BackStack] pushState failed:', e); }
+    }
+    if (_backsPending > 0) _queueFlush();
+  }
+  function _goUnanswered() {
+    _goTimer = null;
+    if (!_goInFlight) return;
+    if (!_goUnanswered._again) {                  // one more turn: an answer already queued goes first
+      _goUnanswered._again = true;
+      _goTimer = setTimeout(_goUnanswered, 0);
+      return;
+    }
+    _goUnanswered._again = false;
+    _log('history.go went unanswered — taking back its ignore');
+    _goAnswered(true);
+  }
+  function _stateFor(id) { var st = {}; st[CFG.stateKey] = id; return st; }
 
   function _log() {
     if (!CFG.debug) return;
@@ -97,6 +148,7 @@
     if (_ignorePops > 0) {
       _ignorePops--;
       _log('ignoring self-triggered popstate');
+      if (_goInFlight) _goAnswered(false);
       // Session 159: also stop propagation so app.js's dashboard back handler
       // doesn't see this and flash "Press back again to exit" after wizard close.
       if (typeof e.stopImmediatePropagation === 'function') {
@@ -132,13 +184,14 @@
     for (var i = _stack.length - 1; i >= 0; i--) {
       if (_stack[i].id === id) { _stack.splice(i, 1); break; }
     }
-    var state = {};
-    state[CFG.stateKey] = id;
+    var state = _stateFor(id);
     if (_backsPending > 0) {
       // 2026-11-07: a step still owed + a new entry = the top entry changes hands, no traversal
       _backsPending--;
       try { history.replaceState(state, '', ''); }
       catch (e) { console.warn('[BackStack] replaceState failed:', e); }
+    } else if (_goInFlight) {
+      _pushesDeferred++;                          // 2026-11-09: added the moment the traversal on its way lands
     } else {
       try { history.pushState(state, '', ''); }
       catch (e) { console.warn('[BackStack] pushState failed:', e); }
