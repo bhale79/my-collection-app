@@ -1492,7 +1492,10 @@ function _rbCellVal(key, pd, master, row) {
     case 'eraPeriod':     return row.era ? (_RB_ERA_LABELS[row.era] || '') : '';
     case 'yearMade':      return pd.yearMade || master.yearProd || '';
     case 'variation':     return pd.variation || '';
-    case 'varDesc':       return master.varDesc || master.variationDesc || pd.variationDescription || '';
+    case 'varDesc': {     // 2026-11-08 (notsure): only the copy's OWN variation's words (rrCopyRowView, app-data.js)
+      var _mv = (pd && pd.itemNum && typeof rrCopyRowView === 'function') ? rrCopyRowView(master, pd) : master;
+      return (_mv === master ? (master.varDesc || master.variationDesc || '') : '') || pd.variationDescription || '';
+    }
     case 'roadName':      return pd.roadName || master.roadName || '';
     case 'roadNumber':    return pd.roadNumber || master.roadNumber || '';
     case 'condition':     return pd.condition || '';

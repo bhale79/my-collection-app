@@ -341,7 +341,8 @@ async function rrLinkOwnedToGroup(copyKey, targetGid, opts) {
     _rrLinkSay('inSet', pd, { set: rrSetLabelOfGroup(cur) });
     return { ok: false, reason: 'inSet', set: rrSetLabelOfGroup(cur), moved: [] };
   }
-  if (rrLinkOwnedToGroup._busy) { _rrLinkSay('busy', pd); return { ok: false, reason: 'busy', moved: [] }; }
+  var checkOnly = !!(opts && opts.checkOnly);   // 2026-11-08 (setfix): ask every question, write nothing
+  if (rrLinkOwnedToGroup._busy && !checkOnly) { _rrLinkSay('busy', pd); return { ok: false, reason: 'busy', moved: [] }; }
   // The copy and everything grouped with it.
   var members = [];
   if (cur) {
@@ -357,6 +358,7 @@ async function rrLinkOwnedToGroup(copyKey, targetGid, opts) {
     var mm = all[members[i]];
     if (!mm.row || Number(mm.row) === 99999) { _rrLinkSay('noRow', mm); return { ok: false, reason: 'noRow', moved: [] }; }
   }
+  if (checkOnly) return { ok: true, checked: true, moved: [] };
   rrLinkOwnedToGroup._busy = true;
   try {
     var sid = state.personalSheetId;
@@ -413,6 +415,138 @@ async function rrLinkOwnedToGroup(copyKey, targetGid, opts) {
 }
 rrLinkOwnedToGroup._busy = false;
 if (typeof window !== 'undefined') { window.rrLinkOwnedToGroup = rrLinkOwnedToGroup; window.rrSetLabelOfGroup = rrSetLabelOfGroup; }
+
+// ══ 2026-11-08 (setfix) — "USE THE ONE I HAVE" JOINS THE SET WHEN IT SAVES ══
+// Hand-test T-2026-11-04-05: adding catalog set 2124W, "Use the one I have"
+// stamped Brad's 2332 with the set's Group ID AT ONCE — three cars before the
+// set existed. Cancelling the walk then went worse than "left linked": the
+// cancel removes every row carrying the set's Group ID (rrRemoveSetGroup), so
+// "Yes, Delete All" deleted the engine he already owned, with its box. An
+// abandoned walk left it in the "Unfinished set entry" notice, whose Remove
+// does the same.
+// Now the walk only CHECKS the copy when it is picked (rrLinkOwnedToGroup with
+// checkOnly — the same refusals, nothing written) and remembers it
+// (d._setUsedOwned). THIS is the one place it is written: saveSet calls it once
+// the set's My Sets row is on the sheet. Cancel, Discard, Back, or closing the
+// app before then leave the copy exactly as it was.
+// Guard (double execution): d._setOwnedLinked is set before the first write, so
+// a second call — a double save, a re-entry — writes nothing.
+// Returns { linked: [keys], refused: [keys] }.
+async function rrSetLinkUsedOwned(d, gid, target) {
+  var out = { linked: [], refused: [] };
+  if (!d || d._setOwnedLinked) return out;
+  d._setOwnedLinked = true;
+  var keys = (d._setUsedOwned || []).slice();
+  for (var i = 0; i < keys.length; i++) {
+    var r = null;
+    try { r = await rrLinkOwnedToGroup(keys[i], gid, { target: target }); } catch (e) { r = null; }
+    if (r && r.ok) out.linked.push(keys[i]); else out.refused.push(keys[i]);
+  }
+  return out;
+}
+if (typeof window !== 'undefined') window.rrSetLinkUsedOwned = rrSetLinkUsedOwned;
+
+// ══ 2026-11-08 (setfix, coordinator: the same root as "use the one I have") ══
+// WHAT A SET WALK ADDED — the one record Cancel deletes from.
+// The walk's Cancel used to remove EVERY row carrying the walk's Group ID
+// (rrRemoveSetGroup). A set started from an item page's "Add Another Item"
+// walks under THAT item's existing group (rrAddToGroupId), so "Yes, Delete All"
+// deleted the item it was started from and everything already grouped with it.
+// Now each save inside a walk (saveWizardItem, quickEntryAdd) RECORDS what it
+// created, in d._setAddedKeys — one record per row:
+//   { key, inv, num, gid }  store key, inventory ID, item number, Group ID
+// A row is recorded only if it is new since that save began (`before`, its
+// snapshot of store keys) AND it is the walk's: it carries the walk's Group ID
+// (opts.gid), or its id was minted by THIS save (opts.minted — quick entry's
+// rows carry their own group). So a row another device's data brings in during
+// the save (a refresh, the outbox's re-read — review finding 1) is never taken
+// for the walk's. The list is ONE array shared from piece to piece
+// (launchSetItemWizard carries it; this pushes into it), so a record made in a
+// save's finally — a save that failed half-way, review finding 2 — still
+// reaches the next piece. The cancel deletes only rows that still match their
+// record (rrSetWalkAddedNow, wizard.js); a finished save never reads the list.
+function rrSetWalkRecordAdded(d, before, opts) {
+  if (!d) return [];
+  opts = opts || {};
+  var gid = String(opts.gid || '');
+  var minted = (opts.minted || []).map(String);
+  var had = {};
+  (before || []).forEach(function (k) { had[k] = 1; });
+  if (!Array.isArray(d._setAddedKeys)) d._setAddedKeys = [];
+  var list = d._setAddedKeys;
+  var pdAll = (typeof state !== 'undefined' && state.personalData) || {};
+  Object.keys(pdAll).forEach(function (k) {
+    if (had[k]) return;
+    var p = pdAll[k];
+    if (!p || !p.owned) return;
+    var inv = String(p.inventoryId || '');
+    var ours = (gid && String(p.groupId || '') === gid) || (inv && minted.indexOf(inv) >= 0) || minted.indexOf(String(k)) >= 0;
+    if (!ours) return;
+    if (list.some(function (r) { return r && r.key === k && r.inv === inv; })) return;
+    list.push({ key: k, inv: inv, num: String(p.itemNum || ''), gid: String(p.groupId || '') });
+  });
+  return list;
+}
+// Review 2 finding 3: the walk's Cancel puts back a piece you already had that
+// one of its saves linked into the walk's group (a box, tender, partner or
+// instruction sheet adopted on a piece's Confirm step). Only while the row still
+// carries the walk's group, through the same identity-checked writer the
+// adoption used. Once per walk (d._setUnadopted).
+async function rrSetWalkUnadopt(d) {
+  if (!d || d._setUnadopted || !Array.isArray(d._setAdopted) || !d._setAdopted.length) return 0;
+  d._setUnadopted = true;
+  var n = 0;
+  for (var i = 0; i < d._setAdopted.length; i++) {
+    var a = d._setAdopted[i];
+    if (!a || !a.inv) continue;
+    var bucket = a.src === 'is' ? (state.isData || {}) : (state.personalData || {});
+    var key = null;
+    Object.keys(bucket).some(function (k) {
+      var p = bucket[k];
+      if (p && String(p.inventoryId || '') === a.inv && String(p.groupId || '') === a.gid
+          && String(p.itemNum || p.sheetNum || '') === a.num) { key = k; return true; }
+      return false;
+    });
+    if (!key) continue;
+    var p = bucket[key], ok = true;
+    if (p.row && Number(p.row) !== 99999 && state.personalSheetId) {
+      try {
+        ok = a.src === 'is'
+          ? await rrVerifiedRowUpdate(state.personalSheetId, 'Instruction Sheets', p.row, 'Instruction Sheets!H' + p.row, [[a.prev]], { num: p.itemNum || '' }, 'Instruction Sheets list')
+          : await rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, p.row, PERSONAL_TAB + '!' + personalColLetter('groupId') + p.row, [[a.prev]], { num: p.itemNum || '', invId: p.inventoryId || '' }, 'collection');
+      } catch (e) { ok = false; }
+    }
+    if (ok) { p.groupId = a.prev; n++; }
+  }
+  try { if (n && typeof _cachePersonalData === 'function') _cachePersonalData(); } catch (eC) {}
+  return n;
+}
+if (typeof window !== 'undefined') window.rrSetWalkUnadopt = rrSetWalkUnadopt;
+// Review finding 1: the outbox re-mints a queued row's inventory ID when that
+// id turned out to belong to a different real item (app-data.js, 'rr-remint').
+// The walk's record follows the row to its new id, so Cancel deletes the piece
+// it added — never the other item that now wears the old id.
+if (typeof document !== 'undefined') {
+  document.addEventListener('rr-remint', function (ev) {
+    try {
+      var x = (ev && ev.detail) || {};
+      var list = (typeof wizard !== 'undefined' && wizard && wizard.data && wizard.data._setAddedKeys) || [];
+      list.forEach(function (r) {
+        if (r && typeof r === 'object' && r.inv === String(x.from) && r.num === String(x.num || '')) {
+          // the row is keyed by its id once the sheet is read back — a temp_ key
+          // too (review 2 finding 4); rrSetWalkAddedNow also finds it by id.
+          // Review 3 gap 3: until that read-back (a re-mint whose send then
+          // failed), the piece in memory still wears the OLD id — kept in
+          // r.prev, so the Cancel still finds it (number and group must match).
+          r.prev = (r.prev || []).concat([r.inv]);
+          r.key = String(x.to);
+          r.inv = String(x.to);
+        }
+      });
+    } catch (e) {}
+  });
+}
+if (typeof window !== 'undefined') window.rrSetWalkRecordAdded = rrSetWalkRecordAdded;
 
 // ══ v0.9.2072 — INBOX PHOTOS FOR A ROW OUTSIDE THE COLLECTION TAB ══════════
 // PLAN_2026-10-30_INBOX_PAPER_SAVES.md. An add that started in the Photo Inbox
@@ -675,11 +809,13 @@ function launchSetItemWizard() {
   const _setGroupId      = rrAddToGroupId(d) || d._setGroupId;   // v0.9.2029: a set added through "Add Another Item" joins that group
   // 2026-11-03 (PLAN_2026-11-03_GROUP_EXISTING.md item 3): this piece may already
   // be in the collection. Asked ONCE per slot (d._setOwnedAsked[idx]) — "use the
-  // one I have" stamps that copy with the set's Group ID through the one stamp
-  // (rrLinkOwnedToGroup) and moves on to the next piece; "add another copy"
-  // walks the Add steps exactly as before. A refused stamp (the copy sits in
-  // another set, or its row changed) falls through to the Add steps, with the
-  // reason already said. Copies already used by this set are not offered twice.
+  // one I have" checks that copy (the one stamp's own refusals, nothing written)
+  // and remembers it; it is stamped with the set's Group ID only when the set
+  // saves (2026-11-08 setfix: rrSetLinkUsedOwned, called by saveSet). "Add
+  // another copy" walks the Add steps exactly as before. A refused check (the
+  // copy sits in another set, or is not on the sheet yet) falls through to the
+  // Add steps, with the reason already said. Copies already used by this set are
+  // not offered twice.
   if (typeof rrSetOwnedPieceAsk === 'function' && typeof rrSetOwnedCandidates === 'function') {
     const _asked = d._setOwnedAsked || {};
     if (!_asked[idx]) {
@@ -689,10 +825,16 @@ function launchSetItemWizard() {
         const _setLbl = d._resolvedSet ? ('Set ' + d._resolvedSet.setNum) : (d._ownSetName || 'your set');
         rrSetOwnedPieceAsk(itemNum, _cands, {
           onUse: async function (pickKey) {
-            const r = await rrLinkOwnedToGroup(pickKey, _setGroupId, { target: _setLbl });
+            // 2026-11-08 (setfix): CHECKED now, written when the set saves
+            // (saveSet → rrSetLinkUsedOwned) — never before the set exists.
+            const r = await rrLinkOwnedToGroup(pickKey, _setGroupId, { target: _setLbl, checkOnly: true });
             if (!r || !r.ok) { launchSetItemWizard(); return; }   // falls through to the Add steps
             const _used = d._setUsedOwned || []; _used.push(pickKey); d._setUsedOwned = _used;
             const _saved = d._setItemsSaved || []; _saved.push(itemNum); d._setItemsSaved = _saved;
+            try {
+              const _wj = (typeof RR_LINK_OWNED !== 'undefined' && RR_LINK_OWNED.setFlow) ? RR_LINK_OWNED.setFlow.willJoin : '';
+              if (_wj && typeof showToast === 'function') showToast(_wj.replace('{num}', String((state.personalData[pickKey] || {}).itemNum || itemNum)).replace('{target}', _setLbl), 4000);
+            } catch (eW) {}
             d._setItemIndex = idx + 1;
             try { buildDashboard(); renderBrowse(); } catch (eB) {}
             launchSetItemWizard();
@@ -765,6 +907,11 @@ function launchSetItemWizard() {
     // 2026-11-03 (GROUP_EXISTING): which slots were already asked "use the one I
     // have", and which copies said yes (the own set's details ride in _setCarry above)
     _setOwnedAsked: d._setOwnedAsked, _setUsedOwned: d._setUsedOwned,
+    // 2026-11-08 (setfix): the rows this walk has ADDED so far — ONE array, shared
+    // from piece to piece (rrSetWalkRecordAdded pushes into it); Cancel deletes only these
+    _setAddedKeys: Array.isArray(d._setAddedKeys) ? d._setAddedKeys : (d._setAddedKeys = []),
+    // …and the pieces you already had that this walk linked in (Cancel puts them back)
+    _setAdopted: Array.isArray(d._setAdopted) ? d._setAdopted : (d._setAdopted = []),
     tenderMatch: 'none',  // Prevent paired engine+tender detection
     setMatch: '',          // Prevent set detection
     // For the locomotive (item 0): pre-fill purchase fields
@@ -896,13 +1043,22 @@ async function saveSet() {
   // with two different inventory IDs and no error. The others are protected
   // today only by statement ORDER, which is not written down anywhere.
   if (wizard.data._saveComplete) { console.warn('[Save] Blocked \u2014 this item was already saved'); return; }
+  // 2026-11-08 (setfix): _saveComplete is only set at the END, after the awaits
+  // below — a second Save pressed while the first is still writing got through.
+  // Now there are writes here that must happen once (the My Sets row, and the
+  // copies picked with "use the one I have"), so the guard holds from the start.
+  if (wizard.data._setSaveLock) { console.warn('[Save] Blocked \u2014 the set is already being saved'); return; }
+  wizard.data._setSaveLock = true;
 
   // Items were already saved one-by-one via saveWizardItem.
   // This function now only records set box notes and closes.
   const d = wizard.data;
   const isOwnSet = !!d._ownSet;
   const setNum  = isOwnSet ? (d._ownSetNum || d.set_num || '') : (d._resolvedSet ? d._resolvedSet.setNum : (d.set_num || ''));
-  const groupId = d._setGroupId || '';
+  // 2026-11-08 (setfix, review finding 6): a set started from an item page's
+  // "Add Another Item" belongs to THAT item's group — even when every piece was
+  // "use the one I have" and no piece save ever moved d._setGroupId off SET-.
+  const groupId = ((typeof rrAddToGroupId === 'function') ? rrAddToGroupId(d) : '') || d._setGroupId || '';
   const saved   = d._setItemsSaved || [];
 
   // Upload set box photos if any
@@ -925,6 +1081,7 @@ async function saveSet() {
   }
 
   // Write My Sets record
+  let _ownedLink = null;   // 2026-11-08 (setfix): what "use the one I have" did, once the set exists
   try {
     const _resolvedSet = d._resolvedSet;
     const year = isOwnSet ? (d._ownSetYear || '') : (_resolvedSet ? (_resolvedSet.year || '') : '');
@@ -955,12 +1112,26 @@ async function saveSet() {
       photoLink: '', notes: d.set_notes || '', quickEntry: false, inventoryId: _msInvId2,
       manufacturer: mySetsRow[14],
     };
+    // 2026-11-08 (setfix): the set is on the sheet — NOW the copies picked with
+    // "use the one I have" join it (never before; a cancelled walk leaves them
+    // as they were). If the row above failed, this line is never reached.
+    if (groupId && (d._setUsedOwned || []).length && typeof rrSetLinkUsedOwned === 'function') {
+      _ownedLink = await rrSetLinkUsedOwned(d, groupId, setNum ? ('Set ' + setNum) : ((isOwnSet ? d._ownSetName : '') || 'your set'));
+    }
   } catch(e) { rrSaveMissed(e, 'the set\u2019s entry in My Sets'); }   // v0.9.2048 (C17): was console-only — the items saved, the set's own row did not, unsaid
 
   localStorage.removeItem((typeof rrPersonalCacheKey === 'function' ? rrPersonalCacheKey('') : 'lv_personal_cache'));
   localStorage.removeItem((typeof rrPersonalCacheKey === 'function' ? rrPersonalCacheKey('ts') : 'lv_personal_cache_ts'));
   wizard.data._saveComplete = true;
-  showToast('\u2713 ' + (setNum || (isOwnSet ? d._ownSetName : '') || 'Set') + ' complete \u2014 ' + saved.length + ' item' + (saved.length !== 1 ? 's' : '') + ' in your collection!');
+  const _refused = (_ownedLink && _ownedLink.refused) || [];
+  const _inSet = saved.length - _refused.length;
+  if (_refused.length) {
+    const _nums = _refused.map(function (k) { return String((state.personalData[k] || {}).itemNum || ''); }).filter(Boolean).join(', ');
+    const _nj = (typeof RR_LINK_OWNED !== 'undefined' && RR_LINK_OWNED.setFlow) ? RR_LINK_OWNED.setFlow.notJoined : '';
+    showToast('\u2713 ' + (setNum || (isOwnSet ? d._ownSetName : '') || 'Set') + ' complete \u2014 ' + _inSet + ' item' + (_inSet !== 1 ? 's' : '') + '. ' + _nj.replace('{nums}', _nums || 'One piece'), 9000, true);
+  } else {
+    showToast('\u2713 ' + (setNum || (isOwnSet ? d._ownSetName : '') || 'Set') + ' complete \u2014 ' + saved.length + ' item' + (saved.length !== 1 ? 's' : '') + ' in your collection!');
+  }
   _doCloseWizard();
   buildDashboard();
   renderBrowse();
@@ -1710,6 +1881,9 @@ async function saveWizardItem() {
   // v0.9.2071: backstop — never write to a list switched off in this collection.
   if (wizard.tab && typeof rrAddAllowed === 'function' && !rrAddAllowed(wizard.tab)) return;
   var _rrSoldLeft = [];   // STALEPAGE: the Inventory IDs this sale took out of the collection — their page follows (rrCopyLeftCollection)
+  // 2026-11-08 (setfix): inside a set walk, what was in the collection BEFORE
+  // this save — so the set branch below can record what this save ADDED.
+  var _rrSetBefore = d._setMode ? Object.keys(state.personalData || {}) : null;
   // Bug 11 (Session 154): make sure any in-flight photo uploads have finished
   // so their Drive URLs are in photosItem before we build the row.
   if (typeof _awaitPhotoUploads === 'function' && (d._photoUploadsInFlight || 0) > 0) {
@@ -2320,6 +2494,14 @@ async function saveWizardItem() {
           var pdRow = c.pd;
           if (!pdRow || pdRow.groupId) return;
           pdRow.groupId = groupId;
+          // 2026-11-08 (setfix, review 2 finding 3): inside a set walk, a piece you
+          // already had is linked into the walk's group here — remembered, so the
+          // walk's Cancel can put it back (rrSetWalkUnadopt). It had no group.
+          if (d._setMode) {
+            if (!Array.isArray(d._setAdopted)) d._setAdopted = [];
+            d._setAdopted.push({ src: c.type === 'is' ? 'is' : 'pd', inv: String(pdRow.inventoryId || ''),
+              num: String(pdRow.itemNum || pdRow.sheetNum || ''), gid: String(groupId), prev: '' });
+          }
           if (pdRow.row && pdRow.row !== 99999) {
             // Route to the right sheet/column by candidate type
             if (c.type === 'is') {
@@ -2932,6 +3114,9 @@ async function saveWizardItem() {
         });
         _stampSaved(state.personalData[_setOptId]);
       } catch (eOpt) { console.warn('[set] optimistic insert:', eOpt); }
+      // 2026-11-08 (setfix): the rows THIS save created — the only rows the
+      // walk's Cancel may delete (rrSetWalkRecordAdded).
+      try { if (_rrSetBefore) rrSetWalkRecordAdded(d, _rrSetBefore, { gid: d._existingGroupId || d._setGroupId }); } catch (eAd) { console.warn('[set] added record:', eAd); }
       // v0.9.1122: THIS member is now on the sheet — arm its staged inbox
       // photo so the very next _flushPending (inside buildDashboard) files it.
       // Before this, set photos were armed at button-click time and filed
@@ -3216,5 +3401,12 @@ async function saveWizardItem() {
   // v0.9.1325: releases the in-flight lock opened at the top of this function.
   // In a finally so a throw anywhere above — including one the catch above
   // re-raises — cannot leave the wizard permanently unable to save.
-  } finally { d._wizSaveLock = false; }
+  } finally {
+    d._wizSaveLock = false;
+    // 2026-11-08 (setfix, review finding 2): a walk save that failed half-way
+    // (a box, sheet or carton append threw after earlier rows were stored) is
+    // recorded too, so the walk's Cancel can take those rows back. Same rules;
+    // a row already recorded is not recorded twice.
+    try { if (_rrSetBefore && d._setMode) rrSetWalkRecordAdded(d, _rrSetBefore, { gid: d._existingGroupId || d._setGroupId }); } catch (eAdF) {}
+  }
 }

@@ -21,7 +21,7 @@
 //   C  "Ordered it" (Parts Needed page + Maintenance card): writes ONLY the
 //      Status cell of THAT part's row, verified by its id; a double tap writes
 //      once; a part already bought is never pushed back; an ordered part stays
-//      on the Parts Needed list and in its count, with "Bought it" still there.
+//      on the Parts Needed list and in its count, with "✓ Got It" (was "Bought it" before R7) still there.
 //   D  the move left My Collection alone: rrCollDescText / rrFillRowThumbs are
 //      what the list calls (planted: a list with its own copy → caught).
 //
@@ -209,16 +209,20 @@ ok('D2 PLANTED: the description rule pasted back into the list → caught', list
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
       const pp0 = document.getElementById('page-parts'); if (pp0) pp0.classList.add('active');
       _renderPartsList();
+      // R7 (2026-11-08): a part card offers its steps as ONE main button + the ⋯ sheet (THE list layout) — read both.
+      window._offers = n => { const main = n.querySelector('.rr-lc-main'); const more = n.querySelector('.rr-lc-more'); const key = more ? ((more.getAttribute('onclick') || '').match(/rrListMenu\('([^']+)'\)/) || [])[1] : null;
+        const words = [main ? main.textContent.trim() : ''].concat(key && _rrListMenus[key] ? _rrListMenus[key].menu.map(m => m.label) : []);
+        return { text: n.textContent, words: words, ordered: words.indexOf(RR_PART_STATUS.orderedBtn) >= 0, bought: words.indexOf(RR_LIST_LAYOUT.gotIt) >= 0 }; };
       const rows = [...document.querySelectorAll('#parts-list > div, #parts-list .parts-row')];
       const html = document.getElementById('parts-list') ? document.getElementById('parts-list').innerHTML : '';
       const rowOf = word => { const all = [...document.querySelectorAll('#parts-list [onclick^="markPartBought"], #parts-list [onclick^="markPartOrdered"]')]; return all.length; };
-      const pick = desc => { const el = [...document.querySelectorAll('#parts-list *')].filter(e => e.children.length === 0 && e.textContent.trim() === desc)[0]; let n = el; for (let i = 0; i < 8 && n; i++) { n = n.parentElement; if (n && n.querySelector('button')) break; } return n ? { text: n.textContent, ordered: !!n.querySelector('[onclick^="markPartOrdered"]'), bought: !!n.querySelector('[onclick^="markPartBought"]') } : null; };
+      const pick = desc => { const el = [...document.querySelectorAll('#parts-list *')].filter(e => e.children.length === 0 && e.textContent.trim() === desc)[0]; let n = el; for (let i = 0; i < 8 && n; i++) { n = n.parentElement; if (n && n.querySelector('button')) break; } return n ? _offers(n) : null; };
       return { funnel: pick('SMOKE FUNNEL'), unit: pick('SMOKE UNIT'), tire: pick('TRACTION TIRE'), buttons: rowOf(), hasList: !!html };
     });
-    ok('C5 Parts Needed page: an ordered part says PART ORDERED and keeps "Bought it" (no second "Ordered it")', pp.funnel && /Part ordered/i.test(pp.funnel.text) && pp.funnel.bought && !pp.funnel.ordered, pp.funnel);
-    ok('C6 …a part in hand says PART ON HAND and shows neither "Ordered it" nor "Bought it"', pp.tire && !pp.tire.ordered && !pp.tire.bought && /Part on hand/i.test(pp.tire.text), pp.tire);
-    const pp2 = await pg.evaluate(() => { state.partsData.p3.status = 'wanted'; _renderPartsList(); const el = [...document.querySelectorAll('#parts-list *')].filter(e => e.children.length === 0 && e.textContent.trim() === 'SMOKE UNIT')[0]; let n = el; for (let i = 0; i < 8 && n; i++) { n = n.parentElement; if (n && n.querySelector('button')) break; } return { text: n.textContent, ordered: !!n.querySelector('[onclick^="markPartOrdered"]'), bought: !!n.querySelector('[onclick^="markPartBought"]') }; });
-    ok('C7 a part not yet ordered: NEED PART, with "Ordered it" and "Bought it"', /Need part/i.test(pp2.text) && pp2.ordered && pp2.bought, pp2);
+    ok('C5 Parts Needed page: an ordered part says PART ORDERED and keeps "✓ Got It" (no second "Ordered it")', pp.funnel && /Part ordered/i.test(pp.funnel.text) && pp.funnel.bought && !pp.funnel.ordered, pp.funnel);
+    ok('C6 …a part in hand says PART ON HAND and shows neither "Ordered it" nor "✓ Got It"', pp.tire && !pp.tire.ordered && !pp.tire.bought && /Part on hand/i.test(pp.tire.text), pp.tire);
+    const pp2 = await pg.evaluate(() => { state.partsData.p3.status = 'wanted'; _renderPartsList(); const el = [...document.querySelectorAll('#parts-list *')].filter(e => e.children.length === 0 && e.textContent.trim() === 'SMOKE UNIT')[0]; let n = el; for (let i = 0; i < 8 && n; i++) { n = n.parentElement; if (n && n.querySelector('button')) break; } return _offers(n); });
+    ok('C7 a part not yet ordered: NEED PART, with "Ordered it" and "✓ Got It"', /Need part/i.test(pp2.text) && pp2.ordered && pp2.bought, pp2);
     const card = fs.readFileSync(path.join(APP, 'maintenance.js'), 'utf8');
     ok('C8 the Maintenance card\'s part line offers "Ordered it" (the page\'s ONE writer) while a part is still needed',
       /window\._maintPartOrdered = async function \(partId, btn\) \{\s*if \(typeof markPartOrdered !== 'function'\) return;\s*await markPartOrdered\(partId, btn\);/.test(card)

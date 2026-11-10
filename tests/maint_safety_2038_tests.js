@@ -298,7 +298,8 @@ const ONCE = grab(MAINT, 'async function _once(key, fn)');
   const scanRows = (srcs) => Object.keys(srcs).filter(f => rowArg.test(srcs[f]));
   ok('no part button or call in app-pages.js / maintenance.js passes a sheet row', scanRows({ 'app-pages.js': PAGES, 'maintenance.js': MAINT }).length === 0, scanRows({ 'app-pages.js': PAGES, 'maintenance.js': MAINT }));
   ok('…the tick boxes in Add task carry the id', /name="maint-chore-part" value="' \+ _esc\(String\(p\.id\)\)/.test(MAINT));
-  ok('PLANTED: the old "Bought it" button (p.row) is caught', scanRows({ x: PAGES.replace("markPartBought(\\'' + rrJsArg(p.id) + '\\')", "markPartBought(' + p.row + ')") }).length === 1);
+  // R7 (2026-11-08): "Bought it" became "✓ Got It" and lives in the card's ⋯ sheet / main button (THE list layout)
+  ok('PLANTED: a "✓ Got It" that names the part by p.row is caught', PAGES.indexOf('run: function () { markPartBought(p.id); }') >= 0 && scanRows({ x: PAGES.replace('run: function () { markPartBought(p.id); }', 'run: function () { markPartBought(p.row); }') }).length === 1);
   ok('PLANTED: the old bin "Use it for" (f.part.row) is caught', scanRows({ x: MAINT.replace("_maintBinUseFor(\\'' + rrJsArg(b.id) + '\\',\\'' + rrJsArg(f.part.id) + '\\')", "_maintBinUseFor(\\'' + rrJsArg(b.id) + '\\',' + f.part.row + ')") }).length === 1);
 
   // ═══ A5 · typed text stays text ═══════════════════════════════════════

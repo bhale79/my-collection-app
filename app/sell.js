@@ -664,7 +664,8 @@ async function _sellSync() {
     var descBits = [];
     if (m.roadName) descBits.push(m.roadName);
     if (m.description && m.description !== m.roadName) descBits.push(m.description);
-    var vWords = String(m.varDesc || pd.variationDescription || '').replace(/\s+/g, ' ').trim();
+    var _mv = (typeof rrCopyRowView === 'function') ? rrCopyRowView(m, { itemNum: num, variation: vr }) : m;   // 2026-11-08 (notsure): only the copy's own variation's words
+    var vWords = String(_mv.varDesc || pd.variationDescription || '').replace(/\s+/g, ' ').trim();
     if (vWords) descBits.push(vWords.length > 120 ? vWords.slice(0, 117) + '…' : vWords);
     var desc = descBits.join(' — ') || (pd.description || m.itemType || num);
     var cond = (e.condition || pd.condition) ? (e.condition || pd.condition) + '/10' : '';

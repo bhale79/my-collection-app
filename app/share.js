@@ -713,10 +713,15 @@ async function _buildPDF(items, fields, message) {
     var pd     = it.pd     || {};
     var want   = it.want   || {};
     var fs     = it.fs     || {};
+    // 2026-11-08 (notsure): an owned copy's card shows the COPY's variation (rrCopyRowView,
+    // app-data.js) — a copy saved "not sure" sits on its item's Var 1 row, and every road into
+    // the builder (the item page, the list's share mode) hands that row over as `master`
+    var _ownCopy = !!(pd && pd.itemNum && typeof rrCopyRowView === 'function');
+    if (_ownCopy) master = rrCopyRowView(master, pd) || master;
 
     // Gather field values
     var itemNum = it.itemNum || '';
-    var varNum  = it.variation || '';
+    var varNum  = _ownCopy ? String(pd.variation == null ? '' : pd.variation).trim() : (it.variation || '');
     var varDesc = master.varDesc || '';
     var roadName = master.roadName || pd.roadName || '';
     var itemType = master.itemType || pd.itemType || '';

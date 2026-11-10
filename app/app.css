@@ -2140,46 +2140,72 @@ body.compact-mode .qa-tr-actions .qa-tr-btn {
   font-size: 0.72rem !important;
 }
 
-/* ── Want/Upgrade list: density, fit-to-width, responsive ── */
-#page-upgrade .item-table { table-layout: fixed; width: 100%; }
-#page-upgrade .item-table td, #page-upgrade .item-table th { padding: 0.42rem 0.55rem; }
-#page-upgrade .item-table th { line-height: 1.15; }
-#page-upgrade .item-table th:nth-child(1), #page-upgrade .item-table td:nth-child(1) { width: 116px; overflow: hidden; text-overflow: ellipsis; }
-#page-upgrade .item-table td:last-child { white-space: normal; }
-#page-upgrade .item-table td:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#page-upgrade .item-table th:nth-child(3), #page-upgrade .item-table td:nth-child(3) { width: 74px; }
-#page-upgrade .item-table th:nth-child(4), #page-upgrade .item-table td:nth-child(4) { width: 62px; }
-#page-upgrade .item-table th:nth-child(5), #page-upgrade .item-table td:nth-child(5) { width: 60px; }
-#page-upgrade .item-table th:nth-child(6), #page-upgrade .item-table td:nth-child(6) { width: 66px; }
-#page-upgrade .item-table th:nth-child(7), #page-upgrade .item-table td:nth-child(7) { width: 108px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#page-upgrade .item-table th:nth-child(8), #page-upgrade .item-table td:nth-child(8) { width: 186px; }
-#page-upgrade .item-table td:last-child { white-space: normal; }
-@media (max-width: 760px) {
-  #page-upgrade .item-table th:nth-child(3), #page-upgrade .item-table td:nth-child(3),
-  #page-upgrade .item-table th:nth-child(7), #page-upgrade .item-table td:nth-child(7),
-  #page-upgrade .item-table th:nth-child(8), #page-upgrade .item-table td:nth-child(8) { display: none; }
-}
-
-/* ── For Sale list: density, fit-to-width, responsive ── */
-#page-forsale .item-table { table-layout: fixed; width: 100%; }
+/* ── Want/Upgrade + For Sale tables (2026-11-08, R7 listlayout) ──────────────
+   Widths are set by COLUMN (data-col), never by position: the old nth-child
+   widths were written for an older column order, so "Manufacturer" got 60px
+   and "Condition Target" 66px and their headings were cut to "MANUFACTU" /
+   "CONDITION T/", and on For Sale (whose columns the collector chooses) whole
+   columns came out 0px wide. The table sizes itself to its content: headings
+   never cut, an empty Notes column stays narrow, Actions on one line. When the
+   whole table does not fit, THE list layout (app-pages.js rrListTableFits)
+   draws the cards instead — a table never runs off the side. */
+/* Want/Upgrade: fixed columns by data-col; Road, Var. Description and Notes share
+   what is left and cut their words with "…" (the full words are in the tooltip
+   and the item page). Below its min-width the table would scroll sideways — THE
+   list layout draws cards instead. An all-empty Notes column (rr-wu-nonotes,
+   set by buildUpgradePage) is just wide enough for its heading. */
+#page-upgrade .item-table { table-layout: fixed; width: 100%; min-width: 950px; }
+#page-forsale .item-table { table-layout: auto; width: 100%; }
+#page-upgrade .item-table td, #page-upgrade .item-table th,
 #page-forsale .item-table td, #page-forsale .item-table th { padding: 0.42rem 0.55rem; }
-#page-forsale .item-table th { line-height: 1.15; }
-#page-forsale .item-table th:nth-child(1), #page-forsale .item-table td:nth-child(1) { width: 54px; }
-#page-forsale .item-table th:nth-child(2), #page-forsale .item-table td:nth-child(2) { width: 116px; overflow: hidden; text-overflow: ellipsis; }
-#page-forsale .item-table th:nth-child(3), #page-forsale .item-table td:nth-child(3) { width: 70px; }
-#page-forsale .item-table td:nth-child(4) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#page-forsale .item-table th:nth-child(5), #page-forsale .item-table td:nth-child(5) { width: 48px; }
-#page-forsale .item-table th:nth-child(6), #page-forsale .item-table td:nth-child(6) { width: 86px; }
-#page-forsale .item-table th:nth-child(7), #page-forsale .item-table td:nth-child(7) { width: 84px; }
-#page-forsale .item-table th:nth-child(8), #page-forsale .item-table td:nth-child(8) { width: 88px; }
-#page-forsale .item-table th:nth-child(9), #page-forsale .item-table td:nth-child(9) { width: 200px; }
-#page-forsale .item-table td:last-child { white-space: normal; }
-@media (max-width: 760px) {
-  #page-forsale .item-table th:nth-child(3), #page-forsale .item-table td:nth-child(3),
-  #page-forsale .item-table th:nth-child(7), #page-forsale .item-table td:nth-child(7),
-  #page-forsale .item-table th:nth-child(8), #page-forsale .item-table td:nth-child(8),
-  #page-forsale .item-table th:nth-child(9), #page-forsale .item-table td:nth-child(9) { display: none; }
+#page-upgrade .item-table th, #page-forsale .item-table th { line-height: 1.15; white-space: nowrap; }
+#page-upgrade .item-table td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* the item number (with its paired piece and UPGRADE tag) and the maker wrap rather than being cut ("American Flyer") */
+#page-upgrade .item-table td[data-col="num"], #page-upgrade .item-table td[data-col="mfr"] { white-space: normal; overflow-wrap: anywhere; }
+/* a heading is never cut: two-word headings may wrap to two lines */
+#page-upgrade .item-table th { white-space: normal; overflow-wrap: normal; letter-spacing: 0.1em; }
+#page-upgrade .item-table [data-col="num"]       { width: 100px; }
+#page-upgrade .item-table [data-col="variation"] { width: 40px; }
+#page-upgrade .item-table [data-col="mfr"]       { width: 60px; }
+#page-upgrade .item-table [data-col="cond"]      { width: 62px; }
+#page-upgrade .item-table [data-col="priority"]  { width: 76px; }
+#page-upgrade .item-table [data-col="price"]     { width: 70px; }
+#page-upgrade .item-table [data-col="notes"]     { width: 96px; }
+#page-upgrade .item-table.rr-wu-nonotes [data-col="notes"] { width: 56px; }
+#page-upgrade .item-table [data-col="actions"]   { width: 128px; }
+#page-upgrade .item-table [data-col="vardesc"]   { width: 12.5%; }   /* room for its heading at a laptop width */
+/* Road Name takes what is left (≈ 90px at a 1280 laptop, more on a wider screen). */
+/* A table cell ignores max-width, so a long word is cut by a block INSIDE the cell. */
+#page-upgrade .item-table .rr-clip, #page-forsale .item-table .rr-clip { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#page-forsale .item-table td[data-col="num"], #page-forsale .item-table td[data-col="mfr"], #page-forsale .item-table td[data-col="type"],
+#page-forsale .item-table td[data-col="cond"], #page-forsale .item-table td[data-col="price"],
+#page-forsale .item-table td[data-col="worth"], #page-forsale .item-table td[data-col="listed"] { white-space: nowrap; }
+#page-upgrade .item-table [data-col="actions"], #page-forsale .item-table [data-col="actions"] { white-space: nowrap; }
+#page-forsale .item-table [data-col="actions"] { width: 1%; }
+
+/* ── THE list cards (R7): one big main button + ⋯, finger-sized, words never wrap ── */
+.rr-lc-acts { display: flex; gap: 0.5rem; margin-top: 0.65rem; align-items: stretch; }
+.rr-lc-main, .rr-lc-more {
+  min-height: 44px; border-radius: 10px; cursor: pointer; white-space: nowrap;
+  font-family: var(--font-body); font-weight: 700; font-size: 0.95rem;
 }
+.rr-lc-main { flex: 1 1 auto; min-width: 0; padding: 0.55rem 0.9rem; overflow: hidden; text-overflow: ellipsis; }
+.rr-lc-green  { border: 1.5px solid var(--green); background: var(--bg-card); background: color-mix(in srgb, var(--green) 14%, var(--bg-card)); color: var(--t-green); }
+.rr-lc-orange { border: 1.5px solid var(--forsale); background: var(--bg-card); background: color-mix(in srgb, var(--forsale) 14%, var(--bg-card)); color: var(--t-orange); }
+.rr-lc-blue   { border: 1.5px solid var(--want); background: var(--bg-card); background: color-mix(in srgb, var(--want) 12%, var(--bg-card)); color: var(--t-link); }
+.rr-lc-more { flex: 0 0 auto; min-width: 56px; padding: 0 0.8rem; border: 1.5px solid var(--border); background: var(--surface2); color: var(--text); font-size: 1.3rem; line-height: 1; }
+/* the same two buttons in a computer table row: one line, sized for a mouse */
+.rr-lc-acts.rr-lc-row { margin-top: 0; gap: 0.35rem; flex-wrap: nowrap; }
+.rr-lc-row .rr-lc-main { flex: 0 0 auto; min-height: 32px; padding: 0.25rem 0.75rem; font-size: 0.8rem; border-radius: 7px; }
+.rr-lc-row .rr-lc-more { min-height: 32px; min-width: 40px; padding: 0 0.5rem; font-size: 1.1rem; border-radius: 7px; }
+.rr-lc-narrow { font-size: 0.8rem; color: var(--text-dim); display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.rr-lc-narrow button { border: 1px solid var(--border); background: var(--surface2); color: var(--text-mid); border-radius: 7px; padding: 0.25rem 0.6rem; font-family: var(--font-body); font-size: 0.8rem; cursor: pointer; }
+.rr-lc-sheet-ov { position: fixed; inset: 0; background: var(--scrim); z-index: 100035; display: flex; align-items: flex-end; justify-content: center; padding: 1rem 1rem calc(1rem + var(--rr-safe-b, 0px)); }
+.rr-lc-sheet { width: 100%; max-width: 440px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 0.9rem; box-shadow: 0 10px 40px var(--scrim); }
+.rr-lc-sheet-title { font-family: var(--font-head); font-size: 1rem; color: var(--text); margin: 0.1rem 0.2rem 0.7rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rr-lc-sheet-btn { display: block; width: 100%; min-height: 48px; margin-bottom: 0.5rem; padding: 0.6rem 0.9rem; border-radius: 10px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); font-family: var(--font-body); font-size: 1rem; font-weight: 600; text-align: left; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rr-lc-sheet-btn.rr-lc-danger { margin-top: 0.9rem; color: var(--t-danger); border-color: var(--danger); background: var(--bg-card); background: color-mix(in srgb, var(--danger) 8%, var(--bg-card)); }
+.rr-lc-sheet-btn.rr-lc-cancel { margin-bottom: 0; text-align: center; color: var(--text-mid); }
 
 /* ── Sold Items list: density, fit-to-width, responsive ── */
 #page-sold .item-table { table-layout: fixed; width: 100%; }
@@ -2395,8 +2421,6 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
     width: 100%; justify-content: center; min-height: 44px;
     font-size: 0.8rem !important; padding: 0.5rem 0.6rem !important;
   }
-  /* card actions: three equal buttons at the tap-target floor */
-  .rr-fs-actions > button { min-height: 44px; flex: 1 1 0 !important; }
 }
 
 /* ── For Sale on phones: fit three listings without scrolling ─────────
@@ -2406,15 +2430,7 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
    buttons on ONE line each, three cards now land above the fold on a
    normal phone. Desktop untouched. */
 @media (max-width: 640px), (max-height: 500px) and (pointer: coarse) {
-  /* card action buttons: half the height, one line, evenly spaced */
-  .rr-fs-actions { gap: 0.35rem !important; margin-top: 0.45rem !important; }
-  .rr-fs-actions > button {
-    min-height: 34px !important;
-    padding: 0.25rem 0.3rem !important;
-    font-size: 0.74rem !important;
-    white-space: nowrap;
-    line-height: 1.1;
-  }
+  /* (R7, 2026-11-08: the card's buttons are THE list layout's now — .rr-lc-acts, one main + ⋯, 44px) */
   /* title band */
   #page-forsale .page-title { font-size: 1.15rem !important; margin-bottom: 0.4rem !important; row-gap: 0.35rem; }
   #page-forsale #forsale-title-stats { font-size: 0.72rem !important; margin-left: 0.4rem !important; }
@@ -2460,7 +2476,7 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
   #page-upgrade #upgrade-count { display: none !important; }   /* lives in the title now */
   #page-upgrade #upgrade-cards { gap: 0.45rem !important; }
   #page-upgrade #upgrade-cards > div { padding: 0.6rem 0.7rem !important; }
-  #page-upgrade #upgrade-cards button {
+  #page-upgrade #upgrade-cards button:not(.rr-lc-main):not(.rr-lc-more) {   /* R7: THE card buttons keep their finger size */
     min-height: 34px !important; padding: 0.25rem 0.3rem !important;
     font-size: 0.72rem !important; white-space: nowrap !important; line-height: 1.1;
   }
@@ -2591,7 +2607,7 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
   }
   #parts-list { display: flex; flex-direction: column; gap: 0.45rem; }
   #parts-list > div { padding: 0.6rem 0.7rem !important; }
-  #parts-list button {
+  #parts-list button:not(.rr-lc-main):not(.rr-lc-more) {   /* R7: THE card buttons keep their finger size */
     min-height: 34px !important; padding: 0.25rem 0.4rem !important;
     font-size: 0.74rem !important; white-space: nowrap; line-height: 1.1;
   }
@@ -3494,3 +3510,24 @@ html.rr-pop-open #pwa-install-offer { display: none !important; }
 .rr-photo-updating .rr-upd-arrow { display: inline-block; font-size: 1rem; animation: rr-upd-spin 1s linear infinite; }
 @keyframes rr-upd-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .rr-photo-updating .rr-upd-arrow { animation: none; } }
+
+/* ── THE FOLDING MENU (2026-11-08, R7 listlayout) — on a tablet the left menu
+   folds away behind ☰ (app-setup.js rrMenuFoldSync sets html.rr-menu-fold; ONE
+   decider). Folded out, it lies OVER the page with a shade behind it. A phone
+   (bottom bar) and a computer (menu always there) never wear the class. ─── */
+.rr-menu-btn { display: none; }
+#rr-menu-scrim { display: none; }
+html.rr-menu-fold .rr-menu-btn {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 44px; height: 44px; margin-right: 0.2rem; border-radius: 10px;
+  border: 1px solid var(--border); background: var(--surface2); color: var(--cream);
+  font-size: 1.4rem; line-height: 1; cursor: pointer;
+}
+html.rr-menu-fold .sidebar {
+  position: fixed; top: 0; left: 0; bottom: 0; z-index: 1000;
+  padding-top: env(safe-area-inset-top, 0px);
+  transform: translateX(-105%); transition: transform 0.2s ease;
+  box-shadow: 4px 0 24px var(--scrim);
+}
+html.rr-menu-fold.rr-menu-open .sidebar { transform: none; }
+html.rr-menu-fold.rr-menu-open #rr-menu-scrim { display: block; position: fixed; inset: 0; z-index: 999; background: var(--scrim); }

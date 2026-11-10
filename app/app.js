@@ -2836,6 +2836,58 @@ function _scalesOfGauge(gauge, era) {
   if (g.charAt(0) === 'o' || g === '027' || g === '072') return ['o'];
   return [];
 }
+// ══ stdmodern (2026-11-08) — A ROW'S OWN GAUGE ON A ONE-SCALE LINE ════════
+// [stated] Brad: "there are many standard guage lionel modern trains, they have
+// mth badge. see whats going on" -> "yes" to PLAN_2026-11-08_LIONEL_STANDARD_MODERN.
+// The Lionel MPC-Modern tab is O, and every row on it read as O — the tab's one
+// scale outranked the row's own Gauge cell — so Lionel's own Standard gauge
+// Classics (13100 390E ...) could never show under Standard, whatever the cell
+// said. The same held for MTH Tinplate (Standard) rows whose cell says O.
+// THE rule, asked by _scalesOfItem, _scaleOfItem, the Add screen's Scale filter
+// (_wizScaleOfRow) and the lookup split (rrSplitByFilter): on a one-scale line,
+// a row whose OWN Gauge names exactly one scale that the line may also carry
+// (RR_LINE_ROW_SCALES, or the line's ERA_SCALES_MULTI — config.js) reads as
+// that scale. Anything else — a blank Gauge, "Standard O", "O27", a scale the
+// line does not carry — answers '' and the row keeps the line's scale, as before.
+// A mixed line (Pre-War, GarGraves: no one scale) already reads every row's own
+// Gauge and is not asked here.
+function rrLineRowScales(era) {
+  var out = [], own = String((typeof _scaleOfEra === 'function' && _scaleOfEra(era)) || '').toLowerCase();
+  var lists = [
+    (typeof RR_LINE_ROW_SCALES !== 'undefined' && RR_LINE_ROW_SCALES) ? RR_LINE_ROW_SCALES[era] : null,
+    (typeof ERA_SCALES_MULTI !== 'undefined' && ERA_SCALES_MULTI) ? ERA_SCALES_MULTI[era] : null,
+  ];
+  lists.forEach(function (l) {
+    (Array.isArray(l) ? l : []).forEach(function (s) {
+      s = String(s == null ? '' : s).toLowerCase().trim();
+      if (s && s !== own && out.indexOf(s) < 0) out.push(s);
+    });
+  });
+  return out;
+}
+// era / lineScale / gs already worked out by the caller (the browse asks this
+// for every row, so nothing is read twice). gs = _scalesOfGauge(row's Gauge).
+function _rrLineRowScale(era, lineScale, gs) {
+  if (!lineScale || !gs || gs.length !== 1 || gs[0] === lineScale) return '';
+  return rrLineRowScales(era).indexOf(gs[0]) >= 0 ? gs[0] : '';
+}
+function rrRowOwnLineScale(item) {
+  if (!item) return '';
+  var era = (typeof _itemEraKey === 'function') ? _itemEraKey(item) : String(item._era || item.era || '').toLowerCase();
+  var lineScale = (typeof _scaleOfEra === 'function') ? _scaleOfEra(era) : null;
+  if (!lineScale) return '';
+  return _rrLineRowScale(era, lineScale, _scalesOfGauge(item.gauge, era));
+}
+// A catalog row's scale in ERA_SCALE's own words ('O', 'Standard', 'HO' …) — the
+// vocabulary the Add screen's Scale drop-down and findMaster's scale hint use:
+// the tab's scale, unless the row's own Gauge names another its line carries.
+function rrRowEraScale(m) {
+  var s = (m && typeof ERA_SCALE !== 'undefined' && ERA_SCALE[m._era]) || '';
+  var own = s ? rrRowOwnLineScale(m) : '';
+  if (!own) return s;
+  return (typeof _RR_CHIP_SCALE_LABEL !== 'undefined' && _RR_CHIP_SCALE_LABEL[own]) || own;
+}
+if (typeof window !== 'undefined') { window.rrRowOwnLineScale = rrRowOwnLineScale; window.rrLineRowScales = rrLineRowScales; window.rrRowEraScale = rrRowEraScale; }
 function _scalesOfItem(item) {
   if (!item) return [];
   var era = _itemEraKey ? _itemEraKey(item) : ((item._era || item.era || '').toLowerCase());
@@ -2844,7 +2896,12 @@ function _scalesOfItem(item) {
   // v0.9.1933: a row whose own gauge names TWO scales, one of them its tab's,
   // carries both (a Kato N row marked "N/HO" also shows under HO). Never
   // narrower than the tab; never a scale the tab's gauge does not include.
-  if (eraScale) return (gs.length > 1 && gs.indexOf(eraScale) >= 0) ? gs : [eraScale];
+  if (eraScale) {
+    if (gs.length > 1 && gs.indexOf(eraScale) >= 0) return gs;
+    // stdmodern: the row's own Gauge names another scale its line may carry
+    var _own = (typeof _rrLineRowScale === 'function') ? _rrLineRowScale(era, eraScale, gs) : '';
+    return _own ? [_own] : [eraScale];
+  }
   return gs;
 }
 // Item -> ONE scale id. Uses _scaleOfEra first; falls back to the gauge field
@@ -2856,7 +2913,8 @@ function _scaleOfItem(item) {
   if (!item) return null;
   var era = _itemEraKey ? _itemEraKey(item) : ((item._era || item.era || '').toLowerCase());
   var eraScale = _scaleOfEra(era);
-  if (eraScale) return eraScale;
+  // stdmodern: a Lionel modern row whose own Gauge says Standard answers Standard
+  if (eraScale) return ((typeof _rrLineRowScale === 'function') ? _rrLineRowScale(era, eraScale, _scalesOfGauge(item.gauge, era)) : '') || eraScale;
   var a = _scalesOfGauge(item.gauge, era);
   return a.length === 1 ? a[0] : null;
 }

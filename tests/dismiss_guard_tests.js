@@ -254,7 +254,9 @@ ok('every guarded overlay offers Cancel / Done / Close / ✕', trapped.length ==
 // 2026-11-03 (group_existing): 62 — the owned-item picker (rr-owned-picker, app-collection.js
 // rrOwnedPickerOpen) and the set walk's "you already have one" question (rr-set-owned-ask,
 // rrSetOwnedPieceAsk): Back = Cancel on the first, Back = "add another copy" on the second.
-ok('62 guarded call sites, and ONE helper behind them', sites === 62, String(sites));
+// 2026-11-08 (R7 listlayout): 63 — the ⋯ sheet of the list cards and rows (rr-list-menu,
+// app-pages.js rrListMenu): Cancel (data-close) and Back close it, an outside tap does not.
+ok('63 guarded call sites, and ONE helper behind them', sites === 63, String(sites));
 
 // nobody double-wires BackStack any more — the guard does it, once
 let dbl = 0;

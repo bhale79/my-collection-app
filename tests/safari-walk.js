@@ -61,9 +61,10 @@ const VIEWS = [
   { v: 'my collection', open: "showPage('browse', null); filterOwned();", lands: PAGE('page-browse') },
   { v: 'filter sheet', open: "showPage('browse', null); _rrFilterSheetOpen();", lands: SEEN('#rr-filter-sheet') },
   { v: 'want / upgrade', open: "showPage('upgrade', null); buildUpgradePage();", lands: PAGE('page-upgrade') },
-  { v: 'want / upgrade 📷 (tap, then the list redraws)', setup: UPG_PHOTO_SETUP,
-    open: "showPage('upgrade', null); buildUpgradePage(); var b=[].slice.call(document.querySelectorAll('button')).find(function(x){return /_toggleUpgradePhoto\\(/.test(x.getAttribute('onclick')||'')&&x.offsetParent});b.click(); setTimeout(buildUpgradePage, 20); setTimeout(function(){var b2=[].slice.call(document.querySelectorAll('button')).find(function(x){return /_toggleUpgradePhoto\\(/.test(x.getAttribute('onclick')||'')&&x.offsetParent});b2.click();}, 120);",
-    lands: `(function(){var i=document.querySelector('#page-upgrade [id$="-pic"] img');return !!i&&i.complete&&i.naturalWidth>0})()` },
+  // R7 (2026-11-08): the card's 📷 box became "📷 View Mine" in the ⋯ sheet — the walk opens the sheet and redraws the list under it
+  { v: 'want / upgrade ⋯ sheet (tap ⋯, then the list redraws)', setup: UPG_PHOTO_SETUP,
+    open: "showPage('upgrade', null); buildUpgradePage(); var b=document.querySelector('#page-upgrade .rr-lc-more'); b.click(); setTimeout(buildUpgradePage, 20);",
+    lands: `(function(){var m=document.getElementById('rr-list-menu');if(!m)return false;var r=m.querySelector('.rr-lc-sheet').getBoundingClientRect();return r.width>0&&r.bottom<=innerHeight+1&&/View Mine/.test(m.textContent)})()` },
   { v: 'for sale', open: "showPage('forsale', null); buildForSalePage();", lands: PAGE('page-forsale') },
   { v: 'parts', open: "showPage('parts', null); buildPartsPage();", lands: PAGE('page-parts') },
   { v: 'sold', open: "showPage('sold', null); buildSoldPage();", lands: PAGE('page-sold') },

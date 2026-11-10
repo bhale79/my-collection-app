@@ -12,14 +12,16 @@
 //   S  source: no <img> takes a photo-folder value as its picture, and no
 //      inline onerror reaches for this.parentElement — each proven on planted
 //      offenders.
-//   B  the real app, a phone (cards) and a computer (table), in Chromium and,
-//      when it is installed, WebKit (Safari's engine): two copies of the 773
-//      on the Upgrade list, each 📷 shows ITS copy's picture (and its own
-//      condition); a copy whose folder has no photo says so; closing and
-//      re-opening does not ask Drive again; the list redrawing mid-lookup
-//      throws nothing.
-//   P  planted (Chromium): the old folder-link picture, the first-find copy,
-//      and one shared box per number — each turns B red.
+//   B  (since R7 listlayout, 2026-11-08 — the inline 📷 box was merged into
+//      "📷 View Mine" in the ⋯ sheet, [stated] Brad "yes" to the plan: "View
+//      Mine (with your photo inside it, so there's no separate 📷)") the real
+//      app, a phone (cards) and a computer (table), in Chromium and, when it is
+//      installed, WebKit: two copies of the 773 on the Upgrade list — each
+//      entry shows ITS copy's condition, and its View Mine opens ITS copy (by
+//      inventoryId), never the first copy of the number; nothing thrown.
+//   P  planted (Chromium): the first-find copy (no inventoryId) turns B red.
+//   (The old B1–B6 checks of the inline photo box retired with the box; the
+//    folder-link and parentElement scans S1/S2 stay — they guard every file.)
 // ═════════════════════════════════════════════════════════════════════════
 const fs = require('fs'), path = require('path');
 const APP = path.join(__dirname, '..', 'app');
@@ -74,34 +76,20 @@ function fnSource(src, name) {
   return src.slice(i + 1, j + 2);
 }
 
-// The scene: two owned copies of the 773 (cond 9, folder A / cond 6, folder B)
-// and a 3376 whose folder holds no photo — all three on the Upgrade list, each
-// entry pointing at its copy by inventoryId. Drive is stood in for: the folder
-// lookup is counted, and the two pictures are already in the app's own
-// picture cache, so the REAL painter (loadDriveThumb) shows them.
+// The scene: two owned copies of the 773 (cond 9 / cond 6) and a 3376 — all on
+// the Upgrade list, each entry pointing at its copy by inventoryId, the B entry
+// listed first so a first-find of the number would hand it copy A.
 const SCENE = `
 (function () {
-  const pic = (c) => { const k = document.createElement('canvas'); k.width = 4; k.height = 3; const g = k.getContext('2d'); g.fillStyle = c; g.fillRect(0, 0, 4, 3); return k.toDataURL('image/png'); };
-  window.__PIC = { A: pic('#c0392b'), B: pic('#2471a3') };
-  const own = (inv, n, cond, folder, row) => ({ itemNum: n, variation: '1', owned: true, inventoryId: inv, row: row, condition: cond,
-    priceItem: '45', userEstWorth: '120', datePurchased: '2026-08-06', photoItem: 'https://drive.google.com/drive/folders/' + folder,
+  const own = (inv, n, cond, row) => ({ itemNum: n, variation: '1', owned: true, inventoryId: inv, row: row, condition: cond,
+    priceItem: '45', userEstWorth: '120', datePurchased: '2026-08-06', photoItem: 'https://drive.google.com/drive/folders/F' + inv,
     notes: '', era: 'Lionel Postwar', location: '' });
-  state.personalData = { '77301': own('77301', '773', '9', 'FOLDER_A', 2), '77302': own('77302', '773', '6', 'FOLDER_B', 3), '33761': own('33761', '3376', '7', 'FOLDER_EMPTY', 4) };
+  state.personalData = { '77301': own('77301', '773', '9', 2), '77302': own('77302', '773', '6', 3), '33761': own('33761', '3376', '7', 4) };
   const ug = (inv, n, row) => ({ itemNum: n, variation: '1', inventoryId: inv, row: row, priority: 'High', targetCondition: '9', maxPrice: '900', notes: '', manufacturer: 'Lionel' });
-  // listed B first, so a first-find of the number would hand the B entry copy A
   state.upgradeData = { '77302': ug('77302', '773', 2), '77301': ug('77301', '773', 3), '33761': ug('33761', '3376', 4) };
   state.wantData = {};
-  window.__drive = 0;
-  window.__driveDelay = 40;
-  window.driveGetFolderPhotos = function (link) {
-    window.__drive++;
-    return new Promise(function (res) { setTimeout(function () {
-      res(/FOLDER_A/.test(link) ? [{ id: 'fidA' }] : /FOLDER_B/.test(link) ? [{ id: 'fidB' }] : []);
-    }, window.__driveDelay); });
-  };
-  _blobCache.fidA = window.__PIC.A; _blobCache.fidB = window.__PIC.B;
-  try { Object.keys(localStorage).forEach(function (k) { if (/^lv_thumb_fids/.test(k)) localStorage.removeItem(k); }); } catch (e) {}
-  window._thumbFidCache = null;
+  window.__opened = [];
+  window.showItemDetailPage = function (idx, inv) { window.__opened.push(String(inv || '')); };
   showPage('upgrade', null); buildUpgradePage();
 })();
 `;
@@ -119,46 +107,36 @@ async function scene(browser, engine, width, plants) {
   await pg.evaluate(SEED); await pg.waitForTimeout(300);
   for (const p of (plants || [])) await pg.addScriptTag({ content: p });
   await pg.evaluate(SCENE); await pg.waitForTimeout(300);
-  const pre = width < 600 ? 'upgphoto-m-' : 'upgphoto-d-';
-  const R = await pg.evaluate(async (pre) => {
+  const R = await pg.evaluate(async () => {
     const wait = (ms) => new Promise(r => setTimeout(r, ms));
-    const box = (inv) => document.getElementById(pre + inv) || document.getElementById(pre + inv + '-row');
-    const btn = (inv) => [...document.querySelectorAll('button')].find(b => (b.getAttribute('onclick') || '').indexOf("_toggleUpgradePhoto('" + pre + inv + "')") >= 0);
-    const shown = (el) => !!el && getComputedStyle(el).display !== 'none' && el.getBoundingClientRect().height > 0;
-    const pic = (inv) => { const h = document.getElementById(pre + inv + '-pic'); const im = h && h.querySelector('img');
-      return { img: !!im, ok: !!(im && im.complete && im.naturalWidth > 0), which: im ? (im.src === window.__PIC.A ? 'A' : im.src === window.__PIC.B ? 'B' : im.src.slice(0, 60)) : null,
-        text: h ? h.textContent.trim().slice(0, 80) : null }; };
-    const card = (inv) => { const b = btn(inv); const c = b && (b.closest('tr') || b.closest('div[onclick]')); return c ? c.textContent.replace(/\s+/g, ' ') : ''; };
-    const out = { buttons: [...document.querySelectorAll('button')].filter(b => /_toggleUpgradePhoto\(/.test(b.getAttribute('onclick') || '')).length };
-    const open = async (inv) => { const b = btn(inv); if (!b) return { noButton: true }; b.click(); await wait(400); return Object.assign({ shown: shown(box(inv)) }, pic(inv)); };
-    out.B = await open('77302'); out.Bcard = card('77302');
-    out.A = await open('77301'); out.Acard = card('77301');
-    out.E = await open('33761');
-    out.drive1 = window.__drive;
-    // close and re-open B: no new Drive lookup, still B's picture
-    (btn('77302') || { click() {} }).click(); await wait(80); out.Bclosed = !shown(box('77302'));
-    (btn('77302') || { click() {} }).click(); await wait(300); out.Bagain = Object.assign({ shown: shown(box('77302')) }, pic('77302')); out.drive2 = window.__drive;
-    // the list redraws while a lookup is under way
-    window._thumbFidCache = {}; try { Object.keys(localStorage).forEach(k => { if (/^lv_thumb_fids/.test(k)) localStorage.removeItem(k); }); } catch (e) {}
-    window.__driveDelay = 200;
-    buildUpgradePage(); await wait(100);
-    (btn('77301') || { click() {} }).click(); await wait(20); buildUpgradePage(); await wait(500);
-    out.afterRedraw = { closed: !shown(box('77301')), pic: pic('77301') };
+    // each entry's own card / row, found by its ⋯ sheet key (the entry, never a position)
+    const holder = (inv) => {
+      const more = [...document.querySelectorAll('.rr-lc-more')].find(b => (b.getAttribute('onclick') || '').indexOf("'wu|Upgrade|" + inv + "'") >= 0);
+      return more ? { more, box: more.closest('tr') || more.closest('#upgrade-cards > div') } : null;
+    };
+    const out = { inline: [...document.querySelectorAll('button')].filter(b => /_toggleUpgradePhoto\(/.test(b.getAttribute('onclick') || '')).length };
+    for (const inv of ['77302', '77301']) {
+      const h = holder(inv);
+      if (!h) { out[inv] = { none: true }; continue; }
+      out[inv] = { text: h.box ? h.box.textContent.replace(/\s+/g, ' ') : '' };
+      h.more.click(); await wait(80);
+      const vm = [...document.querySelectorAll('#rr-list-menu button')].find(b => /View Mine/.test(b.textContent));
+      if (vm) { vm.click(); await wait(80); }
+      out[inv].opened = window.__opened.slice(-1)[0] || null;
+      out[inv].viewMine = !!vm;
+    }
     return out;
-  }, pre);
+  });
   R.errs = errs;
   await ctx.close();
   return R;
 }
 
 function judge(tag, R) {
-  ok(tag + ' B0 three 📷 buttons (one per Upgrade entry with a photo folder)', R.buttons === 3, R.buttons);
-  ok(tag + " B1 the 773 entry for copy 77302 shows THAT copy's photo", R.B.shown && R.B.ok && R.B.which === 'B', JSON.stringify(R.B));
-  ok(tag + " B2 the 773 entry for copy 77301 shows THAT copy's photo — two copies, two boxes", R.A.shown && R.A.ok && R.A.which === 'A', JSON.stringify(R.A));
-  if (/phone/.test(tag)) ok(tag + ' B3 each card shows its own copy\'s condition (Mine: 6 / Mine: 9)', /Mine: 6/.test(R.Bcard) && /Mine: 9/.test(R.Acard), JSON.stringify([R.Bcard.slice(0, 90), R.Acard.slice(0, 90)]));
-  ok(tag + ' B4 a folder with no photo says so — no broken picture', R.E.shown && !R.E.img && /No photo found/.test(R.E.text || ''), JSON.stringify(R.E));
-  ok(tag + ' B5 closes, re-opens with the same photo, no second Drive lookup', R.Bclosed && R.Bagain.shown && R.Bagain.which === 'B' && R.drive2 === R.drive1 && R.drive1 === 3, JSON.stringify({ c: R.Bclosed, again: R.Bagain, d1: R.drive1, d2: R.drive2 }));
-  ok(tag + ' B6 the list redrawing mid-lookup: the new box starts closed, nothing thrown', R.afterRedraw.closed && !R.errs.length, JSON.stringify(R.afterRedraw));
+  ok(tag + ' B0 no inline 📷 box any more — it lives in 📷 View Mine', R.inline === 0, R.inline);
+  if (/phone/.test(tag)) ok(tag + " B3 each card shows its own copy's condition (Mine: 6 / Mine: 9)", /Mine: 6/.test(R['77302'].text || '') && /Mine: 9/.test(R['77301'].text || ''), JSON.stringify([R['77302'].text, R['77301'].text].map(t => (t || '').slice(0, 90))));
+  ok(tag + ' B1 the 773 entry for copy 77302: 📷 View Mine opens THAT copy', R['77302'].viewMine && R['77302'].opened === '77302', JSON.stringify(R['77302']).slice(0, 160));
+  ok(tag + ' B2 the 773 entry for copy 77301: 📷 View Mine opens THAT copy — two copies, two pages', R['77301'].viewMine && R['77301'].opened === '77301', JSON.stringify(R['77301']).slice(0, 160));
   ok(tag + ' B7 no page errors', !R.errs.length, R.errs.join(' | '));
 }
 
@@ -170,7 +148,6 @@ function judge(tag, R) {
   judge('[chromium phone]', await scene(chromium, 'chromium', 390));
   judge('[chromium computer]', await scene(chromium, 'chromium', 1280));
 
-  // WebKit (Safari's engine) — run when it is installed in this machine.
   let webkit = null;
   try { if (fs.existsSync(pw.webkit.executablePath())) webkit = await pw.webkit.launch(); } catch (e) { webkit = null; }
   if (webkit) {
@@ -182,13 +159,9 @@ function judge(tag, R) {
   }
 
   // ── P — planted ──
-  const PAINT = fnSource(PAGES, '_wuPaintPhoto'), COPY = fnSource(PAGES, '_wuOwnedCopy'), KEY = fnSource(PAGES, '_wuPhotoKey');
-  const P1 = await scene(chromium, 'chromium', 390, [plant(PAINT, "if (typeof loadDriveThumb === 'function') loadDriveThumb(fid, img, host, null, 'hi');", 'img.src = pd.photoItem;', 'P1')]);
-  ok('P1 the old picture (the folder link in img.src) — B1 turns red', !(P1.B.ok && P1.B.which === 'B'), JSON.stringify(P1.B));
+  const COPY = fnSource(PAGES, '_wuOwnedCopy');
   const P2 = await scene(chromium, 'chromium', 390, [plant(COPY, "  if (u.inventoryId) {", "  if (false) {", 'P2')]);
-  ok('P2 the first copy of the number (no inventoryId) — B1 / B3 turn red', P2.B.which !== 'B' || !/Mine: 6/.test(P2.Bcard), JSON.stringify([P2.B, P2.Bcard.slice(0, 80)]));
-  const P3 = await scene(chromium, 'chromium', 390, [plant(KEY, 'String(_ugEntryKey(u))', "String(u.itemNum + '-' + (u.variation || ''))", 'P3')]);
-  ok('P3 one box per NUMBER (the old id) — the two 773 entries collide, red', P3.buttons !== 3 || !(P3.B.which === 'B' && P3.A.which === 'A' && P3.A.shown && P3.B.shown), JSON.stringify([P3.B, P3.A]));
+  ok('P2 the first copy of the number (no inventoryId) — B3 turns red', !(/Mine: 6/.test(P2['77302'].text || '') && /Mine: 9/.test(P2['77301'].text || '')), JSON.stringify([P2['77302'].text, P2['77301'].text].map(t => (t || '').slice(0, 80))));
   await chromium.close();
   console.log('\n' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);

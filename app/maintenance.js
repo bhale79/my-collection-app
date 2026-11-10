@@ -3235,7 +3235,7 @@
       };
       var partRow = function (p, fromList) {
         // 2026-10-31: the words are the ONE list (RR_PART_STATUS, config.js) — Need part /
-        // Part ordered / Part on hand / Installed; "Ordered it" beside "Bought it" while it is needed
+        // Part ordered / Part on hand / Installed; "Ordered it" beside "✓ Got It" (RR_LIST_LAYOUT.gotIt) while it is needed
         var st = rrPartStatus(p);
         var name = _esc(p.description || p.partNum || 'part');
         var word = _esc(rrPartWord(p));
@@ -3244,7 +3244,7 @@
                 : '<span style="color:var(--warn)"><b>' + word + '</b></span> — ' + name;
         var act = st === 'bought' ? '<button onclick="_maintPartInstalled(\'' + rrJsArg(p.id) + '\')" ' + _btn('green', 'sm', 'flex-shrink:0') + '>Installed it</button>'
                 : rrPartStillNeeded(p) ? ((st === 'wanted' ? '<button onclick="_maintPartOrdered(\'' + rrJsArg(p.id) + '\', this)" ' + _btn('blue', 'sm', 'flex-shrink:0') + '>' + _esc(RR_PART_STATUS.orderedBtn) + '</button>' : '')
-                    + '<button onclick="_maintPartBought(\'' + rrJsArg(p.id) + '\')" ' + _btn('green', 'sm', 'flex-shrink:0') + '>Bought it</button>') : '';
+                    + '<button onclick="_maintPartBought(\'' + rrJsArg(p.id) + '\')" ' + _btn('green', 'sm', 'flex-shrink:0') + '>' + _esc(RR_LIST_LAYOUT.gotIt) + '</button>') : '';   // R7: "✓ Got It" — the one name for "I bought it"
         // v0.9.1753 (Brad: "says waiting on the part, i can't get rid of it"): Remove right here, through the one remover
         var rm = st === 'installed' ? '' : '<button onclick="_maintPartRemove(\'' + rrJsArg(p.id) + '\')" title="Take this part off your Parts Needed list" ' + _btn('red', 'sm', 'flex-shrink:0') + '>Remove</button>';
         return '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;font-size:0.8rem;color:var(--text);margin-top:0.35rem;flex-wrap:wrap">'

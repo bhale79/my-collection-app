@@ -254,7 +254,7 @@ function showNonItemDetailPage(type, key) {
        +     'Add to Upgrade List'
        +   '</button>';
   if (typeof rrMoveBtnHtml === 'function') html += rrMoveBtnHtml(entry);   // v0.9.2077: '' unless this copy is a My Collection row and moving is on
-  html +=   '<button id="detail-remove-item" onclick="_collectionRemove(' + typeArg + ',' + keyArg + ')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">'
+  html +=   '<button id="detail-remove-item" onclick="_collectionRemove(' + typeArg + ',' + keyArg + ',&apos;page&apos;)" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">'
        +     '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>'
        +     'Remove from Collection'
        +   '</button>';
@@ -1098,7 +1098,11 @@ function showItemDetailPage(idx, copyInvId, opts) {
                || findMaster(_baseNum, pd.variation || '', pd);   // v0.9.1821: the owned row names its catalog
     }
   }
-  const it = item || {
+  // 2026-11-08 (notsure): the page shows the catalog row AS THIS COPY SHOWS IT (rrCopyRowView,
+  // app-data.js) — a copy saved "not sure" of its variation sits on its item's Var 1 row; the
+  // header, the Variation Description and every button (Remove, Record Sale…) take the COPY's
+  // variation, so no "Var. 1" and no variation 1 description. Want mode has no copy.
+  const it = item ? ((!_wantMode && pd && typeof rrCopyRowView === 'function') ? rrCopyRowView(item, pd) : item) : {
     itemNum: pd.itemNum, variation: pd.variation || '',
     itemType: _detailType || (_baseItem ? _baseItem.itemType : ''),
     roadName: pd.roadName || (_baseItem ? _baseItem.roadName : ''),
@@ -1106,7 +1110,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
     yearProd: pd.yearMade || (_baseItem ? _baseItem.yearProd : ''),
     gauge: pd.gauge || (_baseItem ? _baseItem.gauge : ''),
     marketVal: _baseItem ? _baseItem.marketVal : '',
-    varDesc: _baseItem ? _baseItem.varDesc : '',
+    varDesc: _baseItem ? ((typeof rrCopyRowView === 'function') ? rrCopyRowView(_baseItem, pd).varDesc : _baseItem.varDesc) : '',   // 2026-11-08 (notsure): only the copy's own variation's words
     refLink: _baseItem ? _baseItem.refLink : '',
     // v0.9.1873: what rrCatalogStatus reads — the catalog row's status rides along
     deliveryStatus: _baseItem ? (_baseItem.deliveryStatus || '') : '',
@@ -1790,6 +1794,10 @@ function showItemDetailPage(idx, copyInvId, opts) {
 // its own Inventory ID, which is the thing the app acts on.
 function rrShowCopyPicker(idx) {
   var item = (idx >= 0 && state.masterData) ? state.masterData[idx] : null;
+  // 2026-11-08 (notsure): the row AS THE PAGE'S COPY SHOWS IT (rrCopyRowView) — the same list the
+  // page's "Copy n of m" chip counted; a copy saved "not sure" sits on its item's Var 1 row
+  var _pinned = window._lastDetailPdKey ? state.personalData[window._lastDetailPdKey] : null;
+  if (item && _pinned && typeof rrCopyRowView === 'function') item = rrCopyRowView(item, _pinned);
   if (!item || typeof rrOwnedCopyKeys !== 'function') return;
   var keys = rrOwnedCopyKeys(item.itemNum, item.variation);
   if (keys.length < 2) return;
@@ -3173,7 +3181,7 @@ async function openPhotoFolder(itemNum, storedLink, invId) {
 function showOwnedItemMenu(idx, pdKey) {
   const pd = state.personalData[pdKey] || {};
   // For personalOnly items, build a minimal item object from pd
-  const item = state.masterData[idx] || {
+  const item = (typeof rrCopyRowView === 'function' ? rrCopyRowView(state.masterData[idx], pd) : state.masterData[idx]) || {   // 2026-11-08 (notsure): the copy's own variation, never the drawn row's
     itemNum: pd.itemNum, variation: pd.variation || '',
     roadName: pd.roadName || '', itemType: pd.itemType || '',
     yearProd: pd.yearMade || '', marketVal: '', // market value comes from master sheet only
@@ -3665,6 +3673,9 @@ async function _breakUpGroup(pdKey) {
     }
   }
   if (typeof _cachePersonalData === 'function') _cachePersonalData();
+  // 2026-11-08 (setfix, review finding 5): a kept removed-set group that is
+  // broken up is no longer kept (browse.js rrSetKeptPrune).
+  try { if (typeof rrSetKeptPrune === 'function') rrSetKeptPrune(gid); } catch (eKp) {}
 }
 
 async function _breakUpGroupFromDetail(idx, itemNum, variation) {
@@ -3726,6 +3737,9 @@ async function removeCollectionItem(itemNum, variation, row, invId, opts) {
     }
   }
   var thisPd = pdKey ? state.personalData[pdKey] : null;
+  // 2026-11-08 (notsure): the question names the COPY's own variation — the caller's comes off
+  // the catalog row the page or list drew ("Remove No. 2625 (Var. 1)" for a copy saved "not sure")
+  var _rmVar = thisPd ? String(thisPd.variation == null ? '' : thisPd.variation).trim() : String(variation == null ? '' : variation);
   var groupId = thisPd && thisPd.groupId;
   var groupSiblings = groupId
     ? Object.values(state.personalData).filter(p => p.groupId === groupId && p.owned)
@@ -3734,7 +3748,7 @@ async function removeCollectionItem(itemNum, variation, row, invId, opts) {
 
   if (isGrouped && opts && opts.scope === 'piece') {
     // Member-card removal: exactly one piece, said plainly.
-    if (!(await appConfirm('Remove No. ' + itemNum + (variation ? ' (Var. ' + variation + ')' : '')
+    if (!(await appConfirm('Remove No. ' + itemNum + (_rmVar ? ' (Var. ' + _rmVar + ')' : '')
         + ' — one piece of this group?\n\nThe other ' + (groupSiblings.length - 1) + ' piece'
         + (groupSiblings.length - 1 === 1 ? ' stays' : 's stay') + ' in your collection, still grouped.'
         + '\n\nA copy of the row is kept in your sheet\u2019s "Deleted Rows" tab, so this can be undone.',
@@ -3895,7 +3909,7 @@ async function removeCollectionItem(itemNum, variation, row, invId, opts) {
     // else fall through to remove just this one item
   } else {
     // Standalone item — simple confirm
-    if (!(await appConfirm('Remove No. ' + itemNum + (variation ? ' (Var. ' + variation + ')' : '') + ' from your collection?\n\nA copy of the row is kept in your sheet\u2019s "Deleted Rows" tab, so this can be undone.', { danger: true, ok: 'Remove' }))) return;
+    if (!(await appConfirm('Remove No. ' + itemNum + (_rmVar ? ' (Var. ' + _rmVar + ')' : '') + ' from your collection?\n\nA copy of the row is kept in your sheet\u2019s "Deleted Rows" tab, so this can be undone.', { danger: true, ok: 'Remove' }))) return;
   }
 
   // ── Remove single item ──
@@ -4000,7 +4014,7 @@ function _adjustRowsAfterDelete(dataObj, deletedRow, fromTab) {
 function sellFromCollection(idx, pdKey) {
   var _rrWasOpen = !!(document.getElementById('wizard-modal') && document.getElementById('wizard-modal').classList.contains('open'));   // review A2: continuing an open Add?
   const pd = state.personalData[pdKey] || {};
-  const item = state.masterData[idx] || {
+  const item = (typeof rrCopyRowView === 'function' ? rrCopyRowView(state.masterData[idx], pd) : state.masterData[idx]) || {   // 2026-11-08 (notsure): the copy's own variation, never the drawn row's
     itemNum: pd.itemNum, variation: pd.variation || '',
     roadName: pd.roadName || '', itemType: pd.itemType || '',
     yearProd: pd.yearMade || '', marketVal: '',
@@ -4039,7 +4053,7 @@ function sellFromCollection(idx, pdKey) {
 function listForSaleFromCollection(idx, pdKey) {
   var _rrWasOpen = !!(document.getElementById('wizard-modal') && document.getElementById('wizard-modal').classList.contains('open'));   // review A2: continuing an open Add?
   const pd = state.personalData[pdKey] || {};
-  const item = state.masterData[idx] || {
+  const item = (typeof rrCopyRowView === 'function' ? rrCopyRowView(state.masterData[idx], pd) : state.masterData[idx]) || {   // 2026-11-08 (notsure): the copy's own variation, never the drawn row's
     itemNum: pd.itemNum, variation: pd.variation || '',
     roadName: pd.roadName || '', itemType: pd.itemType || '',
     yearProd: pd.yearMade || '', marketVal: '',
@@ -4589,7 +4603,7 @@ function showItemPanel(idx, pdKey, mode) {
   // v0.9.2039: the item AS THIS DEVICE OPENED IT — the baseline the save compares
   // with, so a column another device changed meanwhile is kept, never overwritten.
   const _base = Object.assign({}, _live);
-  const item = state.masterData[idx] || {
+  const item = (typeof rrCopyRowView === 'function' ? rrCopyRowView(state.masterData[idx], pd) : state.masterData[idx]) || {   // 2026-11-08 (notsure): the copy's own variation, never the drawn row's
     itemNum: pd.itemNum, variation: pd.variation || '',
     roadName: pd.roadName || '', itemType: pd.itemType || '',
     yearProd: pd.yearMade || '', gauge: pd.gauge || '', marketVal: '', // market value comes from master sheet only
@@ -4682,6 +4696,12 @@ function showItemPanel(idx, pdKey, mode) {
     if (pd._newEntry) return pd._newEntry;
     return (typeof findMaster === 'function') ? findMaster(pd.itemNum || item.itemNum, pd.variation || '', pd) : null;
   }
+  // 2026-11-08 (notsure): the entry as THIS copy shows it — a copy saved "not sure" of its
+  // variation is tied to the item, not to Var 1 (rrCopyRowView), so its label names no variation
+  function _panelCurrentShown() {
+    var r = _panelCurrentRow();
+    return (r && !pd._newEntry && typeof rrCopyRowView === 'function') ? rrCopyRowView(r, pd) : r;
+  }
   function _panelEntryLabel(r) {
     if (!r) return 'No catalog entry';
     var era = (typeof ERAS !== 'undefined' && r._era && ERAS[r._era]) ? ERAS[r._era].label : String(r._era || r._tab || '');
@@ -4726,7 +4746,7 @@ function showItemPanel(idx, pdKey, mode) {
     })() : []),
     // v0.9.1882: the catalog entry — every catalog item, changeable in Edit (cards)
     ...((pd.era !== 'Manual' && (pd.itemNum || item.itemNum) && typeof rrCatalogCandidates === 'function')
-      ? [{ label: 'Catalog entry', key: 'catalogEntry', val: _panelEntryLabel(_panelCurrentRow()), type: 'catalog' }] : []),
+      ? [{ label: 'Catalog entry', key: 'catalogEntry', val: _panelEntryLabel(_panelCurrentShown()), type: 'catalog' }] : []),
     // 2026-11-03 (PLAN_2026-11-03_NO_QUIET_MAKER, change 3): an item NOT tied to
     // a catalog entry (hand-added, or a number the catalog lacks) has its maker
     // changed here — the makers the app knows are offered and any other can be
@@ -4930,7 +4950,8 @@ function showItemPanel(idx, pdKey, mode) {
           cList.appendChild(none);
         }
         cands.forEach(function (r) {
-          const isCur = cur && (r === cur || (curId && String(r.rowId || '').trim() === curId));
+          // 2026-11-08 (notsure): a copy with no variation is not "current" on a variation's card
+          const isCur = cur && (r === cur || (curId && String(r.rowId || '').trim() === curId)) && (typeof rrCopyRowView !== 'function' || !!pd._newEntry || rrCopyRowView(r, pd) === r);
           const card = document.createElement('div');
           card.setAttribute('data-rr-entry', String(r.rowId || ''));
           card.style.cssText = 'border:1.5px solid ' + (isCur ? 'var(--accent)' : 'var(--border)') + ';border-radius:9px;padding:0.55rem 0.7rem;cursor:pointer;background:var(--surface2)';
@@ -4946,7 +4967,7 @@ function showItemPanel(idx, pdKey, mode) {
           }
           card.onclick = function () {
             if (isCur) { delete pd._newEntry; } else { pd._newEntry = r; }
-            f.val = _panelEntryLabel(_panelCurrentRow());
+            f.val = _panelEntryLabel(_panelCurrentShown());
             editingKey = null;
             renderFields(null);
           };

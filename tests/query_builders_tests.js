@@ -139,9 +139,12 @@ function wantHarness(src, opts) {
   ok('…the MTH want says MTH', /^MTH 20-3001/.test(mth), mth);
   ok('…every lookup carried the variation and a hint slot (three arguments)', h.lookups.every(l => l.v === '' && 'hint' in l));
 }
-ok('the three want-list call sites pass the VARIATION to both searches (phone cards, desktop table, detail page)',
-   (pages.match(/wantFindOnEbay\('\$\{u\.itemNum\}','\$\{_?escName\}','\$\{escVar\}'\)/g) || []).length === 2 &&
-   (pages.match(/wantSearchOtherSites\('\$\{u\.itemNum\}','\$\{_?escName\}','\$\{escVar\}'\)/g) || []).length === 2 &&
+// R7 (2026-11-08, listlayout): the phone card and the desktop row share ONE Want/Upgrade menu
+// (_wuMenu), so the two call sites became one — it hands the variation on, unescaped (a closure, not a string).
+ok('the want-list call sites pass the VARIATION to both searches (the one card/row menu, detail page)',
+   (pages.match(/wantFindOnEbay\(u\.itemNum, name \|\| '', u\.variation \|\| ''\)/g) || []).length === 1 &&
+   (pages.match(/wantSearchOtherSites\(u\.itemNum, name \|\| '', u\.variation \|\| ''\)/g) || []).length === 1 &&
+   !/wantFindOnEbay\('\$\{u\.itemNum\}/.test(pages) &&
    // v0.9.2038 re-pin: the detail page passes each through rrJsArg (an apostrophe broke the hand escape)
    /wantFindOnEbay\('\$\{rrJsArg\(it\.itemNum\)\}','\$\{rrJsArg\(it\.roadName\|\|''\)\}','\$\{rrJsArg\(it\.variation\|\|''\)\}'\)/.test(coll) &&
    /wantSearchOtherSites\('\$\{rrJsArg\(it\.itemNum\)\}','\$\{rrJsArg\(it\.roadName\|\|''\)\}','\$\{rrJsArg\(it\.variation\|\|''\)\}'\)/.test(coll));
@@ -230,8 +233,10 @@ function partsHarness(src, opts) {
   ok('…and a picked site narrows the SAME query with site: (this is the vendor search now)',
      h.opened.length === 1 && q(h.opened[0]) === 'site:trainz.com part for American Flyer 9504 coupler', h.opened[0] && q(h.opened[0]));
 }
-ok('the parts list row hands the button the owned copy\'s inventory id',
-   /googlePart\(\\'' \+ esc\(p\.partNum\) \+ '\\',\\'' \+ esc\(p\.forItem\) \+ '\\',\\'' \+ esc\(p\.description\) \+ '\\',\\'' \+ esc\(p\.forInv \|\| ''\) \+ '\\'\)/.test(pages));
+// R7: the parts card's Search is the main button (a call string) or a ⋯ choice (a closure) — both carry forInv
+ok('the parts list card hands the Search the owned copy\'s inventory id (main button and ⋯ choice)',
+   /googlePart\('" \+ esc\(p\.partNum\) \+ "','" \+ esc\(p\.forItem\) \+ "','" \+ esc\(p\.description\) \+ "','" \+ esc\(p\.forInv \|\| ''\) \+ "'\)/.test(pages) &&
+   /googlePart\(p\.partNum \|\| '', p\.forItem \|\| '', p\.description \|\| '', p\.forInv \|\| ''\)/.test(pages));
 
 // ── D · the research card and its query helpers (research.js) ──────────────
 section('D · the research card (research.js)');

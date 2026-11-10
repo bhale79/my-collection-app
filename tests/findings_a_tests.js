@@ -245,15 +245,18 @@ async function backOnPrompt(pg) {
     const { pg, errs } = await world(browser);
     const u = await removeAsks(pg, "removeUpgradeItemAsk('UG-1')");
     T('F9  the Upgrade Remove asks first; No keeps the entry and writes nothing', u.asked && u.writesAfterNo === 0 && u.ug, u);
-    T('F9b both Upgrade Remove buttons (cards and table) call the asking Remove',
-      (AP.match(/onclick="event\.stopPropagation\(\);removeUpgradeItemAsk\('\$\{_ugEntryKey\(u\)\}'\)"/g) || []).length === 2 &&
+    // R7 (2026-11-08, listlayout): the card and the table row share ONE Want/Upgrade menu (_wuMenu);
+    // its Remove — the only Upgrade Remove there is — runs the asking Remove.
+    T('F9b the Upgrade Remove (the ⋯ sheet, card and table alike) calls the asking Remove',
+      /removeUpgradeItemAsk\(_ugEntryKey\(u\)\)/.test(AP) && !/removeUpgradeItem\(_ugEntryKey\(u\)\)/.test(AP) &&
       !/onclick="event\.stopPropagation\(\);removeUpgradeItem\(/.test(AP));
     T('F9c "Got It" still takes the entry off quietly (the person already decided)', /if \(upgradeEntry\) await removeUpgradeItem\(ugKey\);/.test(AP));
     const pq = await removeAsks(pg, "removePartAsk('P-1')");
     T('F15 the Parts Remove asks first; No keeps the part and writes nothing', pq.asked && pq.writesAfterNo === 0 && pq.part, pq);
     // the real Parts page button
-    const btn = await pg.evaluate(() => { showPage('parts'); _renderPartsList(); const b = Array.from(document.querySelectorAll('#parts-list button')).find(x => /Remove/.test(x.textContent)); return b ? b.getAttribute('onclick') : ''; });
-    T('F15b the Parts page Remove button calls the asking Remove', /^removePartAsk\('P-1'\)$/.test(btn), btn);
+    // R7: the Parts Remove lives in the card's ⋯ sheet — open it, press Remove, see which Remove ran
+    const btn = await pg.evaluate(() => { showPage('parts'); _renderPartsList(); window.__rm = []; window.removePartAsk = function (id) { window.__rm.push('ask:' + id); }; window.removePart = function (id) { window.__rm.push('now:' + id); }; const m = Array.from(document.querySelectorAll('#parts-list .rr-lc-more'))[0]; if (!m) return ''; m.click(); const b = Array.from(document.querySelectorAll('#rr-list-menu button')).find(x => /Remove/.test(x.textContent)); if (b) b.click(); return window.__rm.join(','); });
+    T('F15b the Parts page Remove (in the ⋯ sheet) calls the asking Remove', btn === 'ask:P-1', btn);
     T('F15c the Workbench card asks through the same one question (no second copy of it)', /await removePartAsk\(p\.id\)/.test(MT) && !/removeCard/.test(MT));
     T('F15d no page errors', errs.length === 0, errs);
     await pg.close();
@@ -342,15 +345,15 @@ async function backOnPrompt(pg) {
     await pg.close();
   }
   {
-    const bad = AP.replace(/removeUpgradeItemAsk\('\$\{_ugEntryKey\(u\)\}'\)/g, "removeUpgradeItem('${_ugEntryKey(u)}')");
-    T('P-F9 PLANTED the old one-tap buttons → F9b would fail', bad !== AP && /onclick="event\.stopPropagation\(\);removeUpgradeItem\(/.test(bad));
+    const bad = AP.replace(/removeUpgradeItemAsk\(_ugEntryKey\(u\)\)/g, 'removeUpgradeItem(_ugEntryKey(u))');
+    T('P-F9 PLANTED the one-tap Remove in the menu → F9b would fail', bad !== AP && /removeUpgradeItem\(_ugEntryKey\(u\)\)/.test(bad));
   }
   {
-    const a = "+ '<button onclick=\"removePartAsk(\\'' + rrJsArg(p.id)";
+    const a = "run: function () { removePartAsk(p.id); } });";
     T('P-F15 anchor present (once)', AP.split(a).length === 2);
     const { pg } = await world(browser, { 'app-pages.js': AP.replace(a, a.replace('removePartAsk(', 'removePart(')) });
-    const btn = await pg.evaluate(() => { showPage('parts'); _renderPartsList(); const b = Array.from(document.querySelectorAll('#parts-list button')).find(x => /Remove/.test(x.textContent)); return b ? b.getAttribute('onclick') : ''; });
-    T('P-F15 PLANTED the old one-tap Parts button → F15b would fail', !/^removePartAsk\(/.test(btn), btn);
+    const btn = await pg.evaluate(() => { showPage('parts'); _renderPartsList(); window.__rm = []; window.removePartAsk = function (id) { window.__rm.push('ask:' + id); }; window.removePart = function (id) { window.__rm.push('now:' + id); }; const m = Array.from(document.querySelectorAll('#parts-list .rr-lc-more'))[0]; if (!m) return ''; m.click(); const b = Array.from(document.querySelectorAll('#rr-list-menu button')).find(x => /Remove/.test(x.textContent)); if (b) b.click(); return window.__rm.join(','); });
+    T('P-F15 PLANTED the one-tap Parts Remove → F15b would fail', btn !== 'ask:P-1', btn);
     await pg.close();
   }
   {

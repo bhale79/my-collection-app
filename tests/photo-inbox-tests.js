@@ -2396,14 +2396,18 @@ META_WRITES.length = 0; TOASTS.length = 0;
   // — abandoned set entries —
   ok('an abandoned set is a SET- group with no My Sets record behind it',
      /\^SET-\/i\.test\(String\(p\.groupId\)\) \|\| known\[p\.groupId\]\) return;/.test(bwz));
-  ok('removal runs through the SAME code the cancel dialog uses',
+  // 2026-11-08 (setfix, review finding 3c): the notice no longer deletes — it
+  // unlinks through the app's Break Up Group (nothing on a row says whether it
+  // was made by the unfinished walk or owned before it). The walk's own cancel
+  // deletes only the rows the walk ADDED.
+  ok('the notice unlinks through Break Up Group; the cancel deletes only what the walk added',
      /window\.rrRemoveSetGroup = rrRemoveSetGroup/.test(wzz) &&
-     /await rrRemoveSetGroup\(gid\)/.test(bwz) &&
-     /const _nRemoved = await rrRemoveSetGroup\(groupId\)/.test(wzz));
+     /await _breakUpGroup\(lead\)/.test(bwz.slice(bwz.indexOf('window._rrDropAbandonedSet'))) &&
+     /const _nRemoved = await rrRemoveSetGroup\(groupId, _addedKeys, _rmReport\)/.test(wzz));
   ok('rows are deleted bottom-up so row numbers stay valid',
      /keys\.sort\(function \(a, b\) \{ return \(state\.personalData\[b\]\.row \|\| 0\) - \(state\.personalData\[a\]\.row \|\| 0\); \}\)/.test(wzz));
-  ok('the notice names the leftover items and asks before removing',
-     /Unfinished set entry/.test(bwz) && /ok: 'Remove them', cancel: 'Keep them'/.test(bwz));
+  ok('the notice names the leftover items and asks before unlinking',
+     /Unfinished set entry/.test(bwz) && /ok: W\.ok, cancel: W\.cancel, title: W\.title/.test(bwz));
 
   section('101. A photo on the detail page also shows as a thumbnail');
   const drv = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'drive.js'), 'utf8');
@@ -2978,8 +2982,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('and the duplicate title above it is gone',
        !/color:#8b5cf6[^>]*>\\u2191 Add to Upgrade List/.test(code));
     // Purple must survive where it actually means something.
-    ok('purple is still the Upgrade accent on buttons and values',
-       (code.match(/8b5cf6/g) || []).length >= 8);
+    // 2026-11-08 (R7 listlayout): 8 → 6 — the two purple "View Mine" buttons (card + row) became
+    // "📷 View Mine" in the ⋯ sheet; purple stays on the UPGRADE tag (card + row) and the picker.
+    ok('purple is still the Upgrade accent on its tags and values',
+       (code.match(/8b5cf6/g) || []).length >= 6);
   })();
 
   section('117. One pop-up standard, one filter size (v0.9.1140)');
@@ -9864,7 +9870,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
           (sid, tab, row, expected) => { deleted.push(row); expects.push(expected); return row; },   // FIND BY ID: the row deleted
           'T', adjust,
           { removeItem() {} }, { warn() {} });
-      const n = fn('G1');
+      // 2026-11-08 (setfix): the cancel passes the rows the walk added — here the three set rows
+      const n = fn('G1', ['k4', 'k5', 'k6']);
       ok('the three set rows are the ones deleted, bottom-up',
          n === 3 && deleted.join(',') === '6,5,4', deleted.join(','));
       // rows 7..10 each sat below three deletions -> 4,5,6,7
@@ -9895,7 +9902,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
           '"use strict";' + src)(
             { personalData: pd2, personalSheetId: 'S', forSaleData: null },
             () => false, 'T', adjust, { removeItem() {} }, { warn() {} });
-        const n2 = fn2('G1');
+        const n2 = fn2('G1', ['k4', 'k5', 'k6']);
         ok('a refused delete removes nothing and is not counted',
            n2 === 0 && !!pd2.k4 && !!pd2.k5 && !!pd2.k6, String(n2));
         ok('…and no row below is renumbered, because no row actually moved',
@@ -15747,7 +15754,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
         // sale off Sold through rrRemoveRowConfirmed, a copy kept like every other.
         // v0.9.2038: 68 → 69 — savePart's edit (app-pages.js) writes through the
         // guarded writer instead of its own inline rrRowStillIs.
-        ok('234 the sweep really landed — 68 sites write through the one guarded writer',
+        ok('234 the sweep really landed — 73 sites write through the one guarded writer',
            // v0.9.2047: 69 → 70 — the contact EDIT joins the guarded set (see
            // the retired exception above): the last remembered-row write that
            // did not check its row.
@@ -15762,7 +15769,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
            // writes a collection row's Group ID and an instruction sheet's through the
            // guarded writer (+2), and the set page writes a pre-Group-ID set's own
            // Group ID cell to My Sets (app-collection.js rrSetAddOwnedOpen, +1).
-           wrapped === 71, String(wrapped));
+           // 2026-11-08 (setfix): 71 → 73 — a set walk's Cancel puts back a piece you
+           // already had that the walk linked into its group (wizard-save.js
+           // rrSetWalkUnadopt): its Group ID cell, collection row or instruction
+           // sheet, through the same guarded writer the adoption used (+2).
+           wrapped === 73, String(wrapped));
       }
     })();
 
@@ -18991,8 +19002,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
          !/_qeSaving/.test(pi + ap + as + ws + bc + rp + wq + wz));
       ok('270 saveWizardItem takes a REAL in-flight lock',
          /if \(d\._wizSaveLock\) \{ console\.warn\('\[Save\] Blocked — a save is already in flight'\); return; \}\s*\n\s*d\._wizSaveLock = true;\s*\n\s*try \{/.test(ws));
+      // 2026-11-08 (setfix): the same finally now also records a set walk's rows
+      // after a half-way failure — the lock is still released first, in it.
       ok('270 …and releases it in a finally',
-         /\} finally \{ d\._wizSaveLock = false; \}/.test(ws));
+         /\} finally \{\s*d\._wizSaveLock = false;/.test(ws));
       // Stability rule #5: one guard per writer. Eight writers, eight guards.
       const guards = (ws.match(/if \(wizard\.data\._saveComplete\) \{ console\.warn/g) || []).length;
       ok('270 all seven other save paths now guard against a second run',

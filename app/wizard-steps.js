@@ -315,8 +315,8 @@ function getSteps(tab) {
           // v0.9.1463: shared scope lives in _wizVariationRows (wizard.js)
           // — itemType + roadName + PERIOD, the same rows the variation
           // screen shows, so this count can no longer mix two catalogs.
-          var vars = (typeof _wizVariationRows === 'function') ? _wizVariationRows(d.itemNum || '') : [];
-          return vars.length < 2;
+          // 2026-11-08 (notsure): the ONE answer (_wizAsksVariation, wizard.js) — the Found line asks it too
+          return !((typeof _wizAsksVariation === 'function') && _wizAsksVariation(d.itemNum || ''));
         } },
   ];
 
@@ -406,8 +406,8 @@ function getSteps(tab) {
           // v0.9.1463: shared scope lives in _wizVariationRows (wizard.js)
           // — itemType + roadName + PERIOD, the same rows the variation
           // screen shows, so this count can no longer mix two catalogs.
-          var vars = (typeof _wizVariationRows === 'function') ? _wizVariationRows(d.itemNum || '') : [];
-          return vars.length < 2;
+          // 2026-11-08 (notsure): the ONE answer (_wizAsksVariation, wizard.js) — the Found line asks it too
+          return !((typeof _wizAsksVariation === 'function') && _wizAsksVariation(d.itemNum || ''));
         } },
 
       // ── Entry Mode (Full/Quick) ──
@@ -647,8 +647,8 @@ function getSteps(tab) {
           // v0.9.1463: shared scope lives in _wizVariationRows (wizard.js)
           // — itemType + roadName + PERIOD, the same rows the variation
           // screen shows, so this count can no longer mix two catalogs.
-          var vars = (typeof _wizVariationRows === 'function') ? _wizVariationRows(d.itemNum || '') : [];
-          return vars.length < 2;
+          // 2026-11-08 (notsure): the ONE answer (_wizAsksVariation, wizard.js) — the Found line asks it too
+          return !((typeof _wizAsksVariation === 'function') && _wizAsksVariation(d.itemNum || ''));
         } },
       // Pick which tender pairs with the engine (only for engine_tender grouping).
       { id: 'tenderMatch', title: 'Which tender came with this engine?', type: 'tenderMatch',

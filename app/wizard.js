@@ -316,7 +316,7 @@ function rrReaderPreferFrom(f) {
   var type = String(f.type || '').trim();
   if (!mfr && !scale && !period) return type ? { era: '', eras: [], manufacturer: '', scale: '', period: '', type: type, kind: '', _fromFilter: true } : null;
   var norm = function (v) { return String(v || '').toLowerCase().replace(/[^a-z0-9]/g, ''); };
-  var eras = [], maker = '';
+  var eras = [], maker = '', lineEras = [];
   try {
     // the item catalogs (REAL_ERA_IDS) — the parts lists are lookup-only
     var _lookupOnly = (typeof LOOKUP_ONLY_ERAS !== 'undefined') ? LOOKUP_ONLY_ERAS : [];
@@ -326,13 +326,21 @@ function rrReaderPreferFrom(f) {
       if (mfr && norm(e.manufacturer) !== norm(mfr)) return;
       if (scale) {
         var sc = (typeof rrLineScales === 'function') ? rrLineScales(k) : [String((typeof ERA_SCALE !== 'undefined' && ERA_SCALE[k]) || '').toLowerCase()];
-        if (sc.indexOf(scale.toLowerCase()) < 0) return;   // a catalog of no stated scale does not carry O
+        if (sc.indexOf(scale.toLowerCase()) < 0) {   // a catalog of no stated scale does not carry O
+          // stdmodern (2026-11-08): …but a one-scale line whose rows may be another
+          // scale by their own Gauge (Lionel modern's Standard 13100 —
+          // rrLineRowScales, app.js) is searched too; each row then answers for
+          // itself (rrRowFitsPrefer -> _wizScaleOfRow). It is never the ONE era.
+          var rs = (typeof rrLineRowScales === 'function') ? rrLineRowScales(k) : [];
+          if (rs.indexOf(scale.toLowerCase()) >= 0) { eras.push(k); if (!maker) maker = e.manufacturer || ''; }
+          return;
+        }
       }
-      eras.push(k);
+      eras.push(k); lineEras.push(k);
       if (!maker) maker = e.manufacturer || '';
     });
   } catch (eE) {}
-  return { era: eras.length === 1 ? eras[0] : '', eras: eras, manufacturer: maker || mfr, scale: scale, period: period,
+  return { era: lineEras.length === 1 ? lineEras[0] : '', eras: eras, manufacturer: maker || mfr, scale: scale, period: period,
            type: type, kind: '', label: '', years: '', _fromFilter: true };
 }
 // Does a catalog row fit a reader preference? Its catalog is one of the
@@ -389,8 +397,15 @@ if (typeof window !== 'undefined') window._wizPeriodOfRow = _wizPeriodOfRow;   /
 
 // v0.9.1483: a row's SCALE, by era config — the same source the suggestion
 // list's Scale filter has always used (ERA_SCALE[m._era]).
+// stdmodern (2026-11-08): a row whose own Gauge names another scale its line
+// carries (Lionel's modern 13100, Gauge "Standard") answers that scale — the
+// ONE rule, rrRowOwnLineScale (app.js), so the Add screen and the Master
+// Catalog agree. Spelled as ERA_SCALE spells it (the drop-down's words).
 function _wizScaleOfRow(m) {
-  try { return (m && typeof ERA_SCALE !== 'undefined' && ERA_SCALE[m._era]) || ''; } catch (e) { return ''; }
+  try {
+    if (typeof rrRowEraScale === 'function') return rrRowEraScale(m) || '';
+    return (m && typeof ERA_SCALE !== 'undefined' && ERA_SCALE[m._era]) || '';
+  } catch (e) { return ''; }
 }
 if (typeof window !== 'undefined') window._wizScaleOfRow = _wizScaleOfRow;
 
@@ -598,6 +613,16 @@ function _wizVariationRows(itemNum) {
   return rows;
 }
 if (typeof window !== 'undefined') window._wizVariationRows = _wizVariationRows;
+// 2026-11-08 (notsure, T-2026-11-05-01): WILL THE ADD ASK "Which variation is it?" — the
+// ONE answer, read by the variation step's three skipIf checks (wizard-steps.js) AND the
+// "Found" line under the number box (wizard-suggestions.js lookupItem). The step is built to
+// auto-skip when fewer than two variations fit (one, or none, is nothing to choose between);
+// the Found line used to promise "select on next step" whenever the row it found HAD a
+// variation, so Add → 6017-200 promised a step that never came. Now it promises only this.
+function _wizAsksVariation(itemNum) {
+  return _wizVariationRows(itemNum).length >= 2;
+}
+if (typeof window !== 'undefined') window._wizAsksVariation = _wizAsksVariation;
 
 // v0.9.1033: put a focused field just under the top of the wizard's scroll
 // area, leaving room for its little label. Silent no-op off the wizard.
@@ -1623,7 +1648,11 @@ function closeWizard() {
   // If in set mode with saved items, confirm before canceling
   const _savedItems = wizard && wizard.data && wizard.data._setItemsSaved;
   const _groupId = wizard && wizard.data && wizard.data._setGroupId;
-  if (_savedItems && _savedItems.length > 0 && _groupId) {
+  // 2026-11-08 (setfix): only the rows this walk ADDED count (_setAddedKeys,
+  // rrSetWalkRecordAdded) — never a copy picked with "use the one I have", never
+  // the item an "Add Another Item" walk was started from, or its group.
+  const _addedNow = rrSetWalkAddedNow(wizard && wizard.data);
+  if (_savedItems && _addedNow.length > 0 && _groupId) {
     _confirmSetCancel();
     return;
   }
@@ -1770,14 +1799,20 @@ function _rrBuildSetItems(rs, enteredNums) {
 }
 if (typeof window !== 'undefined') window._rrBuildSetItems = _rrBuildSetItems;
 
-// v0.9.1122: ONE place that removes every collection row belonging to a set
-// group — used by the mid-entry cancel dialog AND by the abandoned-set notice
-// in My Collection, so both paths delete identically. Returns the count.
-async function rrRemoveSetGroup(groupId) {
-  if (!groupId) return 0;
+// v0.9.1122: ONE place that removes the collection rows a set walk left —
+// used by the mid-entry cancel dialog. Returns the count.
+// 2026-11-08 (setfix): onlyKeys is REQUIRED — the walk's Cancel passes the
+// rows the walk ADDED that still match what it recorded (rrSetWalkAddedNow),
+// and nothing outside that list is touched, whatever its Group ID. Without a
+// list nothing is deleted: no caller deletes "everything with this Group ID"
+// any more (the "Unfinished set entry" notice now unlinks — browse.js).
+async function rrRemoveSetGroup(groupId, onlyKeys, report) {
+  if (!groupId || !Array.isArray(onlyKeys) || !onlyKeys.length) return 0;
+  report = report || {};
+  report.kept = report.kept || [];
   var keys = Object.keys(state.personalData).filter(function (k) {
     var pd = state.personalData[k];
-    return pd && pd.groupId === groupId;
+    return !!pd && onlyKeys.indexOf(k) >= 0;
   });
   // Descending row order so earlier deletes don't shift later row numbers.
   keys.sort(function (a, b) { return (state.personalData[b].row || 0) - (state.personalData[a].row || 0); });
@@ -1785,7 +1820,7 @@ async function rrRemoveSetGroup(groupId) {
   for (const key of keys) {
     try {
       const pd = state.personalData[key];
-      if (pd && pd.row) {
+      if (pd && pd.row && Number(pd.row) !== 99999) {   // 99999 = not on the sheet yet (setfix)
         // v0.9.1267 (R3): name the record before removing it. A false return
         // means the row is not ours any more — it is still there, nothing below
         // it moved, and the user has been told to refresh. Leave state alone.
@@ -1806,6 +1841,23 @@ async function rrRemoveSetGroup(groupId) {
           // listing below that number each time a set member was removed.
           _adjustRowsAfterDelete(state.personalData, _setGone, PERSONAL_TAB);   // FIND BY ID: the row really deleted
         }
+      } else if (pd) {
+        // 2026-11-08 (setfix, review 2 finding 1): no sheet row yet — the piece
+        // was saved OFFLINE and its append is waiting in the outbox. Dropping it
+        // from memory alone let the append land on reconnect (an orphan, or a
+        // silent new member of an "Add Another Item" group). Take the queued
+        // append back through the outbox's own door; if it cannot be taken back
+        // (a send is in flight, or it is not there), KEEP the piece and say so.
+        var _fi = (typeof PERSONAL_FIELD_INDEX !== 'undefined') ? PERSONAL_FIELD_INDEX : null;
+        var _wd = (_fi && typeof window !== 'undefined' && typeof window.rrOutboxWithdrawAppend === 'function')
+          ? window.rrOutboxWithdrawAppend(state.personalSheetId, function (row) {
+              // a number cell is written with a leading ' (kept as text) — compare without it
+              var _c = function (v) { return String(v == null ? '' : v).replace(/^'/, ''); };
+              // the ids this row may wear — its own, and the fresh one a re-mint gave its queued add
+              var _ids = [_c(pd.inventoryId)].concat(((report.ids && report.ids[key]) || []).map(_c));
+              return _ids.indexOf(_c(row[_fi.inventoryId])) >= 0 && _c(row[_fi.itemNum]) === _c(pd.itemNum);
+            }) : 0;
+        if (!(_wd > 0)) { report.kept.push(String(pd.itemNum || '')); continue; }
       }
       delete state.personalData[key];
       removed++;
@@ -1881,9 +1933,53 @@ function _wizardBackHandler() {
   }
 }
 
+// 2026-11-08 (setfix): the rows this walk added that are still in the
+// collection AS RECORDED — the same store key, inventory ID, item number and
+// Group ID (review finding 1: a refresh can put another item under a key, an
+// outbox remint can hand the id to a different real item). What the cancel
+// counts, names and deletes. Nothing else.
+// ids (optional): filled with {storeKey: [every id the row may wear]} — the
+// record's id and any id it had before a re-mint — so the Cancel can also take
+// back a queued add that carries either one (rrRemoveSetGroup).
+function rrSetWalkAddedNow(d, ids) {
+  var pdAll = (typeof state !== 'undefined' && state.personalData) || {};
+  var out = [];
+  var idsOf = function (r) { return [String(r.inv || '')].concat((r.prev || []).map(String)); };
+  var same = function (p, r) {
+    return !!p && p.owned && idsOf(r).indexOf(String(p.inventoryId || '')) >= 0 && String(p.itemNum || '') === String(r.num || '')
+      && String(p.groupId || '') === String(r.gid || '');
+  };
+  ((d && d._setAddedKeys) || []).forEach(function (r) {
+    if (!r || typeof r !== 'object') return;
+    var key = r.key;
+    // review 2 finding 4: a record whose store key changed (a temp_ key, or a
+    // reload that re-keyed the row by its id) is found again by its inventory
+    // ID — and still has to match on id, number and group.
+    if (!same(pdAll[key], r)) {
+      key = null;
+      Object.keys(pdAll).some(function (k) { if (same(pdAll[k], r)) { key = k; return true; } return false; });
+    }
+    if (key && out.indexOf(key) < 0) out.push(key);
+    if (key && ids) ids[key] = idsOf(r);
+  });
+  return out;
+}
+if (typeof window !== 'undefined') window.rrSetWalkAddedNow = rrSetWalkAddedNow;
+
 async function _confirmSetCancel() {
-  const saved = wizard.data._setItemsSaved || [];
+  // 2026-11-08 (setfix): the pieces this walk ADDED (_setAddedKeys) — the copies
+  // picked with "use the one I have" were never written to the set
+  // (rrSetLinkUsedOwned runs only when the set saves), and the item an "Add
+  // Another Item" walk started from was there before it, so neither is deleted.
+  const _usedKeys = wizard.data._setUsedOwned || [];
+  const _addedIds = {};
+  const _addedKeys = rrSetWalkAddedNow(wizard.data, _addedIds);
+  const _newCount = _addedKeys.length;
+  const _addedNums = _addedKeys.map(function (k) { return String(state.personalData[k].itemNum || ''); }).filter(Boolean);
   const groupId = wizard.data._setGroupId || '';
+  const _keptNums = _usedKeys.map(function (k) { return String(((state.personalData || {})[k] || {}).itemNum || ''); }).filter(Boolean);
+  const _sf = (typeof RR_LINK_OWNED !== 'undefined' && RR_LINK_OWNED.setFlow) ? RR_LINK_OWNED.setFlow : {};
+  const _keptLine = _keptNums.length ? String((_keptNums.length === 1 ? _sf.cancelKeepsOne : _sf.cancelKeepsMany) || '').replace('{nums}', _keptNums.join(', ')) : '';
 
   // Build confirm overlay
   const overlay = document.createElement('div');
@@ -1891,7 +1987,9 @@ async function _confirmSetCancel() {
   const box = document.createElement('div');
   box.className = 'rr-card'; box.style.cssText += ';border-color:var(--accent);text-align:center';
   box.innerHTML = '<div style="font-family:var(--font-head);font-size:1.1rem;color:var(--t-accent);margin-bottom:0.75rem">Cancel Set Entry?</div>'
-    + '<div style="font-size:0.85rem;color:var(--text-mid);line-height:1.5;margin-bottom:1.25rem">Are you sure? All ' + saved.length + ' item' + (saved.length !== 1 ? 's' : '') + ' you\'ve already entered for this set will be deleted.</div>'
+    + '<div style="font-size:0.85rem;color:var(--text-mid);line-height:1.5;margin-bottom:1.25rem">Are you sure? All ' + _newCount + ' item' + (_newCount !== 1 ? 's' : '') + ' you\'ve already entered for this set will be deleted'
+    + (_addedNums.length ? ': <span id="set-cancel-list">' + rrEsc(_addedNums.join(', ')) + '</span>.' : '.')
+    + (_keptLine ? '<div id="set-cancel-kept" style="margin-top:0.5rem;color:var(--text)">' + rrEsc(_keptLine) + '</div>' : '') + '</div>'
     + '<div style="display:flex;gap:0.5rem;justify-content:center">'
     + '<button id="set-cancel-back" style="padding:0.55rem 1.1rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Go Back</button>'
     + '<button id="set-cancel-confirm" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--t-red);font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Yes, Delete All</button>'
@@ -1903,11 +2001,19 @@ async function _confirmSetCancel() {
   document.getElementById('set-cancel-back').onclick = function() { overlay.remove(); };
   document.getElementById('set-cancel-confirm').onclick = async function() {
     const btn = document.getElementById('set-cancel-confirm');
+    if (overlay._rrDeleting) return;   // 2026-11-08 (setfix): one delete, however it is pressed
+    overlay._rrDeleting = true;
     btn.disabled = true;
     btn.textContent = 'Deleting\u2026';
 
     // v0.9.1122: shared with the abandoned-set notice in My Collection.
-    const _nRemoved = await rrRemoveSetGroup(groupId);
+    // 2026-11-08 (setfix): ONLY the rows this walk added — never by Group ID alone.
+    const _rmReport = { kept: [], ids: _addedIds };
+    const _nRemoved = await rrRemoveSetGroup(groupId, _addedKeys, _rmReport);
+    // review 2 finding 3: a piece you already had that this walk linked into its
+    // group (a box, tender or sheet adopted on a piece's Confirm step) goes back
+    // to how it was.
+    try { if (typeof rrSetWalkUnadopt === 'function') await rrSetWalkUnadopt(wizard.data); } catch (eUa) { console.warn('[wizard] cancelled set: un-adopt', eUa); }
     // v0.9.2053: the saved members just went — their photos' armed notes have
     // no item to file into any more, so they are let go too (not yet moved
     // ones only); the photos stay in the inbox.
@@ -1927,7 +2033,10 @@ async function _confirmSetCancel() {
         window.rrDiscardAddUploads(_all).catch(function (eD) { console.warn('[wizard] cancelled set: pictures not taken back', eD); });
     } catch (eSU) {}
     overlay.remove();
-    showToast('Set entry canceled \u2014 ' + _nRemoved + ' item' + (_nRemoved !== 1 ? 's' : '') + ' removed');
+    const _keptOff = (_rmReport.kept || []).filter(Boolean);
+    const _sc = (typeof RR_SET_CANCEL !== 'undefined') ? RR_SET_CANCEL : {};
+    if (_keptOff.length) showToast('Set entry canceled \u2014 ' + _nRemoved + ' item' + (_nRemoved !== 1 ? 's' : '') + ' removed. ' + String(_sc.keptOffline || '').replace('{nums}', _keptOff.join(', ')), 9000, true);
+    else showToast('Set entry canceled \u2014 ' + _nRemoved + ' item' + (_nRemoved !== 1 ? 's' : '') + ' removed');
     _doCloseWizard();
     buildDashboard();
     renderBrowse();
@@ -4796,6 +4905,8 @@ function renderWizardStep() {
         wizard.data._setItemIndex = 0;
         wizard.data._setGroupId = 'SET-' + ((wizard.data._resolvedSet && wizard.data._resolvedSet.setNum) || 'UNK') + '-' + Date.now();
         wizard.data._setItemsSaved = [];
+        wizard.data._setAddedKeys = [];   // 2026-11-08 (setfix): what this walk adds — Cancel deletes only these
+        wizard.data._setAdopted = [];     // 2026-11-08 (setfix): pieces you had that this walk linked in — Cancel puts them back
         wizardAdvance();
       };
 
@@ -4825,6 +4936,8 @@ function renderWizardStep() {
           wizard.data._setItemIndex = 0;
           wizard.data._setGroupId = 'SET-' + ((_resolvedSet && _resolvedSet.setNum) || 'UNK') + '-' + Date.now();
           wizard.data._setItemsSaved = [];
+          wizard.data._setAddedKeys = [];   // 2026-11-08 (setfix): what this walk adds — Cancel deletes only these
+          wizard.data._setAdopted = [];     // 2026-11-08 (setfix): pieces you had that this walk linked in — Cancel puts them back
           // Advance past setComponents to set_entryMode
           wizardAdvance();
         };
@@ -4927,6 +5040,8 @@ function renderWizardStep() {
         wizard.data._setItemIndex  = 0;
         wizard.data._setGroupId    = 'OWN-' + Date.now();
         wizard.data._setItemsSaved = [];
+        wizard.data._setAddedKeys = [];   // 2026-11-08 (setfix): what this walk adds — Cancel deletes only these
+        wizard.data._setAdopted = [];     // 2026-11-08 (setfix): pieces you had that this walk linked in — Cancel puts them back
         wizardAdvance();
       };
 

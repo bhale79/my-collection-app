@@ -120,6 +120,9 @@ function _buildAppShell() {
   var header = document.createElement('header');
   header.className = 'header';
   header.innerHTML =
+    // 2026-11-08 (R7 listlayout): ☰ — on a tablet the left menu folds away behind it
+    // (rrMenuFoldSync below); hidden everywhere else by app.css.
+    '<button type="button" id="rr-menu-btn" class="rr-menu-btn" aria-label="Menu" title="Menu" aria-expanded="false" onclick="rrMenuToggle()">\u2630</button>' +
     '<div class="header-logo" style="display:flex;align-items:flex-end;gap:0.6rem;align-self:stretch;height:100%">' +
       /* v0.9.1259 (audit 2026-08-02, finding 5): the "?v=203" that used to be
          here meant this image was never once served from cache. sw.js
@@ -268,6 +271,22 @@ function _buildAppShell() {
     appBody.appendChild(existingMain);
   }
   app.appendChild(appBody);
+  // R7: the shade behind the folded-out menu (tablet); a tap on it folds the menu away
+  var scrim = document.createElement('div');
+  scrim.id = 'rr-menu-scrim';
+  scrim.onclick = function () { rrMenuClose(); };
+  appBody.appendChild(scrim);
+  // R7: picking a page from the folded-out menu folds it away again. The page it
+  // opened has pushed its own history step above the menu's, so the menu's entry
+  // is DROPPED, never rewound (a rewind would undo the page just picked).
+  nav.addEventListener('click', function (e) {
+    if (!document.documentElement.classList.contains('rr-menu-open')) return;
+    var b = e.target && e.target.closest ? e.target.closest('button') : null;
+    if (!b) return;
+    _rrMenuShut();
+    if (window.BackStack && typeof BackStack.drop === 'function') BackStack.drop('rr-menu-drawer');
+  });
+  rrMenuFoldSync();
   // v0.9.1209: the collector's own marks. appearance.js runs before the shell
   // exists, so its boot call can only reach the watermark — the header and
   // sidebar marks need a shell to hang on. This is that one call, made at the
@@ -284,6 +303,45 @@ function _buildAppShell() {
   // up. Asking here means asking at the one moment the menu is guaranteed to
   // exist, on every device, however slow the sign-in was.
   if (typeof window._pwaMenuInit === 'function') window._pwaMenuInit();
+}
+
+// ── THE FOLDING MENU (2026-11-08, R7 listlayout; Brad's iPad: the desktop menu
+// took a quarter of the screen beside the lists) ─────────────────────────────
+// On a TABLET (config.js rrIsTablet — iPad upright and sideways) the left menu
+// folds away behind ☰ and the page gets the full width. ONE decider:
+// <html class="rr-menu-fold"> (set only here); <html class="rr-menu-open"> while
+// it is folded out. A phone keeps its bottom bar; a computer keeps the menu.
+// The device Back button folds it away (BackStack), as does a tap on the shade,
+// picking a page, or ☰ again.
+function rrMenuFoldSync() {
+  var html = document.documentElement;
+  var fold = (typeof rrIsTablet === 'function') && rrIsTablet();
+  html.classList.toggle('rr-menu-fold', !!fold);
+  if (!fold && html.classList.contains('rr-menu-open')) rrMenuClose();
+}
+function rrMenuOpen() {
+  var html = document.documentElement;
+  if (!html.classList.contains('rr-menu-fold') || html.classList.contains('rr-menu-open')) return;
+  html.classList.add('rr-menu-open');
+  var b = document.getElementById('rr-menu-btn'); if (b) b.setAttribute('aria-expanded', 'true');
+  if (window.BackStack) BackStack.push('rr-menu-drawer', function () { _rrMenuShut(); });
+}
+function _rrMenuShut() {
+  document.documentElement.classList.remove('rr-menu-open');
+  var b = document.getElementById('rr-menu-btn'); if (b) b.setAttribute('aria-expanded', 'false');
+}
+function rrMenuClose() {
+  if (!document.documentElement.classList.contains('rr-menu-open')) return;
+  _rrMenuShut();
+  if (window.BackStack && typeof BackStack.has === 'function' && BackStack.has('rr-menu-drawer')) BackStack.pop('rr-menu-drawer');
+}
+function rrMenuToggle() {
+  if (document.documentElement.classList.contains('rr-menu-open')) rrMenuClose(); else rrMenuOpen();
+}
+if (typeof window !== 'undefined') {
+  window.rrMenuFoldSync = rrMenuFoldSync; window.rrMenuOpen = rrMenuOpen;
+  window.rrMenuClose = rrMenuClose; window.rrMenuToggle = rrMenuToggle;
+  window.addEventListener('resize', function () { try { if (document.getElementById('rr-menu-btn')) rrMenuFoldSync(); } catch (e) {} });
 }
 
 // ── OAuth + sign-in helpers moved to app-auth.js (Session 110, Round 2 Chunk 11) ──

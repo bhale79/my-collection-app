@@ -740,7 +740,28 @@
     } catch (e) {}
   }
 
+  // 2026-11-08 (setfix, review 2 finding 1): take back a queued APPEND that has
+  // not been sent — a set walk's Cancel of a piece saved while offline (its row
+  // is still only on this device). match(row, entry) names the row. Refused
+  // (-1) while a drain or retry is sending: that row may already be on its way,
+  // and the caller keeps the piece and says so. Returns how many were taken back.
+  function rrOutboxWithdrawAppend(sheetId, match) {
+    try {
+      if (_retrying) return -1;
+      if (typeof match !== 'function') return 0;
+      var list = _load(), kept = [], n = 0;
+      list.forEach(function (e) {
+        var row = e && e.kind === 'append' && e.args && e.args.values && e.args.values[0];
+        if (row && (!sheetId || String(e.args.sheetId || '') === String(sheetId)) && match(row, e)) n++;
+        else kept.push(e);
+      });
+      if (n) { _save(kept); _paint(); rrSyncLog('withdraw', n + ' queued append(s) taken back'); }
+      return n;
+    } catch (e) { return 0; }
+  }
+
   window.rrOutboxRecord = rrOutboxRecord;
+  window.rrOutboxWithdrawAppend = rrOutboxWithdrawAppend;
   window.rrOutboxSupersede = rrOutboxSupersede;
   window.rrOutboxRowsMoved = rrOutboxRowsMoved;
   window.rrOutboxList = rrOutboxList;

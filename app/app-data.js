@@ -919,7 +919,11 @@ function _rrRowIdFits(row, itemNum, variation) {
   // (PLAN_2026-11-05_LEADING_ZEROS step 2). The Row ID is the identity; this
   // check only refuses a stale or foreign ID, and a zero twin is neither.
   var _zt = (typeof rrNumZeroTwin === 'function') && (rrNumZeroTwin(_kn, _in) || (typeof baseItemNum === 'function' && rrNumZeroTwin(_kn, baseItemNum(_in))));
-  if (!(_kn === _in || (typeof baseItemNum === 'function' && baseItemNum(_in) === _kn) || _zt)) return false;
+  if (!(_kn === _in || (typeof baseItemNum === 'function' && baseItemNum(_in) === _kn) || _zt)) {
+    // zerobridge: a copy of a deleted book row whose link a back-fill moved to
+    // its keeper (RR_BOOK_COPY_REDIRECT) keeps that link — the pair is the table's
+    return (typeof _rrBookCopyPairFits === 'function') && _rrBookCopyPairFits(row, _in, variation);
+  }
   var v = String(variation == null ? '' : variation).trim();
   if (!v) return true;
   var rv = String(row.variation == null ? '' : row.variation).trim();
@@ -1783,6 +1787,21 @@ function rrCopyRow(pd) {
     return findMaster(pd.itemNum, pd.variation, pd);
   } catch (e) { return null; }
 }
+// 2026-11-08 (notsure): THE catalog row AS AN OWNED COPY SHOWS IT. A copy saved
+// "not sure" of its variation is drawn on its item's real row (the v0.9.1120
+// rule: one row lights up), and that row carries a variation — so the item
+// page said "Var. 1", showed variation 1's description, the Update Info box
+// read Var. 1 back as the copy's own and wrote it, and the remove box said
+// "(Var. 1)". The variation shown, and its description, are the COPY's: when
+// the copy's variation is not the row's, the row is shown with the copy's
+// variation and no variation description. The same row object when they agree.
+function rrCopyRowView(row, pd) {
+  if (!row || !pd || !pd.itemNum) return row;   // no copy in hand ({} from a missed key) — the row as it is
+  var cv = String(pd.variation == null ? '' : pd.variation).trim();
+  var rv = String(row.variation == null ? '' : row.variation).trim();
+  if (typeof rrSameVar === 'function' ? rrSameVar(cv, rv) : cv.toUpperCase() === rv.toUpperCase()) return row;
+  return Object.assign({}, row, { variation: cv, varDesc: '' });
+}
 function rrCopyTypeWord(pd, row) {
   var m = (row === undefined) ? rrCopyRow(pd) : row;
   return String((m && m.itemType) || (pd && pd.itemType) || '').trim();
@@ -1797,6 +1816,7 @@ function rrCopyBucket(pd, row) {
 if (typeof window !== 'undefined') {
   window.rrRowKind = rrRowKind; window.rrDemotedRow = rrDemotedRow;
   window.rrCopyRow = rrCopyRow; window.rrCopyTypeWord = rrCopyTypeWord; window.rrCopyBucket = rrCopyBucket;
+  window.rrCopyRowView = rrCopyRowView;
 }
 
 function findMaster(itemNum, variation, prefer) {
@@ -1811,6 +1831,13 @@ function findMaster(itemNum, variation, prefer) {
   if (prefer && prefer.masterRowId) {
     var _byId = rrMasterByRowId(prefer.masterRowId);
     if (_byId && _rrRowIdFits(_byId, itemNum, variation)) return _byId;
+  }
+  // zerobridge (2026-11-08): a saved copy of a reference-book row the master
+  // deleted lands on the row the delete record names as its keeper
+  // (rrBookCopyRedirect; table RR_BOOK_COPY_REDIRECT, config.js).
+  if (prefer && typeof rrBookCopyRedirect === 'function') {
+    var _bcK = rrBookCopyRedirect(prefer, itemNum, variation);
+    if (_bcK) return _bcK;
   }
   // v0.9.1198: a STORED key answers outright — no scoring, no guessing. Many
   // call sites already pass the personal row as `prefer`; rows saved from
@@ -1837,7 +1864,8 @@ function findMaster(itemNum, variation, prefer) {
     if (_byKey) {
       var _kn = String(_byKey.itemNum).trim(), _in = String(itemNum).trim();
       if (_kn === _in || (typeof baseItemNum === 'function' && baseItemNum(_in) === _kn)
-          || (typeof rrNumZeroTwin === 'function' && rrNumZeroTwin(_kn, _in))) return _byKey;   // 2026-11-05: 1511 saved, 01511 in the catalog
+          || (typeof rrNumZeroTwin === 'function' && rrNumZeroTwin(_kn, _in))   // 2026-11-05: 1511 saved, 01511 in the catalog
+          || (typeof _rrBookCopyPairFits === 'function' && _rrBookCopyPairFits(_byKey, _in, variation))) return _byKey;   // zerobridge: a back-filled keeper's key holds
     }
   }
   // v0.9.971 (Brad): ONE lookup, TWO layers. Layer 1 is the loaded (enabled-
@@ -1872,9 +1900,126 @@ function findMaster(itemNum, variation, prefer) {
   if (state.masterByItemAll) {
     var _r2 = _findMasterCore(state.masterByItemAll, itemNum, variation, prefer);
     if (_r2 && (!_r || String(_r2._era || '') === _want)) return _r2;
+    // stdmodern C2: the named catalog has no row of this number any more (a
+    // Lionel-tab copy of an MTH 11- train, deleted once the MTH row says "Also
+    // Sold As: Lionel Corporation"). A row also sold as that catalog's maker IS
+    // its row now — never another maker's row of the same number (MTH O).
+    if (_r2 && typeof _rrRowSoldAsEra === 'function' && !_rrRowSoldAsEra(_r, _want) && _rrRowSoldAsEra(_r2, _want)) return _r2;
   }
   return _r || null;
 }
+// ══ stdmodern C2 (2026-11-08) — A SAVED COPY WHOSE CATALOG ROW IS GONE ══════
+// [stated] Brad, PLAN_2026-11-08_LIONEL_STANDARD_MODERN ("yes"; "put a, b, and
+// c together"): MTH's licensed Lionel Corporation Tinplate trains live ONCE, on
+// the MTH tab, with "Also Sold As: Lionel Corporation"; the 374 copies typed onto
+// Lionel MPC-Modern are to be removed. A collector who saved one of those copies
+// still names the Lionel modern catalog (era / masterKey / masterRowId); when
+// its row is gone the number alone lands on whichever row of that number loaded
+// first. Measured 2026-11-08: each of the Lionel tab's 373 different 11- numbers
+// has exactly ONE other row today (238 on MTH Tinplate, 58 on MTH O, none on
+// both) — so the risk comes once Part B moves / deletes rows and a number gains a
+// second row on another tab (a copied MTH Tinplate row beside MTH O's, say), the
+// MTH O one loading first. So: a row "also sold as" the named catalog's maker
+// counts as that catalog — but ONLY when the catalog itself holds no row of the
+// number (_findMasterCore arms it; findMaster asks it last), so nothing changes
+// for a copy whose own row still exists. Same period only, and a period must be
+// KNOWN on both sides (_itemEraPeriod — a year, or the era's own entry; never
+// guessed): a Lionel Postwar copy never lands on a modern MTH reissue this way.
+function _rrRowSoldAsEra(row, era) {
+  if (!row || !era || String(row._era || '') === era) return false;
+  var mk = '';
+  try { mk = (typeof ERAS !== 'undefined' && ERAS[era] && ERAS[era].manufacturer) || ''; } catch (e) {}
+  if (!mk || typeof rrRowAlsoSoldBy !== 'function' || !rrRowAlsoSoldBy(row, mk)) return false;
+  try {
+    if (typeof _itemEraPeriod !== 'function') return false;   // no period to compare: no match
+    var a = _itemEraPeriod(row), b = _itemEraPeriod({ _era: era });
+    if (!a || !b || a !== b) return false;                    // an unknown period never matches
+  } catch (e2) { return false; }
+  return true;
+}
+if (typeof window !== 'undefined') window._rrRowSoldAsEra = _rrRowSoldAsEra;
+// ══ zerobridge (2026-11-08) — THE BOOK COPIES THE MASTER DELETES ════════════
+// (table: RR_BOOK_COPY_REDIRECT, config.js — FINAL_RECORD's Write 2, by Row ID)
+// [stated] Brad 20:17 CT "yes" (PLAN_2026-11-08_LIONEL_STANDARD_MODERN, Q7 /
+// Q8): a saved copy of a deleted reference-book row lands on the row that keeps
+// its train — MTH's "-0" (else "-1") where the book wrote the number without
+// MTH's ending (11-1005 -> 11-1005-0). stdmodern C2 only reaches a row of the
+// SAME number; these numbers differ, so no rule may guess: the keeper is named,
+// row by row, in the table. A saved copy is redirected ONLY when
+//   · its Row ID (or, with none, its Master Key) is one of the deleted rows,
+//   · it is the deleted row's own item: its number, and its variation when it
+//     names one (_rrBcEntryFits — the SAME rule the back-filled pair is held to),
+//   · that row does not answer (rrMasterByRowId) — before the master's delete
+//     it does, so nothing changes,
+//   · and the keeper is in the catalog, still under the keeper's number.
+// No wait for the whole catalog: a table row names its keeper, the same train,
+// so a copy lands on it as soon as the keeper's row is loaded — no flicker on
+// start-up (a copy whose deleted row merely is not loaded YET also lands on its
+// keeper meanwhile: the same train). Nothing else changes.
+function _rrBcTable() {
+  return (typeof RR_BOOK_COPY_REDIRECT !== 'undefined' && RR_BOOK_COPY_REDIRECT && RR_BOOK_COPY_REDIRECT.rows) ? RR_BOOK_COPY_REDIRECT : null;
+}
+// The table read two ways, once: by the deleted row's Master Key, and by keeper.
+var _rrBcIdx = null;
+function _rrBcIndex() {
+  var T = _rrBcTable();
+  if (!T) return null;
+  if (_rrBcIdx && _rrBcIdx.t === T) return _rrBcIdx;
+  var byKey = new Map(), byKeeper = new Map();
+  Object.keys(T.rows).forEach(function (id) {
+    var e = T.rows[id];
+    byKey.set(e[0] + '|' + e[1] + '|' + e[2], id);
+    if (!byKeeper.has(e[3])) byKeeper.set(e[3], []);
+    byKeeper.get(e[3]).push(id);
+  });
+  _rrBcIdx = { t: T, byKey: byKey, byKeeper: byKeeper };
+  return _rrBcIdx;
+}
+// THE one rule: is this copy (its number, its variation) the deleted row's item?
+// The number exactly; a variation the copy names must be the row's (blank names none).
+function _rrBcEntryFits(e, itemNum, variation) {
+  if (!e || String(itemNum == null ? '' : itemNum).trim() !== e[1]) return false;
+  var v = String(variation == null ? '' : variation).trim();
+  return !v || (typeof rrSameVar === 'function' ? rrSameVar(v, e[2]) : v.toUpperCase() === String(e[2]).toUpperCase());
+}
+// The keeper row for a saved copy (prefer) looked up under itemNum, or null.
+function rrBookCopyRedirect(prefer, itemNum, variation) {
+  if (!prefer) return null;
+  var I = _rrBcIndex();
+  if (!I) return null;
+  var id = String(prefer.masterRowId || '').trim();
+  if (!id || !I.t.rows[id]) {
+    if (id) return null;                                                     // its Row ID names another row: not ours
+    id = I.byKey.get(String(prefer.masterKey || '').trim()) || '';           // no Row ID: its Master Key
+    if (!id) return null;
+  }
+  var e = I.t.rows[id];
+  if (!_rrBcEntryFits(e, itemNum, variation)) return null;                 // only the deleted row's own item
+  try {
+    if (rrMasterByRowId(id)) return null;                                    // the row is still there
+    var k = rrMasterByRowId(e[3]);
+    if (!k || String(k.itemNum == null ? '' : k.itemNum).trim() !== e[4]) return null;   // the keeper must be there, under its number
+    return k;
+  } catch (eX) { return null; }
+}
+// A copy the redirect landed on its keeper keeps it: once a back-fill writes the
+// keeper's Row ID (or Master Key) onto the copy, that link names a row of
+// ANOTHER number — this says the pair is the table's own (the copy is the
+// deleted row's item, _rrBcEntryFits; the row is its keeper, under the keeper's
+// number), so the link holds.
+function _rrBookCopyPairFits(row, itemNum, variation) {
+  var I = _rrBcIndex();
+  if (!I || !row || !row.rowId) return false;
+  var ids = I.byKeeper.get(String(row.rowId).trim());
+  if (!ids) return false;
+  var rn = String(row.itemNum == null ? '' : row.itemNum).trim();
+  return ids.some(function (id) {
+    var e = I.t.rows[id];
+    if (rn !== e[4]) return false;                                           // the keeper still under its number
+    return _rrBcEntryFits(e, itemNum, variation);
+  });
+}
+if (typeof window !== 'undefined') { window.rrBookCopyRedirect = rrBookCopyRedirect; window._rrBookCopyPairFits = _rrBookCopyPairFits; }
 // The real item rows (rrRowKind 'item' or 'set') filed under a row's number in
 // the same era — the test for "something real answers this number".
 function _rrRealRowsOf(row) {
@@ -2002,11 +2147,25 @@ function _findMasterCore(idx, itemNum, variation, prefer) {
       if (_pEraK && ERA_TABS[_pEraK].items) _prefTab = ERA_TABS[_pEraK].items;
     } catch (e) {}
   }
+  // stdmodern C2: the catalog the copy names (its saved row, key or era — the
+  // same answer findMaster's _want gives). When that catalog holds NO row of
+  // this number, a row "also sold as" its maker is that catalog's row
+  // (_rrRowSoldAsEra) and outranks another maker's row of the same number.
+  // Armed per scoring pass (_armSoldAs) — never while the catalog has its own row.
+  let _prefSoldEra = '', _soldAsLive = false;
+  if (prefer) {
+    try { _prefSoldEra = (typeof _preferEraOf === 'function') ? _preferEraOf(prefer) : _rrPreferEraKey(prefer.era); } catch (eSE) {}
+  }
+  const _armSoldAs = (list) => {
+    _soldAsLive = !!_prefSoldEra && typeof _rrRowSoldAsEra === 'function'
+      && !list.some(r => r && String(r._era || '') === _prefSoldEra);
+  };
   function _prefBoost(m) {
     if (!prefer) return 0;
     let b = 0;
     const t = String(m._tab || '').toLowerCase();
     if (_prefTab && m._tab === _prefTab) b += 8;
+    if (_soldAsLive && _rrRowSoldAsEra(m, _prefSoldEra)) b += 6;   // stdmodern C2
     if (_prefMfr && t.indexOf(_prefMfr) === 0) b += 4;   // tabs start with the maker name
     // v0.9.1483 (Brad: "we keep running into the first-in-load-order
     // issue"): findMaster is the ONE function nearly every lookup calls —
@@ -2018,7 +2177,9 @@ function _findMasterCore(idx, itemNum, variation, prefer) {
       try { var _bp = window._wizPeriodOfRow(m); if (_bp === _prefPeriod) b += 10; else if (_bp) b -= 5; } catch (eBP) {}
     }
     if (_prefScale) {
-      try { var _bs = (typeof ERA_SCALE !== 'undefined' && ERA_SCALE[m._era]) || ''; if (_bs === _prefScale) b += 6; else if (_bs) b -= 3; } catch (eBS) {}
+      // stdmodern: the row's scale by the ONE row rule (rrRowEraScale, app.js) —
+      // Lionel's modern 13100 marked Standard is Standard, not its tab's O
+      try { var _bs = (typeof rrRowEraScale === 'function') ? rrRowEraScale(m) : ((typeof ERA_SCALE !== 'undefined' && ERA_SCALE[m._era]) || ''); if (_bs === _prefScale) b += 6; else if (_bs) b -= 3; } catch (eBS) {}
     }
     return b;
   }
@@ -2153,6 +2314,7 @@ function _findMasterCore(idx, itemNum, variation, prefer) {
       if (hit) return hit;      // named: exact, as before
     }
     if (prefer && pool.length > 1) {
+      _armSoldAs(pool);   // stdmodern C2
       let bestE = pool[0], bsE = _prefBoost(pool[0]);
       for (let i = 1; i < pool.length; i++) { const s2 = _prefBoost(pool[i]); if (s2 > bsE) { bestE = pool[i]; bsE = s2; } }
       return _swap(bestE);
@@ -2191,6 +2353,7 @@ function _findMasterCore(idx, itemNum, variation, prefer) {
     sc += _prefBoost(m);   // v0.9.648
     return sc;
   }
+  _armSoldAs(cands);   // stdmodern C2
   let best = cands[0], bestS = score(cands[0]);
   for (let i = 1; i < cands.length; i++) { const sc = score(cands[i]); if (sc > bestS) { best = cands[i]; bestS = sc; } }
   return _swap(best, cands);   // 2026-11-07 (onerow): same number, same catalog only
@@ -4110,6 +4273,9 @@ window._rrOfflineAppendDrain = async function () {
         try { console.warn('[outbox] inventory id ' + iv + ' belongs to ' + sheetNum + ' in the sheet — reminting queued ' + queuedNum + ' as inv ' + fresh + ' and sending'); } catch (e4) {}
         try { if (typeof rrSyncLog === 'function') rrSyncLog('REMINT', queuedNum + ' ' + iv + '->' + fresh); } catch (e6) {}
         row[invIdx] = fresh;
+        // 2026-11-08 (setfix, review finding 1): say so — a set walk in progress
+        // follows its piece to the fresh id (wizard-save.js 'rr-remint').
+        try { document.dispatchEvent(new CustomEvent('rr-remint', { detail: { from: String(iv), to: fresh, num: queuedNum } })); } catch (e7) {}
         return false;                                 // send, with the fresh id
       } catch (e) { return false; }
     });

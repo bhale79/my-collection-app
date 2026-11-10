@@ -116,6 +116,9 @@ async function quickEntryAdd() {
   // true and this reduced to a plain _wizSaveLock check. saveWizardItem now
   // sets that lock for real, so this guard finally does something.
   if (d._wizSaveLock) { console.warn('[QE] Blocked — a save is already in flight'); return; }
+  // 2026-11-08 (setfix): inside a set walk, what was there before this save
+  // (rrSetWalkRecordAdded, wizard-save.js — the rows the walk's Cancel may delete)
+  const _rrSetBefore = d._setMode ? Object.keys(state.personalData || {}) : null;
   const itemNum = (d.itemNum || '').trim();
   if (!itemNum) { showToast('Please enter an item number first'); return; }
   const variation = (d.variation || '').trim();
@@ -178,6 +181,7 @@ async function quickEntryAdd() {
   if (_qeUnit3Num)
     rows.push({ itemNum: _qeUnit3Num, variation: '', matchedTo: _qeUnit1Num, setId, groupId: qeGroupId, notes: 'Quick Entry \u2014 ABA set with ' + _qeUnit1Num, condition: d._qeUnit3Condition || '' });
 
+  const _qeMinted = [];   // 2026-11-08 (setfix): the ids THIS save minted (rrSetWalkRecordAdded)
   try {
     const _nextBtn = document.getElementById('wizard-next-btn');
     if (_nextBtn) _nextBtn.disabled = true;
@@ -207,6 +211,7 @@ async function quickEntryAdd() {
     for (const r of rows) {
       const isLead = r === rows[0];
       const invId = isLead ? _qeLeadInvId : nextInventoryId();
+      _qeMinted.push(String(invId));   // 2026-11-08 (setfix): minted by THIS save
       // Session 143 (Tier 4.25): populate Era (col 23) and Manufacturer (col 24)
       // for QE-saved rows so non-Lionel items don't fall back to 'Lionel' default
       // after a cache refresh. The in-memory state.personalData entry below
@@ -235,6 +240,7 @@ async function quickEntryAdd() {
 
     // Set mode: advance to next item instead of closing
     if (d._setMode) {
+      try { if (_rrSetBefore && typeof rrSetWalkRecordAdded === 'function') rrSetWalkRecordAdded(d, _rrSetBefore, { gid: d._setGroupId, minted: _qeMinted }); } catch (eAd) {}
       const _saved   = d._setItemsSaved || [];
       _saved.push(itemNum);
       const _curIdx  = d._setItemIndex || 0;
@@ -272,6 +278,9 @@ async function quickEntryAdd() {
   } catch(e) {
     console.error('[QE] Save error:', e);
     showToast(rrSaveError(e, 'your change'), 6000, true);
+    // 2026-11-08 (setfix, review finding 2): rows this walk save already stored
+    // before it failed are recorded, so the walk's Cancel can take them back.
+    try { if (_rrSetBefore && d._setMode && typeof rrSetWalkRecordAdded === 'function') rrSetWalkRecordAdded(d, _rrSetBefore, { gid: d._setGroupId, minted: _qeMinted }); } catch (eAdQ) {}
   }
 }
 

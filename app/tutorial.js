@@ -973,9 +973,26 @@ function _gtEnd() {
     var _g = (typeof GUIDES !== 'undefined' && GUIDES) ? GUIDES[window._gtGuideId] : null;
     if (_g && typeof _g.close === 'function') _g.close();
   } catch (e) {}
+  // R7 (2026-11-08): a menu the tour folded out on a tablet folds away with it
+  _gtMenuFor(null);
   // v0.9.1871 — the tour's sample rows leave with it, however it ended: every one
   // is taken off the page and the page on screen draws itself again (config.js).
   try { if (typeof rrSamplesOn === 'function') rrSamplesOn(false); } catch (e) {}
+}
+// ── R7 (2026-11-08, listlayout) — on a tablet the left menu folds behind ☰
+// (app-setup.js rrMenuFoldSync). A step that points INTO the menu folds it out
+// first, so the ring lands on something on screen; the next step that points
+// elsewhere — or the tour ending — folds it away again. Only a menu the TOUR
+// opened is closed by the tour.
+var _gtOpenedMenu = false;
+function _gtMenuFor(el) {
+  try {
+    var html = document.documentElement;
+    if (!html.classList.contains('rr-menu-fold')) { _gtOpenedMenu = false; return; }
+    var inMenu = !!(el && el.closest && el.closest('.sidebar'));
+    if (inMenu && !html.classList.contains('rr-menu-open') && typeof rrMenuOpen === 'function') { rrMenuOpen(); _gtOpenedMenu = true; }
+    else if (!inMenu && _gtOpenedMenu && typeof rrMenuClose === 'function') { rrMenuClose(); _gtOpenedMenu = false; }
+  } catch (e) {}
 }
 // ══ v0.9.1384 — THE HELP CARD MUST NOT SIT ON A CONTROL ═══════════════════
 //
@@ -1038,7 +1055,7 @@ function _gtControls() {
     if (n.disabled) continue;
     // ── v0.9.1406 — A ROW IS NOT A BUTTON ───────────────────────────────────
     // The want list draws each row as a clickable DIV 350x223 with its own
-    // eBay / Search / + Collection / Remove buttons inside it. Counting the row
+    // eBay / Search / + Collection / Remove buttons inside it (since R7 2026-11-08: ✓ Got It + ⋯ on a card). Counting the row
     // AND its buttons made the row the biggest single obstacle on the screen —
     // on a 360px phone there is no position that misses a 223px-tall row, so
     // the search gave up and settled for a position over a real button.
@@ -2054,6 +2071,7 @@ function _guidedTour(steps) {
     var cands = document.querySelectorAll(sel), el = null;
     for (var c = 0; c < cands.length; c++) { if (_gtShown(cands[c])) { el = cands[c]; break; } }
     if (el && step.wrap) el = el.closest(step.wrap) || el;
+    _gtMenuFor(el);   // R7: a step pointing into the folded tablet menu folds it out first
     if (!el) {
       try {
         window._gtMisses = window._gtMisses || [];

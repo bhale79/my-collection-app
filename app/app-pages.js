@@ -17,7 +17,7 @@
 //   • Sets page: buildSetsPage, addSetToCollection, addSetToWantList, showSetDetail
 //   • Disclaimer banner: _dismissDisclaimer, _applyDisclaimerPref
 //   • Contact modal: _buildContactModal, showContactModal
-//   • Upgrade page: buildUpgradePage, _toggleUpgradePhoto, _upgradeViewMine,
+//   • Upgrade page: buildUpgradePage, _upgradeViewMine,
 //     showAddToUpgradeModal, saveUpgradeItem, removeUpgradeItem, upgradeGotIt,
 //     _upgradeGotItFinish
 //
@@ -1897,6 +1897,23 @@ function _fsSortBy(col) {
   else { state._fsSort = { col: col, dir: 'asc' }; }
   buildForSalePage();
 }
+// R7 (2026-11-08): the For Sale buttons, ONE copy for the card and the table
+// row (THE list layout draws them): "Mark as Sold" + ⋯ (Share, Take off the
+// list, Remove from collection — last, in red).
+function _fsActions(fs, shareKey, master, row) {
+  var key = _fsEntryKey(fs);
+  return rrListActions({
+    key: 'fs|' + key + '|' + String(fs.itemNum || '') + '|' + String(fs.variation || ''), row: !!row,
+    title: String(_fsEff(fs).itemNum || '') + (master && master.roadName ? ' \u00b7 ' + master.roadName : ''),
+    main: { label: RR_LIST_LAYOUT.markSold, tone: 'green', cls: 'row-mark-sold',
+            call: "markForSaleAsSold('" + rrJsArg(key) + "','" + rrJsArg(fs.askingPrice || '') + "')" },
+    menu: [
+      { label: RR_LIST_LAYOUT.share, run: function () { _fsShareOne(shareKey); } },
+      { label: RR_LIST_LAYOUT.unlist, run: function () { removeForSaleItem(key); } },
+      { label: RR_LIST_LAYOUT.removeColl, danger: true, run: function () { removeForSaleAndCollection(key); } }
+    ]
+  });
+}
 function _fsEff(fs) {
   var pd = (fs && fs.inventoryId && typeof state!=='undefined' && state.personalData) ? state.personalData[fs.inventoryId] : null;
   if (pd && pd.itemNum) return { itemNum: pd.itemNum, variation: pd.variation || '' };
@@ -1936,7 +1953,8 @@ rrTableDefine({
     var xc = _FS_EXTRA_COLS.filter(function (c) { return c.col === col; })[0];
     return (xc && typeof _collColLabel === 'function') ? _collColLabel(col) : null;
   },
-  thStyle: function (c) { return c.col === 'desc' ? 'white-space:normal;width:99%;' : ''; },
+  // R7 (2026-11-08): a two-word heading may wrap to two lines — never cut — so the table fits a laptop
+  thStyle: function (c) { return c.col === 'desc' ? 'white-space:normal;width:99%;' : (_FS_LOCKED.indexOf(c.col) < 0 ? 'white-space:normal;' : ''); },
   onAdd: function (col) { if (typeof _collSwitchOn === 'function') _collSwitchOn(col); },
   menuFilter: function (c) { return !(c.userField && typeof rrTagCustomIsFree === 'function' && rrTagCustomIsFree(c.pdKey)); },
 });
@@ -2093,6 +2111,131 @@ if (typeof window !== 'undefined') {
   window.rrFsPriceFillSave = rrFsPriceFillSave;
 }
 
+// ═════════════════════════════════════════════════════════════════════════
+// THE LIST LAYOUT — Want/Upgrade, For Sale, Parts Needed (2026-11-08, R7
+// listlayout; Brad's iPad want list: the desktop table squeezed beside the
+// menu, Item # off the left edge, 4–6 small buttons stacked per row with
+// "Got / It" wrapping). ONE owner for the three lists:
+//   rrListAsCards(page)   table or cards — a phone or a tablet (config.js
+//                         rrIsTablet) always gets cards; a computer gets cards
+//                         only when the window is too narrow for the full
+//                         table, MEASURED (rrListTableFits), never a guessed width.
+//   rrListActions(spec)   the card's buttons: ONE big main button + ⋯. Every
+//                         other choice lives in the ⋯ sheet, Remove last, in red.
+//   rrListMenu(id)        the ⋯ sheet (a pop-up: rrDismissGuard — a tap outside
+//                         does nothing, Cancel / device Back close it).
+// Words and the finger size: config.js RR_LIST_LAYOUT. Guard: tests/listlayout_tests.js.
+// ═════════════════════════════════════════════════════════════════════════
+var _rrListNeed = {};   // page → the page width the full table needed when it last did NOT fit
+function rrListAsCards(page) {
+  if (typeof rrIsPhone === 'function' && rrIsPhone()) return true;
+  if (typeof rrIsTablet === 'function' && rrIsTablet()) return true;
+  // For Sale's columns are the collector's own: while they are being edited the table
+  // stays (it may scroll sideways) — the editor lives on its headings.
+  if (page === 'forsale' && typeof state !== 'undefined' && state && state._fsColEdit) return false;
+  var need = _rrListNeed[page];
+  if (!need) return false;
+  var w = _rrListRoom();
+  return !!(w && w < need);
+}
+// A computer (not a phone, not a tablet) — the only place a list can be either.
+function rrListOnComputer() {
+  return !(typeof rrIsPhone === 'function' && rrIsPhone()) && !(typeof rrIsTablet === 'function' && rrIsTablet());
+}
+// Called right after a page drew its TABLE. Too narrow → remember how wide the
+// page must be for it (so a wider window brings the table back) and answer
+// false: the caller draws the cards instead. A page with no layout (jsdom) fits.
+// The room a list has: the content area's width (the menu, when shown, is beside it).
+function _rrListRoom() {
+  var m = document.getElementById('main-content');
+  return m ? m.clientWidth : 0;
+}
+function rrListTableFits(page, tableEl) {
+  try {
+    var room = _rrListRoom();
+    if (!tableEl || !room) return true;
+    if (page === 'forsale' && typeof state !== 'undefined' && state && state._fsColEdit) return true;
+    var wrap = tableEl.parentElement;
+    var have = wrap ? wrap.clientWidth : 0, used = tableEl.scrollWidth;
+    if (!have || !used || used <= have + 1) { delete _rrListNeed[page]; return true; }
+    _rrListNeed[page] = room + (used - have) + 2;
+    // Answer "does not fit" only when a second draw WILL come out as cards — never a loop.
+    return !rrListAsCards(page);
+  } catch (e) { return true; }
+}
+// The ⋯ sheets of the cards on screen, by a key that names the ENTRY (never a position).
+var _rrListMenus = {};
+function rrListActions(spec) {
+  // spec: { key, title, row (a table row: shorter, for a mouse), main: { label, call, tone, cls }, menu: [{ label, run, danger }] }
+  var L = RR_LIST_LAYOUT;
+  var key = String(spec.key || '');
+  var menu = (spec.menu || []).filter(Boolean);
+  // Remove (danger) always last.
+  menu = menu.filter(function (m) { return !m.danger; }).concat(menu.filter(function (m) { return m.danger; }));
+  _rrListMenus[key] = { title: spec.title || '', menu: menu };
+  var main = spec.main;
+  var tone = (main && main.tone) || 'green';
+  return '<div class="rr-lc-acts' + (spec.row ? ' rr-lc-row' : '') + '">'
+    // main.call's arguments are made with rrJsArg, which is already safe inside an attribute — never rrEsc it twice
+    + (main ? '<button type="button" class="rr-lc-main rr-lc-' + tone + (main.cls ? ' ' + main.cls : '') + '" onclick="event.stopPropagation();' + main.call + '">' + rrEsc(main.label) + '</button>' : '')
+    + (menu.length ? '<button type="button" class="rr-lc-more" aria-label="' + rrEsc(L.moreWords) + '" title="' + rrEsc(L.moreWords) + '" onclick="event.stopPropagation();rrListMenu(\'' + rrJsArg(key) + '\')">' + L.more + '</button>' : '')
+    + '</div>';
+}
+function rrListMenu(key) {
+  var spec = _rrListMenus[key];
+  if (!spec || !spec.menu.length) return;
+  var L = RR_LIST_LAYOUT;
+  var old = document.getElementById('rr-list-menu'); if (old) old.remove();
+  var ov = document.createElement('div');
+  ov.id = 'rr-list-menu';
+  ov.className = 'rr-lc-sheet-ov';
+  rrDismissGuard(ov);   // a tap outside does nothing; Cancel and the device Back close it
+  ov.innerHTML = '<div class="rr-lc-sheet" role="dialog" aria-label="' + rrEsc(spec.title || L.menuWords) + '">'
+    + (spec.title ? '<div class="rr-lc-sheet-title">' + rrEsc(spec.title) + '</div>' : '')
+    + spec.menu.map(function (m, i) {
+        return '<button type="button" data-i="' + i + '" class="rr-lc-sheet-btn' + (m.danger ? ' rr-lc-danger' : '') + '">' + rrEsc(m.label) + '</button>';
+      }).join('')
+    + '<button type="button" data-i="-1" data-close="1" class="rr-lc-sheet-btn rr-lc-cancel">' + rrEsc(L.cancel) + '</button>'
+    + '</div>';
+  ov.querySelectorAll('button[data-i]').forEach(function (b) {
+    b.onclick = function (e) {
+      if (e) e.stopPropagation();
+      var i = +b.getAttribute('data-i');
+      ov.remove();
+      var m = spec.menu[i];
+      if (i >= 0 && m && typeof m.run === 'function') m.run();
+    };
+  });
+  document.body.appendChild(ov);
+}
+// A window resized (a computer window dragged narrower or wider, an iPad turned)
+// redraws the list on screen when it should change between table and cards.
+var _rrListResizeT = null;
+function _rrListOnResize() {
+  clearTimeout(_rrListResizeT);
+  _rrListResizeT = setTimeout(function () {
+    try {
+      var on = document.querySelector('.page.active');
+      var id = on ? String(on.id || '').replace(/^page-/, '') : '';
+      if (id !== 'upgrade' && id !== 'forsale') return;
+      // Only when table-or-cards should change: a phone's toolbar or keyboard fires resize
+      // all the time, and a redraw then would flicker the list for nothing.
+      var tbl = id === 'upgrade' ? document.getElementById('upgrade-table') : document.querySelector('#forsale-table-wrap table');
+      var wrap = tbl ? (tbl.closest('.table-wrap') || tbl.parentElement) : null;
+      var showingTable = !!(wrap && getComputedStyle(wrap).display !== 'none' && getComputedStyle(tbl).display !== 'none');
+      var redraw = showingTable ? (rrListAsCards(id) || !rrListTableFits(id, tbl)) : !rrListAsCards(id);
+      if (!redraw) return;
+      if (id === 'upgrade' && typeof buildUpgradePage === 'function') buildUpgradePage();
+      else if (id === 'forsale' && typeof buildForSalePage === 'function') buildForSalePage();
+    } catch (e) {}
+  }, 180);
+}
+if (typeof window !== 'undefined') {
+  window.rrListAsCards = rrListAsCards; window.rrListTableFits = rrListTableFits;
+  window.rrListActions = rrListActions; window.rrListMenu = rrListMenu;
+  if (typeof window.addEventListener === 'function') window.addEventListener('resize', _rrListOnResize);
+}
+
 function buildForSalePage() {
   // v0.9.1711: an empty-page hint was gated here on #forsale-page / .page-forsale —
   // neither exists (the page is #page-forsale), so it never showed. Removed with the
@@ -2182,7 +2325,7 @@ function buildForSalePage() {
   // collector's own — drawn by the row code below, tagged and inert.
   const _fsOwnN = fsEntries.length;
   if (!Object.keys(state.forSaleData || {}).length && typeof rrSampleRows === 'function') { const _fsSmp = rrSampleRows('forsale', 0); if (_fsSmp.length) fsEntries = _fsSmp; }
-  const isMobileFs = rrIsPhone();
+  const isMobileFs = rrListAsCards('forsale');   // 2026-11-08 (R7): THE list layout decides — phone, tablet, or a window too narrow for the table
   const fsCardsEl = document.getElementById('forsale-cards');
   const fsTableWrap = document.getElementById('forsale-table-wrap');
   const tbody = document.getElementById('forsale-tbody');
@@ -2191,7 +2334,11 @@ function buildForSalePage() {
     if (fsCardsEl) fsCardsEl.style.display = 'flex';
     if (fsTableWrap) fsTableWrap.style.display = 'none';
     var _fsThumbJobs = [];   // v0.9.1022: card thumbnails, filled during render
-    if (fsCardsEl) fsCardsEl.innerHTML = fsEntries.length ? fsEntries.map(fs => {
+    // R7: a COMPUTER window too narrow for the collector's chosen columns gets cards — and
+    // a way back to the columns (the editor lives on the table's headings; it keeps the table).
+    const _fsNarrowNote = rrListOnComputer()
+      ? '<div class="rr-lc-narrow">' + rrEsc(RR_LIST_LAYOUT.narrowNote) + ' <button type="button" onclick="rrTableEdit(\'forsale\', true)">' + rrEsc(RR_LIST_LAYOUT.editCols) + '</button></div>' : '';
+    if (fsCardsEl) fsCardsEl.innerHTML = _fsNarrowNote + (fsEntries.length ? fsEntries.map(fs => {
       const _fsx = _fsEff(fs); const master = fs._master || findMaster(_fsx.itemNum, _fsx.variation, _fsx) || {};   // v0.9.1821: the sale record names its catalog; v0.9.1871: a tour sample carries its row
       const collPd = (fs.inventoryId && state.personalData[fs.inventoryId]) || {};
       const estWorth = fs.estWorth || collPd.userEstWorth || '';
@@ -2230,13 +2377,9 @@ function buildForSalePage() {
             ${(collPd && collPd.photoItem) ? `<div id="${_fsThumbId}" style="width:74px;height:56px;border-radius:8px;overflow:hidden;background:var(--surface2);flex-shrink:0"></div>` : ''}
           </div>
         </div>
-        ${!_fsInShare ? `<div class="rr-fs-actions" style="display:flex;gap:0.4rem;margin-top:0.6rem;flex-wrap:wrap">
-          <button class="row-mark-sold" onclick="event.stopPropagation();markForSaleAsSold('${_fsEntryKey(fs)}','${fs.askingPrice||''}')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:var(--t-green);font-family:var(--font-body);font-weight:600">Mark as Sold</button>
-          <button onclick="event.stopPropagation();_fsShareOne('${_fsShareKey}')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 12%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-weight:600">Share</button>
-          <button onclick="event.stopPropagation();removeForSaleItem('${_fsEntryKey(fs)}')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:var(--t-danger);font-family:var(--font-body)">Remove</button>
-        </div>` : ''}
+        ${!_fsInShare ? _fsActions(fs, _fsShareKey, master, false) : ''}
       </div>`;
-    }).join('') : '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">🏷️</div><p>No items listed for sale</p></div>';
+    }).join('') : '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">🏷️</div><p>No items listed for sale</p></div>');
     // v0.9.1022: fill the card thumbnails. _thumbFor caches the first photo's
     // file id per item on-device, so Drive is asked once per item ever.
     if (_fsThumbJobs.length && typeof _thumbFor === 'function') {
@@ -2300,11 +2443,7 @@ function buildForSalePage() {
       _FS_EXTRA_COLS.forEach(function (xc) { _c[xc.col] = rrRowExtraCellHtml(xc, collPd); });   // the linked row's own values
       return `<tr id="share-card-${_fsDShareKey}"${rrSampleAttrs(fs)} ${_fsDClickAttr} style="cursor:${_fsDInShare || _fsDOpen ? 'pointer' : 'default'}${_fsDSelected ? ';outline:2px solid #2ecc71;background:rgba(46,204,113,0.06)' : ''}">
         ${rrTableVisible('forsale').map(function (id) { return _c[id] || '<td data-col="' + id + '"><span style="color:var(--text-dim)">—</span></td>'; }).join('')}
-        <td data-col="actions" style="white-space:normal">
-          ${!_fsDInShare ? `<button class="row-mark-sold" onclick="event.stopPropagation();markForSaleAsSold('${_fsEntryKey(fs)}','${fs.askingPrice||''}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:var(--t-green);font-family:var(--font-body);margin-right:0.3rem" title="Mark as sold">Sold</button>
-          <button onclick="event.stopPropagation();removeForSaleItem('${_fsEntryKey(fs)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);margin-right:0.3rem" title="Take off sale, keep in collection">Unlist</button>
-          <button onclick="event.stopPropagation();removeForSaleAndCollection('${_fsEntryKey(fs)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:var(--t-danger);font-family:var(--font-body)">Remove</button>` : ''}
-        </td>
+        <td data-col="actions">${!_fsDInShare ? _fsActions(fs, _fsDShareKey, master, true) : ''}</td>
       </tr>`;
     // v0.9.1177: the empty row must span whatever the chosen columns are, plus Actions.
     // A typed number here is how a new column leaves a ragged empty state behind.
@@ -2312,6 +2451,8 @@ function buildForSalePage() {
     if (tbody && _fsThumbJobs.length && typeof rrThumbFill === 'function') {
       _fsThumbJobs.forEach(function (j) { rrThumbFill(j.host, j.link, j.num); });
     }
+    // R7: the full table does not fit this window → drawn again as cards
+    if (fsTableWrap && !rrListTableFits('forsale', fsTableWrap.querySelector('table'))) { buildForSalePage(); return; }
   }
 
   const navBadge = document.getElementById('nav-forsale');
@@ -3548,6 +3689,8 @@ function addSetToCollection(setNum, setName) {
     wizard.data._setItemIndex = 0;
     wizard.data._setGroupId = 'SET-' + setNum + '-' + Date.now();
     wizard.data._setItemsSaved = [];
+    wizard.data._setAddedKeys = [];   // 2026-11-08 (setfix): what this walk adds — Cancel deletes only these
+    wizard.data._setAdopted = [];     // 2026-11-08 (setfix): pieces you had that this walk linked in — Cancel puts them back
   }
   wizard.steps = getSteps('set'); // called after data is set
   // Skip set_knowsNum, set_num, set_loco, and set_components — already resolved
@@ -3814,14 +3957,14 @@ if (typeof window !== 'undefined') window._wlStripGrp = _wlStripGrp;
 var _WU_COLS = [
   { col: 'num',      label: 'Item #' },
   { col: 'road',     label: 'Road Name' },
-  { col: 'variation', label: 'Var.', th: 'width:56px' },
+  { col: 'variation', label: 'Var.' },
   // v0.9.1350: without a width this column was allotted 80px by the table's
   // auto layout — NARROWER than "Var." beside it — so the description wrapped
   // to six lines and rows stood 115px tall. Fixed width on the header plus
   // one-line ellipsis on the cell; the full text is one tap away in the popup.
-  { col: 'vardesc',  label: 'Var. Description', noSort: true, th: 'width:230px' },
-  { col: 'mfr',      label: 'Manufacturer' },
-  { col: 'cond',     label: 'Condition Target' },
+  { col: 'vardesc',  label: 'Var. Description', noSort: true },   // R7: widths live in app.css by data-col
+  { col: 'mfr',      label: 'Mfr.', title: 'Manufacturer' },   // R7: short enough never to be cut (was "MANUFACTU")
+  { col: 'cond',     label: 'Target', title: 'Condition target' },   // R7: was cut to "CONDITION T/"
   { col: 'priority', label: 'Priority' },
   { col: 'price',    label: 'Max Price' },
   { col: 'notes',    label: 'Notes', noSort: true }
@@ -3852,12 +3995,36 @@ function _renderWuHeader() {
   var cs = state._wuSort || {};
   var html = _WU_COLS.map(function(c) {
     var extra = c.th ? (';' + c.th) : '';
-    if (c.noSort) return '<th style="white-space:nowrap' + extra + '">' + c.label + '</th>';
+    if (c.noSort) return '<th data-col="' + c.col + '" style="' + extra.replace(/^;/, '') + '"' + (c.title ? ' title="' + c.title + '"' : '') + '>' + c.label + '</th>';
     var arrow = (cs.col === c.col) ? (cs.dir === 'desc' ? ' \u25BC' : ' \u25B2') : '';
-    return '<th onclick="_wuSortBy(\'' + c.col + '\')" style="cursor:pointer;white-space:nowrap' + extra + '" title="Sort by ' + c.label + '">' + c.label + arrow + '</th>';
+    return '<th data-col="' + c.col + '" onclick="_wuSortBy(\'' + c.col + '\')" style="cursor:pointer' + extra + '" title="Sort by ' + (c.title || c.label) + '">' + c.label + arrow + '</th>';
   }).join('');
-  html += '<th style="white-space:nowrap">Actions</th>';
+  html += '<th data-col="actions" style="white-space:nowrap">Actions</th>';
   thead.innerHTML = html;
+}
+// R7 (2026-11-08): the Want/Upgrade buttons, ONE copy for the card and the
+// table row (THE list layout draws them). "✓ Got It" is the one name for "I
+// bought it" — a want and an upgrade alike; 📷 and View Mine were two buttons
+// for one wish (see your own copy) — View Mine opens its page, photos and all.
+// The ⋯ sheet's key: the ENTRY — its copy for an upgrade, its number + variation +
+// row for a want (two wants added before a reload both have row 0).
+function _wuSheetKey(u) {
+  return 'wu|' + (u.listType || '') + '|' + (u.inventoryId || ((u.itemNum || '') + '|' + (u.variation || '') + '|' + (u.row || 0)));
+}
+function _wuMain(u, isWant) {
+  return { label: RR_LIST_LAYOUT.gotIt, tone: 'green', cls: isWant ? 'row-add-collection' : '',
+           call: isWant ? "moveWantToCollection('" + rrJsArg(u.itemNum) + "','" + rrJsArg(u.variation || '') + "')"
+                        : "upgradeGotIt('" + rrJsArg(_ugEntryKey(u)) + "')" };
+}
+function _wuMenu(u, isWant, name) {
+  return [
+    !isWant ? { label: RR_LIST_LAYOUT.viewMine, run: function () { _upgradeViewMine(_ugEntryKey(u)); } } : null,
+    { label: RR_LIST_LAYOUT.ebay, run: function () { wantFindOnEbay(u.itemNum, name || '', u.variation || ''); } },
+    { label: RR_LIST_LAYOUT.search, run: function () { wantSearchOtherSites(u.itemNum, name || '', u.variation || ''); } },
+    { label: RR_LIST_LAYOUT.remove, danger: true, run: isWant
+        ? function () { removeWantItem(u.itemNum, u.variation || '', u.row); }
+        : function () { removeUpgradeItemAsk(_ugEntryKey(u)); } }
+  ];
 }
 function _wuSortBy(col) {
   var cs = state._wuSort;
@@ -3919,7 +4086,8 @@ function buildUpgradePage() {
   // Combined Want/Upgrade page (Session 161+). state._wishlistFilter controls
   // which slice is shown: 'all' (default) | 'want' | 'upgrade'. Pull entries
   // from BOTH state.wantData and state.upgradeData, tag with listType.
-  const isMobile = rrIsPhone();
+  // 2026-11-08 (R7 listlayout): cards on a phone, a tablet, or a window too narrow for the table — THE list layout below decides
+  const isMobile = rrListAsCards('upgrade');
   const _uq = (state._upgradeSearch || '').toLowerCase();
   const _sort = state._upgradeSort || 'priority';
   const _up = state._upgradePriority || '';
@@ -4035,7 +4203,11 @@ function buildUpgradePage() {
 
   // Group engine + its tender into ONE row using the catalog partner map.
   // The tender entry is absorbed into the locomotive entry (same list type).
-  (function _wuGroupPairs() {
+  // 2026-11-08 (R7, Brad's "Showing 4 of 5" with every filter on All): the count
+  // beside the filters compared the FOLDED rows with the UNFOLDED total, so a
+  // paired 2245-P + 2245C read as one hidden item. The total is now folded by
+  // this SAME function (on copies), so the two sides count the same way.
+  function _wuFoldPairs(entries) {
     var byNum = {};
     entries.forEach(function(e) { if (!byNum[e.itemNum]) byNum[e.itemNum] = e; });
     var absorbed = {};
@@ -4063,7 +4235,10 @@ function buildUpgradePage() {
       }
     });
     if (Object.keys(absorbed).length) entries = entries.filter(function(e) { return !absorbed[e.itemNum]; });
-  })();
+    return entries;
+  }
+  const _wuShownRaw = entries.length;   // R7: before folding — did any filter hide something?
+  entries = _wuFoldPairs(entries);
 
   // Update combined wishlist badge (Want + Upgrade total).
   const badge = document.getElementById('nav-wishlist-count');
@@ -4071,8 +4246,8 @@ function buildUpgradePage() {
   // Count display
   const upgradeCountEl = document.getElementById('upgrade-count');
   if (upgradeCountEl) {
-    const labelTotal = (_wf === 'want') ? wantTotal : (_wf === 'upgrade') ? upgradeTotal : totalCount;
-    upgradeCountEl.textContent = entries.length === labelTotal
+    const labelTotal = _wuFoldPairs(_collect.map(function (e) { return Object.assign({}, e, { _mergedTender: undefined }); })).length;   // R7: folded the same way as the rows
+    upgradeCountEl.textContent = (_wuShownRaw === _collect.length && entries.length === labelTotal)
       ? labelTotal + ' item' + (labelTotal !== 1 ? 's' : '')
       : 'Showing ' + entries.length + ' of ' + labelTotal;
     // v0.9.1024 (Brad, phones): the count also rides in the page title, where
@@ -4118,8 +4293,11 @@ function buildUpgradePage() {
     return;
   }
 
+  // R7: the table's frame goes with it — an empty bordered box under the cards otherwise
+  const tableWrap = tableEl ? tableEl.closest('.table-wrap') : null;
   if (isMobile) {
     if (tableEl) tableEl.style.display = 'none';
+    if (tableWrap) tableWrap.style.display = 'none';
     if (cardsEl) cardsEl.style.display = 'flex';
     cardsEl.innerHTML = entries.map(u => {
       const pd = _wuOwnedCopy(u);   // v0.9.2076: the copy this entry points at (its inventoryId), not the first of the number
@@ -4137,14 +4315,11 @@ function buildUpgradePage() {
       const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
       const pColor = priorityColor[u.priority] || 'var(--text-dim)';
       const escVar = (u.variation||'').replace(/'/g,"\\'");
-      const photoId = 'upgphoto-m-' + _wuPhotoKey(u);   // v0.9.2076: one box per ENTRY — two copies of one number no longer share a box
-      const hasPhoto = pd && !!pd.photoItem;
-      if (hasPhoto) _wuPhotoCopies[photoId] = pd;
+      // R7 (2026-11-08): the card's 📷 box is gone — 📷 View Mine in the ⋯ sheet opens your copy's page, photos and all
       // List Type chip — Want gets sky-blue, Upgrade gets purple.
       const _isWant = u.listType === 'Want';
       const _ltColor = _isWant ? '#3b82f6' : '#8b5cf6';
       const _ltBg    = _isWant ? 'rgba(59,130,246,0.12)' : 'rgba(139,92,246,0.12)';
-      const _escName = (name||'').replace(/'/g,"\\'");
       const _priceLabel = _isWant ? 'Want: ' : 'Max: ';
       const _priceVal = _isWant ? u.expectedPrice : u.maxPrice;
       // v0.9.1151 (pre-beta audit, finding 5 — a hole in yesterday's 5.3 fix):
@@ -4187,24 +4362,18 @@ function buildUpgradePage() {
             </div>
             ${_wlStripGrp(u.notes) ? `<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${rrEsc(_wlStripGrp(u.notes))}</div>` : ''}
           </div>
-          ${!_isWant && hasPhoto ? `<button onclick="event.stopPropagation();_toggleUpgradePhoto('${photoId}')" style="background:none;border:none;font-size:1.1rem;cursor:pointer;flex-shrink:0" title="View my photo">📷</button>` : ''}
         </div>
-        ${!_isWant ? `<div id="${photoId}" style="display:none;margin-top:0.5rem"><div id="${photoId}-pic"></div></div>` : ''}
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;margin-top:0.6rem">
-          ${!_isWant ? `<button onclick="event.stopPropagation();_upgradeViewMine('${_ugEntryKey(u)}')" style="min-width:0;padding:0.45rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #8b5cf6;background:var(--bg-card);background:color-mix(in srgb, rgb(139,92,246) 10%, var(--bg-card));color:var(--t-purple);font-family:var(--font-body);font-weight:600">View Mine</button>` : ''}
-          <button onclick="event.stopPropagation();wantFindOnEbay('${u.itemNum}','${_escName}','${escVar}')" style="min-width:0;padding:0.45rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 12%, var(--bg-card));color:var(--t-orange);font-family:var(--font-body);font-weight:600">eBay</button>
-          <button onclick="event.stopPropagation();wantSearchOtherSites('${u.itemNum}','${_escName}','${escVar}')" style="min-width:0;padding:0.45rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 12%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-weight:600">Search</button>
-          ${_isWant
-            ? `<button class="row-add-collection" onclick="event.stopPropagation();moveWantToCollection('${u.itemNum}','${escVar}')" style="min-width:0;padding:0.45rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:var(--t-green);font-family:var(--font-body);font-weight:600">+ Collection</button>`
-            : `<button onclick="event.stopPropagation();upgradeGotIt('${_ugEntryKey(u)}')" style="min-width:0;padding:0.45rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:var(--t-green);font-family:var(--font-body);font-weight:600">✓ Got It</button>`}
-          ${_isWant
-            ? `<button onclick="event.stopPropagation();removeWantItem('${u.itemNum}','${escVar}',${u.row})" style="min-width:0;padding:0.45rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--t-red);font-family:var(--font-body)">Remove</button>`
-            : `<button onclick="event.stopPropagation();removeUpgradeItemAsk('${_ugEntryKey(u)}')" style="min-width:0;padding:0.45rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--t-red);font-family:var(--font-body)">Remove</button>`}
-        </div>
+        ${rrListActions({
+          key: _wuSheetKey(u),
+          title: (u.itemNum || '') + (name ? ' \u00b7 ' + name : ''),
+          main: _wuMain(u, _isWant),
+          menu: _wuMenu(u, _isWant, name)
+        })}
       </div>`;
     }).join('');
   } else {
     if (tableEl) tableEl.style.display = '';
+    if (tableWrap) tableWrap.style.display = '';
     if (cardsEl) cardsEl.style.display = 'none';
     tbody.innerHTML = entries.map((u, idx) => {
       const _isWant = u.listType === 'Want';
@@ -4232,11 +4401,6 @@ function buildUpgradePage() {
       const cond = pd && pd.condition ? parseInt(pd.condition) : null;
       const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
       const pColor = priorityColor[u.priority] || 'var(--text-dim)';
-      const escVar = (u.variation||'').replace(/'/g,"\\'");
-      const escName = (name||'').replace(/'/g,"\\'");
-      const hasPhoto = pd && !!pd.photoItem;
-      const photoId = 'upgphoto-d-' + _wuPhotoKey(u);   // v0.9.2076: by entry, never by position
-      if (hasPhoto) _wuPhotoCopies[photoId] = pd;
       const _ltColor = _isWant ? '#3b82f6' : '#8b5cf6';
       const _ltBg    = _isWant ? 'rgba(59,130,246,0.12)' : 'rgba(139,92,246,0.12)';
       const _priceVal = _isWant ? u.expectedPrice : u.maxPrice;
@@ -4274,33 +4438,31 @@ function buildUpgradePage() {
         _wuTrAttrs = ' onclick="_wantViewDetail(\'' + u.itemNum + '\',\'' + _escVarAttr + '\')" style="cursor:pointer" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'"';
       }
       return `<tr${_wuTrAttrs}${rrSampleAttrs(u)}>
-        <td>
+        <td data-col="num">
           ${_wuCheckbox}<span class="item-num">${_wuItemNumHTML(u)}</span>${rrSampleTag(u)}
           ${!_isWant ? `<span style="display:inline-block;margin-left:0.4rem;font-size:0.6rem;font-weight:700;color:${_ltColor};background:${_ltBg};border-radius:4px;padding:0.1rem 0.4rem;text-transform:uppercase;letter-spacing:0.05em;vertical-align:middle">${u.listType||'Want'}</span>` : ''}
         </td>
-        <td style="color:var(--text-mid)">${name || '<span class="text-dim">—</span>'}${(typeof rrCatalogStatusChip === 'function') ? rrCatalogStatusChip(_vMaster || master, { block: true }) : ''}</td>
-        <td style="white-space:nowrap">${u.variation || '<span class="text-dim">—</span>'}</td>
-        <td style="max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(_varDesc||'').replace(/"/g,'&quot;')}">${_wuVarCell}</td>
-        <td style="font-size:0.82rem;color:var(--text-mid)">${u.manufacturer || '<span class="text-dim">—</span>'}</td>
-        <td style="color:var(--t-purple);font-weight:600">${u.targetCondition || '<span class="text-dim">—</span>'}</td>
-        <td><span style="color:${pColor};font-weight:500">${u.priority||'Medium'}</span></td>
-        <td class="market-val">${_priceVal ? _currencySymbol() + parseFloat(_priceVal).toLocaleString() : '<span class="text-dim">—</span>'}</td>
-        <td style="font-size:0.8rem;color:var(--text-dim);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${rrEsc(_wlStripGrp(u.notes||''))}">${_wlStripGrp(u.notes) ? rrEsc(_wlStripGrp(u.notes)) : '<span class="text-dim">—</span>'}</td>
-        <td style="white-space:normal">
-          ${!_isWant && hasPhoto ? `<button onclick="event.stopPropagation();_toggleUpgradePhoto('${photoId}')" style="padding:0.25rem 0.4rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);margin-right:0.2rem" title="Toggle photo">📷</button>` : ''}
-          ${!_isWant ? `<button onclick="event.stopPropagation();_upgradeViewMine('${_ugEntryKey(u)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:var(--bg-card);background:color-mix(in srgb, rgb(139,92,246) 10%, var(--bg-card));color:var(--t-purple);font-family:var(--font-body);font-weight:600;margin-right:0.2rem">View Mine</button>` : ''}
-          <button onclick="event.stopPropagation();wantFindOnEbay('${u.itemNum}','${escName}','${escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 12%, var(--bg-card));color:var(--t-orange);font-family:var(--font-body);margin-right:0.2rem">eBay</button>
-          <button onclick="event.stopPropagation();wantSearchOtherSites('${u.itemNum}','${escName}','${escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 12%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);margin-right:0.2rem">Search</button>
-          ${_isWant
-            ? `<button class="row-add-collection" onclick="event.stopPropagation();moveWantToCollection('${u.itemNum}','${escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:var(--t-green);font-family:var(--font-body);font-weight:600;margin-right:0.2rem">+ Collection</button>`
-            : `<button onclick="event.stopPropagation();upgradeGotIt('${_ugEntryKey(u)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:var(--t-green);font-family:var(--font-body);font-weight:600;margin-right:0.2rem">✓ Got It</button>`}
-          ${_isWant
-            ? `<button onclick="event.stopPropagation();removeWantItem('${u.itemNum}','${escVar}',${u.row})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--t-red);font-family:var(--font-body)">Remove</button>`
-            : `<button onclick="event.stopPropagation();removeUpgradeItemAsk('${_ugEntryKey(u)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--t-red);font-family:var(--font-body)">Remove</button>`}
-        </td>
-      </tr>
-      ${!_isWant ? `<tr id="${photoId}-row"${rrSampleAttrs(u)} style="display:none"><td colspan="${_WU_COLS.length + 1}" style="padding:0.5rem 1rem;background:var(--surface2)"><div id="${photoId}-pic"></div></td></tr>` : ''}`;
+        <td data-col="road" style="color:var(--text-mid)"><span class="rr-clip">${name || '<span class="text-dim">—</span>'}</span>${(typeof rrCatalogStatusChip === 'function') ? rrCatalogStatusChip(_vMaster || master, { block: true }) : ''}</td>
+        <td data-col="variation" style="white-space:nowrap">${u.variation || '<span class="text-dim">—</span>'}</td>
+        <td data-col="vardesc" title="${(_varDesc||'').replace(/"/g,'&quot;')}"><span class="rr-clip">${_wuVarCell}</span></td>
+        <td data-col="mfr" style="font-size:0.82rem;color:var(--text-mid)">${u.manufacturer || '<span class="text-dim">—</span>'}</td>
+        <td data-col="cond" style="color:var(--t-purple);font-weight:600">${u.targetCondition || '<span class="text-dim">—</span>'}</td>
+        <td data-col="priority"><span style="color:${pColor};font-weight:500">${u.priority||'Medium'}</span></td>
+        <td data-col="price" class="market-val">${_priceVal ? _currencySymbol() + parseFloat(_priceVal).toLocaleString() : '<span class="text-dim">—</span>'}</td>
+        <td data-col="notes" style="font-size:0.8rem;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${rrEsc(_wlStripGrp(u.notes||''))}"><span class="rr-clip">${_wlStripGrp(u.notes) ? rrEsc(_wlStripGrp(u.notes)) : '<span class="text-dim">—</span>'}</span></td>
+        <td data-col="actions">${rrListActions({
+          key: _wuSheetKey(u), row: true,
+          title: (u.itemNum || '') + (name ? ' \u00b7 ' + name : ''),
+          main: _wuMain(u, _isWant),
+          menu: _wuMenu(u, _isWant, name)
+        })}</td>
+      </tr>`;
     }).join('') || '<tr><td colspan="' + (_WU_COLS.length + 1) + '" class="ui-empty">No items on want/upgrade list</td></tr>';
+    // R7: the full table does not fit this window → THE list layout remembers how
+    // wide it must be and the list is drawn again as cards
+    // R7: an all-empty Notes column is only as wide as its heading
+    if (tableEl) tableEl.classList.toggle('rr-wu-nonotes', !entries.some(function (e) { return !!_wlStripGrp(e.notes || ''); }));
+    if (!rrListTableFits('upgrade', tableEl)) { buildUpgradePage(); return; }
   }
 }
 
@@ -4323,53 +4485,8 @@ function _wuOwnedCopy(u) {
   }
   return all.find(function (p) { return p && p.owned && rrSameNum(p.itemNum, u.itemNum) && rrSameVar(p.variation, u.variation); }) || null;
 }
-// One box per entry (its _ugEntryKey), so two copies of one number on the list
-// each open their own photo.
-function _wuPhotoKey(u) { return String(_ugEntryKey(u)).replace(/[^A-Za-z0-9_-]/g, '_'); }
-// The copy each open-able box belongs to, written as the list is drawn.
-var _wuPhotoCopies = {};
-
-function _toggleUpgradePhoto(id) {
-  // Phone: the box under the card; computer: the row under the table row.
-  const target = document.getElementById(id) || document.getElementById(id + '-row');
-  if (!target) return;
-  const showing = target.style.display !== 'none';
-  target.style.display = showing ? 'none' : '';
-  if (!showing) _wuPaintPhoto(id);
-}
-
-// Fill a box once. A lookup that fails leaves the box ready to try again on
-// the next tap; a list that redraws while we look simply gets a fresh box.
-function _wuPaintPhoto(id) {
-  var host = document.getElementById(id + '-pic');
-  if (!host) return;
-  var st = host.getAttribute('data-wu-pic');
-  if (st === 'done' || st === 'busy') return;
-  var pd = _wuPhotoCopies[id];
-  var say = function (msg) {
-    if (!host.isConnected) return;
-    host.removeAttribute('data-wu-pic');
-    host.innerHTML = '<span style="font-size:0.78rem;color:var(--text-dim)">' + msg + '</span>';
-  };
-  if (!pd || typeof _thumbFor !== 'function') { say('No photo found for this item yet.'); return; }
-  host.setAttribute('data-wu-pic', 'busy');
-  host.innerHTML = '<span style="font-size:0.78rem;color:var(--text-dim)">Loading your photo…</span>';
-  Promise.resolve(_thumbFor(pd)).then(function (fid) {
-    if (!host.isConnected) return;
-    if (!fid) {
-      var off = window._offlineMode || (typeof navigator !== 'undefined' && navigator.onLine === false);
-      say(off ? 'This photo is not saved on this device yet.' : 'No photo found in this item\'s photo folder yet.');
-      return;
-    }
-    var img = document.createElement('img');
-    img.alt = 'My ' + (pd.itemNum || 'item');
-    img.style.cssText = 'display:block;max-width:100%;max-height:180px;border-radius:8px;object-fit:contain';
-    host.innerHTML = '';
-    host.appendChild(img);
-    host.setAttribute('data-wu-pic', 'done');
-    if (typeof loadDriveThumb === 'function') loadDriveThumb(fid, img, host, null, 'hi');
-  }).catch(function () { say('Could not reach your photos just now — tap 📷 again to try again.'); });
-}
+// (R7 2026-11-08: the inline 📷 box is gone from the card and the row — 📷 View Mine in the ⋯
+// sheet opens your copy's page, photos and all. _wuOwnedCopy above still names the copy.)
 
 // Phase 3: signature is now (ugKey). The entry has the itemNum + inventoryId
 // pointing at the user's actual owned copy.
@@ -5301,13 +5418,24 @@ function _renderPartsList() {
             : 'background:var(--surface2);color:var(--text-dim)')
           + '">' + (_pst === 'installed' ? '\u2713 ' : '') + rrEsc(rrPartWord(p))
           + (_pst === 'installed' && p.dateInstalled ? ' ' + rrEsc(p.dateInstalled) : _pst === 'bought' && p.dateBought ? ' ' + rrEsc(p.dateBought) : '') + '</span>') : '')
-      + (_lc && _pst === 'wanted' ? '<button onclick="markPartOrdered(\'' + rrJsArg(p.id) + '\', this)" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 10%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">' + rrEsc(RR_PART_STATUS.orderedBtn) + '</button>' : '')
-      + (_lc && rrPartStillNeeded(p) ? '<button onclick="markPartBought(\'' + rrJsArg(p.id) + '\')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:var(--t-orange);font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">Bought it</button>' : '')
-      + ((p.forInv && state.personalData && state.personalData[p.forInv] && (p.status || 'wanted') !== 'installed') ? '<button onclick="markPartInstalled(\'' + rrJsArg(p.id) + '\')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:var(--t-green);font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">\u2713 Installed</button>' : '')
-      + '<button onclick="googlePart(\'' + esc(p.partNum) + '\',\'' + esc(p.forItem) + '\',\'' + esc(p.description) + '\',\'' + esc(p.forInv || '') + '\')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 10%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">Google</button>'
-      + '<button onclick="showAddPartModal(\'' + rrJsArg(p.id) + '\')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.75rem;cursor:pointer">Edit</button>'
-      + '<button onclick="removePartAsk(\'' + rrJsArg(p.id) + '\')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:var(--t-danger);font-family:var(--font-body);font-size:0.75rem;cursor:pointer">Remove</button>'
-      + '</div></div></div>';
+      + '</div></div>'
+      // 2026-11-08 (R7 listlayout): THE card buttons — one big button for the part's
+      // NEXT step (Ordered it → ✓ Got It → ✓ Installed), everything else behind ⋯,
+      // Remove last. "✓ Got It" is the one name for "I bought it" (was "Bought it").
+      + (function () {
+          var steps = [];
+          if (_lc && _pst === 'wanted') steps.push({ label: RR_PART_STATUS.orderedBtn, tone: 'blue', call: "markPartOrdered('" + rrJsArg(p.id) + "', this)", run: function () { markPartOrdered(p.id, null); } });
+          if (_lc && rrPartStillNeeded(p)) steps.push({ label: RR_LIST_LAYOUT.gotIt, tone: 'orange', call: "markPartBought('" + rrJsArg(p.id) + "')", run: function () { markPartBought(p.id); } });
+          if (p.forInv && state.personalData && state.personalData[p.forInv] && (p.status || 'wanted') !== 'installed') steps.push({ label: '\u2713 Installed', tone: 'green', call: "markPartInstalled('" + rrJsArg(p.id) + "')", run: function () { markPartInstalled(p.id); } });
+          var search = { label: RR_LIST_LAYOUT.search, tone: 'blue', call: "googlePart('" + esc(p.partNum) + "','" + esc(p.forItem) + "','" + esc(p.description) + "','" + esc(p.forInv || '') + "')", run: function () { googlePart(p.partNum || '', p.forItem || '', p.description || '', p.forInv || ''); } };
+          var main = steps.length ? steps[0] : search;
+          var menu = steps.slice(1).map(function (st) { return { label: st.label, run: st.run }; });
+          if (steps.length) menu.push({ label: search.label, run: search.run });
+          menu.push({ label: RR_LIST_LAYOUT.edit, run: function () { showAddPartModal(p.id); } });
+          menu.push({ label: RR_LIST_LAYOUT.remove, danger: true, run: function () { removePartAsk(p.id); } });
+          return rrListActions({ key: 'pt|' + p.id, title: p.description || p.partNum || '', main: { label: main.label, tone: main.tone, call: main.call }, menu: menu });
+        })()
+      + '</div>';
   }).join('');
   if (_lc && (_instCount || window._partsShowInstalled)) {
     listEl.innerHTML += '<div style="text-align:center;margin-top:0.8rem"><button onclick="window._partsShowInstalled=!window._partsShowInstalled;_renderPartsList()" style="padding:0.45rem 0.9rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.78rem;cursor:pointer">'

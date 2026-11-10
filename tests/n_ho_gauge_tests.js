@@ -51,7 +51,9 @@ T('H4 its ONE answer is still N (brand naming, dashboard buckets unchanged)', A.
 const oEra = Object.keys(ERA_TO_SCALE).find(k => ERA_TO_SCALE[k] === 'o');
 T('H5 a row is never widened to a scale its tab does not hold (an O-tab row marked "N/HO" stays O)', oEra && JSON.stringify(A._scalesOfItem({ _era: oEra, gauge: 'N/HO' })) === '["o"]', { oEra, got: oEra && A._scalesOfItem({ _era: oEra, gauge: 'N/HO' }) });
 T('H6 a mixed-scale era (no tab scale) takes the gauge\'s two scales', JSON.stringify(A._scalesOfItem({ _era: 'prewar', gauge: 'Standard & O' })) === '["standard","o"]' && A._scaleOfItem({ _era: 'prewar', gauge: 'Standard & O' }) === null, A._scalesOfItem({ _era: 'prewar', gauge: 'Standard & O' }));
-const planted = SRC.replace('if (eraScale) return (gs.length > 1 && gs.indexOf(eraScale) >= 0) ? gs : [eraScale];', 'if (eraScale) return [eraScale];');
+// stdmodern (2026-11-08): the widening is now its own line inside if (eraScale) { ... } (a row's own
+// Gauge on a one-scale line was added beside it) — the plant takes that line out.
+const planted = SRC.replace('    if (gs.length > 1 && gs.indexOf(eraScale) >= 0) return gs;\n', '');
 if (planted === SRC) throw new Error('could not plant');
 T('H7 PLANTED: without the widening a Kato "N/HO" row is N only', JSON.stringify(load(planted)._scalesOfItem(kato('N/HO'))) === '["n"]');
 console.log('\nn_ho_gauge_tests: ' + pass + ' passed, ' + fail + ' failed');

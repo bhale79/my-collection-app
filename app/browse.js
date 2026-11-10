@@ -2191,6 +2191,9 @@ function _rrAbandonedSetGroups() {
   try {
     var known = {};
     Object.values(state.mySetsData || {}).forEach(function (s) { if (s && s.groupId) known[s.groupId] = 1; });
+    // 2026-11-08 (setfix): a set removed with "Keep the pieces grouped" — its
+    // pieces are kept on purpose, not left over from a walk that never finished.
+    if (typeof rrSetKeptGroups === 'function') rrSetKeptGroups().forEach(function (g) { known[g] = 1; });
     var byGid = {};
     Object.values(state.personalData || {}).forEach(function (p) {
       if (!p || !p.owned || !p.groupId) return;
@@ -2206,24 +2209,35 @@ function _rrAbandonedSetGroups() {
 }
 if (typeof window !== 'undefined') window._rrAbandonedSetGroups = _rrAbandonedSetGroups;
 
+// 2026-11-08 (setfix, review finding 3c): this used to DELETE every row with
+// the group's ID (rrRemoveSetGroup). Nothing on a row says whether it was made
+// by the unfinished walk or owned before it (an engine joined with "Use the
+// one I have" since v0.9.2107; before this release it joined at the pick), so
+// the one safe answer is to UNLINK them — the app's own Break Up Group — and
+// keep every row. A piece you don't want is removed from its own page.
 window._rrDropAbandonedSet = async function (gid) {
   var g = _rrAbandonedSetGroups().find(function (x) { return x.groupId === gid; });
   if (!g) return;
-  var msg = 'Remove the ' + g.items.length + ' item' + (g.items.length !== 1 ? 's' : '')
-    + ' left over from that unfinished ' + (g.setNum || 'set') + ' entry?\n\n'
-    + g.items.map(function (p) { return '  · ' + p.itemNum; }).join('\n')
-    + '\n\nPhotos already filed to these items stay in Drive.';
-  var ok = await appConfirm(msg, { danger: true, ok: 'Remove them', cancel: 'Keep them', title: 'Unfinished set entry' });
+  if (window._rrDropAbandonedSet._busy) return;
+  var W = (typeof RR_SET_LEFTOVER !== 'undefined') ? RR_SET_LEFTOVER : {};
+  var n = g.items.length;
+  var msg = String(W.ask || '').replace('{n}', String(n)) + '\n\n'
+    + g.items.map(function (p) { return '  · ' + rrEsc(p.itemNum); }).join('\n')
+    + '\n\n' + (W.stays || '');
+  var ok = await appConfirm(msg, { ok: W.ok, cancel: W.cancel, title: W.title });
   if (!ok) return;
+  window._rrDropAbandonedSet._busy = true;
   try {
-    var n = (typeof rrRemoveSetGroup === 'function') ? await rrRemoveSetGroup(gid) : 0;
-    showToast('Removed ' + n + ' leftover item' + (n !== 1 ? 's' : ''), 3000);
+    var lead = Object.keys(state.personalData || {}).find(function (k) { var p = state.personalData[k]; return p && p.owned && p.groupId === gid; });
+    if (lead && typeof _breakUpGroup === 'function') await _breakUpGroup(lead);
+    showToast(String(W.done || '').replace('{n}', String(n)), 3500);
+    if (typeof rrSetKeptPrune === 'function') rrSetKeptPrune(gid);
     if (typeof buildDashboard === 'function') buildDashboard();
     renderBrowse();
   } catch (e) {
-    console.error('[abandonedSets] remove:', e);
-    showToast('Could not remove them — try again', 3000, true);
-  }
+    console.error('[abandonedSets] unlink:', e);
+    showToast('Could not unlink them \u2014 try again', 3000, true);
+  } finally { window._rrDropAbandonedSet._busy = false; }
 };
 
 // v0.9.1121: expand/collapse a folded SET row in My Collection.
@@ -3693,14 +3707,14 @@ function _collectionActionsHTML(type, key, entry) {
 }
 
 // ── Dispatchers ─────────────────────────────────────────────────────
-async function _collectionRemove(type, key) {
+async function _collectionRemove(type, key, from) {
   if (type === 'paper' || type === 'other' || type === 'catalogs' || type === 'mockups') {
     if (typeof ephemeraDelete === 'function') ephemeraDelete(type, key);
     return;
   }
   if (type === 'science' || type === 'construction') return _removeScienceOrConstruction(type, key);
   if (type === 'is')                                  return _removeInstructionSheet(key);
-  if (type === 'sets')                                return _removeOwnedSet(key);
+  if (type === 'sets')                                return _removeOwnedSet(key, { fromPage: from === 'page' });
   if (type === 'service') {
     const pd = state.personalData[key];
     if (!pd) return;
@@ -3796,27 +3810,159 @@ function _ncIdentifiers(type, entry) {
 }
 
 // Remove an owned set from the My Sets tab.
-async function _removeOwnedSet(key) {
+// 2026-11-08 (setfix — hand-tests T-2026-11-04-05, T-2026-11-05-02). Three
+// things were wrong: (a) removed from its own page, the page stayed open
+// showing the set that was gone; (b) the question did not say what happens to
+// the pieces; (c) the pieces kept their "Grouped set" link with nothing said.
+// Now the question says the pieces stay in the collection either way and offers
+// ONE choice — keep them grouped (the default; nothing else changes) or break up
+// the group (the app's own Break Up Group, _breakUpGroup — not a second copy of
+// it). It never offers, and never does, "remove the pieces too". Removed from
+// its page (opts.fromPage), the page closes at once — back to the list the
+// person came from (My Sets when opened there) through the ONE leave-after-
+// remove helper, rrGoToCollectionAfterRemove. The set's row leaves memory the
+// moment the person confirms and comes back if the sheet refuses (the
+// rrRemoveLeaveNow pattern). Words: RR_SET_REMOVE (config.js).
+function _rrSetPieceKeys(gid) {
+  gid = String(gid || '');
+  if (!gid) return [];
+  return Object.keys(state.personalData || {}).filter(function (k) {
+    var p = state.personalData[k];
+    return p && p.owned && String(p.groupId || '') === gid;
+  });
+}
+// The catalog-set groups a collector chose to keep after removing their set —
+// an account setting (rrPrefRead / rrPrefWrite), so every device agrees those
+// pieces are not an "Unfinished set entry" (_rrAbandonedSetGroups). Its value
+// is a map {groupId: {k: keptAt, r: retiredAt}} combined on every device
+// meeting (config.js RR_PREF_ALWAYS_UNION — review finding 3a); a group is
+// kept while k > r.
+function _rrSetKeptMap() {
+  try {
+    var W = (typeof RR_SET_REMOVE !== 'undefined') ? RR_SET_REMOVE : null;
+    if (!W || typeof rrPrefRead !== 'function') return {};
+    var v = JSON.parse(rrPrefRead(W.keptKey) || '{}');
+    return (v && typeof v === 'object' && !Array.isArray(v)) ? v : {};
+  } catch (e) { return {}; }
+}
+function rrSetKeptGroups() {
+  var m = _rrSetKeptMap();
+  return Object.keys(m).filter(function (g) { var e = m[g] || {}; return (Number(e.k) || 0) > (Number(e.r) || 0); });
+}
+// kept = true: keep it; false: retire it (taken back, broken up, or empty).
+function _rrSetKeepGroup(gid, kept) {
+  try {
+    var W = (typeof RR_SET_REMOVE !== 'undefined') ? RR_SET_REMOVE : null;
+    if (!W || !gid || typeof rrPrefWrite !== 'function') return;
+    var m = _rrSetKeptMap(), e = m[String(gid)] || { k: 0, r: 0 };
+    var now = Math.max(Date.now(), (Number(e.k) || 0) + 1, (Number(e.r) || 0) + 1);
+    if (kept === false) { if (!m[String(gid)]) return; e.r = now; } else e.k = now;
+    m[String(gid)] = e;
+    rrPrefWrite(W.keptKey, typeof window.rrSetKeptUnion === 'function' ? window.rrSetKeptUnion('{}', JSON.stringify(m)) : JSON.stringify(m));
+  } catch (e2) {}
+}
+// Review finding 5: an entry is retired when its group is broken up or has no
+// pieces left. Run at the moments a group can empty (a set removed, a group
+// broken up, the leftover notice's Unlink) — ONLY for the group just touched
+// (review 2 finding 2: the setting is the ACCOUNT's, and the open collection
+// is one of several — another collection's kept groups have no pieces here and
+// must not be retired from it). Never on a page draw, never before the
+// collection has loaded (an empty list would read as "no pieces").
+function rrSetKeptPrune(gid) {
+  try {
+    gid = String(gid || '');
+    if (!gid || !state.personalData || !Object.keys(state.personalData).length) return;
+    if (rrSetKeptGroups().indexOf(gid) >= 0 && !_rrSetPieceKeys(gid).length) _rrSetKeepGroup(gid, false);
+  } catch (e) {}
+}
+if (typeof window !== 'undefined') { window.rrSetKeptGroups = rrSetKeptGroups; window.rrSetKeptPrune = rrSetKeptPrune; }
+async function _removeOwnedSet(key, opts) {
+  opts = opts || {};
   const entry = state.mySetsData && state.mySetsData[key];
   if (!entry) return;
+  if (_removeOwnedSet._busy) return;   // one removal at a time (double tap)
+  const W = (typeof RR_SET_REMOVE !== 'undefined') ? RR_SET_REMOVE : {};
   const label = entry.setName || entry.setNum || 'this set';
-  var ok = await appConfirm('Remove "' + rrEsc(label) + '" from your collection?', { title: 'Remove from collection', danger: true, ok: 'Remove' });
-  if (!ok) return;
-  if (entry.row && typeof entry.row === 'number' && entry.row >= 3 && entry.row < 1000000) {
-    const blanks = [Array(15).fill('')];   // A–O (2026-11-07: + O Manufacturer)
-    // v0.9.1288 (R3-3): wait for the answer. This used to fire the write and
-    // fall straight through to "✓ Removed", so a refused write looked like a
-    // successful one and the set vanished from the screen while sitting right
-    // where it was in the sheet. On failure the set stays put, which is the
-    // truth, and the helper has already said why.
-    if (!(await rrRemoveRowConfirmed(state.personalSheetId, 'My Sets', entry.row, 'My Sets!A' + entry.row + ':O' + entry.row, blanks, { num: entry.setNum || entry.itemNum || '', invId: entry.inventoryId || '' }, 'sets list'))) return;   // 2026-11-03: the Inventory ID too — an own set may have no number
+  const gid = String(entry.groupId || '');
+  const pieces = _rrSetPieceKeys(gid);
+  const n = pieces.length;
+  const radio = 'rr-set-rm-' + Date.now();
+  let choice = 'keep';
+  let msg = rrEsc(String(W.ask || '').replace('{set}', label));
+  if (n) {
+    const opt = function (val, title, desc, on) {
+      return '<label style="display:flex;align-items:flex-start;gap:0.55rem;padding:0.5rem 0.6rem;border:1px solid var(--border);border-radius:8px;margin-top:0.4rem;cursor:pointer">'
+        + '<input type="radio" name="' + radio + '" value="' + val + '"' + (on ? ' checked' : '') + ' style="margin-top:0.2rem">'
+        + '<span><b style="display:block;color:var(--text)">' + rrEsc(title) + '</b><span style="font-size:0.8rem">' + rrEsc(desc) + '</span></span></label>';
+    };
+    // Review finding 4: a set made through an item page's "Add Another Item"
+    // shares THAT item's group (GRP-…): its count and its "break up" take in the
+    // items grouped before the set, and the question says so plainly.
+    const shared = !/^(SET|OWN)-/i.test(gid);
+    const stay = shared ? String(W.piecesShared || '').replace('{n}', String(n))
+               : (n === 1 ? W.piecesOne : String(W.piecesMany || '').replace('{n}', String(n)));
+    msg += '<div id="rr-set-rm-stay" style="margin-top:0.5rem;color:var(--text)">' + rrEsc(stay) + '</div>'
+      + '<div id="rr-set-rm-choice" style="margin-top:0.6rem"><div style="font-size:0.8rem">' + rrEsc(W.choose) + '</div>'
+      + opt('keep', W.keep, W.keepDesc, true)
+      + opt('break', W.breakUp, shared ? W.breakDescShared : W.breakDesc, false)
+      + '</div>';
+  } else {
+    msg += '<div id="rr-set-rm-stay" style="margin-top:0.5rem">' + rrEsc(W.noPieces) + '</div>';
   }
-  delete state.mySetsData[key];
-  if (typeof _cachePersonalData === 'function') _cachePersonalData();
-  showToast('✓ Removed from collection');
-  if (typeof renderBrowse === 'function') renderBrowse();
-  if (typeof buildDashboard === 'function') buildDashboard();
+  // The pick is read as it changes: appConfirm takes its box away before it answers.
+  const onPick = function (ev) { const t = ev.target; if (t && t.name === radio) choice = (t.value === 'break') ? 'break' : 'keep'; };
+  document.addEventListener('change', onPick, true);
+  let ok = false;
+  try { ok = await appConfirm(msg, { title: rrEsc(W.title), danger: true, ok: rrEsc(W.ok), cancel: rrEsc(W.cancel) }); }
+  finally { document.removeEventListener('change', onPick, true); }
+  if (!ok) return;
+  if (!state.mySetsData || state.mySetsData[key] !== entry) return;   // gone meanwhile (another device / a refresh)
+  _removeOwnedSet._busy = true;
+  // Review finding 3b: "keep" is written BEFORE the set leaves memory, so no
+  // draw in between can call its pieces an "Unfinished set entry"; taken back
+  // below if the sheet refuses.
+  const keepIt = !!(n && choice !== 'break' && /^SET-/i.test(gid));
+  if (keepIt) _rrSetKeepGroup(gid, true);
+  try {
+    // Off the screen now; back if the sheet refuses.
+    delete state.mySetsData[key];
+    if (opts.fromPage && typeof rrGoToCollectionAfterRemove === 'function') {
+      rrGoToCollectionAfterRemove();
+      if (W.removing) showToast(W.removing, 2500);
+    }
+    if (entry.row && typeof entry.row === 'number' && entry.row >= 3 && entry.row < 1000000) {
+      const blanks = [Array(15).fill('')];   // A–O (2026-11-07: + O Manufacturer)
+      // v0.9.1288 (R3-3): wait for the answer. This used to fire the write and
+      // fall straight through to "✓ Removed", so a refused write looked like a
+      // successful one and the set vanished from the screen while sitting right
+      // where it was in the sheet. On failure the set stays put, which is the
+      // truth, and the helper has already said why.
+      if (!(await rrRemoveRowConfirmed(state.personalSheetId, 'My Sets', entry.row, 'My Sets!A' + entry.row + ':O' + entry.row, blanks, { num: entry.setNum || entry.itemNum || '', invId: entry.inventoryId || '' }, 'sets list'))) {   // 2026-11-03: the Inventory ID too — an own set may have no number
+        if (!state.mySetsData[key]) state.mySetsData[key] = entry;   // it is still on the sheet — and on the screen
+        if (keepIt) _rrSetKeepGroup(gid, false);   // the set is still there — nothing to keep
+        if (typeof renderBrowse === 'function') renderBrowse();
+        return;
+      }
+    }
+    if (typeof _cachePersonalData === 'function') _cachePersonalData();
+    let done = n ? W.doneKeep : W.doneAlone;
+    if (n && choice === 'break') {
+      // The app's own Break Up Group: every piece's Group ID cleared, each write
+      // identity-checked, a refused one left grouped (and counted below).
+      const lead = _rrSetPieceKeys(gid)[0];
+      if (lead && typeof _breakUpGroup === 'function') await _breakUpGroup(lead);
+      const stuck = _rrSetPieceKeys(gid).length;
+      done = stuck ? String(W.breakStuck || '').replace('{n}', String(stuck)) : W.doneBreak;
+    }
+    rrSetKeptPrune(gid);
+    showToast(done, 4500);
+    if (typeof renderBrowse === 'function') renderBrowse();
+    if (typeof buildDashboard === 'function') buildDashboard();
+  } finally {
+    _removeOwnedSet._busy = false;
+  }
 }
+_removeOwnedSet._busy = false;
 
 // ── Generic For Sale / Sold modal for science / construction / is ──
 function _ncShowFsSoldModal(type, key, action) {
@@ -4393,7 +4539,7 @@ function rrPersonalOnlyRow(pd) {
     // row's. It used to show the purchase DATE here, raw (a Sheets serial).
     yearProd: String(pd.yearMade || '').trim() || (_refItem ? _refItem.yearProd : ''),
     marketVal: _refItem ? _refItem.marketVal : '',
-    varDesc: _refItem ? _refItem.varDesc : '',
+    varDesc: _refItem ? ((typeof rrCopyRowView === 'function') ? rrCopyRowView(_refItem, pd).varDesc : _refItem.varDesc) : '',   // 2026-11-08 (notsure): only the copy's own variation's words
     refLink: _refItem ? _refItem.refLink : '',
     // Carry through collection-status fields so icons/actions work for personal-only items
     owned: pd.owned, row: pd.row,
@@ -5904,7 +6050,7 @@ function _rrBrowseCore(_co) {
           + '(' + g.items.map(function (p) { return p.itemNum; }).join(', ') + '). '
           + 'They are counted in your collection but have no set behind them.'
           + '</div>'
-          + '<button onclick="_rrDropAbandonedSet(\'' + _gidSafe + '\')" style="padding:0.45rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--t-red);font-family:var(--font-body);font-weight:700;font-size:0.8rem;cursor:pointer;white-space:nowrap">Remove them</button>'
+          + '<button onclick="_rrDropAbandonedSet(\'' + _gidSafe + '\')" style="padding:0.45rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--text);font-family:var(--font-body);font-weight:700;font-size:0.8rem;cursor:pointer;white-space:nowrap">' + rrEsc((typeof RR_SET_LEFTOVER !== 'undefined' && RR_SET_LEFTOVER.button) || 'Unlink them') + '</button>'
           + '</div>';
       }).join('');
     } else if (_le) { _le.style.display = 'none'; _le.innerHTML = ''; }
@@ -5957,6 +6103,9 @@ function _rrBrowseCore(_co) {
         + `</td></tr>`;
     }
     const pd = _browseRowPd(item, _rrPdForRow(item));   // v0.9.1120 adoption-aware resolver; v0.9.1916: the Manual rule shared with the sorter
+    // 2026-11-08 (notsure): in My Collection the variation a row SHOWS is the copy's own (rrCopyRowView,
+    // app-data.js) — a copy saved "not sure" sits on its item's Var 1 row and must not read "1"
+    const _cv = (state.filters.owned && !item._personalOnly && pd && typeof rrCopyRowView === 'function') ? rrCopyRowView(item, pd) : item;
     const isOwned = item._personalOnly ? true : (pd?.owned || false);
     const isWanted = !!state.wantData[`${item.itemNum}|${item.variation}`];
     const cond = pd?.condition ? parseInt(pd.condition) : null;
@@ -6035,7 +6184,7 @@ function _rrBrowseCore(_co) {
           ${_inShareMode ? '<input type="checkbox" id="share-cb-' + _shareKey + '" ' + (_isShareSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _shareKey + '\')" style="width:1.1rem;height:1.1rem;accent-color:#2ecc71;flex-shrink:0">' : ''}
           <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:nowrap">
-              <span class="browse-card-num" style="white-space:nowrap">${rrEsc(_displayItemNum(item))}${item.variation ? ' <span style="font-size:0.72rem;color:var(--text-dim)">' + rrEsc(item.variation) + '</span>' : ''}</span>${rrSampleTag(item)}${_noNumTag(item.itemNum)}${(typeof eraBadgeHTML === 'function' && window.ERA_BADGES && window.ERA_BADGES.showInBrowse) ? eraBadgeHTML(item._tab) : ''}${(typeof lineBadgeHTML === 'function') ? lineBadgeHTML(item) : ''}
+              <span class="browse-card-num" style="white-space:nowrap">${rrEsc(_displayItemNum(item))}${_cv.variation ? ' <span style="font-size:0.72rem;color:var(--text-dim)">' + rrEsc(_cv.variation) + '</span>' : ''}</span>${rrSampleTag(item)}${_noNumTag(item.itemNum)}${(typeof eraBadgeHTML === 'function' && window.ERA_BADGES && window.ERA_BADGES.showInBrowse) ? eraBadgeHTML(item._tab) : ''}${(typeof lineBadgeHTML === 'function') ? lineBadgeHTML(item) : ''}
               <span style="display:flex;gap:0.2rem;align-items:center">${_statusIcons}</span>
             </div>
             ${item.roadName ? `<div class="browse-card-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${rrEsc(item.roadName)}</div>` : ''}
@@ -6069,7 +6218,7 @@ function _rrBrowseCore(_co) {
       // the Type column whenever a catalog row had no road name.
       const _descFull  = rrCollDescText(item);   // 2026-10-31: the ONE description rule, shared with the Workbench's Bench list
       const _descShort = _descFull.length > 110 ? _descFull.substring(0, 108) + '…' : _descFull;   // v0.9.938: column is wide now
-      const _varText   = item.variation ? ` <span style="font-size:0.72rem;color:var(--text-dim);background:var(--surface2);padding:1px 5px;border-radius:4px;margin-left:3px">${rrEsc(item.variation)}</span>` : '';
+      const _varText   = _cv.variation ? ` <span style="font-size:0.72rem;color:var(--text-dim);background:var(--surface2);padding:1px 5px;border-radius:4px;margin-left:3px">${rrEsc(_cv.variation)}</span>` : '';   // 2026-11-08: the copy's own (_cv)
       const _typeText = rrEsc((typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(item) : item.itemType) || '') || '<span style="color:var(--text-dim)">—</span>';
       const _ewNum = pd && pd.userEstWorth ? parseFloat(pd.userEstWorth) : NaN;
       const _estWorth = isFinite(_ewNum) ? _currencySymbol() + _ewNum.toLocaleString() : '<span style="color:var(--text-dim)">—</span>';
@@ -6152,7 +6301,7 @@ function _rrBrowseCore(_co) {
             ${_statusBadges}
           </div>
         </td>`;
-        _cells['var'] = `<td data-col="var" style="white-space:nowrap;text-align:center">${item.variation ? '<span style="font-size:0.78rem;color:var(--text-mid)">' + rrEsc(item.variation) + '</span>' : '<span style="color:var(--text-dim)">—</span>'}</td>`;
+        _cells['var'] = `<td data-col="var" style="white-space:nowrap;text-align:center">${_cv.variation ? '<span style="font-size:0.78rem;color:var(--text-mid)">' + rrEsc(_cv.variation) + '</span>' : '<span style="color:var(--text-dim)">—</span>'}</td>`;   // 2026-11-08: the copy's own (_cv)
         _cells.type = `<td data-col="type" style="font-size:0.78rem;color:var(--text-dim)">${_typeText}${(pd && pd.subType) ? '<div style="font-size:0.66rem;opacity:0.8;margin-top:1px">' + rrEsc(pd.subType) + '</div>' : ''}</td>`;
         _cells.photo = `<td data-col="photo" style="text-align:center;padding:2px 4px"><div id="thumb-${_rrRowDomKey(item)}" class="rr-row-thumb"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div></td>`;
         _cells.desc = `<td data-col="desc" style="color:var(--text-mid);font-size:0.85rem" title="${rrEsc(_descFull)}">${rrEsc(_descFull)}${(typeof rrCatalogStatusChip === 'function') ? rrCatalogStatusChip(item, { block: true }) : ''}</td>`;

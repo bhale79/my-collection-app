@@ -1585,7 +1585,7 @@ function lookupItem(num) {
       var _mInfo = _mInfoParts.join(' \u00B7 ') || '(no details)';
       el.innerHTML = `<div style="background:rgba(46,204,113,0.1);border:1px solid var(--green);border-radius:8px;padding:0.65rem 0.85rem;font-size:0.82rem">
         <span style="color:var(--green)">✓ Found:</span> ${_mInfo}${(typeof rrCatalogStatusChip === 'function') ? rrCatalogStatusChip(match, { block: true }) : ''}
-        ${match.variation ? '<br><span style="color:var(--text-dim)">Note: multiple variations exist — select on next step</span>' : ''}
+        ${((typeof _wizAsksVariation === 'function') ? _wizAsksVariation(match.itemNum) : !!match.variation) ? '<br><span style="color:var(--text-dim)">Note: multiple variations exist — select on next step</span>' : ''}
         ${hasBoxOnlyRow ? `<div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid rgba(255,255,255,0.08)">
           <span style="color:var(--accent2)">📦 A box for this item is already in your collection.</span>
           <label style="display:flex;align-items:center;gap:0.5rem;margin-top:0.4rem;cursor:pointer;font-size:0.82rem;color:var(--text-mid)">

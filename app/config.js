@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2136';
+const APP_VERSION = 'v0.9.2137';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -2118,6 +2118,490 @@ const ERA_SCALES_MULTI = { prewar: ['O', 'Standard'], mth_tinplate: ['O', 'Stand
   gargraves: ['O', 'S', 'G', 'HO', 'N', 'Standard'] };   // rosstab: the scales GarGraves sells ([stated] Brad 2026-11-05 "Under all six scales"); its OO rows read as Standard (_scalesOfGauge)
 if (typeof window !== 'undefined') window.ERA_SCALES_MULTI = ERA_SCALES_MULTI;
 
+// stdmodern (2026-11-08, [stated] Brad: "there are many standard guage lionel
+// modern trains, they have mth badge. see whats going on" -> "yes" to
+// PLAN_2026-11-08_LIONEL_STANDARD_MODERN, Part C): the OTHER scales a few rows
+// of a one-scale line may be. Lionel MPC-Modern is an O gauge catalog, but
+// Lionel's own 1988-1992 Standard gauge Classics (13100 390E, 13101 384E, 13103
+// Blue Comet ...) sit on the same tab. A row on such a line whose OWN Gauge cell
+// names one of these scales reads as that scale only; every other row (a blank
+// Gauge included — 20,000+ Lionel modern rows) keeps the line's one scale, as
+// before. This does NOT put the line under that scale: What I Collect and the
+// Scale pickers still read ERA_SCALE / ERA_SCALES_MULTI only. A line already in
+// ERA_SCALES_MULTI (MTH Tinplate: Standard, and O) needs no entry here — its
+// other scales count the same way. Read by rrLineRowScales (app.js) only — the
+// rule itself is rrRowOwnLineScale beside it.
+// [stated] Brad 2026-11-08 17:38 CT: 19 Standard gauge trains stay on the MTH O tab
+// with Gauge "Standard" — "If they show up when someone searches standard and not
+// show up when someone is searching o. That's fine." "Standard O" is an O spelling
+// (_scalesOfGauge) and stays O on every line.
+const RR_LINE_ROW_SCALES = { mpc: ['Standard'], mth_o: ['Standard'] };
+if (typeof window !== 'undefined') window.RR_LINE_ROW_SCALES = RR_LINE_ROW_SCALES;
+
+// ── THE BOOK COPIES THE MASTER DELETES — ONE table (zerobridge, 2026-11-08) ──
+// [stated] Brad 2026-11-08 (PLAN_2026-11-08_LIONEL_STANDARD_MODERN): the master
+// deletes 440 reference-book copies (Write 2 of FINAL_RECORD.json: 374 Lionel
+// MPC-Modern 11- copies, 11 MTH O doubles, 55 MTH Tinplate "Greenberg Book"
+// copies). A collector's saved copy of one of them must land on the row that
+// keeps that train. 20:17 CT "yes" (Q7 / Q8): where MTH files the train as a
+// -0 / -1 pair (11-1005-0 Traditional, 11-1005-1 Proto-Sound) it is the "-0"
+// row — the "-1" when MTH has no "-0"; the collector can switch with Change
+// catalog entry. Each keeper is FINAL_RECORD's own re-point for that row, by Row
+// ID — no rule guesses it. The 18 copies Brad called "unsure" (Q6: delete,
+// nothing copied; the book's words describe a neighbouring train) have no
+// re-point in the record. The app saves a copy by its NUMBER — the one on the
+// box — so each of them lands on MTH's row of that same number (the -0 of a
+// pair), added at the end with that reason; 11-1006 has no MTH row of its
+// number and is not here.
+// Read by rrBookCopyRedirect / _rrBookCopyPairFits (app-data.js) only.
+// Deleted Row ID: [its era, its item number, its variation, the keeper's Row ID, the keeper's item number].
+const RR_BOOK_COPY_REDIRECT = {
+  id: 'stdmodern-write2-2026-11-08',
+  rows: {
+    'MRBYH6C8FF': ['mpc', '11-1005', '', 'CU89458CGD', '11-1005-0'],
+    'RV2X5W24XT': ['mpc', '11-1008', '', 'AVBWD8H33Y', '11-1008-0'],
+    'XZ2SFA87VN': ['mpc', '11-1009', '', 'X38TURUXEV', '11-1009-0'],
+    'QQUVRPFFS6': ['mpc', '11-1012', '', 'S96Q6V24MF', '11-1012-0'],
+    'NCFTYHVMSP': ['mpc', '11-1013', '', '8YNAKHBE3M', '11-1013-0'],
+    'BD7YPBDA8R': ['mpc', '11-1014', '', '7BNHYRW93M', '11-1014-0'],
+    'HCZBUJGJPY': ['mpc', '11-1015', '', '3UKFENJPX2', '11-1015-0'],
+    'KVMCWMRHTD': ['mpc', '11-1016', '', 'WXGM5P3G62', '11-1016-0'],
+    'J657QD2RMY': ['mpc', '11-1020', '', 'SYSBDEGXM7', '11-1020-0'],
+    'JACUJWGKJT': ['mpc', '11-1021', '', 'JMDF4RH39S', '11-1021-0'],
+    '5R4GUKX2WF': ['mpc', '11-1043', '', 'RWAXPQP8QD', '11-1043-1'],
+    'BR36UNDVXE': ['mpc', '11-2009', '', 'WRTKUTWUP5', '11-2009-0'],
+    'Z2TVH2U748': ['mpc', '11-2010', '', 'HUEUEVZ8JQ', '11-2010-0'],
+    '4KKCDR5MBU': ['mpc', '11-2018', '', 'AV8FZVMQ3T', '11-2018-0'],
+    '2CSCFSR9J6': ['mpc', '11-2019', '', 'K97R6F9CRG', '11-2019-0'],
+    'J4HVCXT788': ['mpc', '11-2020', '', '2QBXU2JD39', '11-2020-0'],
+    'JVK2PAPEMU': ['mpc', '11-2021', '', 'TS782VDDNR', '11-2021-0'],
+    'T5F78D9FZ2': ['mpc', '11-2022', '', 'TJHS8XQSTN', '11-2022-0'],
+    'M8DUQHKAKP': ['mpc', '11-2023', '', 'FVF3FEFJDB', '11-2023-0'],
+    'EUP8FGQFSF': ['mpc', '11-5001', '', 'HDYV82AHQX', '11-5001-1'],
+    'K7S2KKXYD4': ['mpc', '11-5004', '', 'TJYUMEEPHQ', '11-5004-1'],
+    '4V3M7R76QY': ['mpc', '11-5006', '', 'NNAFN2KJV2', '11-5006-1'],
+    'SE6BWQZHD6': ['mpc', '11-5501', '', 'X8DDB4MXVV', '11-5501-1'],
+    '7NK4CTYYMD': ['mpc', '11-5502', '', 'CJ98ZXT9ME', '11-5502-1'],
+    'BZNW9GWGUS': ['mpc', '11-5509', '', 'G7UF23VHQA', '11-5509-0'],
+    'NSWAX7WQFE': ['mpc', '11-6005', '', '9GRUEA3H5E', '11-6005-1'],
+    'K2RKES7A7U': ['mpc', '11-6006', '', '8XS3UBBK8A', '11-6006-1'],
+    'TXEQHXE359': ['mpc', '11-6007', '', 'GVCU846MB6', '11-6007-1'],
+    'DS9PQ7H3NK': ['mpc', '11-6008', '', 'KS8QRXRR3K', '11-6008-1'],
+    'JE5YYDBMNR': ['mpc', '11-6009', '', 'QWTQJ7MAC4', '11-6009-1'],
+    'XMEBJUQMY5': ['mpc', '11-6010', '', 'E5C4EATEDG', '11-6010-1'],
+    'R65GXAGEDH': ['mpc', '11-6012', '', 'HNZBBM7MSB', '11-6012-0'],
+    'FJRVKDX32Y': ['mpc', '11-6013', '', 'WUUY86C32J', '11-6013-0'],
+    'XJ84C2XRAA': ['mpc', '11-6014', '', 'R82347DYBB', '11-6014-0'],
+    'HC5NDTZA55': ['mpc', '11-6017', '', 'PPPNYKY7BK', '11-6017-0'],
+    'T3WUNWZEJQ': ['mpc', '11-6018', '', 'ZGZ7FBKHK8', '11-6018-0'],
+    'AXH27UP7RA': ['mpc', '11-6019', '', 'Z5C74XJC34', '11-6019-0'],
+    'YAQRWW8Y8S': ['mpc', '11-6020', '', '6FQXX3EARA', '11-6020-0'],
+    '62UEN6TC55': ['mpc', '11-6021', '', 'Q7HAB7K22K', '11-6021-0'],
+    'ZJAU5EPRSM': ['mpc', '11-6023', '', '83YVMVECQQ', '11-6023-0'],
+    'HZD8B7APDU': ['mpc', '11-6024', '', 'XXWCXJTAMY', '11-6024-0'],
+    '2ZWBDGFST2': ['mpc', '11-6025', '', 'UTUCCGK8RP', '11-6025-0'],
+    'E8X6UQ4BW9': ['mpc', '11-6028', '', '7GEPG38B9C', '11-6028-0'],
+    'ZNZXC2ZJ3B': ['mpc', '11-6029', '', 'J8QCKDYZE5', '11-6029-0'],
+    '699UQVU98Y': ['mpc', '11-6030', '', 'S7EKMVDQVG', '11-6030-1'],
+    '63BGD57628': ['mpc', '11-6031', '', 'X9VXZZ5ZG9', '11-6031-0'],
+    'Y86QMP9M96': ['mpc', '11-6033', '', '8NX886KCVE', '11-6033-0'],
+    '4S9YMA9DSQ': ['mpc', '11-6036', '', 'WY5RTUFEXX', '11-6036-0'],
+    '9MSW6JPPAM': ['mpc', '11-6037', '', 'S8B5NZDYRP', '11-6037-0'],
+    'FB5FWBXQBW': ['mpc', '11-6038', '', 'PGYJGJJTAG', '11-6038-0'],
+    '9YSPCMHEW4': ['mpc', '11-6039', '', 'B5CPK4R433', '11-6039-0'],
+    '6P2PEGJYT3': ['mpc', '11-6040', '', 'QRMWWZ5SHE', '11-6040-0'],
+    'DBTJ9TX9YX': ['mpc', '11-6041', '', 'TA6HNDHHNZ', '11-6041-0'],
+    '368M7V2YGY': ['mpc', '11-6046', '', 'PUNUB2ZNCU', '11-6046-0'],
+    '7NUXJW9JEV': ['mpc', '11-6047', '', 'PKXAF7ZMJ7', '11-6047-0'],
+    'MM9FJJS99K': ['mpc', '11-6048', '', 'M44ET5ANVB', '11-6048-0'],
+    'Z2WFNFMBDX': ['mpc', '11-6050', '', '98VGFA66JV', '11-6050-0'],
+    'MEX58FXVXU': ['mpc', '11-6051', '', 'PGV25UNPFA', '11-6051-0'],
+    '6FUHXTWV4D': ['mpc', '11-6052', '', '4TTJFZYUEJ', '11-6052-0'],
+    '64B3TPYXB4': ['mpc', '11-6053', '', 'NHUFJT37XT', '11-6053-0'],
+    'FFQFJG2CPT': ['mpc', '11-6054', '', 'WQC8Y48T6N', '11-6054-0'],
+    'QKW3ZCQ7YN': ['mpc', '11-6055', '', '95CX6S8GE5', '11-6055-0'],
+    'J65XCVVWQW': ['mpc', '11-6056', '', 'WKGJD2YXCG', '11-6056-1'],
+    'MH398W3CVX': ['mpc', '11-6061', '', 'UN2ZZ473PJ', '11-6061-1'],
+    'XEPD97GNYM': ['mpc', '11-6062', '', '2SC8NJNMGV', '11-6062-1'],
+    'BPNQ24X388': ['mpc', '11-30088', '', 'J7WN4Y6D6Y', '11-30088'],
+    'ZTXZ37QKFD': ['mpc', '11-30089', '', '6J9HUCCNGG', '11-30089'],
+    'XFX5YGAF8Y': ['mpc', '11-30090', '', '27BA6W52D5', '11-30090'],
+    '93TSK2QW5E': ['mpc', '11-30091', '', 'XR4V54EECJ', '11-30091'],
+    'JW9MZANY7V': ['mpc', '11-30092', '', 'X9GQQUVKBH', '11-30092'],
+    'QWH33YW3A2': ['mpc', '11-30093', '', 'PWTQGGCUMW', '11-30093'],
+    'SGME2F7946': ['mpc', '11-30094', '', 'GKFZWVAT59', '11-30094'],
+    'DFQ9WADQYQ': ['mpc', '11-30095', '', 'X99UCCKQY9', '11-30095'],
+    'MD9VPS5F6F': ['mpc', '11-30096', '', 'V9QCBVRJXX', '11-30096'],
+    'FNRZK936TJ': ['mpc', '11-30097', '', 'EGYX7CGNPK', '11-30097'],
+    'CFGJBR45H3': ['mpc', '11-30098', '', 'QRA3F84RS8', '11-30098'],
+    'NP3W2B7NT4': ['mpc', '11-30099', '', 'UWXV2WNZ56', '11-30099'],
+    'KU7WWC9P5G': ['mpc', '11-30100', '', 'JEUFGKJF4H', '11-30100'],
+    '8ZQNC8KC3U': ['mpc', '11-30101', '', '3D7P6Q8UKW', '11-30101'],
+    '9FA82U8QNU': ['mpc', '11-30102', '', 'KJ4YPHDZSM', '11-30102'],
+    '4VZHMFAQQJ': ['mpc', '11-30103', '', '3ZFX2CS393', '11-30103'],
+    'X5D7CB2A9J': ['mpc', '11-30149', '', 'DYGY2Q2XH4', '11-30149'],
+    'JS7BMZ82Y9': ['mpc', '11-40004', '', 'JA4JR67VBS', '11-40004'],
+    '8QNPWVGDVT': ['mpc', '11-40005', '', '2S6WU5HFU5', '11-40005'],
+    '5F8BYGUQNH': ['mpc', '11-40024', '', '2XGFTEZJY2', '11-40024'],
+    'ST7MKHJHNG': ['mpc', '11-40025', '', 'W7J2A6ZHB3', '11-40025'],
+    'WKHBS5ESCS': ['mpc', '11-40026', '', '8EGTBVSK4G', '11-40026'],
+    'ZB8QNKU9MK': ['mpc', '11-40043', '', '7MPPC57K2D', '11-40043'],
+    'M4CFGFR6PB': ['mpc', '11-40044', '', 'BQTR6NQ5CD', '11-40044'],
+    'U9JVHS6W3F': ['mpc', '11-40045', '', '2Z3K48P4M3', '11-40045'],
+    'CJE9FREMFH': ['mpc', '11-40046', '', 'VK6PT3RMJM', '11-40046'],
+    'KGUMK7V7ZG': ['mpc', '11-40047', '', '43X437TEDX', '11-40047'],
+    'NWGM7NZSQM': ['mpc', '11-40048', '', 'NQRPCZYWGH', '11-40048'],
+    '47AHP3EJW7': ['mpc', '11-60033', '', 'U6PMK7CCWF', '11-60033'],
+    'KHJBNWE4MT': ['mpc', '11-70002', '', 'Q6RBPXCEW7', '11-70002'],
+    'X3MEQ9X6PM': ['mpc', '11-70003', '', 'D863A3XCYD', '11-70003'],
+    '8UJ3GDF6FS': ['mpc', '11-70004', '', 'QG6AXEFRZG', '11-70004'],
+    'SZG3W8CAES': ['mpc', '11-70005', '', 'K9M5UYSU2G', '11-70005'],
+    'K2UK2XYVR9': ['mpc', '11-70006', '', 'B7D9TCX49V', '11-70006'],
+    'AGFPPW9Z39': ['mpc', '11-70007', '', '8RC99XDVRN', '11-70007'],
+    'MF4AXPH7N5': ['mpc', '11-70008', '', 'SC7EFJJKQC', '11-70008'],
+    'PTSBUWBAX7': ['mpc', '11-70009', '', '2UXATGCCB6', '11-70009'],
+    '6QAXJQ55SH': ['mpc', '11-70010', '', 'N5Z5UQ9E2M', '11-70010'],
+    '3VDUHHBQGJ': ['mpc', '11-70011', '', 'RJSA9QFME2', '11-70011'],
+    '5YYJZU8WQB': ['mpc', '11-70012', '', 'JBW2ABNUPY', '11-70012'],
+    'B3X55TDQ6K': ['mpc', '11-70013', '', '5876CMSG3J', '11-70013'],
+    '3KH3XP24RZ': ['mpc', '11-70014', '', 'D6KTWFJZCT', '11-70014'],
+    'N64EW852FF': ['mpc', '11-70015', '', '8KKP5VD6ND', '11-70015'],
+    '4U8E773XB3': ['mpc', '11-70016', '', 'UACM77G74S', '11-70016'],
+    'YKDZAN7MR9': ['mpc', '11-70017', '', '5FR4DDW5FX', '11-70017'],
+    '5VZGWFUEHS': ['mpc', '11-70018', '', 'WGB9T4CEDB', '11-70018'],
+    'QUXV38Y4SZ': ['mpc', '11-70019', '', '7M4WAYSKJP', '11-70019'],
+    '8G5KNKZ9FM': ['mpc', '11-70024', '', 'DVCHRFQNC8', '11-70024'],
+    '39JZPEPUJ7': ['mpc', '11-70025', '', 'EQWRT47B3B', '11-70025'],
+    'F7F95NJ2FP': ['mpc', '11-70026', '', '7UKVP3DQ5T', '11-70026'],
+    'DZMHSCBX77': ['mpc', '11-70027', '', 'MJATW788JP', '11-70027'],
+    'VU6X56Y92D': ['mpc', '11-70028', '', '7JU6MJEBFW', '11-70028'],
+    'EDKRGGEWRW': ['mpc', '11-70029', '', 'NF2JNVF6GN', '11-70029'],
+    'QSR6WWP8KZ': ['mpc', '11-70030', '', 'GWN56ZPUZ9', '11-70030'],
+    'H77F7XRYZT': ['mpc', '11-70031', '', 'RHS77QPM34', '11-70031'],
+    'QNMSZXET7W': ['mpc', '11-70032', '', '9ZGKYWDCAB', '11-70032'],
+    'WDDV6VJ9GJ': ['mpc', '11-70033', '', 'RGEFVA9CGV', '11-70033'],
+    'QXRMDYVVFJ': ['mpc', '11-70034', '', 'S79Q3Q3HNM', '11-70034'],
+    '38S4XAQRAG': ['mpc', '11-70036', '', 'WBF29UX7DJ', '11-70036'],
+    'V4Q96Q2GQC': ['mpc', '11-70037', '', 'TTEQZJ8D9G', '11-70037'],
+    'BZAVN5NPFJ': ['mpc', '11-70038', '', 'H4EPYGBXBJ', '11-70038'],
+    'X3JN54S3PQ': ['mpc', '11-70039', '', 'DAM26SN2SV', '11-70039'],
+    '6PFE5B6QPH': ['mpc', '11-70040', '', 'PJ9DZ87585', '11-70040'],
+    'BHJ8Y5M4EF': ['mpc', '11-70041', '', 'UVNJYKP69K', '11-70041'],
+    'YNCXW7WWS9': ['mpc', '11-70042', '', 'BG6FQQNATQ', '11-70042'],
+    '5VUR5445XB': ['mpc', '11-70043', '', '4P7DBHZWVM', '11-70043'],
+    'WT5ATQHQMU': ['mpc', '11-70045', '', 'TE2SUUAWA9', '11-70045'],
+    '26XES8222Q': ['mpc', '11-70046', '', '7AU3ZDC2JW', '11-70046'],
+    '4F84C5AX3K': ['mpc', '11-70047', '', 'AG7DTUF53M', '11-70047'],
+    'W8JQ9YMEX5': ['mpc', '11-70048', '', 'MXNQB7VVCV', '11-70048'],
+    '93S4BCYCQY': ['mpc', '11-70049', '', '9ER234BCZA', '11-70049'],
+    'ABKHJ9UU28': ['mpc', '11-70050', '', '8WR9CYHGNF', '11-70050'],
+    'U5PGR79WKJ': ['mpc', '11-70051', '', '58HSEEHZ82', '11-70051'],
+    'TC2JP8QAD8': ['mpc', '11-70052', '', 'V8T377C5UT', '11-70052'],
+    'GJWX4AHQNN': ['mpc', '11-70053', '', 'RTRYBR9JEF', '11-70053'],
+    '9H3ZU938G7': ['mpc', '11-70054', '', '8TPD4XVZRP', '11-70054'],
+    'TAZY388ZXZ': ['mpc', '11-70055', '', 'URZW89CUNQ', '11-70055'],
+    'SXXKVS5P46': ['mpc', '11-70056', '', 'E2VUG2HWU3', '11-70056'],
+    'NF4MX578FU': ['mpc', '11-70057', '', '7NSWE2672X', '11-70057'],
+    'HNGG48HAHQ': ['mpc', '11-70058', '', 'A7T968TTVB', '11-70058'],
+    'A3QNHDG3ZA': ['mpc', '11-70059', '', '7GS37FWMWF', '11-70059'],
+    'XDEDUPXP5S': ['mpc', '11-70060', '', 'AZHQR86UBV', '11-70060'],
+    'G6BT7FZW5R': ['mpc', '11-70061', '', 'KFCKQ6XQ7X', '11-70061'],
+    'RBSFMQCSZY': ['mpc', '11-70064', '', 'DPRYHYX64A', '11-70064'],
+    'NWPJ2FZMDD': ['mpc', '11-70065', '', 'BHW646G3E7', '11-70065'],
+    'J6T34JUM3X': ['mpc', '11-70066', '', '7GB2VAKV65', '11-70066'],
+    'YX9ZTRRG8X': ['mpc', '11-70067', '', 'M7CZ4XW6R5', '11-70067'],
+    'JVD5R9DQBG': ['mpc', '11-70068', '', '93CH5KNCZG', '11-70068'],
+    'S9WC34CXU8': ['mpc', '11-70069', '', 'V4QY5J6Y6D', '11-70069'],
+    'TJ5CZSKC39': ['mpc', '11-70070', '', '7QTM6R8PUZ', '11-70070'],
+    'EPD5X74DQR': ['mpc', '11-70071', '', 'K3DS88T8WB', '11-70071'],
+    'HJQERQ9KGH': ['mpc', '11-70072', '', '2GRHTR2AZ2', '11-70072'],
+    '6CW6ZY3Z44': ['mpc', '11-70073', '', '2ESN4J7CZE', '11-70073'],
+    'CAYD3ZWCYF': ['mpc', '11-70074', '', 'ZTUFJ83GDK', '11-70074'],
+    'U43R2BQ8GC': ['mpc', '11-70076', '', 'PKR6KNR9KD', '11-70076'],
+    'X43GYNB38D': ['mpc', '11-70078', '', 'SJ34H55UE8', '11-70078'],
+    'D93F2EY5HD': ['mpc', '11-70079', '', 'ZMZR9RQC5G', '11-70079'],
+    'PVND62THBY': ['mpc', '11-70080', '', 'DVJBZHP37B', '11-70080'],
+    'FJ6UMAZNX8': ['mpc', '11-70081', '', 'UQV7X4ZC8P', '11-70081'],
+    'D4AWDUPFC6': ['mpc', '11-70082', '', 'N5KSDRKYCX', '11-70082'],
+    '455253MQPV': ['mpc', '11-70083', '', 'TX9NXQ2CQQ', '11-70083'],
+    'FKETKNV9PM': ['mpc', '11-70084', '', 'SFMTXQTKU4', '11-70084'],
+    'C368JVPCPM': ['mpc', '11-70085', '', 'SXXGW5875H', '11-70085'],
+    'FWDPKXFMPY': ['mpc', '11-70089', '', 'VK4TFPJ7ZS', '11-70089'],
+    'DM3HK2XUN9': ['mpc', '11-70091', '', '4S8HGXM8J8', '11-70091'],
+    '5DYCZA5UMQ': ['mpc', '11-70092', '', '5XC8SY5NJJ', '11-70092'],
+    'YKDXBB7AW2': ['mpc', '11-70095', '', 'FGCZPBVFKP', '11-70095'],
+    'QGUW3ZBRZW': ['mpc', '11-70096', '', '7QFN9JSKRP', '11-70096'],
+    'M2S8VP3GFB': ['mpc', '11-70097', '', 'RQ3NSSK2VH', '11-70097'],
+    '9BZT3TPGK6': ['mpc', '11-70098', 'A', 'KETA4PTJJ6', '11-70098'],
+    'GQNG3UEK2V': ['mpc', '11-70102', '', 'P5FPHMSW7J', '11-70102'],
+    'WCC7K58KC9': ['mpc', '11-70103', '', 'UMKGU2U6C9', '11-70103'],
+    'XCH6UYSD8H': ['mpc', '11-70104', '', 'EWS6XVJUPT', '11-70104'],
+    'J88P5KT5FD': ['mpc', '11-70105', '', '2DB4VEBXUJ', '11-70105'],
+    '47E7TJPKS2': ['mpc', '11-70106', '', '5WDD94PSW6', '11-70106'],
+    '2Y2CU75XKN': ['mpc', '11-70107', '', 'MAZPN84WWR', '11-70107'],
+    'EZKMNBYS36': ['mpc', '11-70108', '', '8VAJ4V4QSC', '11-70108'],
+    '4RSMYX682G': ['mpc', '11-70109', '', '3E2SDNXXWW', '11-70109'],
+    'ZFMMH88BRQ': ['mpc', '11-70110', '', 'JYZQTSPT4Q', '11-70110'],
+    'AQWRYYDFAV': ['mpc', '11-70113', '', 'GRS262U53N', '11-70113'],
+    'UAZZP98JKT': ['mpc', '11-70114', '', 'MF2W9F3S5Q', '11-70114'],
+    'HJGERE2SYX': ['mpc', '11-70115', '', 'Z6VSRD3RGF', '11-70115'],
+    'HUX6FTA28V': ['mpc', '11-70116', '', '4QCPAQNJ6R', '11-70116'],
+    'AS69TH4EYG': ['mpc', '11-70117', '', 'J9SES4M2CH', '11-70117'],
+    'NK6UYPSPC3': ['mpc', '11-70118', '', 'FTVGA4KJU6', '11-70118'],
+    'NM4EHV5FQF': ['mpc', '11-70119', '', '66YGUZFVQC', '11-70119'],
+    'WZZPFQYU9C': ['mpc', '11-70120', '', 'U4QMQ597QV', '11-70120'],
+    '82VGMCXC52': ['mpc', '11-70121', '', '4ZHJ8RN7CA', '11-70121'],
+    'P8G6B4TYEW': ['mpc', '11-70122', '', 'PSFGSW4WN5', '11-70122'],
+    'GRTJ8FNSJZ': ['mpc', '11-70123', '', 'YGVVXU2QYH', '11-70123'],
+    'PQJUMEUMNS': ['mpc', '11-70124', '', 'XJW6APDWDY', '11-70124'],
+    'K99KAXP9FN': ['mpc', '11-70125', '', 'VY65PWGHB7', '11-70125'],
+    '7MTBBQ4XPG': ['mpc', '11-70126', '', '4FKG5B4EJD', '11-70126'],
+    'WTJW5WV8VN': ['mpc', '11-70127', '', 'UCX5V4KBS5', '11-70127'],
+    'R93GDBPM7D': ['mpc', '11-70128', '', 'QDFZJNXEPY', '11-70128'],
+    'ER3MR3Z6SS': ['mpc', '11-70129', '', 'T5W9CXFKVY', '11-70129'],
+    '7R9VRCFSGK': ['mpc', '11-70130', '', '3ENVHHM7JD', '11-70130'],
+    '2W3NQJ82K8': ['mpc', '11-70131', '', '8VCGAHPRHA', '11-70131'],
+    '9FHGRC97WP': ['mpc', '11-70132', '', '6497M2NF8D', '11-70132'],
+    '2NGAADDWBS': ['mpc', '11-70133', '', 'TCY2V9GGD6', '11-70133'],
+    'PWQXPHA3CA': ['mpc', '11-70144', '', '5GUMVC7F3K', '11-70144'],
+    'E95F6DQZKH': ['mpc', '11-70154', '', '4R5V8WMJYQ', '11-70154'],
+    'SK8M2EQT8Z': ['mpc', '11-80001', '', 'HXDB663NG3', '11-80001'],
+    'X3Z2CJJY98': ['mpc', '11-80002', '', 'UZG6YVP53W', '11-80002'],
+    'MVRFPF82HU': ['mpc', '11-80003', '', 'G2ZMSMKAZ9', '11-80003'],
+    'S4HQKSCU3K': ['mpc', '11-80004', '', 'E9R7CPTMNW', '11-80004'],
+    'G2RG8MWZ7R': ['mpc', '11-80005', '', '54ZN8KN4CM', '11-80005'],
+    'FXKW6T3EYU': ['mpc', '11-80006', '', '8CKJW99USJ', '11-80006'],
+    'RGTY8MBG6D': ['mpc', '11-80007', '', '82Z8K8AECA', '11-80007'],
+    'ACW466T37H': ['mpc', '11-80008', '', 'WPFN47SF98', '11-80008'],
+    '2UW7748GX3': ['mpc', '11-80009', '', '7WMWP7UK23', '11-80009'],
+    'C4CHBMGT8K': ['mpc', '11-80010', '', 'EK8W7E3RQA', '11-80010'],
+    '95CSKYT675': ['mpc', '11-80011', '', 'Y9UP6TQT37', '11-80011'],
+    'RVDMZT4XES': ['mpc', '11-80012', '', 'QV97GRQJWF', '11-80012'],
+    '8STPFZ6JY4': ['mpc', '11-80013', '', 'CBUM4JJQQ5', '11-80013'],
+    'DRY3AZH5UK': ['mpc', '11-80014', '', 'QJZ4U2GCXV', '11-80014'],
+    'QYXTKQURTU': ['mpc', '11-80015', '', 'NVH4RRTNWY', '11-80015'],
+    'VM3CY7X5YN': ['mpc', '11-80016', '', '5HSE7R9VM2', '11-80016'],
+    '5MX526XSXJ': ['mpc', '11-80017', '', '7B7V4BWV25', '11-80017'],
+    'Z9986VE7C4': ['mpc', '11-80018', '', 'C67SB9JGQC', '11-80018'],
+    'UQ877EZ8AA': ['mpc', '11-80019', '', 'VG562DNSD5', '11-80019'],
+    'VDM3E2ZVF2': ['mpc', '11-80020', '', 'AVB9ANYQFR', '11-80020'],
+    'QXP9K3EA6T': ['mpc', '11-80021', '', 'GNG5BYWWTS', '11-80021'],
+    '9B5CS2FZUX': ['mpc', '11-80022', '', 'RUZX6MPWXN', '11-80022'],
+    'MJYCQMGHUX': ['mpc', '11-80023', '', 'E7ZXM53PK3', '11-80023'],
+    'ECGJX9HGVQ': ['mpc', '11-80024', '', '2H45DNKCK4', '11-80024'],
+    '8EGWWXU659': ['mpc', '11-80025', '', 'EUM2URXPRU', '11-80025'],
+    'CJQZW7NCQ5': ['mpc', '11-80026', '', 'KUFSFH6976', '11-80026'],
+    'DNWYVKPSJB': ['mpc', '11-80027', '', 'WC8HUC4BYW', '11-80027'],
+    'C6P8CVJSET': ['mpc', '11-80029', '', 'BSJKS5DR4D', '11-80029'],
+    'MWTQE9PFEN': ['mpc', '11-80030', '', 'KDUPZX33CR', '11-80030'],
+    'GN65UJSDFK': ['mpc', '11-80031', '', 'W8NND2UVZ7', '11-80031'],
+    'VFPTEEAMPV': ['mpc', '11-80032', '', '4NUBVA6Q4X', '11-80032'],
+    'QTVG5RHTKC': ['mpc', '11-80034', '', '6DKMBE5WKV', '11-80034'],
+    'JZAJGF2W6J': ['mpc', '11-80036', '', '7SRSHZZH3R', '11-80036'],
+    'PV4627E7CH': ['mpc', '11-80039', '', 'WUEXSZC5A3', '11-80039'],
+    'S6MBV6KCMQ': ['mpc', '11-80040', '', 'WQZ5D8SMVM', '11-80040'],
+    'NXE4BZ8ZJH': ['mpc', '11-80041', '', 'XMF5Z28TYB', '11-80041'],
+    '2EQ46HD8EX': ['mpc', '11-80042', '', 'ZHCFEPF92J', '11-80042'],
+    '236VYU7BRD': ['mpc', '11-80047', '', 'W8ARPJ73AD', '11-80047'],
+    'UYD3DTBAY4': ['mpc', '11-80048', '', 'AGCT6KVTSH', '11-80048'],
+    'FC6GX5DU3R': ['mpc', '11-80049', '', 'W2D4D3G4QM', '11-80049'],
+    'UD3EV46VQ3': ['mpc', '11-80050', '', 'WWWCNVJHQQ', '11-80050'],
+    '6WF2UX564G': ['mpc', '11-80051', '', 'HQMWEH2XYY', '11-80051'],
+    'CJNZ5KTEZK': ['mpc', '11-80052', '', 'QH4874PDJB', '11-80052'],
+    '77MM2PCSE8': ['mpc', '11-80053', '', 'CJ8TG4VHRT', '11-80053'],
+    'EFFCV9SHHV': ['mpc', '11-80054', '', 'C5WRA4SEDQ', '11-80054'],
+    'XYMP9DZY9K': ['mpc', '11-80055', '', 'GAK9H6FEWT', '11-80055'],
+    '2H3N3FYEVV': ['mpc', '11-80056', '', 'DK66MCRYH5', '11-80056'],
+    'TWSVWJ4VQW': ['mpc', '11-80059', '', '7M39WC2GRM', '11-80059'],
+    '7S45GMNMQT': ['mpc', '11-80060', '', 'D3YU6P9UAY', '11-80060'],
+    '34SWW4PK5S': ['mpc', '11-80061', '', 'TCUX6K4RUU', '11-80061'],
+    '7ZEUP766CD': ['mpc', '11-80062', '', 'UUMYP64KAU', '11-80062'],
+    'P88TB65J67': ['mpc', '11-80063', '', 'FKMKRSX7EG', '11-80063'],
+    'JXE2TWCH5N': ['mpc', '11-80064', '', 'FWYRRR5TWR', '11-80064'],
+    '9UP4G86UNH': ['mpc', '11-90001', '', 'Q7EN7H8VKQ', '11-90001'],
+    'BDH7B4DHZH': ['mpc', '11-90003', '', 'JYXN2XGTNS', '11-90003'],
+    'UB3SA2NCVW': ['mpc', '11-90006', '', 'V2ERAYKH3X', '11-90006'],
+    'MB8PFG29UB': ['mpc', '11-90007', '', 'UY4SXF2EHP', '11-90007'],
+    'M5JCRMXJ4U': ['mpc', '11-90008', '', '8VK6A6Z4PY', '11-90008'],
+    'EPB7JU4YDT': ['mpc', '11-90009', '', 'ZA9C289PJV', '11-90009'],
+    'TX3TPCHJZ2': ['mpc', '11-90010', '', 'J9T3B83DZS', '11-90010'],
+    '7R7TFEQT7K': ['mpc', '11-90011', '', 'CAD2UQ3YRY', '11-90011'],
+    'Q3WDNE49BB': ['mpc', '11-90012', '', 'WJCTS9M2WD', '11-90012'],
+    'NYDB2VFZC5': ['mpc', '11-90013', '', 'G63KD8AYQC', '11-90013'],
+    'FQNGQT3QQE': ['mpc', '11-90014', '', '6SP3XK6474', '11-90014'],
+    'RJQ4RXMCMQ': ['mpc', '11-90015', '', '85MH6UDM3D', '11-90015'],
+    'MDWSHP74GX': ['mpc', '11-90016', '', 'X5C9WF5ZVS', '11-90016'],
+    'FYKV28ZTNJ': ['mpc', '11-90017', '', '6GDDHBDQ8D', '11-90017'],
+    'ARQ3T2FBY5': ['mpc', '11-90018', '', '72JAVVXSGN', '11-90018'],
+    'WP2DMRSPEN': ['mpc', '11-90019', '', '7TWUSPA8YE', '11-90019'],
+    'CJKGEHYSSQ': ['mpc', '11-90020', '', 'Z27J7PZVBU', '11-90020'],
+    'QBB4JVHNKR': ['mpc', '11-90021', '', 'WRSWPDHCUJ', '11-90021'],
+    '3F9ZD4SE5M': ['mpc', '11-90026', '', '3KEDYH5QVV', '11-90026'],
+    '5B7NRBGHCC': ['mpc', '11-90028', '', '6AVSZM78JG', '11-90028'],
+    'DUEGDXR8VK': ['mpc', '11-90030', '', '5QKQRCSBHW', '11-90030'],
+    'GX7T6NBBEP': ['mpc', '11-90031', '', '7AV362HWGC', '11-90031'],
+    'SG4JZ42XAQ': ['mpc', '11-90032', '', '27WGG7GVJM', '11-90032'],
+    '9D7SS8HBPU': ['mpc', '11-90033', '', '62CRD8M63J', '11-90033'],
+    '8Z86G5GKKM': ['mpc', '11-90034', '', 'ES222HHYF2', '11-90034'],
+    'V6X8FR2UCR': ['mpc', '11-90035', '', 'HFG9XFXXDY', '11-90035'],
+    'X3RS8QKH2F': ['mpc', '11-90037', '', '5Y9NE4NKUC', '11-90037'],
+    'HSHA32DRAG': ['mpc', '11-90038', '', 'SXBVNWQ56V', '11-90038'],
+    'HJ8QBDFJVJ': ['mpc', '11-90039', '', 'FFVMJSDZ8E', '11-90039'],
+    '3GTF7CNXYV': ['mpc', '11-90040', '', 'GPDPR4Z4GA', '11-90040'],
+    '9HD7JQ6493': ['mpc', '11-90041', '', '38E8D963TV', '11-90041'],
+    'FDYDM9BMBH': ['mpc', '11-90042', '', 'UBTSN252X5', '11-90042'],
+    'X84ZVT8WQM': ['mpc', '11-90043', '', '9YKZ2XV6FP', '11-90043'],
+    'RXWPZMWWB7': ['mpc', '11-90044', '', 'BUXXHNKZC7', '11-90044'],
+    'NYGHVUT3BK': ['mpc', '11-90045', '', 'VYN98BJ8BF', '11-90045'],
+    '78NBPQH7XP': ['mpc', '11-90046', '', 'MRK73VE4AP', '11-90046'],
+    'R5FPUG8QXE': ['mpc', '11-90047', '', '63BVRXBVB8', '11-90047'],
+    '3M6JKHKUJT': ['mpc', '11-90048', '', 'KAAYV2YV2F', '11-90048'],
+    '28WMGRC4JZ': ['mpc', '11-90049', '', 'EV5PXT6JAH', '11-90049'],
+    'KMTDBCQCF2': ['mpc', '11-90052', '', '8JJAYQGKU3', '11-90052'],
+    'VDNJNQZSU8': ['mpc', '11-90053', '', '3VMGC6JJ4Z', '11-90053'],
+    '22C4GMVAX9': ['mpc', '11-90054', '', 'SVXUQPC2NK', '11-90054'],
+    'EBSTE7GRD4': ['mpc', '11-90055', '', 'QGB5N86DAY', '11-90055'],
+    '9RQ88JFQK4': ['mpc', '11-90056', '', 'EDF8G3S5RH', '11-90056'],
+    '4SYG42GVKB': ['mpc', '11-90057', '', 'EXVM944PRS', '11-90057'],
+    'TTDHKB8ZXH': ['mpc', '11-90058', '', 'NEDHTUJ64A', '11-90058'],
+    'N48GJYCPF3': ['mpc', '11-90060', '', 'ED3HX97QAG', '11-90060'],
+    'NVECMVGE2B': ['mpc', '11-90061', '', 'FHSW3VJPA2', '11-90061'],
+    'U68XMXKP86': ['mpc', '11-90062', '', '5XDUB7ZXCC', '11-90062'],
+    'RXZUXQ94BK': ['mpc', '11-90063', '', 'J4QN9QABJ5', '11-90063'],
+    'Z7VCUTXKMB': ['mpc', '11-90064', '', '2RZ2VV75FA', '11-90064'],
+    '7DDVENQV2V': ['mpc', '11-90068', '', 'GMAMF3V246', '11-90068'],
+    '23H9Y5QCPM': ['mpc', '11-90069', '', '989CJYAYK4', '11-90069'],
+    '9BFMTUQUFA': ['mpc', '11-90070', '', '26GZFXQ8P9', '11-90070'],
+    'VN8GGHV324': ['mpc', '11-90071', '', 'QDVYGBA4U5', '11-90071'],
+    'VXZSA6EX3P': ['mpc', '11-90072', '', '8CEK27DTW3', '11-90072'],
+    '26U9FPWSQF': ['mpc', '11-90073', '', 'DWBUV2ZKCH', '11-90073'],
+    'Q4JD8UNT7Z': ['mpc', '11-90074', '', 'M2DJ684X8M', '11-90074'],
+    'SG9ZTDKBQM': ['mpc', '11-90075', '', 'RA5DH2UU42', '11-90075'],
+    '9CJR9FWTSS': ['mpc', '11-90076', '', '2MEEAQFJWP', '11-90076'],
+    'KYJBWHPHZU': ['mpc', '11-90077', '', 'DEPK7HVA76', '11-90077'],
+    '4FC4KV78WH': ['mpc', '11-90078', '', 'GDS5AU72CC', '11-90078'],
+    'SXKZ3YZ4TZ': ['mpc', '11-90079', '', 'KYQC5PDZXH', '11-90079'],
+    'NNZD35SD9D': ['mpc', '11-90084', '', 'AMYC3PQ8CX', '11-90084'],
+    'XP5P785UWX': ['mpc', '11-90085', '', 'JB3M257WSA', '11-90085'],
+    'HQPRYFQEZN': ['mpc', '11-90086', '', 'MVX4UMY5H3', '11-90086'],
+    'BTWVYGHQ4Z': ['mpc', '11-90089', '', 'S46KGY4MVP', '11-90089'],
+    'MGYH895VVS': ['mpc', '11-90090', '', 'WAFCRVDPB3', '11-90090'],
+    'JBEPD4KT3X': ['mpc', '11-90094', '', 'FZ563U339W', '11-90094'],
+    'RDN928QZC7': ['mpc', '11-90095', '', 'AP2E4VTD5Y', '11-90095'],
+    'EJ85RXSSJU': ['mpc', '11-90096', '', 'PHHBJYJJ33', '11-90096'],
+    'H4DNEHAKAY': ['mpc', '11-90097', '', 'XMWYKXXJ5Q', '11-90097'],
+    '4PRTJPVKNR': ['mpc', '11-90100', '', 'NM3TY3ZZYB', '11-90100'],
+    'ZZ2DTJAPSY': ['mpc', '11-90101', '', 'SE5UJRYWRV', '11-90101'],
+    'J2DY3KF22A': ['mpc', '11-90102', '', 'KRVW7S423C', '11-90102'],
+    'X9XT7HQH4W': ['mpc', '11-90103', '', '3RRGHZKCZW', '11-90103'],
+    '6T4KQH7FXU': ['mpc', '11-90104', '', 'FZ2UJPRV2X', '11-90104'],
+    'XCM3G5KPDU': ['mpc', '11-90105', '', '8XB9QDNBC5', '11-90105'],
+    'QUM8YMM7VZ': ['mpc', '11-90106', '', '55BECPEMBG', '11-90106'],
+    'EGFE86BWRK': ['mpc', '11-90107', '', 'PJMSQK82G7', '11-90107'],
+    'SZAGUUR2PT': ['mpc', '11-90108', '', '9E3QRQQQG4', '11-90108'],
+    'FVQZHA5EGY': ['mpc', '11-90109', '', 'HC8YW9SM5X', '11-90109'],
+    'ZSXQGP4HKP': ['mpc', '11-90110', '', 'YRZSKGN8VC', '11-90110'],
+    'URKQFAJ92W': ['mpc', '11-90111', '', 'UCMSQ8G72G', '11-90111'],
+    'DTWK3SCDKE': ['mpc', '11-90112', '', 'XMEQ8HDANM', '11-90112'],
+    'WMJR5H5AYB': ['mpc', '11-90113', '', '2F5XPYK6D7', '11-90113'],
+    'QSZ9XU6WQV': ['mpc', '11-90114', '', 'Z7YJ3PARKK', '11-90114'],
+    'HQJX2YSBSR': ['mpc', '11-90115', '', 'QQUN4G497A', '11-90115'],
+    'HGEAFAY2AP': ['mpc', '11-90116', '', '9N5AKSS2U4', '11-90116'],
+    'UNHDFENGYD': ['mpc', '11-90117', '', 'J8YVTR5NDQ', '11-90117'],
+    'T3PDZEA85K': ['mpc', '11-90118', '', 'F6K59QPTBZ', '11-90118'],
+    'GUAX33EK9U': ['mpc', '11-90119', '', 'WQN4PFXSP3', '11-90119'],
+    'N3SYN3FRND': ['mpc', '11-90120', '', '52242GQEQ6', '11-90120'],
+    'H7Y4GWVNP9': ['mpc', '11-90121', '', 'J9M32EWR74', '11-90121'],
+    'YKY5XF9CX3': ['mpc', '11-90122', '', 'YC3AEQN84K', '11-90122'],
+    'PFD7KGWYUK': ['mpc', '11-90123', '', 'KE34TV2DS8', '11-90123'],
+    'JDSAUGDVA3': ['mth_o', '11-30196', '', 'T8UYH3YEHX', '11-30196'],
+    'RZRVVDJME9': ['mth_o', '11-30199', '', 'CDE5S3YBWH', '11-30199'],
+    'AYW6W25YWT': ['mth_o', '11-30200', '', '8SGM2EW93J', '11-30200'],
+    'PCKDMSM3FR': ['mth_o', '11-30202', '', 'E6H5DQEUNY', '11-30202'],
+    'BQ7RQQT2FU': ['mth_o', '11-30207', '', 'M7HTEQ8FFF', '11-30207'],
+    'NVX68JT2QD': ['mth_o', '11-30210', '', 'N9WX5BNHH2', '11-30210'],
+    'DJUABP7J8G': ['mth_o', '11-30217', '', 'TZSSRAP3E4', '11-30217'],
+    'T4NSF8XZCN': ['mth_o', '11-30222', '', 'XG6EY7ENCY', '11-30222'],
+    '73M7BQUWM2': ['mth_o', '11-40102', '', '99Z87UKFHD', '11-40102'],
+    'U5D7DTV68M': ['mth_o', '11-40110', '', '7QKP73YA7X', '11-40110'],
+    '8QFANE2RUG': ['mth_o', '11-40118', '', 'FAQVRCATYY', '11-40118'],
+    '7PEHTXKWZ2': ['mth_tinplate', '11-1001', '', '2U6E6UYUUK', '11-1001-0'],
+    'ZC786UY3U4': ['mth_tinplate', '11-1002', '', '7T7GDNPAPE', '11-1002-0'],
+    'YBQ54A25P2': ['mth_tinplate', '11-1003', '', 'CDWW6DMH6T', '11-1003-0'],
+    'J67FM45TQ3': ['mth_tinplate', '11-1010', '', '8PF9BZ3UJK', '11-1010-0'],
+    '5F42ZPWK3E': ['mth_tinplate', '11-1017', '', 'XBF5NFCMB7', '11-1017-0'],
+    'JCCQUBKASS': ['mth_tinplate', '11-1018', '', '5HDNP9GFJ2', '11-1018-0'],
+    'BPEH9CV55U': ['mth_tinplate', '11-1019', '', 'NKUPHZMEUS', '11-1019-0'],
+    'CYCUUXNDPK': ['mth_tinplate', '11-1022', '', '6EE8J4NRT4', '11-1022-0'],
+    'UF4R6KN7TR': ['mth_tinplate', '11-1023', '', 'ENVK9E3DU9', '11-1023-0'],
+    'HMSRQEFRWW': ['mth_tinplate', '11-1024', '', 'AT7QT9558Y', '11-1024-0'],
+    'UJDFMPSZGY': ['mth_tinplate', '11-1025', '', '5HPBB77ASW', '11-1025-0'],
+    'C3QY36Y5UZ': ['mth_tinplate', '11-1026', '', '86G85CBC5T', '11-1026-0'],
+    'UBBW65YY5K': ['mth_tinplate', '11-1027', '', 'U2GWEAE54C', '11-1027-0'],
+    '4D6XK3N32K': ['mth_tinplate', '11-1028', '', 'HPPAXFB67G', '11-1028-0'],
+    '5RA7FZDHSK': ['mth_tinplate', '11-1029', '', 'PQDDC2W5HK', '11-1029-0'],
+    '9DXP7GPFUH': ['mth_tinplate', '11-1030', '', 'B2KBQN5K8M', '11-1030-0'],
+    'SZSVVJWVVB': ['mth_tinplate', '11-1031', '', 'RVKWC7CXSQ', '11-1031-0'],
+    '75Z5N8MR52': ['mth_tinplate', '11-1038', '', '7CR22SR954', '11-1038-1'],
+    '9SZK4QQ745': ['mth_tinplate', '11-1039', '', 'YREZ2N37J4', '11-1039-1'],
+    'USGKHQXTBX': ['mth_tinplate', '11-1040', '', 'D37K795J2X', '11-1040-1'],
+    'AGU5TZZEGK': ['mth_tinplate', '11-1041', '', 'CUWFQEX9XM', '11-1041-1'],
+    '2K8DZSKSTU': ['mth_tinplate', '11-1042', '', 'FEREYH8D8K', '11-1042-1'],
+    'SWAGRMXAPE': ['mth_tinplate', '11-1045', '', '9Y6M5ZUV6Q', '11-1045-1'],
+    'JAQ3X4KC5J': ['mth_tinplate', '11-2003', '', 'KNBHVWQM2G', '11-2003-0'],
+    'EFKNCE99CK': ['mth_tinplate', '11-2004', '', 'UY7EBQRF33', '11-2004-0'],
+    'JMYYCDWK4J': ['mth_tinplate', '11-2005', '', 'K292567N4C', '11-2005-0'],
+    'D5GWJGQU85': ['mth_tinplate', '11-2006', '', 'RR9YA3RC75', '11-2006-1'],
+    'F2G24U58HQ': ['mth_tinplate', '11-2007', '', '4CP3MUW3N6', '11-2007-0'],
+    'MC948M7RSY': ['mth_tinplate', '11-2008', '', 'DPGNMWGGJ5', '11-2008-0'],
+    'MBBA7GH5AF': ['mth_tinplate', '11-2015', '', 'AQRP5W45HN', '11-2015-0'],
+    '47G8KS5SKD': ['mth_tinplate', '11-2016', '', 'WECU4AA773', '11-2016-0'],
+    'QNWT8E62PA': ['mth_tinplate', '11-2017', '', 'RA5XF82ES3', '11-2017-0'],
+    '8MDCY2TD3C': ['mth_tinplate', '11-2024', '', 'YC5A35UVAM', '11-2024-0'],
+    'XJWR9A2BBX': ['mth_tinplate', '11-2025', '', 'ME2MCE8HV5', '11-2025-0'],
+    '5Q272BCUQ9': ['mth_tinplate', '11-2026', '', 'GRPG5YJJ9C', '11-2026-1'],
+    'BZQWP9FPV2': ['mth_tinplate', '11-2027', '', 'V4N3J6SBX6', '11-2027-0'],
+    'XP6MYDR6QG': ['mth_tinplate', '11-2028', '', '3EXDAKY8P9', '11-2028-0'],
+    'MD4P86VQGB': ['mth_tinplate', '11-2029', '', '4FMWXD4VS7', '11-2029-0'],
+    '4NNUJFHNGJ': ['mth_tinplate', '11-2031', '', 'CKREAVS3PY', '11-2031-0'],
+    'W8TWVHQ2MV': ['mth_tinplate', '11-2033', '', '6YVC2JN738', '11-2033-1'],
+    '4397Y5JC8Z': ['mth_tinplate', '11-2034', '', '77EEAWQBDF', '11-2034-1'],
+    'BVYK97W45R': ['mth_tinplate', '11-2038', '', 'BEVQWZQWZJ', '11-2038-1'],
+    'QW8XUE5FVJ': ['mth_tinplate', '11-2039', '', 'JVRUKCJ9QP', '11-2039-1'],
+    '7GNCSM35D9': ['mth_tinplate', '11-2040', '', 'MHNYZQJQJ6', '11-2040-1'],
+    '43KP98BJQX': ['mth_tinplate', '11-2041', '', 'MCB7KRWJZB', '11-2041-1'],
+    'N372VRABM5': ['mth_tinplate', '11-5002', '', 'MZKJB3NWFE', '11-5002-1'],
+    'PBP3BU4AFD': ['mth_tinplate', '11-5003', '', 'Q5QMR89CZH', '11-5003-1'],
+    'BJXMJUP2M8': ['mth_tinplate', '11-5007', '', '4K5KPAUCZ6', '11-5007-1'],
+    '94JJX2A82A': ['mth_tinplate', '11-5008', '', 'HZ78599D36', '11-5008-1'],
+    'HWMP37G6G2': ['mth_tinplate', '11-5009', '', 'KF594VTSSP', '11-5009-1'],
+    'R4EWYABZ5H': ['mth_tinplate', '11-5010', '', '2BBY6PTBG7', '11-5010-1'],
+    'K2NW5B5DUW': ['mth_tinplate', '11-5011', '', 'YXC56PU3ZH', '11-5011-1'],
+    'CG3ZWQCX2T': ['mth_tinplate', '11-5012', '', 'VNQ78DC2XZ', '11-5012-1'],
+    'ZWG5A8AS9R': ['mth_tinplate', '11-5013', '', 'MU9U2BQX74', '11-5013-1'],
+    'RREHSVWCT6': ['mth_tinplate', '11-5014', '', '9M3MY4NREH', '11-5014-1'],
+    // ── the Q6 "unsure" rows (no re-point in the record): MTH's row of the SAME number ──
+    'TQC27SWKYE': ['mpc', '11-5505', '', '7NWN4WS8BG', '11-5505-0'],   // same number on MTH (box number)
+    'PXWRB5QVSX': ['mpc', '11-5506', '', 'BR7BQK4NF2', '11-5506-0'],   // same number on MTH (box number)
+    'T7X6KK4TEG': ['mpc', '11-5507', '', 'V5YKVHEDC9', '11-5507-0'],   // same number on MTH (box number)
+    'YXXX2NM7M4': ['mpc', '11-5508', '', 'UHBHKDUEZF', '11-5508-0'],   // same number on MTH (box number)
+    'JEA4F48AWT': ['mpc', '11-6001', '', 'RWSDTSBNEQ', '11-6001-1'],   // same number on MTH (box number)
+    '7EAE5QXJN2': ['mpc', '11-6002', '', 'QWHMR5G8SY', '11-6002-1'],   // same number on MTH (box number)
+    'ZBQQ73RQFS': ['mpc', '11-6003', '', 'UTZK93YRDK', '11-6003-1'],   // same number on MTH (box number)
+    '96WQJ9677E': ['mpc', '11-6004', '', 'ZXEN32UF5R', '11-6004-1'],   // same number on MTH (box number)
+    'ZYYQDZ9SZ7': ['mpc', '11-6015', '', 'RC5E25V6XK', '11-6015-0'],   // same number on MTH (box number)
+    'RWHPXPBYDV': ['mpc', '11-6016', '', 'HTP2ETEKMH', '11-6016-0'],   // same number on MTH (box number)
+    'Q678EFMA7F': ['mpc', '11-6022', '', 'F2JCSQRH9R', '11-6022-0'],   // same number on MTH (box number)
+    'PU6EQKRBJW': ['mpc', '11-6057', '', 'WQHJKBH8TS', '11-6057-1'],   // same number on MTH (box number)
+    'PJC9QRKW6W': ['mpc', '11-70086', '', 'MVR5YPRE6B', '11-70086'],   // same number on MTH (box number)
+    'KR2WZJ29T7': ['mpc', '11-70087', '', 'RCP55YB4Q9', '11-70087'],   // same number on MTH (box number)
+    'C9DGTDJAF4': ['mpc', '11-70098', 'B', 'KETA4PTJJ6', '11-70098'],   // same number on MTH (box number)
+    'UPKJVDXQVD': ['mpc', '11-80028', '', 'H4AHF3ZBQ5', '11-80028'],   // same number on MTH (box number)
+    'FU5FDMXN4M': ['mpc', '11-90002', '', 'CCXFJ3Q8HG', '11-90002']    // same number on MTH (box number)
+  }
+};
+if (typeof window !== 'undefined') window.RR_BOOK_COPY_REDIRECT = RR_BOOK_COPY_REDIRECT;
+
 // v0.9.1504 (task #29, Brad: "we should be able to pick scale and era by
 // themselves without a manufacturer"): a photo tag is normally an ERA KEY.
 // A maker-less tag is the synthetic string '?|<scale>|<period>' -- partial
@@ -2492,7 +2976,12 @@ function rrSplitByFilter(rows) {
     // prewar's "O & Standard" fails a strict scale compare).
     // v0.9.1503: a multi-scale era (Pre-War spans O and Standard) is not a
     // mismatch at all when the filter names one of its scales.
-    if (sc && f.scale && !rrSameScale(sc, f.scale)) {
+    // stdmodern (2026-11-08): a row whose own Gauge names another scale its line
+    // carries (rrRowOwnLineScale, app.js — Lionel's modern 13100 is Standard) is
+    // judged by that scale alone.
+    var _own = (sc && f.scale && typeof rrRowOwnLineScale === 'function') ? rrRowOwnLineScale(r) : '';
+    if (_own) { if (!rrSameScale(_own, f.scale)) { out.offEra.push(r); return; } }
+    else if (sc && f.scale && !rrSameScale(sc, f.scale)) {
       var _ms = (typeof ERA_SCALES_MULTI !== 'undefined' && e && ERA_SCALES_MULTI[e]) || null;
       if (!(_ms && _ms.some(function (s2) { return rrSameScale(s2, f.scale); }))) { out.offEra.push(r); return; }
     }
@@ -3974,8 +4463,20 @@ window.rrPlaceIdsText = function (o) {
   });
   return JSON.stringify(out);
 };
+// 2026-11-08 (setfix, review finding 3a): the kept-set groups — {gid: {k, r}}.
+// Each side's newest keep (k) and newest retire (r) win; canonical text.
+window.rrSetKeptUnion = function (a, d) {
+  var rd = function (t) { try { var v = JSON.parse(t || '{}'); return (v && typeof v === 'object' && !Array.isArray(v)) ? v : {}; } catch (e) { return {}; } };
+  var A = rd(a), D = rd(d), out = {};
+  Object.keys(A).concat(Object.keys(D)).sort().forEach(function (g) {
+    var x = A[g] || {}, y = D[g] || {};
+    out[g] = { k: Math.max(Number(x.k) || 0, Number(y.k) || 0), r: Math.max(Number(x.r) || 0, Number(y.r) || 0) };
+  });
+  return JSON.stringify(out);
+};
 window.RR_PREF_ALWAYS_UNION = {
   lv_place_ids: function (a, d) { return window.rrPlaceIdsUnion(a, d); },
+  rr_set_kept_groups: function (a, d) { return window.rrSetKeptUnion(a, d); },
 };
 // The details belonging to ONE location. An unknown or blank location returns
 // every detail the user has — a suggestion list that vanishes the moment you
@@ -4838,6 +5339,14 @@ const RR_LINK_OWNED = {
     add:      'Add another copy',
     addDesc:  'This set gets a second {num}, entered as usual.',
     which:    'Which copy?',
+    // 2026-11-08 (setfix — hand-test T-2026-11-04-05): a copy picked with "use
+    // the one I have" joins the set only when the set SAVES (saveSet →
+    // rrSetLinkUsedOwned, wizard-save.js). Cancelling the walk leaves it as it
+    // was. {nums} = the numbers of those copies.
+    willJoin:    '\u2713 {num} joins {target} when you finish the set.',
+    cancelKeepsOne:  'The {nums} you already had stays in your collection, untouched.',
+    cancelKeepsMany: 'The {nums} you already had stay in your collection, untouched.',
+    notJoined:   '{nums} did not join the set — open the set and use Add a Piece I Already Own to try again.',
   },
   stamp: {
     done:     '✓ {num} joined {target}.',
@@ -4852,6 +5361,70 @@ const RR_LINK_OWNED = {
   },
 };
 if (typeof window !== 'undefined') window.RR_LINK_OWNED = RR_LINK_OWNED;
+
+// ═══════════════════════════════════════════════════════════════
+// 2026-11-08 (setfix — hand-tests T-2026-11-04-05, T-2026-11-05-02): REMOVING
+// A SET (browse.js _removeOwnedSet). The question says plainly that the pieces
+// stay in the collection, and offers ONE choice about their group link: keep
+// them grouped (the default — nothing else changes) or break up the group (the
+// app's own Break Up Group, _breakUpGroup). It never offers to remove the
+// pieces. After the set goes, its page closes (rrGoToCollectionAfterRemove).
+// {set} = the set's name or number; {n} = how many pieces are linked to it.
+//   keptKey  the account setting that remembers a catalog set's group the
+//            collector chose to keep, so My Collection does not call those
+//            pieces an "Unfinished set entry" (_rrAbandonedSetGroups).
+const RR_SET_REMOVE = {
+  title:      'Remove from collection',
+  ask:        'Remove “{set}” from your collection?',
+  piecesOne:  'Its 1 piece stays in your collection either way.',
+  piecesMany: 'Its {n} pieces stay in your collection either way.',
+  noPieces:   'Only the set’s own entry is removed. Nothing else in your collection changes.',
+  choose:     'What should happen to the group?',
+  keep:       'Keep the pieces grouped',
+  keepDesc:   'They stay linked together, as they are now.',
+  breakUp:    'Break up the group',
+  breakDesc:  'They stay in your collection, no longer linked.',
+  ok:         'Remove',
+  cancel:     'Cancel',
+  removing:   'Removing the set…',
+  doneKeep:   '✓ Set removed — its pieces are still in your collection, grouped.',
+  doneBreak:  '✓ Set removed — its pieces are still in your collection, no longer grouped.',
+  doneAlone:  '✓ Set removed from your collection.',
+  breakStuck: '✓ Set removed. {n} of its pieces could not be unlinked — open one and use Break Up Group.',
+  // A set made through an item page's "Add Another Item" shares that item's
+  // group — said plainly, so "break up" is not a surprise (review finding 4).
+  piecesShared: 'This set shares its group with items that were grouped before it — {n} pieces in all. They all stay in your collection either way.',
+  breakDescShared: 'Every piece in the group is unlinked — including the items that were grouped before this set.',
+  // The account setting (a map {groupId: {k: keptAt, r: retiredAt}}; kept when
+  // k > r). Combined on every device meeting (RR_PREF_ALWAYS_UNION), so one
+  // device's write never drops another's entry; an entry is retired when its
+  // group is broken up or has no pieces left (rrSetKeptPrune, browse.js).
+  keptKey:    'rr_set_kept_groups',
+};
+if (typeof window !== 'undefined') window.RR_SET_REMOVE = RR_SET_REMOVE;
+// 2026-11-08 (setfix, review finding 3c): My Collection's "Unfinished set
+// entry" notice (browse.js _rrDropAbandonedSet). Its button used to DELETE
+// every row carrying the group's ID — which can include a piece you owned
+// before the set (an engine joined with "Use the one I have"), and nothing on
+// a row says which. It now only unlinks them (the app's Break Up Group); a
+// piece you don't want is removed from its own page. {n} = how many.
+const RR_SET_LEFTOVER = {
+  button:  'Unlink them',
+  title:   'Unfinished set entry',
+  ask:     'Unlink these {n} items from that unfinished set entry?',
+  stays:   'They all stay in your collection. Remove any you don\u2019t want from its own page.',
+  ok:      'Unlink them',
+  cancel:  'Keep them as they are',
+  done:    '\u2713 Unlinked \u2014 {n} items stay in your collection.',
+};
+if (typeof window !== 'undefined') window.RR_SET_LEFTOVER = RR_SET_LEFTOVER;
+// 2026-11-08 (setfix, review 2 finding 1): the set walk's Cancel and a piece
+// saved while OFFLINE whose queued add could not be taken back (it may already
+// be on its way to the sheet) — it is kept, and said. {nums} = its number(s).
+const RR_SET_CANCEL = {
+  keptOffline: '{nums} was saved while offline and could not be taken back \u2014 it stays in your collection. Remove it from its own page once it reaches your sheet.',
+};
+if (typeof window !== 'undefined') window.RR_SET_CANCEL = RR_SET_CANCEL;
 
 // ═══════════════════════════════════════════════════════════════
 // v0.9.2031 — A TYPED NUMBER THE CATALOG DOES NOT HOLD (Lars, York, 2026-10-26:
@@ -5001,6 +5574,45 @@ function rrIsPhone() {
   } catch (e) { return false; }
 }
 if (typeof window !== 'undefined') { window.RR_PHONE = RR_PHONE; window.rrIsPhone = rrIsPhone; }
+
+// ── 2026-11-08 (R7 listlayout, Brad's iPad want list): a TABLET is a touch
+// screen wider than a phone — an iPad (upright AND sideways) or an Android
+// tablet. Primary pointer coarse, or iPadOS's desktop-looking Safari ("Macintosh"
+// + a touch screen). A Windows touch laptop's main pointer is the mouse, so it
+// stays a computer. THE one test — the list layout (app-pages.js rrListAsCards)
+// and the folding menu (app-setup.js rrMenuFoldSync) both ask it.
+function rrIsTablet() {
+  try {
+    if (rrIsPhone()) return false;
+    if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) return true;
+    var n = window.navigator || {};
+    return (n.maxTouchPoints || 0) > 1 && /Macintosh/.test(n.userAgent || '');
+  } catch (e) { return false; }
+}
+// The words and sizes of THE list layout (Want/Upgrade, For Sale, Parts Needed —
+// app-pages.js "THE LIST LAYOUT"). gotIt is the ONE name for "I bought it" on
+// every list (it replaced "+ Collection" and "Bought it"). tapMin is Apple's
+// finger size in CSS px — every card button is at least this tall.
+const RR_LIST_LAYOUT = {
+  gotIt: '✓ Got It',
+  more: '⋯',
+  moreWords: 'More choices',
+  cancel: 'Cancel',
+  viewMine: '📷 View Mine',
+  ebay: 'eBay',
+  search: 'Search',
+  remove: 'Remove',
+  markSold: 'Mark as Sold',
+  share: 'Share',
+  unlist: 'Take off the For Sale list',
+  removeColl: 'Remove from collection',
+  edit: 'Edit',
+  menuWords: 'Menu',
+  narrowNote: 'This window is too narrow for the full table, so your items show as cards.',
+  editCols: '\u270e Edit columns',
+  tapMin: 44
+};
+if (typeof window !== 'undefined') { window.rrIsTablet = rrIsTablet; window.RR_LIST_LAYOUT = RR_LIST_LAYOUT; }
 
 // ── v0.9.2044 (known-problems sweep, B10): ONE "today", in the person's own
 // time. Working it out as toISOString's first ten letters gives today in

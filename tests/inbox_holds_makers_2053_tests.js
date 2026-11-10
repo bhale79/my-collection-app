@@ -146,7 +146,8 @@ console.log('\n== S · who calls what ==');
 const WZ = read('wizard.js'), WS = read('wizard-save.js');
 const close = grab(WZ, 'function _doCloseWizard()');
 ok('S1 closing an unsaved set add lets go of its holds', /!_wd\._saveComplete && _wd\._pinSetStagedFiles[\s\S]{0,160}rrPinReleaseSetHolds\(_wd\._pinSetStagedFiles, false\)/.test(close));
-ok('S2 "Yes, Delete All" on a part-saved set lets go of its armed notes too', /rrRemoveSetGroup\(groupId\);[\s\S]{0,500}rrPinReleaseSetHolds\(wizard\.data\._pinSetStagedFiles, true\)/.test(grab(WZ, 'async function _confirmSetCancel()')));
+// 2026-11-08 (setfix): the cancel now passes the rows the walk ADDED (_addedKeys); the un-adopt step sits between
+ok('S2 "Yes, Delete All" on a part-saved set lets go of its armed notes too', /rrRemoveSetGroup\(groupId, _addedKeys, _rmReport\);[\s\S]{0,900}rrPinReleaseSetHolds\(wizard\.data\._pinSetStagedFiles, true\)/.test(grab(WZ, 'async function _confirmSetCancel()')));
 const manual = grab(WS, 'async function _saveManualEntry()');
 ok('S3 the HAND-MADE save checks, re-keys and ARMS the inbox hold (Mike\'s first report)', /rrPinEnsureStaged\(d\._pinStagedNum[\s\S]{0,300}rrPinRekeyStaged\(d\._pinStagedNum, displayId\)[\s\S]{0,120}rrPinSetPhotoSaved\(displayId\)/.test(manual));
 // v0.9.2072: was a COUNT of 3 — the Instruction Sheet save joined, so each save is named instead

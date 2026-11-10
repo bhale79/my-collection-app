@@ -404,5 +404,103 @@ T('regression: 9099 scale hint still HO',
   state.masterData = saveMD; wizard.data = {}; delete ERA_TABS.pw; delete ERA_TABS.ross;
 }
 
+// ── CANARY: stdmodern C2 (2026-11-08) — a saved Lionel copy whose row is gone ──
+// MTH's licensed Lionel Corporation Tinplate trains live ONCE, on the MTH tab,
+// "Also Sold As: Lionel Corporation"; the copies on Lionel MPC-Modern are to be
+// deleted (PLAN_2026-11-08_LIONEL_STANDARD_MODERN, Part B). A collector's saved
+// copy still names Lionel modern (era mpc / masterKey / masterRowId). 58 of
+// those numbers also exist on MTH O, which loads FIRST. The REAL findMaster,
+// both layers (tests/lib/findmaster-real.js); full coverage: stdmodern_tests.js.
+{
+  const { buildFindMaster } = require('./lib/findmaster-real');
+  const E = { mpc: { manufacturer: 'Lionel' }, mth_o: { manufacturer: 'MTH' }, mth_tinplate: { manufacturer: 'MTH' } };
+  const ET = { mpc: { items: 'Lionel MPC-Modern' }, mth_o: { items: 'MTH O' }, mth_tinplate: { items: 'MTH Tinplate' } };
+  const tin = { itemNum: '11-1005', variation: '', _era: 'mth_tinplate', _tab: 'MTH Tinplate', itemType: 'Steam Locomotive', alsoSoldAs: 'Lionel Corporation', rowId: 'TTTTTTTTTT', yearProd: '2004' };
+  const mo  = { itemNum: '11-1005', variation: '', _era: 'mth_o', _tab: 'MTH O', itemType: 'Boxcar', rowId: 'OOOOOOOOOO', yearProd: '2006' };
+  const lio = { itemNum: '11-1005', variation: '', _era: 'mpc', _tab: 'Lionel MPC-Modern', itemType: 'Steam Locomotive', rowId: 'LLLLLLLLLL', yearProd: '' };
+  const pd = { itemNum: '11-1005', variation: '', era: 'mpc', manufacturer: 'Lionel', masterKey: 'mpc|11-1005|', masterRowId: 'LLLLLLLLLL' };
+  const datS = fs.readFileSync(path.join(__dirname, '..', 'app', 'app-data.js'), 'utf8');
+  const run = (dat) => ({
+    one: buildFindMaster({ layer1: [mo, tin], eras: E, eraTabs: ET, dat }).findMaster('11-1005', '', pd),
+    two: buildFindMaster({ layer1: [mo], layer2: [mo, tin], eras: E, eraTabs: ET, dat }).findMaster('11-1005', '', pd),
+    kept: buildFindMaster({ layer1: [mo, tin, lio], eras: E, eraTabs: ET, dat }).findMaster('11-1005', '', pd),
+    bare: buildFindMaster({ layer1: [mo, tin], eras: E, eraTabs: ET, dat }).findMaster('11-1005', '', null),
+  });
+  const R = run(datS);
+  T('C2: Lionel copy, its row gone -> the MTH row sold as Lionel', (R.one || {})._era, 'mth_tinplate');
+  T('C2: …from the whole-catalog layer when MTH Tinplate is not loaded', (R.two || {})._era, 'mth_tinplate');
+  T('C2: the saved row still there -> that row, unchanged', (R.kept || {})._era, 'mpc');
+  T('C2: no copy named (number only) -> load order, unchanged', (R.bare || {})._era, 'mth_o');
+  // PLANTED: findMaster / _findMasterCore without the rule
+  const noRule = datS.replace("    if (_soldAsLive && _rrRowSoldAsEra(m, _prefSoldEra)) b += 6;   // stdmodern C2\n", '')
+    .replace("    if (_r2 && typeof _rrRowSoldAsEra === 'function' && !_rrRowSoldAsEra(_r, _want) && _rrRowSoldAsEra(_r2, _want)) return _r2;\n", '');
+  T('C2 PLANT applied (the rule taken out)', noRule !== datS && noRule.indexOf('b += 6;   // stdmodern C2') < 0 && noRule.indexOf('_rrRowSoldAsEra(_r2, _want)') < 0, true);
+  const P = run(noRule);
+  T('C2 PLANTED: without the rule the copy lands on MTH O (caught)', (P.one || {})._era, 'mth_o');
+  T('C2 PLANTED: …and from the whole-catalog layer too (caught)', (P.two || {})._era, 'mth_o');
+}
+
+// ── CANARY: zerobridge (2026-11-08) — a saved copy of a deleted book row ──
+// [stated] Brad 20:17 CT "yes" (Q7 / Q8): the reference-book copies the master
+// deletes wrote MTH's number without its ending (11-1005 vs MTH's 11-1005-0
+// Traditional / 11-1005-1 Proto-Sound). A saved copy whose own row is gone lands
+// on the keeper the delete record names (RR_BOOK_COPY_REDIRECT, config.js) — and
+// stays there once a back-fill writes the keeper's Row ID. Real Row IDs; all 440
+// Write-2 copies: zerobridge_tests.js.
+{
+  const { buildFindMaster } = require('./lib/findmaster-real');
+  const E = { mpc: { manufacturer: 'Lionel' }, mth_o: { manufacturer: 'MTH' }, mth_tinplate: { manufacturer: 'MTH' }, atlas: { manufacturer: 'Atlas' } };
+  const ET = { mpc: { items: 'Lionel MPC-Modern' }, mth_o: { items: 'MTH O' }, mth_tinplate: { items: 'MTH Tinplate' }, atlas: { items: 'Atlas O' } };
+  const R = (n, era, tab, x) => Object.assign({ itemNum: n, variation: '', _era: era, _tab: tab, itemType: 'Steam Locomotive', yearProd: '2004' }, x || {});
+  const t0 = R('11-1005-0', 'mth_tinplate', 'MTH Tinplate', { rowId: 'CU89458CGD', alsoSoldAs: 'Lionel Corporation' });
+  const t1 = R('11-1005-1', 'mth_tinplate', 'MTH Tinplate', { rowId: 'N4KMFHZKYP', alsoSoldAs: 'Lionel Corporation' });
+  const o1 = R('11-1038-1', 'mth_tinplate', 'MTH Tinplate', { rowId: '7CR22SR954', alsoSoldAs: 'Lionel Corporation' });   // MTH has no 11-1038-0
+  const mo = R('11-2038-1', 'mth_o', 'MTH O', { rowId: 'BEVQWZQWZJ', alsoSoldAs: 'Lionel Corporation' });               // the keeper sits on MTH O
+  const lio = R('11-1005', 'mpc', 'Lionel MPC-Modern', { rowId: 'MRBYH6C8FF', yearProd: '' });                            // the book copy (deleted)
+  const lf = R('13100', 'mpc', 'Lionel MPC-Modern', { rowId: 'LIONEL1310' });                                              // the rest of Lionel modern
+  const atl = R('1304-1', 'atlas', 'Atlas O', { rowId: 'ATLAS13041', itemType: 'Boxcar' });
+  const ALL = [t0, t1, o1, mo, lf, atl];
+  const pdL = { itemNum: '11-1005', variation: '', era: 'mpc', manufacturer: 'Lionel', masterKey: 'mpc|11-1005|', masterRowId: 'MRBYH6C8FF' };
+  const pdT = { itemNum: '11-1038', variation: '', era: 'mth_tinplate', manufacturer: 'MTH', masterKey: 'mth_tinplate|11-1038|', masterRowId: '75Z5N8MR52' };
+  const pdT2 = { itemNum: '11-2038', variation: '', era: 'mth_tinplate', manufacturer: 'MTH', masterKey: 'mth_tinplate|11-2038|', masterRowId: 'BVYK97W45R' };
+  const pdA = { itemNum: '1304', variation: '', era: 'atlas', manufacturer: 'Atlas', masterKey: 'atlas|1304|', masterRowId: 'GONEATLAS1' };
+  const datS = fs.readFileSync(path.join(__dirname, '..', 'app', 'app-data.js'), 'utf8');
+  const id = r => (r ? r.rowId : null);
+  const run = (dat) => {
+    const F = buildFindMaster({ layer1: ALL, layer2: ALL, eras: E, eraTabs: ET, dat });
+    return {
+      lio: id(F.findMaster('11-1005', '', pdL)),
+      lioOnly: id(buildFindMaster({ layer1: [lf], layer2: ALL, eras: E, eraTabs: ET, dat }).findMaster('11-1005', '', pdL)),
+      kept: id(buildFindMaster({ layer1: ALL.concat([lio]), layer2: ALL.concat([lio]), eras: E, eraTabs: ET, dat }).findMaster('11-1005', '', pdL)),
+      backfilled: id(F.findMaster('11-1005', '', Object.assign({}, pdL, { masterRowId: 'CU89458CGD', masterKey: 'mth_tinplate|11-1005-0|' }))),
+      one: id(F.findMaster('11-1038', '', pdT)),
+      cross: id(F.findMaster('11-2038', '', pdT2)),
+      atlas: id(F.findMaster('1304', '', pdA)),
+      edited: id(F.findMaster('11-1006', '', pdL)),
+      noLink: id(F.findMaster('11-1005', '', { itemNum: '11-1005', era: 'mpc', manufacturer: 'Lionel' })),
+    };
+  };
+  const Z = run(datS);
+  T('zerobridge: Lionel copy 11-1005, its row gone -> MTH 11-1005-0 (Traditional), the record\'s keeper', Z.lio, 'CU89458CGD');
+  T('zerobridge: …a Lionel-only collector (MTH from the whole catalog)', Z.lioOnly, 'CU89458CGD');
+  T('zerobridge: the book row still there -> that row, unchanged', Z.kept, 'MRBYH6C8FF');
+  T('zerobridge: the keeper\'s Row ID + Master Key back-filled -> still 11-1005-0', Z.backfilled, 'CU89458CGD');
+  T('zerobridge: MTH Tinplate Greenberg copy 11-1038 (MTH has no -0) -> 11-1038-1', Z.one, '7CR22SR954');
+  T('zerobridge: MTH Tinplate Greenberg copy 11-2038 -> its keeper on MTH O, 11-2038-1', Z.cross, 'BEVQWZQWZJ');
+  T('zerobridge: an Atlas copy (not in the table) never reaches Atlas 1304-1', Z.atlas, null);
+  T('zerobridge: the Lionel copy looked up under another number (an edit) -> not redirected', Z.edited, null);
+  T('zerobridge: no saved link (not a saved copy) -> nothing, as today', Z.noLink, null);
+  // PLANTED: findMaster without the table; _rrRowIdFits without the pair
+  const noTable = datS.split('    if (_bcK) return _bcK;\n').join('');
+  T('zerobridge PLANT applied (findMaster never asks the table)', noTable !== datS, true);
+  const P = run(noTable);
+  T('zerobridge PLANTED: the Lionel copy finds nothing (caught)', JSON.stringify([P.lio, P.lioOnly]), '[null,null]');
+  T('zerobridge PLANTED: …and the MTH Tinplate copies too (caught)', JSON.stringify([P.one, P.cross]), '[null,null]');
+  const noPair = datS.split("    return (typeof _rrBookCopyPairFits === 'function') && _rrBookCopyPairFits(row, _in, variation);\n").join('    return false;\n')
+    .split("\n          || (typeof _rrBookCopyPairFits === 'function' && _rrBookCopyPairFits(_byKey, _in, variation))) return _byKey;").join('\n          ) return _byKey;');
+  T('zerobridge PLANT applied (the back-filled pair refused)', noPair !== datS && noPair.indexOf('_rrBookCopyPairFits(row, _in') < 0 && noPair.indexOf('_rrBookCopyPairFits(_byKey') < 0, true);
+  T('zerobridge PLANTED: the back-filled copy is stranded (caught)', run(noPair).backfilled, null);
+}
+
 console.log(fails ? ('\n' + fails + ' CANARY FAILURE(S) — a lookup path regressed.') : '\nALL CANARIES GREEN');
 process.exit(fails ? 1 : 0);

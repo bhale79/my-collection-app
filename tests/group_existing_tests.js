@@ -29,7 +29,7 @@
 //      button opens the picker aimed at the set, a pick joins the set, and a set
 //      saved before Group IDs gets one written to its own row first
 //   F  the set walk: an owned piece is asked about once — "use the one I have"
-//      stamps it and moves on; two copies are each offered; "add another copy"
+//      remembers it and moves on (stamped when the set saves — setfix_tests); two copies are each offered; "add another copy"
 //      walks the Add steps; another set's member is not offered
 //   G  "My Own Set" on the Add list: lands on the pieces box with the own-set
 //      path chosen, no Lionel guesses, continues to the own-set step; the
@@ -393,8 +393,12 @@ async function openApp(browser, served) {
   ok('E5 a set saved before Group IDs gets one written to its own row first (My Sets, column G), then the pick',
      R.e3Minted && /^My Sets:5=GID\|My Collection:10=GID$/.test(R.e3Rows) && R.e3Range === 'My Sets!G5:G5' && R.e3State && /No pieces/.test(R.e3Empty), [R.e3Minted, R.e3Rows, R.e3Range, R.e3State].join(' '));
   ok('F1 the walk asks about the owned engine first, guarded', R.f1Ask && /already have a 2343/.test(R.f1Title) && R.f1Uses === 'kE' && R.f1Guarded, [R.f1Ask, R.f1Title, R.f1Uses].join(' '));
-  ok('F2 "use the one I have" stamps engine + box + sheet with the set’s group and moves to the next piece',
-     R.f1Rows === 'My Collection:5=SET-2190W-NEW|My Collection:6=SET-2190W-NEW|Instruction Sheets:4=SET-2190W-NEW' && R.f1Saved === '2343' && R.f1Idx === 1 && R.f1Used === 'kE', [R.f1Rows, R.f1Saved, R.f1Idx, R.f1Used].join(' '));
+  // 2026-11-08 (setfix, hand-test T-2026-11-04-05): the pick no longer writes —
+  // the copy is remembered and stamped (engine + box + sheet, through the same
+  // rrLinkOwnedToGroup) only when the set saves. That write, and Cancel leaving
+  // the engine alone, are proved in tests/setfix_tests.js (W1–W9).
+  ok('F2 "use the one I have" remembers the engine (nothing written until the set saves) and moves to the next piece',
+     R.f1Rows === '' && R.f1Saved === '2343' && R.f1Idx === 1 && R.f1Used === 'kE', [R.f1Rows, R.f1Saved, R.f1Idx, R.f1Used].join(' '));
   ok('F3 two copies of the next piece are each offered', R.f2Ask && R.f2Uses === 'kC1,kC2' && R.f2Which, [R.f2Ask, R.f2Uses, R.f2Which].join(' '));
   ok('F4 "add another copy" walks the Add steps for that piece, aimed at the set', R.f2Tab === 'collection' && R.f2Num === '6464' && R.f2Group === 'SET-2190W-NEW' && R.f2AskGone && R.f2Asked === '{"0":true,"1":true}', [R.f2Tab, R.f2Num, R.f2Step, R.f2Asked].join(' '));
   ok('F5 asked once per slot', R.f2AgainNoAsk === true, String(R.f2AgainNoAsk));
