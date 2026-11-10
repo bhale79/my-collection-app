@@ -1796,6 +1796,8 @@
             var _pl = (opts && opts.photoIds) || [];
             if (!_pl.length && photoDriveId) _pl = [photoDriveId];
             if (_pl.length) wizard.data._addPhotoDriveIds = _pl;
+            // TRR Pro — Capture: photos of a captured item (their sticker stamp) fill THAT row, not a new one
+            try { if (_pl.length && typeof rrCaptureFillFor === 'function') rrCaptureFillFor(wizard.data, _pl); } catch (eCap) {}
             // v0.9.1433: each photo's view stamp rides along, so the wizard
             // files Right Side into Right Side instead of dealing by order.
             var _vm = {};

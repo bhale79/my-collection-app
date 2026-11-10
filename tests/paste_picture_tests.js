@@ -124,6 +124,7 @@ const item = (types, blobs) => ({ types, getType: t => Promise.resolve(blobs[t])
     ['error-report.js', 'id="err-shots"', "rrPasteBtn('err-shots')"],
     ['logo-cards.js', 'id="rrlc-file"', "rrPasteBtn('rrlc-file')"],
     ['maintenance.js', 'id="binf-photo"', "rrPasteBtn('binf-photo')"],
+    ['capture.js', 'id="rr-cap-file"', 'CAMERA ONLY — Capture is a shooting session on the floor (TRR Pro); the Inbox\'s "Add photos from…" has the 📋 Paste'],
     ['photo-inbox-identify.js', "inp.id = 'qc-file'", 'CAMERA ONLY — Quick Capture is a shooting session; the Inbox\'s "Add photos from…" has the 📋 Paste'],
     ['photo-inbox-tools.js', "inp.id = 'pin-shot-input'", 'UNUSED — _pinReadShot has no button (checked below); the review card reads a Ctrl+V snip'],
     ['photo-inbox.js', 'id="pin-file-input"', "rrPasteInto('pin-file-input')"],

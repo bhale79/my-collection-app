@@ -999,6 +999,11 @@ function _rrOpenJs(idx, inv) {
 if (typeof window !== 'undefined') window._rrOpenJs = _rrOpenJs;
 
 function showItemDetailPage(idx, copyInvId, opts) {
+  // TRR Pro — Capture: a copy NOT IDENTIFIED YET has no catalog page — its own card opens instead.
+  if (copyInvId && typeof rrCaptureCardOpen === 'function' && typeof rrToIdentify === 'function' && state && state.personalData) {
+    var _capPd = state.personalData[copyInvId];
+    if (_capPd && rrToIdentify(_capPd) && rrCaptureCardOpen(copyInvId)) return;
+  }
   var _wantMode = !!(opts && opts.wantMode);
   var _wantEntry = opts && opts.wantEntry;
   var _wantPartner = (opts && opts.wantPartner) || '';

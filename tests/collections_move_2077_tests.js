@@ -458,7 +458,7 @@ async function inboxRun(browser) {
   });
   T('I1 an inbox photo is stamped with the open collection (Hale); one staged offline keeps its own (Smith); an item photo is not stamped', u.a && u.a.rrColl === 'c7' && u.b && u.b.rrColl === 'c8' && !u.c && u.tagNow === 'c7', u);
   const off = require('./lib/pin-source').pinSource();   // the Photo Inbox, read the one way tests read it
-  T('I2 a photo staged offline remembers the collection it was TAKEN in, and brings it up', /coll: \(typeof rrInboxUploadTag === 'function'\) \? \(rrInboxUploadTag\(\) \|\| ''\) : ''/.test(off) && /r\.coll \? \{ appProperties: \{ rrColl: r\.coll \} \} : undefined/.test(off));
+  T('I2 a photo staged offline remembers the collection it was TAKEN in, and brings it up', /coll: \(typeof rrInboxUploadTag === 'function'\) \? \(rrInboxUploadTag\(\) \|\| ''\) : ''/.test(off) && /if \(r\.coll\) _stAp\.rrColl = r\.coll;/.test(off) && /\(r\.coll \|\| r\.cap\) \? \{ appProperties: _stAp \} : undefined/.test(off));
   // the inbox page: badge, filter, retag, the gate
   const g = await pg.evaluate(async () => {
     // three photos: one for Hale, one for Smith, one with no tag

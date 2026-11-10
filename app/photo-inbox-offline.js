@@ -197,7 +197,8 @@
     } catch (e2) { return r.blob || null; }
     return null;
   }
-  async function _stageOne(file, name, era, view) {
+  // TRR Pro — Capture: extra.cap is the item's sticker code (RR_CAPTURE.photoProp), stamped when it goes up.
+  async function _stageOne(file, name, era, view, extra) {
     var bytes = await _stageBytesOf(file);
     var rec = {
       id: 'stg' + Date.now() + '.' + Math.random().toString(36).slice(2, 8),
@@ -212,6 +213,7 @@
       // keeps the bytes but not properties hung on a File — and
       // _stageReattach puts them back on the way out, so the upload keeps
       // the original exactly as an online shot would.
+      cap: (extra && extra.cap) || '',
       orig: (file && file._rrOriginal) || null, box: (file && file._rrCropBox) || null
     };
     await _stagePut(rec);
@@ -484,7 +486,8 @@
           }
           var _uf = _stageFileOf(r);   // v0.9.2030: from the stored bytes
           if (!_uf) { r.unreadable = true; throw new Error('UNREADABLE'); }
-          var up = await driveUploadFile(_stageReattach(r, _uf), r.name, fid, r.coll ? { appProperties: { rrColl: r.coll } } : undefined);   // v0.9.1872: the original rides along · v0.9.2077: its collection too
+          var _stAp = {}; if (r.coll) _stAp.rrColl = r.coll; if (r.cap) _stAp[(typeof RR_CAPTURE !== 'undefined' && RR_CAPTURE.photoProp) || 'rrCap'] = r.cap;   // TRR Pro — Capture: the sticker rides along
+          var up = await driveUploadFile(_stageReattach(r, _uf), r.name, fid, (r.coll || r.cap) ? { appProperties: _stAp } : undefined);   // v0.9.1872: the original rides along · v0.9.2077: its collection too
           if (!up || !up.id) throw new Error('no id back from Drive');
           var meta = {};
           if (r.era) { meta.era = r.era; meta.stat = 'stamped'; }

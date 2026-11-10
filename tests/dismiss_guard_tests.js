@@ -256,7 +256,9 @@ ok('every guarded overlay offers Cancel / Done / Close / ✕', trapped.length ==
 // rrSetOwnedPieceAsk): Back = Cancel on the first, Back = "add another copy" on the second.
 // 2026-11-08 (R7 listlayout): 63 — the ⋯ sheet of the list cards and rows (rr-list-menu,
 // app-pages.js rrListMenu): Cancel (data-close) and Back close it, an outside tap does not.
-ok('63 guarded call sites, and ONE helper behind them', sites === 63, String(sites));
+// TRR Pro — Capture: 66 — a captured item's card (rr-capture-card), the Capture screen (rr-capture)
+// and Print blank labels (rr-capture-blank), capture.js: Back closes each, an outside tap does not.
+ok('66 guarded call sites, and ONE helper behind them', sites === 66, String(sites));
 
 // nobody double-wires BackStack any more — the guard does it, once
 let dbl = 0;

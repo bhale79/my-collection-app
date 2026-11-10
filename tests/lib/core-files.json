@@ -20,6 +20,7 @@
     "app/collections-handover.js",
     "app/collections-all.js",
     "app/collections-invoice.js",
+    "app/capture.js",
     "app/collections-inbox.js"
   ],
   "mutable": [

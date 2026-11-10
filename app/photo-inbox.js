@@ -322,6 +322,8 @@
           // buttons"). Add photos steps back to an outline beside it.
           '<button id="pin-identify-btn" class="btn-primary" onclick="_pinIdentifyItems()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Identify my items</button>' +
           '<button id="pin-add-photos" onclick="_pinAddSource()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Add photos\u2026</button>' +
+          // TRR Pro — Capture (capture.js): shown by rrCaptureButtonSync only when Pro is on
+          '<button id="pin-capture-btn" class="pref-btn" onclick="rrCaptureOpen()" style="display:none;font-weight:700"></button>' +
           '<button id="pin-group-btn" onclick="_pinStartMode(\'group\')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Group photos</button>' +
           '<button id="pin-tag-btn" onclick="_pinStartMode(\'tag\')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Tag maker/era/scale/type</button>' +
           // The filter menu renders in here — one control that NAMES what is
@@ -465,6 +467,7 @@
   window._pinGo = function (clickedEl) {
     if (!_ensurePage()) { showToast('App is still loading — try again in a moment', 2500, true); return; }
     showPage('photo-inbox', clickedEl || document.getElementById('nav-photo-inbox'));
+    try { if (typeof rrCaptureButtonSync === 'function') rrCaptureButtonSync(); } catch (eCap) {}   // TRR Pro — Capture
     _pinRefresh();
   };
 

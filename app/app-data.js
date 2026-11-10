@@ -3496,6 +3496,19 @@ function rrPersonalRowHasItem(r) {
   const n = PERSONAL_FIELD_INDEX.itemNum, i = PERSONAL_FIELD_INDEX.inventoryId;
   return !!(r[n] || (i !== undefined && r[i]));
 }
+// TRR Pro — Capture (PLAN_2026-11-09_PRO_CAPTURE.md): a row with an inventory
+// number and NO item number is an item captured on the floor and not
+// identified yet. THE one rule — every list, name and screen asks this, never
+// its own test of a blank number. A box / piece row always has a number, so it
+// is never one.
+function rrToIdentify(rec) {
+  if (!rec || typeof rec !== 'object') return false;
+  if (String(rec.itemNum == null ? '' : rec.itemNum).trim()) return false;
+  if (!String(rec.inventoryId == null ? '' : rec.inventoryId).trim()) return false;
+  if (rec.owned === false) return false;
+  if (typeof rrRecordMovedOut === 'function' && rrRecordMovedOut(rec)) return false;
+  return true;
+}
 // v0.9.2077: a row moved to another collection (or, release 7A, returned to
 // the client) says so in Transferred To — never deleted, never held here.
 function rrRecordMovedOut(rec) { return !!String((rec && rec.transferredTo) || '').trim(); }
@@ -3526,7 +3539,7 @@ function rrSavedRecord(writtenRow, rowNum, fill) {
 }
 if (typeof window !== 'undefined') {
   window.rrPersonalRecordFromRow = rrPersonalRecordFromRow;
-  window.rrPersonalRowHasItem = rrPersonalRowHasItem; window.rrRecordMovedOut = rrRecordMovedOut; window.rrHeldRecordFromRow = rrHeldRecordFromRow;   // TRR Pro release 8
+  window.rrPersonalRowHasItem = rrPersonalRowHasItem; window.rrToIdentify = rrToIdentify; window.rrRecordMovedOut = rrRecordMovedOut; window.rrHeldRecordFromRow = rrHeldRecordFromRow;   // TRR Pro release 8
   window.rrPersonalRecordFromWrittenRow = rrPersonalRecordFromWrittenRow;
   window.rrSavedRecord = rrSavedRecord;
 }

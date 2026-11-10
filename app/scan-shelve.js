@@ -265,6 +265,8 @@ function rrStickerCodeForPlace(place) {
 }
 function rrShelveItemName(pd) {
   if (!pd) return '';
+  // TRR Pro — Capture: an item not identified yet has no number to name it by
+  if (typeof rrToIdentify === 'function' && rrToIdentify(pd)) return (typeof rrCaptureName === 'function') ? rrCaptureName(pd) : 'Not identified yet';
   var m = null;
   try { m = (typeof findMaster === 'function') ? findMaster(pd.itemNum, pd.variation, pd) : null; } catch (e) {}
   // 2026-11-07 (onerow): the type word is THE copy's (rrCopyTypeWord — the catalog row wins)

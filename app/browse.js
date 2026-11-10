@@ -6106,6 +6106,12 @@ function _rrBrowseCore(_co) {
     // 2026-11-08 (notsure): in My Collection the variation a row SHOWS is the copy's own (rrCopyRowView,
     // app-data.js) — a copy saved "not sure" sits on its item's Var 1 row and must not read "1"
     const _cv = (state.filters.owned && !item._personalOnly && pd && typeof rrCopyRowView === 'function') ? rrCopyRowView(item, pd) : item;
+    // TRR Pro — Capture: an item NOT IDENTIFIED YET (rrToIdentify, the one rule)
+    // draws its own row (capture.js) — it has no number, type or catalog row to show.
+    if (state.filters.owned && typeof rrToIdentify === 'function' && typeof rrCaptureRowHtml === 'function') {
+      const _capRec = pd || item._pd || (item._personalOnly ? item : null);
+      if (_capRec && rrToIdentify(_capRec)) return rrCaptureRowHtml(_capRec, isMobile);
+    }
     const isOwned = item._personalOnly ? true : (pd?.owned || false);
     const isWanted = !!state.wantData[`${item.itemNum}|${item.variation}`];
     const cond = pd?.condition ? parseInt(pd.condition) : null;

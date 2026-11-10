@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2138';
+const APP_VERSION = 'v0.9.2139';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -3836,7 +3836,7 @@ const RR_MOVE_LOG = {
   note: 'Every move of an item, newest at the bottom. Lines are only ever added \u2014 never edit or delete them.',
   backupReason: 'before-movement-log',
   okKey: 'rr_movelog_sheets_v1',      // sheets on this device whose Movement Log is known to exist (so an offline move still queues its line)
-  how: { scan: 'Scan to Shelve', undo: 'Scan to Shelve \u2014 undo', check: 'Shelf check', transfer: 'Moved between collections' },   // transfer: v0.9.2077
+  how: { scan: 'Scan to Shelve', undo: 'Scan to Shelve \u2014 undo', check: 'Shelf check', transfer: 'Moved between collections', capture: 'Captured' },   // transfer: v0.9.2077
   words: {
     history: 'Movement history',
     historyTitle: 'Where {item} has been',
@@ -4357,6 +4357,86 @@ var RR_COLL_INVOICE = {
   },
 };
 if (typeof window !== 'undefined') window.RR_COLL_INVOICE = RR_COLL_INVOICE;
+
+// ── TRR Pro — CAPTURE (PLAN_2026-11-09_PRO_CAPTURE.md; [stated] Brad
+// 2026-11-09 12:41 CT the flow — sticker, photos, Next, shelf, Finished —
+// 12:46 CT "Show up in the collection", 12:49 CT "Yes" to building it).
+// An item captured on the floor is a row of the open collection with an
+// inventory number, its sticker, its shelf and NO item number yet — "not
+// identified yet". THE rule for that is rrToIdentify (app-data.js); every
+// word is here; the screens are capture.js.
+var RR_CAPTURE = {
+  feature: 'collections',          // on the same switch as the rest of Pro (RR_COLL_UI.feature)
+  queueKey: 'rr_capture_queue_v1', // items finished OFFLINE, waiting on THIS phone (their photos are staged here too)
+  photoProp: 'rrCap',              // the Drive appProperty on each Inbox photo: the item's STICKER CODE
+  blankPrefix: 'RRB-',             // Print blank labels: RRB-<random> — tied to no item until it is scanned
+  blankLen: 10,
+  blankAlphabet: 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789',   // no 0/O or 1/I — a code read aloud or typed is never mistaken
+  blankMax: 300,
+  words: {
+    notIdentified: 'Not identified yet',
+    notIdentifiedId: 'Not identified yet · #{id}',
+    identifyBtn: 'Identify',
+    removeBtn: 'Remove',
+    cardTitle: 'Not identified yet — #{id}',
+    cardIntro: 'Captured on the floor: it has its number, its sticker and its shelf. Identify it to fill in what it is — the number, sticker, shelf and photos stay.',
+    cardSticker: 'Sticker',
+    cardShelf: 'Shelf',
+    cardAdded: 'Captured',
+    cardNone: '—',
+    cardClose: 'Close',
+    // the Capture screen
+    startBtn: 'Capture items',
+    startHelp: 'Sticker \u2192 photos \u2192 shelf, one item after another. Each item is added to {label} right away, not identified yet.',
+    title: 'Capture items',
+    into: 'Adding to {label}',
+    stepSticker: 'Scan the item\u2019s sticker.',
+    stepPhotos: 'Take the item\u2019s photos, then tap Next.',
+    stepShelf: 'Put it on its shelf, then scan the shelf\u2019s sticker.',
+    slotSticker: 'Sticker',
+    slotPhotos: 'Photos',
+    slotShelf: 'Shelf',
+    takePhoto: 'Take a photo',
+    next: 'Next',
+    back: 'Back',
+    finished: 'Finished',
+    sameShelf: 'Same shelf as last time ({place})',
+    stickerUsed: 'This sticker is already on {item}. Use a new sticker.',
+    stickerWaiting: 'This sticker was just captured and is waiting to be added. Use a new sticker.',
+    stickerIsShelf: 'That is a shelf sticker \u2014 scan the item\u2019s sticker first.',
+    stickerPrinted: 'That label already names an item \u2014 use a blank sticker.',
+    stickerOther: 'That sticker belongs to another collection \u2014 use a blank sticker.',
+    notShelf: 'That is an item sticker \u2014 scan the shelf\u2019s sticker.',
+    newShelfAsk: 'This shelf sticker is new. Which place is it on?',
+    newShelfUse: 'Use this place',
+    noPhotos: 'Take at least one photo first.',
+    saving: 'Adding it\u2026',
+    saved: '\u2713 {name} \u2192 {place}',
+    savedPlain: '\u2713 {name} added',
+    failed: 'Could not add it \u2014 it is kept on this phone and goes in when the connection is back.',
+    waiting: '{n} waiting to be added \u2014 they go in when you are back online.',
+    archived: 'This collection is archived (read only) \u2014 open an active collection to capture items.',
+    typeLabel: 'Sticker code',
+    typeGo: 'Use code',
+    noCamera: 'Open this on your phone to scan with the camera \u2014 or type a sticker code below.',
+    uploading: '{n} uploading\u2026',
+    // Print blank labels
+    blankBtn: 'Print blank labels',
+    blankTitle: 'Print blank labels',
+    blankHelp: 'Each label has its own code, tied to no item until you scan it in Capture. Stick one on each item first. Bought QR labels work too.',
+    blankHow: 'How many labels',
+    blankGo: 'Make the label sheet (PDF)',
+    blankMade: '\u2713 {n} blank labels ready \u2014 print at 100%',
+    blankFailed: 'Could not make the label sheet \u2014 try again.',
+    blankBad: 'Type a number from 1 to {max}.',
+    // Identify
+    idLooking: 'Finding its photos in the Photo Inbox\u2026',
+    idNoPhotos: 'Its photos are not in the Photo Inbox yet (still uploading from the phone?) \u2014 identifying it without them.',
+    idFilling: 'Identifying #{id} \u2014 the number, sticker and shelf stay.',
+    idGone: 'That item is already identified.',
+  },
+};
+if (typeof window !== 'undefined') window.RR_CAPTURE = RR_CAPTURE;
 window.rrSavedLocations = function () {
   try {
     var raw = (typeof _prefGet === 'function') ? _prefGet(RR_LOCATIONS_KEY, '[]') : localStorage.getItem(RR_LOCATIONS_KEY);
