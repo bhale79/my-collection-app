@@ -94,8 +94,24 @@ function trackerChecks(store) {
     ['https://x.com/p?variant=1', 'https://x.com/p?variant=1'],
     ['not a url', 'not a url'],
   ];
+  // 2026-11-10 (hand-test T-2026-11-07-02): a store's OWN search tags — cut only
+  // on that store's website
+  const hostCases = [
+    ['https://www.trainz.com/products/lionel-675-vgt?queryId=850a6d4326dc&objectId=44230960906362', 'https://www.trainz.com/products/lionel-675-vgt'],
+    ['https://trainz.com/products/a?objectId=4&variant=9&queryId=z', 'https://trainz.com/products/a?variant=9'],
+    ['https://shop.trainz.com/p?QUERYID=1', 'https://shop.trainz.com/p'],
+    ['https://WWW.Trainz.com./p?queryId=1', 'https://WWW.Trainz.com./p'],
+  ];
+  const keepCases = [
+    ['https://example.com/p?objectId=5', 'https://example.com/p?objectId=5'],
+    ['https://nottrainz.com/p?queryId=1', 'https://nottrainz.com/p?queryId=1'],
+    ['https://trainz.com.evil.example/p?queryId=1', 'https://trainz.com.evil.example/p?queryId=1'],
+  ];
+  const hostBad = hostCases.filter(([i, o]) => f(i) !== o).map(([i]) => i + ' -> ' + f(i));
+  const keepBad = keepCases.filter(([i, o]) => f(i) !== o).map(([i]) => i + ' -> ' + f(i));
   const bad = cases.filter(([i, o]) => f(i) !== o).map(([i]) => i + ' -> ' + f(i));
-  return { exact: bad.length === 0, bad: bad.join(' | ') };
+  return { exact: bad.length === 0, bad: bad.join(' | '),
+           hostCut: hostBad.length === 0, hostBad: hostBad.join(' | '), hostKept: keepBad.length === 0, keepBad: keepBad.join(' | ') };
 }
 
 // ── 3. The gift list on a real page, its own buttons clicked ───────────────
@@ -276,6 +292,50 @@ async function twinStory(opts) {
   return { distinct: /Lionel 6464-1 — Western Pacific Boxcar — Silver body, blue feather/.test(t) && /Lionel 6464-1 — Western Pacific Boxcar — version 2/.test(t) && !/\(1\)|\(2\)/.test(t), t: t };
 }
 
+// 2026-11-10 (hand-test T-2026-11-07-02): the road name once, and a link saved
+// BEFORE the Trainz search tags were known goes out clean
+async function roadStory(opts) {
+  const w = page(Object.assign({
+    wants: { '6464-100|': { itemNum: '6464-100', variation: '', manufacturer: 'Lionel', expectedPrice: '300' },
+             '2343|': { itemNum: '2343', variation: '', manufacturer: 'Lionel', expectedPrice: '350' },
+             '1|': { itemNum: '1', variation: '', manufacturer: 'Lionel', expectedPrice: '5' },
+             '2|': { itemNum: '2', variation: '', manufacturer: 'Lionel', expectedPrice: '5' },
+             '3|': { itemNum: '3', variation: '', manufacturer: 'Lionel', expectedPrice: '5' },
+             '4|': { itemNum: '4', variation: '', manufacturer: 'Lionel', expectedPrice: '5' } },
+    masters: { '6464-100|': { roadName: 'Western Pacific', description: 'Western Pacific Boxcar' },
+               '2343|': { roadName: 'Santa Fe', description: 'F3 A unit' },
+               '1|': { roadName: 'Pacific', description: 'Pacifico Gondola' },
+               '2|': { roadName: 'Erie', description: 'erie' },
+               '3|': { roadName: 'Rock  Island', description: 'Rock\u00a0Island Caboose' },
+               '4|': { roadName: 'Pacific', description: 'Pacific\u00e9 Hopper' } },
+    giftRows: [['6464-100', '', 'Yes', '300', 'Trainz', 'https://www.trainz.com/products/lionel-6464-100-ln?queryId=42d49c&objectId=4422363', '2026-11-08', '', '', '', ''],
+               ['2343', '', 'Yes', '350', '', '', '', '', '', '', ''],
+               ['1', '', 'Yes', '5', '', '', '', '', '', '', ''],
+               ['2', '', 'Yes', '5', '', '', '', '', '', '', ''],
+               ['3', '', 'Yes', '5', '', '', '', '', '', '', ''],
+               ['4', '', 'Yes', '5', '', '', '', '', '', '', '']],
+  }, opts || {}));
+  await w.rrGiftOpen(); await tick(w, 30);
+  await w.rrGiftView('preview'); await tick(w, 60);
+  const prev = ($(w, '[data-gift-preview]') || {}).textContent || '';
+  const hrefs = Array.from(w.document.querySelectorAll('[data-gift-preview] a')).map(a => a.getAttribute('href'));
+  w.rrGiftEmail(); await tick(w, 20);
+  const mail = decodeURIComponent((w._opened.find(u => /mail\.google\.com/.test(u)) || '').split('&body=')[1] || '');
+  await new Promise(r => setTimeout(r, 1600));
+  await w.rrGiftPrint(); await tick(w, 60);
+  const printed = w._printed.join('');
+  await w.rrGiftFamilyOn(); await tick(w, 60);
+  const pub = JSON.stringify(w._pub[w._pub.length - 1] || {});
+  const all = [prev, mail, printed, pub];
+  return {
+    roadOnce: all.every(t => /Lionel 6464-100 — Western Pacific Boxcar/.test(t) && !/Western Pacific Western Pacific/.test(t)),
+    otherRoadsKept: /Lionel 2343 — Santa Fe F3 A unit/.test(prev) && /Lionel 1 — Pacific Pacifico Gondola/.test(prev) && /Lionel 2 — erie/.test(prev) && !/Erie erie/.test(prev)
+      && /Lionel 3 — Rock Island Caboose/.test(prev) && !/Island Rock/.test(prev) && /Lionel 4 — Pacific Pacific\u00e9 Hopper/.test(prev),
+    savedLinkClean: hrefs.indexOf('https://www.trainz.com/products/lionel-6464-100-ln') >= 0 && [mail, printed, pub].every(t => !/queryId|objectId/.test(t)) && /lionel-6464-100-ln/.test(mail) && /lionel-6464-100-ln/.test(pub),
+    prev: prev.slice(0, 400), hrefs: hrefs.join(' '),
+  };
+}
+
 (async function main() {
   section('1. Contacts: one read range that reaches "Preferred Vendor"');
   const C = rangeChecks(CONFIG, CONTACTS, DATA);
@@ -297,6 +357,8 @@ async function twinStory(opts) {
   section('2b. Tracking codes off, everything else kept exactly');
   const TR = trackerChecks(STORE);
   ok('only the tracking pairs go — %20, a bare flag, a comma, a #…? part and upper-case UTM_ all handled', TR.exact, TR.bad);
+  ok('Trainz\'s own search tags (queryId, objectId) are cut on trainz.com — www., bare and a sub-site (2026-11-10)', TR.hostCut, TR.hostBad);
+  ok('…and kept on every other website, even one whose name ends in "trainz.com" or starts with it', TR.hostKept, TR.keepBad);
 
   section('3. Buttons that can\'t be used look it');
   ok('a disabled button is greyed (no colour), not just dimmed', cssGrey(CSS));
@@ -353,6 +415,10 @@ async function twinStory(opts) {
     section('7. Two versions of one item');
     const TW = await twinStory();
     ok('each gets words that tell them apart — never a bare "(1)" / "(2)"', TW.distinct, TW.t);
+    const RS = await roadStory();
+    ok('the road name once: "Western Pacific Boxcar", not "Western Pacific Western Pacific Boxcar" — preview, email, print and the family page (2026-11-10)', RS.roadOnce, RS.prev);
+    ok('…other names unchanged: "Santa Fe F3 A unit"; a description that only starts with the same letters ("Pacifico", "Pacificé") keeps both; extra or non-breaking spaces still count as the same road name', RS.otherRoadsKept, RS.prev);
+    ok('a Trainz link saved WITH its search tags goes out clean — preview link, email, print and the family page', RS.savedLinkClean, RS.hrefs);
   }
 
   section('P. Planted offenders');
@@ -374,6 +440,15 @@ async function twinStory(opts) {
     ok('PLANT the address rebuilt (its spelling changed) — caught', !t1.exact);
     const t2 = trackerChecks(STORE.replace("k = k.toLowerCase();", ''));
     ok('PLANT upper-case UTM_ kept — caught', !t2.exact);
+    const HOSTS = "    Object.keys(cfg.hosts || {}).forEach(function (h) {";
+    const t3 = trackerChecks(STORE.replace(HOSTS, "    [].forEach(function (h) {"));
+    ok('PLANT a store\'s own tags ignored — caught', STORE.indexOf(HOSTS) >= 0 && !t3.hostCut);
+    const DOT = ".replace(/\\.$/, '')";
+    const t5 = trackerChecks(STORE.replace(DOT, ''));
+    ok('PLANT a host written with a trailing dot missed — caught', STORE.indexOf(DOT) >= 0 && !t5.hostCut);
+    const LOOSE = "if (host && (host === hh || host.slice(-(hh.length + 1)) === '.' + hh)) {";
+    const t4 = trackerChecks(STORE.replace(LOOSE, "if (host.indexOf(hh) >= 0) {"));
+    ok('PLANT the store matched by any name containing "trainz.com" — caught', STORE.indexOf(LOOSE) >= 0 && !t4.hostKept);
   }
   if (JSDOM) {
     const plant = async (label, from, to, run, caught) => {
@@ -390,6 +465,14 @@ async function twinStory(opts) {
     await plant('"isn\'t ready" for every failure', "function _familyFailWords() { return _family.why === 'old' ? _F('notYet') : _family.why === 'err' ? _F('refused') : _F('noConnect'); }", "function _familyFailWords() { return _F('notYet'); }", o => familyStory([null, null], o), P => !P.toasts.some(t => /Couldn.t connect/.test(t)));
     await plant('every failure asked twice', "return once().then(function (ok) { return (ok || _family.why !== 'net') ? ok : once(); });", "return once().then(function (ok) { return (ok || _family.why === 'old') ? ok : once(); });", o => familyStory([{ status: 401, message: 'proof' }], o), P => P.tries === 2);
     await plant('no text at all when the link fails', "if (!okd) { _toast(_familyFailWords() + ' ' + _F('textFull'), 6000, true); _sendText(_text(o), true); return; }", "if (!okd) { _toast(_familyFailWords(), 6000, true); return; }", o => textStory([null, null], o), P => !/1\. Lionel 2245C/.test(P.text));
+    await plant('the road name doubled again', "      if (w === r || (w.indexOf(r) === 0 && !/[\\p{L}\\p{N}]/u.test(w.charAt(r.length)))) return what;\n", '', roadStory, P => !P.roadOnce);
+    await plant('the road name dropped on a mere prefix', "!/[\\p{L}\\p{N}]/u.test(w.charAt(r.length))", "true", roadStory, P => !P.otherRoadsKept);
+    await plant('an accented letter taken for a word break', "!/[\\p{L}\\p{N}]/u.test(w.charAt(r.length))", "!/[a-z0-9]/.test(w.charAt(r.length))", roadStory, P => !P.otherRoadsKept);
+    await plant('spacing not evened out', "String(m.roadName || '').replace(/\\s+/g, ' ').trim()", "String(m.roadName || '').trim()", roadStory, P => !P.otherRoadsKept);
+    {
+      const H = "    Object.keys(cfg.hosts || {}).forEach(function (h) {";
+      ok('PLANT a saved link\'s Trainz tags sent out — caught', STORE.indexOf(H) >= 0 && !(await roadStory({ store: STORE.replace(H, "    [].forEach(function (h) {") })).savedLinkClean);
+    }
     await plant('two versions sent with the same name', "      if (seen[it.name] < 2) return;", "      return;", twinStory, P => !P.distinct);
     await plant('the saved name wins over the store\'s name', "return (s && s.name) || (L && L.store) || _hostOf(L && L.url).replace(/^www\\./, '');", "return (L && L.store) || (s && s.name) || _hostOf(L && L.url).replace(/^www\\./, '');", labelStory, P => !P.nowName);
     await plant('the photo floated off to the side again', ".it{display:flex;gap:14px;align-items:flex-start}", ".it{overflow:hidden}", story, P => !P.printBeside);

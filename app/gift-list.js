@@ -313,9 +313,20 @@
   // forFamily: what SHE sees (preview, email, text, print, the family page)
   // carries no variation number — [stated] Brad 2026-11-07 "she might thing a
   // variation 2 means to buy 2 of them". His own edit screen keeps it.
+  // The road name once: a description that already starts with it ("Western
+  // Pacific" + "Western Pacific Boxcar") is not doubled — 2026-11-10, hand-test
+  // T-2026-11-07-02 ([stated] Brad 06:01 CT "yes" to fixing it).
+  function _words(m) {
+    var road = String(m.roadName || '').replace(/\s+/g, ' ').trim(), what = String(m.description || m.itemType || '').replace(/\s+/g, ' ').trim();
+    if (road && what) {
+      var r = road.toLowerCase(), w = what.toLowerCase();
+      if (w === r || (w.indexOf(r) === 0 && !/[\p{L}\p{N}]/u.test(w.charAt(r.length)))) return what;
+    }
+    return [road, what].filter(Boolean).join(' ');
+  }
   function _name(e, forFamily) {
     var m = _master(e);
-    var words = [m.roadName, m.description || m.itemType].filter(Boolean).join(' ');
+    var words = _words(m);
     return ((e.manufacturer ? e.manufacturer + ' ' : '') + e.itemNum + (e.variation && !forFamily ? ' (' + e.variation + ')' : '') + (words ? ' — ' + words : '')).trim();
   }
   function _rowFor(e) {

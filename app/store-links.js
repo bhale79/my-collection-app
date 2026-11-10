@@ -87,6 +87,15 @@ function rrStripTrackers(url) {
     var cfg = (typeof RR_LINK_TRACKERS !== 'undefined' && RR_LINK_TRACKERS) || (typeof window !== 'undefined' && window.RR_LINK_TRACKERS) || {};
     var names = (cfg.names || []).map(function (n) { return String(n).toLowerCase(); });
     var pre = (cfg.prefixes || []).map(function (n) { return String(n).toLowerCase(); });
+    // a store's own tags, cut only on that store's website (www. or not)
+    var host = '';
+    try { host = new URL(s).hostname.toLowerCase().replace(/\.$/, '').replace(/^www\./, ''); } catch (eH) { host = ''; }
+    Object.keys(cfg.hosts || {}).forEach(function (h) {
+      var hh = String(h).toLowerCase();
+      if (host && (host === hh || host.slice(-(hh.length + 1)) === '.' + hh)) {
+        (cfg.hosts[h] || []).forEach(function (n) { names.push(String(n).toLowerCase()); });
+      }
+    });
     // Worked on the TEXT of the address, never rebuilt: every part that stays
     // keeps its exact spelling (%20, a bare "flag", a comma) — only the
     // tracking pairs are cut out. The query is what sits between the first

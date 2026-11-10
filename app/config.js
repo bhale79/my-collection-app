@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2139';
+const APP_VERSION = 'v0.9.2140';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -6345,6 +6345,12 @@ if (typeof window !== 'undefined') window.RR_STORE_READ = RR_STORE_READ;
 const RR_LINK_TRACKERS = {
   names: ['srsltid', 'gclid', 'gbraid', 'wbraid', 'gclsrc', 'dclid', 'fbclid', 'msclkid', 'yclid', 'igshid', 'mc_cid', 'mc_eid', '_gl', '_ga'],
   prefixes: ['utm_'],
+  // 2026-11-10 (testing chat, hand-test T-2026-11-07-02; [stated] Brad 06:01 CT
+  // "yes" to fixing it): a store's OWN search tags the links it lists. Cut only
+  // on that store's website — another site may use the same word for the item.
+  // Trainz: its search results add queryId + objectId; the product page is the
+  // same without them.
+  hosts: { 'trainz.com': ['queryId', 'objectId'] },
 };
 if (typeof window !== 'undefined') window.RR_LINK_TRACKERS = RR_LINK_TRACKERS;
 
