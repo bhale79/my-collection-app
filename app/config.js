@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2141';
+const APP_VERSION = 'v0.9.2142';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -5181,6 +5181,29 @@ const RR_PIC_FIRST = {
   sideWidthPx: 300,      // the side view's width
 };
 
+// 2026-11-11 (photoidfix — PLAN_2026-11-11_PHOTO_ID_FIX.md). Photo ID's choices,
+// in ONE place. [stated] Brad 2026-11-11: "as soon i hit the 666 button then i
+// should go straight to the which variation page is it" — a number that fits ONE
+// item goes straight to the Add screen's variation step; only a number that
+// belongs to genuinely different things (another maker, the box vs the engine)
+// asks "Which item is it?" first, with no variations in it. Mike Moore
+// (beta A, 11-11): a wrong match needs a way out on the card itself — "Wrong
+// item?" keeps the photo and offers a number, a maker, or the collector's own item.
+const RR_PHOTO_ID_CHOICE = {
+  thingsTitle: 'Which item is it?',
+  thingsSub: 'The number {num} belongs to more than one item. Pick yours \u2014 you\u2019ll choose the variation next.',
+  wrongBtn: 'Wrong item?',
+  wrongTitle: 'Not this one? Type the number, pick the maker, or add it as your own item. Your photo stays with it.',
+  numLabel: 'Item number',
+  makerLabel: 'Maker',
+  anyMaker: 'Any maker',
+  find: 'Look it up',
+  own: 'It\u2019s not in the catalog \u2014 add it as my own item',
+  back: 'Back',
+  needNum: 'Type the item number first',
+  noneFound: 'No {maker} {num} in the catalog \u2014 adding it as your own item',
+  notItHint: '\u26a0 You said the catalog photo doesn\u2019t match \u2014 try {ways}',
+};
 // v0.9.1950 — Photo ID's closer look. When the quick look at the lettering
 // finds no number, the multi-pass reader (photo-inbox.js rrFreeReadBlob) gets
 // the same picture. Still free; only a catalog-confirmed number is kept.
@@ -5706,7 +5729,9 @@ const RR_ADD_HOLD_QUIET_MS = 3 * 60 * 1000;     // a mark this quiet, from anoth
 // (5) What an add from the inbox carries, kept through an Item Type change and
 //     handed over by the inbox \u2014 ONE list, read by both.
 const RR_INBOX_CARRY_KEYS = ['_addPhotoDriveId', '_addPhotoDriveIds', '_addPhotoViews', '_addPhotoRoles', '_addPhotoKind',
-  '_fromInbox', '_pinStagedNum', '_pinSetStagedNums', '_pinSetStagedFiles', '_alsoListForSale', '_noNumberEntry'];
+  '_fromInbox', '_pinStagedNum', '_pinSetStagedNums', '_pinSetStagedFiles', '_alsoListForSale', '_noNumberEntry',
+  // photoidfix 2026-11-11: Photo ID's picture (and "Add a picture first") rides an Item Type switch too
+  '_idItemPhotoFile', '_picFirst', '_biBoxPhotoFile'];
 // (7) An add from the inbox whose number is not in the catalog YET because the
 //     full catalog is still loading waits this long for it, then says so.
 const RR_CATALOG_WAIT_MS = 20 * 1000;

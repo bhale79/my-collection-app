@@ -2667,9 +2667,27 @@ function _wizApplyIdResult(result) {
       return;
     }
   }
+  // photoidfix (2026-11-11, Mike Moore): "Wrong item?" → "add it as my own
+  // item" with no number typed still lands in the hand-made add, maker and
+  // photo carried — a blank number used to mean nothing happened at all.
+  if (result && result._wrongFixed && result.notInMaster && !result.itemNum) {
+    if (result._itemPhotoFile && !wizard.data._idItemPhotoFile) wizard.data._idItemPhotoFile = result._itemPhotoFile;
+    if (result._boxPhotoFile && !wizard.data._biBoxPhotoFile) wizard.data._biBoxPhotoFile = result._boxPhotoFile;
+    if (typeof _identifyRouteToManualEntry === 'function' && _identifyRouteToManualEntry('', { manufacturer: result.manufacturer || '' }, [])) {
+      showToast && showToast(result.statusMessage || 'Adding it as your own item', 3000);
+      return;
+    }
+  }
   if (result.itemNum) {
     wizard.data.itemNum = result.itemNum;
     if (result.variation) wizard.data.variation = result.variation;
+    // photoidfix (review fix): Photo ID found ONE item with several variations —
+    // the variation step lists every row of it (its catalog + number), from the
+    // full catalog, whatever the rows' types say (Brad's Marx 666: Var 3 is filed
+    // as a Set, Var 4 has no year). Keyed to the held row, so a later typed
+    // number is never affected.
+    if (result._oneThing && result.masterItem) { wizard.data._idOneThing = String(result.masterItem._tab || '') + '|' + String(result.masterItem.itemNum || ''); wizard.data._idOneThingType = String(result._oneType || ''); }
+    else { delete wizard.data._idOneThing; delete wizard.data._idOneThingType; }
     if (result.masterItem) wizard.matchedItem = result.masterItem;
     // Session 167: cross-era support. If the scanner found this item in a
     // different era's IDB cache, the matched item carries an _era tag.

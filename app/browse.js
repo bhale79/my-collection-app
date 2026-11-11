@@ -3645,7 +3645,7 @@ function _renderOwnedSubTab(tabKey) {
         itemType: (master && master.itemType) || 'Service Tool',
         description: (master && master.description) || '—',
         variation: pd.variation || (master && master.variation) || '—',
-        varDetail: (master && master.varDetail) || '',
+        varDetail: (master && (master.varDesc || master.varDetail)) || '',   // photoidfix: catalog rows carry varDesc
         year: (master && master.yearProd) || '—',
         _actionsHTML: _collectionActionsHTML('service', k, pd),
       });

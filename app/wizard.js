@@ -568,6 +568,17 @@ function _wizVariationRows(itemNum) {
     ? wizard.matchedItem : null;
   var mt = (mi && mi.itemType) || d._suggestedItemType || '';
   var mr = (mi && mi.roadName) || d._suggestedRoadName || '';
+  // photoidfix (2026-11-11, review fix): Photo ID found ONE item (its catalog +
+  // number) and sent him straight here — every row of it is a variation to
+  // show, read from the full catalog (a maker he doesn't collect is not in
+  // masterData), whatever its type / year cell says. Key set by _wizApplyIdResult.
+  if (mi && d._idOneThing && d._idOneThing === String(mi._tab || '') + '|' + String(mi.itemNum || '')) {
+    var _all = (typeof rrCatalogCandidates === 'function') ? rrCatalogCandidates(num) : (state.masterData || []);
+    var _oneT = String(d._idOneThingType || '');   // set when the tab + number holds two types sharing letters (Pre-War No. 8)
+    var _one = _all.filter(function (m) { return m && m.itemNum === num && m.variation && String(m._tab || '') === String(mi._tab || '') && (!_oneT || String(m.itemType || '').trim() === _oneT); });
+    _one.sort(function (a, b) { return String(a.variation).localeCompare(String(b.variation), undefined, { numeric: true }); });
+    if (_one.length) return _one;
+  }
   var wantPeriod = mi ? _wizPeriodOfRow(mi) : '';
   if (!wantPeriod) {
     try {
@@ -580,9 +591,15 @@ function _wizVariationRows(itemNum) {
     if (!m.variation) return false;
     if (mt && String(m.itemType || '').trim() !== String(mt).trim()) return false;
     if (wantPeriod && _wizPeriodOfRow(m) !== wantPeriod) return false;
+    // photoidfix (2026-11-11): with a row held, its variations are the rows of
+    // its OWN catalog (tab) — never another maker's same number in the same
+    // period (Marx 666 vs Lionel 666, chosen with no maker filter on).
+    if (mi && mi._tab && m._tab && m._tab !== mi._tab) return false;
     // 2026-11-01: only variations that fit the filters on screen (the one test)
     // — with no catalog row held, never another maker's variations.
-    if (!_wizRowFitsFilters(m)) return false;
+    // photoidfix: …unless the held row itself sits outside them (he chose it
+    // through Photo ID's "Wrong item?" with another maker) — its own tab rules then.
+    if (!(mi && mi._tab && !_wizRowFitsFilters(mi)) && !_wizRowFitsFilters(m)) return false;
     return true;
   });
   // ══ v0.9.1734 — THE ROAD NAME RANKS, IT NO LONGER DELETES ════════════════

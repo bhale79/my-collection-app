@@ -211,7 +211,7 @@ function _wizTenderPhotoId() {
     else { wizard.data.tenderMatch = tNum; wizard.data._tenderConfirmed = true; if (typeof renderWizardStep === 'function') renderWizardStep(); }
   }, function () {
     if (typeof renderWizardStep === 'function') renderWizardStep();
-  }, eraHint, { addFilters: true });   // v0.9.1977: the Add screen's filters, like Photo ID
+  }, eraHint, { addFilters: true, noOwn: true });   // v0.9.1977: the Add screen's filters, like Photo ID; photoidfix: no "my own item" for a tender
 }
 if (typeof window !== 'undefined') window._wizTenderPhotoId = _wizTenderPhotoId;
 

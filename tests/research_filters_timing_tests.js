@@ -70,7 +70,8 @@ function flowTimed(src) {
   T('S4  research.js shows the line barcode.js builds (one owner of the wording)', /window\.rrResearchTimingLine\(\)/.test(rd('research.js')) && !/App time/.test(rd('research.js')));
 
   console.log('\n== P · planted offenders (S) ==');
-  const plantedWait = B.replace("var cc = await _rtWait('confirm card', _bcConfirmCard(_biInfoFor(res, _aiOffer)));", 'var cc = await _bcConfirmCard(_biInfoFor(res, _aiOffer));');
+  // photoidfix 2026-11-11: the line gained "a choice he made skips the card" in front
+  const plantedWait = B.replace("var cc = (res && res._chosen) ? 'use' : await _rtWait('confirm card', _bcConfirmCard(_biInfoFor(res, _aiOffer)));", "var cc = (res && res._chosen) ? 'use' : await _bcConfirmCard(_biInfoFor(res, _aiOffer));");
   T('P1  an untimed confirm card is caught', plantedWait !== B && !flowTimed(plantedWait).ok);
   const plantedAi = B.replace("var aiR = await _rtTime('photo reader', _bcAiRescue(workCanvas, eraHint, out.why, out.bcMaker));", 'var aiR = await _bcAiRescue(workCanvas, eraHint, out.why, out.bcMaker);');
   T('P2  an untimed photo reader call is caught', plantedAi !== B && !flowTimed(plantedAi).ok);

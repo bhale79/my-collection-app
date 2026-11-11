@@ -145,7 +145,7 @@ function withFile(f, src) { const o = Object.assign({}, FILES); o[f] = src; retu
   T('X2 PLANTED: a screen with its own label read is caught', x.strays.some(v => /_sneakyOcr/.test(v)), x.strays);
   x = scanAll(withFile('wizard-photos.js', FILES['wizard-photos.js'] + '\nfunction _oldWay() { window.openBarcodeScanner(function () {}, null, ""); }\n'));
   T('X3 PLANTED: the old scanner coming back is caught', x.names.some(v => /openBarcodeScanner/.test(v)), x.names);
-  x = scanAll(withFile('wizard-handlers.js', planted(FILES['wizard-handlers.js'], '}, eraHint, { addFilters: true });', '}, eraHint);', 'tender filters')));
+  x = scanAll(withFile('wizard-handlers.js', planted(FILES['wizard-handlers.js'], '}, eraHint, { addFilters: true, noOwn: true });', '}, eraHint);', 'tender filters')   /* photoidfix 2026-11-11: + noOwn */));
   T('X4 PLANTED: the tender\'s Photo ID without the filters is caught', x.unfiltered.some(v => /wizard-handlers/.test(v)), x.unfiltered);
   x = scanAll(withFile('research.js', planted(FILES['research.js'], "      { preferFrom:", "      { unused:", 'research filters')));
   T('X5 PLANTED: Research without its filters is caught', x.unfiltered.some(v => /research/.test(v)), x.unfiltered);

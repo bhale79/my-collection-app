@@ -17186,7 +17186,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
       // ── and the markup actually renders them ──────────────────────────
       ok('245 the variation line renders in gold when present',
-         /\(vari \? '<div style="font-size:0\.78rem;color:#ffd27d/.test(bc45));
+         /\(\(?vari(?: && !_things\))? \? '<div style="font-size:0\.78rem;color:#ffd27d/.test(bc45));   // photoidfix 2026-11-11: hidden on "Which item is it?" (thingsOnly)
       ok('245 the section tag renders as a pill beside the number',
          /_secTag \? ' <span style="display:inline-block;font-size:0\.66rem/.test(bc45) &&
          bc45.indexOf('_bcEsc(_secTag)') > 0);

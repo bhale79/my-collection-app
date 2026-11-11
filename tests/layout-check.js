@@ -1350,7 +1350,8 @@ _identifyShowPasteEcho(Array(40).join('The Lionel 2331 Virginian Train Master is
     // ══════════════════════════════════════════════════════════════════
     {
       const bcSrc = fs.readFileSync(path.join(APP, 'barcode.js'), 'utf8');
-      const s0 = bcSrc.indexOf('function showCandidatePicker(candidates, scanResult) {');
+      // photoidfix 2026-11-11: the picker took a third argument (thingsOnly) — anchored on the name + first two
+      const s0 = bcSrc.indexOf('function showCandidatePicker(candidates, scanResult');
       // v0.9.1977: "// Expose globally" went with the old scanner (one reader) —
       // the label reader that now follows the picker ends the slice instead
       const _ends = ['function _confirmCameraUse', '\n  // Expose globally', '\n  var _tesseractLoadingPromise']

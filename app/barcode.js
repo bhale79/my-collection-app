@@ -597,7 +597,8 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           var match = m.itemNum === cand || rrNumSame(m.itemNum, cand);
           if (!match) return;
           var e = m._era || era;
-          var key = (m.itemNum || '') + '|' + (m.variation || '') + '|' + (m._tab || '') + '|' + e;
+          // photoidfix: + the type — Pre-War No. 8's locomotive A and trolley A are two rows, never one
+          var key = (m.itemNum || '') + '|' + (m.variation || '') + '|' + (m._tab || '') + '|' + e + '|' + (m.itemType || '');
           if (seen[key]) return;
           seen[key] = 1;
           if (!m._era) m._era = era;
@@ -1281,8 +1282,13 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   // ── Candidate picker (Session 154) — shown when a scanned 5-digit code
   //    matches multiple master items. Resolves to the chosen master row,
   //    or null if the user cancels. ──
-  window.showCandidatePicker = function (c, s) { return showCandidatePicker(c, s); };   // v0.9.742: research multi-match uses the same picker
-  function showCandidatePicker(candidates, scanResult) {
+  window.showCandidatePicker = function (c, s, o) { return showCandidatePicker(c, s, o); };   // v0.9.742: research multi-match uses the same picker
+  // photoidfix (2026-11-11): popts.thingsOnly = "Which item is it?" — one row per
+  // genuinely different thing (maker / catalog / box vs item), no variations: the
+  // variation is chosen ONCE, on the Add screen's variation step, where the
+  // differences show.
+  function showCandidatePicker(candidates, scanResult, popts) {
+    var _things = !!(popts && popts.thingsOnly);
     return new Promise(function(resolve) {
       var overlay = document.createElement('div');
       overlay.id = 'barcode-candidate-overlay';
@@ -1302,7 +1308,14 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         // → BOX); the plain Items section wears no tag.
         var _variBits = [];
         if (m.variation) _variBits.push('Var. ' + m.variation);
-        if (m.varDetail) _variBits.push(String(m.varDetail).substring(0, 90));
+        // photoidfix (2026-11-11, Brad's Marx 666: "no way of see the differences"):
+        // catalog rows carry the variation's words as varDesc — the old varDetail
+        // name was never filled, so every row read the same. Shown without the
+        // description it repeats ("Die-cast … — (A) Smoke exhausts at cylinders").
+        var _vd = String(m.varDesc || m.varDetail || '');
+        var _dsc = String(m.description || '');
+        if (_dsc && _vd.indexOf(_dsc) === 0) _vd = _vd.slice(_dsc.length).replace(/^\s*[\u2014\-:,]\s*/, '');
+        if (_vd) _variBits.push(_vd.substring(0, 90));
         var vari = _variBits.join(' — ');
         var _secName = String(m._tab || '').split(' - ').pop().trim().toLowerCase();
         var _SEC_TAGS = { items: '', boxes: 'BOX', paper: 'PAPER', catalogs: 'CATALOG', sets: 'SET',
@@ -1336,7 +1349,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           +   '</div>'
           +   (_off ? '<div style="font-size:0.72rem;color:#e8a020;margin-top:0.1rem">in ' + _bcEsc(m._offEraLabel || m._offEra) + ' &mdash; choosing this switches era</div>' : '')
           +   (meta ? '<div style="font-size:0.8rem;color:#aaa;margin-top:0.1rem">' + meta + '</div>' : '')
-          +   (vari ? '<div style="font-size:0.78rem;color:#ffd27d;margin-top:0.15rem">' + _bcEsc(vari) + '</div>' : '')
+          +   ((vari && !_things) ? '<div style="font-size:0.78rem;color:#ffd27d;margin-top:0.15rem">' + _bcEsc(vari) + '</div>' : '')   // photoidfix: "Which item is it?" shows no variations
           +   ((typeof rrCatalogStatusChip === 'function') ? rrCatalogStatusChip(m, { block: true, onDark: true }) : '')   // v0.9.1873
           +   (desc ? '<div style="font-size:0.78rem;color:#888;margin-top:0.1rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + desc + '</div>' : '')
           +   (m._descMatch ? '<div style="font-size:0.72rem;color:#e8a020;margin-top:0.1rem">matched in the description — possible reissue</div>' : '')
@@ -1379,12 +1392,13 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         // (code5 digits) and a PRINTED number read from lettering (itemNum).
         // The old text assumed barcode and rendered "The barcode ends in —".
         +   '<div style="color:#fff;font-family:var(--font-head,sans-serif);font-size:1.1rem;text-align:center">'
-        +     ((scanResult && scanResult.code5) ? 'Which one did you scan?' : 'Which one is yours?') + '</div>'
+        +     (_things ? _bcEsc(RR_PHOTO_ID_CHOICE.thingsTitle) : ((scanResult && scanResult.code5) ? 'Which one did you scan?' : 'Which one is yours?')) + '</div>'
         +   '<div style="color:#aaa;font-size:0.8rem;text-align:center">'
-        +     ((scanResult && scanResult.code5)
+        +     (_things ? (_bcEsc(RR_PHOTO_ID_CHOICE.thingsSub).replace('{num}', '<strong style="color:#ffd27d">' + _bcEsc((scanResult && (scanResult.itemNum || scanResult.code5)) || '') + '</strong>') + ' ')
+          :   (scanResult && scanResult.code5)
               ? ('The barcode ends in <strong style="color:#ffd27d">' + _bcEsc(scanResult.code5) + '</strong> &mdash; these items all share those digits. ')
               : ('The number <strong style="color:#ffd27d">' + _bcEsc((scanResult && scanResult.itemNum) || '') + '</strong> matches several catalog entries. '))
-        +     'Tap the right one, or use View to check a photo.</div>'
+        +     (_things ? '' : 'Tap the right one, or use View to check a photo.') + '</div>'
         +   ((scanResult && scanResult.cautionHtml) ? '<div style="color:#ffb27d;font-size:0.8rem;text-align:center">&#9888; ' + _bcEsc(scanResult.cautionHtml) + '</div>' : '')
         +   '<div style="overflow-y:auto;max-height:58vh;max-height:58dvh;margin-top:0.3rem">' + rowsHtml + noneHtml + '</div>'
         +   '<button id="bc-cand-cancel" style="padding:0.8rem;border-radius:10px;border:1px solid #444;background:#222;color:#eee;font-size:0.95rem;font-family:inherit;cursor:pointer">Cancel</button>'
@@ -1942,11 +1956,43 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           if (btn && btn.parentNode) btn.parentNode.insertBefore(note, btn.nextSibling);
         }
         note.style.color = '#ffb27d';
-        note.textContent = '⚠ You said the catalog photo doesn\'t match — try 🔍 Google Lens, Rescan, or Type it instead.';
+        // photoidfix: name only the ways out that are ON this card (Lens is
+        // hidden unless the read was a guess — it told everyone to try it)
+        var _ways = [];
+        if (card.querySelector('[data-a="lens"]')) _ways.push('🔍 Google Lens');
+        if (card.querySelector('[data-a="rescan"]')) _ways.push('Rescan');
+        var _mb = card.querySelector('[data-a="manual"]');
+        if (_mb) _ways.push(_mb.textContent.trim());
+        var _wj = _ways.length > 1 ? _ways.slice(0, -1).join(', ') + ', or ' + _ways[_ways.length - 1] : (_ways[0] || 'Rescan');
+        note.textContent = RR_PHOTO_ID_CHOICE.notItHint.replace('{ways}', _wj);
       }
     });
     document.body.appendChild(ov);
     if (window.BackStack && BackStack.wire) BackStack.wire(ov);
+  }
+
+  // photoidfix (2026-11-11, Mike Moore — "It might be helpful to add the
+  // capability to override the image identification"): the "Wrong item?" panel,
+  // drawn hidden on the card. A number (prefilled with what was read), a maker
+  // (the ONE maker list, rrKnownMakers), and two ways on: look it up, or add it
+  // as the collector's own item. The photo rides along either way (openBoxIdentify).
+  function _bcWrongPanelHtml(info) {
+    var W = RR_PHOTO_ID_CHOICE;
+    var makers = (typeof rrKnownMakers === 'function') ? rrKnownMakers() : [];
+    var opt = '<option value="">' + _bcEsc(W.anyMaker) + '</option>' + makers.map(function (m) { return '<option value="' + _bcEsc(m) + '">' + _bcEsc(m) + '</option>'; }).join('');
+    var lab = 'display:block;font-size:0.72rem;color:var(--text-dim,#999);margin:8px 0 3px';
+    var fld = 'width:100%;box-sizing:border-box;padding:9px 10px;border-radius:8px;border:1px solid var(--border,#444);background:var(--surface2,#1d2040);color:var(--text,#fff);font-size:0.92rem';
+    return '<div id="bc-wrong" style="display:none;margin-top:12px;padding:10px 12px;border-radius:10px;border:1px solid var(--accent,#e8401c)">'
+      + '<div style="font-size:0.84rem;color:var(--text,#fff);line-height:1.4">' + _bcEsc(W.wrongTitle) + '</div>'
+      + '<label for="bc-wrong-num" style="' + lab + '">' + _bcEsc(W.numLabel) + '</label>'
+      + '<input id="bc-wrong-num" type="text" autocomplete="off" value="' + _bcEsc(info.itemNum || '') + '" style="' + fld + ';font-family:var(--font-mono)">'
+      + '<label for="bc-wrong-maker" style="' + lab + '">' + _bcEsc(W.makerLabel) + '</label>'
+      + '<select id="bc-wrong-maker" style="' + fld + '">' + opt + '</select>'
+      + '<div id="bc-wrong-msg" style="font-size:0.78rem;color:#ffb27d;min-height:1em;margin-top:6px"></div>'
+      + '<button data-a="wrongfind" style="display:block;width:100%;margin-top:6px;padding:11px;border-radius:10px;border:2px solid var(--accent,#e8401c);background:none;color:var(--text,#fff);font-weight:600;font-size:0.9rem;cursor:pointer">' + _bcEsc(W.find) + '</button>'
+      + (info.ownOffer === false ? '' : '<button data-a="wrongown" style="display:block;width:100%;margin-top:8px;padding:10px;border-radius:10px;border:1px solid var(--border,#444);background:none;color:var(--text-mid,#ccc);font-size:0.86rem;cursor:pointer">' + _bcEsc(W.own) + '</button>')
+      + '<button data-a="wrongback" style="display:block;width:100%;margin-top:8px;padding:8px;border-radius:10px;border:none;background:none;color:var(--text-dim,#999);font-size:0.82rem;cursor:pointer">' + _bcEsc(W.back) + '</button>'
+      + '</div>';
   }
 
   function _bcConfirmCard(info) {
@@ -1987,10 +2033,22 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + (info.lensOffer ? '<button data-a="lens" style="flex:1;padding:10px 4px;border-radius:10px;border:1px solid #3a6ea5;background:var(--bg-card);background:color-mix(in srgb, rgb(58,110,165) 12%, var(--bg-card));color:#cfe3ff;font-size:0.82rem;cursor:pointer">🔍 Google Lens</button>' : '')
         + (info.aiOffer ? '<button data-a="aionly" style="flex:1;padding:10px 4px;border-radius:10px;border:1px solid #16a085;background:var(--bg-card);background:color-mix(in srgb, rgb(22,160,133) 12%, var(--bg-card));color:#7fe0cd;font-size:0.82rem;cursor:pointer">🔍 Not this item — identify from the photo</button>' : '')
         + '<button data-a="rescan" style="flex:1;padding:10px 4px;border-radius:10px;border:1px solid var(--border,#444);background:none;color:var(--text-mid,#ccc);font-size:0.82rem;cursor:pointer">Rescan</button>'
-        + '<button data-a="manual" style="flex:1;padding:10px 4px;border-radius:10px;border:1px solid var(--border,#444);background:none;color:var(--text-mid,#ccc);font-size:0.82rem;cursor:pointer">Type it instead</button>'
+        + '<button data-a="manual" style="flex:1;padding:10px 4px;border-radius:10px;border:1px solid ' + (info.wrongOffer ? 'var(--accent,#e8401c)' : 'var(--border,#444)') + ';background:none;color:var(--text-mid,#ccc);font-size:0.82rem;cursor:pointer">' + (info.wrongOffer ? _bcEsc(RR_PHOTO_ID_CHOICE.wrongBtn) : 'Type it instead') + '</button>'
         + '<button data-a="cancel" style="flex:1;padding:10px 4px;border-radius:10px;border:1px solid var(--border,#444);background:none;color:var(--text-mid,#ccc);font-size:0.82rem;cursor:pointer">Cancel</button>'
-        + '</div></div>';
-      d.addEventListener('click', function (e) { var _wy = (e.target && e.target.closest) ? e.target.closest('[data-why]') : null; if (_wy) { if (typeof _bcWhyLionelPanel === 'function') _bcWhyLionelPanel(); return; } var el = (e.target && e.target.closest) ? e.target.closest('[data-a]') : null; var a = el && el.getAttribute('data-a'); if (a === 'verify') { _bcRunCompare(d, info, function () { d.remove(); resolve('use'); }); return; } if (a) { d.remove(); resolve(a); } });
+        + '</div>'
+        + (info.wrongOffer ? _bcWrongPanelHtml(info) : '')
+        + '</div>';
+      d.addEventListener('click', function (e) { var _wy = (e.target && e.target.closest) ? e.target.closest('[data-why]') : null; if (_wy) { if (typeof _bcWhyLionelPanel === 'function') _bcWhyLionelPanel(); return; } var el = (e.target && e.target.closest) ? e.target.closest('[data-a]') : null; var a = el && el.getAttribute('data-a'); if (a === 'verify') { _bcRunCompare(d, info, function () { d.remove(); resolve('use'); }); return; }
+        // photoidfix (2026-11-11, Mike Moore): "Wrong item?" opens the panel ON the card — never a silent close
+        if (info.wrongOffer && (a === 'manual' || a === 'wrongback')) { var _wp = d.querySelector('#bc-wrong'); if (_wp) { var _open = a === 'manual'; _wp.style.display = _open ? 'block' : 'none'; if (_open) { try { var _wn = d.querySelector('#bc-wrong-num'); _wn.focus(); _wn.select(); } catch (eW) {} } } return; }
+        if (a === 'wrongfind' || a === 'wrongown') {
+          var _num = String((d.querySelector('#bc-wrong-num') || {}).value || '').trim();
+          var _mk = String((d.querySelector('#bc-wrong-maker') || {}).value || '').trim();
+          if (a === 'wrongfind' && !_num) { var _nm = d.querySelector('#bc-wrong-msg'); if (_nm) _nm.textContent = RR_PHOTO_ID_CHOICE.needNum; return; }
+          d.remove(); resolve({ a: a, num: _num, maker: _mk }); return;
+        }
+        if (a) { d.remove(); resolve(a); } });
+      if (info.wrongOffer) { var _wi = d.querySelector('#bc-wrong-num'); if (_wi) _wi.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); var b = d.querySelector('[data-a="wrongfind"]'); if (b) b.click(); } }); }
       document.body.appendChild(d);
       try { var _mp = d.querySelector('#bc-my-photo'); if (_mp && info._verifySrc) _mp.src = info._verifySrc.toDataURL('image/jpeg', 0.85); } catch (e) {}   // v0.9.1018
       if (window.BackStack && BackStack.wire) BackStack.wire(d); // v0.9.807 TODO-012: device Back closes this pop-up
@@ -3253,6 +3311,8 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     // v0.9.690 (Brad's shelf photo): 2+ DIFFERENT numbers in one shot usually
     // means neighboring boxes crept into the frame (0209 barrels + 3424-100
     // signal set + 3656 …) — never bet on the first one. Ask which, or none.
+    var _chose = false, _choseNum = '', _varLater = false, _oneType = '';   // photoidfix (2026-11-11): a choice he made / the variation is asked on the Add screen
+    var _addFlow = !!(opts && opts.addFilters);   // the Add screen (its variation step asks); Research keeps its lists
     var _dnums = Array.from(new Set(out.ocrNums));
     var _dbases = Array.from(new Set(_dnums.map(function (n) { return String(n).replace(/-\d{1,3}$/, '').replace(/[A-Z]{1,2}$/i, ''); })));
     var _outsideCrop = _numsFromFullFrame && _dnums.length > 0 && _dbases.length < 2;   // v0.9.1464
@@ -3269,6 +3329,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         out.ocrNums = []; rawCands = []; out.ocrDesc = '';
         st('master', '➖', 'Catalog: numbers skipped — identifying the item itself');
       } else {
+        _chose = true; _choseNum = _pickN;   // photoidfix: he tapped the number — no "Found it" after this (review fix: for THAT number only)
         out.ocrNums = [_pickN];
         rawCands = (rawCands || []).filter(function (c) { return c && String(c.raw) === _pickN; });
         st('master', '🔤', 'Catalog: using ' + _pickN, '#2ecc71');
@@ -3307,11 +3368,12 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       }
       if (hits.length === 1) { pick = hits[0]; verified = 'label'; }
       else if (hits.length > 1) {
-        st('master', '📖', 'Catalog: ' + hits.length + ' items match ' + n + ' — pick yours');
-        var ch = await _rtWait('pick the item', showCandidatePicker(hits, { itemNum: n }));
-        if (ch && !ch.__notInList) { pick = ch; verified = 'label'; }
-        else if (ch && ch.__notInList) { out.typedNum = ch.itemNum; }
-        break;
+        // photoidfix: ONE item's variations go straight on (the variation step
+        // asks, with the differences); several different things ask which first
+        var th = await _biChooseThing(hits, { itemNum: n }, _addFlow);
+        if (th.pick) { pick = th.pick; verified = 'label'; _varLater = th.varLater; _oneType = th.oneType || ''; if (th.chosen) { _chose = true; _choseNum = th.pick.itemNum; } }
+        else if (th.notInList) { out.typedNum = th.notInList.itemNum; }
+        break;   // backed out → the later stages / the could-not-tell card, as before
       }
     }
     if (pick && bcResult && (bcResult.masterItem || bcResult.multipleMatches)) {
@@ -3329,6 +3391,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         st('master', '❓', 'Catalog: label reads ' + _lN + ', barcode decodes to ' + _bN + ' — which is YOUR item?', _BC_AMBER);
         var _sel = await _rtWait('pick a number', _biNumPicker([_lN + ' — from the label', _bN + ' — from the barcode'],
           'The printed label reads <b>' + _lN + '</b> but the barcode decodes to <b>' + _bN + '</b>. Which is YOUR item?'));
+        if (_sel && _sel !== 'none') _chose = true;   // photoidfix: he picked label or barcode (review fix: "None of these" is not a pick)
         if (_sel && String(_sel).indexOf(_bN) === 0) { pick = bcResult.masterItem; verified = 'barcode'; }
         else st('master', '📖', 'Catalog: ✓ using the label — ' + _lN, '#2ecc71');
       }
@@ -3338,23 +3401,28 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       // barcode decode — it is a memory, and memories can be wrong.
       if (bcResult.masterItem) { pick = bcResult.masterItem; verified = bcResult.learnedMap ? 'learned' : 'barcode'; }
       else if (bcResult.multipleMatches) {
-        var ch2 = await _rtWait('pick the item', showCandidatePicker(bcResult.candidates, bcResult));
-        if (ch2 && !ch2.__notInList) { pick = ch2; verified = 'barcode'; }
-        else if (ch2 && ch2.__notInList) { out.typedNum = ch2.itemNum; }
+        var th2 = await _biChooseThing(bcResult.candidates, bcResult, _addFlow);   // photoidfix: the same rule
+        if (th2.pick) { pick = th2.pick; verified = 'barcode'; _varLater = th2.varLater; _oneType = th2.oneType || ''; if (th2.chosen) { _chose = true; _choseNum = th2.pick.itemNum; } }
+        else if (th2.notInList) { out.typedNum = th2.notInList.itemNum; }
       }
     }
     if (!pick && !out.typedNum && _outsideRows.length) {   // v0.9.1975
       st('master', '❓', 'Catalog: ' + _outsideRows[0].itemNum + ' is not in your filters — is it yours?', _BC_AMBER);
       var chO = await _rtWait('pick the item', showCandidatePicker(_outsideRows, { itemNum: _outsideRows[0].itemNum }));
-      if (chO && !chO.__notInList) { pick = chO; verified = 'label'; }
+      if (chO && !chO.__notInList) { pick = chO; verified = 'label'; _chose = true; _choseNum = chO.itemNum; _varLater = false; }   // this list shows the variations — his pick stands
       else if (chO && chO.__notInList) { out.typedNum = chO.itemNum; }
     }
     out.isBoxShot = !!(bc || out.ocrNums.length);   // barcode or printed SKU = it's a box/label
     if (pick) {
       st('master', '📖', 'Catalog: ✓ ' + pick.itemNum + ' — ' + (pick.description || '').substring(0, 40), '#2ecc71');
       st('ai', '➖', 'Close look: not needed');
-      return { handled: true, _boxPhoto: out.isBoxShot, itemNum: pick.itemNum, variation: pick.variation || '', masterItem: pick,
-               manufacturer: out.bcMaker || '', roadName: pick.roadName || '', description: pick.description || '',
+      // review fix: "chosen" only when the item IS the number he tapped / picked —
+      // a barcode fallback to another number still gets the card
+      var _choseIt = _chose && (!_choseNum || rrNumBare(String(_choseNum)).toLowerCase() === rrNumBare(String(pick.itemNum)).toLowerCase());
+      return { handled: true, _boxPhoto: out.isBoxShot, itemNum: pick.itemNum, variation: _varLater ? '' : (pick.variation || ''), masterItem: pick,
+               _chosen: _choseIt,   // photoidfix: a choice he just made is not confirmed a second time
+               _oneThing: _varLater, _oneType: _oneType,   // the variation step lists every row of this thing (its tab + number [+ type when split])
+               manufacturer: out.bcMaker || '', roadName: _varLater ? '' : (pick.roadName || ''), description: pick.description || '',   // review fix: no one variation's road name before it is chosen
                verifiedBy: verified, learnedMap: (verified === 'learned'), rawBarcode: (bc && bc.rawValue) || '',
                cautionNote: (out.bcOutsideCrop && verified === 'barcode') ? 'The barcode was read OUTSIDE your crop — make sure this is YOUR item.' : '',
                verifiedNote: (verified === 'barcode+label' ? '✓ Barcode + lettering agree' : (verified === 'label' ? '✓ Read from the printed number' : (verified === 'learned' ? '↺ Saved from an earlier scan of this barcode — double-check it' : '✓ Barcode match'))),
@@ -3508,6 +3576,65 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     });
   }
   window._biFilterAsk = _biFilterAsk;   // tests reach it here
+
+  // ── photoidfix (2026-11-11) — THE ONE answer to "is this one item, or several
+  // different things?" for every list Photo ID can reach (the printed number,
+  // the closer-look chips, the barcode's several matches, "Wrong item?").
+  // A thing = one catalog tab (maker + catalog + section: Marx O, Lionel PW -
+  // Items, Lionel PW - Boxes …). Rows of ONE thing are its variations — chosen
+  // ONCE on the Add screen's variation step. Rows of several things → a short
+  // "Which item is it?" list (one row per thing, no variations) first.
+  // Resolves { pick, varLater, chosen, notInList } — pick null = backed out.
+  // review fix: + the exact number — a barcode's several matches can be
+  // DIFFERENT numbers on one tab (6-30190 and its 7-digit reissues)
+  function _biThingKey(m) { return String((m && (m._tab || m._era)) || '') + '|' + String((m && m.itemNum) || ''); }
+  // review fix 2: on one tab + number, rows of DIFFERENT types that reuse the same
+  // variation letters are different things (Pre-War No. 8: Electric Locomotive
+  // A–D AND Trolley A, B) — the variation step shows one row per letter, so they
+  // must be told apart first. Types that never share a letter stay ONE thing
+  // (Marx 666: Var 3 is filed as a Set, its letter is its own).
+  function _biSplitByType(rows) {
+    var byVar = {}, split = false;
+    (rows || []).forEach(function (m) {
+      var v = String(m.variation || '').trim().toUpperCase(), t = String(m.itemType || '').trim();
+      if (!v) return;
+      if (byVar[v] !== undefined && byVar[v] !== t) split = true;
+      byVar[v] = t;
+    });
+    return split;
+  }
+  function _biKeyer(rows) {
+    var groups = {};
+    (rows || []).forEach(function (m) { var k = _biThingKey(m); (groups[k] = groups[k] || []).push(m); });
+    var splitK = {};
+    Object.keys(groups).forEach(function (k) { if (_biSplitByType(groups[k])) splitK[k] = 1; });
+    return function (m) { var k = _biThingKey(m); return splitK[k] ? k + '|' + String(m.itemType || '').trim() : k; };
+  }
+  function _biThings(rows) {
+    var key = _biKeyer(rows), seen = {}, out = [];
+    (rows || []).forEach(function (m) { var k = key(m); if (!seen[k]) { seen[k] = 1; out.push(m); } });
+    return out;
+  }
+  function _biRowsOfThing(rows, m) { var key = _biKeyer(rows), k = key(m); return (rows || []).filter(function (r) { return key(r) === k; }); }
+  // the type the variation step must hold to, when this thing was split by type ('' = none)
+  function _biThingType(rows, m) { return _biSplitByType((rows || []).filter(function (r) { return _biThingKey(r) === _biThingKey(m); })) ? String(m.itemType || '').trim() : ''; }
+  async function _biChooseThing(rows, scanResult, addFlow) {
+    rows = rows || [];
+    if (rows.length <= 1) return { pick: rows[0] || null, varLater: false, chosen: false };
+    if (!addFlow) {   // Research (no Add screen, no variation step): the list it always had
+      var chR = await _rtWait('pick the item', showCandidatePicker(rows, scanResult));
+      if (!chR) return { pick: null };
+      if (chR.__notInList) return { pick: null, notInList: chR };
+      return { pick: chR, varLater: false, chosen: true };
+    }
+    var things = _biThings(rows);
+    if (things.length === 1) return { pick: rows[0], varLater: true, chosen: false, oneType: _biThingType(rows, rows[0]) };
+    var ch = await _rtWait('pick the item', showCandidatePicker(things, scanResult, { thingsOnly: true }));
+    if (!ch) return { pick: null };
+    if (ch.__notInList) return { pick: null, notInList: ch };
+    return { pick: ch, varLater: _biRowsOfThing(rows, ch).length > 1, chosen: true, oneType: _biThingType(rows, ch) };
+  }
+  window._biChooseThing = _biChooseThing;   // tests reach it here
 
   function _biNumPicker(nums, msg) {
     return new Promise(function (resolve) {
@@ -3770,13 +3897,16 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         function _biInfoFor(r, aiOffer) {
           return {
             itemNum: r.itemNum, manufacturer: r.manufacturer,
-            roadName: r.roadName || (r.masterItem && r.masterItem.roadName) || '',
+            roadName: r._oneThing ? '' : (r.roadName || (r.masterItem && r.masterItem.roadName) || ''),   // no one variation's road name before it is chosen
             description: r.description || r.labelDescription || '',
             notInMaster: r.notInMaster, noItemNum: r.noItemNum,
             learnedMap: !!r.learnedMap, rawBarcode: r.rawBarcode || '',   // v0.9.1464: for the unlearn button
             cautionNote: r.cautionNote || '',   // v0.9.1468: outside-crop barcode warning
             verifiedNote: r.aiGuess ? '⚠ Best guess from the photo alone — double-check, or try Google Lens' : r.verifiedNote,
             eraTag: r.eraTag, lensOffer: !!r.aiGuess, aiOffer: !!aiOffer,
+            wrongOffer: _addF,   // photoidfix: "Wrong item?" on the Add screen's cards
+            // the tender's Photo ID, the Want list and For Sale have no hand-made add (review fix)
+            ownOffer: !(start && start.noOwn) && !(typeof wizard !== 'undefined' && wizard && wizard.tab && wizard.tab !== 'collection'),
             // v0.9.1016 (Brad): the on-demand double-check needs the photo
             // and the suggested item's reference page.
             // v0.9.1018: COTT links get the item's #anchor appended so the
@@ -3794,7 +3924,10 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         // ignore-the-numbers AI re-run right on the confirm card.
         var _aiOffer = !cap.lockedBc && !!res.itemNum && !res.aiGuess
           && (typeof rrAutoReadOn === 'function') && rrAutoReadOn();   // v0.9.1927: a paid read — beta feature
-        var cc = await _rtWait('confirm card', _bcConfirmCard(_biInfoFor(res, _aiOffer)));
+        // photoidfix (2026-11-11, Brad: "i click one and then i get 'found it'
+        // like the app did something"): a choice he just made is never confirmed
+        // a second time — straight on, as "Use this" would.
+        var cc = (res && res._chosen) ? 'use' : await _rtWait('confirm card', _bcConfirmCard(_biInfoFor(res, _aiOffer)));
         if (cc === 'aionly') {
           var resA = await _biPipeline(cap.view || cap.raw, cr.work, null, eraHint, { ignoreNums: true, forceAi: true });   // v0.9.1473: explicit choice = consent to spend
           if (resA && resA.__biCancel) { _biKill(); if (onCancel) onCancel(); return; }   // v0.9.897
@@ -3818,6 +3951,34 @@ window.eraSupportsBarcode = eraSupportsBarcode;
             _biKill(); if (onCancel) onCancel(); return;
           }
         }
+        // photoidfix (Mike Moore): "Wrong item?" — a number and/or maker, or his own item; the photo comes along
+        while (cc && typeof cc === 'object') {
+          var _carry = { _boxPhoto: res._boxPhoto, _boxPhotoFile: res._boxPhotoFile, _itemPhotoFile: res._itemPhotoFile, _fromHeldPicture: res._fromHeldPicture };
+          var _wn = cc.num, _wm = cc.maker, _wRes = null;
+          if (cc.a === 'wrongfind') {
+            var _wRows = [];
+            try { _wRows = await _findMasterItemsAllEras(rrNumSpellings(_wn)); } catch (eWF) { _wRows = []; }
+            _wRows = _wm ? (_wRows || []).filter(function (m) { return _bcRowIsMfr(m, _bcMfrKey(_wm)); })
+                         : _biNarrow(_wRows || [], { mfr: '', addFilters: _addF, prefer: _prefOf() });
+            if (_wRows.length) {
+              var _wTh = await _biChooseThing(_wRows, { itemNum: _wn }, true);
+              if (!_wTh.pick && !_wTh.notInList) { cc = await _rtWait('confirm card', _bcConfirmCard(_biInfoFor(res, false))); continue; }   // backed out → the card again
+              if (_wTh.pick) {
+                var _wp = _wTh.pick;
+                _wRes = { handled: true, itemNum: _wp.itemNum, variation: _wTh.varLater ? '' : (_wp.variation || ''), masterItem: _wp,
+                          manufacturer: _wm || '', roadName: _wp.roadName || '', description: _wp.description || '',
+                          eraTag: (typeof _eraLabel === 'function') ? _eraLabel(_wp._era) : '', _chosen: true, _wrongFixed: true, _oneThing: !!_wTh.varLater, _oneType: _wTh.oneType || '' };
+              } else _wn = _wTh.notInList.itemNum || _wn;
+            } else if (typeof showToast === 'function') {
+              showToast(RR_PHOTO_ID_CHOICE.noneFound.replace('{maker}', _wm || '').replace('{num}', _wn).replace(/\s+/g, ' '), 4000);
+            }
+          }
+          if (!_wRes) _wRes = { handled: true, itemNum: _wn, variation: '', notInMaster: true, manufacturer: _wm || '',
+                                description: '', labelDescription: '', aiMeta: null, _wrongFixed: true,
+                                statusMessage: (_wn ? _wn + ' \u2014 ' : '') + 'adding it as your own item' };
+          res = Object.assign(_wRes, _carry);
+          cc = 'use';
+        }
         if (cc === 'use') {
           // v0.9.1112: a confirmed identity + a locked barcode = a pairing
           // worth keeping. Idempotent, fail-quiet, never blocks the flow.
@@ -3825,7 +3986,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
             // v0.9.1113: not-in-master items are the whole point of the
             // community share — they go through flagged, so Brad's catalog
             // review sees the new item WITH its barcode attached.
-            if (cap.lockedBc && res && res.itemNum && !res.learnedMap) {
+            if (cap.lockedBc && res && res.itemNum && !res.learnedMap && !res._wrongFixed) {   // photoidfix: a hand correction is not a barcode pairing
               // v0.9.1464: refuse impossible pairings — a decodable UPC may
               // only learn an item number it actually decodes to. Stops a
               // stale camera lock from poisoning the map (the 30-7099 case).
