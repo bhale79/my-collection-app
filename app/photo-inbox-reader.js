@@ -653,7 +653,7 @@
     // right tie-break on its own terms: 3562-1 is more specific than 621, and a
     // catalog hit on more digits is far less likely to be a coincidence.
     var direct = null;
-    var matched = uniq.filter(function (c) { return fm && (fm(c) || fm(c.replace(/^\d-/, ''))); });
+    var matched = uniq.filter(function (c) { return fm && (fm(c) || fm(rrNumBare(c))); });
     // v0.9.1901: a one-digit lead counts only when nothing longer was confirmed.
     if (matched.some(function (c) { return !_oneDigit[c]; })) matched = matched.filter(function (c) { return !_oneDigit[c]; });
     if (matched.length) {
@@ -847,7 +847,7 @@
           if (fm(oc)) continue;
           // v0.9.1167: same maker only. A number that exists solely in another
           // maker's catalog is not a lead the user asked for.
-          var _oRow = fmAny(oc) || fmAny(oc.replace(/^\d-/, ''));
+          var _oRow = fmAny(oc) || fmAny(rrNumBare(oc));
           if (_oRow && _sameMakerAsFilter(_oRow)) { _offLead = oc; break; }
         }
       }
@@ -1083,7 +1083,7 @@
     // all zeros is smudge, not a number.
     uniq = uniq.filter(function (cZ) { return !/^0+$/.test(String(cZ).replace(/\D/g, '')); });
     var loose = fmAny
-      ? uniq.filter(function (c) { return fmAny(c) || fmAny(c.replace(/^\d-/, '')); })
+      ? uniq.filter(function (c) { return fmAny(c) || fmAny(rrNumBare(c)); })
       : [];
 
     // 1b) v0.9.1065 — DASH REPAIR. The audit produced "6464475" twice and the
@@ -1808,7 +1808,7 @@
         for (var li = 0; li < _lc.length; li++) {
           var _lr = String((_lc[li] && (_lc[li].raw || _lc[li].num)) || '').trim();
           if (!_lr) continue;
-          var _try = [_lr]; if (/^6-\d/.test(_lr)) _try.push(_lr.slice(2));
+          var _try = [_lr]; if (rrNumBare(_lr) !== _lr) _try.push(rrNumBare(_lr));
           for (var lt = 0; lt < _try.length; lt++) {
             if (_rej.indexOf(_try[lt]) >= 0) continue;
             var _row = findMaster(_try[lt], null, prefer || null);

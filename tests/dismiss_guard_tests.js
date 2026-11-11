@@ -258,7 +258,9 @@ ok('every guarded overlay offers Cancel / Done / Close / ✕', trapped.length ==
 // app-pages.js rrListMenu): Cancel (data-close) and Back close it, an outside tap does not.
 // TRR Pro — Capture: 66 — a captured item's card (rr-capture-card), the Capture screen (rr-capture)
 // and Print blank labels (rr-capture-blank), capture.js: Back closes each, an outside tap does not.
-ok('66 guarded call sites, and ONE helper behind them', sites === 66, String(sites));
+// TRR Pro — Google's file picker (Release 9 Step 1): 67 — the proof report (rr-picker-proof,
+// drive-picker.js): Close / ✕ and Back close it, an outside tap does not.
+ok('67 guarded call sites, and ONE helper behind them', sites === 67, String(sites));
 
 // nobody double-wires BackStack any more — the guard does it, once
 let dbl = 0;

@@ -478,7 +478,7 @@ function _vaultInMaster(itemNum, masterSet, canFlag) {
     }
   } catch (e) {}
   const _all = [];
-  _forms.forEach(function (f) { _all.push(f, f.replace(/^6-/, ''), '6-' + f); });
+  _forms.forEach(function (f) { rrNumSpellings(f).forEach(function (x) { _all.push(x); }); });
   return _all.some(function (f) { return masterSet.has(f); });
 }
 

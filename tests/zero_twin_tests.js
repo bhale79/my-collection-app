@@ -54,6 +54,7 @@ function lookupWorld(datSrc, appSrc) {
   sb.window = sb;
   vm.createContext(sb);
   vm.runInContext([
+    require('./lib/num-rule').numRuleSource(),   // numspell: the ONE prefix rule findMaster asks
     grab(appSrc || APPJS, 'function rrNumZeroKey('), grab(appSrc || APPJS, 'function rrNumZeroTwin('),
     'function baseItemNum(n) { return String(n || "").trim().replace(/[-]?[PDTC]$/i, ""); }',
     'var state = { masterByItem: new Map(), masterByItemAll: null, masterByRowId: new Map(), masterByRowIdAll: null };',
@@ -162,7 +163,7 @@ function addWorld(sugSrc) {
   const brandVar = APPJS.slice(APPJS.indexOf('var _BRAND_LABELS'), APPJS.indexOf('\n', APPJS.indexOf('var _BRAND_LABELS')));
   const eraMap = BROWSE.slice(BROWSE.indexOf('var _ERA_KEY_TO_PERIOD'), BROWSE.indexOf('\n};', BROWSE.indexOf('var _ERA_KEY_TO_PERIOD')) + 3);
   win.eval([
-    CFG, TYPES, brandVar, eraMap,
+    CFG, TYPES, brandVar, eraMap, require('./lib/num-rule').numRuleSource(),
     grab(APPJS, 'function rrNumZeroKey('), grab(APPJS, 'function rrNumZeroTwin('),
     grab(APPJS, 'function _manufacturerOfEra('), grab(APPJS, 'function _manufacturerOfItem('), grab(APPJS, 'function _itemEraKey('),
     grab(APPJS, 'function _brandLabel('), grab(APPJS, 'function rrAlsoSoldAsNames('), grab(APPJS, 'function _rrMakerWord('), grab(APPJS, 'function rrRowAlsoSoldBy('),
@@ -251,7 +252,7 @@ ok('S4 findMaster asks for the zero twin only when nothing answers for the catal
   ok('S5 PLANTED: the gate removed → ' + p.zero + ' resolves to ' + (got && got.itemNum) + ' (caught by P1)', !!got && got.itemNum !== p.zero);
 }
 {
-  const W = lookupWorld(plant(DAT, "  if (_r && _rTwin && state.masterByItemAll) {", "  if (false) {", 'layer'));
+  const W = lookupWorld(plant(DAT, "  if (_r && (_rTwin || _rSpell) && state.masterByItemAll) {", "  if (false) {", 'layer'));
   const sh = row('1511', 'S-Helper Service S'), exact0 = row('01511', 'Somebody O');
   W.__index([sh], [sh, exact0]);
   const got = W.findMaster('01511', null, null);

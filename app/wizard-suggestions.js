@@ -307,7 +307,7 @@ function _extractSearchItemNum(query) {
     // Strip a single-digit MPC/modern Lionel product-line prefix ("6-8359" ->
     // "8359", "7-11193" -> "11193") so it matches the bare master number.
     // MTH "20-3132-1" (two-digit prefix) and postwar "6464-1" are unaffected.
-    if (/\d{2,}/.test(t) || /\d-\d/.test(t)) return t.replace(/^\d-/, '');
+    if (/\d{2,}/.test(t) || /\d-\d/.test(t)) return rrNumBare(t);
   }
   return toks[0] || '';
 }
@@ -1049,7 +1049,7 @@ function highlightSuggestion(idx) {
 // in front ("6-31705", "7-11193") — is the same number as without it; the
 // catalog writes both forms. Two or more digits in front (MTH 20-66238) or a
 // dash later on (Postwar 6464-1) is a DIFFERENT number, as before.
-function rrNumLinePrefixOff(t) { return String(t || '').replace(/^\d-(?=\d{2})/, ''); }
+function rrNumLinePrefixOff(t) { return rrNumBare(t || ''); }   // numspell: the ONE prefix rule (app.js)
 function rrNumSameAsTyped(rowNum, typed) {
   var a = String(rowNum || '').trim().toLowerCase(), b = String(typed || '').trim().toLowerCase();
   if (!a || !b) return false;

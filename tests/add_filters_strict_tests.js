@@ -74,6 +74,7 @@ try {
     brandVar, eraMap,
     grab(APPJS, 'function _manufacturerOfEra('), grab(APPJS, 'function _manufacturerOfItem('), grab(APPJS, 'function _itemEraKey('),
     grab(APPJS, 'function _brandLabel('), grab(APPJS, 'function rrAlsoSoldAsNames('), grab(APPJS, 'function _rrMakerWord('), grab(APPJS, 'function rrRowAlsoSoldBy('),
+    require('./lib/num-rule').numRuleSource(),   // numspell: the ONE prefix rule
     grab(APPJS, 'function normalizeItemNum('), grab(APPJS, 'function baseItemNum('),
     grab(BROWSE, 'function _itemEraPeriod('),
     grab(WIZ, 'function _wizPeriodOfYear('), grab(WIZ, 'function _wizPeriodOfRow('), grab(WIZ, 'function _wizScaleOfRow('),

@@ -137,6 +137,7 @@ function sender(vaultSrc, cfg) {
   };
   vm.createContext(sb);
   require('./lib/maker-of.js').installMakerOf(sb);   // 2026-11-03: the Market send names the maker through the app's one rule
+  vm.runInContext(require('./lib/num-rule').numRuleSource(), sb);   // numspell: the ONE prefix rule
   vm.runInContext(code, sb);
   return sb;
 }

@@ -471,8 +471,8 @@ ok('1714 an empty -MBOX / -IS box record and a made-up number are caught; a plai
 ok('1714 makers compare through the alias map (K-Line by Lionel → k-line, Märklín → marklin)', k14.n('K-Line by Lionel') === 'k-line' && k14.n('Märklín') === 'marklin' && k14.n('  MTH ') === 'mth');
 ok('1714 the Office asks config for reasons and falls back to NONE when config is missing (never a guess)',
    /function _ymPreSortReasons\(o\) \{\s*try \{ return \(typeof rrPreSortReasons === 'function'\) \? \(rrPreSortReasons\(o\) \|\| \[\]\) : \[\]; \}/.test(ym14));
-ok('1714 Lionel with a modern 5-to-7-digit number goes to the MPC-Modern tab by era id (mpc / mod_ho / mod_s), never by a typed tab name',
-   /if \(\/\^\\d\{5,7\}\$\/\.test\(String\(num \|\| ''\)\.trim\(\)\.replace\(\/\^6-\/, ''\)\)\) \{/.test(ym14) && /return tabOf\('mpc'\);/.test(ym14) && /return tabOf\('mod_ho'\);/.test(ym14) && /return tabOf\('mod_s'\);/.test(ym14)
+ok('1714 Lionel with a modern 5-to-7-digit number (6- or not — the ONE prefix rule, numspell) goes to the MPC-Modern tab by era id (mpc / mod_ho / mod_s), never by a typed tab name',
+   /if \(\/\^\\d\{5,7\}\$\/\.test\(rrNumBare\(num \|\| ''\)\)\) \{/.test(ym14) && /return tabOf\('mpc'\);/.test(ym14) && /return tabOf\('mod_ho'\);/.test(ym14) && /return tabOf\('mod_s'\);/.test(ym14)
    && !/'Lionel MPC-Modern'/.test(ym14.slice(ym14.indexOf('function _ymTabFor('), ym14.indexOf('function _ymNoTabFlag'))));
 ok('1714 small O-gauge brands go to the other_o tab by era id', /RR_OTHER_O_BRANDS\.indexOf\(m\) >= 0\) return tabOf\('other_o'\);/.test(ym14));
 ok('1714 queueing skips a number already WAITING in the queue and stamps the filing queued (the 565-duplicate cause)',

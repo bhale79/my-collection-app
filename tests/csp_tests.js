@@ -62,7 +62,9 @@ ok("no 'unsafe-eval' anywhere (wasm gets its own narrow 'wasm-unsafe-eval')", PO
 ok('no bare * source anywhere', !/(^|\s)\*(\s|;|$)/.test(POLICY));
 ok('script-src names no blob:, data: or https: wildcard', !(D['script-src'] || []).some(s => s === 'blob:' || s === 'data:' || s === 'https:'), D['script-src']);
 ok('connect-src has no https: wildcard (data can only be sent to listed sites)', !(D['connect-src'] || []).includes('https:'), D['connect-src']);
-ok('frames only from Google sign-in', (D['frame-src'] || []).join(' ') === 'https://accounts.google.com', D['frame-src']);
+// 2026-11-10 (Release 9 Step 1): + docs.google.com — Google's file picker opens in a frame from there
+// (measured in real Chromium: the picker's ONLY frame is docs.google.com/picker; its scripts come from apis.google.com, already listed).
+ok('frames only from Google sign-in and Google\'s file picker', (D['frame-src'] || []).join(' ') === 'https://accounts.google.com https://docs.google.com', D['frame-src']);
 
 // ── B. the sweep ────────────────────────────────────────────────────────
 // Pages the user is SENT to (a link, a new tab, a share) and picture hosts
@@ -70,7 +72,8 @@ ok('frames only from Google sign-in', (D['frame-src'] || []).join(' ') === 'http
 // The page never runs code from or sends data to these, so the policy does
 // not list them — but each is placed here on purpose.
 const LINK_ONLY = [
-  'drive.google.com', 'docs.google.com', 'sheets.google.com', 'mail.google.com', 'gmail.com', 'www.google.com',
+  'drive.google.com', 'sheets.google.com',   // 2026-11-10: docs.google.com left this list — Google's file picker is FRAMED from it (frame-src)
+  'mail.google.com', 'gmail.com', 'www.google.com',
   'lens.google.com', 'maps.google.com', 'maps.apple.com', 'console.cloud.google.com', 'developers.google.com',
   'therailroster.com', 'cornucopiaoftoytrains.com', 'www.ebay.com', 'www.lionelcollectors.org',   // 2026-11-05: www.trainz.com left this list — the gift list now READS it (connect-src, RR_STORE_READ)
   'www.youtube.com', 'www.atlasrr.com', 'shop.atlasrr.com', 'download.atlasrr.com', 'www.lionelsupport.com',

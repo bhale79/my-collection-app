@@ -21,6 +21,7 @@
 
 const path = require('path');
 const fs = require('fs');
+eval(require('./lib/num-rule').numRuleGlobal());   // numspell: the ONE product-line prefix rule (app.js) the code under test asks
 const core = require('../app/import-core.js');
 
 let pass = 0, fail = 0, skipped = 0, skipNote = '';
@@ -209,8 +210,7 @@ ok('era rule: 4 digits -> vintage', core.rrImpLionelEraClass('2340') === 'vintag
 ok('era rule: 3 digits -> vintage', core.rrImpLionelEraClass('675') === 'vintage');
 ok('era rule: 5 digits -> modern', core.rrImpLionelEraClass('26077') === 'modern');
 ok('era rule: suffix ignored (6464-25 is vintage)', core.rrImpLionelEraClass('6464-25') === 'vintage');
-ok('era rule: 6-prefixed modern number -> modern', core.rrImpLionelEraClass('6-11169') === 'vintage',
-   'note: 6- prefix strips to "6" — prefix matches write the CATALOG number, so this path is not used for them');
+ok('era rule: 6-prefixed modern number -> modern (numspell: the ONE prefix rule reads 6-11169 as 11169)', core.rrImpLionelEraClass('6-11169') === 'modern');
 ok('era rule: no digits -> no opinion', core.rrImpLionelEraClass('CA-SO') === '');
 ok('row class: MPC tab -> modern', core.rrImpEraClassOfRow({ _era: 'mpc', _tab: 'Lionel MPC-Modern' }) === 'modern');
 ok('row class: PW tab -> vintage', core.rrImpEraClassOfRow({ _era: 'pw', _tab: 'Lionel PW - Items' }) === 'vintage');

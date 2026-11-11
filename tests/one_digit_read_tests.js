@@ -64,6 +64,7 @@ function build(opts) {
   sb.window.state = sb.state;
   vm.createContext(sb);
   vm.runInContext(grab(APP, 'function rrDashedKin(num)'), sb);
+  vm.runInContext(require('./lib/num-rule').numRuleSource(), sb);   // numspell: the ONE prefix rule
   const AD = fs.readFileSync(path.join(__dirname, '..', 'app', 'app-data.js'), 'utf8');
   vm.runInContext('var _lkCache = new WeakMap();\n' + grab(AD, 'function _letterKinRows(idx, bare)'), sb);
   const reader = opts.readerSource || grab(SRC, 'function _numberFromText(text, prefer)');

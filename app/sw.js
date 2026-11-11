@@ -4,7 +4,7 @@
 // fetches fresh copies in the background for next load.
 // NEVER caches Google API, OAuth, or Sheets calls.
 
-const CACHE_NAME = 'mca-v2150';
+const CACHE_NAME = 'mca-v2151';
 
 // ── v0.9.1214: the version stamp has to survive as far as the cache ──
 // Brad, on v1213: "im reset twice and it still looks the same." He was
@@ -59,6 +59,7 @@ const SHELL_FILES = [
   './collections-all.js',
   './collections-invoice.js',
   './capture.js',
+  './drive-picker.js',
   './collections-inbox.js',
   './write-outbox.js',
   './sheets.js',

@@ -41,7 +41,7 @@ function load(rows) {
   };
   ctx.window = ctx;
   vm.createContext(ctx);
-  vm.runInContext(src, ctx);
+  vm.runInContext(require('./lib/num-rule').numRuleSource() + '\n' + src, ctx);   // numspell: the ONE prefix rule
   return ctx._barcodeDebug.decodeBarcode;
 }
 const R = (itemNum, tab, upc, description) => ({ itemNum, variation: '', _tab: tab, upc: upc || '', description: description || itemNum, itemType: 'Boxcar' });

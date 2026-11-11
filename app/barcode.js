@@ -61,7 +61,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     // Lionel items can be stored as "6-XXXXX", "XXXXX", or 7-digit like "2XXXXXX"
     // Try common variants
     const candidates = [
-      '6-' + code5,
+      rrNumFull(code5),   // numspell: the ONE prefix rule (app.js)
       code5,
       // 7-digit modern items (rare): any 7-digit item# ending in code5
     ];
@@ -219,13 +219,13 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     var nums = (cands || []).map(function (c) { return String((c && c.raw) || ''); }).filter(Boolean);
     if (!nums.length) return [];
     var rows = [];
-    try { rows = await _findMasterItemsAllEras(nums.concat(nums.map(function (n) { return n.replace(/^6-/, ''); }))); } catch (eR) { rows = []; }
+    try { rows = await _findMasterItemsAllEras(nums.concat(nums.map(function (n) { return rrNumBare(n); }))); } catch (eR) { rows = []; }
     var mk = (out && out.bcMaker && !out.bcOutsideCrop) ? _bcMfrKey(out.bcMaker) : '';
     return cands.filter(function (c) {
       var n = String((c && c.raw) || '');
       return (rows || []).some(function (r) {
         var rn = String((r && r.itemNum) || '');
-        if (!rn || !(rn === n || rn === n.replace(/^6-/, '') || ('6-' + rn) === n)) return false;
+        if (!rn || !(rn === n || rrNumSame(rn, n))) return false;
         if (mk && !_bcRowIsMfr(r, mk)) return false;
         if (pref && typeof window.rrRowFitsPrefer === 'function' && !window.rrRowFitsPrefer(r, pref)) return false;
         return true;
@@ -315,9 +315,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     }
     candidates.forEach(function(cand) {
       addAll(function(m) {
-        return m.itemNum === cand
-          || m.itemNum === cand.replace(/^6-/, '')
-          || m.itemNum === ('6-' + cand);
+        return m.itemNum === cand || rrNumSame(m.itemNum, cand);
       });
     });
     // v0.9.1968 (Brad: a Lionel barcode reading 36814 offered Lionel's Rio
@@ -335,7 +333,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     }
     var exactCount = out.length;
     if (candidates[0]) {
-      var tail = candidates[0].replace(/^6-/, '').slice(-5);
+      var tail = rrNumBare(candidates[0]).slice(-5);
       addAll(function(m) {
         // v0.9.1605(a): never guess across the maker the barcode proved.
         if (wantMfr && !_bcRowIsMfr(m, wantMfr)) return false;
@@ -513,9 +511,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       var seen = {};
       cands.forEach(function(cand) {
         arr.forEach(function(m) {
-          var match = m.itemNum === cand
-            || m.itemNum === cand.replace(/^6-/, '')
-            || m.itemNum === ('6-' + cand);
+          var match = m.itemNum === cand || rrNumSame(m.itemNum, cand);
           if (!match) return;
           var key = (m.itemNum || '') + '|' + (m.variation || '') + '|' + (m._tab || '');
           if (seen[key]) return;
@@ -598,7 +594,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       if (!arr || !arr.length) return;
       candidates.forEach(function (cand) {
         arr.forEach(function (m) {
-          var match = m.itemNum === cand || m.itemNum === cand.replace(/^6-/, '') || m.itemNum === ('6-' + cand);
+          var match = m.itemNum === cand || rrNumSame(m.itemNum, cand);
           if (!match) return;
           var e = m._era || era;
           var key = (m.itemNum || '') + '|' + (m.variation || '') + '|' + (m._tab || '') + '|' + e;
@@ -720,7 +716,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         if (u) return u;
       }
     } catch (e) {}
-    var num = String((m && m.itemNum) || '').replace(/^6-/, '');
+    var num = rrNumBare((m && m.itemNum) || '');
     return 'https://www.lionel.com/search?query=' + encodeURIComponent(num);
   }
 
@@ -885,8 +881,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         // card gives the user the final say.
         if (meta.cabNum && meta.manufacturer) {
           var cabRaw = String(meta.cabNum);
-          var cabLookup = [cabRaw];
-          if (/^\d/.test(cabRaw)) cabLookup.push('6-' + cabRaw);
+          var cabLookup = rrNumSpellings(cabRaw);
           var cabHits = await _findMasterItemsAllEras(cabLookup);
           var aiMfr = String(meta.manufacturer).toLowerCase();
           var cabOk = cabHits.filter(function (h) {
@@ -921,9 +916,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         return null;
       }
       var raw = meta.itemNum;
-      var lookup = [raw];
-      if (raw.indexOf('6-') === 0) lookup.push(raw.substring(2));
-      else if (/^\d/.test(raw)) lookup.push('6-' + raw);
+      var lookup = rrNumSpellings(raw);
       var hits = await _findMasterItemsAllEras(lookup);
       if (hits.length) {
         var m = _biPreferMfrHit(hits, meta.manufacturer) || hits[0];   // v0.9.1015: stated maker wins cross-catalog collisions (Brad's GM50)
@@ -1027,14 +1020,14 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       if (!info || !info.parse) return true;
       var cands = (info.parse(upc) || {}).itemNumCandidates || [];
       if (!cands.length) return true;               // parser decodes nothing (MTH & co.)
-      var want = String(itemNum || '').toLowerCase().replace(/^6-/, '');
+      var want = rrNumBare(itemNum || '').toLowerCase();
       // v0.9.1914 (Brad's Lionel 2533502, box barcode 0 23922 06597 1): a
       // modern 7-digit Lionel number is never inside its UPC — the barcode
       // carries a Lionel stock code — so there is nothing to cross-check and
       // the pairing is exactly what the catalog is missing.
       if (info.mfr === 'Lionel' && /^\d{7}$/.test(want)) return true;
       return cands.some(function (c) {
-        return String(c || '').toLowerCase().replace(/^6-/, '') === want;
+        return rrNumBare(c || '').toLowerCase() === want;
       });
     } catch (e) { return true; }
   }
@@ -1218,10 +1211,10 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           format: fmt,
           upc: upc12,
           manufacturer: 'Lionel',
-          itemNum: '6-' + parsed.code5,
+          itemNum: rrNumFull(parsed.code5),
           variation: '',
           notInMaster: true,
-          statusMessage: 'Lionel item 6-' + parsed.code5 + ' not in our catalog. Adding manually…',
+          statusMessage: 'Lionel item ' + rrNumFull(parsed.code5) + ' not in our catalog. Adding manually…',
         };
       }
       // v0.9.1719: no decode exists for these prefixes at all, so the
@@ -1359,7 +1352,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       // master — while the older item itself may not be. Offer the classic-form
       // number so the user isn't forced into a wrong pick or a dead-end Cancel.
       var _noneNum = String((scanResult && scanResult.code5) || '');
-      if (_noneNum && /^\d{4,6}$/.test(_noneNum)) _noneNum = '6-' + _noneNum;
+      if (_noneNum && /^\d{4,6}$/.test(_noneNum)) _noneNum = rrNumFull(_noneNum);
       var noneHtml = _noneNum
         ? '<div id="bc-cand-none" style="display:flex;align-items:center;gap:0.6rem;padding:0.7rem 0.8rem;border-radius:10px;'
           + 'background:rgba(58,110,165,0.14);border:1px dashed #3a6ea5;cursor:pointer;margin-bottom:0.5rem">'
@@ -2015,7 +2008,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
             note.style.color = '#ffb27d';
             // Look the label number up in the catalog so we can describe it, then
             // offer BOTH the barcode match and the label match as choices.
-            Promise.resolve((typeof _findMasterItemsExact === 'function') ? _findMasterItemsExact([_lblNum, _lblNum.replace(/^6-/, ''), '6-' + _lblNum]) : []).then(function (hits) {
+            Promise.resolve((typeof _findMasterItemsExact === 'function') ? _findMasterItemsExact(rrNumSpellings(_lblNum)) : []).then(function (hits) {
               if (!d.isConnected) return;
               var _lm = (hits && hits.length) ? hits[0] : null;
               info._labelResult = _lm
@@ -3301,12 +3294,12 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     var _fitsAdd = function (h) { return _biFits(h, opts); };   // v0.9.1977: one answer for every screen
     for (var i = 0; i < out.ocrNums.length && !pick; i++) {
       var n = out.ocrNums[i];
-      var lk = [n]; if (/^\d/.test(n)) lk.push('6-' + n);
+      var lk = rrNumSpellings(n);
       // v0.9.1468 (Brad's 30-7099D): labels often print a suffixed form of
       // the catalog number — try the suffix-stripped base too, same
       // convention baseItemNum() uses app-wide.
       var nb = n.replace(/[A-Za-z]{1,2}$/, '');
-      if (nb && nb !== n && nb.length >= 2) { lk.push(nb); if (/^\d/.test(nb)) lk.push('6-' + nb); }
+      if (nb && nb !== n && nb.length >= 2) rrNumSpellings(nb).forEach(function (x) { if (lk.indexOf(x) < 0) lk.push(x); });
       var hits = _biNarrow(await _findMasterItemsAllEras(lk), _nctx);   // v0.9.1968
       if (hits.length && !hits.some(_fitsAdd)) {   // v0.9.1975: nothing here fits the filters
         hits.forEach(function (h) { if (!h._offEra) h._offEra = (typeof _eraLabel === 'function' && _eraLabel(h._era)) || 'another catalog'; _outsideRows.push(h); });
@@ -3324,7 +3317,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     if (pick && bcResult && (bcResult.masterItem || bcResult.multipleMatches)) {
       // v0.9.1468: agreement is judged on the suffix-stripped BASE number
       // (30-7099D and 30-7099 are the same product to a human).
-      var _bcBase = function (v) { return String(v || '').toLowerCase().replace(/^6-/, '').replace(/[a-z]{1,2}$/, ''); };
+      var _bcBase = function (v) { return rrNumBare(v || '').toLowerCase().replace(/[a-z]{1,2}$/, ''); };
       var agree = (bcResult.masterItem && _bcBase(bcResult.masterItem.itemNum) === _bcBase(pick.itemNum))
         || (bcResult.candidates || []).some(function (c) { return _bcBase(c.itemNum) === _bcBase(pick.itemNum); });
       if (agree) verified = 'barcode+label';
@@ -3912,10 +3905,9 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     if (bcr && bcr.masterItem) addRow(bcr.itemNum || bcr.masterItem.itemNum, bcr.masterItem);
     else if (bcr && bcr.multipleMatches) (bcr.candidates || []).forEach(function (r) { addRow(r.itemNum, r); });
     for (var i = 0; i < nums.length && i < RR_PHOTO_ID_CLOSER.maxChoices; i++) {
-      var n = nums[i], lk = [n];
-      if (/^\d/.test(n)) lk.push('6-' + n);
+      var n = nums[i], lk = rrNumSpellings(n);
       var nb = n.replace(/[A-Za-z]{1,2}$/, '');
-      if (nb && nb !== n && nb.length >= 2) { lk.push(nb); if (/^\d/.test(nb)) lk.push('6-' + nb); }
+      if (nb && nb !== n && nb.length >= 2) rrNumSpellings(nb).forEach(function (x) { if (lk.indexOf(x) < 0) lk.push(x); });
       var hits = [];
       try { hits = await _findMasterItemsAllEras(lk); } catch (eH) { hits = []; }
       hits.forEach(function (r) { addRow(n, r); });
@@ -3934,7 +3926,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     return { kind: 'choices', items: items.slice(0, RR_PHOTO_ID_CLOSER.maxRows), boxShot: boxShot, outside: !!_outsideOnly };
   }
   // the same "is it the same number?" rule the pipeline's own picker uses
-  function _bcBaseNum(n) { return String(n || '').replace(/^6-/, '').replace(/-\d{1,3}$/, '').replace(/[A-Z]{1,2}$/i, ''); }
+  function _bcBaseNum(n) { return rrNumBare(n || '').replace(/-\d{1,3}$/, '').replace(/[A-Z]{1,2}$/i, ''); }
   window.rrReadPictureFile = rrReadPictureFile;
 
   window._ensureTesseract = _ensureTesseract;   // v0.9.672: screenshot-read path

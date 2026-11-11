@@ -70,6 +70,7 @@ function buildFindMaster(o) {
     rowKind.rowKindSource(null, dat),
     grab(pdl, '_pdLookupKey'), grab(pdl, 'rrSameVar'),   // zerobridge: rrSameVar calls _pdLookupKey (a saved copy WITH a variation)
     grab(app, 'rrNumZeroKey'), grab(app, 'rrNumZeroTwin'),
+    require('./num-rule').numRuleSource(),   // numspell: the ONE product-line prefix rule findMaster asks
     grab(app, 'rrAlsoSoldAsNames'), grab(app, '_rrMakerWord'), grab(app, 'rrRowAlsoSoldBy'),
     brw.slice(pa, pz) + ';', grab(brw, '_itemEraPeriod'),
     grab(wiz, '_wizPeriodOfYear'), grab(wiz, '_wizPeriodOfRow'),

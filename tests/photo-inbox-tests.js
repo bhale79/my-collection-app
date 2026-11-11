@@ -1,6 +1,7 @@
 // Headless checks for v0.9.1057 inbox work.
 // Loads photo-inbox.js inside a stubbed browser and drives the real functions.
 const fs = require('fs');
+eval(require('./lib/num-rule').numRuleGlobal());   // numspell: the ONE product-line prefix rule (app.js) the code under test asks
 Object.assign(global, require('./lib/rr-sheet-cells.js'));   // v0.9.2044: lifted sheetsUpdate / sheetsAppend run every cell through the app's one rule
 global.rrToday = require('./lib/rr-today.js');   // v0.9.2044: the app's one today (config.js)
 // The Photo Inbox is read ONLY through tests/lib/pin-source.js (every piece, in load order).
@@ -11092,8 +11093,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // giftlist 94→95 (gift-list.js — the Gift wish list, Stage 1, owner-only beta).
       // TRR Pro release 7A 95→96 (collections-archive.js). 7B 96→97 (collections-handover.js). 8 97→98 (collections-all.js). 10 98→99 (collections-invoice.js).
       // 2026-10-31 99→100 (command-ids.js — Command IDs).
-      ok('every ?v= mark in app/index.html matches it — all 101, none stale',
-         stamps.length === 101 && stamps.every(t => t === '?v=' + build),
+      // TRR Pro Release 9 Step 1 101→102 (drive-picker.js — Google's file picker, ONE door).
+      ok('every ?v= mark in app/index.html matches it — all 102, none stale',
+         stamps.length === 102 && stamps.every(t => t === '?v=' + build),
          stamps.length + ' stamps; strays: ' + stamps.filter(t => t !== '?v=' + build).slice(0, 3).join(','));
       ok('the service worker cache name moved too (build + 10, the fixed offset)',
          new RegExp("const CACHE_NAME = 'mca-v" + (build + 10) + "';").test(rd('app/sw.js')),
@@ -15808,7 +15810,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       {
         const self = fs.readFileSync(p35.join(__dirname, 'photo-inbox-tests.js'), 'utf8');
         const h = self.indexOf("section('199h. The version trio moved together')");
-        const seg = self.slice(h, h + 2600);   // v2007/v2071: the section grows by a history line per new file
+        const seg = self.slice(h, h + 2800);   // v2007/v2071 (and R9 Step 1, 2600→2800): the section grows by a history line per new file
         ok('235 §199h derives the trio — no hardcoded build number to hand-edit',
            h > 0 && !/\?v=\d{4}/.test(seg) && !/mca-v\d{4}/.test(seg) &&
            /parseInt\(_vm\[1\], 10\)/.test(seg) && /build \+ 10/.test(seg),

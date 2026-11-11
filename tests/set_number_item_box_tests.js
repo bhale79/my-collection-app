@@ -95,6 +95,7 @@ function buildWorld(sugSrc, wizSrc, dataSrc) {
     'function wizardChooseCategory(k) { LOG.push("choose:" + k); if (k !== "manual" && k !== "lionel") { wizard.tab = k; wizard.steps = getSteps(k); wizard.step = 0; renderWizardStep(); } return Promise.resolve(); }',
     'function wizardNext() { LOG.push("next"); } function _updateGroupingButtons() {} function _wizOwnedRefresh() {} function _catalogReady() { return true; }',
     'var SHEET_CALLS = 0; var state_masterSheetId = "M"; function sheetsGet() { SHEET_CALLS++; return Promise.resolve({ values: [] }); }',
+    require('./lib/num-rule').numRuleSource(),   // numspell: the ONE prefix rule
     sugSrc,
     'this.__set = function (o) { state.masterData = o.rows || []; state.setData = o.sets || []; wizard = { data: o.data || {}, matchedItem: null, tab: o.tab || "collection", steps: getSteps(o.tab || "collection"), step: 0 }; LOG.length = 0; };',
     'this.__wiz = function () { return wizard; }; this.__log = function () { return LOG.slice(); }; this.__state = function () { return state; }; this.__calls = function () { return SHEET_CALLS; };',

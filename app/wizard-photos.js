@@ -2433,7 +2433,7 @@ function _applyIdentifiedItem(num) {
       // SAME number that was extracted (base-insensitively) — a fuzzy or
       // partial relative does not count.
       if (_existingMaster) {
-        var _bs = function (v) { return String(v || '').toUpperCase().replace(/^6-/, '').replace(/[A-Z]{1,2}$/, ''); };
+        var _bs = function (v) { return rrNumBare(v || '').toUpperCase().replace(/[A-Z]{1,2}$/, ''); };
         window._idExactHit = (_bs(_existingMaster.itemNum) === _bs(num));
       } else { window._idExactHit = false; }
       if (_existingMaster) {

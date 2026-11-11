@@ -29,6 +29,7 @@
 // Run:  node tests/search_terms_tests.js
 // ═══════════════════════════════════════════════════════════════
 const fs = require('fs');
+eval(require('./lib/num-rule').numRuleGlobal());   // numspell: the ONE product-line prefix rule (app.js) the code under test asks
 const path = require('path');
 const APPDIR = path.join(__dirname, '..', 'app');
 const APP = f => fs.readFileSync(path.join(APPDIR, f), 'utf8');

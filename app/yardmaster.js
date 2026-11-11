@@ -1075,7 +1075,7 @@
     var m = _ymMakerNorm(mfr), d = ' ' + String(desc || '') + ' ';
     var tabOf = function (id) { return (typeof ERA_TABS !== 'undefined' && ERA_TABS[id] && ERA_TABS[id].items) || ''; };
     if (m === 'lionel') {
-      if (/^\d{5,7}$/.test(String(num || '').trim().replace(/^6-/, ''))) {
+      if (/^\d{5,7}$/.test(rrNumBare(num || ''))) {
         if (/[^a-z0-9]HO[^a-z0-9]/.test(d)) return tabOf('mod_ho');
         if (/[^a-z0-9]S[- ](gauge|scale)[^a-z0-9]/i.test(d)) return tabOf('mod_s');
         return tabOf('mpc');

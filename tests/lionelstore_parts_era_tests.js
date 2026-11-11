@@ -22,6 +22,7 @@
 // Run:  node tests/lionelstore_parts_era_tests.js
 // ═══════════════════════════════════════════════════════════════
 const fs = require('fs');
+eval(require('./lib/num-rule').numRuleGlobal());   // numspell: the ONE product-line prefix rule (app.js) the code under test asks
 const path = require('path');
 const rd = f => fs.readFileSync(path.join(__dirname, '..', 'app', f), 'utf8');
 const cfg = rd('config.js'), br = rd('browse.js'), ob = rd('onboarding-config.js'), mt = rd('maintenance.js'), ad = rd('app-data.js');

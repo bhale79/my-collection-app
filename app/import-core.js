@@ -877,7 +877,7 @@ function rrImpMakerFromTab(tabName, knownMakers) {
 // Returns 'modern' | 'vintage' (prewar OR postwar — still two eras, Brad's
 // correction) | '' when the rule does not apply.
 function rrImpLionelEraClass(num) {
-  var first = String(num || '').trim().split('-')[0];   // 6464-25 → 6464
+  var first = String((typeof rrNumBare === 'function') ? rrNumBare(num || '') : String(num || '').trim()).split('-')[0];   // 6464-25 → 6464; 6-18319 → 18319 (numspell)
   var digits = first.replace(/[^0-9]/g, '');
   if (!digits) return '';
   if (digits.length >= 5) return 'modern';
@@ -928,11 +928,12 @@ function rrImpTriage(items, lookups) {
     // catalogs write 6-11169 — same number, Lionel's own convention. Runs
     // ONLY on a total exact miss (the suffix rule is untouched: an exact
     // match still always wins) and only accepts an UNAMBIGUOUS single hit.
-    if (exact.length === 0 && /^[0-9]{4,6}$/.test(num)
+    if (exact.length === 0 && typeof rrNumFull === 'function' && /^[0-9]{4,6}$/.test(num)
         && /lionel/i.test(String((it.manufacturer || '') + ' ' + (it.srcTab || '')))) {
-      var viaPrefix = (lookups && lookups.candidatesFor) ? (lookups.candidatesFor('6-' + num, hints) || []) : [];
+      var _full = rrNumFull(num);   // numspell: the ONE prefix rule (app.js)
+      var viaPrefix = (lookups && lookups.candidatesFor) ? (lookups.candidatesFor(_full, hints) || []) : [];
       if (viaPrefix.length === 1) {
-        res.matched.push({ item: it, master: viaPrefix[0], matchedVia: '6-prefix', catalogNum: '6-' + num });
+        res.matched.push({ item: it, master: viaPrefix[0], matchedVia: '6-prefix', catalogNum: _full });
         return;
       }
     }

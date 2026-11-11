@@ -24,6 +24,7 @@
 // Run:  node tests/handler_argument_tests.js
 // ═══════════════════════════════════════════════════════════════
 const fs = require('fs');
+eval(require('./lib/num-rule').numRuleGlobal());   // numspell: the ONE product-line prefix rule (app.js) the code under test asks
 const path = require('path');
 const APP = f => fs.readFileSync(path.join(__dirname, '..', 'app', f), 'utf8');
 const app = APP('app.js');

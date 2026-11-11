@@ -919,7 +919,8 @@ function _rrRowIdFits(row, itemNum, variation) {
   // (PLAN_2026-11-05_LEADING_ZEROS step 2). The Row ID is the identity; this
   // check only refuses a stale or foreign ID, and a zero twin is neither.
   var _zt = (typeof rrNumZeroTwin === 'function') && (rrNumZeroTwin(_kn, _in) || (typeof baseItemNum === 'function' && rrNumZeroTwin(_kn, baseItemNum(_in))));
-  if (!(_kn === _in || (typeof baseItemNum === 'function' && baseItemNum(_in) === _kn) || _zt)) {
+  var _6t = (typeof rrNumSame === 'function') && (rrNumSame(_kn, _in) || (typeof baseItemNum === 'function' && rrNumSame(_kn, baseItemNum(_in))));   // numspell: 18319 saved, 6-18319 in the catalog
+  if (!(_kn === _in || (typeof baseItemNum === 'function' && baseItemNum(_in) === _kn) || _zt || _6t)) {
     // zerobridge: a copy of a deleted book row whose link a back-fill moved to
     // its keeper (RR_BOOK_COPY_REDIRECT) keeps that link — the pair is the table's
     return (typeof _rrBookCopyPairFits === 'function') && _rrBookCopyPairFits(row, _in, variation);
@@ -1865,6 +1866,7 @@ function findMaster(itemNum, variation, prefer) {
       var _kn = String(_byKey.itemNum).trim(), _in = String(itemNum).trim();
       if (_kn === _in || (typeof baseItemNum === 'function' && baseItemNum(_in) === _kn)
           || (typeof rrNumZeroTwin === 'function' && rrNumZeroTwin(_kn, _in))   // 2026-11-05: 1511 saved, 01511 in the catalog
+          || (typeof rrNumSame === 'function' && rrNumSame(_kn, _in))           // numspell: 18319 saved, 6-18319 in the catalog
           || (typeof _rrBookCopyPairFits === 'function' && _rrBookCopyPairFits(_byKey, _in, variation))) return _byKey;   // zerobridge: a back-filled keeper's key holds
     }
   }
@@ -1892,9 +1894,14 @@ function findMaster(itemNum, variation, prefer) {
   // (01511 → 1511) does not end the search either — the full catalog may hold
   // the number exactly as written, and an exact row always wins.
   var _rTwin = !!(_r && typeof rrNumZeroTwin === 'function' && rrNumZeroTwin(_r.itemNum, itemNum));
-  if (_r && _rTwin && state.masterByItemAll) {
+  // 2026-11-10 (numspell): nor does an answer that is only the number's "6-"
+  // spelling (18319 asked, 6-18319 found) — the full catalog may hold 18319.
+  var _asked = String(itemNum).trim();
+  var _rSpell = !!(_r && typeof rrNumFull === 'function' && String(_r.itemNum).trim() !== _asked && String(_r.itemNum).trim() === rrNumFull(_asked));
+  if (_r && (_rTwin || _rSpell) && state.masterByItemAll) {
     var _rX = _findMasterCore(state.masterByItemAll, itemNum, variation, prefer);
-    if (_rX && !rrNumZeroTwin(_rX.itemNum, itemNum) && (!_want || String(_rX._era || '') === _want)) return _rX;
+    var _rXok = _rX && (_rTwin ? !rrNumZeroTwin(_rX.itemNum, itemNum) : String(_rX.itemNum).trim() === _asked);
+    if (_rXok && (!_want || String(_rX._era || '') === _want)) return _rX;
   }
   if (_r && (!_want || String(_r._era || '') === _want)) return _r;
   if (state.masterByItemAll) {
@@ -2333,10 +2340,24 @@ function _findMasterCore(idx, itemNum, variation, prefer) {
   // "7-11193") but the master indexes the bare number ("8359"). Strip a leading
   // "N-" so Lens / typed entries resolve. Postwar "6464-1" is NOT affected (that
   // is not an "N-" prefix). Also try the suffix-base of the stripped number.
-  const _mpc = k.replace(/^\d-/, '');
-  if (_mpc && _mpc !== k) {
-    ((idx && idx.get(_mpc)) || []).forEach(b => { if (cands.indexOf(b) < 0) cands.push(b); });
-    if (typeof baseItemNum === 'function') { const _mb = baseItemNum(_mpc); if (_mb && _mb !== _mpc) ((idx && idx.get(_mb)) || []).forEach(b => { if (cands.indexOf(b) < 0) cands.push(b); }); }
+  // 2026-11-10 (numspell): the spellings come from the ONE rule (rrNumSpellings,
+  // app.js). The bare form is tried as before; the "6-" form ("18319" → the
+  // catalog's "6-18319") only when nothing else answered, so no answer that
+  // works today can change.
+  const _sp = (typeof rrNumSpellings === 'function') ? rrNumSpellings(k).slice(1) : [];
+  const _spAdd = (s) => {
+    ((idx && idx.get(s)) || []).forEach(b => { if (cands.indexOf(b) < 0) cands.push(b); });
+    if (typeof baseItemNum === 'function') { const _mb = baseItemNum(s); if (_mb && _mb !== s) ((idx && idx.get(_mb)) || []).forEach(b => { if (cands.indexOf(b) < 0) cands.push(b); }); }
+  };
+  const _bare = (typeof rrNumBare === 'function') ? rrNumBare(k) : k;
+  if (_bare !== k) _spAdd(_bare);
+  if (!cands.length && (!_prefSoldEra || (typeof RR_NUM_PREFIX_ERAS !== 'undefined' && RR_NUM_PREFIX_ERAS.indexOf(_prefSoldEra) >= 0))) {
+    _sp.filter(s => s !== _bare).forEach(_spAdd);
+    // only Lionel's modern catalogs file a number with the 6- (a Postwar copy is
+    // never handed the MPC 6-3100), and inside a named catalog list only rows
+    // that belong to it
+    cands = cands.filter(r => r && typeof RR_NUM_PREFIX_ERAS !== 'undefined' && RR_NUM_PREFIX_ERAS.indexOf(String(r._era || '')) >= 0
+      && (!_kinNamed || _kinBelongs(r)));
   }
   if (!cands.length) return null;
   const want = (variation != null && variation !== '') ? String(variation) : null;
@@ -2450,7 +2471,18 @@ function _partsForItem(itemNum, forEra, item) {
   var k = String(itemNum || '').trim(); if (!k) return [];
   var idx = _partsFitsIndex(), keys = [k];
   if (typeof baseItemNum === 'function') { var bk = baseItemNum(k); if (bk && bk !== k) keys.push(bk); }
-  var mp = k.replace(/^\d-/, ''); if (mp && mp !== k && keys.indexOf(mp) < 0) keys.push(mp);
+  // 2026-11-10 (numspell): every spelling from the ONE rule (rrNumSpellings,
+  // app.js) — with the "6-" too. Lionel's parts lists file a modern engine as
+  // 6-18319 while the item is saved as 18319; taking a "6-" off was the only
+  // direction tried, so those parts never showed. The item's era decides: a
+  // Postwar 3100 is never offered the MPC 6-3100's parts.
+  var _pe = forEra || '';
+  if (!_pe && item) { try { _pe = (typeof _rrPreferEraKey === 'function') ? (_rrPreferEraKey(item._era || item.era) || '') : String(item._era || item.era || ''); } catch (ePE) { _pe = ''; } }
+  var sp = (typeof rrNumSpellings === 'function') ? rrNumSpellings(k, { era: _pe }) : [k];
+  sp.forEach(function (s) {
+    if (keys.indexOf(s) < 0) keys.push(s);
+    if (typeof baseItemNum === 'function') { var sb = baseItemNum(s); if (sb && keys.indexOf(sb) < 0) keys.push(sb); }
+  });
   var want = forEra ? _partsMakerOf(forEra) : '';
   var out = [], seen = {};
   function take(r) {

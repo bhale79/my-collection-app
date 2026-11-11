@@ -42,6 +42,8 @@ eval(grab(wiz, '_wizPeriodOfYear'));
 eval(grab(wiz, '_wizPeriodOfRow'));
 eval(grab(wiz, '_wizScaleOfRow'));
 eval(grab(wiz, '_wizMasterPrefer'));
+// 2026-11-10 (numspell): THE product-line prefix rule (app.js) — every lookup asks it
+eval(require('./lib/num-rule').numRuleGlobal());
 // 2026-11-02: the one "same number" check the picker asks (6-8359 = 8359)
 { const _sug0 = fs.readFileSync(path.join(__dirname, '..', 'app', 'wizard-suggestions.js'), 'utf8');
   eval(grab(_sug0, 'rrNumLinePrefixOff').replace('function rrNumLinePrefixOff', 'global.rrNumLinePrefixOff = function'));
@@ -500,6 +502,16 @@ T('regression: 9099 scale hint still HO',
     .split("\n          || (typeof _rrBookCopyPairFits === 'function' && _rrBookCopyPairFits(_byKey, _in, variation))) return _byKey;").join('\n          ) return _byKey;');
   T('zerobridge PLANT applied (the back-filled pair refused)', noPair !== datS && noPair.indexOf('_rrBookCopyPairFits(row, _in') < 0 && noPair.indexOf('_rrBookCopyPairFits(_byKey') < 0, true);
   T('zerobridge PLANTED: the back-filled copy is stranded (caught)', run(noPair).backfilled, null);
+}
+
+// ── CANARY (numspell, 2026-11-10): Brad's 18319 — the 6- and no-6- spellings ──
+{
+  const mk = (num, desc) => ({ itemNum: num, _era: 'mpc', _tab: 'Lionel MPC-Modern', itemType: 'Electric Locomotive', description: desc });
+  const one = (rows, ask) => { const m = new Map(); rows.forEach(r => { if (!m.has(r.itemNum)) m.set(r.itemNum, []); m.get(r.itemNum).push(r); }); const h = _findMasterCore(m, ask, null, null); return h ? h.itemNum + ' ' + h.description : null; };
+  T('numspell: 18319 reaches a row written 6-18319', one([mk('6-18319', 'EP-5')], '18319'), '6-18319 EP-5');
+  T('numspell: 6-18319 reaches a row written 18319', one([mk('18319', 'EP-5')], '6-18319'), '18319 EP-5');
+  T('numspell: a row written as asked wins over its 6- twin', one([mk('18319', 'as asked'), mk('6-18319', 'twin')], '18319'), '18319 as asked');
+  T('numspell: MTH 20-66238 is never 66238', one([{ itemNum: '20-66238', _era: 'mth_o', _tab: 'MTH O', itemType: 'Diesel', description: 'MTH' }], '66238'), null);
 }
 
 console.log(fails ? ('\n' + fails + ' CANARY FAILURE(S) — a lookup path regressed.') : '\nALL CANARIES GREEN');

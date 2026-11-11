@@ -1469,7 +1469,7 @@ function _repCleanDesc(desc, itemNum) {
   var d = String(desc == null ? '' : desc).trim();
   var n = String(itemNum == null ? '' : itemNum).trim();
   if (!d || !n) return d;
-  var bare = function (v) { return v.replace(/^6-/, '').replace(/[^A-Za-z0-9]/g, '').toUpperCase(); };
+  var bare = function (v) { return rrNumBare(v).replace(/[^A-Za-z0-9]/g, '').toUpperCase(); };
   var first = d.split(/\s+/)[0];
   if (first && bare(first) === bare(n)) {
     var rest = d.slice(first.length).trim().replace(/^[-–—:]\s*/, '');

@@ -77,6 +77,7 @@ function buildReader(src) {
   vm.createContext(sb);
   vm.runInContext(grab(src, 'function _prefEras(prefer)'), sb);
   vm.runInContext(grab(APPJS, 'function rrDashedKin(num)'), sb);
+  vm.runInContext(require('./lib/num-rule').numRuleSource(), sb);   // numspell: the ONE prefix rule
   vm.runInContext('var _lkCache = new WeakMap();\n' + grab(AD, 'function _letterKinRows(idx, bare)'), sb);
   vm.runInContext(grabVar(src, '_FAM_STOPWORDS') + '\n' + grab(src, 'function _pinFamilyPick(c, prefer, srcText)') + '\n'
     + grab(src, 'function _pinReadFamily(uniq, prefer, UP, dbg)') + '\n' + grab(src, 'function _numberFromText(text, prefer)') + '\nthis.run = _numberFromText;', sb);

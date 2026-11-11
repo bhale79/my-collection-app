@@ -47,6 +47,7 @@ function addItemList(src, query) {
   vm.createContext(ctx);
   vm.runInContext(read('item-search-filters-config.js'), ctx);
   ctx.ITEM_SEARCH_FILTERS = ctx.window.ITEM_SEARCH_FILTERS;
+  vm.runInContext(require('./lib/num-rule').numRuleSource(), ctx);   // numspell: the ONE prefix rule
   vm.runInContext(src + '\n;var wizard = { tab: "collection", data: { _era: "all" } };', ctx);
   ctx.updateItemSuggestions(query);
   // each drawn row: line 1 = [number, type chip, ...]; read the number + type

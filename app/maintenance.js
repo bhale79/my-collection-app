@@ -1738,8 +1738,7 @@
   // 6-17294, 2032010 → 2032010 (already long), 6-8359 → unchanged.
   function _lionelBoxNum(num) {
     var n = String(num == null ? '' : num).trim();
-    if (/^6-/.test(n)) return n;
-    return /^\d{3,5}$/.test(n) ? '6-' + n : n;
+    return /^\d{3,5}$/.test(rrNumBare(n)) ? rrNumFull(n) : n;   // numspell: the ONE prefix rule
   }
 
   // ── URL builders (all open in a new tab; no API keys anywhere) ─

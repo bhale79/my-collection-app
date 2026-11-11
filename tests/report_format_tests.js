@@ -13,6 +13,7 @@
 // Run:  node tests/report_format_tests.js
 // ═══════════════════════════════════════════════════════════════
 const fs = require('fs'), path = require('path');
+eval(require('./lib/num-rule').numRuleGlobal());   // numspell: the ONE product-line prefix rule (app.js) the code under test asks
 const exp = fs.readFileSync(path.join(__dirname, '..', 'app', 'report-export.js'), 'utf8');
 const rep = fs.readFileSync(path.join(__dirname, '..', 'app', 'reports.js'), 'utf8');
 

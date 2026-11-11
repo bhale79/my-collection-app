@@ -1779,6 +1779,67 @@ function baseItemNum(n) {
   return normalizeItemNum(n).replace(/[-]?[PDTC]$/i, '');
 }
 
+// ── 2026-11-10 (numspell): THE product-line prefix rule ──────────────────────
+// [stated] Brad 2026-11-10 12:01 CT "we keep hitting this dan 6- no 6- issues.
+// I thought we corrected it all?" → 12:02 CT "yes" to ONE rule. Lionel writes a
+// modern number two ways: 6-18319 on the box and in its parts lists, 18319 in
+// most catalogs. About 39 places in the app each handled the "6-" their own
+// way — some only took it off, some only put it on — so a number written the
+// other way found nothing (his 18319 New Haven EP-5: 101 parts filed under
+// 6-18319, and the parts lookup only ever took a "6-" off). Every place now
+// asks these four, and tests/num_spellings_tests.js fails on a fifth copy.
+//   rrNumBare(n)        — one digit and a dash in front of 2+ digits taken
+//                         off: 6-18319 → 18319, 7-11193 → 11193. MTH 20-66238
+//                         (two digits), Postwar 6464-1 (dash later) and a wheel
+//                         arrangement 2-6-4 are left as written.
+//   rrNumFull(n)        — the number as Lionel's box prints it: 18319 →
+//                         6-18319. A number that already carries a one-digit
+//                         line prefix keeps it (6-8359, and 7-11193 — another
+//                         product line, never turned into 6-11193). Anything
+//                         not starting with a digit is returned as written.
+//   rrNumSame(a, b)     — the same number written with and without Lionel's
+//                         "6-" (18319 = 6-18319, any case). Only "6-": a
+//                         7-11193 is another product line, and a "5-54" date
+//                         stamp is not catalog No. 54.
+//   rrNumSpellings(n, o)— every spelling to look a number up by: as written,
+//                         bare (as findMaster has always stripped it), and —
+//                         for a bare number of 3+ digits — the "6-" form.
+//                         With o.era given (even blank), the "6-" form is
+//                         added only for an era whose numbers carry it
+//                         (RR_NUM_PREFIX_ERAS) — a Postwar 3100 never reaches
+//                         the MPC 6-3100's parts, and an unknown era gets none.
+//                         With no o.era, it is added (the barcode and photo
+//                         readers then keep only the right maker's rows).
+var RR_NUM_PREFIX = '6-';
+var RR_NUM_PREFIX_ERAS = ['mpc', 'mod_ho', 'mod_s'];   // Lionel's modern O, HO and S (American Flyer by Lionel)
+function rrNumBare(n) {
+  return String(n == null ? '' : n).trim().replace(/^\d-(?=\d{2})/, '');
+}
+function rrNumFull(n) {
+  var s = String(n == null ? '' : n).trim();
+  return (rrNumBare(s) === s && /^\d/.test(s)) ? RR_NUM_PREFIX + s : s;
+}
+function rrNumSame(a, b) {
+  var x = String(a == null ? '' : a).trim().toLowerCase(), y = String(b == null ? '' : b).trim().toLowerCase();
+  if (!x || !y) return false;
+  var p = RR_NUM_PREFIX.toLowerCase();
+  return x === y || x === p + y || y === p + x;
+}
+function rrNumSpellings(n, opts) {
+  var s = String(n == null ? '' : n).trim();
+  if (!s) return [];
+  var out = [s], b = rrNumBare(s);
+  if (b && out.indexOf(b) < 0) out.push(b);
+  var eraAsked = !!opts && Object.prototype.hasOwnProperty.call(opts, 'era');
+  var eraOk = !eraAsked || RR_NUM_PREFIX_ERAS.indexOf(String(opts.era || '')) >= 0;
+  if (b === s && /^\d{3}/.test(s) && eraOk) {
+    var f = RR_NUM_PREFIX + s;
+    if (out.indexOf(f) < 0) out.push(f);
+  }
+  return out;
+}
+if (typeof window !== 'undefined') { window.rrNumBare = rrNumBare; window.rrNumFull = rrNumFull; window.rrNumSame = rrNumSame; window.rrNumSpellings = rrNumSpellings; }
+
 // ── 2026-11-05: THE leading-zero rule (PLAN_2026-11-05_LEADING_ZEROS) ───────
 // [stated] Brad 06:16 CT: "on the leading zero, does are app not handle that
 // with the search rules" → 07:34 CT "yes" to the fallback-only rule.
@@ -2971,7 +3032,7 @@ function rrSearchNumber(item) {
   if (tab.indexOf('lionel') === 0 && /^\d{5}$/.test(num)) {
     var per = '';
     try { per = (typeof _itemEraPeriod === 'function') ? (_itemEraPeriod(item) || '') : ''; } catch (e) {}
-    if (per === 'modern') num = '6-' + num;       // rule 3
+    if (per === 'modern') num = rrNumFull(num);   // rule 3 (the ONE prefix rule, numspell)
   }
   return num;
 }

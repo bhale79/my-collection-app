@@ -77,6 +77,7 @@ function build(opts) {
   };
   vm.createContext(sb);
   vm.runInContext(grab(APP, 'function rrDashedKin(num)'), sb);
+  vm.runInContext(require('./lib/num-rule').numRuleSource(), sb);   // numspell: the ONE prefix rule
   const reader = opts.readerSource || grab(SRC, 'function _numberFromText(text, prefer)');
   vm.runInContext(grabVar('_FAM_STOPWORDS') + '\n' + grab(SRC, 'function _pinFamilyPick(c, prefer, srcText)') + '\n'
     + grab(SRC, 'function _pinReadFamily(uniq, prefer, UP, dbg)') + '\n' + reader + '\nthis.run = _numberFromText;', sb);

@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2140';
+const APP_VERSION = 'v0.9.2141';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -4437,6 +4437,74 @@ var RR_CAPTURE = {
   },
 };
 if (typeof window !== 'undefined') window.RR_CAPTURE = RR_CAPTURE;
+
+// ── TRR Pro — GOOGLE'S FILE PICKER (PLAN_2026-11-10_TRR_PRO_R9_STAFF.md,
+// Step 1; [stated] Brad 2026-11-10 06:09 CT "go ahead and do the google
+// thing", 11:25 CT "yes" to building Step 1). The app signs in with Google's
+// NARROW permission (drive.file): it sees only files it made, or files the
+// person picks in Google's own file picker. CHECK A (2026-11-01) proved that
+// sharing alone shows a staff member NOTHING. The picker is how a staff member
+// (Release 9) and a linked collection (7B part 2) reach the business's files.
+// ONE door opens it: rrPickFromDrive (drive-picker.js). Every setting is here.
+//   apiKey — the Cloud key "Rail Roster file picker" (project lionel-vault),
+//            restricted to the Google Picker API and to therailroster.com.
+//            A public browser key by design, like API_KEY in app.js.
+//   appId  — the Cloud project NUMBER; Google ties the picked files to the
+//            app with it (it must be the project the sign-in belongs to).
+var RR_DRIVE_PICKER = {
+  feature: 'collections',          // on the same switch as the rest of Pro
+  apiKey: 'AIzaSyDvn4VTi7pxeQLatAIhrraZrLeK6iMySKI',
+  appId: '161569968813',
+  loader: 'https://apis.google.com/js/api.js',   // Google's loader; it brings in the picker
+  loadWaitMs: 20000,               // the picker not loaded by then = say so, never hang
+  folderType: 'application/vnd.google-apps.folder',
+  // the proof (Step 1): what the app can see after a folder is picked
+  proofKey: 'rr_picker_proof_v1',  // the last folder picked for the proof ({id, name}) — so "Look again" never picks again
+  proofMaxItems: 200,              // walk at most this many things inside the folder
+  proofMaxDepth: 3,                // ...and this many folders down
+  proofMaxChecks: 8,               // open at most this many sheets, and this many photos
+  words: {
+    loading: 'Opening Google’s file picker…',
+    loadFailed: 'Google’s file picker did not open — check the connection and try again.',
+    signIn: 'Sign in again first, then try the picker.',
+    busy: 'The file picker is already open.',
+    closePicker: 'Close the picker',   // our own way out, below Google's picker (if it shows an error page, it has no Cancel)
+    pickFolderTitle: 'Pick a folder',
+    myDrive: 'My Drive',
+    sharedWithMe: 'Shared with me',
+    // Preferences — Business tools (Pro only)
+    prefsSection: 'Business tools',
+    proofRow: 'Test Google’s file picker',
+    proofRowHelp: 'Pick a folder in Google Drive, then see exactly what the app can open inside it. A check before adding staff.',
+    proofPick: 'Pick a folder',
+    proofAgain: 'Look again at {name}',
+    // the report
+    title: 'What the app can see',
+    folder: 'Folder: {name}',
+    lookedAt: 'Looked at {time}',
+    looking: 'Looking inside {name}…',
+    folderSeen: '✓ The folder itself can be seen.',
+    folderNotSeen: '✗ The folder itself cannot be seen ({why}).',
+    inside: 'Inside it, the app can see {n} thing(s): {sheets} sheet(s), {photos} photo(s), {folders} folder(s), {other} other.',
+    insideNone: 'Inside it, the app can see nothing.',
+    listFailed: 'The app could not list what is inside ({why}).',
+    truncated: 'Stopped after {n} — there may be more.',
+    sheetsHead: 'Sheets — can the rows be read?',
+    photosHead: 'Photos — can they be opened?',
+    allHead: 'Everything the app can see',
+    readOk: '✓ yes',
+    readNo: '✗ no ({why})',
+    notChecked: 'not checked',
+    answerA: 'Answer: picking the folder opened what is inside it.',
+    answerB: 'Answer: only the folder itself — nothing inside it can be seen. (If the folder has things in it, picking a folder is not enough.)',
+    answerNone: 'Answer: the folder could not be opened at all.',
+    answerPart: 'Answer: some things inside can be seen, but not all of them can be opened — see the ✗ lines.',
+    lookAgain: 'Look again (no new pick)',
+    pickAgain: 'Pick a folder again',
+    close: 'Close',
+  },
+};
+if (typeof window !== 'undefined') window.RR_DRIVE_PICKER = RR_DRIVE_PICKER;
 window.rrSavedLocations = function () {
   try {
     var raw = (typeof _prefGet === 'function') ? _prefGet(RR_LOCATIONS_KEY, '[]') : localStorage.getItem(RR_LOCATIONS_KEY);

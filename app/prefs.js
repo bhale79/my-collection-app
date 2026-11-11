@@ -630,6 +630,7 @@ function buildPrefsPage() {
         <button onclick="if (typeof _pwaInstall === 'function') _pwaInstall()" style="padding:0.5rem 1rem;border-radius:9px;border:none;background:var(--accent);color:var(--on-accent);font-family:var(--font-head);font-weight:700;font-size:0.8rem;letter-spacing:0.04em;text-transform:uppercase;cursor:pointer;flex-shrink:0">Install</button>
       </div>
     </div>
+    ${typeof rrPrefsPickerHtml === 'function' ? rrPrefsPickerHtml() : ''}
     ${_prefsOwnerToolsHtml()}
     <!-- ── About ──────────────────────────────── -->
     <div class="pref-section">
