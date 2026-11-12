@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2144';
+const APP_VERSION = 'v0.9.2145';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -6313,6 +6313,36 @@ const RR_SAFE_SAVE = {
   blank: '(blank)',
 };
 if (typeof window !== 'undefined') window.RR_SAFE_SAVE = RR_SAFE_SAVE;
+
+// ══ 2026-11-12 — "CHANGE ITEM NUMBER" in Update Info: the words ═════════════
+// PLAN_2026-11-12_CHANGE_ITEM_NUMBER.md ([stated] Brad 10:52 CT "yes" to the
+// plan, 10:56 CT "yes and we need to emergency ship it"). Mike Caruso's
+// Burlington SD80MAC was saved as Lionel 38586 (Norfolk Southern 7209); the
+// only way out was delete and re-add, losing his pictures and box. Read by the
+// Update Info panel (app-collection.js) and its mover (rrApplyNumberMove).
+// {from} / {to} = "No. 38586 (…)" phrases, {num} = an item number,
+// {n} = a count, {what} = the list of rows a save could not change.
+const RR_CHANGE_NUMBER = {
+  ask: 'Wrong item number? Type the right one',
+  placeholder: 'e.g. 38725',
+  find: 'Find',
+  none: 'No catalog entry carries {num}.',
+  pick: 'Tap the right one:',
+  summary: 'Change {from} to {to}',
+  already: 'You already have {n} of No. {num} — this becomes another copy.',
+  follow: 'Its pictures, box, notes and price stay with it.',
+  done: '✓ Updated — now No. {num}',
+  partial: 'Saved as No. {num}, but these still show {old}: {what}. Refresh, then open the item and save it again.',
+  pieceWord: 'its {kind}',
+  saleWord: 'its For Sale listing',
+  upgradeWord: 'its Upgrade list entry',
+  sheetWord: 'its instruction sheet',
+  partWord: 'its parts',
+  partnerWord: 'No. {num} in its group',
+  sharedGroup: 'Its group holds another No. {num}, so the group\u2019s boxes and sheets stay as they are.',
+  offline: 'Connect to the internet to change the item number \u2014 nothing was changed.',
+};
+if (typeof window !== 'undefined') window.RR_CHANGE_NUMBER = RR_CHANGE_NUMBER;
 
 // ══ FIND BY ID — every save finds the item where it is NOW (sheets.js rrWhereIsRow) ══
 // [stated] Brad 2026-11-04 20:55 CT "Yes" to PLAN_2026-11-04_FIND_BY_ID.md. When

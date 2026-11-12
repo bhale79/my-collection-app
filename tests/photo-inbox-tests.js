@@ -15756,7 +15756,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
         // sale off Sold through rrRemoveRowConfirmed, a copy kept like every other.
         // v0.9.2038: 68 → 69 — savePart's edit (app-pages.js) writes through the
         // guarded writer instead of its own inline rrRowStillIs.
-        ok('234 the sweep really landed — 73 sites write through the one guarded writer',
+        ok('234 the sweep really landed — 76 sites write through the one guarded writer',
            // v0.9.2047: 69 → 70 — the contact EDIT joins the guarded set (see
            // the retired exception above): the last remembered-row write that
            // did not check its row.
@@ -15775,7 +15775,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
            // already had that the walk linked into its group (wizard-save.js
            // rrSetWalkUnadopt): its Group ID cell, collection row or instruction
            // sheet, through the same guarded writer the adoption used (+2).
-           wrapped === 73, String(wrapped));
+           // 2026-11-12 (itemnumfix, "Change item number"): 73 → 76 — a copy moved to
+           // another number carries its For Sale listing, its Upgrade entry and its
+           // group's instruction sheet through the guarded writer (app-collection.js
+           // rrApplyNumberMove, +3; its parts go through rrPartsRowWrite).
+           wrapped === 76, String(wrapped));
       }
     })();
 

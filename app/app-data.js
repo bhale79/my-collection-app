@@ -1715,6 +1715,103 @@ function rrCatalogCandidates(itemNum) {
 }
 if (typeof window !== 'undefined') window.rrCatalogCandidates = rrCatalogCandidates;
 
+// ── 2026-11-12 — "CHANGE ITEM NUMBER": THE plan of what follows a copy ──────
+// PLAN_2026-11-12_CHANGE_ITEM_NUMBER.md ([stated] Brad 10:52 CT "yes", 10:56 CT
+// "yes and we need to emergency ship it"). A copy saved under the wrong number
+// (Mike Caruso's Burlington SD80MAC on Lionel 38586, Norfolk Southern 7209)
+// moves to the catalog entry the collector picked under ANOTHER number. PURE:
+// it reads the lists and says which rows follow; the Update Info panel
+// (app-collection.js rrApplyNumberMove) writes them. ONE place decides, so the
+// panel and its tests can never disagree on what "follows" means.
+//   copy   — the record (its inventoryId / groupId / itemNum as SAVED)
+//   entry  — the picked catalog row (another number)
+// Everything that follows is found by INVENTORY ID or GROUP — never by the old
+// number alone (two copies of 38586 are two different engines):
+//   pieces  — rows in the copy's group named <old>-BOX / -IS / -MBOX → <new>-…
+//   forSale — the For Sale listing of THIS copy (by inventory id)
+//   upgrade — the Upgrade-list entry of THIS copy (by inventory id)
+//   sheets  — Instruction Sheets rows in the copy's group linked to the old number
+//   parts   — Parts Needed rows for THIS copy (forInv) naming the old number
+//   others  — how many OTHER copies of the new number are already owned
+//   partners — group members (a tender) whose Matched To names the old number
+//   oldShared / sharedGroup — other owned copies of the old number (anywhere / in
+//             its group); a shared group leaves its boxes and sheets alone
+// typed — the number the collector typed (its -P / -T / -C is kept). An entry
+// from the copy's OWN list is never a move (review 2026-11-12, finding 1).
+function rrNumberMovePlan(copy, entry, st, typed) {
+  st = st || (typeof state !== 'undefined' ? state : {});
+  var bare = function (v) { return String(v == null ? '' : v).trim().replace(/^'/, ''); };
+  var up = function (v) { return bare(v).toUpperCase(); };
+  var base = function (v) { return (typeof baseItemNum === 'function') ? up(baseItemNum(bare(v))) : up(v); };
+  var from = bare(copy && copy.itemNum), entNum = bare(entry && entry.itemNum), ty = bare(typed).toUpperCase();
+  // one spelling of a unit letter: 2343P = 2343-P (the catalog writes no dash, the app does)
+  var canon = function (v) { return up(v).replace(/[-\s]?([PDTC])$/, '-$1'); };
+  var suffixed = function (v) { return /[-\s]?[PDTC]$/i.test(bare(v)) && canon(v) !== up(v).replace(/[-\s]?[PDTC]$/i, ''); };
+  // The number the copy takes: what the collector TYPED (in capitals) when it names
+  // this entry (2367-P keeps its -P; the catalog writes 2367P / 2367), else the entry's own.
+  var to = (ty && (up(ty) === up(entNum) || base(ty) === base(entNum))) ? ty : entNum;
+  var out = { from: from, to: to, change: false, pieces: [], partners: [], forSale: null, upgrade: null, sheets: [], parts: [],
+              others: 0, oldShared: 0, sharedGroup: 0 };
+  if (!copy || !entry || !from || !to || canon(from) === canon(to)) return out;
+  // Review 2026-11-12 (finding 1): an entry from the copy's OWN list (its number,
+  // its base number 2343 for a 2343-P, a letter or zero twin) is an entry change,
+  // never a number change — the copy keeps the number it was saved under.
+  if (!ty && typeof rrCatalogCandidates === 'function') {
+    var own = rrCatalogCandidates(from) || [];
+    var eid = bare(entry.rowId);
+    if (own.some(function (r) { return r === entry || (eid && bare(r && r.rowId) === eid); })) return out;
+  }
+  // typed the same engine with no unit letter (2343 for a 2343-P): not a move. A
+  // different letter (2343-T for a 2343-P — a powered / dummy mix-up) IS a move.
+  if (ty && base(ty) === base(from) && !suffixed(ty)) return out;
+  out.change = true;
+  var inv = bare(copy.inventoryId), gid = bare(copy.groupId);
+  var pieceRe = (typeof RR_ADD_PIECE !== 'undefined' && RR_ADD_PIECE.pieceRe) || /-(BOX|MBOX|IS)$/i;
+  var pd = st.personalData || {};
+  var isSelf = function (k, p) { return p === copy || (inv && bare(p.inventoryId) === inv); };
+  // Review (finding 3): a group holding ANOTHER copy of the old number (two 2442s in
+  // a set) — its boxes, sheets and partners could be either copy's, so they stay.
+  Object.keys(pd).forEach(function (k) {
+    var p = pd[k];
+    if (!p || !p.owned || isSelf(k, p)) return;
+    var n = bare(p.itemNum);
+    if (up(n) === up(from)) { out.oldShared++; if (gid && bare(p.groupId) === gid) out.sharedGroup++; }
+    if (!pieceRe.test(n) && up(n) === up(to)) out.others++;
+  });
+  Object.keys(pd).forEach(function (k) {
+    var p = pd[k];
+    if (!p || !p.owned || isSelf(k, p) || !gid || bare(p.groupId) !== gid || out.sharedGroup) return;
+    var n = bare(p.itemNum);
+    if (pieceRe.test(n)) {   // a piece of THIS copy: same group, named after the old number
+      var stem = n.replace(pieceRe, ''), tail = n.slice(stem.length);
+      if (up(stem) !== up(from)) return;
+      var shared = 0;   // other owned rows with the piece's number (a shared Add-a-Piece folder)
+      Object.keys(pd).forEach(function (k2) { var q = pd[k2]; if (q && q.owned && k2 !== k && up(q.itemNum) === up(n)) shared++; });
+      out.pieces.push({ key: k, from: n, to: to + tail.toUpperCase(), shared: shared });
+    } else if (up(p.matchedTo) === up(from)) {
+      out.partners.push(k);   // a tender / partner in its group that names it (Matched To)
+    }
+  });
+  if (inv && st.forSaleData && st.forSaleData[inv] && up(st.forSaleData[inv].itemNum) === up(from)) out.forSale = inv;
+  if (inv && st.upgradeData && st.upgradeData[inv] && up(st.upgradeData[inv].itemNum) === up(from)) out.upgrade = inv;
+  if (gid && !out.sharedGroup && st.isData) {
+    Object.keys(st.isData).forEach(function (k) {
+      var s = st.isData[k];
+      if (!s || bare(s.groupId) !== gid || up(s.linkedItem) !== up(from)) return;
+      var sn = bare(s.sheetNum);
+      out.sheets.push({ key: k, sheetNum: sn, newSheetNum: up(sn) === up(from) + '-IS' ? to + '-IS' : sn });
+    });
+  }
+  if (inv && st.partsData) {
+    Object.keys(st.partsData).forEach(function (k) {
+      var p = st.partsData[k];
+      if (p && bare(p.forInv) === inv && up(p.forItem) === up(from)) out.parts.push(k);
+    });
+  }
+  return out;
+}
+if (typeof window !== 'undefined') window.rrNumberMovePlan = rrNumberMovePlan;
+
 // ══ 2026-11-07 (onerow) — WHICH CATALOG ROW IS THIS ITEM: THE ONE RULE ════
 // [stated] Brad: "ONE place that decides 'which catalog row is this item', used
 // by everything". His postwar 2338 GP-7 had no Trainz diagram button because

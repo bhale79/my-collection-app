@@ -4202,6 +4202,135 @@ function updateCollectionItem(idx, pdKey) {
   showItemPanel(idx, pdKey, 'edit');
 }
 
+// ══ 2026-11-12 — "CHANGE ITEM NUMBER": the rows that follow a moved copy ═════
+// PLAN_2026-11-12_CHANGE_ITEM_NUMBER.md ([stated] Brad 10:52 CT "yes", 10:56 CT
+// "yes and we need to emergency ship it"; Mike Caruso's Burlington SD80MAC saved
+// as Lionel 38586). Called by the Update Info Save ONLY after the copy's own row
+// landed on the new number. plan = rrNumberMovePlan (app-data.js, the one place
+// that decides what follows); copy = the live record (already moved); base =
+// the copy as this device opened it. Every write is identity-checked (by
+// inventory id where the tab has one, else by the row's own number) and only
+// changes what follows the number. Returns the words for anything that could
+// NOT be changed — the copy itself is already right either way.
+async function rrApplyNumberMove(plan, copy, base) {
+  const left = [];
+  if (!plan || !plan.change || !copy) return left;
+  const W = (typeof RR_CHANGE_NUMBER !== 'undefined') ? RR_CHANGE_NUMBER : {};
+  const sid = state.personalSheetId;
+  const to = String(plan.to), from = String(plan.from);
+  const q = function (v) { v = String(v == null ? '' : v); return v && v.charAt(0) !== "'" ? "'" + v : v; };   // number cells stay text (01511, 38725-BOX)
+  const eraHint = copy.era || '';
+  // 1. the pieces of its group: 38586-BOX → 38725-BOX (era + maker follow the item, v0.9.2026)
+  for (const pc of (plan.pieces || [])) {
+    const live = (state.personalData || {})[pc.key];
+    const kindWord = (function () {
+      const end = String(pc.to).replace(/^.*(-[A-Z]+)$/i, '$1').toUpperCase();
+      const k = ((typeof RR_ADD_PIECE !== 'undefined' && RR_ADD_PIECE.pieces) || []).find(function (x) { return String(x.ending).toUpperCase() === end; });
+      return String(W.pieceWord || '{kind}').replace('{kind}', k ? String(k.label).toLowerCase() : end.slice(1).toLowerCase());
+    })();
+    if (!live) { left.push(kindWord); continue; }
+    try {
+      const pBase = Object.assign({}, live);
+      const p = Object.assign({}, live);
+      const isBox = (typeof _isBoxItemNum === 'function') && _isBoxItemNum(pc.from);
+      let link = (typeof rrPhotoLinkOf === 'function') ? rrPhotoLinkOf(p) : (p.photoItem || '');
+      if (!link && typeof rrCopyFolderLink === 'function') {
+        link = await rrCopyFolderLink(pc.from, p.inventoryId || '', { numberFolderOk: !pc.shared });
+        if (link) { if (isBox) p.photoBox = link; else p.photoItem = link; }
+      }
+      p.itemNum = pc.to;
+      if (String(p.matchedTo || '').trim().replace(/^'/, '').toUpperCase() === from.toUpperCase()) p.matchedTo = to;   // review finding 5: a box names its item
+      if (String(p.variation || '') === String((base && base.variation) || '')) p.variation = copy.variation || '';
+      p.era = copy.era || p.era || '';
+      p.manufacturer = copy.manufacturer || p.manufacturer || '';
+      const keep = {};
+      ['itemType', 'subType', 'roadName', 'roadNumber', 'masterKey', 'masterRowId', 'masterDescription', 'variationDescription', 'stockPhotoLink']
+        .forEach(function (k) { keep[k] = String(p[k] == null ? '' : p[k]); });
+      const row = rrPersonalUpdateRow(p, Object.assign(keep, {
+        itemNum: p.itemNum, variation: p.variation || '', era: p.era, manufacturer: p.manufacturer, matchedTo: p.matchedTo || '',
+        photoItem: p.photoItem || '', photoBox: p.photoBox || '', inventoryId: p.inventoryId || '', groupId: p.groupId || '',
+      }));
+      const out = {};
+      if (!(await rrPersonalSafeWrite(p, row, pBase, { out: out, user: true, quiet: true }))) { left.push(kindWord); continue; }
+      const now = out.row && typeof rrSavedRecord === 'function' ? rrSavedRecord(out.row, p.row, {}) : {};
+      Object.assign(live, p, now);
+      if (link && typeof rrRefileCopyFolder === 'function') {
+        try { await rrRefileCopyFolder(link, pc.from, pc.to, live.inventoryId || '', eraHint); } catch (eF) { console.warn('[number move] piece folder kept:', eF && eF.message); }
+      }
+    } catch (e) { console.warn('[number move] piece', pc.from, e && e.message); left.push(kindWord); }
+  }
+  // 1b. a tender / partner in its group whose Matched To names the old number (review finding 5)
+  for (const k of (plan.partners || [])) {
+    const live = (state.personalData || {})[k];
+    if (!live) continue;
+    try {
+      const pBase = Object.assign({}, live), p = Object.assign({}, live, { matchedTo: to });
+      const row = rrPersonalUpdateRow(p, { matchedTo: to });
+      const out = {};
+      if (await rrPersonalSafeWrite(p, row, pBase, { out: out, user: true, quiet: true })) live.matchedTo = to;
+      else left.push(String(W.partnerWord || 'its partner').replace('{num}', String(live.itemNum || '')));
+    } catch (e) { left.push(String(W.partnerWord || 'its partner').replace('{num}', String(live.itemNum || ''))); }
+  }
+  // 2. its For Sale listing (by inventory id) — the same A:J row the variation sync writes
+  if (plan.forSale && state.forSaleData && state.forSaleData[plan.forSale]) {
+    const fs = state.forSaleData[plan.forSale];
+    try {
+      const fsRow = [q(to), copy.variation || '', fs.condition || '', fs.askingPrice || '',
+        fs.dateListed || '', fs.notes || '', fs.originalPrice || '', fs.estWorth || '',
+        fs.inventoryId || '', copy.manufacturer || fs.manufacturer || ''];
+      if (fs.row && await rrVerifiedRowUpdate(sid, 'For Sale', fs.row, 'For Sale!A' + fs.row + ':J' + fs.row, [fsRow],
+            { num: fs.itemNum || '', invId: fs.inventoryId || '' }, 'For Sale list')) {
+        fs.itemNum = to; fs.variation = copy.variation || ''; if (copy.manufacturer) fs.manufacturer = copy.manufacturer;
+      } else left.push(W.saleWord || 'its For Sale listing');
+    } catch (e) { left.push(W.saleWord || 'its For Sale listing'); }
+  }
+  // 3. its Upgrade-list entry (by inventory id) — A Item, B Var, C List Type, D Priority,
+  //    E Target Price, F Target Condition, G Upgrading Inv ID, H Notes, I Manufacturer
+  if (plan.upgrade && state.upgradeData && state.upgradeData[plan.upgrade]) {
+    const u = state.upgradeData[plan.upgrade];
+    try {
+      const uRow = [q(to), copy.variation || '', u.listType || 'Upgrade', u.priority || '',
+        u.maxPrice || u.expectedPrice || '', u.targetCondition || '', u.inventoryId || '', u.notes || '',
+        String(copy.manufacturer || u.manufacturer || '')];
+      if (u.row && await rrVerifiedRowUpdate(sid, 'Want-Upgrade List', u.row, 'Want-Upgrade List!A' + u.row + ':I' + u.row, [uRow],
+            { num: u.itemNum || '', invId: u.inventoryId || '' }, 'Want list')) {
+        u.itemNum = to; u.variation = copy.variation || ''; if (copy.manufacturer) u.manufacturer = copy.manufacturer;
+      } else left.push(W.upgradeWord || 'its Upgrade list entry');
+    } catch (e) { left.push(W.upgradeWord || 'its Upgrade list entry'); }
+  }
+  // 4. the instruction sheets of its group linked to the old number (A Sheet #, B Linked Item)
+  for (const sh of (plan.sheets || [])) {
+    const s = state.isData && state.isData[sh.key];
+    if (!s) continue;
+    try {
+      if (s.row && await rrVerifiedRowUpdate(sid, 'Instruction Sheets', s.row, 'Instruction Sheets!A' + s.row + ':B' + s.row,
+            [[q(sh.newSheetNum), q(to)]], { num: sh.sheetNum || '' }, 'Instruction Sheets list')) {
+        s.sheetNum = sh.newSheetNum; s.linkedItem = to;
+      } else left.push(W.sheetWord || 'its instruction sheet');
+    } catch (e) { left.push(W.sheetWord || 'its instruction sheet'); }
+  }
+  // 5. its parts (Parts Needed rows FOR this copy, D = For Item) — through THE part
+  //    writer (app-pages.js rrPartsRowWrite: found by its Part ID, memory + device copy)
+  let partsLeft = false;
+  for (const k of (plan.parts || [])) {
+    const p = state.partsData && state.partsData[k];
+    if (!p) continue;
+    try {
+      if (!(p.row && typeof rrPartsRowWrite === 'function'
+            && await rrPartsRowWrite(p, 'Parts Needed!D' + p.row + ':D' + p.row, [[q(to)]], function () { p.forItem = to; }, { quiet: true }))) partsLeft = true;
+    } catch (e) { partsLeft = true; }
+  }
+  if (partsLeft) left.push(W.partWord || 'its parts');
+  // 6. its pictures' folder moves into the new number's folder (same folder, same ID)
+  const link = (typeof rrPhotoLinkOf === 'function') ? rrPhotoLinkOf(copy) : (copy.photoItem || '');
+  if (link && typeof rrRefileCopyFolder === 'function') {
+    try { await rrRefileCopyFolder(link, from, to, copy.inventoryId || '', eraHint); }
+    catch (eF) { console.warn('[number move] folder kept where it is (its link still works):', eF && eF.message); }
+  }
+  return left;
+}
+if (typeof window !== 'undefined') window.rrApplyNumberMove = rrApplyNumberMove;
+
 // Delete a single collection photo. Moves the Drive file to TRASH (recoverable
 // from Google Drive) rather than permanently deleting it, after a confirmation.
 // ══ v0.9.1280 (Brad): "we should be able to reorder the pictures left to
@@ -4713,6 +4842,31 @@ function showItemPanel(idx, pdKey, mode) {
     return [era, r.variation ? 'Var ' + r.variation : '', [r.itemType, r.roadName].filter(Boolean).join(' · '), r.yearProd]
       .filter(Boolean).join(' · ');
   }
+  // 2026-11-12 (itemnumfix, PLAN_2026-11-12_CHANGE_ITEM_NUMBER): a picked entry
+  // under ANOTHER number moves the copy. What follows it is decided in ONE place
+  // (app-data.js rrNumberMovePlan); the field says the change in words before Save.
+  let _numDoorTyped = '';
+  let _stagedTyped = '';   // the number typed for the STAGED pick ('' = picked from the copy's own list)
+  function _otherNum(r) {
+    var a = String((r && r.itemNum) || '').trim().toUpperCase(), b = String(_base.itemNum || '').trim().replace(/^'/, '').toUpperCase();
+    return !!a && a !== b;
+  }
+  function _panelMove() {
+    return (pd._newEntry && typeof rrNumberMovePlan === 'function') ? rrNumberMovePlan(_base, pd._newEntry, null, _stagedTyped) : null;
+  }
+  function _panelEntryVal() {
+    var mv = _panelMove();
+    var C = (typeof RR_CHANGE_NUMBER !== 'undefined') ? RR_CHANGE_NUMBER : null;
+    if (!mv || !mv.change || !C) return _panelEntryLabel(_panelCurrentShown());
+    var oldRow = (typeof findMaster === 'function') ? findMaster(_base.itemNum, _base.variation || '', _base) : null;
+    var oldWords = oldRow ? [oldRow.roadName, oldRow.itemType].filter(Boolean).join(' ') : '';
+    var e = pd._newEntry;
+    var s = C.summary.replace('{from}', 'No. ' + mv.from + (oldWords ? ' (' + oldWords + ')' : ''))
+                     .replace('{to}', 'No. ' + mv.to + ' (' + _panelEntryLabel(e) + ')') + '. ' + C.follow;
+    if (mv.others > 0) s += ' ' + C.already.replace('{n}', String(mv.others)).replace('{num}', mv.to);
+    if (mv.sharedGroup > 0) s += ' ' + C.sharedGroup.replace('{num}', mv.from);
+    return s;
+  }
   function _panelEntryRefUrl(r) {
     var rl = (r && r.refLink) || '';
     if (!rl) return null;
@@ -4751,7 +4905,7 @@ function showItemPanel(idx, pdKey, mode) {
     })() : []),
     // v0.9.1882: the catalog entry — every catalog item, changeable in Edit (cards)
     ...((pd.era !== 'Manual' && (pd.itemNum || item.itemNum) && typeof rrCatalogCandidates === 'function')
-      ? [{ label: 'Catalog entry', key: 'catalogEntry', val: _panelEntryLabel(_panelCurrentShown()), type: 'catalog' }] : []),
+      ? [{ label: 'Catalog entry', key: 'catalogEntry', val: _panelEntryVal(), type: 'catalog' }] : []),
     // 2026-11-03 (PLAN_2026-11-03_NO_QUIET_MAKER, change 3): an item NOT tied to
     // a catalog entry (hand-added, or a number the catalog lacks) has its maker
     // changed here — the makers the app knows are offered and any other can be
@@ -4954,7 +5108,9 @@ function showItemPanel(idx, pdKey, mode) {
           none.textContent = 'No catalog entry carries this number.';
           cList.appendChild(none);
         }
-        cands.forEach(function (r) {
+        // 2026-11-12 (itemnumfix): ONE card builder for both lists — the entries
+        // under this copy's number and the ones under a number the collector types.
+        const _entryCard = function (r, fromDoor) {
           // 2026-11-08 (notsure): a copy with no variation is not "current" on a variation's card
           const isCur = cur && (r === cur || (curId && String(r.rowId || '').trim() === curId)) && (typeof rrCopyRowView !== 'function' || !!pd._newEntry || rrCopyRowView(r, pd) === r);
           const card = document.createElement('div');
@@ -4962,7 +5118,7 @@ function showItemPanel(idx, pdKey, mode) {
           card.style.cssText = 'border:1.5px solid ' + (isCur ? 'var(--accent)' : 'var(--border)') + ';border-radius:9px;padding:0.55rem 0.7rem;cursor:pointer;background:var(--surface2)';
           const era = (typeof ERAS !== 'undefined' && r._era && ERAS[r._era]) ? ERAS[r._era].label : String(r._era || r._tab || '');
           card.innerHTML =
-            '<div style="font-size:0.8rem;font-weight:700;color:' + (isCur ? 'var(--t-accent)' : 'var(--text)') + ';margin-bottom:0.2rem">' + rrEsc(era) + (r.variation ? ' · Var ' + rrEsc(String(r.variation)) : '') + (isCur ? ' — current' : '') + '</div>' +
+            '<div style="font-size:0.8rem;font-weight:700;color:' + (isCur ? 'var(--t-accent)' : 'var(--text)') + ';margin-bottom:0.2rem">' + (_otherNum(r) ? 'No. ' + rrEsc(String(r.itemNum)) + ' · ' : '') + rrEsc(era) + (r.variation ? ' · Var ' + rrEsc(String(r.variation)) : '') + (isCur ? ' — current' : '') + '</div>' +
             '<div style="font-size:0.78rem;color:var(--text-mid);line-height:1.5;white-space:normal">' + rrEsc([r.itemType, r.roadName, r.yearProd].filter(Boolean).join(' · ')) + '</div>' +
             '<div style="font-size:0.78rem;color:var(--text-mid);line-height:1.5;white-space:normal">' + rrEsc(String(r.description || '')) + (r.varDesc ? ' — ' + rrEsc(String(r.varDesc)) : '') + '</div>';
           const u = _panelEntryRefUrl(r);
@@ -4971,13 +5127,58 @@ function showItemPanel(idx, pdKey, mode) {
               (/cornucopiaoftoytrains/i.test(u) ? 'See this entry on COTT ↗' : 'See this entry ↗') + '</a>';
           }
           card.onclick = function () {
-            if (isCur) { delete pd._newEntry; } else { pd._newEntry = r; }
-            f.val = _panelEntryLabel(_panelCurrentShown());
+            if (isCur) { delete pd._newEntry; _stagedTyped = ''; } else { pd._newEntry = r; _stagedTyped = fromDoor ? _numDoorTyped : ''; }
+            f.val = _panelEntryVal();
             editingKey = null;
             renderFields(null);
           };
-          cList.appendChild(card);
-        });
+          return card;
+        };
+        cands.forEach(function (r) { cList.appendChild(_entryCard(r)); });
+        // 2026-11-12 (itemnumfix, PLAN_2026-11-12_CHANGE_ITEM_NUMBER): the second
+        // door — the collector types the RIGHT number and picks its entry. Only
+        // real catalog rows (rrCatalogCandidates, the one place). A piece (box,
+        // sheet, carton) has no door: it follows its item.
+        const _NC = (typeof RR_CHANGE_NUMBER !== 'undefined') ? RR_CHANGE_NUMBER : null;
+        const _pieceRe = (typeof RR_ADD_PIECE !== 'undefined' && RR_ADD_PIECE.pieceRe) || /-(BOX|MBOX|IS)$/i;
+        if (_NC && !_pieceRe.test(String(_base.itemNum || '').trim())) {
+          const door = document.createElement('div');
+          door.setAttribute('data-rr-numdoor', '1');
+          door.style.cssText = 'margin-top:0.6rem;padding-top:0.6rem;border-top:1px dashed var(--border);display:flex;flex-direction:column;gap:0.45rem';
+          const ask = document.createElement('div');
+          ask.style.cssText = 'font-size:0.8rem;font-weight:700;color:var(--text)';
+          ask.textContent = _NC.ask;
+          const line = document.createElement('div');
+          line.style.cssText = 'display:flex;gap:0.45rem';
+          const inp = document.createElement('input');
+          inp.type = 'text'; inp.id = 'panel-numdoor-inp'; inp.autocomplete = 'off';
+          inp.setAttribute('autocapitalize', 'characters'); inp.setAttribute('aria-label', _NC.ask);
+          inp.placeholder = _NC.placeholder; inp.value = _numDoorTyped;
+          inp.style.cssText = 'flex:1;min-width:0;padding:0.45rem 0.6rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:16px;font-family:var(--font-body)';
+          const go = document.createElement('button');
+          go.type = 'button'; go.id = 'panel-numdoor-find'; go.textContent = _NC.find;
+          go.style.cssText = 'padding:0.45rem 0.9rem;border-radius:8px;border:1.5px solid #2980b9;background:rgba(41,128,185,0.1);color:var(--t-link);font-weight:600;cursor:pointer;font-family:var(--font-body)';
+          const found = document.createElement('div');
+          found.id = 'panel-numdoor-found';
+          found.style.cssText = 'display:flex;flex-direction:column;gap:0.45rem';
+          const run = function () {
+            _numDoorTyped = String(inp.value || '').trim();
+            found.innerHTML = '';
+            if (!_numDoorTyped) return;
+            const list = (typeof rrCatalogCandidates === 'function') ? rrCatalogCandidates(_numDoorTyped) : [];
+            const note = document.createElement('div');
+            note.style.cssText = 'font-size:0.8rem;color:var(--text-dim)';
+            note.textContent = list.length ? _NC.pick : _NC.none.replace('{num}', _numDoorTyped);
+            found.appendChild(note);
+            list.forEach(function (r) { found.appendChild(_entryCard(r, true)); });
+          };
+          go.onclick = run;
+          inp.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); run(); } });
+          line.appendChild(inp); line.appendChild(go);
+          door.appendChild(ask); door.appendChild(line); door.appendChild(found);
+          cList.appendChild(door);
+          if (_numDoorTyped) run();
+        }
         const closeRow = document.createElement('button');
         closeRow.textContent = '✕ Keep current entry';
         closeRow.style.cssText = 'margin-top:0.45rem;padding:0.45rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);cursor:pointer;font-size:0.8rem;font-family:var(--font-body)';
@@ -5242,11 +5443,32 @@ function showItemPanel(idx, pdKey, mode) {
       // decides follows it, the way a fresh save of that row would write it.
       // The variation re-derivation below is skipped then: the entry answers.
       const _entry = pd._newEntry || null;
+      // 2026-11-12 (itemnumfix): an entry under ANOTHER number moves the copy —
+      // what follows it is ONE plan (app-data.js rrNumberMovePlan), made from the
+      // copy as this device opened it (by inventory id and group, never by number).
+      const _move = (_entry && typeof rrNumberMovePlan === 'function') ? rrNumberMovePlan(_base, _entry, null, _stagedTyped) : null;
+      // Review 2026-11-12 (finding 2): a number move needs the sheet NOW — offline it
+      // would queue the copy on the new number with nothing following it.
+      if (_move && _move.change && typeof _rrOfflineNow === 'function' && _rrOfflineNow()) {
+        const _NCo = (typeof RR_CHANGE_NUMBER !== 'undefined') ? RR_CHANGE_NUMBER : {};
+        showToast(_NCo.offline || 'Connect to the internet to change the item number.', 5000, true);
+        saveBtn.textContent = '💾 Save All Changes'; saveBtn.disabled = false;
+        return;
+      }
       if (_entry) {
         // 2026-11-08: THE rule lives in app-data.js (rrCopyFieldsFromEntry) — the
         // Nabisco → Paper pass writes a moved copy the same way
         Object.assign(pd, rrCopyFieldsFromEntry(_entry, pd));
-        delete pd._newEntry;
+        if (_move && _move.change) {
+          // the pictures stay: a copy whose photo cell is blank remembers the folder
+          // the OLD number finds, BEFORE the number changes (drive.js rrCopyFolderLink)
+          if (!pd.photoItem && typeof rrCopyFolderLink === 'function') {
+            try { const _lk = await rrCopyFolderLink(_move.from, pd.inventoryId || '', { numberFolderOk: !_move.oldShared }); if (_lk) pd.photoItem = _lk; } catch (eLk) {}
+          }
+          pd.itemNum = _move.to;
+        }
+        // Review 2026-11-12 (finding 2): the pick stays STAGED until the save lands, so a
+        // refused save tapped again moves the copy — and everything that follows it — again.
       }
       const _newVariation = String(pd.variation || item.variation || '');
       const _varChanged = _newVariation !== _origVariation;
@@ -5327,10 +5549,11 @@ function showItemPanel(idx, pdKey, mode) {
         const _now = (_out.row && typeof rrSavedRecord === 'function')
           ? rrSavedRecord(_out.row, pd.row, {})
           : { priceComplete: calc > 0 ? calc.toFixed(2) : '' };
+        delete pd._newEntry;   // landed: the pick has done its job (never onto the live record)
         state.personalData[pdKey] = Object.assign(_live, pd, _now);
         // v0.9.1315: a For Sale listing of THIS copy carries the variation
         // too — update it in the same save so the two can never disagree.
-        if (_varChanged && pd.inventoryId && state.forSaleData && state.forSaleData[pd.inventoryId]) {
+        if (_varChanged && !(_move && _move.change) && pd.inventoryId && state.forSaleData && state.forSaleData[pd.inventoryId]) {   // a number move carries the listing itself (rrApplyNumberMove)
           try {
             const _fs = state.forSaleData[pd.inventoryId];
             if (_fs.row && String(_fs.variation || '') !== _newVariation) {
@@ -5345,11 +5568,26 @@ function showItemPanel(idx, pdKey, mode) {
             }
           } catch (eFs) { console.warn('For Sale variation sync failed:', eFs); }
         }
+        // 2026-11-12 (itemnumfix): everything that follows the copy follows it now —
+        // its box / sheet / carton, its For Sale and Upgrade entries, its group's
+        // instruction sheets, its parts, and its pictures' folder.
+        let _moveLeft = [];
+        if (_move && _move.change && typeof rrApplyNumberMove === 'function') {
+          _moveLeft = await rrApplyNumberMove(_move, state.personalData[pdKey], _base);
+        }
+        if (_entry && typeof _rebuildPdIndex === 'function') { try { _rebuildPdIndex(); } catch (eIx) {} }   // the number / variation lookup index sees the change NOW
         // v0.9.697: keep the offline snapshot in sync — edits were reverting
         // to pre-edit values on the next app load (cache had the old row).
         if (typeof _cachePersonalData === 'function') _cachePersonalData();
         overlay.remove();
+        const _NCw = (typeof RR_CHANGE_NUMBER !== 'undefined') ? RR_CHANGE_NUMBER : null;
+        if (_move && _move.change && _NCw && _moveLeft.length) {
+          showToast(_NCw.partial.replace('{num}', _move.to).replace('{what}', _moveLeft.join(', ')).replace('{old}', _move.from), 9000, true);
+        } else if (_move && _move.change && _NCw) {
+          showToast(_NCw.done.replace('{num}', _move.to));
+        } else {
         showToast(_entry ? '✓ Updated — now ' + _panelEntryLabel(_entry) : (_varChanged ? ('✓ Updated — now Var ' + _newVariation) : '✓ Item updated!'));
+        }
         buildDashboard();
         // Re-render the detail page so edited fields + photos show immediately.
         // v0.9.1315: after a variation change the page must re-resolve to the
@@ -5360,6 +5598,12 @@ function showItemPanel(idx, pdKey, mode) {
           rrDetailRepaint(0);   // v0.9.1765: by identity, not by remembered position
         }
       } catch(e) {
+        // Review 2026-11-12: the connection dropped DURING a number move — the copy's
+        // row went into the offline queue, so everything that follows it is queued
+        // behind it (identity-checked again when it is sent) and the two land together.
+        if (_move && _move.change && typeof rrApplyNumberMove === 'function') {
+          try { await rrApplyNumberMove(_move, Object.assign({}, _live, pd), _base); } catch (eMv) { console.warn('[number move] followers after a dropped save:', eMv && eMv.message); }
+        }
         saveBtn.textContent = '💾 Save All Changes'; saveBtn.disabled = false;
         showToast(rrSaveError(e, 'your change'), 5000, true);
       }

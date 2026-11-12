@@ -851,6 +851,81 @@ async function driveFindItemFolder(itemNum) {
 }
 if (typeof window !== 'undefined') window.driveFindItemFolder = driveFindItemFolder;
 
+// ── 2026-11-12 — "CHANGE ITEM NUMBER": the copy's pictures go with it ──────
+// PLAN_2026-11-12_CHANGE_ITEM_NUMBER.md ([stated] Brad 10:56 CT "yes and we need
+// to emergency ship it"). Photos live in Photos › <main folder> › <item number>
+// › <inventory id> (driveUploadItemPhoto), and their names carry the number
+// ("Lionel 38586 ID106 RSV.jpg"). When a copy moves to another number:
+//   rrCopyFolderLink  — BEFORE the move, the copy's folder while the OLD number
+//                       still finds it: its own <inventory id> folder; the number's
+//                       folder ONLY when no other copy has that number
+//                       (opts.numberFolderOk — review 2026-11-12, finding 4: else
+//                       other copies' loose photos would be written onto this one),
+//                       so a copy whose photo cell is blank keeps its pictures.
+//   rrRefileCopyFolder — AFTER the save, the copy's OWN folder (named its
+//                       inventory id, inside the old number's folder) moves into
+//                       the new number's folder — the SAME folder (same ID, every
+//                       stored link still works) — and its photo names follow
+//                       the number. Later photos for this copy land in it too.
+//                       A folder that is not the copy's own (a number's folder
+//                       shared with other copies, or one the collector moved
+//                       himself) is LEFT where it is; the link keeps working.
+// Never creates the old folder, never deletes anything.
+async function rrCopyFolderLink(itemNum, inv, opts) {
+  try {
+    var num = String(itemNum || '').trim();
+    if (!num || !accessToken) return '';
+    var numLink = await driveFindItemFolder(num);
+    var numId = (String(numLink || '').match(/folders\/([a-zA-Z0-9_-]+)/) || [])[1];
+    if (!numId) return '';
+    if (inv) {
+      var q = encodeURIComponent("name='" + rrDriveQ(String(inv)) + "' and mimeType='application/vnd.google-apps.folder' and trashed=false and '" + numId + "' in parents");
+      var res = await driveRequest('GET', '/files?q=' + q + '&fields=files(id)&spaces=drive');
+      var hit = res && res.files && res.files[0];
+      if (hit && hit.id) return driveFolderLink(hit.id);
+    }
+    return (opts && opts.numberFolderOk) ? numLink : '';
+  } catch (e) { console.warn('[Drive] copy folder lookup:', itemNum, e && e.message); return ''; }
+}
+async function rrRefileCopyFolder(link, oldNum, newNum, inv, eraHint) {
+  var fid = (String(link || '').match(/folders\/([a-zA-Z0-9_-]+)/) || [])[1];
+  var from = String(oldNum || '').trim(), to = String(newNum || '').trim(), id = String(inv || '').trim();
+  if (!fid || !from || !to || !id) return { moved: false, why: 'nothing' };
+  var f = await driveRequest('GET', '/files/' + fid + '?fields=id,name,parents,trashed');
+  if (!f || !f.id || f.trashed) return { moved: false, why: 'gone' };
+  if (String(f.name || '') !== id) return { moved: false, why: 'shared' };   // not this copy's own folder
+  var parents = f.parents || [];
+  var oldParent = null;
+  for (var i = 0; i < parents.length; i++) {
+    var pf = await driveRequest('GET', '/files/' + parents[i] + '?fields=id,name');
+    if (pf && String(pf.name || '').trim().toUpperCase() === from.toUpperCase()) { oldParent = pf.id; break; }
+  }
+  if (!oldParent) return { moved: false, why: 'own place' };   // the collector filed it himself
+  var newParent = await driveEnsureItemFolder(to, eraHint);
+  if (newParent && newParent !== oldParent) {
+    await driveRequest('PATCH', '/files/' + fid + '?addParents=' + newParent + '&removeParents=' + oldParent + '&fields=id,parents', {});
+  }
+  try { driveCache.itemFolders[to + '/' + id] = fid; delete driveCache.itemFolders[from + '/' + id]; } catch (eC) {}
+  // the photo names carry the number — only names that also carry THIS copy's id
+  var renamed = 0;
+  try {
+    var esc = function (s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); };
+    var reNum = new RegExp('(^|\\s|·\\s)' + esc(from) + '(?=\\s)', 'i');
+    var reId = new RegExp('(^|\\s)ID' + esc(id) + '(\\s|\\.|$)');
+    var q = encodeURIComponent("'" + fid + "' in parents and trashed=false");
+    var kids = await driveRequest('GET', '/files?q=' + q + '&fields=files(id,name)&pageSize=200');
+    var list = (kids && kids.files) || [];
+    for (var k = 0; k < list.length; k++) {
+      var nm = String(list[k].name || '');
+      if (!reId.test(nm) || !reNum.test(nm)) continue;
+      await driveRequest('PATCH', '/files/' + list[k].id + '?fields=id', { name: nm.replace(reNum, '$1' + to) });
+      renamed++;
+    }
+  } catch (eN) { console.warn('[Drive] photo names kept:', eN && eN.message); }
+  return { moved: true, renamed: renamed };
+}
+if (typeof window !== 'undefined') { window.rrCopyFolderLink = rrCopyFolderLink; window.rrRefileCopyFolder = rrRefileCopyFolder; }
+
 // v0.9.1197 — THE one answer to "where do this item's photos live?"
 // The 07-30 audit found this question answered in FOUR places (desktop list,
 // phone list / dashboard reel, detail page, camera-icon pass), each with its

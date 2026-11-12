@@ -514,5 +514,53 @@ T('regression: 9099 scale hint still HO',
   T('numspell: MTH 20-66238 is never 66238', one([{ itemNum: '20-66238', _era: 'mth_o', _tab: 'MTH O', itemType: 'Diesel', description: 'MTH' }], '66238'), null);
 }
 
+// ── CANARY (itemnumfix, 2026-11-12): Mike Caruso's Burlington SD80MAC saved as 38586 ──
+// The copy moves to 38725; what follows it is found by INVENTORY ID / GROUP, never
+// by the old number alone (a second 38586 copy, and its box, stay exactly where they are).
+{
+  const planSrc = grab(dat, 'rrNumberMovePlan');
+  const baseNum = n => String(n || '').trim().toUpperCase().replace(/[-]?[PDTC]$/i, '');   // app.js baseItemNum's rule
+  const mkPlan = (st, cfg, cands) => new Function('state', 'RR_ADD_PIECE', 'rrCatalogCandidates', 'baseItemNum', planSrc + '; return rrNumberMovePlan;')(st, cfg, cands, baseNum);
+  const st = {
+    personalData: {
+      a: { owned: true, itemNum: '38586', inventoryId: '106', groupId: 'G1' },
+      b: { owned: true, itemNum: '38586-BOX', inventoryId: '107', groupId: 'G1' },
+      c: { owned: true, itemNum: '38586', inventoryId: '201', groupId: '' },
+      d: { owned: true, itemNum: '38586-BOX', inventoryId: '202', groupId: 'G2' },
+      e: { owned: true, itemNum: '38725', inventoryId: '301', groupId: '' },
+    },
+    forSaleData: { '106': { itemNum: '38586', inventoryId: '106' }, '201': { itemNum: '38586', inventoryId: '201' } },
+    upgradeData: {}, isData: {}, partsData: {},
+  };
+  const PR = { pieceRe: /-(BOX|MBOX|IS)$/i };
+  const plan = mkPlan(st, PR)(st.personalData.a, { itemNum: '38725' }, st, '38725');
+  T('itemnumfix: 38586 -> 38725 is a number change', plan.change, true);
+  T('itemnumfix: only THIS copy\'s box follows (group G1), never the other 38586\'s box', JSON.stringify(plan.pieces), JSON.stringify([{ key: 'b', from: '38586-BOX', to: '38725-BOX', shared: 1 }]));
+  T('itemnumfix: only THIS copy\'s For Sale listing follows (by inventory id)', plan.forSale, '106');
+  T('itemnumfix: the 38725 already owned is counted (another copy, never merged)', plan.others, 1);
+  T('itemnumfix: the same number (any case) is not a move', mkPlan(st, {})(st.personalData.a, { itemNum: '38586' }, st).change, false);
+  // review 2026-11-12 finding 1: a 2343-P's OWN list holds 2343 rows — picking one is an entry change, never 2343-P → 2343
+  const alco = { itemNum: '2343', rowId: 'ALCOALCO01' };
+  const sp = { personalData: { e: { owned: true, itemNum: '2343-P', inventoryId: '5', groupId: '' } } };
+  T('itemnumfix: a 2343-P picking a 2343 row from its own list keeps 2343-P (not a move)', mkPlan(sp, PR, n => (baseNum(n) === '2343' ? [alco] : []))(sp.personalData.e, alco, sp, '').change, false);
+  T('itemnumfix: typing 2343 for a 2343-P is the same engine (not a move)', mkPlan(sp, PR, () => [])(sp.personalData.e, alco, sp, '2343').change, false);
+  T('itemnumfix: typing 2367-P keeps the -P the collector typed (the catalog writes 2367)', mkPlan(sp, PR, () => [])(sp.personalData.e, { itemNum: '2367', rowId: 'X' }, sp, '2367-P').to, '2367-P');
+  // second review: a powered / dummy mix-up typed in IS a move; a typed number is stored in capitals; 2343P = 2343-P
+  const pt = mkPlan(sp, PR, () => [])(sp.personalData.e, alco, sp, '2343-T');
+  T('itemnumfix: typing 2343-T for a 2343-P moves it to 2343-T', JSON.stringify([pt.change, pt.to]), '[true,"2343-T"]');
+  T('itemnumfix: a typed 2367p is stored as 2367P', mkPlan(sp, PR, () => [])(sp.personalData.e, { itemNum: '2367P', rowId: 'X' }, sp, '2367p').to, '2367P');
+  T('itemnumfix: typing 2343P for a 2343-P is the same number (not a move)', mkPlan(sp, PR, () => [])(sp.personalData.e, alco, sp, '2343P').change, false);
+  // finding 3: a group holding two 2442s — its boxes and sheets could be either copy's, so they stay
+  const sg = { personalData: { x: { owned: true, itemNum: '2442', inventoryId: '10', groupId: 'S1' }, y: { owned: true, itemNum: '2442', inventoryId: '11', groupId: 'S1' },
+    xb: { owned: true, itemNum: '2442-BOX', inventoryId: '12', groupId: 'S1' } }, isData: { i: { sheetNum: '2442-IS', linkedItem: '2442', groupId: 'S1' } } };
+  const g2 = mkPlan(sg, PR, () => [])(sg.personalData.x, { itemNum: '2443' }, sg, '2443');
+  T('itemnumfix: a group with another 2442 — no box or sheet follows, and it says so', JSON.stringify([g2.change, g2.pieces.length, g2.sheets.length, g2.sharedGroup]), '[true,0,0,1]');
+  const nsRow = { itemNum: '38586', _era: 'mpc', _tab: 'Lionel MPC-Modern', itemType: 'Diesel Locomotive', roadName: 'Norfolk Southern' };
+  const cbqRow = { itemNum: '38725', _era: 'mpc', _tab: 'Lionel MPC-Modern', itemType: 'Diesel Locomotive', roadName: 'Chicago, Burlington & Quincy' };
+  const m = new Map([['38586', [nsRow]], ['38725', [cbqRow]]]);
+  T('itemnumfix: the moved copy (38725) resolves to the Burlington row', (_findMasterCore(m, '38725', null, null) || {}).roadName, 'Chicago, Burlington & Quincy');
+  T('itemnumfix: Lionel 38586 itself still resolves to Norfolk Southern', (_findMasterCore(m, '38586', null, null) || {}).roadName, 'Norfolk Southern');
+}
+
 console.log(fails ? ('\n' + fails + ' CANARY FAILURE(S) — a lookup path regressed.') : '\nALL CANARIES GREEN');
 process.exit(fails ? 1 : 0);
