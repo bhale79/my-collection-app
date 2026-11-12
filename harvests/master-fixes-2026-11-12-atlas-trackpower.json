@@ -1,0 +1,1517 @@
+{
+ "title": "Master fix 2026-11-12: Atlas Track/Power on the 149 new Atlas O rows + clear 2 USA Trains placeholder images (Master Version 2.96)",
+ "said": "[stated] Brad 2026-11-12 07:02 CT \"yes\"",
+ "rule": "Track/Power copied from each row’s own Notes (\"Track/Power: X;\"), read from Atlas’s page in the W2 review; the USA Trains Image URL held usatrains.com/images/noimage.gif, the site’s \"no image\" placeholder",
+ "cells": [
+  {
+   "tab": "Atlas O",
+   "row": 13026,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30138992",
+   "row_id": "CZEXV4SHD5",
+   "old": "",
+   "new": "3-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13027,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30138978",
+   "row_id": "TZW7FWM3C9",
+   "old": "",
+   "new": "3-Rail DCS"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13028,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139020",
+   "row_id": "8Q6CHMTRDE",
+   "old": "",
+   "new": "2-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13029,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139006",
+   "row_id": "K2AMT779WG",
+   "old": "",
+   "new": "2-Rail DCS"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13030,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30138993",
+   "row_id": "76ZGHJZBG7",
+   "old": "",
+   "new": "3-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13031,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30138979",
+   "row_id": "9EWWU38U2N",
+   "old": "",
+   "new": "3-Rail DCS"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13032,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139021",
+   "row_id": "G3H6J32KV3",
+   "old": "",
+   "new": "2-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13033,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139007",
+   "row_id": "59WGKDBQEJ",
+   "old": "",
+   "new": "2-Rail DCS"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13034,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30138994",
+   "row_id": "FZRWEUCBKU",
+   "old": "",
+   "new": "3-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13035,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30138980",
+   "row_id": "9SWNZQBM6H",
+   "old": "",
+   "new": "3-Rail DCS"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13036,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139022",
+   "row_id": "5CBJYKF47D",
+   "old": "",
+   "new": "2-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13037,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139008",
+   "row_id": "5PDZA5HDJS",
+   "old": "",
+   "new": "2-Rail DCS"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13038,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30138995",
+   "row_id": "7VCP34H3T5",
+   "old": "",
+   "new": "3-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13039,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30138981",
+   "row_id": "53HQMVHZE8",
+   "old": "",
+   "new": "3-Rail DCS"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13040,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139023",
+   "row_id": "WHZ6KXJJS7",
+   "old": "",
+   "new": "2-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13041,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139009",
+   "row_id": "JQHRCUN6M4",
+   "old": "",
+   "new": "2-Rail DCS"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13042,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30138996",
+   "row_id": "5TQJEXQ5YF",
+   "old": "",
+   "new": "3-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13043,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30138982",
+   "row_id": "BD7NJ7E5HY",
+   "old": "",
+   "new": "3-Rail DCS"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13044,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139024",
+   "row_id": "6Y2VFHFAUV",
+   "old": "",
+   "new": "2-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13045,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139010",
+   "row_id": "5CD473FDV3",
+   "old": "",
+   "new": "2-Rail DCS"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13046,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30138997",
+   "row_id": "KHQYAA2NK9",
+   "old": "",
+   "new": "3-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13047,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30138983",
+   "row_id": "QJ82YFQP34",
+   "old": "",
+   "new": "3-Rail DCS"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13048,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139025",
+   "row_id": "RFXKSUGFXY",
+   "old": "",
+   "new": "2-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13049,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139011",
+   "row_id": "BMFBJV2EVR",
+   "old": "",
+   "new": "2-Rail DCS"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13050,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30138998",
+   "row_id": "68XYMACF3M",
+   "old": "",
+   "new": "3-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13051,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30138984",
+   "row_id": "P8E8HTPFX9",
+   "old": "",
+   "new": "3-Rail DCS"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13052,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139026",
+   "row_id": "7QB7G8AZHR",
+   "old": "",
+   "new": "2-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13053,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139012",
+   "row_id": "3GFBSA9BB6",
+   "old": "",
+   "new": "2-Rail DCS"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13054,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30138999",
+   "row_id": "PVCFP43N9S",
+   "old": "",
+   "new": "3-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13055,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30138985",
+   "row_id": "MUN4T8KF5D",
+   "old": "",
+   "new": "3-Rail DCS"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13056,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139027",
+   "row_id": "MZZSTAQED4",
+   "old": "",
+   "new": "2-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13057,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139013",
+   "row_id": "SDUTHJHXM2",
+   "old": "",
+   "new": "2-Rail DCS"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13058,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139000",
+   "row_id": "MRPGES9M2K",
+   "old": "",
+   "new": "3-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13059,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30138986",
+   "row_id": "A4C44ZGE6U",
+   "old": "",
+   "new": "3-Rail DCS"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13060,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139028",
+   "row_id": "ZCSNJ89T5A",
+   "old": "",
+   "new": "2-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13061,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139014",
+   "row_id": "Q8XH9QQ7VW",
+   "old": "",
+   "new": "2-Rail DCS"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13062,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139001",
+   "row_id": "PJW342ARDR",
+   "old": "",
+   "new": "3-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13063,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30138987",
+   "row_id": "V354S228YW",
+   "old": "",
+   "new": "3-Rail DCS"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13064,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139029",
+   "row_id": "4ZJ6P9ANVE",
+   "old": "",
+   "new": "2-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13065,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139015",
+   "row_id": "Y98ZPS6G35",
+   "old": "",
+   "new": "2-Rail DCS"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13066,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139002",
+   "row_id": "WG4WWN7WA9",
+   "old": "",
+   "new": "3-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13067,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30138988",
+   "row_id": "4NVVF88ZAS",
+   "old": "",
+   "new": "3-Rail DCS"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13068,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139030",
+   "row_id": "3FG9UNVC5U",
+   "old": "",
+   "new": "2-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13069,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139016",
+   "row_id": "EVE6Z8SRQK",
+   "old": "",
+   "new": "2-Rail DCS"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13070,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139003",
+   "row_id": "4538256VTZ",
+   "old": "",
+   "new": "3-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13071,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30138989",
+   "row_id": "9KHZKC8FPJ",
+   "old": "",
+   "new": "3-Rail DCS"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13072,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139031",
+   "row_id": "RDTSH44S3K",
+   "old": "",
+   "new": "2-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13073,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139017",
+   "row_id": "TDQD22986Y",
+   "old": "",
+   "new": "2-Rail DCS"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13074,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139004",
+   "row_id": "XFC3G9B5XW",
+   "old": "",
+   "new": "3-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13075,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30138990",
+   "row_id": "53768J8MBA",
+   "old": "",
+   "new": "3-Rail DCS"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13076,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139032",
+   "row_id": "JPCC4XRCQZ",
+   "old": "",
+   "new": "2-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13077,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139018",
+   "row_id": "RZ7WMTGZHC",
+   "old": "",
+   "new": "2-Rail DCS"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13078,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139005",
+   "row_id": "KDR26QZGQW",
+   "old": "",
+   "new": "3-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13079,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30138991",
+   "row_id": "CPZ25D52QJ",
+   "old": "",
+   "new": "3-Rail DCS"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13080,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139033",
+   "row_id": "GYY9BF4GQA",
+   "old": "",
+   "new": "2-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13081,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139019",
+   "row_id": "6KSJ69R9A7",
+   "old": "",
+   "new": "2-Rail DCS"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13082,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139034",
+   "row_id": "REGNEQ6P32",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13083,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139035",
+   "row_id": "9SJ924PE8H",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13084,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139036",
+   "row_id": "X7TVB85GRZ",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13085,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139037",
+   "row_id": "TR293V59EY",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13086,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139038",
+   "row_id": "YSJAWVJWUF",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13087,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139039",
+   "row_id": "F4GPP6WBR9",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13088,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139040",
+   "row_id": "RSEHD5HERB",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13089,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139041",
+   "row_id": "CEE3F9C34H",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13090,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139042",
+   "row_id": "SJJPBNXSY6",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13091,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30138870",
+   "row_id": "BFE6U39V4X",
+   "old": "",
+   "new": "2-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13092,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30138871",
+   "row_id": "ZH57K7JABM",
+   "old": "",
+   "new": "2-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13093,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30138872",
+   "row_id": "5QDMH4TSGP",
+   "old": "",
+   "new": "2-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13094,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30138873",
+   "row_id": "WK6H83ZNND",
+   "old": "",
+   "new": "2-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13095,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30138874",
+   "row_id": "YW2QEX3B2K",
+   "old": "",
+   "new": "2-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13096,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30138875",
+   "row_id": "KD2Y7X6DNE",
+   "old": "",
+   "new": "2-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13097,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30138876",
+   "row_id": "3H4MEVMGWX",
+   "old": "",
+   "new": "2-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13098,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30138877",
+   "row_id": "YJVNREWYM8",
+   "old": "",
+   "new": "2-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13099,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30138878",
+   "row_id": "2VC2NQ6D8M",
+   "old": "",
+   "new": "2-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13100,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30138879",
+   "row_id": "HDBXWW4CT7",
+   "old": "",
+   "new": "2-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13101,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30138880",
+   "row_id": "M6QRYZ5BUZ",
+   "old": "",
+   "new": "2-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13102,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30138881",
+   "row_id": "8XYKZ78YSM",
+   "old": "",
+   "new": "2-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13103,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30138882",
+   "row_id": "8VHAQHGTDU",
+   "old": "",
+   "new": "2-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13104,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30138883",
+   "row_id": "8ATCEE5D6P",
+   "old": "",
+   "new": "2-Rail Analog"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13105,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3003256",
+   "row_id": "FNWSP49RHJ",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13106,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3004256",
+   "row_id": "29RYCZ46BQ",
+   "old": "",
+   "new": "2-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13107,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3003257",
+   "row_id": "48G3UA8UUP",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13108,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3004257",
+   "row_id": "R6PGHUD7SZ",
+   "old": "",
+   "new": "2-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13109,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3003258",
+   "row_id": "C228SGVXCV",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13110,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3004258",
+   "row_id": "MRRNS28F5W",
+   "old": "",
+   "new": "2-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13111,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3003259",
+   "row_id": "SB92MV529C",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13112,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3004259",
+   "row_id": "YBHWDXVMSD",
+   "old": "",
+   "new": "2-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13113,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3003260",
+   "row_id": "HSDKENUZD3",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13114,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3004260",
+   "row_id": "JZD3WWDJQG",
+   "old": "",
+   "new": "2-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13115,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3003261",
+   "row_id": "AMYS67VJNJ",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13116,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3004261",
+   "row_id": "UH4C9UJN27",
+   "old": "",
+   "new": "2-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13117,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3003262",
+   "row_id": "77SEH48TS3",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13118,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3004262",
+   "row_id": "DE5WQ4PACG",
+   "old": "",
+   "new": "2-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13119,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3003263",
+   "row_id": "5YAPA6A8YS",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13120,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3004263",
+   "row_id": "75TSHEX7QH",
+   "old": "",
+   "new": "2-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13121,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3003264",
+   "row_id": "BAP8AGTCHX",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13122,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3004264",
+   "row_id": "9FKV9EKZQG",
+   "old": "",
+   "new": "2-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13123,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3003265",
+   "row_id": "Y2PQU6JVRC",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13124,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3004265",
+   "row_id": "VJNBJN5Y5M",
+   "old": "",
+   "new": "2-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13125,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3003266",
+   "row_id": "SCNWXK8WGQ",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13126,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3004266",
+   "row_id": "BPXRYNWJWB",
+   "old": "",
+   "new": "2-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13127,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3003267",
+   "row_id": "E6GGKWYKT4",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13128,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3004267",
+   "row_id": "XDYUNQARPT",
+   "old": "",
+   "new": "2-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13129,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3003268",
+   "row_id": "SXJSC6HKVX",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13130,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3004268",
+   "row_id": "UTQVAWCVBD",
+   "old": "",
+   "new": "2-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13131,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3003269",
+   "row_id": "3R77HZ9NZV",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13132,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3004269",
+   "row_id": "5YRN9MSNWG",
+   "old": "",
+   "new": "2-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13133,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3003270",
+   "row_id": "W9S6U53EDV",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13134,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3004270",
+   "row_id": "NNF75M3UUJ",
+   "old": "",
+   "new": "2-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13135,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3003271",
+   "row_id": "D6R75XX9RQ",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13136,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3004271",
+   "row_id": "2H2ZSW4D99",
+   "old": "",
+   "new": "2-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13137,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3003272",
+   "row_id": "6BXV22P7CS",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13138,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3004272",
+   "row_id": "U492TVAUJ6",
+   "old": "",
+   "new": "2-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13139,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3003273",
+   "row_id": "SSXXMT4SXB",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13140,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3004273",
+   "row_id": "66ADKZFUYX",
+   "old": "",
+   "new": "2-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13141,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139052",
+   "row_id": "YRR6W25WRF",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13142,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139053",
+   "row_id": "Z9XEZDP2PW",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13143,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139054",
+   "row_id": "URZENAH69H",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13144,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139055",
+   "row_id": "JCNDQF2D4N",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13145,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139056",
+   "row_id": "XZCPV7A7DD",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13146,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139057",
+   "row_id": "CD7ZAV4UYP",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13147,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139058",
+   "row_id": "JYGHQDZ77F",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13148,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139043",
+   "row_id": "TSSVBAJM3E",
+   "old": "",
+   "new": "2-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13149,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139044",
+   "row_id": "CRU64WXHED",
+   "old": "",
+   "new": "2-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13150,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139045",
+   "row_id": "VTDPUPRGCU",
+   "old": "",
+   "new": "2-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13151,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139046",
+   "row_id": "4J62HHFXG4",
+   "old": "",
+   "new": "2-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13152,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139047",
+   "row_id": "ZHVTACRKJ9",
+   "old": "",
+   "new": "2-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13153,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139048",
+   "row_id": "C78GFSKP4N",
+   "old": "",
+   "new": "2-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13154,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139049",
+   "row_id": "JR39VPT8GK",
+   "old": "",
+   "new": "2-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13155,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139050",
+   "row_id": "STT3CKPNFC",
+   "old": "",
+   "new": "2-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13156,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "30139051",
+   "row_id": "AEUZSD4JYV",
+   "old": "",
+   "new": "2-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13157,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3003252A",
+   "row_id": "JRSDTJPMN4",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13158,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3004252A",
+   "row_id": "X48KKBKXXD",
+   "old": "",
+   "new": "2-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13159,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3003252B",
+   "row_id": "SN8B2U3AJR",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13160,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3004252B",
+   "row_id": "WNBU4F93RD",
+   "old": "",
+   "new": "2-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13161,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3003252C",
+   "row_id": "FV4REH3FUG",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13162,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3004252C",
+   "row_id": "4WZC8TZYDK",
+   "old": "",
+   "new": "2-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13163,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3003253A",
+   "row_id": "EF899PJWSE",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13164,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3004253A",
+   "row_id": "F5YCYB58CV",
+   "old": "",
+   "new": "2-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13165,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3003253B",
+   "row_id": "BYQQ2JRAFU",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13166,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3004253B",
+   "row_id": "5GD355RUM4",
+   "old": "",
+   "new": "2-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13167,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3003253C",
+   "row_id": "WCAHTPFFY7",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13168,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3004253C",
+   "row_id": "BVZE8W57T4",
+   "old": "",
+   "new": "2-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13169,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3003254A",
+   "row_id": "8MXAHRJ6BB",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13170,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3004254A",
+   "row_id": "4U2KZEE2TG",
+   "old": "",
+   "new": "2-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13171,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3003254B",
+   "row_id": "CWMMTNDFYP",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13172,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3004254B",
+   "row_id": "2AYDAPYUZD",
+   "old": "",
+   "new": "2-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13173,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3003255A",
+   "row_id": "XJM9NX86FP",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "row": 13174,
+   "col": "T",
+   "header": "Track/Power",
+   "item": "3004255A",
+   "row_id": "WZGC7DVY3K",
+   "old": "",
+   "new": "2-Rail"
+  },
+  {
+   "tab": "USA Trains G",
+   "row": 2252,
+   "col": "X",
+   "header": "Image URL",
+   "item": "R19166C",
+   "row_id": "PXCBHZV5GB",
+   "old": "https://www.usatrains.com/images/noimage.gif",
+   "new": ""
+  },
+  {
+   "tab": "USA Trains G",
+   "row": 2253,
+   "col": "X",
+   "header": "Image URL",
+   "item": "R19166D",
+   "row_id": "NHSQSK5RE6",
+   "old": "https://www.usatrains.com/images/noimage.gif",
+   "new": ""
+  }
+ ]
+}
