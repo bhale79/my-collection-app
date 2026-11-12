@@ -1338,6 +1338,11 @@
           // number — exactly what Brad flagged ("why are we matching to set
           // item numbers"). Only item rows may quote.
           if (_pinIsSetRow(row)) return;
+          // photoid666 (2026-11-12, Brad's Marx 666 under the Marx filter → part
+          // mx-25 "Motor Chassis … Fits 666/1666 Locos"): a PART names the item it
+          // fits — it is never that item. Only item rows may quote (rrRowKind,
+          // the ONE kind rule).
+          if (rrRowKind(row) === 'part') return;
           var toks = String(row.description || '').match(/\d[\dA-Za-z]*(?:-[\dA-Za-z]+)*/g) || [];
           var seen = {};
           toks.forEach(function (t) {
@@ -1672,9 +1677,14 @@
     var dim = maxDim || 2400;
     var _photoCols = _pinPhotoColors(bmp);   // v0.9.1101: before the bitmap closes
     var best = null, text = '', stampSaw = '', textAll = '';
+    var _passMs = [];   // photoid666: each pass's time, for Photo ID's read record
     for (var pi = 0; pi < _FREE_PASSES.length; pi++) {
       var p = _FREE_PASSES[pi];
       var t = '', r = null;
+      var _pt0 = Date.now();
+      // photoid666 (2026-11-12, Brad waited ~4½ min on "reading closer…" with no
+      // sign it was moving): the caller hears each pass start
+      if (opt && typeof opt.onPass === 'function') { try { opt.onPass(pi + 1, _FREE_PASSES.length); } catch (eOP) {} }
       try {
         await w.setParameters({ tessedit_char_whitelist: p.wl === 'digits' ? _WL_DIGITS : _WL_FULL });
         if (p.mode === 'stamp') {
@@ -1750,7 +1760,7 @@
         } else {
           t = (((await w.recognize(_auditCanvas(bmp, dim, p.mode))).data) || {}).text || '';
         }
-      } catch (eP) { continue; }
+      } catch (eP) { _passMs.push(Date.now() - _pt0); continue; }
       if (!r) r = _numberFromText(t, prefer);
       // An empty answer still carries its reasoning, so keep it if nothing
       // better turns up — but never let it outrank a real one.
@@ -1774,6 +1784,7 @@
       // 1-3 digit confirm is exactly what 225 and 250 were — real catalog
       // items scraped off the wrong part of the frame — so the remaining
       // passes (above all the white-stamp pass) still get their turn.
+      _passMs.push(Date.now() - _pt0);
       if (best && best.matched && best.num
           && (String(best.num).replace(/\D/g, '').length >= 4
               || (best.dbg && best.dbg.viaMaker))) break;
@@ -1855,6 +1866,7 @@
     // way to tell whether the reader saw it on the item, on the shelf behind it,
     // or invented it from a shadow. Keep the words it actually read.
     if (out) out.raw = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 180);
+    if (out) out.passMs = _passMs;   // photoid666: the read record says how long each pass took
     return out;
   }
   // v0.9.1950 (Brad's Woodruff 2-pack, "still can't read it"): Photo ID read

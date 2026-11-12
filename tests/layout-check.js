@@ -1385,8 +1385,20 @@ _identifyShowPasteEcho(Array(40).join('The Lionel 2331 Virginian Train Master is
         { itemNum: '6464-500', description: 'Original box', _era: 'pw', _tab: 'Lionel PW - Boxes' },
         { itemNum: '6464-500', description: 'Inspection slip', _era: 'pw', _tab: 'Lionel PW - Paper' },
       ]);
+      // photoid666 2026-11-12: the picker's own sub-line now reads its words from
+      // RR_PHOTO_ID_CHOICE (config.js, loaded before barcode.js in the app). LIFT THE
+      // REAL ONE — the object's source, brace-matched — so the words are the app's.
+      const _cfgPick = fs.readFileSync(path.join(APP, 'config.js'), 'utf8');
+      const _cc0 = _cfgPick.indexOf('const RR_PHOTO_ID_CHOICE = {');
+      let _choiceSrc = '';
+      if (_cc0 >= 0) {
+        const o = _cfgPick.indexOf('{', _cc0); let d = 0;
+        for (let k = o; k < _cfgPick.length; k++) { if (_cfgPick[k] === '{') d++; else if (_cfgPick[k] === '}' && --d === 0) { _choiceSrc = _cfgPick.slice(_cc0, k + 1) + ';'; break; } }
+      }
+      ok('picker: RR_PHOTO_ID_CHOICE was lifted from config.js', /oneEntry/.test(_choiceSrc) && /manyEntries/.test(_choiceSrc));
       const pickPage = `<!doctype html><html><head><meta charset="utf-8">
 <style>html,body{margin:0;height:100%;background:#111}</style></head><body>
+<script>${_choiceSrc}</script>
 <script>
   function _eraLabel() { return 'Lionel Postwar'; }
   function _bcEsc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }

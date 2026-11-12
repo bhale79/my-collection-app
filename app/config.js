@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2143';
+const APP_VERSION = 'v0.9.2144';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -5203,12 +5203,17 @@ const RR_PHOTO_ID_CHOICE = {
   needNum: 'Type the item number first',
   noneFound: 'No {maker} {num} in the catalog \u2014 adding it as your own item',
   notItHint: '\u26a0 You said the catalog photo doesn\u2019t match \u2014 try {ways}',
+  // photoid666 (2026-11-12): the picker's line after "The number N" — one row is
+  // never "several" (T-2026-11-11-03 showed mx-25 alone under that heading)
+  oneEntry: 'has one catalog entry \u2014 is this yours?',
+  manyEntries: 'matches {n} catalog entries.',
 };
 // v0.9.1950 — Photo ID's closer look. When the quick look at the lettering
 // finds no number, the multi-pass reader (photo-inbox.js rrFreeReadBlob) gets
 // the same picture. Still free; only a catalog-confirmed number is kept.
 const RR_PHOTO_ID_CLOSER = {
   reading: 'Lettering: reading closer…',
+  readingPass: 'Lettering: reading closer\u2026 (pass {n} of {of})',   // photoid666: the line moves with each pass
   // v0.9.1951 (Brad's screenshot of the whole screen — the browser's own
   // "2026" outvoted the box's 1927690): when the closer look reads numbers the
   // catalog knows but confirms none, they are offered, longest first.
@@ -5217,6 +5222,9 @@ const RR_PHOTO_ID_CLOSER = {
   lettering: 'Lettering: read several numbers — not sure which is yours',
   stage: 'Catalog: which number is YOUR item?',
   choose: 'The closer look read these numbers in the picture, and the catalog knows each one. Which one is YOUR item?',
+  // photoid666 (2026-11-12, Brad's Marx 666 read as 1666): a mark beside the
+  // number read as a "1" — both numbers are real items, so he picks. {nums} "1666 or 666"
+  leadOne: 'The picture reads {nums} \u2014 a mark beside a number can read as a 1. Which one is YOUR item?',
   // 2026-11-03 (Mike Caruso's sideways MTH label — PLAN_2026-11-03_PHOTO_ID_IPHONE):
   // on a miss the quick reader also reads the picture turned these ways
   turns: [90, 270],

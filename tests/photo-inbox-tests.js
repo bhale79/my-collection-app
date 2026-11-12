@@ -23783,7 +23783,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /_hit\.concat\(_rest\)/.test(vr) && /String\(m\.roadName \|\| ''\)\.trim\(\) === String\(mr\)\.trim\(\)/.test(vr));
       ok('335 itemType and period stay HARD filters — they separate real things',
          /String\(m\.itemType \|\| ''\)\.trim\(\) !== String\(mt\)\.trim\(\)\) return false/.test(vr)
-         && /_wizPeriodOfRow\(m\) !== wantPeriod\) return false/.test(vr));
+         // photoid666 (2026-11-12): still HARD for a KNOWN period; a row of unknown period (an undated Marx row) is not thrown out
+         && /var _rpV = _wizPeriodOfRow\(m\); if \(_rpV && _rpV !== wantPeriod\) return false;/.test(vr));
       ok('335 the variation card names the road when the roads differ',
          /_vMultiRoad/.test(wsrc) && /_vRoads\.size > 1/.test(wsrc));
 

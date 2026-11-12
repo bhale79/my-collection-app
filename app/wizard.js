@@ -389,7 +389,12 @@ function _wizPeriodOfRow(m) {
   var e2 = String(m._era || '');
   if (e2 === 'prewar') return 'prewar';
   if (e2 === 'pw' || e2 === 'pw_ho') return 'postwar';
-  if (e2) return 'modern';
+  // photoid666 (2026-11-12, Brad's Marx 666): a row with NO year in a catalog
+  // the period map does not place (_ERA_KEY_TO_PERIOD, browse.js — today Marx
+  // O, 1927-2004, and Other O Brands) is of UNKNOWN period, not "modern": the
+  // undated Marx 1666 and the windup 666 vanished under Era = Postwar, and a
+  // read of 1666 fell through to a part that "fits 666/1666". Unknown ('')
+  // fits any Era filter (every caller asks `period && …`).
   return _wizPeriodOfYear(String(m.yearProd || ''));
 }
 if (typeof window !== 'undefined') window._wizMasterPrefer = _wizMasterPrefer;
@@ -458,7 +463,7 @@ function _wizRowFitsFilters(m, f) {
       // v0.9.1935: a product carrying the chosen maker's name counts too ("Also Sold As")
       if (_n(rk) !== _n(f.mfr) && !(typeof rrRowAlsoSoldBy === 'function' && rrRowAlsoSoldBy(m, f.mfr))) return false;
     }
-    if (f.period && _wizPeriodOfRow(m) !== f.period) return false;
+    if (f.period) { var _rpF = _wizPeriodOfRow(m); if (_rpF && _rpF !== f.period) return false; }   // photoid666: unknown period fits
     if (f.type) {
       var bt = (typeof getTypeBucketLabel === 'function') ? getTypeBucketLabel(m) : String(m.itemType || '').trim();
       if (bt !== f.type) return false;
@@ -590,7 +595,7 @@ function _wizVariationRows(itemNum) {
     if (m.itemNum !== num) return false;
     if (!m.variation) return false;
     if (mt && String(m.itemType || '').trim() !== String(mt).trim()) return false;
-    if (wantPeriod && _wizPeriodOfRow(m) !== wantPeriod) return false;
+    if (wantPeriod) { var _rpV = _wizPeriodOfRow(m); if (_rpV && _rpV !== wantPeriod) return false; }   // photoid666: unknown period fits
     // photoidfix (2026-11-11): with a row held, its variations are the rows of
     // its OWN catalog (tab) — never another maker's same number in the same
     // period (Marx 666 vs Lionel 666, chosen with no maker filter on).

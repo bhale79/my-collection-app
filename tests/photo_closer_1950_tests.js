@@ -164,7 +164,8 @@ async function waitFor(pg, fn, ms) {
       const start = bc.indexOf("    if (!(rawCands || []).length && !_bcNamed && !(opts && opts.ignoreNums) && typeof window.rrFreeReadBlob === 'function') {");
       // v0.9.1955: the reading step moved into _biReadPicture (shared with the
       // Your Picture box); its stop check reads stopped() now
-      const END = '      if (stopped()) return { cancel: true };\n    }\n';
+      // photoid666 (2026-11-12): a stop during the closer look now leaves its read record first
+      const END = "      if (stopped()) { rec.closer = (rec.closer || 'stopped at pass ' + (rec.closerPass || '?')); _recDone('stopped'); return { cancel: true }; }   // photoid666: a stopped read is recorded too\n    }\n";
       const end = start < 0 ? -1 : bc.indexOf(END, start);
       if (start < 0 || end < 0) T('A PLANTED: could plant Photo ID without the closer look', false, { start, end });
       else {

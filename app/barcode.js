@@ -232,6 +232,36 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       });
     });
   }
+  // photoid666 (2026-11-12, Brad's Marx 666 under the Marx filter): the cab
+  // window's edge beside "666" read as a 1 — "1666", also a real Marx engine.
+  // A four-digit read "1" + a three-digit item number, where BOTH are items
+  // inside the screen's filters (or the barcode's maker), is a question, never
+  // an answer: the shorter one is offered beside it. With no filter and no
+  // barcode nothing is asked (every catalog would answer). Parts never count
+  // (rrRowKind). -> [{raw, mfr, from}] to ADD to the choices
+  async function _biLeadOneTwins(cands, pref, out) {
+    var nums = (cands || []).map(function (c) { return String((c && c.raw) || ''); });
+    var twins = [];
+    var mk0 = (out && out.bcMaker && !out.bcOutsideCrop) ? String(out.bcMaker) : '';
+    // a filter that names no maker, period or scale (Type alone) narrows nothing — treated as none
+    if (!mk0 && !(pref && (pref.manufacturer || pref.period || pref.scale))) return twins;
+    for (var i = 0; i < nums.length; i++) {
+      var m = /^1(\d{3})$/.exec(nums[i]);
+      if (!m || nums.indexOf(m[1]) >= 0 || twins.some(function (t) { return t.raw === m[1]; })) continue;
+      var rows = [];
+      try { rows = await _findMasterItemsAllEras([nums[i], m[1]]); } catch (eR) { rows = []; }
+      var mk = (out && out.bcMaker && !out.bcOutsideCrop) ? _bcMfrKey(out.bcMaker) : '';
+      var fits = function (r) {
+        if (!r || rrRowKind(r) !== 'item') return false;
+        if (mk && !_bcRowIsMfr(r, mk)) return false;
+        return !(pref && typeof window.rrRowFitsPrefer === 'function' && !window.rrRowFitsPrefer(r, pref));
+      };
+      var has = function (n) { return rows.some(function (r) { return fits(r) && (String(r.itemNum) === n || rrNumSame(r.itemNum, n)); }); };
+      if (has(nums[i]) && has(m[1])) twins.push({ raw: m[1], mfr: '', from: nums[i] });
+    }
+    return twins;
+  }
+  window._biLeadOneTwins = _biLeadOneTwins;   // tests reach it here
   // ── THE Photo ID read record (2026-11-03) ──
   // One short record per read, the last RR_PHOTO_ID_CLOSER.recordKeep kept on
   // the device; Report a problem prints them (error-report.js), so the next
@@ -1397,7 +1427,8 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         +     (_things ? (_bcEsc(RR_PHOTO_ID_CHOICE.thingsSub).replace('{num}', '<strong style="color:#ffd27d">' + _bcEsc((scanResult && (scanResult.itemNum || scanResult.code5)) || '') + '</strong>') + ' ')
           :   (scanResult && scanResult.code5)
               ? ('The barcode ends in <strong style="color:#ffd27d">' + _bcEsc(scanResult.code5) + '</strong> &mdash; these items all share those digits. ')
-              : ('The number <strong style="color:#ffd27d">' + _bcEsc((scanResult && scanResult.itemNum) || '') + '</strong> matches several catalog entries. '))
+              : ('The number <strong style="color:#ffd27d">' + _bcEsc((scanResult && scanResult.itemNum) || '') + '</strong> '   // photoid666: the count is said, never "several" for one
+                 + _bcEsc(((candidates || []).length === 1 ? RR_PHOTO_ID_CHOICE.oneEntry : RR_PHOTO_ID_CHOICE.manyEntries).replace('{n}', String((candidates || []).length))) + ' '))
         +     (_things ? '' : 'Tap the right one, or use View to check a photo.') + '</div>'
         +   ((scanResult && scanResult.cautionHtml) ? '<div style="color:#ffb27d;font-size:0.8rem;text-align:center">&#9888; ' + _bcEsc(scanResult.cautionHtml) + '</div>' : '')
         +   '<div style="overflow-y:auto;max-height:58vh;max-height:58dvh;margin-top:0.3rem">' + rowsHtml + noneHtml + '</div>'
@@ -3230,7 +3261,15 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         // Marklin HO coach) never counts as confirmed while filtered to Lionel O.
         var _frPref = _tPref;   // v0.9.1977 the screen's filters; 2026-11-03 + the barcode's maker (_biCloserPrefer)
         var _frNarrow = !!(_frPref && _frPref.eras && _frPref.eras.length);
-        var _fr = _frBlob ? await _rtTime('label read (closer)', window.rrFreeReadBlob(_frBlob, 2400, _frPref, { barcodeDone: true })) : null;
+        // photoid666: each pass is shown as it starts (never a frozen-looking line)
+        var _frOpt = { barcodeDone: true, onPass: function (n, of) {
+          st('ocr', '<span class="bi-spin">⟳</span>', RR_PHOTO_ID_CLOSER.readingPass.replace('{n}', String(n)).replace('{of}', String(of)));
+          rec.closerPass = n + '/' + of;
+        } };
+        var _frT0 = Date.now();
+        var _fr = _frBlob ? await _rtTime('label read (closer)', window.rrFreeReadBlob(_frBlob, 2400, _frPref, _frOpt)) : null;
+        rec.closerMs = Date.now() - _frT0;
+        if (_fr && _fr.passMs) rec.passMs = _fr.passMs.join(',');
         rec.closer = _fr ? ((_fr.matched ? 'sure ' : 'unsure ') + String(_fr.num || '-') + ' | in ' + ((_fr.dbg && _fr.dbg.inEra) || []).slice(0, 4).join(',')
           + ' | out ' + ((_fr.dbg && _fr.dbg.offEra) || []).slice(0, 4).join(',') + (_frNarrow ? ' | maker ' + (_frPref.manufacturer || '') : '')) : 'no answer';
         if (_fr && _fr.matched && _fr.num) rawCands = [{ raw: String(_fr.num), mfr: '' }];
@@ -3247,11 +3286,18 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           else if (_frNarrow && _frPref._fromBarcode) _closerNone = _frPref._fromBarcode;
         }
       } catch (eFR) {}
-      if (stopped()) return { cancel: true };
+      if (stopped()) { rec.closer = (rec.closer || 'stopped at pass ' + (rec.closerPass || '?')); _recDone('stopped'); return { cancel: true }; }   // photoid666: a stopped read is recorded too
     }
     // v0.9.691: "Not this — identify the item by AI" re-run: printed numbers
     // in frame belong to NEIGHBORING items — ignore them all.
     if (opts && opts.ignoreNums) rawCands = [];
+    var _leadOne = '';   // photoid666: "1666" read where "666" may be printed — asked, never chosen
+    if ((rawCands || []).length && !(opts && opts.ignoreNums)) {
+      try {
+        var _lo = await _biLeadOneTwins(rawCands, _tPref, out);
+        if (_lo.length) { rawCands = rawCands.concat(_lo.map(function (x) { return { raw: x.raw, mfr: x.mfr }; })); _closerUnsure = true; _leadOne = _lo[0].from + ' or ' + _lo[0].raw; rec.leadOne = _leadOne; }
+      } catch (eLO) {}
+    }
     out.ocrNums = (rawCands || []).map(function (c) { return String((c && (c.raw || c.num || c.itemNum)) || c || '').trim(); })
       .filter(function (v) { return v && v !== '[object Object]'; });
     // carry the extractor's maker tag too (e.g. MTH pattern hit)
@@ -3269,7 +3315,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
 
     _recDone(out.ocrNums.length ? ((_closerUnsure ? 'choices ' : 'read ') + out.ocrNums.slice(0, 4).join(',') + (out.why.turned ? ' (turned ' + out.why.turned + ')' : '')) : 'no number');
     return { out: out, bc: bc, bcResult: bcResult, ocrText: ocrText, rawCands: rawCands,
-             numsFromFullFrame: _numsFromFullFrame, closerUnsure: _closerUnsure };
+             numsFromFullFrame: _numsFromFullFrame, closerUnsure: _closerUnsure, leadOne: _leadOne };
   }
 
   async function _biPipelineCore(fullCanvas, workCanvas, lockedBc, eraHint, opts) {
@@ -3321,7 +3367,8 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         : _outsideCrop
         ? 'Catalog: a number was read OUTSIDE your crop — is it your item?'
         : 'Catalog: ' + _dnums.length + ' different numbers in the shot — which one is YOUR item?', _BC_AMBER);
-      var _pickN = await _rtWait('pick a number', _biNumPicker(_dnums, _closerUnsure ? RR_PHOTO_ID_CLOSER.choose
+      var _pickN = await _rtWait('pick a number', _biNumPicker(_dnums, _rp.leadOne ? RR_PHOTO_ID_CLOSER.leadOne.replace('{nums}', _rp.leadOne)
+        : _closerUnsure ? RR_PHOTO_ID_CLOSER.choose
         : _outsideCrop
         ? 'Your crop had no readable number, but ' + _dnums.slice(0, 3).join(', ') + ' was read from the FULL photo (outside your crop). Is that your item?'
         : null));
