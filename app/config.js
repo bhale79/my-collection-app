@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2142';
+const APP_VERSION = 'v0.9.2143';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -5651,6 +5651,11 @@ const RR_ADD_FILTERS = {
   setBtn:      'Add as a set',
   // at most this many set rows join the list for a short number ("1" → 1000s)
   setRowsMax:  12,
+  // 2026-11-11 (WAITING item from hand-test T-2026-11-01-08; [stated] Brad
+  // 06:42 CT "yes"): the typed number IS a Lionel Postwar set — the green line
+  // under the box names the set, not its box ("Found: Paper") or its old
+  // catalog copy. {num} = the set number; the set's own details follow.
+  setFound:    'Lionel Postwar set {num}',
 };
 if (typeof window !== 'undefined') window.RR_ADD_FILTERS = RR_ADD_FILTERS;
 

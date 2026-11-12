@@ -493,9 +493,19 @@ function updateItemSuggestions(query) {
       // rosstab (2026-11-05, [stated] Brad "Yes, one row per maker"): two MAKERS'
       // rows never merge — Lionel's 902 Elevated Trestle and Ross's 902 Mating Pins
       // share number, type and a blank road, so the list showed Lionel's alone.
-      // Keyed on the maker (not the catalog), so Lionel postwar and modern still
-      // merge exactly as before.
+      // Keyed on the maker (not the catalog). (2026-11-11: two eras of one maker
+      // no longer merge either — the line below.)
       _dedupeKey += '|' + _sgMakerOfRow(m);
+      // 2026-11-11 (eratwins, [stated] Brad "yes"; WAITING (b), hand-test
+      // T-2026-11-05-05): …and two ERAS' rows never merge either. Lionel's
+      // Pre-War 022 switches and Postwar 022 switch share number, type and a
+      // blank road, so the list showed ONE row, tagged Postwar — the Pre-War
+      // 022 could not be picked at all. Measured on the live master: 73 numbers
+      // folded this way (65 Pre-War behind Postwar, 7 MPC behind Postwar, and
+      // one Lionel American Flyer S row behind an O gauge MPC row). Each era is
+      // its own row now; the row already says which era it is. The parts
+      // catalogs stay ONE row per part (_sgEraOfRow).
+      _dedupeKey += '|' + _sgEraOfRow(m);
       if (!seen.has(_dedupeKey)) {
         seen.add(_dedupeKey);
         const road = m.roadName || '';
@@ -569,12 +579,25 @@ function updateItemSuggestions(query) {
         if (typeof rrEnsurePostwarSets === 'function') {
           rrEnsurePostwarSets().then(function (got) {
             var _inp = document.getElementById('wiz-input');
-            if (got && got.length && _inp && String(_inp.value || '').trim().toLowerCase() === q) updateItemSuggestions(_inp.value);
+            if (got && got.length && _inp && String(_inp.value || '').trim().toLowerCase() === q) {
+              updateItemSuggestions(_inp.value);
+              if (typeof lookupItem === 'function') lookupItem(_inp.value);   // 2026-11-11: the green line asks the sets again too
+            }
           }).catch(function () {});
         }
       } else {
         var _setMax = ((window.RR_ADD_FILTERS || {}).setRowsMax) || 12;
-        _setHits.slice(0, _setMax).forEach(function (g) {
+        var _shownSets = _setHits.slice(0, _setMax);
+        // the typed number IS a set, written another way ("1467-w"): its row too
+        var _exactSet = (typeof _wizTypedPostwarSet === 'function') ? _wizTypedPostwarSet(numPart) : null;
+        if (_exactSet && !_shownSets.some(function (g) { return g.setNum === _exactSet.setNum; })) _shownSets.unshift(_exactSet);
+        // 2026-11-11: the set's old catalog copy (PW Items, type Set) is the
+        // SAME set as its row here — one row per set, the one with its versions
+        candidates = candidates.filter(function (c) {
+          return !(c && !c._setNum && _wizSetCopyRow(c._row)
+            && _shownSets.some(function (g) { return rrNumSameAsTyped(c.num, g.setNum); }));
+        });
+        _shownSets.forEach(function (g) {
           candidates.push({ num: g.setNum, roadName: '', itemType: '', subType: '', varDesc: '',
             description: _wizSetRowDetails(g), refLink: '', label: g.setNum, _row: g.row, _setNum: g.setNum });
         });
@@ -586,15 +609,18 @@ function updateItemSuggestions(query) {
     // The master sheet has phantom/placeholder rows for some items that
     // were surfacing as duplicate bare rows after Session 113's expanded
     // dedup key. Populated variations always take priority.
+    // 2026-11-11 (eratwins): per era, like the duplicate key above — a bare
+    // Pre-War row is a real Pre-War item, never a placeholder for the Postwar one.
     var _informative = new Set();
+    var _infoKey = function (c) { return c.num + '|' + _sgEraOfRow(c); };
     candidates.forEach(function(c) {
-      if (c.subType || c.varDesc || c.description) _informative.add(c.num);
+      if (c.subType || c.varDesc || c.description) _informative.add(_infoKey(c));
     });
     candidates = candidates.filter(function(c) {
       var hasInfo = !!(c.subType || c.varDesc || c.description);
       if (hasInfo) return true;
-      // Drop only if a sibling populated row exists for this itemNum.
-      return !_informative.has(c.num);
+      // Drop only if a sibling populated row exists for this itemNum (in its era).
+      return !_informative.has(_infoKey(c));
     });
 
     // Bug 8 (Session 154): Session 156's _byNum collapse was REMOVED —
@@ -1438,7 +1464,50 @@ function _wizPickSetRow(setNum) {
   if (el) { el.style.display = 'none'; el.innerHTML = ''; }
   _wizSetKind('set');
 }
+// ── 2026-11-11 — THE TYPED NUMBER IS A POSTWAR SET (hand-test T-2026-11-01-08,
+// WAITING; [stated] Brad 06:42 CT "yes"): typing 1467W listed the set AND its
+// old catalog copy ("Erie Alco Freight Set", the PW Items tab's Set row);
+// 2503WS said "Found: Paper" (its only catalog row is the set's BOX, PW Boxes);
+// and Next without a tap took that box row and added the box as a paper item.
+// The set's copy and the set's box are the SAME set — not a different thing
+// with that number. So: the number is the set when a Postwar set has exactly
+// this number inside the filters AND no other catalog row inside the filters
+// has it (a real item with the same number — another maker, another kind —
+// still wins and is still listed). Asked by the list, the green line and Next.
+function _wizSetCopyRow(i) {
+  var tabs = (typeof ERA_TABS !== 'undefined' && ERA_TABS.pw) || {};
+  return !!i && String(i._tab || '') === String(tabs.items || 'Lionel PW - Items') && /^set$/i.test(String(i.itemType || '').trim());
+}
+function _wizSetBoxRow(i) {
+  var tabs = (typeof ERA_TABS !== 'undefined' && ERA_TABS.pw) || {};
+  return !!i && String(i._tab || '') === String(tabs.boxes || 'Lionel PW - Boxes');
+}
+function _wizTypedPostwarSet(numText) {
+  if (!_wizSetCheckOn()) return null;
+  var t = String(numText || '').trim().toLowerCase();
+  if (!t) return null;
+  var fset = (typeof _wizAddFilters === 'function') ? _wizAddFilters() : null;
+  var hits = _wizPostwarSetHits(t, fset, { exact: true });
+  if (!hits || !hits.length) return null;
+  // a row the collector TAPPED for this number that is not the set's own copy
+  // or box: theirs to add — never taken over by the set
+  var held = (typeof wizard !== 'undefined' && wizard) ? wizard.matchedItem : null;
+  if (held && rrNumSameAsTyped(held.itemNum, t) && !_wizSetCopyRow(held) && !_wizSetBoxRow(held)) return null;
+  // another row with the number — in the loaded catalogs AND the all-eras
+  // rows the list widens to (a maker the collector has not ticked)
+  var pools = [((typeof state !== 'undefined' && state.masterData) || []),
+               ((typeof _allErasSearchCache !== 'undefined' && _allErasSearchCache) || [])];
+  var other = pools.some(function (pool) {
+    return pool.some(function (i) {
+      if (!i || !rrNumSameAsTyped(i.itemNum, t)) return false;
+      if (typeof _wizRowFitsFilters === 'function' && !_wizRowFitsFilters(i, fset)) return false;
+      return !_wizSetCopyRow(i) && !_wizSetBoxRow(i);
+    });
+  });
+  return other ? null : hits[0];
+}
 if (typeof window !== 'undefined') {
+  window._wizSetCopyRow = _wizSetCopyRow; window._wizSetBoxRow = _wizSetBoxRow; window._wizTypedPostwarSet = _wizTypedPostwarSet;
   window.rrSetAsRow = rrSetAsRow; window.rrPostwarSetVariants = rrPostwarSetVariants; window._wizSetCheckOn = _wizSetCheckOn;
   window._wizPostwarSetHits = _wizPostwarSetHits; window._wizSetRowDetails = _wizSetRowDetails; window._wizPickSetRow = _wizPickSetRow;
 }
@@ -1574,7 +1643,17 @@ function lookupItem(num) {
       && findGroupingCandidates(Object.assign({}, wizard.data, { itemNum: trimmed, boxOnly: false }))
            .some(c => c.type === 'box');
 
-    if (match) {
+    // 2026-11-11: the number IS a Postwar set — say so, and hold no catalog row
+    // (its box or old copy must never ride to Next or the save)
+    const _setG = (typeof _wizTypedPostwarSet === 'function') ? _wizTypedPostwarSet(_searchNum) : null;
+    if (_setG) {
+      wizard.matchedItem = null;
+      const _W = window.RR_ADD_FILTERS || {};
+      const _esc = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      el.innerHTML = `<div data-set-found="${_esc(_setG.setNum)}" style="background:rgba(46,204,113,0.1);border:1px solid var(--green);border-radius:8px;padding:0.65rem 0.85rem;font-size:0.82rem">
+        <span style="color:var(--green)">✓ Found:</span> ${_esc(String(_W.setFound || '{num}').replace('{num}', _setG.setNum))} · ${_esc(_wizSetRowDetails(_setG))}
+      </div>`;
+    } else if (match) {
       // Session 115 fix: don't duplicate itemType when it already served as
       // the roadName fallback. Build the header parts, skip blanks, skip
       // same-string repeats.
@@ -1747,3 +1826,14 @@ function _sgMakerOfRow(m) {
   } catch (x) { return ''; }
 }
 if (typeof window !== 'undefined') window._sgMakerOfRow = _sgMakerOfRow;
+// eratwins (2026-11-11): the era a catalog row belongs to, for the same
+// one-row rule — a row's own _era (every loader stamps it), except that the
+// parts catalogs (LOOKUP_ONLY_ERAS, config.js: Lionel's own list, the Lionel
+// store, Train Tender…) are several stores' listings of the SAME part, so they
+// count as one: measured 2026-11-11, 3,539 part numbers sit on two of them.
+function _sgEraOfRow(m) {
+  var e = String((m && m._era) || '');
+  var parts = (typeof window !== 'undefined' && window.LOOKUP_ONLY_ERAS) || [];
+  return parts.indexOf(e) >= 0 ? 'parts' : e;
+}
+if (typeof window !== 'undefined') window._sgEraOfRow = _sgEraOfRow;

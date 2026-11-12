@@ -8229,6 +8229,16 @@ async function _wizardNextCore() {
     const _inputParts = _rawInput.toLowerCase().split(/\s+/);
     const _numPart = _inputParts[0];
     const _keyParts = _inputParts.slice(1).filter(p => p.length > 0);
+    // 2026-11-11 (hand-test T-2026-11-01-08; [stated] Brad 06:42 CT "yes"): a
+    // Lionel Postwar SET number typed and Next pressed without a tap — the set,
+    // never its box row (2503WS was added as a paper box). Not when the number
+    // was chosen "as typed", and not when another catalog row has the number.
+    const _setTok = (typeof _extractSearchItemNum === 'function') ? String(_extractSearchItemNum(_rawInput) || '').toLowerCase() : _numPart;
+    if (wizard.data._typedAsIs !== _setTok && wizard.data._typedAsIs !== _numPart
+        && typeof _wizTypedPostwarSet === 'function' && typeof _wizPickSetRow === 'function') {
+      const _setG = _wizTypedPostwarSet(_setTok);
+      if (_setG) { _wizPickSetRow(_setG.setNum); return; }
+    }
 
     // Check for exact match first. Session 115: prefer the row matching
     // the user's picked itemType (+ roadName) from the suggestion click

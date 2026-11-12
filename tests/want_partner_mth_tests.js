@@ -250,8 +250,12 @@ function worldFrom(src) { const st = { masterData: ROWS, companionData: [], setD
 
 {
   // 6. the Lionel +C convention let loose on every tab again
-  const o = appjs.replace("    if (String(m._tab || '').toLowerCase().indexOf('lionel') !== 0) return;\n    const num = normalizeItemNum(m.itemNum);\n    const pdMatch", "    const num = normalizeItemNum(m.itemNum);\n    const pdMatch");
-  ok('offender 6 changed the source', o !== appjs);
+  // eratwins (2026-11-11) added a second guard — both numbers must be Lionel
+  // diesel engines — which on its own also keeps the smoke fluid out, so the
+  // bug "as it was" takes both away (tests/eratwins_tests.js plants the new one alone).
+  const o0 = appjs.replace("    if (String(m._tab || '').toLowerCase().indexOf('lionel') !== 0) return;\n    const num = normalizeItemNum(m.itemNum);\n    const pdMatch", "    const num = normalizeItemNum(m.itemNum);\n    const pdMatch");
+  const o = o0.replace("if (_masterNumSet.has(bNum) && _lionelDieselNums.has(num) && _lionelDieselNums.has(bNum)) {", "if (_masterNumSet.has(bNum)) {");
+  ok('offender 6 changed the source (both guards)', o0 !== appjs && o !== o0);
   const { w } = worldFrom(o);
   ok('OFFENDER 6: +C on every tab → the smoke fluid gets a "B unit" again → red', w.getBUnit('60-1051') === '60-1051C');
 }

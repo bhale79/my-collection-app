@@ -953,6 +953,31 @@ function buildPartnerMap() {
     const info = _masterUnitInfo.get(num + 'T');
     return !!info && info.unit === 'A' && info.pd === 'D';
   }
+  // 2026-11-11 (eratwins, [stated] Brad "yes"; WAITING (b), hand-test
+  // T-2026-11-05-05): the +C rule below paired ANY Lionel number with ANY
+  // catalog row named number+'C'. Typing 022 (the O gauge switch) asked
+  // "A Powered / A Dummy / AB set" because 022C is the Super O switch
+  // controller. Measured on the live master (166,385 rows): 47 pairs came
+  // from this rule and 30 were wrong — 16 → 16C a transformer, 550 → 550C a
+  // curved track, 19200 → 19200C a second boxcar, SW → SWC, T → TC… The 17
+  // real ones (217–229 Alco FA, 2240–2379 F-3) are diesel engines on BOTH
+  // numbers. So a number pairs with its C only when both have a Lionel row
+  // that IS a diesel engine — the ONE type rule, getTypeBucket (type-groups.js,
+  // loaded before this file). The fallback (the row's own Item Type word) is
+  // for the node tests that lift this function out of the page.
+  function _isDieselEngineRow(m) {
+    if (typeof getTypeBucket === 'function') return getTypeBucket(m) === 'Diesel Locomotive';
+    return String(m.itemType || '').trim().toLowerCase() === 'diesel locomotive';
+  }
+  // Only a number that HAS a C twin (or is one) is asked — a few hundred rows,
+  // not the whole catalog, so the type rule runs on those alone.
+  const _lionelDieselNums = new Set();
+  for (let i = 0; i < _md.length; i++) {
+    if (String(_md[i]._tab || '').toLowerCase().indexOf('lionel') !== 0) continue;
+    const _n = normalizeItemNum(_md[i].itemNum);
+    const _twin = _n.endsWith('C') ? _masterNumSet.has(_n.slice(0, -1)) : _masterNumSet.has(_n + 'C');
+    if (_twin && _isDieselEngineRow(_md[i])) _lionelDieselNums.add(_n);
+  }
   _md.forEach(m => {
     // v0.9.1840: P / T / C is LIONEL's convention (2343 → 2343T → 2343C). Run on
     // every tab, the +C rule paired MTH's smoke-fluid 12-pack 60-1051 with
@@ -972,9 +997,12 @@ function buildPartnerMap() {
     // B-unit existence is sufficient evidence on its own — sub-type check
     // not required (some PW catalog entries lack a sub-type but DO have a
     // B-unit partner, e.g. early Lionel F-units).
+    // 2026-11-11 (eratwins): …as long as BOTH numbers are diesel engines
+    // (_lionelDieselNums above) — a switch, a transformer or a boxcar whose
+    // number happens to have a C twin is not an A unit.
     if (!num.endsWith('C')) {
       const bNum = num + 'C';
-      if (_masterNumSet.has(bNum)) {
+      if (_masterNumSet.has(bNum) && _lionelDieselNums.has(num) && _lionelDieselNums.has(bNum)) {
         const e = ensure(num);
         e.isDiesel = true;
         e.bUnit = e.bUnit || bNum;
