@@ -119,6 +119,7 @@
   // opts: { keep, onProgress(n, total) }. Safe to press again: a file already
   // asked for is skipped (written down every `batch` files and at the end).
   async function rrHandOverStart(key, opts) {
+    if (typeof rrStaffGate === 'function' && !rrStaffGate('handover')) return { ok: false, why: 'role' };   // TRR Pro staff PINs: the roles door (staff.js)
     opts = opts || {};
     if (_offline()) return { ok: false, why: 'offline' };
     var c = rrCollectionByKey(key);
@@ -165,7 +166,7 @@
         h.state = 'waiting'; h.sentAt = Date.now();
         try {
           var when = (typeof _shWhen === 'function') ? _shWhen(new Date()) : rrToday();
-          var me = (st().user && (st().user.email || st().user.name)) || '';
+          var me = (typeof rrWhoNow === 'function') ? rrWhoNow() : ((st().user && (st().user.email || st().user.name)) || '');   // TRR Pro staff PINs
           await rrMoveLogAddTo(c.sheetId, ["'" + when, '', '', W('logItem') || _label(c), _label(c), h.clientName || '', me, H().logHow || 'Handed over']);
         } catch (eLog) { console.warn('[Collections] hand-over — Movement Log line:', eLog && eLog.message); }
       }
@@ -231,6 +232,7 @@
 
   // ── cancel (before they accept): the requests are taken back ─────────────
   async function rrHandOverCancel(key) {
+    if (typeof rrStaffGate === 'function' && !rrStaffGate('handover')) return { ok: false, why: 'role' };   // TRR Pro staff PINs: the roles door (staff.js)
     if (_offline()) return { ok: false, why: 'offline' };
     var got = await rrCollectionsFileRead();
     var e = got && got.ok && got.data.items[key];
@@ -252,6 +254,7 @@
 
   // ── 3. after they accepted: keep it linked, or remove it ─────────────────
   async function rrHandOverKeep(key) {
+    if (typeof rrStaffGate === 'function' && !rrStaffGate('handover')) return { ok: false, why: 'role' };   // TRR Pro staff PINs: the roles door (staff.js)
     var got = await rrCollectionsFileRead();
     var e = got && got.ok && got.data.items[key];
     if (!e || !e.handover || e.handover.state !== 'accepted') return { ok: false, why: 'state' };
@@ -264,6 +267,7 @@
   // Remove (after acceptance) or Unlink (a linked one): this account's access
   // comes off every file; the record stays (status handedOver).
   async function rrHandOverRemove(key, onProgress) {
+    if (typeof rrStaffGate === 'function' && !rrStaffGate('handover')) return { ok: false, why: 'role' };   // TRR Pro staff PINs: the roles door (staff.js)
     if (_offline()) return { ok: false, why: 'offline' };
     var got = await rrCollectionsFileRead();
     var e = got && got.ok && got.data.items[key];
@@ -305,6 +309,7 @@
       refused: W('refused', { why: (r && r.error) || '' }), stopped: W('failed') }[r && r.why] || W('failed');
   }
   function rrHandOverOpen(key) {
+    if (typeof rrStaffGate === 'function' && !rrStaffGate('handover')) return;   // TRR Pro staff PINs: the roles door (staff.js)
     var c = rrCollectionByKey(key);
     if (!c || c.home) return;
     var cur = rrCurrentCollection();

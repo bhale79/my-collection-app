@@ -24,6 +24,19 @@
 //               never used again; its items can go on a new invoice.
 //   archive     RR_COLL_ARCHIVE.checks 'invoices': unpaid invoices for the
 //               collection are listed before it is archived.
+//   dates       the sheet hands a date back as a serial number (46337). Every
+//               invoice date is READ through the app's one date reader
+//               (_isoDate / _showDate below, _formatDate in app.js) — and the
+//               sold item's date inside its lasting name too, so an item made
+//               into an invoice before a reload is still found after one.
+//   optional    invoices are NEVER required. [stated] Brad 2026-11-11 11:13 CT
+//               "they probably don't want to change their invoice system. we
+//               need to make sure that is not something that is a have to";
+//               11:15 CT "yes on the we do our own". The owner's Business
+//               tools switch "We do our own invoices" (an ACCOUNT setting,
+//               RR_COLL_INVOICE.ownKey) hides every way in — rrInvOn() is the
+//               ONE door the menu, the Sold page, the screen and the archive
+//               check ask. Nothing is deleted; switched back, all is there.
 //
 // ON only through RR_COLL_UI.feature. Every word: RR_COLL_INVOICE (config.js).
 // ═══════════════════════════════════════════════════════════════════════════
@@ -60,6 +73,52 @@
     return (typeof rrCollectionLabel === 'function') ? rrCollectionLabel(c) : (c.number + ' – ' + c.name);
   }
   function _home() { return (typeof rrHomeSheet === 'function') ? rrHomeSheet() : (st().personalSheetId || null); }
+  // ── dates: ONE reading (the sheet gives a serial, this device may hold "2026-11-11") ──
+  // _isoDate → "YYYY-MM-DD" (for names and matching: never the person's display format);
+  // _showDate → the person's own date format (_formatDate, app.js — it reads serials too).
+  function _isoDate(v) {
+    if (v === null || v === undefined || v === '') return '';
+    var p = function (n) { return (n < 10 ? '0' : '') + n; };
+    var n = (typeof v === 'number') ? v : (/^\d{4,5}(\.\d+)?$/.test(String(v).trim()) ? parseFloat(v) : NaN);
+    if (isFinite(n) && n > 25000 && n < 80000) {   // days since 1899-12-30 (the _formatDate / rrDateTs window)
+      var d = new Date(Math.round((n - 25569) * 86400000));
+      return d.getUTCFullYear() + '-' + p(d.getUTCMonth() + 1) + '-' + p(d.getUTCDate());
+    }
+    var t = String(v).trim(), m = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return m[1] + '-' + m[2] + '-' + m[3];
+    m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (m) return m[3] + '-' + p(Number(m[1])) + '-' + p(Number(m[2]));
+    return t;
+  }
+  function _showDate(v) {
+    if (v === null || v === undefined || v === '') return '';
+    try { if (typeof _formatDate === 'function') return String(_formatDate(v)); } catch (e) {}
+    return _isoDate(v);
+  }
+  // a sold item's lasting name, its date read the ONE way (old invoices hold either form)
+  function _refKey(ref) {
+    var a = String(ref == null ? '' : ref).split('|');
+    if (a.length >= 4) a[3] = _isoDate(a[3]);
+    return a.join('|');
+  }
+  // ── optional: "We do our own invoices" (the owner's switch, an ACCOUNT setting) ──
+  function rrInvOwn() {
+    var v = '';
+    try { v = String((typeof rrPrefRead === 'function' ? rrPrefRead(I().ownKey) : '') || ''); } catch (e) { v = ''; }
+    return v === '1';
+  }
+  // THE door: are the app's invoices offered at all here?
+  function rrInvOn() { return _on() && !rrInvOwn(); }
+  function rrInvOwnSet(own) {
+    if (!_on()) return false;
+    if (typeof rrStaffGate === 'function' && !rrStaffGate('business')) return false;   // TRR Pro staff PINs: the roles door (staff.js)
+    if (typeof rrPrefWrite === 'function') rrPrefWrite(I().ownKey, own ? '1' : '');   // '' = unset (the account merge never forgets a key)
+    try { rrInvPaintSoldButton(); } catch (e) {}
+    ['rr-coll-inv', 'rr-coll-inv-new', 'rr-coll-inv-one', 'rr-coll-inv-set'].forEach(function (id) { if (own) _close(id); });
+    try { var r = document.getElementById('rr-inv-own-row'); if (r) r.innerHTML = _ownRowInner(); } catch (e) {}
+    toast(own ? W('ownOnSaved') : W('ownOffSaved'), 4000);
+    return true;
+  }
   // registered where it is born (config.js RR_FEATURE_TABS): never read as a list of items
   var _TAB = (typeof rrFeatureTab === 'function' ? rrFeatureTab : String)('Invoices');
   function _tab() { return _TAB; }
@@ -85,6 +144,7 @@
       taxRate: (d.taxRate == null || d.taxRate === '') ? 0 : Number(d.taxRate) || 0, terms: String(d.terms == null ? W('setTermsDefault') : d.terms) };
   }
   function rrInvSettingsSave(v) {
+    if (typeof rrStaffGate === 'function' && !rrStaffGate('business')) return rrInvSettings();   // TRR Pro staff PINs: the roles door (staff.js)
     var o = { name: String(v.name || '').trim(), address: String(v.address || '').trim(), phone: String(v.phone || '').trim(), email: String(v.email || '').trim(),
       taxRate: Math.max(0, Number(v.taxRate) || 0), terms: String(v.terms || '').trim() };
     if (typeof rrPrefWrite === 'function') rrPrefWrite(I().settingsKey, JSON.stringify(o));
@@ -117,9 +177,9 @@
       if (!id) return;
       var data = {};
       try { data = JSON.parse(r[_col('Lines (app data)')] || '{}') || {}; } catch (e) { data = {}; }
-      out.push({ row: i + 3, no: Number(r[_col('Invoice No')]) || 0, date: String(r[_col('Date')] || ''), status: String(r[_col('Status')] || ''),
+      out.push({ row: i + 3, no: Number(r[_col('Invoice No')]) || 0, date: _showDate(r[_col('Date')]), dateIso: _isoDate(r[_col('Date')]), status: String(r[_col('Status')] || ''),
         buyerName: String(r[_col('Buyer')] || ''), subtotal: _money(r[_col('Subtotal')]), taxRate: _money(r[_col('Tax rate %')]), tax: _money(r[_col('Tax')]),
-        shipping: _money(r[_col('Shipping')]), total: _money(r[_col('Total')]), terms: String(r[_col('Terms')] || ''), paidOn: String(r[_col('Paid on')] || ''),
+        shipping: _money(r[_col('Shipping')]), total: _money(r[_col('Total')]), terms: String(r[_col('Terms')] || ''), paidOn: _showDate(r[_col('Paid on')]),
         voidReason: String(r[_col('Void reason')] || ''), id: id, data: data, lines: Array.isArray(data.lines) ? data.lines : [] });
     });
     return out;
@@ -134,28 +194,30 @@
   }
   function _live(inv) { return inv.status !== (I().status.void || 'Void'); }
   // The sold item's lasting name: its collection, inventory number, item number and sale date.
-  function rrInvRef(coll, s) { return [coll && coll.key || 'home', s.inventoryId || '', s.itemNum || '', s.dateSold || ''].join('|'); }
+  function rrInvRef(coll, s) { return [coll && coll.key || 'home', s.inventoryId || '', s.itemNum || '', _isoDate(s.dateSold)].join('|'); }
 
   // ── the sold items of the open collection, with where each is invoiced ─
   function rrInvSoldItems(list) {
     var c = rrCurrentCollection(), sold = st().soldData || {};
     var on = {};
-    (list || []).filter(_live).forEach(function (inv) { inv.lines.forEach(function (l) { on[l.ref] = inv.no; }); });
+    (list || []).filter(_live).forEach(function (inv) { inv.lines.forEach(function (l) { on[_refKey(l.ref)] = inv.no; }); });
     return Object.keys(sold).map(function (k) {
       var s = sold[k];
-      return { key: k, s: s, ref: rrInvRef(c, s), onNo: on[rrInvRef(c, s)] || 0 };
+      return { key: k, s: s, ref: rrInvRef(c, s), onNo: on[_refKey(rrInvRef(c, s))] || 0 };
     });
   }
   function _line(c, s) {
     var name = (typeof rrShelveItemName === 'function') ? rrShelveItemName(s) : String(s.itemNum || '');
     return { ref: rrInvRef(c, s), coll: c.key, collLabel: _label(c), fullId: (typeof rrFullId === 'function') ? rrFullId(s.inventoryId, c) : String(s.inventoryId || ''),
-      itemNum: String(s.itemNum || ''), name: name, condition: String(s.condition || ''), price: _round(_money(s.salePrice)), dateSold: String(s.dateSold || '') };
+      itemNum: String(s.itemNum || ''), name: name, condition: String(s.condition || ''), price: _round(_money(s.salePrice)), dateSold: _isoDate(s.dateSold) };
   }
 
   // ── making one ─────────────────────────────────────────────────────────
   var _making = false;
   // opts: { keys: [soldData keys], buyerId, taxRate, shipping, terms }
   async function rrInvCreate(opts) {
+    if (typeof rrStaffGate === 'function' && !rrStaffGate('clients')) return { ok: false, why: 'role' };   // TRR Pro staff PINs: the roles door (staff.js)
+    if (!rrInvOn()) return { ok: false, why: 'off' };   // "We do our own invoices" — not made here
     opts = opts || {};
     if (_offline()) return { ok: false, why: 'offline' };
     if (_making) return { ok: false, why: 'busy' };
@@ -170,10 +232,10 @@
       await _ensureTab(sid);
       var list = await rrInvList();
       var on = {};
-      list.filter(_live).forEach(function (inv) { inv.lines.forEach(function (l) { on[l.ref] = inv.no; }); });
+      list.filter(_live).forEach(function (inv) { inv.lines.forEach(function (l) { on[_refKey(l.ref)] = inv.no; }); });
       var lines = picked.map(function (s) { return _line(c, s); });
-      var taken = lines.filter(function (l) { return on[l.ref]; });
-      if (taken.length) return { ok: false, why: 'taken', no: on[taken[0].ref], items: taken.map(function (l) { return l.fullId || l.itemNum; }).join(', ') };
+      var taken = lines.filter(function (l) { return on[_refKey(l.ref)]; });
+      if (taken.length) return { ok: false, why: 'taken', no: on[_refKey(taken[0].ref)], items: taken.map(function (l) { return l.fullId || l.itemNum; }).join(', ') };
       var set = rrInvSettings();
       var rate = (opts.taxRate == null || opts.taxRate === '') ? set.taxRate : Math.max(0, Number(opts.taxRate) || 0);
       var subtotal = _round(lines.reduce(function (a, l) { return a + l.price; }, 0));
@@ -229,17 +291,20 @@
     return { ok: true, invoice: again };
   }
   async function rrInvMarkPaid(id, date) {
+    if (typeof rrStaffGate === 'function' && !rrStaffGate('clients')) return { ok: false, why: 'role' };   // TRR Pro staff PINs: the roles door (staff.js)
     if (_offline()) return { ok: false, why: 'offline' };
     var c = {}; c.Status = I().status.paid || 'Paid'; c['Paid on'] = date || rrToday();
     return _setCells(id, c);
   }
   async function rrInvVoid(id, reason) {
+    if (typeof rrStaffGate === 'function' && !rrStaffGate('clients')) return { ok: false, why: 'role' };   // TRR Pro staff PINs: the roles door (staff.js)
     if (_offline()) return { ok: false, why: 'offline' };
     var c = {}; c.Status = I().status.void || 'Void'; c['Void reason'] = String(reason || '').trim() || '—';
     return _setCells(id, c);
   }
   // Unpaid invoices with an item from this collection (the archive check).
   async function rrInvUnpaidFor(key) {
+    if (!rrInvOn()) return [];   // "We do our own invoices": the archive check says nothing about them
     var list = await rrInvList();
     return list.filter(function (inv) { return inv.status === (I().status.unpaid || 'Unpaid') && inv.lines.some(function (l) { return l.coll === key; }); });
   }
@@ -277,7 +342,7 @@
     if (inv.terms) { y += 30; doc.text(String(inv.terms), M, y); }
     if (inv.status === (I().status.paid || 'Paid')) { doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.text(W('pdfPaid', { date: inv.paidOn }), M, y + 40); }
     if (inv.status === (I().status.void || 'Void')) { doc.setFont('helvetica', 'bold'); doc.setFontSize(28); doc.text(W('pdfVoid'), M, y + 44); }
-    var file = W('pdfFile', { no: inv.no, date: inv.date });
+    var file = W('pdfFile', { no: inv.no, date: inv.dateIso || _isoDate(inv.date) });   // never the display format: "11/11/2026" has slashes
     doc.save(file);
     return file;
   }
@@ -291,7 +356,7 @@
   // ═══ the screens ════════════════════════════════════════════════════════
   var _filter = 'all', _last = [];
   async function rrInvOpen() {
-    if (!_on()) return;
+    if (!rrInvOn()) return;
     var m = document.getElementById('rr-coll-menu'); if (m) m.remove();
     var html = _title(W('title')) +
       '<div style="display:flex;gap:0.4rem;flex-wrap:wrap">' +
@@ -425,7 +490,7 @@
     try {
       var title = document.querySelector('#page-sold .page-title'); if (!title) return;
       var old = document.getElementById('rr-inv-sold-btn');
-      if (!_on()) { if (old) old.remove(); return; }
+      if (!rrInvOn()) { if (old) old.remove(); return; }
       if (old) return;
       var b = document.createElement('button');
       b.id = 'rr-inv-sold-btn'; b.type = 'button'; b.textContent = W('btn');
@@ -435,7 +500,24 @@
     } catch (e) {}
   }
 
+  // ── Preferences → Business tools: "We do our own invoices" (owners) ──────
+  function _ownRowInner() {
+    var own = rrInvOwn();
+    // the tick box sits UNDER the words, inside the label column — beside them it squeezed the
+    // words into a narrow strip on a phone ([stated] Brad 2026-11-11 13:12 CT "yes" to fixing it)
+    return '<div class="pref-row-label"><strong>' + esc(W('ownRow')) + '</strong><span>' + esc(own ? W('ownHelpOn') : W('ownHelpOff')) + '</span>' +
+      '<label style="display:flex;align-items:center;gap:0.45rem;min-height:44px;margin-top:0.3rem;cursor:pointer;font-weight:600;color:var(--text)">' +
+      '<input type="checkbox" data-inv-own' + (own ? ' checked' : '') + ' onchange="rrInvOwnSet(this.checked)" style="width:22px;height:22px;flex-shrink:0;cursor:pointer">' +
+      esc(W('ownLabel')) + '</label></div>';
+  }
+  function rrPrefsInvHtml() {
+    if (!_on()) return '';
+    if (typeof rrStaffCan === 'function' && !rrStaffCan('business')) return '';   // owners only (when PINs are in use)
+    return '<div class="pref-row" id="rr-inv-own-row">' + _ownRowInner() + '</div>';
+  }
+
   var api = {
+    rrInvOn: rrInvOn, rrInvOwn: rrInvOwn, rrInvOwnSet: rrInvOwnSet, rrPrefsInvHtml: rrPrefsInvHtml,
     rrInvSettings: rrInvSettings, rrInvSettingsSave: rrInvSettingsSave, rrInvList: rrInvList, rrInvRef: rrInvRef, rrInvSoldItems: rrInvSoldItems,
     rrInvCreate: rrInvCreate, rrInvMarkPaid: rrInvMarkPaid, rrInvVoid: rrInvVoid, rrInvUnpaidFor: rrInvUnpaidFor, rrInvPdf: rrInvPdf, rrInvMailto: rrInvMailto,
     rrInvOpen: rrInvOpen, rrInvFilter: rrInvFilter, rrInvNewOpen: rrInvNewOpen, rrInvMake: rrInvMake, rrInvShow: rrInvShow, rrInvPdfGo: rrInvPdfGo,

@@ -147,7 +147,7 @@
     });
     var saleOn = (typeof rrListOn === 'function') ? rrListOn('forSale', to) : true;
     return {
-      id: _newId(), at: Date.now(), who: (st().user && (st().user.email || st().user.name)) || '',
+      id: _newId(), at: Date.now(), who: (typeof rrWhoNow === 'function') ? rrWhoNow() : ((st().user && (st().user.email || st().user.name)) || ''),   // TRR Pro staff PINs
       from: from.key, fromSheet: from.sheetId, fromLabel: _label(from), fromNumber: from.number || null,
       to: to.key, toSheet: to.sheetId, toLabel: _label(to), toNumber: to.number || null,
       toPhotoRoot: to.photoRootId || null,
@@ -165,6 +165,7 @@
   // ── the engine ─────────────────────────────────────────────────────────
   var _running = false;
   async function rrMoveRun(m) {
+    if (typeof rrStaffGate === 'function' && !rrStaffGate('move')) return { ok: false, why: 'role' };   // TRR Pro staff PINs: the roles door (staff.js)
     if (_running) { toast(W('busy'), 4000, true); return { ok: false, why: 'busy' }; }
     if (_offline()) { toast(W('offline'), 4500, true); return { ok: false, why: 'offline' }; }
     // TRR Pro release 7A: never into or out of an archived collection — asked
@@ -424,6 +425,7 @@
   // The item page's button (beside Remove). '' when moving is not on here.
   function rrMoveBtnHtml(pd) {
     if (!pd || !rrMoveOn()) return '';
+    if (typeof rrStaffCan === 'function' && !rrStaffCan('move')) return '';   // TRR Pro staff PINs: Staff do not move
     var map = st().personalData || {}, key = '';
     for (var k in map) if (map[k] === pd) { key = k; break; }
     if (!key) return '';
@@ -432,6 +434,7 @@
 
   var _pending = null;   // { keys }
   function rrMoveOpen(keys) {
+    if (typeof rrStaffGate === 'function' && !rrStaffGate('move')) return;   // TRR Pro staff PINs: the roles door (staff.js)
     if (!rrMoveOn()) { toast(W('none'), 4000, true); return; }
     var all = rrMoveGather(keys);
     if (!all.length) { toast(W('nothing'), 3000, true); return; }
@@ -481,6 +484,7 @@
   // Many at once: tick the open collection's items, then pick where.
   var _manySel = {};
   function rrMoveManyOpen() {
+    if (typeof rrStaffGate === 'function' && !rrStaffGate('move')) return;   // TRR Pro staff PINs: the roles door (staff.js)
     if (!rrMoveOn()) { toast(W('none'), 4000, true); return; }
     var m = document.getElementById('rr-coll-menu'); if (m) m.remove();
     _manySel = {};

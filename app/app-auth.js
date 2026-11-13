@@ -1178,6 +1178,7 @@ function _rrQuietRenew(dev, real, opts) {
   _rrAuthLog('quiet renewal: asking the relay');
   var fallback = function (why) {
     _rrAuthLog('quiet renewal failed (' + why + ') — using Google’s window');
+    _rrAuthWindowNote(opts, 'a quiet renewal that could not finish (the window is its fallback)');
     try { real.requestAccessToken(opts); } catch (e) { _rrAuthLog('window request threw: ' + (e && e.message)); }
   };
   Promise.resolve(typeof vaultPost === 'function' ? vaultPost({ action: 'auth_renew', device: dev.device, email: dev.email }) : null)
@@ -1369,11 +1370,41 @@ function _rrWithHint(opts) {
   }
   return o;
 }
+// ── WHO ASKED (photoview, 2026-11-11) ────────────────────────────────────
+// Hand-test T-2026-11-08-04: a "Select an account" box came up and Report a
+// problem's steps could not say what opened it (that one was the Google Drive
+// app, not the app). Whenever the APP is about to open Google's window, the
+// diary now says so and names the code that asked — so the next report
+// answers "what opened that box" either way: a line here, or no line (= not
+// the app).
+function _rrAuthWho() {
+  try {
+    var lines = String(new Error().stack || '').split('\n');
+    for (var i = 1; i < lines.length; i++) {
+      var ln = lines[i];
+      if (!ln || /_rrAuthWho|_rrAuthWindowNote|_rrWrapTokenClient|requestAccess|_rrQuiet/.test(ln)) continue;
+      var fn = (ln.match(/at\s+(?:async\s+)?([^\s(]+)\s*\(/) || ln.match(/^([^@\s]+)@/) || [])[1] || '';
+      var at = (ln.match(/([\w.-]+\.js)(?:\?[^:)]*)?:(\d+)/) || []);
+      if (!at[1]) { if (fn && !/^(eval|Object\.<anonymous>|<anonymous>|anonymous)$/.test(fn)) return fn + ' (no file named)'; continue; }
+      return (fn ? fn + ' ' : '') + '(' + at[1] + ':' + at[2] + ')';
+    }
+  } catch (e) {}
+  return '(unknown)';
+}
+function _rrAuthWindowNote(opts, who) {
+  try {
+    var p = (opts && opts.prompt !== undefined) ? String(opts.prompt) : '';
+    _rrAuthLog('the app is opening Google\'s window — asked by ' + (who || _rrAuthWho())
+      + ' · ' + (p === '' ? 'no prompt asked for (a renewal)' : 'prompt "' + p + '"')
+      + ' · account named: ' + ((opts && opts.login_hint) ? 'yes' : 'no'));
+  } catch (e) {}
+}
 // THE door. Every requestAccessToken in the app reaches Google through this.
 function _rrWrapTokenClient(real) {
   return {
     requestAccessToken: function (opts) {
       opts = _rrWithHint(opts);   // T-2026-11-05-03: always name the signed-in account
+      var _who = _rrAuthWho();    // photoview: read NOW — a quiet renewal that falls back to the window does so later, from a timer
       var quiet = (opts.prompt === '' || opts.prompt === undefined) && _rrQuietOn() && Date.now() >= _rrQuietDownUntil;
       if (quiet) {
         var dev = _rrQuietDevice();
@@ -1383,6 +1414,7 @@ function _rrWrapTokenClient(real) {
           return;
         }
       }
+      _rrAuthWindowNote(opts, _who);
       real.requestAccessToken(opts);
     },
     // sheets.js / drive.js / write-outbox.js read and swap tokenClient.callback:

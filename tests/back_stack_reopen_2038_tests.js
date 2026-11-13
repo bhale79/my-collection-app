@@ -37,7 +37,13 @@ async function run(browser, src) {
     const second = open();                         // pressed again: the old one goes, a new one comes
     await wait(500);
     const sizeAfterReopen = BackStack.size();
-    history.back();                                // the user presses Back
+    // LEDGER 2026-11-11 (backtruth review, F2): a pop-up re-opened under the
+    // same id now KEEPS the one history step it had (it used to get a second,
+    // and one was left behind). So in the PLANTED run — the old watcher popping
+    // the new entry — nothing of the app's is left to go back to, and a Back
+    // press there would leave this test page altogether. Back is pressed only
+    // while the pop-up still holds its entry; with none, it was not closed by Back.
+    if (BackStack.size() > 0) history.back();      // the user presses Back
     await wait(500);
     const closedByBack = !document.body.contains(second);
     // 3 — a normal close

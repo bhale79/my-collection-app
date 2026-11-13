@@ -6758,51 +6758,37 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('the return page itself is still whatever opened the wizard',
        /const returnTo = \(wizard && wizard\.data && wizard\.data\._returnPage\)/.test(closeFn));
 
-    // Run the REAL handler: slice app.js's popstate callback and drive it.
-    const hIdx = ap.indexOf("window.addEventListener('popstate', function(e) {");
-    const hEnd = ap.indexOf('// ── Case 1: Wizard is open ──', hIdx);
-    const case0 = ap.slice(hIdx, hEnd);
-    ok('the stamp is consumed before any other case can act on it',
-       /Case 0/.test(case0) && /_rrWizardReturn/.test(case0));
-    ok('...it re-pushes the entry rather than navigating',
-       /history\.pushState\(\{ appPage: _wr\.page \}/.test(case0) && /return;/.test(case0));
-    ok('...and never calls _rrGoBackTo — that was the thief',
-       case0.indexOf('_rrGoBackTo') < 0);
-
-    // The guard must be single-use and time-boxed, or it eats a real Back press.
-    const body = case0.slice(case0.indexOf('var _wr'));
-    ok('the stamp expires, so a later Back press still works',
-       /Date\.now\(\) - _wr\.at\) < 1500/.test(body));
-    ok('...is cleared the moment it is used',
-       /window\._rrWizardReturn = null;[\s\S]{0,80}history\.pushState/.test(body));
-    ok('...and an expired stamp is cleared too, never left lying about',
-       /if \(_wr\) window\._rrWizardReturn = null;/.test(body));
-
-    // Behavioural: simulate the exact live sequence.
-    (function () {
-      const calls = [];
-      const win = { _rrWizardReturn: null };
-      const now = 1000000;
-      // close: claim + show
-      win._rrWizardReturn = { page: 'photo-inbox', at: now };
-      calls.push('photo-inbox');
-      // the stray popstate arrives 40ms later
-      const handle = (t) => {
-        const wr = win._rrWizardReturn;
-        if (wr && (t - wr.at) < 1500) { win._rrWizardReturn = null; return 'repushed'; }
-        if (wr) win._rrWizardReturn = null;
-        calls.push('dashboard');           // what Case 3 would have done
-        return 'navigated-back';
-      };
-      ok('the stray popstate right after closing does NOT navigate',
-         handle(now + 40) === 'repushed');
-      ok('...so the user is left on the page they came from',
-         calls.length === 1 && calls[0] === 'photo-inbox', calls.join(','));
-      // a genuine Back press two seconds later must still work
-      win._rrWizardReturn = { page: 'photo-inbox', at: now };
-      ok('a real Back press later is NOT swallowed',
-         handle(now + 2500) === 'navigated-back');
-    })();
+    // ── LEDGER 2026-11-11 (backtruth) ─────────────────────────────────────
+    // Six checks here pinned app.js's "Case 0": the popstate handler spent the
+    // stamp by RE-PUSHING a history step (history.pushState({ appPage:
+    // _wr.page })), and a hand-written model of that handler stood in for a
+    // run. Both are retired, on purpose:
+    //   • a step added while answering a Back press is what closed the app on
+    //     Brad's phone (T-2026-11-08-03; Chrome skips every step of an app
+    //     that adds one without a touch) — app.js's Back handler adds none now;
+    //   • the wizard's own rewind never reaches app.js at all: back-stack.js
+    //     swallows the popstate of every walk it makes itself. So the stamp is
+    //     only ever found stale there, and is simply dropped.
+    // The behaviour this section exists for — close the Add window and you are
+    // left on the page you came from, with no stray hop to the Dashboard — is
+    // now RUN in real Chromium: tests/backtruth_tests.js D4.
+    const hIdx = ap.indexOf("window.addEventListener('popstate', function(e) {", ap.indexOf('function _initBackButton()'));
+    const hEnd = ap.indexOf('\n  });\n}', hIdx);
+    const handler = ap.slice(hIdx, hEnd);
+    const handlerCode = handler.split('\n').filter(function (l) { return !/^\s*\/\//.test(l); }).join('\n');
+    ok('the app\'s Back handler is still findable', hIdx > 0 && hEnd > hIdx && handler.length > 500);
+    ok('a stamp found there is dropped (it can only be stale)…',
+       /if \(window\._rrWizardReturn\) window\._rrWizardReturn = null;/.test(handlerCode));
+    ok('…before any case can act on it',
+       handlerCode.indexOf('window._rrWizardReturn = null') < handlerCode.indexOf("getElementById('wizard-modal')"));
+    ok('the handler adds NO history step — not for the stamp, not for anything',
+       !/pushState/.test(handlerCode));
+    const bsSrc = fs.readFileSync(pR.join(__dirname, '..', 'app', 'back-stack.js'), 'utf8');
+    const swallow = bsSrc.slice(bsSrc.indexOf('function _onPopState(e) {'), bsSrc.indexOf('_noTouch = true;', bsSrc.indexOf('function _onPopState(e) {')));
+    ok('the window\'s own rewind is swallowed by back-stack.js before app.js can read it as a Back press',
+       /if \(_ignorePops > 0\) \{[\s\S]*?e\.stopImmediatePropagation\(\);[\s\S]*?return;\s*\n\s*\}/.test(swallow));
+    ok('closing the window still rewinds through the back stack (the walk that is swallowed)',
+       /BackStack\.pop\('wizard'\)/.test(closeFn));
   })();
 
   section('160. A photo link is never written to a row that does not exist (v0.9.1192)');
@@ -11093,9 +11079,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // giftlist 94→95 (gift-list.js — the Gift wish list, Stage 1, owner-only beta).
       // TRR Pro release 7A 95→96 (collections-archive.js). 7B 96→97 (collections-handover.js). 8 97→98 (collections-all.js). 10 98→99 (collections-invoice.js).
       // 2026-10-31 99→100 (command-ids.js — Command IDs).
-      // TRR Pro Release 9 Step 1 101→102 (drive-picker.js — Google's file picker, ONE door).
-      ok('every ?v= mark in app/index.html matches it — all 102, none stale',
-         stamps.length === 102 && stamps.every(t => t === '?v=' + build),
+      // TRR Pro Release 9 Step 1 101→102 (drive-picker.js — Google's file picker, ONE door); staff PINs 102→103 (staff.js).
+      ok('every ?v= mark in app/index.html matches it — all 103, none stale',
+         stamps.length === 103 && stamps.every(t => t === '?v=' + build),
          stamps.length + ' stamps; strays: ' + stamps.filter(t => t !== '?v=' + build).slice(0, 3).join(','));
       ok('the service worker cache name moved too (build + 10, the fixed offset)',
          new RegExp("const CACHE_NAME = 'mca-v" + (build + 10) + "';").test(rd('app/sw.js')),
@@ -18917,8 +18903,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
          (ee.slice(ee.indexOf('const LIVE_TABS = ['), ee.indexOf('];', ee.indexOf('const LIVE_TABS = ['))).match(/\{ title: '/g) || []).length === 4);
 
       // ── (b) flags released in a finally ──
-      ok('270 _navSuppressHistory is cleared in the same finally as _rrNavBack',
-         /try \{ _rrGoBackTo\(_dest\); \} finally \{\s*\n\s*window\._rrNavBack = false;\s*\n\s*_navSuppressHistory = false;\s*\n\s*\}/.test(ap));
+      // LEDGER 2026-11-11 (backtruth): was "cleared in the same finally as
+      // _rrNavBack" around _rrGoBackTo(_dest). _rrNavBack went with the visit
+      // list it served; the Back handler now shows every page through ONE
+      // wrapper (_show) and the flag comes down in ITS finally.
+      ok('270 _navSuppressHistory is cleared in a finally, whatever the page builder does',
+         /_navSuppressHistory = true;[\s\S]{0,260}try \{ return fn\(\); \} finally \{ _navSuppressHistory = false; \}/.test(ap));
       // Count assignments only — `var _navSuppressHistory = false` is the
       // declaration, not a reset, and counting it made this assertion wrong
       // rather than the code wrong.
@@ -19299,8 +19289,17 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // v0.9.1882: + the catalog-entry card's see-it link (app-collection.js) — six
       // v0.9.1923: + the "Also catalogued separately" row link (wizard.js) — seven.
       // It sits BESIDE its button, not inside a card, so it needs no stopPropagation.
-      ok('276 the guarded set is the known seven (5 stop+guard pairs, the single-item link, the relative-row link)',
-         both === 5 && guards === 7, JSON.stringify({ both, guards }));
+      // LEDGER 2026-11-11 (photoview): the Parts page's photo thumbnail is no
+      // longer a link to Google Drive — it opens the app's own viewer through
+      // rrPhotoLinkAttrs, whose ONE tap handler (rrPhotoTap) stops the click
+      // itself. It keeps its focus guard, so: four literal stop+guard pairs,
+      // still seven guards, and the photo tap proven to stop the click.
+      const tapSrc76 = fs.readFileSync(p76.join(__dirname, '..', 'app', 'app-collection.js'), 'utf8');
+      const tapBody76 = (tapSrc76.match(/function rrPhotoTap\(ev, a\) \{[\s\S]*?\n\}/) || [''])[0];
+      ok('276 the guarded set is the known seven (4 stop+guard pairs, the part photo whose tap stops the click itself, the single-item link, the relative-row link)',
+         both === 4 && guards === 7 && /ev\.preventDefault\(\); ev\.stopPropagation\(\);/.test(tapBody76)
+           && /rrPhotoLinkAttrs\(_fid, ''\) \+ ' onmousedown="event\.preventDefault\(\)"/.test(fs.readFileSync(p76.join(__dirname, '..', 'app', 'app-pages.js'), 'utf8')),
+         JSON.stringify({ both, guards }));
       // The wizard card link carries BOTH handlers — they stop DIFFERENT
       // failure modes (v1189 hit-area theft; v1335 focus-scroll theft).
       const wz = fs.readFileSync(p76.join(__dirname, '..', 'app', 'wizard.js'), 'utf8');

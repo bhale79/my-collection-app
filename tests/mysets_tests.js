@@ -192,7 +192,11 @@ async function phoneWalk(browser, planted, part) {
 async function backWalk(browser, planted) {
   const { pg, errs } = await open(browser, PHONE, planted);
   const R = {};
-  const back = async () => { await pg.evaluate(() => history.back()); await sleep(pg, 450); return pg.evaluate(LOOK); };
+  // LEDGER 2026-11-11 (backtruth): a Back press on the FLOOR leaves the app
+  // (that is "press back again to exit" working) — in this page that is a real
+  // navigation away. A planted walk can reach the floor (P14: no Back entry →
+  // the Dashboard → the floor), so the walk stops pressing there.
+  const back = async () => { await pg.evaluate(() => { if ((history.state || {}).appPage !== 'base') history.back(); }); await sleep(pg, 450); return pg.evaluate(LOOK); };
   await pg.click('#mnav-dashboard'); await sleep(pg, 150);
   await pg.click('#mnav-collection'); await sleep(pg, 250);
   const door = await pg.$('#rr-mysets-door');

@@ -1656,6 +1656,7 @@ function showSoldDetailPage(key) {
   var cur = (typeof _currencySymbol === 'function') ? _currencySymbol() : '$';
   var money = function(v){ if (v === '' || v == null) return null; var n = parseFloat(v); return isNaN(n) ? null : (cur + n.toLocaleString()); };
   var fmtDate = (typeof _formatDate === 'function') ? _formatDate : function(x){ return x; };
+  if (typeof rrNavItem === 'function') rrNavItem({ k: 'sold', key: key });   // 2026-11-11 (backtruth)
   if (typeof showPage === 'function') showPage('itemdetail');
   var container = document.getElementById('item-detail-content');
   if (!container) return;
@@ -1776,7 +1777,7 @@ function showSoldDetailPage(key) {
       if (!el) return;
       if (!photos || !photos.length) { el.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:1.5rem;color:var(--text-dim);font-size:0.82rem">No photos in folder</div>'; return; }
       el.innerHTML = photos.map(function(p){
-        return '<a href="' + p.view + '" target="_blank" rel="noopener" style="display:block;border-radius:8px;overflow:hidden;background:var(--surface2);aspect-ratio:1;position:relative">'
+        return '<a ' + rrPhotoLinkAttrs(p.id, p.name) + ' style="display:block;border-radius:8px;overflow:hidden;background:var(--surface2);aspect-ratio:1;position:relative">'   // photoview
           + '<img id="sdp-' + p.id + '" style="width:100%;height:100%;object-fit:cover;border-radius:8px" alt="' + (p.name || 'Photo') + '"></a>';
       }).join('');
       photos.forEach(function(p){ var img = document.getElementById('sdp-' + p.id); if (img && typeof loadDriveThumb === 'function') loadDriveThumb(p.id, img, img.parentElement); });
@@ -5392,7 +5393,7 @@ function _renderPartsList() {
     if (p.photo) {
       var _fid = (p.photo.match(/\/d\/([a-zA-Z0-9_-]+)/) || [])[1];
       if (_fid) { var _imgId = 'partthumb-' + p.row; _thumbs.push({ fid: _fid, id: _imgId });
-        thumb = '<a href="' + rrEsc(p.photo) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()" onmousedown="event.preventDefault()" style="flex-shrink:0"><div style="width:48px;height:48px;border-radius:8px;overflow:hidden;background:var(--surface2)"><img id="' + _imgId + '" style="width:100%;height:100%;object-fit:cover"></div></a>'; }
+        thumb = '<a ' + rrPhotoLinkAttrs(_fid, '') + ' onmousedown="event.preventDefault()" style="flex-shrink:0"><div style="width:48px;height:48px;border-radius:8px;overflow:hidden;background:var(--surface2)"><img id="' + _imgId + '" style="width:100%;height:100%;object-fit:cover"></div></a>'; }
     }
     return '<div' + rrSampleAttrs(p) + ' style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.85rem 1rem;margin-bottom:0.6rem">'
       + '<div style="display:flex;align-items:flex-start;gap:0.6rem;flex-wrap:wrap">'

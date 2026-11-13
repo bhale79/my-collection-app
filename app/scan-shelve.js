@@ -435,7 +435,7 @@ function rrMoveLogRow(pd, from, to, how, when, who) {
 }
 async function rrMoveLogAdd(pd, from, to, how) {
   if (!pd) return false;
-  var who = (state.user && (state.user.email || state.user.name)) || '';
+  var who = (typeof rrWhoNow === 'function') ? rrWhoNow() : ((state.user && (state.user.email || state.user.name)) || '');   // TRR Pro staff PINs: the person working
   return rrMoveLogAddTo(state.personalSheetId, rrMoveLogRow(pd, from, to, how, new Date(), who));
 }
 // v0.9.2077: one line into ANY collection's Movement Log (a move between

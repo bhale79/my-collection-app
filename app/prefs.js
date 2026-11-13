@@ -73,6 +73,7 @@ if (typeof window !== 'undefined') window._prefsOpenPhotosFolder = _prefsOpenPho
 // Price wording comes from RR_PRICE_TEXT (config.js) — never typed here.
 function _prefsSubRowHtml() {
   try {
+    if (typeof rrStaffCan === 'function' && !rrStaffCan('billing')) return '';   // TRR Pro staff PINs: billing is the owner's
     var s = window._subState;
     var rec = (typeof rrRecordingMode === 'function' && rrRecordingMode() && typeof rrRecordingRenewsIso === 'function');
     if (rec) s = { sub: 'active', paidThrough: rrRecordingRenewsIso(), portalLink: (s && s.portalLink) || '' };   // v0.9.1991: a paying member, signed up RR_RECORDING_MEMBER_MONTHS ago

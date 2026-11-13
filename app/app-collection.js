@@ -165,6 +165,7 @@ function showNonItemDetailPage(type, key) {
     };
   }
 
+  if (typeof rrNavItem === 'function') rrNavItem({ k: 'non', type: type, key: key });   // 2026-11-11 (backtruth): this page's history step says WHICH record
   showPage('itemdetail');
   var container = document.getElementById('item-detail-content');
   if (!container) return;
@@ -325,7 +326,7 @@ function showNonItemDetailPage(type, key) {
       el.innerHTML = photos.map(function(p) {
         var _npn = (p.name||'').replace(/'/g,"\\'");
         return '<div style="position:relative">'
-          + '<a href="' + p.view + '" target="_blank" rel="noopener" style="display:block;border-radius:8px;overflow:hidden;background:var(--surface2);aspect-ratio:1;position:relative">'
+          + '<a ' + rrPhotoLinkAttrs(p.id, p.name) + ' style="display:block;border-radius:8px;overflow:hidden;background:var(--surface2);aspect-ratio:1;position:relative">'   // photoview: opens in the app, not in Google Drive
           + '<img id="nip-' + p.id + '" style="width:100%;height:100%;object-fit:cover;border-radius:8px;transition:opacity 0.3s" alt="' + (p.name||'Photo') + '">'
           + '<div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,0.6));padding:0.3rem 0.5rem">'
           + '<div style="font-size:0.65rem;color:#fff;font-family:var(--font-head);letter-spacing:0.05em;text-transform:uppercase">' + (p.name||'').replace(/\.[^.]+$/,'') + '</div>'
@@ -1125,6 +1126,9 @@ function showItemDetailPage(idx, copyInvId, opts) {
   };
 
   // Show page
+  // 2026-11-11 (backtruth): this page's history step says WHICH item — the
+  // copy's Inventory ID first, else the catalog row itself. Never a position.
+  if (typeof rrNavItem === 'function') rrNavItem({ k: 'item', inv: window._lastDetailCopyInv || '', row: item || null, opts: opts || null });
   showPage('itemdetail');
   const container = document.getElementById('item-detail-content');
   if (!container) return;
@@ -1906,10 +1910,11 @@ window.rrRemoveLeaveNow = rrRemoveLeaveNow;
 // Back to the collection list the person came from (its filters kept), or
 // to My Collection.
 function rrGoToCollectionAfterRemove() {
-  // STALEPAGE (review): the item page is gone — take it off the visit trail
-  // (app.js showPage / the device Back), so ONE press of Back goes to where
-  // the person was before the list, never back onto the removed / sold item.
-  try { var _tr = window._rrPageTrail; while (_tr && _tr.length && _tr[_tr.length - 1] === 'itemdetail') _tr.pop(); } catch (eTr) {}
+  // STALEPAGE → 2026-11-11 (backtruth): nothing to take off a list here any
+  // more. The item page's history step names the copy by Inventory ID, and the
+  // device Back passes over a step whose copy has left the collection
+  // (app.js _rrNavShowItem) — every such step, not only the newest
+  // (T-2026-11-08-06: an OLDER visit to an item page brought the sold car back).
   var ls = window._lastBrowseState;
   if (ls && ls.owned && typeof _detailBackToBrowse === 'function') { _detailBackToBrowse(); return; }
   delete window._lastBrowseState;
@@ -2019,7 +2024,7 @@ function _buildPhotoGallery(el, photos, opts) {
   var heroWrap = document.createElement('div');
   heroWrap.style.cssText = 'flex:1;min-width:0;position:relative;' + (narrow ? 'width:100%;' : '');
   var heroLink = document.createElement('a');
-  heroLink.target = '_blank'; heroLink.rel = 'noopener'; heroLink.tabIndex = 0;
+  heroLink.tabIndex = 0;   // photoview (2026-11-11): the big picture opens in the app's own viewer (select() names the photo)
   heroLink.style.cssText = 'display:block;border-radius:10px;overflow:hidden;background:var(--surface2);position:relative;outline-offset:2px';
   var heroImg = document.createElement('img');
   heroImg.id = galId + '-hero';
@@ -2173,7 +2178,7 @@ function _buildPhotoGallery(el, photos, opts) {
     if (i >= photos.length) i = 0;
     cur = i;
     var p = photos[cur];
-    heroLink.href = p.view || '#';
+    rrPhotoLinkWire(heroLink, p.id, p.name || '');
     heroLblTxt.innerHTML = ((p.name || '').replace(/\.[^.]+$/, '').replace(/^\d{2}· /, '').replace(/</g, '&lt;')).toUpperCase()
       + (opts.canRename ? ' <span style="opacity:0.6">\u270e</span>' : '');
     heroImg.onerror = function () {
@@ -3706,6 +3711,7 @@ async function _breakUpGroupFromDetail(idx, itemNum, variation) {
 // with opts.scope === 'piece'. The secondary choice is Break Up Group
 // (Brad, S84: confirmed) — every piece stays, only the link goes.
 async function removeCollectionItem(itemNum, variation, row, invId, opts) {
+  if (typeof rrStaffGate === 'function' && !rrStaffGate('delete')) return;   // TRR Pro staff PINs: the roles door (staff.js)
   // v0.9.2016 ([stated] Brad: "we need for it to go back to the collection
   // page as soon as you hit delete"): two optional hooks. opts.onConfirmed(keys)
   // runs the moment the person confirms — BEFORE the sheet is touched — with
@@ -4658,7 +4664,7 @@ window._rrDetailGallery = async function (tr2, folderLink) {
       };
     }
     const a = document.createElement('a');
-    a.href = p.view; a.target = '_blank';
+    rrPhotoLinkWire(a, p.id, p.name || '');   // photoview: in the app, not in Google Drive
     a.title = p.name.replace(/\.[^.]+$/, '') + (window.IS_MOBILE_UA ? '' : ' — drag to reorder, or onto a view above');
     a.style.cssText = 'display:inline-block;border-radius:8px;overflow:hidden;border:2px solid '
       + (isRSV ? _RR_GAL_BLUE : 'var(--border)') + ';';
@@ -6522,3 +6528,101 @@ window._fsEditPrice = function () {
     return true;
   });
 };
+
+
+// ═══════════════════════════════════════════════════════════════
+// THE ONE WAY A PHOTO OPENS (photoview, 2026-11-11) — words in config.js
+// RR_PHOTO_VIEW, the why there too. No photo on screen is a link to
+// drive.google.com any more: on Android that link leaves the app for the
+// Google Drive app and its "Select an account" box.
+//   rrPhotoLinkAttrs(id, name) — the attributes for a photo's <a> built as text
+//   rrPhotoLinkWire(a, id, name) — the same for an <a> built as an element
+//   rrPhotoTap(ev, a)          — the tap
+//   rrPhotoView(id, name, fromImg) — the viewer: the picture, its name, Close,
+//                                and "Open in Google Drive" as its own button.
+// The viewer is a pop-up like any other: rrDismissGuard registers it with the
+// back stack, so the phone's Back closes it and a tap beside the picture does
+// nothing.
+// ═══════════════════════════════════════════════════════════════
+function rrPhotoLinkAttrs(id, name) {
+  var e = (typeof rrEsc === 'function') ? rrEsc : function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; }); };
+  return 'href="#" role="button" data-rrphoto="' + e(id || '') + '" data-rrphoto-name="' + e(name || '') + '" onclick="return rrPhotoTap(event,this)"';
+}
+function rrPhotoLinkWire(a, id, name) {
+  if (!a) return;
+  a.removeAttribute('target'); a.removeAttribute('rel');
+  a.setAttribute('href', '#'); a.setAttribute('role', 'button');
+  a.setAttribute('data-rrphoto', id || ''); a.setAttribute('data-rrphoto-name', name || '');
+  a.onclick = function (ev) { return rrPhotoTap(ev, a); };
+}
+function rrPhotoTap(ev, a) {
+  try { if (ev) { ev.preventDefault(); ev.stopPropagation(); } } catch (e) {}
+  try {
+    var id = a && a.getAttribute('data-rrphoto');
+    if (id) rrPhotoView(id, a.getAttribute('data-rrphoto-name') || '', a.querySelector ? a.querySelector('img') : null);
+  } catch (e2) { console.warn('[photo view]', e2); }
+  return false;
+}
+function rrPhotoView(fileId, name, fromImg) {
+  if (!fileId) return;
+  var C = (typeof RR_PHOTO_VIEW !== 'undefined') ? RR_PHOTO_VIEW : {};
+  var old = document.getElementById('rr-photo-view'); if (old) old.remove();
+  var ov = document.createElement('div');
+  ov.id = 'rr-photo-view';
+  ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true');
+  ov.style.cssText = 'position:fixed;inset:0;z-index:' + (C.z || 9999) + ';background:#0a0c10;display:flex;flex-direction:column;'
+    + 'padding:env(safe-area-inset-top,0) env(safe-area-inset-right,0) var(--rr-safe-b,0px) env(safe-area-inset-left,0)';   // the home bar's room is ONE setting (app.css --rr-safe-b)
+  var bar = document.createElement('div');
+  bar.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:0.6rem;padding:0.55rem 0.7rem 0.3rem;flex:0 0 auto';
+  var title = document.createElement('div');
+  title.className = 'rr-photo-view-name';
+  title.style.cssText = 'flex:0 0 auto;padding:0 0.8rem 0.5rem;color:#fff;font-family:var(--font-head);font-size:0.8rem;letter-spacing:0.05em;text-transform:uppercase;text-align:center;overflow-wrap:anywhere';
+  title.textContent = String(name || '').replace(/\.[^.]+$/, '').replace(/^\d{2}· /, '');
+  var drive = document.createElement('a');
+  drive.className = 'rr-photo-view-drive';
+  drive.href = 'https://drive.google.com/file/d/' + encodeURIComponent(fileId) + '/view';
+  drive.target = '_blank'; drive.rel = 'noopener';
+  drive.textContent = (C.drive || 'Open in Google Drive') + ' ↗';
+  drive.style.cssText = 'flex:0 0 auto;color:#cfd6e0;font-family:var(--font-body);font-size:0.82rem;text-decoration:underline;padding:0.7rem 0.3rem;white-space:nowrap';
+  var close = function () { try { ov.remove(); } catch (e) {} };
+  var x = document.createElement('button');
+  x.className = 'rr-photo-view-close rr-tap-wide';
+  x.type = 'button';
+  x.textContent = '✕ ' + (C.close || 'Close');
+  x.setAttribute('aria-label', C.close || 'Close');
+  x.style.cssText = 'flex:0 0 auto;min-height:44px;padding:0 0.9rem;border-radius:10px;border:1.5px solid rgba(255,255,255,0.55);background:rgba(255,255,255,0.08);color:#fff;font-family:var(--font-body);font-size:0.9rem;font-weight:600;cursor:pointer;white-space:nowrap';
+  x.onclick = function (ev) { ev.preventDefault(); ev.stopPropagation(); close(); };
+  bar.appendChild(drive); bar.appendChild(x);
+  var stage = document.createElement('div');
+  stage.style.cssText = 'flex:1 1 auto;min-height:0;display:flex;align-items:center;justify-content:center;padding:0 0.4rem 0.4rem;position:relative';
+  var img = document.createElement('img');
+  img.className = 'rr-photo-view-img';
+  img.alt = title.textContent || C.alt || 'Photo';
+  img.draggable = false;
+  img.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain;display:block;border-radius:6px';
+  var note = document.createElement('div');
+  note.className = 'rr-photo-view-note';
+  note.style.cssText = 'position:absolute;left:0;right:0;bottom:0.7rem;text-align:center;color:#cfd6e0;font-family:var(--font-body);font-size:0.75rem;pointer-events:none';
+  note.textContent = C.loading || '';
+  stage.appendChild(img); stage.appendChild(note);
+  ov.appendChild(bar); ov.appendChild(title); ov.appendChild(stage);
+  // What is already on screen shows at once; the full picture replaces it when
+  // it arrives (the same signed-in fetch the thumbnails fall back to; offline,
+  // the copy saved on this device).
+  try { if (fromImg && fromImg.src) img.src = fromImg.src; } catch (e0) {}
+  try {
+    var big = new Image();
+    big.onload = function () { if (ov.isConnected) { img.src = big.src; note.textContent = ''; } };
+    big.onerror = function () { note.textContent = ''; };
+    if (typeof _loadDriveThumbFull === 'function') {
+      Promise.resolve(_loadDriveThumbFull(fileId, big, null)).then(function () { if (!big.src) note.textContent = ''; }, function () { note.textContent = ''; });
+    } else note.textContent = '';
+  } catch (e1) { note.textContent = ''; }
+  document.body.appendChild(ov);
+  if (typeof window.rrDismissGuard === 'function') window.rrDismissGuard(ov, close);
+  try { x.focus({ preventScroll: true }); } catch (e2) {}
+}
+if (typeof window !== 'undefined') {
+  window.rrPhotoLinkAttrs = rrPhotoLinkAttrs; window.rrPhotoLinkWire = rrPhotoLinkWire;
+  window.rrPhotoTap = rrPhotoTap; window.rrPhotoView = rrPhotoView;
+}

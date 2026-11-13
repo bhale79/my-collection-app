@@ -40,6 +40,8 @@
   // A value inside an on-click, QUOTED: rrJsArg makes it safe, the quotes make it a
   // string — without them rrCollChoose(c7…) asked for a variable and the tap did nothing.
   function _arg(v) { return "'" + (typeof rrJsArg === 'function' ? rrJsArg(v) : String(v == null ? '' : v).replace(/[\\']/g, '\\$&').replace(/[&<>"]/g, '')) + "'"; }
+  // TRR Pro staff PINs: may the person working do this? (true when PINs are not in use)
+  function _can(what) { return (typeof rrStaffCan !== 'function') || rrStaffCan(what); }
   function toast(m, ms, bad) { try { if (typeof showToast === 'function') showToast(m, ms || 3500, !!bad); } catch (e) {} }
   function phone() { try { return typeof rrIsPhone === 'function' && rrIsPhone(); } catch (e) { return false; } }
 
@@ -74,6 +76,7 @@
     if (!rrCollUiOn()) { rrCollUiPaint(); return; }
     if (_booted) { rrCollUiPaint(); return; }
     _booted = true;
+    try { if (typeof rrStaffBoot === 'function') rrStaffBoot(); } catch (eS) {}   // TRR Pro staff PINs: who is working (staff.js)
     try { _data = await rrCollectionsLoad(); } catch (e) { _data = null; }
     try { if (typeof rrArchiveWatch === 'function') rrArchiveWatch(); } catch (e) {}   // release 7A: other devices' archive / delete
     try {
@@ -96,7 +99,8 @@
       'style="max-width:' + (phone() ? '42vw' : '28rem') + ';min-height:40px;padding:0.35rem 0.8rem;border-radius:10px;border:1px solid var(--border);' +
       'background:var(--surface2);color:var(--text);font-family:var(--font-head);font-size:' + (phone() ? '1rem' : '1.25rem') + ';font-weight:700;' +
       'cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;align-self:center">' +
-      esc(W('button', { label: _label(c) }) || (_label(c) + ' ▾')) + '</button>';
+      esc(W('button', { label: _label(c) }) || (_label(c) + ' ▾')) + '</button>' +
+      ((typeof rrStaffChipHtml === 'function') ? rrStaffChipHtml() : '');   // TRR Pro staff PINs: who is working + Switch person
     rrCollHeaderPaint();
   }
 
@@ -226,8 +230,8 @@
     // release 8: All Collections — every item of every collection, the summary, the export
     if (typeof rrAllOpen === 'function') html += '<button type="button" data-coll-all onclick="rrAllOpen()" style="' + _ROW + ';font-weight:700">' + esc(W('all')) + '</button>';
     // release 10: the business's invoices (every collection, one numbering)
-    if (!n && typeof rrInvOpen === 'function') html += '<button type="button" data-coll-inv onclick="rrInvOpen()" style="' + _ROW + '">' + esc((typeof RR_COLL_INVOICE !== 'undefined' && RR_COLL_INVOICE.words.btn) || '') + '</button>';
-    else html += '<div style="' + _ROW + ';cursor:default;opacity:0.6" aria-disabled="true"><span style="flex:1">' + esc(W('all')) + '</span><span style="font-size:0.78rem">' + esc(W('allSoon')) + '</span></div>';
+    // ("We do our own invoices" hides it — rrInvOn is the one door; nothing greyed out in its place)
+    if (!n && typeof rrInvOn === 'function' && rrInvOn() && _can('clients')) html += '<button type="button" data-coll-inv onclick="rrInvOpen()" style="' + _ROW + '">' + esc((typeof RR_COLL_INVOICE !== 'undefined' && RR_COLL_INVOICE.words.btn) || '') + '</button>';
     if (!n || W('home').toLowerCase().indexOf(n) >= 0) html += row('home', W('home'), '', cur && cur.home);
     active.forEach(function (e) {
       var cnt = (e.itemCount == null) ? '' : (Number(e.itemCount) === 1 ? W('item1') : W('items', { n: e.itemCount }));
@@ -238,9 +242,9 @@
         '<button type="button" onclick="rrCollFinish(' + _arg(e.key) + ', this)" style="' + _BTN + ';min-height:36px;padding:0.3rem 0.7rem;font-size:0.85rem">' + esc(W('finish')) + '</button></div>';
     });
     if (n && !active.length && !making.length) html += '<div style="padding:0.8rem 0.2rem;color:var(--text-dim)">' + esc(W('none')) + '</div>';
-    html += '<button type="button" onclick="rrCollNewOpen()" style="' + _ROW + ';justify-content:center;font-weight:700;color:var(--t-link)">' + esc(W('newBtn')) + '</button>';
+    if (_can('details')) html += '<button type="button" onclick="rrCollNewOpen()" style="' + _ROW + ';justify-content:center;font-weight:700;color:var(--t-link)">' + esc(W('newBtn')) + '</button>';
     // v0.9.2077 (release 6): move items from the open collection; moves that stopped part way
-    if (!n && typeof rrMoveOn === 'function' && rrMoveOn()) {
+    if (!n && typeof rrMoveOn === 'function' && rrMoveOn() && _can('move')) {
       html += '<button type="button" onclick="rrMoveManyOpen()" style="' + _ROW + ';justify-content:center">' + esc((typeof RR_COLL_MOVE !== 'undefined' && RR_COLL_MOVE.words.manyBtn) || '') + '</button>';
     }
     if (typeof rrMoveUnfinishedHtml === 'function') { try { html += rrMoveUnfinishedHtml(); } catch (eU) {} }
@@ -282,6 +286,7 @@
     }).join('');
   }
   function rrCollNewOpen() {
+    if (typeof rrStaffGate === 'function' && !rrStaffGate('details')) return;   // TRR Pro staff PINs: the roles door (staff.js)
     var m = document.getElementById('rr-coll-menu'); if (m) m.remove();
     var starts = U().starts || [];
     var html = '<div style="font-family:var(--font-head);font-size:1.2rem;font-weight:700;margin:0.2rem 2.2rem 0.8rem 0">' + esc(W('newTitle')) + '</div>' +
@@ -301,6 +306,7 @@
     _dialog('rr-coll-new', html, false);
   }
   function rrCollNewGo(btn) {
+    if (typeof rrStaffGate === 'function' && !rrStaffGate('details')) return;   // TRR Pro staff PINs: the roles door (staff.js)
     var run = async function () {
       var name = (document.getElementById('rr-coll-new-name') || {}).value || '';
       if (!String(name).trim()) { toast(W('nameNeeded'), 3000, true); return; }
@@ -344,6 +350,7 @@
     var lab = function (t, forId) { return '<label style="display:block;font-size:0.85rem;margin:0.75rem 0 0.25rem"' + (forId ? ' for="' + forId + '"' : '') + '>' + esc(t) + '</label>'; };
     // release 7A: an archived collection's card is read only, with Un-archive / Delete at its foot
     var arch = (typeof rrCollectionIsArchived === 'function') && rrCollectionIsArchived(c.key);
+    var ro = arch || !_can('details');   // TRR Pro staff PINs: Staff see the card, read only
     var statusWords = (arch && typeof rrArchiveStatusWords === 'function') ? rrArchiveStatusWords(c) : W('active');
     var html = '<div style="font-family:var(--font-head);font-size:1.2rem;font-weight:700;margin:0.2rem 2.2rem 0.4rem 0">' + esc(W('detailsTitle', { label: _label(c) })) + '</div>' +
       '<div style="font-size:0.85rem;color:var(--text-dim)">' + esc(W('number')) + ' ' + esc(c.number) + ' · ' + esc(W('status')) + ': ' + esc(statusWords) +
@@ -361,12 +368,12 @@
       '<div style="font-size:0.8rem;color:var(--text-dim)">' + esc(W('fieldsHelp')) + '</div>' +
       '<div id="rr-coll-d-fields"></div>' +
       lab(W('notes'), 'rr-coll-d-notes') + '<textarea id="rr-coll-d-notes" rows="3" style="' + _INP + '">' + esc(c.notes) + '</textarea>' +
-      (arch ? '' : '<div style="margin-top:1rem;display:flex;justify-content:flex-end"><button type="button" id="rr-coll-d-save" onclick="rrCollDetailsSave(' + _arg(c.key) + ', this)" style="' + _BTN + '">' + esc(W('save')) + '</button></div>') +
-      ((typeof rrHandOverDetailsHtml === 'function') ? rrHandOverDetailsHtml(c) : '') +   // release 7B: hand over / linked
-      ((typeof rrArchiveDetailsHtml === 'function') ? rrArchiveDetailsHtml(c) : '');
+      (ro ? '' : '<div style="margin-top:1rem;display:flex;justify-content:flex-end"><button type="button" id="rr-coll-d-save" onclick="rrCollDetailsSave(' + _arg(c.key) + ', this)" style="' + _BTN + '">' + esc(W('save')) + '</button></div>') +
+      ((typeof rrHandOverDetailsHtml === 'function' && _can('handover')) ? rrHandOverDetailsHtml(c) : '') +   // release 7B: hand over / linked
+      ((typeof rrArchiveDetailsHtml === 'function' && (_can('archive') || _can('delete'))) ? rrArchiveDetailsHtml(c) : '');
     var dlg = _dialog('rr-coll-details', html, phone());
     _paintFields(c, types);
-    if (arch && dlg) { try { dlg.querySelectorAll('input, select, textarea').forEach(function (el) { el.disabled = true; }); dlg.querySelectorAll('#rr-coll-d-fields button').forEach(function (el) { el.remove(); }); } catch (e) {} }
+    if (ro && dlg) { try { dlg.querySelectorAll('input, select, textarea').forEach(function (el) { el.disabled = true; }); dlg.querySelectorAll('#rr-coll-d-fields button').forEach(function (el) { el.remove(); }); } catch (e) {} }
   }
   function _paintFields(c, types) {
     var box = document.getElementById('rr-coll-d-fields'); if (!box) return;
@@ -396,6 +403,7 @@
   function rrCollFieldRemove(i) { _syncDraftNames(); if (_fieldDraft) _fieldDraft.splice(i, 1); _paintFields(_curDetailsColl()); }
   function rrCollFieldType(i, t) { _syncDraftNames(); if (_fieldDraft && _fieldDraft[i]) _fieldDraft[i].type = t; _paintFields(_curDetailsColl()); }
   function rrCollDetailsSave(key, btn) {
+    if (typeof rrStaffGate === 'function' && !rrStaffGate('details')) return;   // TRR Pro staff PINs: the roles door (staff.js)
     var run = async function () {
       _syncDraftNames();
       var lists = {};

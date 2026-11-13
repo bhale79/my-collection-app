@@ -8586,8 +8586,12 @@ async function _wizardNextCore() {
     return;
   }
 
-  // Push history so the back button returns to the previous step
-  history.pushState({ appPage: 'wizard', step: wizard.step }, '', '');
+  // 2026-11-11 (backtruth): no history step per wizard step any more. The
+  // window has ONE step (back-stack.js 'wizard', pushed when it opens); the
+  // device Back steps the window back through _wizardBackHandler, which takes
+  // that same step back each time (re-arm). The per-step steps that used to
+  // be added here were never rewound when the window closed — they stayed
+  // behind as dead steps under the page.
 
   renderWizardStep();
 }

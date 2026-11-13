@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2145';
+const APP_VERSION = 'v0.9.2146';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -3937,7 +3937,6 @@ var RR_COLL_UI = {
     title: 'Collections',
     search: 'Find a collection',
     all: 'All Collections',
-    allSoon: 'coming in a later release',
     newBtn: '+ New collection',
     archived: '{heading} ({n})',   // release 7A: the heading is one business setting (RR_COLL_ARCHIVE.headings)
     items: '{n} items',
@@ -4280,6 +4279,10 @@ var RR_COLL_INVOICE = {
   // the tab's name is born where it is registered (collections-invoice.js: rrFeatureTab('Invoices'))
   backupReason: 'before-invoices',
   settingsKey: 'lv_inv_business',   // ACCOUNT setting: the business header, default tax rate, terms
+  // ACCOUNT setting: '1' = "We do our own invoices" — every way into the app's
+  // invoices is hidden (rrInvOn, collections-invoice.js); nothing is deleted.
+  // [stated] Brad 2026-11-11 11:13 CT "we need to make sure that is not something that is a have to".
+  ownKey: 'lv_inv_own',
   // the tab's columns, in order — a new one goes at the END
   headers: ['Invoice No', 'Date', 'Status', 'Buyer', 'Items', 'Subtotal', 'Tax rate %', 'Tax', 'Shipping', 'Total', 'Terms', 'Paid on', 'Void reason', 'Created by', 'Collections', 'Invoice ID', 'Lines (app data)'],
   note: 'Made by The Rail Roster. Never delete a row — void an invoice in the app instead; its number is never used again.',
@@ -4352,6 +4355,13 @@ var RR_COLL_INVOICE = {
     pdfVoid: 'VOID',
     pdfFile: 'Invoice-{no}-{date}.pdf',
     pdfLoading: 'The PDF maker is still loading — try again in a moment.',
+    // Preferences → Business tools: invoices are optional (owners)
+    ownRow: 'Invoices',
+    ownLabel: 'We do our own invoices',
+    ownHelpOff: 'The app can make numbered invoices from your Sold list. Tick the box if you already use your own invoice system — the app’s invoice buttons are then hidden.',
+    ownHelpOn: 'The app’s invoice buttons are hidden. Untick the box to use them again — any invoices already made are still there.',
+    ownOnSaved: '✓ Invoices hidden — you do your own.',
+    ownOffSaved: '✓ Invoices are back.',
     // archive's check (RR_COLL_ARCHIVE.checks)
     archiveCheck: '{n} invoice(s) for this collection not marked paid — mark them paid in Invoices, or archive anyway.',
   },
@@ -4505,6 +4515,122 @@ var RR_DRIVE_PICKER = {
   },
 };
 if (typeof window !== 'undefined') window.RR_DRIVE_PICKER = RR_DRIVE_PICKER;
+
+// ── TRR Pro — STAFF PINs: one business account, each person a PIN ──────────
+// PLAN_2026-11-10_TRR_PRO_R9_STAFF_ROUTE_B.md. [stated] Brad 2026-11-11 06:35 CT
+// "i like the employee pin id and just one account. the employee pin should be
+// assigned by management and they should have the ability to turn it off or
+// on at anytime"; 06:37 "owners and managers"; 06:39 "switching on/off needs a
+// connection" (the list lives in the relay, v5.1+); 06:41 "yes". Read ONLY by
+// staff.js (the ONE "who is working" door). Nothing changes for a business
+// until its first person is made; a regular customer never sees any of it.
+//   feature   the Pro switch (the same as the rest of Pro)
+//   may       what each role may do. Every gated save asks rrStaffCan(<what>)
+//             (the roles door); `gates` lists the functions that must ask,
+//             and tests/staff_pins_tests.js fails if one does not.
+//             Brad 2026-10-28: Staff = add, edit, photos, scan, sell;
+//             Manager = + move, archive, hand over, clients and details;
+//             Owner = + delete, billing, business settings. 2026-11-11:
+//             owners AND managers manage PINs ('staff'); a manager only for
+//             Staff people (the relay enforces that too).
+//   pollMs    how often an open device asks for the list (someone turned
+//             off is stopped within this time when online)
+//   cacheKey  this device's copy of the list, so PINs work with no signal
+//   whoKey    who is working on this device, and when they last did something
+const RR_STAFF = {
+  feature: 'collections',
+  may: {
+    staff:   ['add', 'edit', 'photos', 'scan', 'sell'],
+    manager: ['add', 'edit', 'photos', 'scan', 'sell', 'move', 'archive', 'handover', 'clients', 'details', 'staff'],
+    owner:   ['add', 'edit', 'photos', 'scan', 'sell', 'move', 'archive', 'handover', 'clients', 'details', 'staff', 'delete', 'billing', 'business'],
+  },
+  // file → function → what it needs. Each must begin with the roles door.
+  gates: {
+    'collections-move.js': { rrMoveRun: 'move', rrMoveOpen: 'move', rrMoveManyOpen: 'move' },
+    'collections-archive.js': { rrArchiveCollection: 'archive', rrUnarchiveCollection: 'archive', rrArchiveMarkReturned: 'archive',
+                                rrArchiveOpen: 'archive', rrDeleteCollection: 'delete', rrRestoreCollection: 'delete', rrDeleteOpen: 'delete',
+                                rrArchiveHeadingSave: 'business' },
+    'collections-handover.js': { rrHandOverStart: 'handover', rrHandOverCancel: 'handover', rrHandOverKeep: 'handover',
+                                 rrHandOverRemove: 'handover', rrHandOverOpen: 'handover' },
+    'collections-ui.js': { rrCollNewOpen: 'details', rrCollNewGo: 'details', rrCollDetailsSave: 'details' },
+    'collections-invoice.js': { rrInvCreate: 'clients', rrInvMarkPaid: 'clients', rrInvVoid: 'clients', rrInvSettingsSave: 'business' },
+    'app-collection.js': { removeCollectionItem: 'delete' },
+    'staff.js': { rrStaffAdminOpen: 'staff' },
+  },
+  pollMs: 150000,
+  cacheKey: 'rr_staff_list_v1',
+  whoKey: 'rr_staff_who_v1',
+  wrongMax: 5,
+  wrongWaitMs: 60000,
+  pinMin: 4,
+  pinMax: 8,
+  roleWords: { owner: 'Owner', manager: 'Manager', staff: 'Staff' },
+  words: {
+    pinTitle: 'Who’s working?',
+    pinHelp: 'Enter your PIN.',
+    pinWrong: 'That PIN isn’t right.',
+    pinWait: 'Too many tries — wait a minute, then try again.',
+    pinOff: 'That PIN has been turned off. Ask a manager.',
+    pinGone: '{name}’s PIN has been turned off.',
+    idleLocked: 'Locked after a quiet spell — enter your PIN to carry on.',
+    clear: 'Clear',
+    back: 'Back',
+    enter: 'Enter',
+    chip: '{name}',
+    switchPerson: 'Switch person',
+    notAllowed: '{name} can’t do that — ask {who}.',
+    askManager: 'a manager',
+    askOwner: 'the owner',
+    // Preferences → Business tools
+    prefsRow: 'Staff and PINs',
+    prefsHelpOff: 'Give each person who works here their own PIN. Every save then shows who made it, and each role only sees what it may do.',
+    prefsHelpOn: 'Add people, give them PINs, turn them on or off.',
+    prefsOpen: 'Open',
+    // the Staff screen
+    adminTitle: 'Staff and PINs',
+    firstHelp: 'Start with yourself. The first person is the Owner. Each person types only their PIN to start work.',
+    firstGo: 'Make me the Owner',
+    confirmTitle: 'Confirm it’s you',
+    confirmHelp: 'Enter your PIN to manage staff.',
+    name: 'Name',
+    role: 'Role',
+    pin: 'PIN (4 to 8 numbers)',
+    makeOne: 'Make one up',
+    add: 'Add person',
+    save: 'Save',
+    newPin: 'New PIN',
+    on: 'On',
+    off: 'Off',
+    you: 'you',
+    idle: 'Ask for a PIN again after this many quiet minutes',
+    idleSave: 'Save',
+    close: 'Close',
+    saved: 'Saved.',
+    added: '{name} added. Their PIN: {pin} — give it to them now; it is not shown again.',
+    pinChanged: '{name}’s new PIN: {pin} — give it to them now; it is not shown again.',
+    turnedOn: '{name} turned on.',
+    turnedOff: '{name} turned off.',
+    offline: 'Turning PINs on or off needs a connection.',
+    failed: 'That didn’t save — try again.',
+    errors: {
+      pin_format: 'A PIN is 4 to 8 numbers.',
+      pin_easy: 'That PIN is too easy to guess — pick another.',
+      pin_taken: 'Someone here already has that PIN.',
+      name: 'Type a name.',
+      role: 'Pick a role.',
+      not_allowed: 'Only an owner can do that.',
+      last_owner: 'There must always be an Owner who is on.',
+      wrong_pin: 'That PIN isn’t right.',
+      wait: 'Too many tries — wait a minute.',
+      first_is_owner: 'The first person must be the Owner.',
+      pro_only: 'Staff PINs are part of Pro.',
+      idle_min: 'Pick between 1 and 240 minutes.',
+      too_many: 'That’s the most people one business can have.',
+      'Unknown action': 'Staff PINs aren’t switched on yet — the backend update comes first.',   // relay older than v5.1
+    },
+  },
+};
+if (typeof window !== 'undefined') window.RR_STAFF = RR_STAFF;
 window.rrSavedLocations = function () {
   try {
     var raw = (typeof _prefGet === 'function') ? _prefGet(RR_LOCATIONS_KEY, '[]') : localStorage.getItem(RR_LOCATIONS_KEY);
@@ -6558,3 +6684,26 @@ const RR_MAIN_PHOTO = {
   recheckMs: 24 * 60 * 60 * 1000,
 };
 if (typeof window !== 'undefined') window.RR_MAIN_PHOTO = RR_MAIN_PHOTO;
+
+// ═══════════════════════════════════════════════════════════════
+// THE PHOTO VIEWER (photoview, 2026-11-11)
+// [stated] Brad 2026-11-11 12:37 CT "why not 3 as well?" → 12:38 CT "yes" (the
+// plan) → 20:00 CT "yes" (build it). Hand-test T-2026-11-08-04 on his Android
+// phone: tapping an item's photo opened "Select an account" with the TEST
+// account first. It was never the app's sign-in: every photo was a link to
+// drive.google.com, Android hands such a link to the Google Drive APP, and the
+// Drive app asks which of the phone's accounts to open it with.
+// A photo tap now opens the picture INSIDE the app (rrPhotoView,
+// app-collection.js — the ONE way a photo opens). Google Drive is still one
+// tap away for anyone who wants it, as a small button that says so.
+//   z — with the app's other pop-ups: above every page and the "no internet"
+//       banner (9998 — it covered the Close button), below the crop screen and toasts
+// ═══════════════════════════════════════════════════════════════
+const RR_PHOTO_VIEW = {
+  close: 'Close',
+  drive: 'Open in Google Drive',
+  loading: 'Loading the full picture\u2026',
+  alt: 'Photo',
+  z: 9999,
+};
+if (typeof window !== 'undefined') window.RR_PHOTO_VIEW = RR_PHOTO_VIEW;

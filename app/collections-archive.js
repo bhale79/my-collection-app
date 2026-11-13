@@ -155,6 +155,7 @@
   // ── archive / un-archive ────────────────────────────────────────────────
   // opts.anyway: items still here are left as they are (still never deleted).
   async function rrArchiveCollection(key, opts) {
+    if (typeof rrStaffGate === 'function' && !rrStaffGate('archive')) return { ok: false, why: 'role' };   // TRR Pro staff PINs: the roles door (staff.js)
     opts = opts || {};
     var chk = await rrArchiveChecks(key);
     if (!chk.ok) return { ok: false, why: chk.why };
@@ -179,6 +180,7 @@
     }
   }
   async function rrUnarchiveCollection(key) {
+    if (typeof rrStaffGate === 'function' && !rrStaffGate('archive')) return { ok: false, why: 'role' };   // TRR Pro staff PINs: the roles door (staff.js)
     try {
       var d = await rrCollectionsFileUpdate(function (dd) {
         var e = dd.items[key];
@@ -214,6 +216,7 @@
     return m ? m[1] : '';
   }
   async function rrArchiveMarkReturned(keys) {
+    if (typeof rrStaffGate === 'function' && !rrStaffGate('archive')) return { ok: false, why: 'role', n: 0 };   // TRR Pro staff PINs: the roles door (staff.js)
     var c = rrCurrentCollection();
     if (!c || c.home) return { ok: false, why: 'home', n: 0 };
     if (_offline()) return { ok: false, why: 'offline', n: 0 };
@@ -231,7 +234,7 @@
       var invs = vr[0].values || [], nums = vr[1].values || [], tos = vr[2].values || [];
       var len = Math.max(invs.length, nums.length);
       var when = rrToday(), mark = W('returnMark', { date: when });
-      var who = (st().user && (st().user.email || st().user.name)) || '';
+      var who = (typeof rrWhoNow === 'function') ? rrWhoNow() : ((st().user && (st().user.email || st().user.name)) || '');   // TRR Pro staff PINs
       for (var i = 0; i < list.length; i++) {
         var k = list[i], p = pd[k];
         var inv = String(p.inventoryId || ''), num = String(p.itemNum || '');
@@ -307,6 +310,7 @@
     } catch (e) {}
   }
   async function rrDeleteCollection(key, typedName) {
+    if (typeof rrStaffGate === 'function' && !rrStaffGate('delete')) return { ok: false, why: 'role' };   // TRR Pro staff PINs: the roles door (staff.js)
     if (!key || key === 'home') return { ok: false, why: 'home' };
     if (_offline()) return { ok: false, why: 'offline' };
     var got = await rrCollectionsFileRead();
@@ -358,6 +362,7 @@
       .sort(function (a, b) { return (b.deletedAt || 0) - (a.deletedAt || 0); });
   }
   async function rrRestoreCollection(key) {
+    if (typeof rrStaffGate === 'function' && !rrStaffGate('delete')) return { ok: false, why: 'role' };   // TRR Pro staff PINs: the roles door (staff.js)
     if (_offline()) return { ok: false, why: 'offline' };
     var got = await rrCollectionsFileRead();
     if (!got || !got.ok) return { ok: false, why: 'failed' };
@@ -421,6 +426,7 @@
   // ═══ the screens ════════════════════════════════════════════════════════
   var _archKey = null;
   function rrArchiveOpen(key) {
+    if (typeof rrStaffGate === 'function' && !rrStaffGate('archive')) return;   // TRR Pro staff PINs: the roles door (staff.js)
     var c = rrCollectionByKey(key);
     if (!c || c.home) { toast(W('homeNo'), 3500, true); return; }
     var cur = rrCurrentCollection();
@@ -529,6 +535,7 @@
 
   // Delete: the confirm with what goes and the typed name.
   function rrDeleteOpen(key) {
+    if (typeof rrStaffGate === 'function' && !rrStaffGate('delete')) return;   // TRR Pro staff PINs: the roles door (staff.js)
     var c = rrCollectionByKey(key);
     if (!c || c.home) { toast(W('homeNo'), 3500, true); return; }
     if (!rrCollectionIsArchived(key)) { toast(W('deleteOnlyArchived'), 4000, true); return; }
@@ -590,6 +597,7 @@
     _dialog('rr-coll-arch-heading', html);
   }
   function rrArchiveHeadingSave() {
+    if (typeof rrStaffGate === 'function' && !rrStaffGate('business')) return;   // TRR Pro staff PINs: the roles door (staff.js)
     var pick = document.querySelector('input[name="rr-arch-h"]:checked');
     var v = pick && !pick.hasAttribute('data-own') ? pick.value : ((document.getElementById('rr-arch-h-own') || {}).value || '');
     rrArchiveHeadingSet(v);

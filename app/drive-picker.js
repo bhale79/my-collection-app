@@ -358,10 +358,14 @@
   }
   function rrPrefsPickerHtml() {
     if (!on()) return '';
+    var rows = ((typeof rrPrefsStaffHtml === 'function') ? rrPrefsStaffHtml() : '') +   // TRR Pro staff PINs (staff.js)
+      ((typeof rrPrefsInvHtml === 'function') ? rrPrefsInvHtml() : '') +   // "We do our own invoices" (collections-invoice.js, owners)
+      ((typeof rrStaffCan !== 'function' || rrStaffCan('business')) ? '<div class="pref-row" id="rr-pp-prefs-row">' + _rowInner() + '</div>' : '');
+    if (!rows) return '';   // Staff (PINs in use) see no Business tools at all
     return '<div class="pref-section" data-pp-prefs>' +
       '<div class="pref-section-title" onclick="_togglePrefSection(this)" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center">' +
         esc(W('prefsSection')) + ' <span style="font-size:0.7rem;color:var(--text-dim);transition:transform 0.2s">\u25b6</span></div>' +
-      '<div class="pref-section-body" style="display:none"><div class="pref-row" id="rr-pp-prefs-row">' + _rowInner() + '</div></div></div>';
+      '<div class="pref-section-body" style="display:none">' + rows + '</div></div>';
   }
   function rrPrefsPickerRowRefresh() {
     var r = document.getElementById('rr-pp-prefs-row');

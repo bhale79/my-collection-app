@@ -31,6 +31,7 @@
   var CFG = {
     stateKey: '_back',   // history.state.{stateKey} = modal id we pushed
     debug:    false,     // set true to log every push/pop for troubleshooting
+    exitMs:   2200,      // 2026-11-11: how long "press back again to exit" holds the floor
   };
 
   var _stack = [];               // array of { id: string, closeFn: function }
@@ -78,6 +79,121 @@
   // is already queued behind it gets its turn.
   var _backsPending = 0, _backFlushQueued = false;
   var _goInFlight = false, _goTimer = null, _pushesDeferred = 0;
+  // ══ 2026-11-11 (backtruth — hand-tests T-2026-11-08-03 and -06 FAILED) ════
+  // Chrome's rule ("history manipulation intervention"): a history step ADDED
+  // without a touch on the page marks every step of the app as skippable until
+  // the next touch — and a Back press is not a touch. The app used to add a
+  // step while ANSWERING a Back press (to hold its place), so Back, Back with
+  // no tap between closed the app on Android (seen on Brad's phone,
+  // 2026-11-11: item page → Back → Back = app closed; one touch between = fine).
+  // So this file is now the ONE owner of every history step the app makes, and
+  // its rule is: NEVER add a step while answering a Back press.
+  //   • a page opening (showPage → nav) adds its step only on a touch;
+  //   • a step says what it shows: { rr, s, appPage, item, d } — the page, the
+  //     item's number in app.js's table (memory only), and how many steps it
+  //     sits above the floor;
+  //   • to hold its place after a Back, the app walks FORWARD again onto the
+  //     step it just left (stay) — a walk adds nothing;
+  //   • a pop-up re-opened by its own Back handler (the Add window stepping
+  //     back) takes back the step that Back just left (re-arm) the same way;
+  //   • a pop-up that opens with no touch since a Back gets no step of its
+  //     own (own: 0) — closing it rewinds nothing.
+  var _noTouch = false;            // a Back / Forward press, and no touch on the page since
+  var _dispatching = false, _rearmed = false, _dispatchOwn = 1;
+  var _fwdPending = 0, _landFns = [], _navDeferred = null;
+  var _ctx = null;                 // app.js: what is on screen now → { appPage, item }
+  var _load = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);   // this page load (an item's number means nothing in another load)
+  function _ctxNow() { try { return (_ctx && _ctx()) || {}; } catch (e) { return {}; } }
+  function _ours(st) { return !!(st && st.rr === 1); }
+  function _depthNow() { try { var st = history.state; return (_ours(st) && typeof st.d === 'number') ? st.d : 0; } catch (e) { return 0; } }
+  function _pageState(c, d) { return { rr: 1, s: _load, appPage: (c && c.appPage) || '', item: (c && c.item) || 0, d: d }; }
+  var _floorHold = false;          // sitting on the floor after "press back again to exit"
+  var _exitTimer = null;
+  var _pageOwed = null;            // a page's step to re-label once the pop-up over it has closed (nav)
+  // ── Is there a step to walk FORWARD onto? (review 2026-11-11, F3) ──────────
+  // A walk forward with nowhere to go is never answered, and for a moment a
+  // real Back press would be taken for the app's own walk. So a walk forward
+  // is only ever asked for when a step is known to be there: the browser says
+  // so where it can (the Navigation API); elsewhere the app keeps count from
+  // the depth each step carries (a walk DOWN leaves a step above; a step
+  // added, or a walk up, leaves none known).
+  var _fwdOk = false, _lastD = 0;
+  function _fwdRoom() {
+    try {
+      var nv = window.navigation;
+      if (nv && nv.currentEntry && typeof nv.entries === 'function') return Math.max(0, nv.entries().length - 1 - nv.currentEntry.index);
+    } catch (e) {}
+    return _fwdOk ? 1 : 0;
+  }
+  function _landed() {             // any walk landed (the person's or the app's own)
+    var d = _depthNow();
+    _fwdOk = d < _lastD;
+    _lastD = d;
+  }
+  // THE one place a history step is ADDED (four callers, all in this file).
+  function _add(st) {
+    history.pushState(st, '', '');
+    _fwdOk = false; _lastD = (st && typeof st.d === 'number') ? st.d : 0;
+    _floorOff();                   // a step above the floor: the exit hold is over
+  }
+  function _floorOff() {
+    _floorHold = false;
+    if (_exitTimer) { clearTimeout(_exitTimer); _exitTimer = null; }
+  }
+  function _isBase(st) { return _ours(st) && st.appPage === 'base'; }
+  // A label is never written onto the floor itself (review F3).
+  function _relabel(c) {
+    try {
+      var cur = history.state;
+      if (!_ours(cur) || _isBase(cur)) return;
+      history.replaceState(_pageState(c, _depthNow() || 1), '', '');
+    } catch (e) {}
+  }
+  // The person TAPPED the page (a finished tap or a key, never the start of a
+  // swipe or a scroll — review F1: a swipe-Back begins with a touch, and
+  // counting that kept the app from ever being left). They are staying: a
+  // fresh Dashboard step goes above the floor — a tap is what lets a step be
+  // added — so the NEXT Back asks "press back again" once more.
+  function _offFloorByTap() {
+    _floorOff();
+    var up = function () {
+      try {
+        var cur = history.state;
+        if (_ours(cur) && !_isBase(cur)) return;       // not on the floor after all
+        _add(_pageState(_ctxNow(), _depthNow() + 1));
+      } catch (e) { console.warn('[BackStack] off the floor:', e); }
+    };
+    if (_goInFlight || _backsPending > 0 || _backFlushQueued) { _landFns.push(up); _queueFlush(); }   // the walk down is still on its way
+    else up();
+  }
+  // No second Back came in time (review F5): step back up by itself — a walk
+  // onto the step just left, nothing added — so a Back a minute later asks
+  // again instead of leaving without a word.
+  function _offFloorByTime() {
+    _exitTimer = null;
+    if (!_floorHold) return;
+    _floorHold = false;
+    if (_goInFlight || _fwdRoom() < 1) return;
+    var c = _ctxNow();
+    _landFns.push(function (failed) { if (!failed) _relabel(c); });
+    _queueFwd();
+  }
+  var _TAP = { pointerup: 1, click: 1, keydown: 1 };
+  var _NOT_A_TAP_KEY = { Alt: 1, AltGraph: 1, Control: 1, Meta: 1, Shift: 1, OS: 1, BrowserBack: 1, BrowserForward: 1, GoBack: 1 };
+  function _touched(e) {
+    // The app's own el.click() is not the person's finger (review F4).
+    if (e && e.isTrusted === false) return;
+    _noTouch = false;
+    if (!_floorHold || !e || !_TAP[e.type]) return;
+    if (e.type === 'keydown') { if (e.altKey || e.metaKey || e.ctrlKey || _NOT_A_TAP_KEY[e.key]) return; }   // Alt+Left IS a Back press
+    else if (typeof e.button === 'number' && e.button > 2) return;                                          // so is a mouse's Back button
+    _offFloorByTap();
+  }
+  function _queueFwd() { _fwdPending++; _queueFlush(); }
+  function _runLand(failed) {
+    var fns = _landFns; _landFns = [];
+    for (var i = 0; i < fns.length; i++) { try { fns[i](!!failed); } catch (e) { console.warn('[BackStack] after a walk:', e); } }
+  }
   var GO_ANSWER_MS = 1500;     // a same-document traversal answers in a few ms; this is a safety net
   function _queueBack() {
     if (_pushesDeferred > 0) { _pushesDeferred--; return; }   // an entry not yet added and a step owed cancel out
@@ -93,12 +209,13 @@
   function _flushBacks() {
     _backFlushQueued = false;
     if (_goInFlight) return;               // _onPopState (or the timer) flushes again
-    var n = _backsPending; _backsPending = 0;
-    if (!n) return;
+    var n = _backsPending - _fwdPending; _backsPending = 0; _fwdPending = 0;   // 2026-11-11: steps back less steps forward = ONE walk
+    if (!n) { _runLand(true); return; }
     // never ask for more steps than the history holds — a traversal that goes
     // nowhere fires no popstate, and the count would stay up for good
-    try { var have = (history.length || 1) - 1; if (n > have) n = have; } catch (e) {}
-    if (n <= 0) return;
+    if (n > 0) { try { var have = (history.length || 1) - 1; if (n > have) n = have; } catch (e) {} }
+    else { var room = _fwdRoom(); if (-n > room) n = -room; }   // 2026-11-11 (review F3): never walk forward onto nothing
+    if (!n) { _runLand(true); return; }
     _ignorePops++;
     _goInFlight = true;
     _goTimer = setTimeout(_goUnanswered, GO_ANSWER_MS);
@@ -112,10 +229,13 @@
     if (failed) _ignorePops = Math.max(0, _ignorePops - 1);
     while (_pushesDeferred > 0) {                 // the entries that waited for this answer
       _pushesDeferred--;
-      try { history.pushState(_stateFor(_stack.length ? _stack[_stack.length - 1].id : ''), '', ''); }
+      try { _add(_stateFor(_stack.length ? _stack[_stack.length - 1].id : '', _depthNow() + 1)); }
       catch (e) { console.warn('[BackStack] pushState failed:', e); }
     }
-    if (_backsPending > 0) _queueFlush();
+    _runLand(failed);
+    if (!failed) _payPage();                             // 2026-11-11: what waited for this walk to land (stay's restamp)
+    if (_navDeferred) { var _nd = _navDeferred; _navDeferred = null; nav(_nd); }
+    if (_backsPending > 0 || _fwdPending > 0) _queueFlush();
   }
   function _goUnanswered() {
     _goTimer = null;
@@ -129,7 +249,23 @@
     _log('history.go went unanswered — taking back its ignore');
     _goAnswered(true);
   }
-  function _stateFor(id) { var st = {}; st[CFG.stateKey] = id; return st; }
+  // Review 2026-11-11 (F2): the item under a pop-up changed while the pop-up's
+  // step was on top ("Which copy?" → the other copy). The page's own step is
+  // re-labelled the moment the pop-up's rewind lands on it — else Back to that
+  // page later showed the item it had BEFORE.
+  function _payPage() {
+    if (!_pageOwed) return;
+    try {
+      var cur = history.state;
+      if (!_ours(cur) || _isBase(cur) || cur[CFG.stateKey]) return;   // still a pop-up's step: wait
+      var c = _pageOwed; _pageOwed = null;
+      if (cur.appPage !== c.appPage) return;
+      history.replaceState(_pageState(c, _depthNow()), '', '');
+    } catch (e) {}
+  }
+  // A pop-up's step also says which page (and item) it opened over, so a step
+  // left behind (drop) still tells Back what to show.
+  function _stateFor(id, d) { var st = _pageState(_ctxNow(), d || 0); st[CFG.stateKey] = id; return st; }
 
   function _log() {
     if (!CFG.debug) return;
@@ -140,6 +276,14 @@
     if (_inited) return;
     _inited = true;
     window.addEventListener('popstate', _onPopState);
+    // 2026-11-11: a touch on the page. Chrome itself counts a tap only when it
+    // lands (pointerup), but a handler that opens something on the way DOWN
+    // (touchstart / pointerdown) must still get its step: the tap lands a
+    // moment later and Chrome then counts every step again.
+    // (Only a FINISHED tap or a key lifts the exit hold — _touched.)
+    ['pointerdown', 'touchstart', 'pointerup', 'mousedown', 'keydown', 'click'].forEach(function (ev) {
+      try { window.addEventListener(ev, _touched, { capture: true, passive: true }); } catch (e) { window.addEventListener(ev, _touched, true); }
+    });
     _log('initialized');
   }
 
@@ -148,6 +292,7 @@
     if (_ignorePops > 0) {
       _ignorePops--;
       _log('ignoring self-triggered popstate');
+      _landed();
       if (_goInFlight) _goAnswered(false);
       // Session 159: also stop propagation so app.js's dashboard back handler
       // doesn't see this and flash "Press back again to exit" after wizard close.
@@ -156,14 +301,32 @@
       }
       return;
     }
+    _noTouch = true;               // 2026-11-11: the person's own Back (or Forward) — no step is added until they touch the page
+    _landed();
+    if (_floorHold && !_isBase(e.state)) _floorOff();   // they walked somewhere else (Forward): the exit hold is over
     if (!_stack.length) {
       // Stack is empty — let app.js (or any other) popstate handler run.
       return;
     }
     var top = _stack.pop();
     _log('popstate → close', top.id, 'stack size now', _stack.length);
+    _dispatching = true; _rearmed = false; _dispatchOwn = (top.own === 0) ? 0 : 1;
     try { top.closeFn && top.closeFn(); }
     catch (err) { console.warn('[BackStack] closeFn error for', top.id, err); }
+    _dispatching = false;
+    // 2026-11-11: its handler opened it again (the Add window stepping back),
+    // or it never had a step of its own (this Back used up a page's step):
+    // walk forward onto the step this Back just left. Nothing is added.
+    if (_rearmed || top.own === 0) {
+      if (_fwdRoom() > 0) _queueFwd();
+      else if (_rearmed && _stack.length) _stack[_stack.length - 1].own = 0;   // review F3: no step above to take back (a Forward press) — it holds none
+    } else {
+      _payPage();
+      // The floor is a place to wait for the second Back, nothing else: a
+      // pop-up closed onto it walks back up onto the step just left.
+      if (_isBase(e.state) && !_floorHold && _fwdRoom() > 0) _queueFwd();
+    }
+    _rearmed = false;
     // Prevent app.js's own popstate handler from also firing and
     // treating this as a navigation event.
     if (typeof e.stopImmediatePropagation === 'function') {
@@ -182,21 +345,42 @@
     // De-dupe: if this id is already somewhere in the stack (shouldn't
     // happen, but defensive), remove the old entry first.
     for (var i = _stack.length - 1; i >= 0; i--) {
-      if (_stack[i].id === id) { _stack.splice(i, 1); break; }
+      if (_stack[i].id === id) {
+        // 2026-11-11 (review F2): the SAME pop-up registered twice (the copy
+        // picker is wired, and its click-outside binding wires it again) used
+        // to get a second history step; only one was ever rewound, and the
+        // one left behind sat between the page and its own step. One pop-up,
+        // one step: the entry already there changes hands.
+        var was = _stack.splice(i, 1)[0];
+        _stack.push({ id: id, closeFn: closeFn, own: was.own });
+        _log('push', id, '(already open — its step is kept)');
+        return;
+      }
     }
-    var state = _stateFor(id);
-    if (_backsPending > 0) {
+    var own = 1;
+    var cur = null; try { cur = history.state; } catch (e) {}
+    if (_dispatching) {
+      // 2026-11-11 (re-arm): opened again by the Back that is closing it — it
+      // takes back the step that Back just left (_onPopState walks forward).
+      _rearmed = true; own = _dispatchOwn;
+    } else if (_backsPending > 0) {
       // 2026-11-07: a step still owed + a new entry = the top entry changes hands, no traversal
       _backsPending--;
-      try { history.replaceState(state, '', ''); }
+      try { history.replaceState(_stateFor(id, _depthNow()), '', ''); }
       catch (e) { console.warn('[BackStack] replaceState failed:', e); }
+    } else if (_noTouch && !(_ours(cur) && cur.appPage === 'base')) {
+      // 2026-11-11: no touch since a Back press — a step added now would make
+      // Chrome skip every step of the app. On its own old step (a view the
+      // person came back to, e.g. My Sets under a set's page) it owns that
+      // step again; anywhere else it opens with no step of its own.
+      own = (_ours(cur) && cur[CFG.stateKey] === id) ? 1 : 0;
     } else if (_goInFlight) {
       _pushesDeferred++;                          // 2026-11-09: added the moment the traversal on its way lands
     } else {
-      try { history.pushState(state, '', ''); }
+      try { _add(_stateFor(id, _depthNow() + 1)); }
       catch (e) { console.warn('[BackStack] pushState failed:', e); }
     }
-    _stack.push({ id: id, closeFn: closeFn });
+    _stack.push({ id: id, closeFn: closeFn, own: own });
     _log('push', id, 'stack size now', _stack.length);
   }
 
@@ -204,13 +388,13 @@
   // Rewinds the history entry we pushed so the back stack stays balanced.
   function pop(id) {
     if (!_stack.length) return;
-    var removed = false;
+    var removed = false, gone = null;
     if (id) {
       for (var i = _stack.length - 1; i >= 0; i--) {
-        if (_stack[i].id === id) { _stack.splice(i, 1); removed = true; break; }
+        if (_stack[i].id === id) { gone = _stack.splice(i, 1)[0]; removed = true; break; }
       }
     } else {
-      _stack.pop();
+      gone = _stack.pop();
       removed = true;
     }
     if (!removed) {
@@ -221,6 +405,7 @@
     // Rewind one history step to match the pushState we did on open,
     // so the next back press isn't a no-op for the user. Gathered with any
     // other pop of this tick into ONE traversal (finding 17, above).
+    if (gone && gone.own === 0) return;           // 2026-11-11: it never had a step of its own — nothing to rewind
     _queueBack();
   }
 
@@ -289,9 +474,79 @@
   // Public — how many entries on the stack right now.
   function size() { return _stack.length; }
 
+  // ── 2026-11-11 (backtruth): the page's own steps ─────────────────────────
+  // Public — a page opened (app.js showPage, the ONE caller). c = { appPage,
+  // item }. Adds a step only when the person touched the page to get here;
+  // the same page shown again (a repaint, the next item with the arrows)
+  // re-labels its own step — one step per page, as the old visit list had.
+  function nav(c) {
+    _init();
+    c = c || {};
+    var cur = null; try { cur = history.state; } catch (e) {}
+    var ours = _ours(cur), d = _depthNow();
+    var curBack = ours ? cur[CFG.stateKey] : '';
+    var samePage = ours && cur.appPage === c.appPage;
+    var newItem = samePage && (cur.item || 0) !== (c.item || 0);
+    if (curBack && has(curBack)) {                // an open pop-up's step is on top
+      if (samePage) { _pageOwed = newItem ? c : null; return; }   // its own page drawn again underneath (a new item: its step is re-labelled when the pop-up closes)
+    } else if (curBack && samePage && (_backsPending > 0 || _goInFlight)) {
+      _pageOwed = newItem ? c : null;
+      return;                                     // a pop-up over this page is closing: its rewind lands on the page's own step
+    }
+    _pageOwed = null;
+    try {
+      if (_backsPending > 0) {                    // a closing pop-up's step becomes this page's
+        _backsPending--;
+        history.replaceState(_pageState(c, d), '', '');
+      } else if (_goInFlight) {
+        _navDeferred = c;                         // added the moment the walk on its way lands
+      } else if (ours && cur.appPage !== 'base' && (_noTouch || samePage || (curBack && !has(curBack)))) {
+        history.replaceState(_pageState(c, d), '', '');   // no touch since a Back · the same page · a step left behind
+      } else {
+        _add(_pageState(c, d + 1));
+      }
+    } catch (e) { console.warn('[BackStack] nav failed:', e); }
+  }
+  // Public — a Back press was answered WITHOUT leaving (a pop-up with no step
+  // closed, the Dashboard shown from the floor): walk forward onto the step
+  // that Back just left, and, when a page is named, label that step with it.
+  function stay(c) {
+    if (c) _landFns.push(function (failed) { if (!failed) _relabel(c); });
+    _queueFwd();
+  }
+  // Public — walk down to the floor (the Dashboard's "press back again to
+  // exit": the next Back then leaves the app). d = how far above it we are.
+  function toFloor(d) {
+    d = parseInt(d, 10) || 0;
+    _floorHold = true;
+    if (_exitTimer) clearTimeout(_exitTimer);
+    _exitTimer = setTimeout(_offFloorByTime, CFG.exitMs);
+    if (d <= 0) return;                           // already on it
+    _backsPending += d;
+    _queueFlush();
+  }
+  // Public — start-up (app.js _initBackButton): the floor and the first page.
+  // After a reload inside a running session the steps below are still there:
+  // the step we are on becomes the first page at the height it already had,
+  // and nothing is added.
+  function seed(c) {
+    _init();
+    var cur = null; try { cur = history.state; } catch (e) {}
+    try {
+      if (_ours(cur) && cur.s !== _load && cur.appPage && cur.appPage !== 'base' && cur.d >= 1) {
+        history.replaceState(_pageState(c, cur.d), '', '');
+        _lastD = cur.d;
+        return;
+      }
+      history.replaceState({ rr: 1, s: _load, appPage: 'base', item: 0, d: 0 }, '', '');
+      _add(_pageState(c, 1));
+    } catch (e) { console.warn('[BackStack] seed failed:', e); }
+  }
+
   // Public — drop everything without calling closeFns (used on sign-out).
   function clear() {
     _stack.length = 0;
+    _pageOwed = null;
     _log('cleared');
   }
 
@@ -415,6 +670,13 @@
     drop:  drop,
     size:  size,
     clear: clear,
+    nav:   nav,       // 2026-11-11 (backtruth)
+    stay:  stay,
+    toFloor: toFloor,
+    seed:  seed,
+    setCtx: function (fn) { _ctx = (typeof fn === 'function') ? fn : null; },
+    load:  function () { return _load; },
+    noTouch: function () { return _noTouch; },
     _cfg:  CFG,   // exposed for tests / one-line tweaks
   };
 })(window);

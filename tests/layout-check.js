@@ -1060,8 +1060,13 @@ _pinOpaqueTint(document.getElementById('jt-active'), '41,128,185', 18);
       const h1 = collSrc.indexOf('window._rrDetailGallery = async function');
       const g0 = collSrc.indexOf('var _galSeq = 0;');
       const g1 = collSrc.indexOf("if (typeof window !== 'undefined') window._buildPhotoGallery = _buildPhotoGallery;");
-      ok('gallery: the real source slices were found', h0 > 0 && h1 > h0 && g0 > 0 && g1 > g0);
-      const galSrc = collSrc.slice(h0, h1) + '\n' + collSrc.slice(g0, g1);
+      // LEDGER 2026-11-11 (photoview): the gallery's photos no longer link to
+      // Google Drive — each opens in the app's own viewer through the photo-link
+      // helpers, so the fixture loads that slice of the real source too.
+      const v0 = collSrc.indexOf('function rrPhotoLinkAttrs(id, name) {');
+      const v1 = collSrc.indexOf("if (typeof window !== 'undefined') {\n  window.rrPhotoLinkAttrs = rrPhotoLinkAttrs;");
+      ok('gallery: the real source slices were found', h0 > 0 && h1 > h0 && g0 > 0 && g1 > g0 && v0 > 0 && v1 > v0);
+      const galSrc = collSrc.slice(h0, h1) + '\n' + collSrc.slice(g0, g1) + '\n' + collSrc.slice(v0, v1);
       const FAKES = JSON.stringify([
         { id: 'p1', name: '6561 BKV.jpg', thumbnailLink: '', view: '#' },
         { id: 'p2', name: '6561 RSV.jpg', thumbnailLink: '', view: '#' },

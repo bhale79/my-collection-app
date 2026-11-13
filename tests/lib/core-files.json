@@ -22,6 +22,7 @@
     "app/collections-invoice.js",
     "app/capture.js",
     "app/drive-picker.js",
+    "app/staff.js",
     "app/collections-inbox.js"
   ],
   "mutable": [

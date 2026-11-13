@@ -4919,17 +4919,15 @@ function showPage(name, clickedEl) {
   // opened it — and that's where Cancel returns them, instead of a per-flow
   // guess that could stray to the Dashboard.
   try { window._rrLastPage = name; } catch (e) {}
-  // v0.9.1022 (Brad, phones): a real breadcrumb trail so the DEVICE back
-  // button returns to the previous page instead of always the Dashboard.
-  // Same-page repeats collapse; the trail is capped so it can't grow.
-  try {
-    if (!window._rrPageTrail) window._rrPageTrail = [];
-    var _tr = window._rrPageTrail;
-    if (!window._rrNavBack && _tr[_tr.length - 1] !== name) {
-      _tr.push(name);
-      if (_tr.length > 25) _tr.shift();
-    }
-  } catch (e) {}
+  // 2026-11-11 (backtruth): the visit list that used to be kept here
+  // (_rrPageTrail, v0.9.1022) is RETIRED. It was a second record of where the
+  // person had been, beside the browser's own history, and it held an item
+  // page only as the word "itemdetail" — so Back onto "an item page" showed
+  // whichever item was drawn last (hand-test T-2026-11-08-06: the car just
+  // sold, still "In Collection"). The browser's history is the ONE record
+  // now: each step says its page and, for an item page, WHICH item
+  // (rrNavItem below; back-stack.js nav).
+  if (name !== 'itemdetail') { try { window._rrNavItemCur = 0; } catch (e) {} }
   if (name !== 'itemdetail') { try { delete window._detailReturn; } catch (e) {} }
   if (clickedEl) clickedEl.classList.add('active');
   // v0.9.2017 ([stated] Brad: the share bar "just stays up at the bottom"):
@@ -4956,10 +4954,108 @@ function showPage(name, clickedEl) {
     }
   } catch(e) {}
   document.getElementById('main-content').scrollTop = 0;
-  // Push history entry so back button returns here instead of closing the app
+  // This page's history step — back-stack.js owns every step the app makes
+  // (2026-11-11, backtruth). Nothing is written while a Back press is being
+  // answered (_navSuppressHistory).
   if (!_navSuppressHistory) {
-    history.pushState({ appPage: name }, '', '');
+    if (window.BackStack && typeof BackStack.nav === 'function') BackStack.nav(rrNavCtx(name));
   }
+}
+
+// ── 2026-11-11 (backtruth): WHICH item an item page shows ─────────────────
+// A history step can only hold plain values, and a catalog row is found by
+// the row itself, never by a bare number. So what an item page showed is kept
+// here, in memory, under a small number, and the page's history step carries
+// that number. Identity is the copy's Inventory ID first; a catalog-only page
+// keeps the catalog ROW; a set / catalog / paper page keeps its kind and key;
+// a sale record its key. Never a position.
+var _rrNavItems = {}, _rrNavItemSeq = 0;
+var RR_NAV_ITEMS_KEPT = 80;        // how many item pages back the table remembers
+if (typeof window !== 'undefined') window._rrNavItemCur = 0;
+function _rrNavSameItem(a, b) {
+  if (!a || !b || a.k !== b.k) return false;
+  if (a.k === 'item') {
+    if (a.inv || b.inv) return String(a.inv || '') === String(b.inv || '');
+    return !!a.row && a.row === b.row && !!(a.opts && a.opts.wantMode) === !!(b.opts && b.opts.wantMode);
+  }
+  if (a.k === 'non') return a.type === b.type && String(a.key) === String(b.key);
+  return String(a.key) === String(b.key);
+}
+// Called by the three item-page openers, just BEFORE showPage('itemdetail').
+function rrNavItem(rec) {
+  try {
+    var cur = _rrNavItems[window._rrNavItemCur];
+    if (cur && _rrNavSameItem(cur, rec)) { _rrNavItems[window._rrNavItemCur] = rec; return window._rrNavItemCur; }
+    var n = ++_rrNavItemSeq;
+    _rrNavItems[n] = rec;
+    delete _rrNavItems[n - RR_NAV_ITEMS_KEPT];
+    window._rrNavItemCur = n;
+    return n;
+  } catch (e) { return 0; }
+}
+// What is on screen now, for a history step.
+function rrNavCtx(name) {
+  var pg = name;
+  if (!pg) { var a = document.querySelector('.page.active'); pg = a ? a.id.replace('page-', '') : 'dashboard'; }
+  return { appPage: pg, item: pg === 'itemdetail' ? (window._rrNavItemCur || 0) : 0 };
+}
+// Does this step's item page show what is on screen right now?
+function _rrNavStepIsCurrent(st) {
+  var loadOk = !!(window.BackStack && BackStack.load && st.s === BackStack.load());
+  if (!loadOk) return false;
+  return _rrNavSameItem(_rrNavItems[st.item], _rrNavItems[window._rrNavItemCur]);
+}
+// Draw the item a step names. false = it cannot be shown (the copy was sold or
+// removed, the record is gone, the step is from before a reload) — Back then
+// moves on to the step before it.
+function _rrNavShowItem(st) {
+  // Review 2026-11-11 (F6): "the item on screen" moves to this step's item
+  // only when it really was drawn; a step passed over leaves it as it was.
+  var was = window._rrNavItemCur, ok = false;
+  try { ok = _rrNavShowItemTry(st); } finally { if (!ok) window._rrNavItemCur = was; }
+  return ok;
+}
+function _rrNavShowItemTry(st) {
+  try {
+    if (!(window.BackStack && BackStack.load && st.s === BackStack.load())) return false;
+    var r = _rrNavItems[st.item];
+    if (!r) return false;
+    window._rrNavItemCur = st.item;
+    if (r.k === 'item') {
+      if (r.inv) {
+        var inv = String(r.inv);
+        var pd = (state.personalData || {})[inv]
+          || Object.values(state.personalData || {}).find(function (p) { return p && String(p.inventoryId) === inv; });
+        if (!pd || typeof _openOwnedByInvId !== 'function') return false;
+        _openOwnedByInvId(inv);
+      } else {
+        if (!r.row) return false;
+        var i = (typeof _masterIdxOf === 'function') ? _masterIdxOf(r.row) : -1;
+        if (i < 0 && typeof findMaster === 'function') {
+          var m = findMaster(r.row.itemNum, r.row.variation, r.row);   // the row itself says which catalog
+          i = (m && typeof _masterIdxOf === 'function') ? _masterIdxOf(m) : -1;
+        }
+        if (i < 0) return false;
+        showItemDetailPage(i, '', r.opts);
+      }
+    } else if (r.k === 'non') {
+      var cfg = (window.NON_ITEM_DETAIL_CONFIG || {})[r.type];
+      if (!cfg) return false;
+      var bucket = state;
+      cfg.bucketPath.split('.').forEach(function (seg) { bucket = bucket && bucket[seg]; });
+      if (!bucket || !bucket[r.key]) return false;
+      showNonItemDetailPage(r.type, r.key);
+    } else if (r.k === 'sold') {
+      if (!(state.soldData || {})[r.key] || typeof showSoldDetailPage !== 'function') return false;
+      showSoldDetailPage(r.key);
+    } else return false;
+    var dp = document.getElementById('page-itemdetail');
+    return !!(dp && dp.classList.contains('active'));
+  } catch (e) { console.warn('[back] item step', e); return false; }
+}
+if (typeof window !== 'undefined') {
+  window.rrNavItem = rrNavItem; window.rrNavCtx = rrNavCtx;
+  try { if (window.BackStack && BackStack.setCtx) BackStack.setCtx(function () { return rrNavCtx(); }); } catch (e) {}
 }
 
 // v0.9.1847 — the core pages' builders, on THE ONE LIST (config.js). The
@@ -5045,42 +5141,36 @@ window.onload = () => {
 
 // ── Back-button handler — initialized inside buildApp() ─────────────────────
 var _navSuppressHistory = false;
-var _backPressTime = 0;
 var _backButtonInited = false;
 
 function _initBackButton() {
   if (_backButtonInited) return;
   _backButtonInited = true;
 
-  // Seed TWO history entries:
-  // Entry 0 (base): replaceState — this is the "exit" floor
-  // Entry 1 (current): pushState — back button pops to entry 0, firing popstate
-  history.replaceState({ appPage: 'base' }, '', '');
-  history.pushState({ appPage: 'dashboard' }, '', '');
+  // The floor and the first page (back-stack.js seed): the floor is where
+  // "press back again to exit" leaves the app from.
+  try { if (window.BackStack && BackStack.setCtx) BackStack.setCtx(function () { return rrNavCtx(); }); } catch (eCtx) {}
+  if (window.BackStack && typeof BackStack.seed === 'function') BackStack.seed({ appPage: 'dashboard', item: 0 });
 
+  // ── 2026-11-11 (backtruth) — THE Back rule ────────────────────────────────
+  // back-stack.js hears every Back press first: an open pop-up is closed there
+  // and this never runs. What reaches here is a Back press that landed on a
+  // history step with no pop-up to close. That step says what it shows; this
+  // shows it. NOTHING HERE ADDS A HISTORY STEP — a step added while answering
+  // a Back press made Chrome close the app on the next Back (T-2026-11-08-03).
+  // tests/backtruth_tests.js holds the guard: no pushState inside this
+  // handler, proved on a planted offender.
+  var _stayOn = function (c) { if (window.BackStack && typeof BackStack.stay === 'function') BackStack.stay(c || null); };
+  var _hops = 0;
   window.addEventListener('popstate', function(e) {
     var state = e.state || {};
 
-    // ── Case 0: the wizard just returned the user somewhere on purpose ──
-    // v0.9.1191 (Brad: cancel + discard from the photo inbox landed on the
-    // Dashboard). Closing the wizard rewinds the history entry it pushed on
-    // open; that rewind fires a popstate a beat AFTER _doCloseWizard has
-    // already shown the return page. Reaching Case 3 below, it looks exactly
-    // like a Back press from the inbox and walks the trail to the Dashboard —
-    // undoing a return that was correct. The wizard stamps its return, and
-    // this consumes the stamp once: re-push the entry, navigate nowhere.
-    //
-    // Timestamped and single-use ON PURPOSE. A stale flag would swallow a
-    // genuine Back press later, which is a worse bug than the one being fixed.
-    var _wr = window._rrWizardReturn;
-    if (_wr && (Date.now() - _wr.at) < 1500) {
-      window._rrWizardReturn = null;
-      history.pushState({ appPage: _wr.page }, '', '');
-      return;
-    }
-    if (_wr) window._rrWizardReturn = null;   // expired — never leave it lying about
+    // The Add window's own return stamp (v0.9.1191) is spent here and nowhere
+    // else; the window's rewind never reaches this handler (back-stack.js
+    // swallows its own walks), so a stamp found here is only ever stale.
+    if (window._rrWizardReturn) window._rrWizardReturn = null;
 
-    // ── Case 1: Wizard is open ──
+    // ── Case 1: the Add window is open and back-stack.js did not hold it ──
     var wizModal = document.getElementById('wizard-modal');
     if (wizModal && wizModal.classList.contains('open')) {
       // review 2026-11-05 (A2): never below the step a part-way window opened at (wizard._floorStep)
@@ -5095,65 +5185,69 @@ function _initBackButton() {
       } else {
         if (typeof closeWizard === 'function') closeWizard();
       }
-      history.pushState({ appPage: 'wizard' }, '', '');
+      _stayOn();
       return;
     }
 
-    // ── Case 2: Any overlay modal is open — close it ──
+    // ── Case 2: a pop-up with no step of its own is open — close it ──
     var openOverlay = document.querySelector('.rb-overlay.open');
-    if (!openOverlay) openOverlay = document.querySelector('#wizard-modal.open');
-    if (openOverlay && openOverlay.id !== 'wizard-modal') {
+    if (openOverlay) {
       openOverlay.classList.remove('open');
       document.body.style.overflow = '';
-      history.pushState({ appPage: 'modal-closed' }, '', '');
+      _stayOn();
       return;
     }
 
-    // ── Case 3: On a page other than dashboard — go BACK one page ──
-    // v0.9.1022 (Brad): this used to jump straight to the Dashboard from
-    // anywhere, so opening an item from For Sale and pressing the phone's
-    // back button lost your place. Now it walks the visit trail; the
-    // Dashboard is only the fallback when the trail runs out.
     var activePage = document.querySelector('.page.active');
     var activePageId = activePage ? activePage.id.replace('page-', '') : 'dashboard';
-    if (activePageId !== 'dashboard') {
-      var _dest = 'dashboard';
-      try {
-        var _tr = window._rrPageTrail || [];
-        while (_tr.length && _tr[_tr.length - 1] === activePageId) _tr.pop();   // drop where we are
-        if (_tr.length) _dest = _tr[_tr.length - 1];
-      } catch (e) {}
-      _navSuppressHistory = true;
-      window._rrNavBack = true;            // don't re-record this hop
-      // v0.9.1325: _rrNavBack got a finally; its sibling _navSuppressHistory
-      // did not — and this flag is the one that matters. _rrGoBackTo calls
-      // showPage(), whose page builders (renderBrowse, buildSoldPage,
-      // buildForSalePage, buildWantPage, buildSetsPage, buildUpgradePage,
-      // buildPrefsPage, vaultRenderPage) are unguarded. One throw and the flag
-      // stuck TRUE for the rest of the session, so showPage's
-      // `if (!_navSuppressHistory) history.pushState(...)` never fired again:
-      // every later Back press exited the app instead of going back a page,
-      // and only a reload cured it. There are exactly three references to this
-      // flag in the file, so nothing else could ever have reset it.
-      try { _rrGoBackTo(_dest); } finally {
-        window._rrNavBack = false;
-        _navSuppressHistory = false;
-      }
-      history.pushState({ appPage: _dest }, '', '');
+    var ours = state.rr === 1;
+    var isFloor = !ours || state.appPage === 'base';   // a step this app did not write is below the floor
+
+    // ── Case 4: on the Dashboard — "press back again to exit" ──
+    // The next Back must leave the app, so walk down to the floor and stay
+    // there. A tap on anything instead adds a fresh step above it.
+    if (activePageId === 'dashboard') {
+      _hops = 0;
+      if (typeof showToast === 'function') showToast('Press back again to exit', 2000);   // how long the exit holds: back-stack.js CFG.exitMs
+      if (window.BackStack && typeof BackStack.toFloor === 'function') BackStack.toFloor(isFloor ? 0 : state.d);
       return;
     }
 
-    // ── Case 4: On dashboard — double-tap to exit ──
-    var now = Date.now();
-    if (now - _backPressTime < 2200) {
-      // Second press — allow natural exit (don't re-push)
+    var _show = function (fn) {
+      _navSuppressHistory = true;
+      // v0.9.1325: the flag MUST come back down even when a page builder
+      // throws — stuck true, no page ever wrote a history step again.
+      try { return fn(); } finally { _navSuppressHistory = false; }
+    };
+
+    // ── Case 3a: the floor, from a page — the Dashboard, and stay above the floor ──
+    if (isFloor) {
+      _hops = 0;
+      _show(function () { _rrGoBackTo('dashboard'); });
+      _stayOn({ appPage: 'dashboard', item: 0 });
       return;
     }
-    _backPressTime = now;
-    if (typeof showToast === 'function') showToast('Press back again to exit', 2000);
-    history.pushState({ appPage: 'dashboard' }, '', '');
+
+    // ── Case 3b: show what this step says ──
+    var dest = String(state.appPage || '');
+    var shown = false;
+    if (dest && document.getElementById('page-' + dest)) {
+      if (dest === 'itemdetail') {
+        if (!(activePageId === 'itemdetail' && _rrNavStepIsCurrent(state))) shown = _show(function () { return _rrNavShowItem(state); });
+      } else if (dest !== activePageId) {
+        _show(function () { _rrGoBackTo(dest); });
+        shown = true;
+      }
+    }
+    if (shown) { _hops = 0; return; }
+    // Nothing to show for this step (the page already on screen, an item that
+    // was sold or removed, a step from before a reload): this Back press moves
+    // on to the step before it. Bounded, so a broken history can never spin.
+    if (_hops < RR_BACK_MAX_HOPS) { _hops++; history.back(); }
+    else { _hops = 0; _show(function () { _rrGoBackTo('dashboard'); }); }
   });
 }
+var RR_BACK_MAX_HOPS = 60;         // the most steps one Back press will pass over
 
 
 // ── iOS INSTALL HINT ────────────────────────────────────────────

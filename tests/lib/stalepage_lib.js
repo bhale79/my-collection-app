@@ -456,10 +456,17 @@ async function runSection(section, suiteName) {
       T('P13 matching by Inventory ID only → A4 catches it (the no-ID copy\'s page still says "In Collection")', r.after && r.after.page === 'page-itemdetail' && r.after.inColl === true, r.after || r);
     }
     if (on('plants_b')) {
-      // P14: the item page left on the visit trail → one Back lands on the sold / removed item
-      const p14 = plant(AC, "  try { var _tr = window._rrPageTrail; while (_tr && _tr.length && _tr[_tr.length - 1] === 'itemdetail') _tr.pop(); } catch (eTr) {}\n", '', 'P14');
-      r = await run(browser, BACK_SALE, { 'app-collection.js': p14 });
-      T('P14 the trail not trimmed → A5 catches it (Back lands on the sold item\'s page)', r.after && r.afterBack === 'page-itemdetail', { afterBack: r.afterBack, trail: r.trail });
+      // P14: Back lands on the sold / removed item's own page.
+      // LEDGER 2026-11-12 (backtruth): the visit trail is retired, so the old
+      // plant (the trail not trimmed after a sale) has no line left to remove.
+      // What keeps Back off the sold car now: each history step names its item,
+      // and a step whose copy is gone is PASSED OVER (app.js _rrNavShowItemTry).
+      // The plant takes that pass-over out — the gone copy's step shows the item
+      // page again, as it was last drawn — and A5 must catch it.
+      const p14 = plant(AJ, "        if (!pd || typeof _openOwnedByInvId !== 'function') return false;\n",
+        "        if (!pd) { showPage('itemdetail'); return true; }\n", 'P14');
+      r = await run(browser, BACK_SALE, { 'app.js': p14 });
+      T('P14 a gone copy\'s step not passed over → A5 catches it (Back lands on the sold item\'s page)', r.after && r.afterBack === 'page-itemdetail', { afterBack: r.afterBack });
       // P15: the old unscoped mark (keyed by the id alone, believed forever) → B7 and B8 catch it, S6 fails
       let p15 = plant(SH, "function _rrGoneKey(sheetId, invId) { return String(sheetId || '') + '|' + String(invId == null ? '' : invId).trim(); }",
         "function _rrGoneKey(sheetId, invId) { return String(invId == null ? '' : invId).trim(); }", 'P15a');
