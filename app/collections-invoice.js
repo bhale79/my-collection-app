@@ -420,6 +420,7 @@
       if (!buyerId) { toast(W('needBuyer'), 3500, true); return { ok: false }; }
       var r = await rrInvCreate({ keys: keys, buyerId: buyerId, taxRate: (document.getElementById('rr-inv-tax') || {}).value,
         shipping: (document.getElementById('rr-inv-ship') || {}).value, terms: (document.getElementById('rr-inv-terms') || {}).value });
+      if (typeof rrStaffRefused === 'function' && rrStaffRefused(r)) return r;   // the roles door already said who to ask (2026-11-13)
       if (!r.ok) { toast(r.why === 'taken' ? W('taken', { items: r.items, no: r.no }) : r.why === 'offline' ? W('offline') : W('failed'), 7000, true); return r; }
       _close('rr-coll-inv-new');
       rrInvPdf(r.invoice);
@@ -452,6 +453,7 @@
   function rrInvPaidGo(id, btn) {
     var run = async function () {
       var r = await rrInvMarkPaid(id);
+      if (typeof rrStaffRefused === 'function' && rrStaffRefused(r)) return r;   // the roles door already said who to ask (2026-11-13)
       toast(r.ok ? W('saved') : W('saveFailed'), 3500, !r.ok);
       await _paintList(); if (r.ok) rrInvShow(id);
       return r;
@@ -465,6 +467,7 @@
       var yes = await appConfirm(W('voidAsk', { no: inv.no }), { ok: W('voidOk') });
       if (!yes) return { ok: false };
       var r = await rrInvVoid(id, '');
+      if (typeof rrStaffRefused === 'function' && rrStaffRefused(r)) return r;   // the roles door already said who to ask (2026-11-13)
       toast(r.ok ? W('voided', { no: inv.no }) : W('saveFailed'), 4000, !r.ok);
       await _paintList(); if (r.ok) rrInvShow(id);
       return r;

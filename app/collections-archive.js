@@ -492,6 +492,7 @@
   function rrArchiveGo(key, btn, anyway) {
     var run = async function () {
       var r = await rrArchiveCollection(key, { anyway: !!anyway });
+      if (typeof rrStaffRefused === 'function' && rrStaffRefused(r)) return r;   // the roles door already said who to ask (2026-11-13)
       if (!r.ok) {
         if (r.why === 'open' || r.why === 'ask') { await _paintChecks(key); return r; }
         toast(W('archiveFailed'), 6000, true); return r;
@@ -512,6 +513,7 @@
       var yes = await appConfirm(W('returnAsk', { n: _items(keys.length) }), { ok: W('returnOk') });
       if (!yes) return { ok: false };
       var r = await rrArchiveMarkReturned(keys);
+      if (typeof rrStaffRefused === 'function' && rrStaffRefused(r)) return r;   // the roles door already said who to ask (2026-11-13)
       toast(r.ok ? W('returnDone', { n: _items(r.n) }) : W('returnFailed', { n: r.n }), r.ok ? 4000 : 8000, !r.ok);
       try { if (typeof buildApp === 'function') buildApp(); } catch (e) {}
       if (document.getElementById('rr-coll-archive')) await _paintChecks(key);
@@ -523,6 +525,7 @@
   function rrUnarchiveGo(key, btn) {
     var run = async function () {
       var r = await rrUnarchiveCollection(key);
+      if (typeof rrStaffRefused === 'function' && rrStaffRefused(r)) return r;   // the roles door already said who to ask (2026-11-13)
       if (!r.ok) { toast(W('unarchiveFailed'), 6000, true); return r; }
       _close('rr-coll-details');
       toast(W('unarchived', { label: _label(rrCollectionByKey(key)) }), 4000);
@@ -557,6 +560,7 @@
       var typed = (document.getElementById('rr-del-name') || {}).value || '';
       var c = rrCollectionByKey(key);
       var r = await rrDeleteCollection(key, typed);
+      if (typeof rrStaffRefused === 'function' && rrStaffRefused(r)) return r;   // the roles door already said who to ask (2026-11-13)
       if (!r.ok) {
         var w = { name: 'deleteWrong', notArchived: 'deleteOnlyArchived', home: 'homeNo', offline: 'deleteOffline' }[r.why] || 'deleteFailed';
         if (r.why === 'linked') { toast((typeof RR_COLL_HANDOVER !== 'undefined' && RR_COLL_HANDOVER.words.linkedNoDelete) || '', 6000, true); return r; }
@@ -574,6 +578,7 @@
       var e = _entry(key);
       var lab = e ? (e.number + ' – ' + e.name) : '';
       var r = await rrRestoreCollection(key);
+      if (typeof rrStaffRefused === 'function' && rrStaffRefused(r)) return r;   // the roles door already said who to ask (2026-11-13)
       if (!r.ok) { toast(r.why === 'gone' ? W('restoreGone', { label: lab }) : W('restoreFailed'), 7000, true); return r; }
       toast(W('restored', { label: lab, heading: rrArchiveHeading() }), 4500);
       try { if (typeof rrCollMenuFilter === 'function') rrCollMenuFilter(''); } catch (eM) {}

@@ -346,6 +346,7 @@
       var pick = document.querySelector('input[name="rr-ho-after"]:checked');
       var status = document.getElementById('rr-ho-status');
       var r = await rrHandOverStart(key, { keep: !pick || pick.value !== 'remove', onProgress: function (n, t) { if (status) status.textContent = W('sending', { n: n, total: t }); } });
+      if (typeof rrStaffRefused === 'function' && rrStaffRefused(r)) return r;   // the roles door already said who to ask (2026-11-13)
       if (r.ok) { _close('rr-coll-handover'); toast(W('sent', { name: r.name, n: r.sent }), 6000); return r; }
       if (r.why === 'some') { if (status) status.textContent = W('sentSome', { n: r.sent, total: r.total, bad: r.bad }); return r; }
       toast(_why(r, rrCollectionByKey(key)), 7000, true);
@@ -373,6 +374,7 @@
       var yes = await appConfirm(W('cancelAsk', { name: (e && e.handover && e.handover.clientName) || '' }), { ok: W('cancelOk') });
       if (!yes) return { ok: false };
       var r = await rrHandOverCancel(key);
+      if (typeof rrStaffRefused === 'function' && rrStaffRefused(r)) return r;   // the roles door already said who to ask (2026-11-13)
       toast(r.ok ? W('cancelled') : W('failed'), 5000, !r.ok);
       _refreshDetails(key);
       return r;
@@ -383,6 +385,7 @@
   function rrHandOverKeepGo(key, btn) {
     var run = async function () {
       var r = await rrHandOverKeep(key);
+      if (typeof rrStaffRefused === 'function' && rrStaffRefused(r)) return r;   // the roles door already said who to ask (2026-11-13)
       var c = rrCollectionByKey(key), e = _entry(key);
       toast(r.ok ? W('linkedDone', { label: _label(c), name: (e && e.ownerName) || '' }) : W('failed'), 5000, !r.ok);
       _refreshDetails(key);
@@ -399,6 +402,7 @@
       if (!yes) return { ok: false };
       _close('rr-coll-details');
       var r = await rrHandOverRemove(key, function (n, t) { toast(W('removing', { n: n, total: t }), 1500); });
+      if (typeof rrStaffRefused === 'function' && rrStaffRefused(r)) return r;   // the roles door already said who to ask (2026-11-13)
       toast(r.ok ? W('removed', { label: _label(c) }) : W('failed'), 6000, !r.ok);
       try { if (typeof buildApp === 'function') buildApp(); } catch (eB) {}
       return r;

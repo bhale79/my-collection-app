@@ -451,7 +451,12 @@ function rrPaintGreeting() {
   if (!el) return;
   const hr = new Date().getHours();
   const _greet = hr < 12 ? 'Good Morning' : hr < 17 ? 'Good Afternoon' : 'Good Evening';
-  const _name = (typeof rrGreetName === 'function') ? rrGreetName() : ((state.user?.name || '').split(' ')[0] || 'Collector');
+  // TRR Pro staff PINs (2026-11-13): the greeting names the person WORKING. Only here —
+  // rrGreetName also names the business's sheet ("<name>'s Collection"), which must
+  // stay the account's name whoever is working (the independent review's finding).
+  var _who = null; try { _who = (typeof rrStaffNow === 'function') ? rrStaffNow() : null; } catch (eW) {}
+  const _name = (_who && _who.name) ? String(_who.name).trim().split(/\s+/)[0]
+    : (typeof rrGreetName === 'function') ? rrGreetName() : ((state.user?.name || '').split(' ')[0] || 'Collector');
   el.innerHTML = _greet + ', <span style="color:var(--t-accent);font-size:138%;font-weight:700">' + rrEsc(_name) + '</span>';
 }
 

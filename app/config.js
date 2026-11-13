@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2146';
+const APP_VERSION = 'v0.9.2147';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -4612,6 +4612,21 @@ const RR_STAFF = {
     turnedOff: '{name} turned off.',
     offline: 'Turning PINs on or off needs a connection.',
     failed: 'That didn’t save — try again.',
+    working: 'Working…',
+    checking: 'Checking…',                                   // 2026-11-13: a button waiting for the backend says so
+    // an Owner forgot their PIN (relay v5.5)
+    forgot: 'Owner forgot their PIN?',
+    forgotTitle: 'Reset an Owner’s PIN',
+    forgotHelp: 'We’ll email a one-time code to this business’s Google account — the address it signs in with. Whoever can read that email can set a new Owner PIN.',
+    forgotSend: 'Email me a code',
+    forgotSent: 'A code is on its way to {to}. It works for 15 minutes.',
+    forgotWho: 'Which Owner?',
+    forgotFor: 'New PIN for {name}',
+    forgotCode: 'The 6-number code from the email',
+    forgotNewPin: 'New PIN (4 to 8 numbers)',
+    forgotGo: 'Set the new PIN',
+    forgotDone: '{name}’s new PIN is {pin} — keep it somewhere safe.',
+    forgotOffline: 'Resetting a PIN needs a connection.',
     errors: {
       pin_format: 'A PIN is 4 to 8 numbers.',
       pin_easy: 'That PIN is too easy to guess — pick another.',
@@ -4621,11 +4636,15 @@ const RR_STAFF = {
       not_allowed: 'Only an owner can do that.',
       last_owner: 'There must always be an Owner who is on.',
       wrong_pin: 'That PIN isn’t right.',
-      wait: 'Too many tries — wait a minute.',
+      wait: 'Too many tries — wait a minute, then try again.',
       first_is_owner: 'The first person must be the Owner.',
       pro_only: 'Staff PINs are part of Pro.',
       idle_min: 'Pick between 1 and 240 minutes.',
       too_many: 'That’s the most people one business can have.',
+      wrong_code: 'That code isn’t right — check the email and try again.',   // relay v5.5
+      code_gone: 'That code has run out. Ask for a new one.',
+      no_staff_yet: 'This business has no Owner yet — set one up in Preferences.',
+      no_such_person: 'That person isn’t on the list any more — close this and try again.',
       'Unknown action': 'Staff PINs aren’t switched on yet — the backend update comes first.',   // relay older than v5.1
     },
   },

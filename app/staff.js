@@ -203,21 +203,26 @@
         '<div id="rr-staff-msg" role="status" aria-live="polite" style="min-height:1.4em;margin-bottom:0.6rem;font-size:0.95rem"></div>' +
         '<div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:0.6rem;justify-items:center">' + pad + '</div>' +
         '<button type="button" data-pin-key="enter" style="margin-top:0.9rem;width:100%;min-height:56px;border-radius:14px;border:none;background:var(--accent);color:var(--on-accent);font-size:1.2rem;font-weight:700;cursor:pointer">' + esc(W('enter')) + '</button>' +
+        '<button type="button" id="rr-staff-forgot" style="margin-top:0.8rem;min-height:44px;background:none;border:none;color:var(--text-dim);text-decoration:underline;font-size:0.95rem;cursor:pointer;font-family:var(--font-body)">' + esc(W('forgot')) + '</button>' +
         '</div>';
       document.body.appendChild(d);
       d.addEventListener('click', function (ev) {
         var b = ev.target && ev.target.closest ? ev.target.closest('[data-pin-key]') : null;
         if (b) _press(b.getAttribute('data-pin-key'));
+        if (ev.target && ev.target.id === 'rr-staff-forgot') _resetOpen();
       });
       // Back never leaves the PIN screen (nothing behind it may be used yet).
       if (typeof rrDismissGuard === 'function') { try { rrDismissGuard(d, function () {}); } catch (e) {} }
       try { document.addEventListener('keydown', _pinKeys, true); } catch (e) {}
     }
+    // a field left focused behind the PIN screen must not take the keyboard
+    try { var ae = document.activeElement; if (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && !(_resetEl() && _resetEl().contains(ae)) && ae.blur) ae.blur(); } catch (eB) {}
     _dots();
     _say(msg || '', !!msg);
   }
   function _pinKeys(ev) {
     if (!_pinEl()) return;
+    if (_resetEl()) return;                                            // typing into the Owner reset box
     var k = ev.key;
     if (/^[0-9]$/.test(k)) { _press(k); ev.preventDefault(); }
     else if (k === 'Backspace') { _press('back'); ev.preventDefault(); }
@@ -250,10 +255,36 @@
     try {
       var p = await _whoseLocal(pin);
       if (p && !p.on) { _entry = ''; _dots(); _say(W('pinOff'), true); return null; }
+      // 2026-11-13: this device's copy knows no one with this PIN. Online, the relay
+      // has the last word — the copy may be out of date (or, as on the first Pro
+      // business, hold a check made with another salt), and an Owner must never be
+      // told "wrong" by a stale copy. Relay v5.5 answers staff_who; an older relay
+      // answers "Unknown action" and this device's copy decides, as before.
+      if (!p && !_offline()) {
+        var w = await _post({ action: 'staff_who', pin: pin });   // (staff_who — relay v5.5)
+        if (w && w.status === 200 && w.id) {
+          if (w.people) _takeAnswer(w);
+          _accept({ id: String(w.id), name: String(w.name || ''), role: String(w.role || 'staff') });
+          return rrStaffNow();
+        }
+        if (w && w.status === 429) { _entry = ''; _dots(); _say(W('pinWait'), true); return null; }
+        if (w && w.message === 'not_allowed') { _entry = ''; _dots(); _say(W('pinOff'), true); return null; }
+      }
+      if (!_offline()) _say(W('checking'));                       // the relay can take a few seconds
       if (p && !_offline()) {
         var r = await vaultPost({ action: 'staff_check', actorId: p.id, actorPin: pin });
         if (r && r.status === 200) { _accept({ id: r.id || p.id, name: r.name || p.name, role: r.role || p.role }); return rrStaffNow(); }
         if (r && r.status === 429) { _entry = ''; _dots(); _say(W('pinWait'), true); return null; }
+        if (r && r.message === 'wrong_pin') {
+          // this device's copy named the wrong person (a PIN given to someone else since):
+          // the relay says whose it is now
+          var w2 = await _post({ action: 'staff_who', pin: pin });
+          if (w2 && w2.status === 200 && w2.id) {
+            if (w2.people) _takeAnswer(w2);
+            _accept({ id: String(w2.id), name: String(w2.name || ''), role: String(w2.role || 'staff') });
+            return rrStaffNow();
+          }
+        }
         if (r && (r.message === 'not_allowed' || r.message === 'wrong_pin')) {
           await rrStaffRefresh();                       // this device's copy was out of date
           _entry = ''; _dots();
@@ -332,9 +363,21 @@
     _repaint();
     rrStaffRefresh();
   }
+  var _paintedWho = null;
   function _repaint() {
     try { if (typeof rrCollUiPaint === 'function') rrCollUiPaint(); } catch (e) {}
     try { if (typeof rrPrefsStaffRowRefresh === 'function') rrPrefsStaffRowRefresh(); } catch (e) {}
+    // 2026-11-13: when the person working changes, what is on screen follows —
+    // the greeting names them, and an open Preferences page is drawn again for
+    // their role (Sue saw the Owner's "We do our own invoices" box).
+    var id = _who ? _who.id : '';
+    if (id === _paintedWho) return;
+    _paintedWho = id;
+    try { if (typeof rrPaintGreeting === 'function') rrPaintGreeting(); } catch (e) {}
+    try {
+      var pp = document.getElementById('page-prefs');
+      if (pp && pp.classList.contains('active') && typeof buildPrefsPage === 'function') buildPrefsPage();
+    } catch (e) {}
   }
 
   // ── the name chip in the top bar ────────────────────────────────────────
@@ -413,14 +456,15 @@
       '<button type="button" data-staff-make="rr-staff-f-pin" style="' + _BTN + ';white-space:nowrap">' + esc(W('makeOne')) + '</button></div>' +
       '<div style="display:flex;justify-content:flex-end;margin-top:1rem"><button type="button" id="rr-staff-f-go" style="' + _BTN + ';background:var(--accent);color:var(--on-accent);border:none">' + esc(W('firstGo')) + '</button></div>');
     _wireMake();
-    document.getElementById('rr-staff-f-go').addEventListener('click', function () {
+    var fgo = document.getElementById('rr-staff-f-go');
+    fgo.addEventListener('click', function () {
       var name = document.getElementById('rr-staff-f-name').value, pin = document.getElementById('rr-staff-f-pin').value.trim();
       _send({ action: 'staff_save', person: { name: name, role: 'owner', pin: pin } }, function (r) {
         var me = (r.people || [])[0];
         if (me) { _actorPin = pin; _accept({ id: me.id, name: me.name, role: me.role }); }
         toast(W('saved'), 2500);
         _adminList();
-      });
+      }, fgo);
     });
   }
   function _adminConfirm() {
@@ -430,7 +474,7 @@
     var go = function () {
       var me = rrStaffNow(); if (!me) return _adminClose();
       var pin = document.getElementById('rr-staff-c-pin').value.trim();
-      _send({ action: 'staff_check', actorId: me.id, actorPin: pin }, function () { _actorPin = pin; _adminList(); });
+      _send({ action: 'staff_check', actorId: me.id, actorPin: pin }, function () { _actorPin = pin; _adminList(); }, document.getElementById('rr-staff-c-go'));
     };
     document.getElementById('rr-staff-c-go').addEventListener('click', go);
     document.getElementById('rr-staff-c-pin').addEventListener('keydown', function (e) { if (e.key === 'Enter') go(); });
@@ -481,7 +525,7 @@
         _send({ action: 'staff_switch', actorId: me.id, actorPin: _actorPin, id: id, on: on }, function () {
           toast(W(on ? 'turnedOn' : 'turnedOff', { name: p ? p.name : '' }), 3000);
           _adminList();
-        });
+        }, b);
       });
     });
     d.querySelectorAll('[data-staff-save]').forEach(function (b) {
@@ -496,20 +540,21 @@
           if (pin && id === me.id) _actorPin = pin;
           toast(pin ? W('pinChanged', { name: person.name, pin: pin }) : W('saved'), pin ? 12000 : 2500);
           _adminList();
-        });
+        }, b);
       });
     });
-    document.getElementById('rr-staff-a-go').addEventListener('click', function () {
+    var ago = document.getElementById('rr-staff-a-go');
+    ago.addEventListener('click', function () {
       var person = { name: document.getElementById('rr-staff-a-name').value, role: document.getElementById('rr-staff-a-role').value,
                      pin: document.getElementById('rr-staff-a-pin').value.trim() };
       _send({ action: 'staff_save', actorId: me.id, actorPin: _actorPin, person: person }, function () {
         toast(W('added', { name: person.name, pin: person.pin }), 12000);
         _adminList();
-      });
+      }, ago);
     });
     var ig = document.getElementById('rr-staff-idle-go');
     if (ig) ig.addEventListener('click', function () {
-      _send({ action: 'staff_settings', actorId: me.id, actorPin: _actorPin, idleMin: Number(document.getElementById('rr-staff-idle').value) }, function () { toast(W('saved'), 2500); _adminList(); });
+      _send({ action: 'staff_settings', actorId: me.id, actorPin: _actorPin, idleMin: Number(document.getElementById('rr-staff-idle').value) }, function () { toast(W('saved'), 2500); _adminList(); }, ig);
     });
   }
   function _wireMake() {
@@ -523,7 +568,16 @@
   }
   // Every Staff-screen change goes to the relay; its answer is the new list.
   // One at a time (a double tap never sends twice).
-  async function _send(body, onOk) {
+  // A button that started the call shows it is working until the answer comes
+  // (2026-11-13: "Make me the Owner" looked dead for ten seconds and was pressed again).
+  function _busy(btn, on) {
+    if (!btn) return;
+    try {
+      if (on) { btn.setAttribute('data-staff-label', btn.textContent); btn.textContent = W('working'); btn.disabled = true; btn.setAttribute('aria-busy', 'true'); }
+      else if (btn.isConnected) { btn.textContent = btn.getAttribute('data-staff-label') || btn.textContent; btn.disabled = false; btn.removeAttribute('aria-busy'); }
+    } catch (e) {}
+  }
+  async function _send(body, onOk, btn) {
     if (_saving) return;
     if (_offline()) { toast(W('offline'), 4000, true); return; }
     if (body.person && body.person.pin) {
@@ -531,6 +585,7 @@
       if (prob) { toast(errWord(prob), 4000, true); return; }
     }
     _saving = true;
+    _busy(btn, true);
     try {
       var r = await _post(body);
       if (!r) { toast(W('failed'), 4000, true); return; }
@@ -543,14 +598,78 @@
       }
       if (r.people) { _takeAnswer(r); _afterListQuiet(); }
       onOk(r);
-    } finally { _saving = false; }
+    } finally { _saving = false; _busy(btn, false); }
   }
+  // ── an Owner forgot their PIN (relay v5.5) ───────────────────────────────
+  // A one-time code goes to the business account's own email address; with it,
+  // a new PIN is set for an Owner. Online only. A shop is never locked out.
+  function _resetEl() { return document.getElementById('rr-staff-reset'); }
+  function _resetClose() { var d = _resetEl(); if (d) d.remove(); }
+  function _resetShell(inner) {
+    var d = _resetEl();
+    if (!d) {
+      d = document.createElement('div');
+      d.id = 'rr-staff-reset';
+      d.setAttribute('role', 'dialog');
+      d.setAttribute('aria-modal', 'true');
+      d.style.cssText = 'position:fixed;inset:0;z-index:9900;background:var(--scrim);display:flex;align-items:center;justify-content:center;padding:1rem';
+      document.body.appendChild(d);
+      if (typeof rrDismissGuard === 'function') { try { rrDismissGuard(d, _resetClose); } catch (e) {} }
+    }
+    d.innerHTML = '<div style="background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:12px;max-width:440px;width:100%;max-height:90vh;max-height:90dvh;overflow:auto;padding:1rem 1.1rem;font-family:var(--font-body);position:relative">' +
+      '<button type="button" data-reset-x aria-label="' + esc(W('close')) + '" style="position:absolute;top:0.4rem;right:0.6rem;background:none;border:none;color:var(--text);font-size:1.5rem;min-width:44px;min-height:44px;cursor:pointer">&times;</button>' +
+      '<div style="font-family:var(--font-head);font-size:1.2rem;font-weight:700;margin:0.1rem 2.4rem 0.6rem 0">' + esc(W('forgotTitle')) + '</div>' + inner + '</div>';
+    d.querySelector('[data-reset-x]').addEventListener('click', _resetClose);
+    return d;
+  }
+  function _resetOpen() {
+    if (_offline()) { toast(W('forgotOffline'), 4500, true); return; }
+    var d = _resetShell('<p style="margin:0 0 0.9rem;line-height:1.45">' + esc(W('forgotHelp')) + '</p>' +
+      '<div style="display:flex;justify-content:flex-end"><button type="button" id="rr-staff-r-send" style="' + _BTN + ';background:var(--accent);color:var(--on-accent);border:none">' + esc(W('forgotSend')) + '</button></div>');
+    var send = d.querySelector('#rr-staff-r-send');
+    send.addEventListener('click', function () {
+      _send({ action: 'staff_reset_code' }, function (r) { _resetStep2(r.to || ''); }, send);
+    });
+  }
+  function _resetStep2(to) {
+    var owners = (_list ? _list.people : []).filter(function (p) { return p.role === 'owner'; });
+    var pick = owners.length > 1
+      ? '<label for="rr-staff-r-who" style="display:block;font-size:0.85rem;margin-bottom:0.25rem">' + esc(W('forgotWho')) + '</label>' +
+        '<select id="rr-staff-r-who" style="' + _INP + '">' + owners.map(function (p) { return '<option value="' + esc(p.id) + '">' + esc(p.name) + '</option>'; }).join('') + '</select>'
+      : '<input type="hidden" id="rr-staff-r-who" value="' + esc(owners[0] ? owners[0].id : '') + '"><div style="font-weight:700;margin-bottom:0.2rem">' + esc(W('forgotFor', { name: owners[0] ? owners[0].name : '' })) + '</div>';
+    var d = _resetShell('<p style="margin:0 0 0.8rem;line-height:1.45">' + esc(W('forgotSent', { to: to })) + '</p>' + pick +
+      '<label for="rr-staff-r-code" style="display:block;font-size:0.85rem;margin:0.7rem 0 0.25rem">' + esc(W('forgotCode')) + '</label>' +
+      '<input id="rr-staff-r-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" style="' + _INP + '">' +
+      '<label for="rr-staff-r-pin" style="display:block;font-size:0.85rem;margin:0.7rem 0 0.25rem">' + esc(W('forgotNewPin')) + '</label>' +
+      '<div style="display:flex;gap:0.5rem"><input id="rr-staff-r-pin" inputmode="numeric" autocomplete="off" maxlength="' + C().pinMax + '" style="' + _INP + '">' +
+      '<button type="button" id="rr-staff-r-make" style="' + _BTN + ';white-space:nowrap">' + esc(W('makeOne')) + '</button></div>' +
+      '<div style="display:flex;justify-content:flex-end;margin-top:1rem"><button type="button" id="rr-staff-r-go" style="' + _BTN + ';background:var(--accent);color:var(--on-accent);border:none">' + esc(W('forgotGo')) + '</button></div>');
+    d.querySelector('#rr-staff-r-make').addEventListener('click', async function () { d.querySelector('#rr-staff-r-pin').value = await rrStaffMakePin(); });
+    var go = d.querySelector('#rr-staff-r-go');
+    go.addEventListener('click', function () {
+      var id = d.querySelector('#rr-staff-r-who').value, pin = d.querySelector('#rr-staff-r-pin').value.trim(), code = d.querySelector('#rr-staff-r-code').value.trim();
+      _send({ action: 'staff_reset_pin', code: code, id: id, person: { pin: pin }, pin: pin }, function (r) {
+        _resetClose();
+        _accept({ id: String(r.id || id), name: String(r.name || ''), role: String(r.role || 'owner') });
+        toast(W('forgotDone', { name: r.name || '', pin: pin }), 12000);
+      }, go);
+    });
+    try { d.querySelector('#rr-staff-r-code').focus(); } catch (e) {}
+  }
+
+  // A gated action refused by the roles door: the door has already told the
+  // person who to ask, so the caller must not cover it with "try again".
+  function rrStaffRefused(r) { return !!(r && r.why === 'role'); }
+
   // the relay calls, each written out (tests/relay_proof_tests.js reads them)
   function _post(body) {
     if (body.action === 'staff_save') return vaultPost({ action: 'staff_save', actorId: body.actorId, actorPin: body.actorPin, person: body.person });
     if (body.action === 'staff_switch') return vaultPost({ action: 'staff_switch', actorId: body.actorId, actorPin: body.actorPin, id: body.id, on: body.on });
     if (body.action === 'staff_settings') return vaultPost({ action: 'staff_settings', actorId: body.actorId, actorPin: body.actorPin, idleMin: body.idleMin });
     if (body.action === 'staff_check') return vaultPost({ action: 'staff_check', actorId: body.actorId, actorPin: body.actorPin });
+    if (body.action === 'staff_who') return vaultPost({ action: 'staff_who', pin: body.pin });                                        // relay v5.5
+    if (body.action === 'staff_reset_code') return vaultPost({ action: 'staff_reset_code' });                                        // relay v5.5
+    if (body.action === 'staff_reset_pin') return vaultPost({ action: 'staff_reset_pin', code: body.code, id: body.id, pin: body.pin });   // relay v5.5
     return Promise.resolve(null);
   }
   // After a change made on THIS screen: someone turned off here who is the
@@ -581,6 +700,7 @@
   root.rrPrefsStaffHtml = rrPrefsStaffHtml;
   root.rrPrefsStaffRowRefresh = rrPrefsStaffRowRefresh;
   root.rrStaffAdminOpen = rrStaffAdminOpen;
+  root.rrStaffRefused = rrStaffRefused;
   root._rrStaffState = function () { return { list: _list, who: _who, lastActive: _lastActive, wrong: _wrong }; };   // tests only
   root._rrStaffAge = function (ms) { _lastActive -= ms; };                                                             // tests only: time passes
 })(typeof window !== 'undefined' ? window : this);

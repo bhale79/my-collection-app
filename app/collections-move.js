@@ -536,6 +536,7 @@
       if (!mv) return { ok: false };
       var menu = document.getElementById('rr-coll-menu'); if (menu) menu.remove();
       var r = await rrMoveRun(mv);
+      if (typeof rrStaffRefused === 'function' && rrStaffRefused(r)) return r;   // the roles door already said who to ask (2026-11-13)
       toast(r.ok ? W('finished') : W('failed'), r.ok ? 4000 : 8000, !r.ok);
       return r;
     };

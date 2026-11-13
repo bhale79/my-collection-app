@@ -16,11 +16,12 @@
 //      floor; a walk forward with nowhere to go is never asked for (F3); the
 //      Add window closed on the page it was opened from (v0.9.1191)
 //   W  the Safari engine runs the walks too
+//      (not installed on this machine → 5 SKIPPED on the scoreboard, not a red)
 //   P  PLANTED offenders P8–P13 — each must turn its check red
 // ══════════════════════════════════════════════════════════════════════════
 const L = require('./lib/backtruth-walks.js');
 const { fs, path, APP, rd, webkit, launch, open, at, back, sleep, walkA, walkB, walkC, walkD, walkE, walkFG, walkH, walkI, walkJ, walkK, code, scanAdds, scanTrail, appFiles, popBody, appPopBody, plant } = L;
-let pass = 0, fail = 0;
+let pass = 0, fail = 0, skipped = 0;
 function T(n, got, want) {
   const ok = JSON.stringify(got) === JSON.stringify(want);
   console.log((ok ? 'PASS' : 'FAIL') + '  ' + n + (ok ? '' : '  -> got ' + JSON.stringify(got) + ', wanted ' + JSON.stringify(want)));
@@ -68,8 +69,16 @@ function T(n, got, want) {
     T('no page errors (K)', K.errs, []);
 
     // ── W — the Safari engine runs the same walks ─────────────────────────
-    let wk = null;
-    try { wk = await webkit.launch(); } catch (e) { T('W0 the Safari engine starts', String(e && e.message || e).split('\n')[0], 'started'); }
+    // LEDGER 2026-11-13 (nightly red on v0.9.2146): a machine WITHOUT the Safari
+    // engine (the nightly's sandbox has Chromium only) used to fail W0, so the
+    // suite could never be green there. Not installed → the five W walks are
+    // counted as SKIPPED on the scoreboard (visible, not silent — the way
+    // import_core_tests shows its fixture pins). Installed but will not start
+    // is still a FAIL. tests/safari-walk.js (browser tier) stays the strict one.
+    let wk = null, wkHere = false;
+    try { wkHere = fs.existsSync(webkit.executablePath()); } catch (e) { wkHere = false; }
+    if (!wkHere) { skipped = 5; console.log('NOTE  the Safari engine (WebKit) is not installed on this machine — W1–W5 did not run.'); }
+    else { try { wk = await webkit.launch(); } catch (e) { T('W0 the Safari engine starts', String(e && e.message || e).split('\n')[0], 'started'); } }
     if (wk) {
       try {
         const WA = await walkA(wk);
@@ -111,6 +120,6 @@ function T(n, got, want) {
     const P13 = await walkK(browser, { 'back-stack.js': blindFwd });
     T('P13 a walk forward onto nothing swallowing the next real Back is caught (K5 red)', P13.blind[0] === 1, false);
   } finally { await browser.close(); }
-  console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
+  console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed' + (skipped ? '  —  ' + skipped + ' SKIPPED: the Safari engine (WebKit) is not installed on this machine (W1–W5)' : ''));
   process.exit(fail ? 1 : 0);
 })().catch(e => { console.log('FAIL  backtruth_review_tests threw: ' + (e && e.stack || e)); process.exit(1); });

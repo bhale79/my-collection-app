@@ -264,7 +264,9 @@ ok('every guarded overlay offers Cancel / Done / Close / ✕', trapped.length ==
 // and the Staff screen (rr-staff-admin: ✕ and Back close it).
 // 2026-11-11 (photoview): 70 — the photo viewer (rr-photo-view, app-collection.js rrPhotoView):
 // Close and Back close it, a tap beside the picture does not.
-ok('70 guarded call sites, and ONE helper behind them', sites === 70, String(sites));
+// 2026-11-13 (staffownerfix): 71 — "Reset an Owner's PIN" (rr-staff-reset, staff.js _resetShell):
+// ✕ and Back close it, an outside tap does not.
+ok('71 guarded call sites, and ONE helper behind them', sites === 71, String(sites));
 
 // nobody double-wires BackStack any more — the guard does it, once
 let dbl = 0;
