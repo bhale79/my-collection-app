@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2147';
+const APP_VERSION = 'v0.9.2148';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -6488,6 +6488,23 @@ const RR_CHANGE_NUMBER = {
   offline: 'Connect to the internet to change the item number \u2014 nothing was changed.',
 };
 if (typeof window !== 'undefined') window.RR_CHANGE_NUMBER = RR_CHANGE_NUMBER;
+
+// ══ 2026-11-13 — "BOUGHT FROM": the words, and where the box must be ════════
+// (boughtfrom; [stated] Brad 20:12 CT "Yes"). A collector entering N scale cars
+// by hand: the Purchase screen of a manual entry had no Bought From, and Update
+// Info had none for any item — so it could never be added afterwards. The box
+// is ONE piece now (wizard.js rrBoughtFromStepHtml / rrBoughtFromChoices /
+// rrBoughtFromWire) drawn in three places: the catalog Purchase & Value step,
+// the manual Purchase & Value step, and Update Info.
+// `money` = the purchase fields every one of those three must offer; the guard
+// test (tests/bought_from_tests.js) fails if one of them is missing one.
+const RR_BOUGHT_FROM = {
+  ask: 'Bought From (optional)',     // the Add steps
+  label: 'Bought From',              // Update Info
+  none: '—',                    // Update Info, nobody chosen
+  money: ['userEstWorth', 'priceItem', 'purchasedFrom', 'datePurchased'],
+};
+if (typeof window !== 'undefined') window.RR_BOUGHT_FROM = RR_BOUGHT_FROM;
 
 // ══ FIND BY ID — every save finds the item where it is NOW (sheets.js rrWhereIsRow) ══
 // [stated] Brad 2026-11-04 20:55 CT "Yes" to PLAN_2026-11-04_FIND_BY_ID.md. When

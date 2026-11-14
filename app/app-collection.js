@@ -4731,6 +4731,14 @@ function _rrSubTypeIsUserField() {
   } catch (e) { return false; }
 }
 
+// 2026-11-13 (boughtfrom): a saved seller (a Contact ID) as words for the
+// Update Info line — THE label (contacts.js _ctLabel), or the "nobody" mark.
+function _panelSellerWords(id) {
+  const none = (typeof RR_BOUGHT_FROM !== 'undefined' && RR_BOUGHT_FROM.none) || '—';
+  if (!id) return none;
+  return (typeof window.rrBoughtFromWords === 'function') ? window.rrBoughtFromWords(id)
+    : ((typeof window._ctLabel === 'function' && window._ctLabel(id)) || 'a saved contact');
+}
 function showItemPanel(idx, pdKey, mode) {
   // v0.9.1883 ([stated] Brad: "yes"): the panel edits a COPY of the record. It
   // used to edit the live record in place as you typed, so a change followed
@@ -4947,6 +4955,18 @@ function showItemPanel(idx, pdKey, mode) {
     // raw sheet value too, so opening one of those items showed the serial
     // here as well. When a fix lands on one surface, look for the twin.
     { label: 'Date Purchased',key: 'datePurchased', val: (typeof _formatDate === 'function' ? _formatDate(pd.datePurchased || '') : (pd.datePurchased || '')) || '—', type: 'date' },
+    // 2026-11-13 (boughtfrom): Bought From could be chosen only while ADDING a
+    // catalog item — never afterwards, and never on a manual entry. The same
+    // ONE box the Add steps draw (wizard.js rrBoughtFromChoices / rrBoughtFromWire;
+    // words config.js RR_BOUGHT_FROM). The value is a Contact ID; `words` turns
+    // it into the person for the line, `options` is read when the box opens (the
+    // contact list may have arrived since), `wire` gives it "Add someone new…".
+    ...((typeof window.rrBoughtFromChoices === 'function' && typeof RR_BOUGHT_FROM !== 'undefined') ? [{
+      label: RR_BOUGHT_FROM.label, key: 'purchasedFrom', type: 'select',
+      val: _panelSellerWords(pd.purchasedFrom),
+      options: function () { return window.rrBoughtFromChoices(pd.purchasedFrom); },
+      wire: function (sel) { window.rrBoughtFromWire(sel, pd.purchasedFrom); },
+      words: _panelSellerWords, wide: true }] : []),
     // v0.9.696 (Brad): manual entries carry their own description — editable
     // here (catalog items keep the master description, not shown as a field).
     ...((idx < 0 || pd.era === 'Manual') ? [{ label: 'Description', key: 'description', val: pd.description || '—', type: 'textarea' }] : []),
@@ -5074,6 +5094,17 @@ function showItemPanel(idx, pdKey, mode) {
 
   // Track which field is being edited
   let editingKey = null;
+
+  // 2026-11-13 (boughtfrom): the seller's name needs the contact list. Not read
+  // yet this session → read it, then the line says who (not "a saved contact").
+  if (pd.purchasedFrom && !(state.contactsData || []).length && typeof window._ctLoadContacts === 'function') {
+    Promise.resolve(window._ctLoadContacts()).then(function () {
+      const f = fields.find(function (x) { return x.key === 'purchasedFrom'; });
+      if (!f || !document.body.contains(fieldsContainer)) return;
+      f.val = _panelSellerWords(pd.purchasedFrom);
+      if (editingKey === null) renderFields(null);
+    }).catch(function () {});
+  }
 
   function renderFields(activeKey) {
     fieldsContainer.innerHTML = '';
@@ -5241,7 +5272,7 @@ function showItemPanel(idx, pdKey, mode) {
         if (f.type === 'select') {
           inp = document.createElement('select');
           inp.style.cssText = 'width:100%;background:var(--bg);border:1px solid #2980b9;border-radius:6px;padding:0.4rem 0.6rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem';
-          f.options.forEach(function(o) {
+          (typeof f.options === 'function' ? f.options() : f.options).forEach(function(o) {   // 2026-11-13: a list read when the box opens (Bought From)
             const opt = document.createElement('option');
             // v0.9.1315: options may be {v, t} pairs — the variation picker
             // stores the bare number but shows the description beside it.
@@ -5292,6 +5323,7 @@ function showItemPanel(idx, pdKey, mode) {
           } catch (eDL) {}
         }
         inp.id = 'panel-inp-' + f.key;
+        if (typeof f.wire === 'function') f.wire(inp);   // 2026-11-13 (boughtfrom): "Add someone new…" + a late contact list
         setTimeout(function() { if (inp) inp.focus(); }, 30);
 
         const doneBtn = document.createElement('button');
@@ -5299,8 +5331,12 @@ function showItemPanel(idx, pdKey, mode) {
         doneBtn.textContent = '✓';
         doneBtn.style.cssText = 'margin-left:0.4rem;padding:0.3rem 0.6rem;border-radius:6px;border:1px solid #2980b9;background:#2980b9;color:#fff;cursor:pointer;font-size:0.85rem;flex-shrink:0';
         doneBtn.onclick = function() {
+          // review 2026-11-13: "Add someone new…" is a door, never a seller — it is put
+          // back by the box itself (rrBoughtFromWire); this is the second lock.
+          if (typeof PV_SELLER_NEW !== 'undefined' && inp.value === PV_SELLER_NEW) { editingKey = null; renderFields(null); return; }
           pd[f.key] = inp.value;
-          f.val = (f.key === 'variation' ? 'Var ' + inp.value : inp.value) || '—';   // v0.9.1315
+          f.val = (typeof f.words === 'function') ? f.words(inp.value)   // 2026-11-13 (boughtfrom): a Contact ID reads as the person
+            : ((f.key === 'variation' ? 'Var ' + inp.value : inp.value) || '—');   // v0.9.1315
           editingKey = null;
           renderFields(null);
         };
@@ -5312,7 +5348,7 @@ function showItemPanel(idx, pdKey, mode) {
         cancelInp.onclick = function() { editingKey = null; renderFields(null); };
 
         const inpRow = document.createElement('div');
-        if (f.type === 'textarea') {
+        if (f.type === 'textarea' || f.wide) {   // 2026-11-13 (boughtfrom): a list of names needs the full width too
           // Stack: big box on top, buttons below (v0.9.696)
           row.style.flexDirection = 'column';
           row.style.alignItems = 'stretch';
@@ -5430,7 +5466,7 @@ function showItemPanel(idx, pdKey, mode) {
       // open editor first, so Save All means ALL, no ✓ required.
       if (editingKey) {
         var _openInp = document.getElementById('panel-inp-' + editingKey);
-        if (_openInp) pd[editingKey] = _openInp.value;
+        if (_openInp && !(typeof PV_SELLER_NEW !== 'undefined' && _openInp.value === PV_SELLER_NEW)) pd[editingKey] = _openInp.value;   // review 2026-11-13: "Add someone new…" is never a seller
         editingKey = null;
       }
       saveBtn.textContent = 'Saving…'; saveBtn.disabled = true;

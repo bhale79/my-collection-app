@@ -2827,6 +2827,106 @@ window._pvSellerPick = function (sel) {
   window._ctOpenEdit();
 };
 
+// ══ 2026-11-13 — ONE "Bought From" box, three places (boughtfrom) ═══════════
+// Words + the list of places: config.js RR_BOUGHT_FROM. Before this the box was
+// written out inside the catalog Purchase & Value step only; the manual step
+// and Update Info had none.
+//
+// rrBoughtFromStepHtml(d, look) — the box on an Add step. look 'manual' wears
+// the manual step's label and box style; anything else the catalog step's
+// (unchanged, character for character). Remembers this session's last pick:
+// ten items from one seller = ONE tap total (v0.9.782).
+window.rrBoughtFromStepHtml = function (d, look) {
+  var W = (typeof RR_BOUGHT_FROM !== 'undefined') ? RR_BOUGHT_FROM : { ask: 'Bought From (optional)' };
+  var _pvSellEsc = function (t) { return String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+  var _pvLastSeller = '';
+  try { _pvLastSeller = d.purchasedFrom || sessionStorage.getItem('lv_last_seller') || ''; } catch (e) {}
+  var _pvCts = (state.contactsData || []);
+  var L = (look === 'manual')
+    ? { open: '<div><label style="font-size:0.82rem;color:var(--text-mid);display:block;margin-bottom:0.25rem">', close: '</label>',
+        sel: 'width:100%;padding:0.55rem 0.7rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-body);font-size:0.88rem;box-sizing:border-box' }
+    : { open: '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">', close: '</div>',
+        sel: 'width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box' };
+  var html = L.open + _pvSellEsc(W.ask) + L.close
+    + '<select id="pv-seller" onchange="window._pvSellerPick(this)" style="' + L.sel + '">'
+    + window._pvSellerEntries(_pvLastSeller).map(function (e) {
+        return '<option value="' + _pvSellEsc(e.v) + '"' + (e.on ? ' selected' : '') + '>'
+          + _pvSellEsc(e.label) + '</option>';
+      }).join('')
+    + '</select></div>';
+  if (_pvLastSeller && !d.purchasedFrom && _pvCts.some(function (ct) { return ct.id === _pvLastSeller; })) d.purchasedFrom = _pvLastSeller;
+  // Contacts not loaded yet (user hasn't visited the page)? Fill in place.
+  if (!_pvCts.length && typeof window._ctLoadContacts === 'function') {
+    window._ctLoadContacts().then(function () {
+      var sel = document.getElementById('pv-seller');
+      if (!sel) return;
+      window._pvSellerFill(sel, _pvLastSeller);
+      if (_pvLastSeller && sel.value === _pvLastSeller && !wizard.data.purchasedFrom) wizard.data.purchasedFrom = _pvLastSeller;
+    }).catch(function () {});
+  }
+  return html;
+};
+
+// rrBoughtFromChoices(curId) — the same list for a box that is not an Add step
+// (Update Info): { v, t } pairs. A saved seller the contact list does not hold
+// (not read yet, or since removed) keeps its own line, so opening the box and
+// pressing the tick can never blank it.
+window.rrBoughtFromChoices = function (curId) {
+  var cur = String(curId || '');
+  var list = window._pvSellerEntries(cur).map(function (e) { return { v: e.v, t: e.label }; });
+  if (cur && !list.some(function (o) { return o.v === cur; })) {
+    list.splice(1, 0, { v: cur, t: window.rrBoughtFromWords(cur) });
+  }
+  return list;
+};
+// rrBoughtFromWords(id) — a saved seller as words. A contact reads as the person
+// (contacts.js _ctLabel). Review 2026-11-13: a seller brought in by Import a
+// Spreadsheet is the words the collector's own list held ("eBay"), not a
+// Contact ID — those words are shown as they are. Only a real ID the contact
+// list does not hold reads "a saved contact".
+window.rrBoughtFromWords = function (id) {
+  var v = String(id || '');
+  if (!v) return '';
+  var known = (state.contactsData || []).some(function (c) { return c && c.id === v; });
+  if (known && typeof window._ctLabel === 'function') return window._ctLabel(v);
+  return /^C-\d/.test(v) ? 'a saved contact' : v;
+};
+// rrBoughtFromWire(sel, curId) — makes such a box behave like the Add step's:
+// "Add someone new…" opens the contact form ON TOP and the new person comes
+// back chosen; walking away leaves the box as it was; a contact list not read
+// yet this session is read and filled in place.
+window.rrBoughtFromWire = function (sel, curId) {
+  if (!sel) return;
+  var last = String(curId || '');
+  var refill = function (id) {
+    sel.innerHTML = '';
+    window.rrBoughtFromChoices(id).forEach(function (o) {
+      var el = document.createElement('option');
+      el.value = o.v; el.textContent = o.t;
+      sel.appendChild(el);
+    });
+    sel.value = id || '';
+    last = sel.value;
+  };
+  sel.addEventListener('change', function () {
+    if (sel.value !== PV_SELLER_NEW) { last = sel.value; return; }
+    sel.value = last;
+    if (typeof window._ctOpenEdit !== 'function') {
+      if (typeof showToast === 'function') showToast('Contacts are still loading — try again in a moment', 3000, true);
+      return;
+    }
+    window._ctAfterSave = function (id) { if (document.body.contains(sel)) refill(id); };
+    window._ctOpenEdit();
+    var m = document.getElementById('ct-modal');
+    if (m) m.style.zIndex = '100070';   // above the Update Info box, as the sale box does (app-pages.js)
+  });
+  if (!(state.contactsData || []).length && typeof window._ctLoadContacts === 'function') {
+    Promise.resolve(window._ctLoadContacts()).then(function () {
+      if (document.body.contains(sel) && (state.contactsData || []).length) refill(last);
+    }).catch(function () {});
+  }
+};
+
 // ── The tender picker (hoisted, v0.9.1227) ──────────────────────────────
 // Brad: "i had a different tender than the one suggested, i hit other tender,
 // and got this error."
@@ -3361,6 +3461,9 @@ function renderWizardStep() {
             ' oninput="wizard.data.priceItem=this.value" placeholder="$0.00"' +
             ' style="width:100%;padding:0.55rem 0.7rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:0.88rem;box-sizing:border-box">' +
         '</div>' +
+        // 2026-11-13 (boughtfrom): the same Bought From box the catalog step
+        // has — it was missing here (a collector entering N scale by hand).
+        window.rrBoughtFromStepHtml(d, 'manual') +
         ((typeof _prefLocEnabled !== 'undefined' && _prefLocEnabled) ?
         '<div>' +
           '<label style="font-size:0.82rem;color:var(--text-mid);display:block;margin-bottom:0.25rem">Storage Location</label>' +
@@ -6989,30 +7092,9 @@ function renderWizardStep() {
     }
 
     // Bought From — optional seller link (v0.9.782, Brad brainstorm #3).
-    // Remembers this session's last pick: ten items from Dave = ONE tap total.
-    if (!_pvIsSetOther) {
-      var _pvSellEsc = function (t) { return String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
-      var _pvLastSeller = '';
-      try { _pvLastSeller = _pvD.purchasedFrom || sessionStorage.getItem('lv_last_seller') || ''; } catch (e) {}
-      var _pvCts = (state.contactsData || []).slice().sort(function (a, b) { return (window._ctSortKey ? window._ctSortKey(a).localeCompare(window._ctSortKey(b)) : (a.name || a.business || '').localeCompare(b.name || b.business || '')); });
-      _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Bought From (optional)</div>'
-        + '<select id="pv-seller" onchange="window._pvSellerPick(this)" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box">'
-        + window._pvSellerEntries(_pvLastSeller).map(function (e) {
-            return '<option value="' + _pvSellEsc(e.v) + '"' + (e.on ? ' selected' : '') + '>'
-              + _pvSellEsc(e.label) + '</option>';
-          }).join('')
-        + '</select></div>';
-      if (_pvLastSeller && !_pvD.purchasedFrom && _pvCts.some(function (ct) { return ct.id === _pvLastSeller; })) _pvD.purchasedFrom = _pvLastSeller;
-      // Contacts not loaded yet (user hasn't visited the page)? Fill in place.
-      if (!_pvCts.length && typeof window._ctLoadContacts === 'function') {
-        window._ctLoadContacts().then(function () {
-          var sel = document.getElementById('pv-seller');
-          if (!sel) return;
-          window._pvSellerFill(sel, _pvLastSeller);
-          if (_pvLastSeller && sel.value === _pvLastSeller && !wizard.data.purchasedFrom) wizard.data.purchasedFrom = _pvLastSeller;
-        }).catch(function () {});
-      }
-    }
+    // 2026-11-13 (boughtfrom): the ONE box (rrBoughtFromStepHtml above) — the
+    // manual step and Update Info draw the same one.
+    if (!_pvIsSetOther) _pvHtml += window.rrBoughtFromStepHtml(_pvD, 'pv');
 
     // Date purchased — loco and normal only. v0.9.906 (Brad, item [1b]):
     // auto-fill today's date when none has been chosen; the user can still change it.

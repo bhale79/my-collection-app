@@ -9104,9 +9104,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // from one place and both renderers are thin. My first version of this
     // check asserted a single builder that did not exist; the code now
     // matches the claim rather than the claim being softened.
+    // LEDGER 2026-11-13 (boughtfrom): 2 -> 3. The same ONE list now also feeds
+    // Update Info's Bought From box (wizard.js rrBoughtFromChoices) — a third
+    // reader of the one builder, not a second builder.
     ok('the entries and their order come from one place',
        /window\._pvSellerEntries = function/.test(wz) &&
-       (wz.match(/_pvSellerEntries\(/g) || []).length === 2);
+       (wz.match(/_pvSellerEntries\(/g) || []).length === 3);
     ok('…and both renderers use it, the string one and the DOM one',
        /window\._pvSellerEntries\(_pvLastSeller\)\.map/.test(wz) &&
        /window\._pvSellerEntries\(selectedId\)\.forEach/.test(wz));
