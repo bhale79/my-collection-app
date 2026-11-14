@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2148';
+const APP_VERSION = 'v0.9.2149';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -4645,6 +4645,9 @@ const RR_STAFF = {
       code_gone: 'That code has run out. Ask for a new one.',
       no_staff_yet: 'This business has no Owner yet — set one up in Preferences.',
       no_such_person: 'That person isn’t on the list any more — close this and try again.',
+      too_many_today: 'That’s the most reset emails for one day — try again tomorrow.',   // relay v5.6
+      mail_full: 'Reset emails are paused for today — try again tomorrow.',
+      mail_failed: 'The email couldn’t be sent just now — try again in a moment.',
       'Unknown action': 'Staff PINs aren’t switched on yet — the backend update comes first.',   // relay older than v5.1
     },
   },

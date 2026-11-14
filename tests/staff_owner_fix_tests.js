@@ -68,6 +68,7 @@ async function standInRelay(pg) {
       if (p.action === 'staff_reset_code') {
         if (!v55) return deny(400, 'Unknown action');
         if (!R.people.some(x => x.role === 'owner')) return deny(409, 'no_staff_yet');
+        if (R.resetAnswer) return R.resetAnswer;   // relay v5.6: too_many_today / mail_full / mail_failed
         R.code = '482913'; R.codeTries = 0; R.mail.push('to the business account'); return { status: 200, message: 'sent', to: 'sh•••@example.test' };
       }
       if (p.action === 'staff_reset_pin') {
@@ -257,6 +258,40 @@ async function run(browser) {
     await pg.close();
   }
 
+  console.log('\n== L · relay v5.6: the reset email refused (5 a day, the email allowance low, the send failed) ==');
+  {
+    const { pg, errs } = await world(browser);
+    await setUp(pg);
+    await pg.evaluate(() => rrStaffLock('locked')); await pg.waitForTimeout(150);
+    const sendWord = await pg.evaluate(() => RR_STAFF.words.forgotSend);
+    const tryOne = async (status, message) => {
+      await pg.evaluate(([s, m]) => { window.__relay.resetAnswer = { status: s, message: m }; }, [status, message]);
+      if (!(await pg.$('#rr-staff-reset'))) { await pg.click('#rr-staff-forgot'); await pg.waitForTimeout(200); }
+      await pg.click('#rr-staff-r-send'); await pg.waitForTimeout(300);
+      return pg.evaluate((m) => { const b = document.getElementById('rr-staff-r-send');
+        return { toast: window.__toasts.slice(-1)[0], want: (RR_STAFF.words.errors || {})[m], btn: b ? { text: b.textContent, disabled: b.disabled } : null,
+                 stillAsking: !!document.getElementById('rr-staff-reset') && !document.getElementById('rr-staff-r-code') }; }, message);
+    };
+    const a = await tryOne(429, 'too_many_today');
+    T('L1 5 a day reached → its own words (try tomorrow), not the plain failure words', !!a.want && a.toast === a.want && /tomorrow/.test(a.toast), a);
+    T('L2 …the box stays on "Email me a code" and the button is given back', a.stillAsking && !!a.btn && a.btn.disabled === false && a.btn.text === sendWord, { a, sendWord });
+    const b = await tryOne(429, 'mail_full');
+    T('L3 the email allowance low → its own words (paused for today)', !!b.want && b.toast === b.want && /tomorrow/.test(b.toast), b);
+    const c = await tryOne(503, 'mail_failed');
+    T('L4 the send failed → its own words (try again in a moment), the button given back', !!c.want && c.toast === c.want && !!c.btn && c.btn.disabled === false, c);
+    await pg.evaluate(() => { delete window.__relay.resetAnswer; });
+    await pg.click('#rr-staff-r-send'); await pg.waitForTimeout(300);
+    T('L5 asked again once the relay sends → the code step opens as before', await pg.evaluate(() => !!document.getElementById('rr-staff-r-code')));
+    // PLANTED: the words line removed → the plain failure words come back
+    await pg.evaluate(() => { delete RR_STAFF.words.errors.too_many_today; window.__relay.resetAnswer = null; });
+    await pg.evaluate(() => { const x = document.getElementById('rr-staff-reset'); if (x && x.parentNode) x.parentNode.removeChild(x); rrStaffLock('locked'); }); await pg.waitForTimeout(150);
+    const gone = await tryOne(429, 'too_many_today');
+    const plain = await pg.evaluate(() => RR_STAFF.words.failed);
+    T('L6 PLANTED: the too_many_today words removed → the plain failure words come back — caught (L1 expects its own words)', !!plain && gone.toast === plain && gone.toast !== a.want && !gone.want, { gone, plain });
+    T('L7 no page errors', errs.length === 0, errs);
+    await pg.close();
+  }
+
   console.log('\n== K · the keyboard on the PIN screen ==');
   {
     const { pg } = await world(browser);
@@ -329,6 +364,7 @@ function guards(planted) {
   T('G4b PLANTED: the check removed from rrUnarchiveGo → caught', misses(plant).indexOf('collections-archive.js:rrUnarchiveGo') >= 0);
   T('G5 PLANTED: the relay NOT asked when the copy knows no one → the live fault comes back (F1 goes red)', planted.name !== 'Brad' && /isn’t right/.test(planted.msg), planted);
   T('G6 the new words live in RR_STAFF.words (config.js)', ['working', 'forgot', 'forgotTitle', 'forgotHelp', 'forgotSend', 'forgotSent', 'forgotCode', 'forgotNewPin', 'forgotGo', 'forgotDone'].every(k => new RegExp('\\n    ' + k + ': ').test(read('config.js'))));
+  T('G8 relay v5.6 words live in RR_STAFF.words.errors (config.js)', ['too_many_today', 'mail_full', 'mail_failed'].every(k => new RegExp('\\n      ' + k + ': ').test(read('config.js'))));
   T('G7 no "AI" in the new words', !/\bAI\b/.test(read('config.js').slice(read('config.js').indexOf('const RR_STAFF = {'), read('config.js').indexOf('window.RR_STAFF = RR_STAFF'))));
 }
 
