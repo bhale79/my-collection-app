@@ -40,9 +40,18 @@ ok('no padding shorthand survives to clobber the top inset',
    'a `padding: 0 1.25rem` shorthand would zero the safe-area padding');
 ok('...the sides are padded longhand instead',
    /padding-left: 1\.25rem; padding-right: 1\.25rem;/.test(header));
-ok('nothing else positions off a bare var(--header-h)',
-   (CSS.match(/var\(--header-h\)/g) || []).length === 1,
-   'a second reader would now be 0-59px out on an installed iPhone');
+// 2026-11-14 (filtersheet): a second reader IS allowed — the phone Filters sheet
+// caps its panel below the top bar — but only when it adds the top inset in the
+// same breath, the way the header itself does. A bare var(--header-h) anywhere
+// would be 0-59px out on an installed iPhone, and still turns this red.
+const hdrReaders = CSS.split('\n').filter(l => /var\(--header-h\)/.test(l));
+ok('every reader of var(--header-h) adds env(safe-area-inset-top) on the same line (header + the Filters sheet cap)',
+   hdrReaders.length >= 1 && hdrReaders.every(l => /env\(safe-area-inset-top, 0px\)/.test(l)),
+   'a bare reader would be 0-59px out on an installed iPhone: ' + hdrReaders.filter(l => !/env\(safe-area-inset-top, 0px\)/.test(l)).map(l => l.trim().slice(0, 60)).join(' | '));
+{ // the guard can fail: a reader without the inset, planted
+  const planted = (CSS + '\n.rr-planted { top: var(--header-h); }\n').split('\n').filter(l => /var\(--header-h\)/.test(l));
+  ok('...and a bare reader planted at the end turns it red', !planted.every(l => /env\(safe-area-inset-top, 0px\)/.test(l)));
+}
 
 console.log('\n== The edge-pinned bars ==');
 ok('the offline banner pads under the status bar',

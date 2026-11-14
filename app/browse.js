@@ -6722,7 +6722,10 @@ function _rrFilterSheetOpen() {
   var ov = document.createElement('div');
   ov.id = 'rr-filter-sheet';
   ov.style.cssText = 'position:fixed;inset:0;z-index:99940;background:rgba(0,0,0,0.55);display:flex;align-items:flex-end;justify-content:center';
-  ov.innerHTML = '<div id="rr-filter-panel" style="background:var(--surface);border-radius:16px 16px 0 0;width:100%;max-height:85dvh;overflow-y:auto;padding:0.9rem 0.9rem 1.1rem">'
+  // 2026-11-14 (Lars, iPhone: "The filter pop-up view is mostly blocked"): the
+  // panel's height is in app.css (#rr-filter-panel), where the phone rule ends
+  // it ABOVE the bottom bar's measured cover — .main sits below the bar.
+  ov.innerHTML = '<div id="rr-filter-panel" style="background:var(--surface);border-radius:16px 16px 0 0;width:100%;overflow-y:auto;padding:0.9rem 0.9rem 1.1rem">'
     + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.7rem">'
     +   '<strong style="font-family:var(--font-head);font-size:0.95rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--text)">Filters</strong>'
     +   '<button aria-label="Close" onclick="_rrFilterSheetClose()" style="background:none;border:none;color:var(--text-dim);font-size:1.5rem;line-height:1;cursor:pointer;padding:0 0.3rem">\u00d7</button>'
