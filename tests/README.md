@@ -110,3 +110,4 @@ the app headless with Google unreachable. Run it again after any release
 that touches navigation, modals or the reports.
 
 <!-- 2026-11-02: re-publish of v0.9.2097 after GitHub's "Publish website" deploy step failed (artifact metadata fetch). No test change. -->
+<!-- 2026-11-14: re-publish of v0.9.2148 after GitHub's "Publish website" deploy step failed (artifact metadata fetch) — the same GitHub-side failure as 2026-11-02. No test change. -->
