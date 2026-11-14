@@ -399,7 +399,8 @@ function pool(n) {
     const P3p = run(() => phoneWalk(browser, { 'browse.js': noBadge }, 'list'));
     const noPieces = plant(B, "const mine = (typeof rrMySetItems === 'function') ? rrMySetItems(ms) : [];", 'const mine = [];', 'catalog card piece count');
     const P3bp = run(() => phoneWalk(browser, { 'browse.js': noPieces }, 'list'));
-    const deadCard = plant(B, "data-my-set-card=\"' + rrEsc(k) + '\" onclick=\"showNonItemDetailPage(\\'sets\\',\\'' + rrJsArg(k) + '\\')\"", "data-my-set-card=\"' + rrEsc(k) + '\"", 'dead card');
+    // 2026-11-14 (onesets): the card's opener is `tap || showNonItemDetailPage(…)` now — a set entered as one item hands its own tap in.
+    const deadCard = plant(B, "data-my-set-card=\"' + rrEsc(k) + '\" onclick=\"' + (tap || 'showNonItemDetailPage(\\'sets\\',\\'' + rrJsArg(k) + '\\')') + '\"", "data-my-set-card=\"' + rrEsc(k) + '\"", 'dead card');
     const P4p = run(() => phoneWalk(browser, { 'browse.js': deadCard }, 'own'));
     const oldCatRow = plant(B, "'<tr data-my-set-key=\"' + rrEsc(k) + '\" onclick=\"showNonItemDetailPage(\\'sets\\',\\'' + rrJsArg(k) + '\\')\"", "'<tr data-my-set-key=\"' + rrEsc(k) + '\" onclick=\"showRefItemPopup(\\'set\\',0)\"", 'catalog row → popup');
     const P5p = run(() => deskWalk(browser, { 'browse.js': oldCatRow }, 'cat'));
@@ -409,13 +410,14 @@ function pool(n) {
     const P7p = run(() => deskWalk(browser, { 'browse.js': leak }, 'master'));
     const mTap = plant(B, 'onclick="showRefItemPopup(&apos;set&apos;,${si})"', 'onclick="void 0"', 'catalog tap changed');
     const P8p = run(() => deskWalk(browser, { 'browse.js': mTap }, 'master'));
-    const doorEverywhere = plant(B, "const show = !!(state.filters && state.filters.owned) && (state._browseTab || 'items') === 'items' && n > 0 && !picking;", "const show = n > 0;", 'door everywhere');
+    // 2026-11-14 (onesets, review): the cheap conditions are asked first (`here`), the count only where the door could show.
+    const doorEverywhere = plant(B, "const here = !!(state.filters && state.filters.owned) && (state._browseTab || 'items') === 'items' && !picking;", "const here = true;", 'door everywhere');
     const P9p = run(() => deskWalk(browser, { 'browse.js': doorEverywhere }, 'master'));
     const bottom = plant(HTML, `id="mnav-sets" onclick="showPage('sets', this); buildSetsPage();"`, `id="mnav-sets" onclick="rrOpenMySets();"`, 'bottom bar Sets → My Sets');
     const P10p = run(() => phoneWalk(browser, { 'index.html': bottom }, 'bottom'));
     const noBack = plant(B, "head.innerHTML = '<button type=\"button\" class=\"btn\" onclick=\"renderBrowseTab(\\'items\\')\"", "head.innerHTML = '<button type=\"button\" class=\"btn\"", 'dead back button');
     const P11p = run(() => phoneWalk(browser, { 'browse.js': noBack }, 'back'));
-    const raw = B.split("onclick=\"showNonItemDetailPage(\\'sets\\',\\'' + rrJsArg(k) + '\\')\"").join("onclick=\"showNonItemDetailPage(\\'sets\\',\\'' + k + '\\')\"");
+    const raw = B.split("showNonItemDetailPage(\\'sets\\',\\'' + rrJsArg(k) + '\\')").join("showNonItemDetailPage(\\'sets\\',\\'' + k + '\\')");   // 2026-11-14 (onesets): every opener, row or card, with or without the `tap ||` in front
     const P12p = run(() => phoneWalk(browser, { 'browse.js': raw }, 'quoted'));
     const noFollow = plant(B, '  _rrMySetsFollow();\n  // v0.9.985 (perf)', '  // v0.9.985 (perf)', 'repaint forgets My Sets');
     const P13p = run(() => followWalk(browser, { 'browse.js': noFollow }));
@@ -423,7 +425,7 @@ function pool(n) {
     const P14p = run(() => backWalk(browser, { 'browse.js': noBackEntry }));
     const noDrop = plant(B, "if (!pg.classList.contains('active') && BackStack.has(_RR_MYSETS_BACK) && typeof BackStack.drop === 'function') BackStack.drop(_RR_MYSETS_BACK);", 'void 0;', 'entry not dropped');
     const P15p = run(() => backWalk(browser, { 'browse.js': noDrop }));
-    const shareDoor = plant(B, "&& n > 0 && !picking;", "&& n > 0;", 'door while sharing');
+    const shareDoor = plant(B, "=== 'items' && !picking;\n  const n = here", "=== 'items';\n  const n = here", 'door while sharing');
     const P16p = run(() => followWalk(browser, { 'browse.js': shareDoor }));
     const oldLabel = plant(AC, "(fromMySets && typeof RR_OWN_SETS !== 'undefined') ? RR_OWN_SETS.pageBack : 'Back to Collection'", "'Back to Collection'", 'old back label');
     const P17p = run(() => phoneWalk(browser, { 'app-collection.js': oldLabel }, 'own'));

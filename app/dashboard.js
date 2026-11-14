@@ -55,8 +55,10 @@ function _dashGroupTap(name) { return "rrCollGroupOpen('" + name + "')"; }
 // tests/dashboard_counts_tests.js scans for it and plants the old code.
 // v0.9.2037: the groups are THE ONE LIST in config.js (RR_COLL_GROUPS) — the
 // same list My Collection filters by when a card is tapped. Sets are a group
-// of their own now (they used to land on the Other line), so the Total Sets
-// card and the Collection by Type line say the same thing.
+// of their own now (they used to land on the Other line). 2026-11-14 (onesets):
+// the Total Sets CARD is the exception — it counts every set owned, My Sets
+// rows included, and opens My Sets (see the card); the Collection by Type
+// Sets LINE is still the items by type, as every other line.
 var _DASH_GROUPS = RR_COLL_GROUPS;
 function _ownedBucketOf(pd) {
   // 2026-11-07 (onerow): THE copy-type rule is app-data.js rrCopyBucket — the
@@ -67,6 +69,8 @@ function _ownedBucketOf(pd) {
 // The group an owned item is counted under — THE answer the Total cards, the
 // Collection by Type card, the sheet's Dashboard tab AND My Collection's group
 // chip (browse.js _copyPasses) all use. One owner; never a second mapping.
+// (The Total Sets card adds the My Sets rows to this group's items — browse.js
+// rrOwnedSetItems asks this same question for the items, 2026-11-14 onesets.)
 function _ownedGroupOf(pd) {
   return rrCollGroupOf(_ownedBucketOf(pd));
 }
@@ -726,11 +730,20 @@ var CARD_CATALOG = [
     }
   },
   {
-    id: 'sets', label: 'Total Sets', color: '#d35400', onclick: _dashGroupTap('Sets'),   // v0.9.2037 (Lars): tap → My Collection, this group
+    // 2026-11-14 (onesets — Lars: "I want all to show under the same Total
+    // Sets"): EVERY set owned — entered as a set (a My Sets row) or as one item
+    // whose catalog type is Set — counted once, and the tap opens My Sets, the
+    // ONE list that shows them all (rrOwnedSetItems / rrMySetsCount /
+    // rrOpenMySets, browse.js). It used to count the items alone and open them
+    // under My Collection's Sets chip, while the My Sets button counted the
+    // rows alone: two numbers, two lists. (Collection by Type's Sets line is
+    // still the items by type — a My Sets row is a wrapper around pieces that
+    // are already counted there, v0.9.1564.)
+    id: 'sets', label: 'Total Sets', color: '#d35400', onclick: 'rrOpenMySets()',
     compute: function(state) {
       // v0.9.1879: owned items whose own catalog entry is a set — it used to
       // count CATALOG rows typed Set whose number the user owned (any maker).
-      var count = _ownedGroupCount(state, 'Sets');   // v0.9.2037: the group's count, as the list under its chip
+      var count = (typeof rrMySetsCount === 'function') ? rrMySetsCount() : _ownedGroupCount(state, 'Sets');
       return { value: count.toLocaleString(), sub: 'sets in collection' };
     }
   },
@@ -890,7 +903,7 @@ var _CARD_HELP = {
   freight: 'Count of owned freight cars (boxcars, hoppers, tanks, gondolas, flatcars…).',
   passenger: 'Count of owned passenger cars.',
   accessories: 'Count of owned accessories.',
-  sets: 'Count of sets recorded on your My Sets tab.',
+  sets: 'Every set you own, counted once: sets you entered as a set (with their pieces) and sets you entered as a single item. Tap to see them all under My Sets.',
   photos: 'How many of your owned items have at least one photo attached.',
   photoReel: 'A rotating slideshow of photos from your own collection — a new random item every few seconds. Tap the photo to open that item. Only items with photos appear; photo lookups are cached on this device so it loads fast.',
   forsale: 'Items on your For Sale list and their total asking price.',

@@ -3186,7 +3186,19 @@ function renderSetsTab() {
     const ms = e[1];
     return [ms.setNum, ms.setName, ms.year, (typeof rrMySetMaker === 'function' ? rrMySetMaker(ms) : '')].join(' ').toLowerCase().includes(q);
   });
-  const _nAll = sets.length + catList.length + ownList.length;
+  // 2026-11-14 (onesets — Lars: "Total sets Vs My sets?? Why do I have one
+  // showing separately in My Sets? I want all to show under the same Total
+  // Sets."): a set the collector entered as ONE item (a modern Lionel set
+  // under its own number, say — its catalog type is Set) used to show only
+  // under My Collection's Sets chip, and never here; a set entered as a set
+  // (a My Sets row) only here. ONE list now: My Sets shows every set owned,
+  // whichever way it came in. Such an item opens its own item page.
+  const itemList = !inColl ? [] : rrOwnedSetItems().map(function (pd) { return [pd, _rrOwnedSetItemView(pd)]; }).filter(function (r) {
+    if (!q) return true;
+    const v = r[1];
+    return [r[0].itemNum, v.name, v.year, v.maker, v.gauge].join(' ').toLowerCase().includes(q);
+  });
+  const _nAll = sets.length + catList.length + ownList.length + itemList.length;
   const emptyMsg = inColl ? RR_OWN_SETS.empty : 'No sets found';
   if (countEl) countEl.textContent = _nAll.toLocaleString() + ' set' + (_nAll !== 1 ? 's' : '');
   if (_ui.cards) _ui.cards.innerHTML = '';
@@ -3269,9 +3281,75 @@ function renderSetsTab() {
       + '<td style="text-align:center">' + badge + '</td>'
       + '<td onclick="event.stopPropagation()" style="text-align:right;white-space:nowrap">' + acts + '</td>'
       + '</tr>';
+  }).join('') + itemList.map(function (r) {
+    // 2026-11-14 (onesets): a set entered as one item. Its row and card open
+    // ITS page — the item's, by Inventory ID (never a position) — where every
+    // button it has already lives; no actions column here.
+    const pd = r[0], v = r[1];
+    const inv = String(pd.inventoryId || '');
+    const tap = '_openOwnedByInvId(\'' + rrJsArg(inv) + '\')';
+    const worth = pd.userEstWorth ? _currencySymbol() + parseFloat(pd.userEstWorth).toLocaleString() : '';
+    const badge = '<span style="color:var(--green);font-size:0.75rem;font-weight:700">' + rrEsc(RR_OWN_SETS.ownedTag) + '</span>'
+      + (pd.quickEntry ? ' <span style="color:var(--t-orange);font-size:0.68rem;font-weight:700" title="Quick Entry">⚡</span>' : '')
+      + (worth ? '<div style="font-size:0.72rem;color:var(--text-mid);margin-top:2px">' + rrEsc(worth) + '</div>' : '');
+    if (_ui.cards) _ui.cards.insertAdjacentHTML('beforeend', _rrMySetCardHtml('item:' + inv, pd.itemNum, v.name, [v.maker, v.year, v.gauge], false, tap));
+    return '<tr data-my-set-item="' + rrEsc(inv) + '" onclick="' + tap + '" style="cursor:pointer;background:rgba(46,204,113,0.04)">'
+      + '<td><span style="font-family:var(--font-mono);color:var(--accent2)">' + rrEsc(pd.itemNum || '—') + '</span></td>'
+      + '<td style="font-size:0.88rem">' + rrEsc(v.name || '—') + (v.maker ? '<div style="font-size:0.72rem;color:var(--text-dim)">' + rrEsc(v.maker) + '</div>' : '') + '</td>'
+      + '<td style="font-size:0.85rem;color:var(--text-mid)">' + rrEsc(v.year || '—') + '</td>'
+      + '<td style="font-size:0.85rem;color:var(--text-mid)">' + rrEsc(v.gauge || '—') + '</td>'
+      + '<td style="font-size:0.82rem">—</td>'
+      + '<td style="text-align:center">' + badge + '</td>'
+      + '<td></td>'
+      + '</tr>';
   }).join('');
   if (typeof rrReapplyTableSort === 'function' && !(state.filters && state.filters.owned)) rrReapplyTableSort('browse-sets-tbody');   // v0.9.1916: keep the clicked column's order
 }
+
+// ── 2026-11-14 (onesets) — EVERY SET YOU OWN, whichever way it was entered ──
+// Lars Brown (Report a problem, 2026-11-14): "Sets confusion — Total sets Vs My
+// sets?? Why do I have one showing separately in My Sets? I want all to show
+// under the same Total Sets." → [stated] Brad: "yes and emergency send it".
+// His nine modern Lionel sets were each entered as ONE item (their catalog type
+// is Set), his 1511S as a set with its twelve pieces (a My Sets row). The
+// dashboard's Total Sets counted the nine and opened them under My Collection's
+// Sets chip; the My Sets button counted the one and opened the other list.
+// Neither list knew the other.
+//
+// ONE answer now, here: the sets entered as sets (every My Sets row) PLUS the
+// owned copies whose own catalog entry is a set (_ownedGroupOf, dashboard.js —
+// THE decider every dashboard count uses; never a number matched against
+// catalog rows). A copy that is a PIECE of a My Sets row (same Group ID) is
+// that set's, and is not listed twice. rrMySetsCount is the size of this
+// union, and it is the number on the My Sets button AND the Total Sets card,
+// which both open the same list (rrOpenMySets). Display only — no sheet
+// changes; both ways of adding a set keep working. Nothing on the sheet moves.
+function rrOwnedSetItems() {
+  if (typeof _ownedGroupOf !== 'function') return [];
+  const setGids = {};
+  Object.values((typeof state !== 'undefined' && state.mySetsData) || {}).forEach(function (ms) { const g = ms && String(ms.groupId || '').trim(); if (g) setGids[g] = true; });
+  const owned = (typeof _ownedNonBox === 'function') ? _ownedNonBox(state)
+    : Object.values(state.personalData || {}).filter(function (pd) { return pd && pd.owned; });
+  return owned.filter(function (pd) {
+    const g = String(pd.groupId || '').trim();   // trimmed both sides, as rrMySetItems reads it (app.js)
+    if (g && setGids[g]) return false;   // a piece of a set listed above
+    return _ownedGroupOf(pd) === 'Sets';
+  }).sort(function (a, b) { return String(a.itemNum || '').localeCompare(String(b.itemNum || ''), undefined, { numeric: true }); });
+}
+// What the list says about such an item: the catalog row's words first (the
+// row findMaster gives for the copy itself), the copy's own cells for a manual one.
+function _rrOwnedSetItemView(pd) {
+  let m = null;
+  try { m = (typeof findMaster === 'function') ? findMaster(pd.itemNum, pd.variation, pd) : null; } catch (e) { m = null; }
+  m = m || {};
+  return {
+    name:  String(m.description || pd.description || m.itemType || pd.itemType || ''),
+    year:  String(m.yearProd || m.year || pd.yearMade || ''),
+    maker: String(pd.manufacturer || m.manufacturer || (m._era && typeof ERAS !== 'undefined' && ERAS[m._era] && ERAS[m._era].manufacturer) || ''),
+    gauge: String(m.gauge || pd.gauge || ''),
+  };
+}
+if (typeof window !== 'undefined') { window.rrOwnedSetItems = rrOwnedSetItems; window._rrOwnedSetItemView = _rrOwnedSetItemView; }
 
 // ── 2026-11-08 (mysets) — MY SETS: the door, the list's frame, the cards ──
 // Hand-test T-2026-11-04-03 FAILED: an own set saved and its page worked, but
@@ -3286,12 +3364,19 @@ function renderSetsTab() {
 // there, not on the computer's Show row, because the Show row is computer-only
 // and only appears when a collection has paper or catalog sections.
 // n = the rows the list shows: one per My Sets row (renderSetsTab files each
-// one, catalog or own, and drops none), so the number is the count of rows.
+// one, catalog or own, and drops none) PLUS one per set entered as a single
+// item (2026-11-14 onesets, rrOwnedSetItems above), so the number is the
+// count of rows. The dashboard's Total Sets card shows this same number.
 function rrMySetsCount() {
-  return Object.values((typeof state !== 'undefined' && state.mySetsData) || {}).filter(Boolean).length;
+  return Object.values((typeof state !== 'undefined' && state.mySetsData) || {}).filter(Boolean).length + rrOwnedSetItems().length;
 }
 function rrOpenMySets() {
-  if (!(state.filters && state.filters.owned)) {
+  // 2026-11-14 (onesets): the dashboard's Total Sets card comes here too, so
+  // the page is shown whenever it is not the one on screen — not only when
+  // My Collection's filter is off (it stays on after leaving the page, and the
+  // list would have been drawn into a hidden page).
+  const _pg = document.getElementById('page-browse');
+  if (!(state.filters && state.filters.owned) || !(_pg && _pg.classList.contains('active'))) {
     showPage('browse', document.querySelector('.nav-item[onclick*="filterOwned"]') || document.getElementById('mnav-collection'));
     filterOwned();
   }
@@ -3307,9 +3392,14 @@ function _rrMySetsDoorSync() {
   const title = document.querySelector('#page-browse > .page-title');
   if (!title) return;
   let btn = document.getElementById('rr-mysets-door');
-  const n = rrMySetsCount();
   const picking = (typeof isShareMode === 'function' && isShareMode('collection')) || (typeof rrTagActive === 'function' && rrTagActive());
-  const show = !!(state.filters && state.filters.owned) && (state._browseTab || 'items') === 'items' && n > 0 && !picking;
+  // 2026-11-14 (onesets, review): the cheap questions first — the count walks
+  // every owned copy (rrOwnedSetItems), so it is asked only where the button
+  // could show (My Collection's Items list, not picking), never on the Master
+  // Catalog's every repaint.
+  const here = !!(state.filters && state.filters.owned) && (state._browseTab || 'items') === 'items' && !picking;
+  const n = here ? rrMySetsCount() : 0;
+  const show = here && n > 0;
   if (!show) { if (btn) btn.style.display = 'none'; return; }
   if (!btn) {
     btn = document.createElement('button');
@@ -3407,13 +3497,14 @@ function _rrMySetsPanelUi(inColl) {
   if (!inColl) { cards.innerHTML = ''; return { cards: null }; }
   return { cards: cards };
 }
-// One phone card. Tapping it opens the set's own page, exactly as its table row does.
-function _rrMySetCardHtml(k, num, name, subParts, own) {
+// One phone card. Tapping it opens the set's own page, exactly as its table row
+// does — or, given `tap` (2026-11-14 onesets: a set entered as one item), that.
+function _rrMySetCardHtml(k, num, name, subParts, own, tap) {
   const sub = (subParts || []).filter(function (x) { return x != null && String(x).trim() !== ''; }).join(' · ');
   const badge = own
     ? '<span data-own-set="1" style="color:var(--green);font-size:0.75rem;font-weight:700;white-space:nowrap">' + rrEsc(RR_OWN_SETS.listTag) + '</span>'
     : '<span style="color:var(--green);font-size:0.75rem;font-weight:700;white-space:nowrap">' + rrEsc(RR_OWN_SETS.ownedTag) + '</span>';
-  return '<div class="browse-card" data-my-set-card="' + rrEsc(k) + '" onclick="showNonItemDetailPage(\'sets\',\'' + rrJsArg(k) + '\')">'
+  return '<div class="browse-card" data-my-set-card="' + rrEsc(k) + '" onclick="' + (tap || 'showNonItemDetailPage(\'sets\',\'' + rrJsArg(k) + '\')') + '">'
     + '<div class="browse-card-left"><div class="browse-card-num">' + rrEsc(num || '—') + '</div>'
     + '<div class="browse-card-name">' + rrEsc(name || '—') + '</div>'
     + (sub ? '<div class="browse-card-sub">' + rrEsc(sub) + '</div>' : '') + '</div>'

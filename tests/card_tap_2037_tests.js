@@ -159,7 +159,9 @@ async function run(browser, files) {
   const browser = await chromium.launch(fs.existsSync(ex) ? { executablePath: ex } : {});
   const r = await run(browser);
   console.log('== A · the taps ==');
-  T('A1 the six Total cards carry the tap (rrCollGroupOpen with their group)', Object.keys(CARDS).every(id => r.cardTaps[id] === "rrCollGroupOpen('" + CARDS[id] + "')"), r.cardTaps);
+  // 2026-11-14 (onesets — Lars: "I want all to show under the same Total Sets"): the Sets card opens My Sets,
+  // the ONE list of every set owned (entered as a set or as one item); the five others still open their group chip.
+  T('A1 five Total cards carry the tap (rrCollGroupOpen with their group); Total Sets opens My Sets', Object.keys(CARDS).every(id => r.cardTaps[id] === (id === 'sets' ? 'rrOpenMySets()' : "rrCollGroupOpen('" + CARDS[id] + "')")), r.cardTaps);
   T('A2 every Collection by Type line carries the tap for its own group', Object.keys(r.lines).length >= 7 && Object.keys(r.lines).every(k => (r.lineTaps[k] || '').indexOf("rrCollGroupOpen('" + k + "')") >= 0 && /_fromDash=true/.test(r.lineTaps[k])), { lines: r.lines, taps: r.lineTaps });
   T('A3 Sets is a line of its own on Collection by Type (Lars\'s two sets), not Other', r.lines.Sets === 2 && r.lines.Other === 2, r.lines);
   console.log('== B · the card\'s number is the row count ==');

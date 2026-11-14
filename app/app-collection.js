@@ -1194,6 +1194,11 @@ function showItemDetailPage(idx, copyInvId, opts) {
     // v0.9.845 (Brad): opened from a dashboard card — go back to the dashboard.
     _backLabel = 'Back to Dashboard';
     _backFn    = 'delete window._detailReturn;showPage(&apos;dashboard&apos;);if(typeof buildDashboard===&apos;function&apos;)buildDashboard()';
+  } else if (window._lastBrowseState && window._lastBrowseState.owned && window._lastBrowseState.tab === 'sets' && typeof RR_OWN_SETS !== 'undefined') {
+    // 2026-11-14 (onesets, review): a set entered as one item, opened from the
+    // My Sets list — Back returns there (_detailBackToBrowse restores the Sets
+    // tab), so the button says so, as a set's own page does (showNonItemDetailPage).
+    _backLabel = RR_OWN_SETS.pageBack;
   }
   // v0.9.1010 (Brad): the header block (title + description) is held in its
   // own variable so the photo card can sit BESIDE it in a two-column grid on

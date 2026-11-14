@@ -68,6 +68,15 @@ function _ownedGroupCount(state, name) {
   var b = { Engines: _ENGINE_BUCKETS, Cabooses: _CABOOSE_BUCKETS, Freight: _FREIGHT_BUCKETS, Passenger: _PASSENGER_BUCKETS, Accessories: _ACCESSORY_BUCKETS, Sets: _SET_BUCKETS }[name] || [];
   return _ownedTypeCount(state, b);
 }
+// 2026-11-14 (onesets): the Total Sets card asks browse.js rrOwnedSetItems, which
+// asks _ownedGroupOf — so the OLD run must answer it the OLD way (a number
+// matched against every catalog row) for C3 to test the card and not a guard.
+function _ownedGroupOf(pd) {
+  var G = { Engines: _ENGINE_BUCKETS, Tenders: _TENDER_BUCKETS, Cabooses: _CABOOSE_BUCKETS, Passenger: _PASSENGER_BUCKETS, Freight: _FREIGHT_BUCKETS, Accessories: _ACCESSORY_BUCKETS, Sets: _SET_BUCKETS };
+  var names = Object.keys(G);
+  for (var i = 0; i < names.length; i++) if (_pdMatchSet(pd, _ownedTypeNumSet(state, G[names[i]]))) return names[i];
+  return 'Other';
+}
 function _ownedTypeBreakdown(state, ownedList) {
   var _eS=_ownedTypeNumSet(state,_ENGINE_BUCKETS), _tS=_ownedTypeNumSet(state,_TENDER_BUCKETS), _cS=_ownedTypeNumSet(state,_CABOOSE_BUCKETS), _pS=_ownedTypeNumSet(state,_PASSENGER_BUCKETS), _fS=_ownedTypeNumSet(state,_FREIGHT_BUCKETS), _aS=_ownedTypeNumSet(state,_ACCESSORY_BUCKETS);
   var types = { 'Engines':0, 'Tenders':0, 'Freight':0, 'Passenger':0, 'Cabooses':0, 'Accessories':0, 'Other':0 };
