@@ -116,7 +116,10 @@ async function scenario(pg, wantLayout) {
     const cdHead = () => { const h = document.querySelector('#wizard-modal .cd-head'); return h ? h.textContent.replace(/\s+/g, ' ').trim() : ''; };
     const cdTag = () => { const h = document.querySelector('#wizard-modal .cd-head [data-row-tag]'); return h ? h.textContent : ''; };
     const cdLink = () => { const h = document.querySelector('#wizard-modal .cd-head a'); return h ? h.textContent.trim() : ''; };
-    const toStep2 = async () => { for (let k = 0; k < 6 && stepType() !== 'conditionDetails'; k++) { await wizardNext(); await sleep(150); } };
+    // 2026-11-15 (unknownnum): a number with no catalog row is asked "What is this item?" on the way (the addType step) — tap a type there
+    const toStep2 = async () => { for (let k = 0; k < 7 && stepType() !== 'conditionDetails'; k++) {
+      if (stepType() === 'manualItemType') { const b = Array.from(document.querySelectorAll('#wizard-body button')).find(x => x.textContent.trim() === 'Freight Car'); if (b) { b.click(); await sleep(120); } }
+      await wizardNext(); await sleep(150); } };
     const save = async () => {
       appended.length = 0;
       Object.assign(wizard.data, { condition: 7, allOriginal: 'Yes', hasBox: 'No', tenderMatch: 'none', setMatch: '', priceItem: '', userEstWorth: '5' });
@@ -320,7 +323,8 @@ async function scenario(pg, wantLayout) {
 
   {
     // the save's "no catalog row" flag taken away: the row builder borrows the Pre-War row again
-    const served = { 'wizard-save.js': plant(read('wizard-save.js'), '_noCatalogRow: _wizNoRow || undefined,', '', 'no-row flag') };
+    // 2026-11-15 (unknownnum): such a row is ALSO saved under era "Manual" now, which by itself stops the borrow — both guards are taken away to prove A10 can fail
+    const served = { 'wizard-save.js': plant(plant(read('wizard-save.js'), '_noCatalogRow: _wizNoRow || undefined,', '', 'no-row flag'), "if (_rrAddNoRowItem(wizard.data)) return 'Manual';", '', 'manual era') };
     const { ctx, pg } = await openApp(browser, LAPTOP, served);
     const R = await scenario(pg, false).catch(e => ({ err: String(e) }));
     ok('P3 PLANTED the save without its "no catalog row" flag: A10 can fail (a borrowed Row ID)', !R.err && !/^\|1511$/.test(R.aSave), R.err || R.aSave);

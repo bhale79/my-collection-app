@@ -57,6 +57,11 @@ function _resolveSaveEra() {
   function _isReal(e) { return !!e && e !== 'all'; }
   try {
     if (typeof wizard !== 'undefined' && wizard && wizard.data) {
+      // 2026-11-15 (prewarsets): a catalog set's pieces are saved under the set's own era
+      // 2026-11-15 (unknownnum): no catalog row → "Manual", never the era of the view that was open
+      if (_rrAddNoRowItem(wizard.data)) return 'Manual';
+      var _rs = wizard.data._resolvedSet;
+      if (_rs && !wizard.data._ownSet && _rs._era && typeof rrSetEra === 'function' && _isReal(rrSetEra(_rs))) return rrSetEra(_rs);
       if (_isReal(wizard.data._era)) return wizard.data._era;
       if (wizard.matchedItem && _isReal(wizard.matchedItem._era)) return wizard.matchedItem._era;
     }
@@ -95,6 +100,35 @@ function _rrAddChosenMaker(d) {
 // it — it only pre-selects the step's answer, on screen, for one tap.
 // Once asked, the step stays in the flow (so Back returns to it) for as long
 // as there is still no catalog row. An add WITH a row never sees it.
+// ── 2026-11-15 (unknownnum) — A NUMBER THE CATALOG DOES NOT KNOW IS NEVER SAVED BLIND
+// Problem report #34: Pre-War sets typed into the item box were saved with NO
+// TYPE and as "Lionel Postwar" (the era of the view that was open), so they
+// never reached the collector's set list. [stated] Brad 2026-11-03 "we dont
+// need to quielty fill anything"; 2026-11-15 13:21 CT "yes on what is it".
+// The maker was already asked (addMaker, below). Now the same add also asks
+// WHAT THE ITEM IS (the addType step, the hand-entry type buttons) and is
+// saved under era "Manual" — the app's word for "no catalog row; never look
+// this number up in somebody's catalog".
+// THE one test: an item add to My Collection that holds a number and NO
+// catalog row. `soft` = for wording only (does not wait for the catalog).
+function _rrAddNoRowItem(d, soft) {
+  try {
+    d = d || ((typeof wizard !== 'undefined' && wizard) ? wizard.data : null) || {};
+    if (typeof wizard === 'undefined' || !wizard || wizard.tab !== 'collection') return false;
+    if (d._manualEntry || d._setMode || d._ownSet || d._updatePdKey || d.boxOnly || d._fillItemMode || d._completingQuickEntry) return false;
+    if (!String(d.itemNum || '').trim()) return false;
+    if (!soft && typeof _catalogReady === 'function' && !_catalogReady()) return false;   // the catalog is not in yet: nothing is known about the number
+    if ((typeof _wizAddRow === 'function') ? _wizAddRow() : wizard.matchedItem) return false;
+    return true;
+  } catch (e) { return false; }
+}
+// The type the collector chose on the addType step, for the save ('' = none).
+function _rrAddChosenType(d) {
+  d = d || ((typeof wizard !== 'undefined' && wizard) ? wizard.data : null) || {};
+  return _rrAddNoRowItem(d) ? String(d.manualItemType || '').trim() : '';
+}
+if (typeof window !== 'undefined') { window._rrAddNoRowItem = _rrAddNoRowItem; window._rrAddChosenType = _rrAddChosenType; }
+
 function _rrAddNeedsMaker(d) {
   try {
     d = d || ((typeof wizard !== 'undefined' && wizard) ? wizard.data : null) || {};
@@ -640,6 +674,15 @@ function generatePaperItemNum(paperType, year) {
 }
 
 
+// 2026-11-15 (prewarsets): the Era a piece of a catalog set is saved with. A
+// Postwar set's pieces keep the word they always had ('Postwar'); any other
+// era's set writes its era key, the way every other save does.
+function rrSetSaveEra(resolvedSet) {
+  var e = (resolvedSet && resolvedSet._era && typeof rrSetEra === 'function') ? rrSetEra(resolvedSet) : 'pw';
+  return e === 'pw' ? 'Postwar' : e;
+}
+if (typeof window !== 'undefined') window.rrSetSaveEra = rrSetSaveEra;
+
 // ── Quick Entry Save for Sets — batch saves all items ──
 async function _quickEntrySaveSet(condition, worth, photoFiles) {
   const d = wizard.data;
@@ -704,7 +747,7 @@ async function _quickEntrySaveSet(condition, worth, photoFiles) {
       quickEntry: 'Yes',
       inventoryId: invId,
       groupId: groupId,
-      era: isOwnSet ? ((master && master._era) || '') : 'Postwar',
+      era: isOwnSet ? ((master && master._era) || '') : rrSetSaveEra(resolvedSet),   // 2026-11-15 (prewarsets): the set's own era ('Postwar' as before for a Postwar set)
       // 2026-11-03: the component's own catalog row decides; a set off Lionel's
       // Postwar set list (the only set list the master has) is Lionel by fact;
       // a piece of an own set with no row takes the set's maker, with no catalog link.
@@ -2217,6 +2260,8 @@ async function saveWizardItem() {
           ...((typeof rrCmdIdSaveValues === 'function') ? rrCmdIdSaveValues(d) : {}),   // 2026-10-31: Command IDs (command-ids.js) — the item's OWN row, never its box, tender or set mates (each is its own copy)
           era: _resolveSaveEra(),
           manufacturer: _resolveSaveMfr(),
+          // 2026-11-15 (unknownnum): what the collector said the item is (the addType step) — only when there is no catalog row
+          itemType: _rrAddChosenType(d) || undefined,
           // 2026-11-01: an Add-screen number with NO catalog row inside the
           // filters saves as exactly that — buildPersonalRow must not go and
           // borrow another maker's or era's row (its description, key or Row ID)

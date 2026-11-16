@@ -50,6 +50,7 @@ function _patchMasterData() {
   };
   const _fixItem = (v) => _setItemFixes[v] || v;
   (state.setData || []).forEach(s => {
+    if (typeof rrSetEra === 'function' && rrSetEra(s) !== 'pw') return;   // 2026-11-15 (prewarsets): these are the Postwar book's fixes — never another era's numbers
     if (s.steam)       s.steam       = _fixItem(s.steam);
     if (s.tender)      s.tender      = _fixItem(s.tender);
     if (s.dieselPow)   s.dieselPow   = _fixItem(s.dieselPow);
@@ -3068,17 +3069,19 @@ async function loadSetData() {
   if (_currentEra === 'all') return; // 'all' handled by orchestrator
   const SET_CACHE = 'lv_set_cache_' + _currentEra;
   const SET_TS    = 'lv_set_cache_ts_'  + _currentEra;
+  const _setEra   = _currentEra;   // 2026-11-15 (prewarsets): the era these rows are, whatever is on screen when a late read lands
+  const _tagSets  = function (list) { return (typeof rrSetsTagEra === 'function') ? rrSetsTagEra(list, _setEra) : list; };   // a saved copy from before this release has no era on its rows
   try {
     const cached = localStorage.getItem(SET_CACHE);
     const cachedAt = parseInt(localStorage.getItem(SET_TS) || '0');
     if (cached && (Date.now() - cachedAt) < 24*60*60*1000) {
-      state.setData = JSON.parse(cached);
+      state.setData = _tagSets(JSON.parse(cached));
       // Background refresh — skip during all-eras orchestration to
       // avoid the late .then() clobbering another era's slice.
       if (!window._skipBackgroundRefresh) {
         (SHEET_TABS.sets ? sheetsGet(state.masterSheetId, SHEET_TABS.sets + '!A2:U').catch(() => sheetsGet(state.masterSheetId, 'Master Set list!A2:U')) : Promise.resolve({values:[]})).then(res => {
           if (res && res.values) {
-            parseSetRows(res.values);
+            parseSetRows(res.values, _setEra);
             try { localStorage.setItem(SET_CACHE, JSON.stringify(state.setData));
                   localStorage.setItem(SET_TS, Date.now().toString()); } catch (e) { /* quota — skip cache */ }
           }
@@ -3090,10 +3093,10 @@ async function loadSetData() {
     if (!SHEET_TABS.sets) { state.setData = []; return; }
     try { res = _rrListReadOk(await sheetsGet(state.masterSheetId, SHEET_TABS.sets + '!A2:U')); }
     catch(_) { res = _rrListReadOk(await sheetsGet(state.masterSheetId, 'Master Set list!A2:U')); }
-    parseSetRows((res && res.values) || []);
+    parseSetRows((res && res.values) || [], _setEra);
     localStorage.setItem(SET_CACHE, JSON.stringify(state.setData));
     localStorage.setItem(SET_TS, Date.now().toString());
-  } catch(e) { console.warn('loadSetData: read failed — keeping the saved copy', e); state.setData = _rrKeepCachedList(SET_CACHE); }   // v0.9.2048 (C16)
+  } catch(e) { console.warn('loadSetData: read failed — keeping the saved copy', e); state.setData = _tagSets(_rrKeepCachedList(SET_CACHE)); }   // v0.9.2048 (C16)
 }
 
 // ── 2026-11-01 — THE LIONEL POSTWAR SET LIST, WHEREVER IT IS ASKED FOR ──────
@@ -3106,29 +3109,48 @@ async function loadSetData() {
 // nothing, so a keystroke never re-reads the sheet (`again`: a button the
 // collector pressed — the Set Builder's Scan — tries once more).
 var _rrPwSetsPromise = null, _rrPwSetsTried = false;
+// 2026-11-15 (prewarsets): the same door now brings in EVERY era's set list
+// that is not in yet (Postwar's and Pre-War's) — one era at a time, each
+// added beside the others, never replacing them. The name stays: it is what
+// the Set Builder and the item box call.
 function rrEnsurePostwarSets(again) {
-  if (state.setData && state.setData.length) return Promise.resolve(state.setData);
+  var _missing = function () { return rrSetEraIds().filter(function (e) { return !rrSetsOfEra(e).length; }); };
+  if (!_missing().length) return Promise.resolve(state.setData);
   if (_rrPwSetsPromise) return _rrPwSetsPromise;
   if (_rrPwSetsTried && !again) return Promise.resolve(state.setData || []);
   _rrPwSetsPromise = (async function () {
-    try {
-      var _c = localStorage.getItem('lv_set_cache_pw');
-      if (_c) { var _a = JSON.parse(_c); if (Array.isArray(_a) && _a.length && !(state.setData || []).length) state.setData = _a; }
-    } catch (e) {}
-    if (!(state.setData || []).length && state.masterSheetId && typeof sheetsGet === 'function') {
+    var _eras = _missing();
+    for (var _i = 0; _i < _eras.length; _i++) {
+      var _e = _eras[_i], _got = null;
       try {
-        var _tab = (typeof ERA_TABS !== 'undefined' && ERA_TABS.pw && ERA_TABS.pw.sets) || 'Lionel PW - Sets';
-        var _r = await sheetsGet(state.masterSheetId, _tab + '!A2:U');
-        if (_r && _r.values && !(state.setData || []).length) parseSetRows(_r.values);
+        var _c = localStorage.getItem('lv_set_cache_' + _e);
+        if (_c) { var _a = JSON.parse(_c); if (Array.isArray(_a) && _a.length) _got = rrSetsTagEra(_a, _e); }
       } catch (e) {}
+      if (!_got && state.masterSheetId && typeof sheetsGet === 'function') {
+        try {
+          var _r = await sheetsGet(state.masterSheetId, ERA_TABS[_e].sets + '!A2:U');
+          if (_r && _r.values) {
+            var _keep = state.setData || [];
+            parseSetRows(_r.values, _e);            // fills state.setData with this era's rows
+            _got = state.setData; state.setData = _keep;
+          }
+        } catch (e) {}
+      }
+      if (_got && _got.length && !rrSetsOfEra(_e).length) state.setData = (state.setData || []).concat(_got);
     }
-    _rrPwSetsTried = true;
+    _rrPwSetsTried = _missing().length > 0;   // only a try that left a list missing counts as "tried" — a list dropped by an era switch is fetched again
     _rrPwSetsPromise = null;
     return state.setData || [];
   })();
   return _rrPwSetsPromise;
 }
-if (typeof window !== 'undefined') window.rrEnsurePostwarSets = rrEnsurePostwarSets;
+// A set list that is not in yet and has not been tried: the item box waits
+// for it (rrEnsurePostwarSets) before it answers "is this number a set".
+function rrSetListsPending() {
+  if (_rrPwSetsTried) return false;
+  return rrSetEraIds().some(function (e) { return !rrSetsOfEra(e).length; });
+}
+if (typeof window !== 'undefined') { window.rrEnsurePostwarSets = rrEnsurePostwarSets; window.rrSetListsPending = rrSetListsPending; }
 
 async function loadCompanionData() {
   if (_currentEra === 'all') return; // 'all' handled by orchestrator
@@ -3172,10 +3194,72 @@ function parseCompanionRows(rows) {
     }));
 }
 
-function parseSetRows(rows) {
+// ── 2026-11-15 (prewarsets) — A SET LIST IS KEPT PER ERA ─────────────────────
+// [stated] Brad 09:42 CT: "lets get these into the master and get the app
+// where it can read them". Lionel Pre-War has its own Sets tab now (Master
+// Version 2.97), beside Postwar's. Set numbers repeat across the two (1611 is
+// a 1932 Ives transition set AND a Postwar set) and so do the piece numbers
+// inside them, so a set row SAYS which catalog it is from (`_era`) and every
+// reader asks the row — never the number alone:
+//   rrSetEra(s)        the set's era ('pw' for a row that does not say — every
+//                      row saved before this release is Postwar's)
+//   rrSetsOfEra(era)   that era's sets; rrPostwarSets() for the Postwar-only
+//                      readers (the partner map, the Set Builder, the book's
+//                      set fixes) — they keep reading exactly what they read
+//   rrSetEraIds()      the eras that HAVE a Sets tab (ERA_TABS.<era>.sets)
+//   rrSetFind(num, hint)  the set with this number — narrowed by hint.era,
+//                      then hint.year, then the era on screen; then the first
+function rrSetEra(s) { return String((s && s._era) || (typeof RR_PHOTO_HOME !== 'undefined' && RR_PHOTO_HOME && RR_PHOTO_HOME.SET_ERA) || 'pw'); }
+function rrSetsTagEra(list, era) {
+  if (!Array.isArray(list)) return [];
+  var e = (era && era !== 'all') ? String(era) : '';
+  if (e) list.forEach(function (s) { if (s && !s._era) s._era = e; });
+  return list;
+}
+function rrSetsOfEra(era) {
+  return ((typeof state !== 'undefined' && state.setData) || []).filter(function (s) { return s && rrSetEra(s) === String(era); });
+}
+function rrPostwarSets() { return rrSetsOfEra('pw'); }
+// The sets a set LIST shows: in one era's view, that era's own list when it
+// has one (the item box may have fetched another era's list beside it — that
+// one belongs to its own view); every loaded set otherwise (all eras, or an
+// era with no set list of its own — unchanged).
+function rrSetsOnView() {
+  var all = (typeof state !== 'undefined' && state.setData) || [];
+  var e = (typeof _currentEra !== 'undefined') ? String(_currentEra || '') : '';
+  if (!e || e === 'all' || rrSetEraIds().indexOf(e) === -1) return all;
+  return all.filter(function (s) { return s && rrSetEra(s) === e; });
+}
+if (typeof window !== 'undefined') window.rrSetsOnView = rrSetsOnView;
+function rrSetEraIds() {
+  if (typeof ERA_TABS === 'undefined') return ['pw'];
+  return Object.keys(ERA_TABS).filter(function (e) { return ERA_TABS[e] && ERA_TABS[e].sets; });
+}
+function rrSetFind(setNum, hint) {
+  var num = String(setNum == null ? '' : setNum).trim();
+  if (!num) return null;
+  var same = ((typeof state !== 'undefined' && state.setData) || []).filter(function (s) { return s && String(s.setNum || '').trim() === num; });
+  if (!same.length) return null;
+  var narrow = function (test) { var hit = same.filter(test); if (hit.length) same = hit; };
+  var h = hint || {};
+  if (h.era) narrow(function (s) { return rrSetEra(s) === String(h.era); });
+  if (h.year) narrow(function (s) { return String(s.year || '') === String(h.year); });
+  if (!h.era && typeof _currentEra !== 'undefined' && _currentEra && _currentEra !== 'all') narrow(function (s) { return rrSetEra(s) === String(_currentEra); });
+  return same[0];
+}
+if (typeof window !== 'undefined') {
+  window.rrSetEra = rrSetEra; window.rrSetsOfEra = rrSetsOfEra; window.rrPostwarSets = rrPostwarSets;
+  window.rrSetEraIds = rrSetEraIds; window.rrSetFind = rrSetFind; window.rrSetsTagEra = rrSetsTagEra;
+}
+
+function parseSetRows(rows, era) {
+  // `era`: whose Sets tab these rows are (the loader that read another era's
+  // tab passes it); otherwise the era on screen.
+  var _era = String(era || ((typeof _currentEra !== 'undefined' && _currentEra !== 'all') ? _currentEra : '') || '');
   state.setData = rows
     .filter(r => r[0])
     .map(r => ({
+      _era:        _era || undefined,
       setNum:      String(r[0]  || '').trim(),
       setName:     String(r[1]  || '').trim(),
       year:        String(r[2]  || '').trim(),

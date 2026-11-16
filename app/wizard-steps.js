@@ -427,6 +427,12 @@ function getSteps(tab) {
       // buttons as a hand-added item. Rule: _rrAddNeedsMaker (wizard-save.js).
       { id: 'addMaker', title: 'Who made this item?', type: 'manualManufacturer',
         skipIf: (d) => !(typeof _rrAddNeedsMaker === 'function' && _rrAddNeedsMaker(d)) },
+      // ── 2026-11-15 (unknownnum; problem report #34, [stated] Brad 13:21 CT
+      // "yes on what is it"): the same add — a number with no catalog row —
+      // also asks WHAT the item is, with the hand-entry type buttons, so it is
+      // never saved with no type. Rule: _rrAddNoRowItem (wizard-save.js).
+      { id: 'addType', title: 'What is this item?', type: 'manualItemType',
+        skipIf: (d) => !(typeof _rrAddNoRowItem === 'function' && _rrAddNoRowItem(d)) },
 
       // ── SCREEN 3: Condition & Details (multi-column) ──
       { id: 'conditionDetails', title: 'Condition & Details', type: 'conditionDetails' },

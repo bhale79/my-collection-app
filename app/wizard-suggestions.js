@@ -106,8 +106,9 @@ function _rrSetPieceWords(s) {
   var words = [];
   (s.items || []).concat(s.alts || []).forEach(function (n) {
     if (!n) return;
-    var m = (typeof findMaster === 'function') ? findMaster(String(n), '', { era: 'pw' }) : null;
-    if (m && String(m._era || '') === 'pw') words.push(m.roadName || '', m.description || '', m.itemType || '', m.subType || '');   // subType holds "4-6-4 Hudson", "EMD F-3"
+    var _se = (typeof rrSetEra === 'function') ? rrSetEra(s) : 'pw';   // 2026-11-15 (prewarsets): a piece is looked up in ITS SET'S catalog, never by number alone
+    var m = (typeof findMaster === 'function') ? findMaster(String(n), '', { era: _se }) : null;
+    if (m && String(m._era || '') === _se) words.push(m.roadName || '', m.description || '', m.itemType || '', m.subType || '');   // subType holds "4-6-4 Hudson", "EMD F-3"
   });
   var out = _rrSetNorm(words.join(' '));
   _rrSetPieceCache.map.set(s, out);
@@ -586,6 +587,19 @@ function updateItemSuggestions(query) {
           }).catch(function () {});
         }
       } else {
+        // 2026-11-15 (prewarsets): one era's set list is in and another is
+        // still to come — answer from what is here now, fetch the rest (the
+        // same one loader) and ask again when it lands.
+        if (typeof rrSetListsPending === 'function' && rrSetListsPending() && typeof rrEnsurePostwarSets === 'function') {
+          var _hadSets = ((state.setData || []).length);
+          rrEnsurePostwarSets().then(function (got) {
+            var _inp2 = document.getElementById('wiz-input');
+            if (got && got.length > _hadSets && _inp2 && String(_inp2.value || '').trim().toLowerCase() === q) {
+              updateItemSuggestions(_inp2.value);
+              if (typeof lookupItem === 'function') lookupItem(_inp2.value);
+            }
+          }).catch(function () {});
+        }
         var _setMax = ((window.RR_ADD_FILTERS || {}).setRowsMax) || 12;
         var _shownSets = _setHits.slice(0, _setMax);
         // the typed number IS a set, written another way ("1467-w"): its row too
@@ -809,7 +823,7 @@ function updateItemSuggestions(query) {
     row.dataset.roadName = c.roadName || '';
     // 2026-11-01: the tapped row rides along — it IS the add's one row
     // 2026-11-01: a Postwar SET row opens the set flow on that set (Lars)
-    var _pick = c._setNum ? function () { _wizPickSetRow(c._setNum); }
+    var _pick = c._setNum ? function () { _wizPickSetRow(c._setNum, c._row && c._row._era); }
       : function () { selectSuggestion(c.num, c.roadName || '', c.itemType || '', c._row ? { row: c._row } : undefined); };
     row.onclick = _pick;
     row.onkeydown = function(e) {
@@ -1358,8 +1372,8 @@ function _wizNothingFoundHtml(num) {
   var setHit = (typeof _wizSetCheckOn === 'function' && _wizSetCheckOn())
     ? ((_wizPostwarSetHits(num, null, { exact: true, anyFilter: true }) || [])[0] || null) : null;
   if (setHit) {
-    h += '<div data-nf-line="set" style="' + line + '"><span>' + esc(String(W.setAsk || '').replace('{num}', setHit.setNum)) + '</span>'
-      + '<button type="button" data-nf-btn="set" data-set-num="' + esc(setHit.setNum) + '" onclick="_wizPickSetRow(this.getAttribute(\'data-set-num\'))" style="' + btn + '">' + esc(W.setBtn) + '</button></div>';
+    h += '<div data-nf-line="set" style="' + line + '"><span>' + esc(rrSetLine('setAsk', setHit.setNum, setHit.era)) + '</span>'
+      + '<button type="button" data-nf-btn="set" data-set-num="' + esc(setHit.setNum) + '" data-set-era="' + esc(setHit.era || '') + '" onclick="_wizPickSetRow(this.getAttribute(\'data-set-num\'), this.getAttribute(\'data-set-era\'))" style="' + btn + '">' + esc(W.setBtn) + '</button></div>';
   }
   if (on) {
     var elsewhere = _wizNumberInCatalog(num);
@@ -1394,9 +1408,12 @@ if (typeof window !== 'undefined') { window._wizNothingFoundHtml = _wizNothingFo
 // "a Postwar set is Lionel · Postwar" — the filter test and the tag read it.
 function rrSetAsRow(s) {
   if (!s) return null;
-  var tab = (typeof ERA_TABS !== 'undefined' && ERA_TABS.pw && ERA_TABS.pw.sets) || 'Lionel PW - Sets';
+  // 2026-11-15 (prewarsets): the set says which catalog it is from; the row
+  // carries THAT era, so the one filter test files a Pre-War set under Pre-War.
+  var era = (typeof rrSetEra === 'function') ? rrSetEra(s) : 'pw';
+  var tab = (typeof ERA_TABS !== 'undefined' && ERA_TABS[era] && ERA_TABS[era].sets) || 'Lionel PW - Sets';
   return { itemNum: String(s.setNum || ''), itemType: 'Set', description: String(s.setName || ''),
-           yearProd: String(s.year || ''), eraPeriod: 'postwar', _era: 'pw', _tab: tab, roadName: '', _set: s };
+           yearProd: String(s.year || ''), eraPeriod: (era === 'pw' ? 'postwar' : era), _era: era, _tab: tab, roadName: '', _set: s };
 }
 // The set's variants whose number IS this number (1467W = 1467w; a dash before
 // a letter suffix is the same number, as everywhere on the Add screen).
@@ -1433,8 +1450,11 @@ function _wizPostwarSetHits(token, fset, opts) {
     if (opts.exact ? !rrNumSameAsTyped(n, t) : n.toLowerCase().indexOf(t) !== 0) return;
     var row = rrSetAsRow(s);
     if (!opts.anyFilter && typeof _wizRowFitsFilters === 'function' && !_wizRowFitsFilters(row, fset)) return;
-    if (!groups[n]) { groups[n] = { setNum: n, variants: [], row: row }; order.push(n); }
-    groups[n].variants.push(s);
+    // 2026-11-15 (prewarsets): one entry per set number PER ERA — 1611 is a
+    // Postwar set and a Pre-War one, two different sets, two rows.
+    var k = row._era + '|' + n;
+    if (!groups[k]) { groups[k] = { setNum: n, era: row._era, variants: [], row: row }; order.push(k); }
+    groups[k].variants.push(s);
   });
   return order.map(function (n) { return groups[n]; });
 }
@@ -1457,9 +1477,13 @@ function _wizSetRowDetails(g) {
 }
 // Chosen: the set flow, on that set. The number rides through the SAME carry
 // v0.9.2092 gave Manual (_wizSetKind reads wizard.data.itemNum).
-function _wizPickSetRow(setNum) {
+function _wizPickSetRow(setNum, era) {
   if (typeof wizard === 'undefined' || !wizard || !wizard.data) return;
   wizard.data.itemNum = String(setNum || '').trim();
+  // 2026-11-15 (prewarsets): WHICH set list the tapped row was on. The switch
+  // to the set flow restarts the add, so the era waits here for _wizOpenSetOn
+  // (wizard.js), which takes it and clears it.
+  window._rrPickSetEra = String(era || '');
   var el = document.getElementById('wiz-suggestions');
   if (el) { el.style.display = 'none'; el.innerHTML = ''; }
   _wizSetKind('set');
@@ -1474,13 +1498,18 @@ function _wizPickSetRow(setNum) {
 // this number inside the filters AND no other catalog row inside the filters
 // has it (a real item with the same number — another maker, another kind —
 // still wins and is still listed). Asked by the list, the green line and Next.
+// 2026-11-15 (prewarsets): the same holds for every era that has a set list —
+// the Pre-War items tab also carries old "Set" rows (0080W, 616E/W…) that ARE
+// the sets now on the Pre-War Sets tab.
+function _wizSetTabsOf(key) {
+  var ids = (typeof rrSetEraIds === 'function') ? rrSetEraIds() : ['pw'];
+  return ids.map(function (e) { return String((ERA_TABS[e] && ERA_TABS[e][key]) || ''); }).filter(Boolean);
+}
 function _wizSetCopyRow(i) {
-  var tabs = (typeof ERA_TABS !== 'undefined' && ERA_TABS.pw) || {};
-  return !!i && String(i._tab || '') === String(tabs.items || 'Lionel PW - Items') && /^set$/i.test(String(i.itemType || '').trim());
+  return !!i && _wizSetTabsOf('items').indexOf(String(i._tab || '')) !== -1 && /^set$/i.test(String(i.itemType || '').trim());
 }
 function _wizSetBoxRow(i) {
-  var tabs = (typeof ERA_TABS !== 'undefined' && ERA_TABS.pw) || {};
-  return !!i && String(i._tab || '') === String(tabs.boxes || 'Lionel PW - Boxes');
+  return !!i && _wizSetTabsOf('boxes').indexOf(String(i._tab || '')) !== -1;
 }
 function _wizTypedPostwarSet(numText) {
   if (!_wizSetCheckOn()) return null;
@@ -1651,7 +1680,7 @@ function lookupItem(num) {
       const _W = window.RR_ADD_FILTERS || {};
       const _esc = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
       el.innerHTML = `<div data-set-found="${_esc(_setG.setNum)}" style="background:rgba(46,204,113,0.1);border:1px solid var(--green);border-radius:8px;padding:0.65rem 0.85rem;font-size:0.82rem">
-        <span style="color:var(--green)">✓ Found:</span> ${_esc(String(_W.setFound || '{num}').replace('{num}', _setG.setNum))} · ${_esc(_wizSetRowDetails(_setG))}
+        <span style="color:var(--green)">✓ Found:</span> ${_esc(rrSetLine('setFound', _setG.setNum, _setG.era))} · ${_esc(_wizSetRowDetails(_setG))}
       </div>`;
     } else if (match) {
       // Session 115 fix: don't duplicate itemType when it already served as
@@ -1680,7 +1709,10 @@ function lookupItem(num) {
       _sgNF = !!(_sgNF && _sgNF.style.display !== 'none' && _sgNF.querySelector('[data-nothing-found]'));
       el.innerHTML = (typeof _catalogReady === 'function' && !_catalogReady())
         ? `<div style="font-size:0.8rem;color:#e0a800">⏳ Loading your catalog — one moment…</div>`
-        : (_sgNF ? '' : `<div style="font-size:0.8rem;color:var(--text-dim)">Not found in master inventory — will save anyway</div>`);
+        : (_sgNF ? '' : ((typeof _rrAddNoRowItem === 'function' && _rrAddNoRowItem((typeof wizard !== 'undefined' && wizard) ? wizard.data : null, true))
+            // 2026-11-15 (unknownnum): this add is never saved blind — the next steps ask who made it and what it is
+            ? `<div data-unknown-line="1" style="font-size:0.8rem;color:var(--text-dim)">${String(((window.RR_ADD_FILTERS || {}).unknownLine) || '')}</div>`
+            : `<div style="font-size:0.8rem;color:var(--text-dim)">Not found in master inventory — will save anyway</div>`));
     }
   }
 }

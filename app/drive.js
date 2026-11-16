@@ -685,8 +685,12 @@ function _rrPhotoHome(itemNum, eraHint) {
   // 3. A set number — the Sets tab is one era's.
   try {
     const sets = (window.state || {}).setData || [];
-    if (core && sets.some(function (st) { return st && String(st.setNum || '').trim() === core; })) {
-      const lab = ERAS[H.SET_ERA] && ERAS[H.SET_ERA].label;
+    const _hitSet = core ? sets.filter(function (st) { return st && String(st.setNum || '').trim() === core; }) : [];
+    if (_hitSet.length) {
+      // 2026-11-15 (prewarsets): the set's own era; a number on two set lists stays Postwar's, as before
+      const _eraOfSet = function (st) { return (typeof rrSetEra === 'function') ? rrSetEra(st) : H.SET_ERA; };
+      const _se = _hitSet.some(function (st) { return _eraOfSet(st) === H.SET_ERA; }) ? H.SET_ERA : _eraOfSet(_hitSet[0]);
+      const lab = ERAS[_se] && ERAS[_se].label;
       if (lab) return { path: [lab], why: 'set' };
     }
   } catch (e) {}

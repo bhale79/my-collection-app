@@ -102,7 +102,7 @@ async function scenario(pg, full) {
       Object.assign(wizard.data, { condition: 7, allOriginal: 'Yes', hasBox: 'No', tenderMatch: 'none', setMatch: '', priceItem: '', userEstWorth: '5' });
       try { await saveWizardItem(); } catch (e) { return { err: e.message }; }
       const r = appended.find(x => cell(x, 'itemNum') === num) || appended[0] || [];
-      return { mfr: cell(r, 'manufacturer'), rowId: cell(r, 'masterRowId'), num: cell(r, 'itemNum') };
+      return { mfr: cell(r, 'manufacturer'), rowId: cell(r, 'masterRowId'), num: cell(r, 'itemNum'), type: cell(r, 'itemType'), era: cell(r, 'era') };
     };
 
     // ── A: no filter, a number the catalog lacks ──
@@ -117,6 +117,18 @@ async function scenario(pg, full) {
     R.aRefused = cur().id === 'addMaker' && toasts.some(t => /manufacturer/i.test(t));
     const m = chip('MTH'); if (m) m.click(); await sleep(150);
     R.aPicked = selectedChip();
+    await wizardNext(); await sleep(200);
+    // 2026-11-15 (unknownnum; problem report #34, [stated] Brad 13:21 CT "yes on
+    // what is it"): the same add also asks WHAT the item is — the hand-entry
+    // type buttons, "Set" among them — so it is never saved with no type; and
+    // it is saved under era "Manual", never the era of the view that was open.
+    R.uStep = cur().id; R.uTitle = (document.getElementById('wizard-step-title') || {}).textContent || '';
+    R.uSetBtn = !!chip('Set'); R.uPre = wizard.data.manualItemType || '';
+    toasts.length = 0;
+    await wizardNext(); await sleep(150);
+    R.uRefused = cur().id === 'addType' && toasts.some(t => /item type/i.test(t));
+    const setBtn = chip('Set'); if (setBtn) setBtn.click(); await sleep(150);
+    R.uPicked = selectedChip();
     await wizardNext(); await sleep(200);
     for (let k = 0; k < 3 && cur().type !== 'conditionDetails'; k++) { await wizardNext(); await sleep(150); }
     R.aStep2 = cur().type;
@@ -137,6 +149,7 @@ async function scenario(pg, full) {
     R.cStep = cur().id; R.cPre = selectedChip();
     const m2 = chip('MTH'); if (m2) m2.click(); await sleep(150);
     await wizardNext(); await sleep(200);
+    if (cur().id === 'addType') { const fc = chip('Freight Car'); if (fc) fc.click(); await sleep(150); await wizardNext(); await sleep(200); }
     for (let k = 0; k < 3 && cur().type !== 'conditionDetails'; k++) { await wizardNext(); await sleep(150); }
     R.cSave = await save('30-2178-1');
     try { _doCloseWizard(); } catch (e) {}
@@ -220,7 +233,12 @@ async function scenario(pg, full) {
     ok(t('A2 …with the hand-entry maker buttons (Lionel, MTH, Other / Unknown)'), R.aChips);
     ok(t('A3 …and nothing pre-picked with no filter set'), R.aPre === '', R.aPre);
     ok(t('A4 Next with no maker is refused, and says so'), R.aRefused);
-    ok(t('A5 tapping MTH selects it, then on to Condition & Details'), R.aPicked === 'MTH' && R.aStep2 === 'conditionDetails', JSON.stringify([R.aPicked, R.aStep2]));
+    ok(t('A5 tapping MTH selects it, then on to "What is this item?"'), R.aPicked === 'MTH' && R.uStep === 'addType', JSON.stringify([R.aPicked, R.uStep]));
+    ok(t('U1 the type step offers the hand-entry buttons, Set among them, nothing pre-chosen'), R.uSetBtn && R.uPre === '', JSON.stringify([R.uSetBtn, R.uPre]));
+    ok(t('U2 Next with no type is refused, and says so'), R.uRefused);
+    ok(t('U3 tapping Set selects it, then on to Condition & Details'), R.uPicked === 'Set' && R.aStep2 === 'conditionDetails', JSON.stringify([R.uPicked, R.aStep2]));
+    ok(t('U4 the saved row says Set, and era Manual — never the era of the view that was open'), R.aSave && R.aSave.type === 'Set' && R.aSave.era === 'Manual', JSON.stringify(R.aSave));
+    ok(t('U5 a catalog number keeps its catalog row\'s type and era'), R.bSave && R.bSave.type === 'Diesel Locomotive' && R.bSave.era === 'pw', JSON.stringify(R.bSave));
     ok(t('A6 the saved row says MTH — not Lionel, not blank'), R.aSave && R.aSave.mfr === 'MTH' && R.aSave.rowId === '', JSON.stringify(R.aSave));
     ok(t('B1 a catalog number never sees the maker step'), !R.bAsked && R.bStep === 'conditionDetails', R.bStep);
     ok(t('B2 …and saves the ROW\'s maker and Row ID'), R.bSave && R.bSave.mfr === 'Lionel' && R.bSave.rowId === 'PW2343', JSON.stringify(R.bSave));
@@ -245,6 +263,22 @@ async function scenario(pg, full) {
     const { ctx, pg } = await openApp(browser, LAPTOP, served);
     const R = await scenario(pg, false).catch(e => ({ err: String(e) }));
     ok('P1 PLANTED the step skipped: A1 can fail (straight to Condition & Details, nothing asked)', !R.err && R.aStep !== 'addMaker', R.err || R.aStep);
+    await ctx.close();
+  }
+  {
+    // 2026-11-15 (unknownnum): the type step skipped — the old blind save (no type)
+    const served = { 'wizard-steps.js': plant(read('wizard-steps.js'), "skipIf: (d) => !(typeof _rrAddNoRowItem === 'function' && _rrAddNoRowItem(d)) },", "skipIf: (d) => true },", 'type step skipped') };
+    const { ctx, pg } = await openApp(browser, LAPTOP, served);
+    const R = await scenario(pg, false).catch(e => ({ err: String(e) }));
+    ok('P2 PLANTED the type step skipped: U4 can fail (saved with no type)', !R.err && R.uStep !== 'addType' && R.aSave && R.aSave.type === '', R.err || JSON.stringify([R.uStep, R.aSave]));
+    await ctx.close();
+  }
+  {
+    // the era of the view back on a row with no catalog row
+    const served = { 'wizard-save.js': plant(read('wizard-save.js'), "if (_rrAddNoRowItem(wizard.data)) return 'Manual';", "", 'view era') };
+    const { ctx, pg } = await openApp(browser, LAPTOP, served);
+    const R = await scenario(pg, false).catch(e => ({ err: String(e) }));
+    ok('P3 PLANTED the view\'s era back: U4 can fail (era is not Manual)', !R.err && R.aSave && R.aSave.era !== 'Manual', R.err || JSON.stringify(R.aSave));
     await ctx.close();
   }
   await browser.close();

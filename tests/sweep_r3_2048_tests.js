@@ -175,7 +175,7 @@ function c17Box(outboxSrc, utilsSrc, configSrc) {
   }
   // planted: the old "= []" in each loader's catch
   const PL16 = [
-    ['loadSetData', "state.setData = _rrKeepCachedList(SET_CACHE); }", "state.setData = []; }"],
+    ['loadSetData', "state.setData = _tagSets(_rrKeepCachedList(SET_CACHE)); }", "state.setData = []; }"],   // 2026-11-15 (prewarsets): the kept copy's rows are tagged with their era
     ['loadCompanionData', "state.companionData = _rrKeepCachedList(COMP_CACHE); }", "state.companionData = []; }"],
     ['loadCatalogRefData', "state.catalogRefData = _rrKeepCachedList(CACHE_KEY);   // v0.9.2048 (C16)", "state.catalogRefData = [];"],
     ['loadISRefData', "    state.isRefData = _rrKeepCachedList(CACHE_KEY);\n    return;", "    state.isRefData = [];\n    return;"],

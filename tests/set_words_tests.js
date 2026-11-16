@@ -54,9 +54,10 @@ console.log('\n== S · one rule ==');
 const WS = read('wizard-suggestions.js');
 const body = (src) => { const i = src.indexOf('function updateSetSuggestions('); return src.slice(i, src.indexOf('\nfunction ', i + 10)); };
 T('S1 the Set list asks THE rule (rrSetMatches) and no longer compares the whole typed text', /rrSetMatches\(s, _words\)/.test(body(WS)) && !/setName \|\| ''\)\.toUpperCase\(\)\.includes\(q\)/.test(body(WS)));
-const pieceLookup = (src) => /findMaster\(String\(n\), '', \{ era: 'pw' \}\)/.test(src) && !/findMaster\(String\(n\)\)/.test(src);
-T('S2 a piece is looked up WITH the Postwar era — never by its number alone', pieceLookup(WS));
-T('S3 PLANTED: the piece looked up by number alone → caught by S2', !pieceLookup(WS.replace("findMaster(String(n), '', { era: 'pw' })", 'findMaster(String(n))')));
+// 2026-11-15 (prewarsets): the era is the SET'S OWN (rrSetEra) — Postwar for a Postwar set, Pre-War for a Pre-War one
+const pieceLookup = (src) => /var _se = \(typeof rrSetEra === 'function'\) \? rrSetEra\(s\) : 'pw';/.test(src) && /findMaster\(String\(n\), '', \{ era: _se \}\)/.test(src) && !/findMaster\(String\(n\)\)/.test(src);
+T('S2 a piece is looked up WITH its set\'s era — never by its number alone', pieceLookup(WS));
+T('S3 PLANTED: the piece looked up by number alone → caught by S2', !pieceLookup(WS.replace("findMaster(String(n), '', { era: _se })", 'findMaster(String(n))')));
 T('S4 the words live once, in config.js (RR_SET_SEARCH)', /window\.RR_SET_SEARCH = \{/.test(read('config.js')) && !/try fewer/.test(WS));
 
 async function open(browser, swap) {

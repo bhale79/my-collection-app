@@ -658,11 +658,14 @@ async function runSetBuilder() {
   // loaded even in "all eras" mode (where the era orchestrator can leave
   // state.setData empty) — the ONE loader, rrEnsurePostwarSets (app-data.js):
   // the fast postwar cache, then the master tab.
-  if (!state.setData || !state.setData.length) {
+  // 2026-11-15 (prewarsets): Postwar's list only (rrPostwarSets) — it matches
+  // by number, and a Pre-War set's numbers are other things in Postwar.
+  var _pwSets = function () { return (typeof rrPostwarSets === 'function') ? rrPostwarSets() : (state.setData || []); };
+  if (!_pwSets().length) {
     out.innerHTML = '<div style="color:var(--text-dim);font-size:0.85rem">Loading Lionel postwar set data…</div>';
     try { if (typeof rrEnsurePostwarSets === 'function') await rrEnsurePostwarSets(true); } catch (e) {}
   }
-  if (!state.setData || !state.setData.length) {
+  if (!_pwSets().length) {
     out.innerHTML = '<div style="color:var(--text-dim);font-size:0.85rem">Could not load Lionel postwar set data. Tap Sync, then Scan again.</div>';
     return;
   }
@@ -677,7 +680,7 @@ async function runSetBuilder() {
 
   // Score each set
   var results = [];
-  state.setData.forEach(function(s) {
+  _pwSets().forEach(function(s) {
     if (!s.items || !s.items.length) return;
     var total = s.items.length;
     var owned = s.items.filter(function(itm) { return ownedNums.has(norm(itm)); });

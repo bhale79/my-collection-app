@@ -3167,7 +3167,7 @@ function renderSetsTab() {
   // The Master Catalog's list: every catalog set. (2026-11-08, mysets: My
   // Collection no longer filters this list down — that dropped a second copy
   // of a set and a set saved with another year. It draws catList below.)
-  const sets = inColl ? [] : (state.setData || []).filter(s => {
+  const sets = inColl ? [] : ((typeof rrSetsOnView === 'function') ? rrSetsOnView() : (state.setData || [])).filter(s => {   // 2026-11-15 (prewarsets)
     if (s._era && _offShelfSets.has(s._era)) return false;
     if (!q) return true;
     return (s.setNum + ' ' + s.setName + ' ' + s.year + ' ' + s.gauge).toLowerCase().includes(q);
@@ -6782,7 +6782,13 @@ function _rrCatalogPromptFit() {
 function _rrFilterBtnSync() {
   var title = document.querySelector('#page-browse > .page-title');
   if (!title) return;
-  var phone = (window.innerWidth || 0) <= 640;
+  // 2026-11-15 (filterbtn, found by the filtersheet review): THE phone test,
+  // rrIsPhone() — narrow, OR short with a touch screen — the same two clauses
+  // as the stylesheet's phone block that hides the inline filter row. Width
+  // alone left a phone on its SIDE with the row hidden and no button: no
+  // filters, no search box. (v0.9.2032's rule: never `innerWidth <= 640`.)
+  var phone = false;
+  try { phone = (typeof rrIsPhone === 'function') ? rrIsPhone() : (window.innerWidth || 0) <= RR_PHONE.maxWidth; } catch (e) { phone = false; }
   var btn = document.getElementById('rr-filter-btn');
   if (!phone) { if (btn) btn.remove(); return; }
   if (btn) return;

@@ -19,7 +19,8 @@
 //      it than fits is capped between the top bar and the bottom bar and
 //      scrolls; sideways too; the computer is untouched (no sheet).
 //   P  planted offenders: the two CSS lines removed → red; the panel back to
-//      content-box → a full sheet's top leaves the screen → red; the bar made
+//      content-box → a full sheet's top leaves the screen → red; the Filters
+//      button back on width alone → no button sideways → red; the bar made
 //      40px taller → still green (measured, not guessed).
 // ═════════════════════════════════════════════════════════════════════════
 const fs = require('fs'), path = require('path');
@@ -133,11 +134,17 @@ const SIZES = [
     ok('B3 ' + S.n + ' — no page errors', !b.errs.length, [...new Set(b.errs)].slice(0, 3).join(' | '));
     await b.ctx.close();
   }
-  {
+  // sideways: the Filters BUTTON is there (2026-11-15 filterbtn — _rrFilterBtnSync asks rrIsPhone(), the same
+  // two clauses as the stylesheet; width alone left the row hidden and no button), it opens the sheet, and the
+  // sheet is capped between the top bar and the bottom bar.
+  async function sideways(served) {
     const S = { n: 'iPhone sideways 812x402 (34px home bar)', w: 812, h: 402, hb: 34, top: 0, ua: UA_IPHONE };
-    const b = await boot(S);
-    const r = await b.pg.evaluate(() => { try { showPage('browse', document.getElementById('mnav-collection')); filterOwned(); _rrFilterSheetOpen(); } catch (e) { return { e: e.message }; } return {}; });
-    await b.pg.waitForTimeout(500);
+    const b = await boot(S, served);
+    const r = await b.pg.evaluate(() => { try { showPage('browse', document.getElementById('mnav-collection')); filterOwned(); } catch (e) { return { e: e.message }; } return {}; });
+    await b.pg.waitForTimeout(600);
+    const pre = await b.pg.evaluate(() => ({ btn: !!document.getElementById('rr-filter-btn'), rowInline: (() => { const row = document.querySelector('#page-browse > #hierarchy-chip-row'); return !!row && getComputedStyle(row).display !== 'none'; })(), phone: (typeof rrIsPhone === 'function') ? rrIsPhone() : null }));
+    const btn = await b.pg.$('#rr-filter-btn');
+    if (btn) { await btn.click(); await b.pg.waitForTimeout(500); }
     const t = await b.pg.evaluate(() => {
       const ob = document.getElementById('offline-banner'); if (ob) ob.style.display = 'none';
       const p = document.getElementById('rr-filter-panel'), nav = document.querySelector('.mobile-nav');
@@ -145,10 +152,16 @@ const SIZES = [
       const pr = p.getBoundingClientRect(); const navOn = nav && getComputedStyle(nav).display !== 'none' && nav.getBoundingClientRect().top < innerHeight;
       const x = p.querySelector('button[aria-label="Close"]'); const q = x.getBoundingClientRect(); const el = document.elementFromPoint(q.left + q.width / 2, q.top + q.height / 2);
       const hd = document.querySelector('.header'); const headBottom = hd ? Math.round(hd.getBoundingClientRect().bottom) : 0;
-      return { has: true, panelTop: Math.round(pr.top), headBottom, panelBottom: Math.round(pr.bottom), navTop: navOn ? Math.round(nav.getBoundingClientRect().top) : innerHeight, H: innerHeight, closeOk: !!(el && (x === el || x.contains(el))), scrolls: p.scrollHeight > p.clientHeight + 2 };
+      const search = document.getElementById('browse-search'); const sq = search ? search.getBoundingClientRect() : null;
+      return { has: true, panelTop: Math.round(pr.top), headBottom, panelBottom: Math.round(pr.bottom), navTop: navOn ? Math.round(nav.getBoundingClientRect().top) : innerHeight, H: innerHeight, closeOk: !!(el && (x === el || x.contains(el))), searchIn: !!(sq && sq.width > 0 && sq.top >= 0 && sq.bottom <= innerHeight), scrolls: p.scrollHeight > p.clientHeight + 2 };
     });
-    ok('B2c ' + S.n + ' — opened sideways (by code; the button is a separate matter): the panel is capped above the bar, its top and × on screen', t.has && !r.e && t.panelTop >= t.headBottom && t.panelBottom <= t.navTop && t.closeOk, JSON.stringify(Object.assign(t, r)));
     await b.ctx.close();
+    return Object.assign({ S: S.n }, pre, t, r);
+  }
+  {
+    const t = await sideways();
+    ok('B2c ' + t.S + ' — rrIsPhone() says phone, the inline row is hidden AND the Filters button is there', t.phone === true && !t.rowInline && t.btn, JSON.stringify(t));
+    ok('B2d ' + t.S + ' — the button opens the sheet: search box on screen, panel capped between the top bar and the bottom bar, × tappable', t.has && !t.e && t.searchIn && t.panelTop >= t.headBottom && t.panelBottom <= t.navTop && t.closeOk, JSON.stringify(t));
   }
   {
     const b = await boot({ n: 'computer 1400x900', w: 1400, h: 900 });
@@ -166,6 +179,12 @@ const SIZES = [
     const r = await sheet(b.pg);
     ok('P1 the two CSS lines removed → the sheet is behind the bar again on Lars\'s iPhone (B1 red)', r.has && !good(r) && r.panelBottom > r.navTop, JSON.stringify(r));
     await b.ctx.close();
+  }
+  {
+    const BJS = read('browse.js');
+    const js = plant(BJS, "  try { phone = (typeof rrIsPhone === 'function') ? rrIsPhone() : (window.innerWidth || 0) <= RR_PHONE.maxWidth; } catch (e) { phone = false; }", "  phone = (window.innerWidth || 0) <= 640;", 'P4 width-only phone test');
+    const t = await sideways({ 'browse.js': js });
+    ok('P4 the old width-only test → sideways the row is hidden and there is NO Filters button (B2c red)', t.phone === true && !t.rowInline && !t.btn && !t.has, JSON.stringify(t));
   }
   {
     const css = plant(CSS, '#rr-filter-panel { box-sizing: border-box; max-height: 85vh; max-height: 85dvh; }', '#rr-filter-panel { max-height: 85vh; max-height: 85dvh; }', 'P3 content-box');

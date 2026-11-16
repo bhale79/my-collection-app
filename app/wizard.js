@@ -247,6 +247,10 @@ function _wizMasterPrefer() {
   // The era the user actually picked lives in _currentEra (and in the filter
   // chips), so fall back to those before giving up.
   var era = String(d._era || '').trim();
+  // 2026-11-15 (prewarsets): a piece of a CATALOG set is looked up in that
+  // set's own catalog, before anything else — the era on screen or a filter
+  // must never send a Pre-War set's 2815 to another catalog's 2815.
+  if (d._resolvedSet && !d._ownSet && typeof rrSetEra === 'function' && d._resolvedSet._era) era = rrSetEra(d._resolvedSet);
   // v0.9.1501 (task #27): an add that STARTED in the Photo Inbox answers to
   // its photo's tag and nothing else (the v0.9.1488 rule). The two global
   // fallbacks below were the backlog's known offender for inbox adds -- a
@@ -1490,7 +1494,11 @@ function _wizOpenSetOn(setNum) {
     wizard.data.set_num = setNum;
     wizard.step = _ix;
     renderWizardStep();
-    if (typeof window._confirmSetMatch === 'function') window._confirmSetMatch(setNum);
+    // 2026-11-15 (prewarsets): the era of the set row that was tapped (left by
+    // _wizPickSetRow) — a number on two set lists opens the one that was tapped.
+    const _pickEra = String((typeof window !== 'undefined' && window._rrPickSetEra) || '');
+    if (typeof window !== 'undefined') window._rrPickSetEra = '';
+    if (typeof window._confirmSetMatch === 'function') window._confirmSetMatch(setNum, undefined, _pickEra);
   } catch (e) { console.warn('[set from item box]', e); }
 }
 if (typeof window !== 'undefined') window._wizOpenSetOn = _wizOpenSetOn;
@@ -5092,8 +5100,11 @@ function renderWizardStep() {
         wizard.data._enteredNums = (wizard.data._enteredNums||[]).filter(x => x !== n);
         renderWizardStep();
       };
-      window._confirmSetMatch = (setNum, variantIdx) => {
-        const allVariants = state.setData.filter(s => s.setNum === setNum);
+      window._confirmSetMatch = (setNum, variantIdx, era) => {
+        let allVariants = state.setData.filter(s => s.setNum === setNum);
+        // 2026-11-15 (prewarsets): a set list is kept per era — when the caller
+        // knows the era, only that era's versions of the number are offered.
+        if (era && typeof rrSetEra === 'function') { const _ofEra = allVariants.filter(s => rrSetEra(s) === era); if (_ofEra.length) allVariants = _ofEra; }
         if (!allVariants.length) return;
 
         // If a specific variant was passed or only one exists, resolve directly
@@ -5137,7 +5148,7 @@ function renderWizardStep() {
           btn.innerHTML = `
             <div style="font-size:0.78rem;color:var(--text-dim)">${v.year || 'Year unknown'}${v.gauge ? ' · ' + v.gauge : ''}${v.price ? ' · ' + v.price : ''}</div>
             <div style="display:flex;flex-wrap:wrap;gap:0.2rem">${chips}${altChips}</div>`;
-          btn.onclick = () => { overlay.remove(); window._confirmSetMatch(setNum, vi); };
+          btn.onclick = () => { overlay.remove(); window._confirmSetMatch(setNum, vi, era); };   // 2026-11-15: the same era, so the index means the same list
           sheet.appendChild(btn);
         });
 
@@ -8324,7 +8335,7 @@ async function _wizardNextCore() {
     if (wizard.data._typedAsIs !== _setTok && wizard.data._typedAsIs !== _numPart
         && typeof _wizTypedPostwarSet === 'function' && typeof _wizPickSetRow === 'function') {
       const _setG = _wizTypedPostwarSet(_setTok);
-      if (_setG) { _wizPickSetRow(_setG.setNum); return; }
+      if (_setG) { _wizPickSetRow(_setG.setNum, _setG.era); return; }
     }
 
     // Check for exact match first. Session 115: prefer the row matching

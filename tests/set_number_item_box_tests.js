@@ -87,6 +87,9 @@ function buildWorld(sugSrc, wizSrc, dataSrc) {
     grab(WIZ, 'function _wizMasterPrefer('), grab(WIZ, 'function _wizAddFilters('), grab(WIZ, 'function _wizAnyAddFilter('),
     grab(WIZ, 'function _wizRowFitsFilters('), grab(WIZ, 'function _wizPickMasterRow('),
     grab(WIZ, 'function _wizCurrentKind('), grab(WIZ, 'function _wizSetKind('), grab(WIZ, 'function _wizOpenSetOn('),
+    // 2026-11-15 (prewarsets): a set list per era — the helpers the loader and the item box ask
+    grab(DATA, 'function rrSetEra('), grab(DATA, 'function rrSetsTagEra('), grab(DATA, 'function rrSetsOfEra('), grab(DATA, 'function rrPostwarSets('),
+    grab(DATA, 'function rrSetEraIds('), grab(DATA, 'function rrSetListsPending('),
     'var _rrPwSetsPromise = null, _rrPwSetsTried = false;', grab(dataSrc, 'function rrEnsurePostwarSets('), grab(DATA, 'function parseSetRows('),
     'var state = { masterData: [], setData: [], personalData: {} }; var wizard = { data: {}, matchedItem: null, tab: "collection", steps: [], step: 0 }; var _currentEra = "all";',
     // the wizard's own world, stubbed: what the flow DID is recorded
@@ -163,7 +166,7 @@ const tagsOf = (r) => Array.from(r.querySelectorAll('[data-row-tag]')).map(t => 
   // ── N — nothing found ──
   L = list(W, '1467W', { data: { _searchFilterManufacturer: 'Lionel', _searchFilterPeriod: 'prewar' } });
   ok('N1 Lionel · Pre-War + "1467W" → nothing found (no row)', !!L.nf && L.rows.length === 0);
-  const ask = WORDS.setAsk.replace('{num}', '1467W');
+  const ask = W.rrSetLine('setAsk', '1467W', 'pw');   // 2026-11-15 (prewarsets): the line names the set's own catalog
   ok('N2 … plus "1467W is a Lionel Postwar set — add it as a set?"', !!L.setLine && L.setLine.textContent.indexOf(ask) === 0 && ask === '1467W is a Lionel Postwar set — add it as a set?', L.setLine && L.setLine.textContent);
   const btn = L.setLine && L.setLine.querySelector('[data-nf-btn="set"]');
   ok('N3 … with its button, words from the list', !!btn && btn.textContent === WORDS.setBtn && btn.getAttribute('data-set-num') === '1467W');
@@ -235,7 +238,8 @@ const tagsOf = (r) => Array.from(r.querySelectorAll('[data-row-tag]')).map(t => 
   W3.updateItemSuggestions('1467W'); await sleep(30);
   W3.updateItemSuggestions('1467W'); await sleep(30);
   W3.updateItemSuggestions('1467W'); await sleep(30);
-  ok('W2 no saved copy → the master\'s Sets tab is read ONCE, not on every keystroke', W3.__calls() === 1, W3.__calls());
+  // 2026-11-15 (prewarsets): two set lists now (Postwar, Pre-War) — each tab once
+  ok('W2 no saved copy → each Sets tab of the master is read ONCE, not on every keystroke', W3.__calls() === 2, W3.__calls());
 
   // ── S — the scans ──
   // S1: the set check answers to THE one filter test — no hand-written match
@@ -258,8 +262,8 @@ const tagsOf = (r) => Array.from(r.querySelectorAll('[data-row-tag]')).map(t => 
   ok('S1 PLANTED (run): its own Era-only match lists the set under Type "Steam" — L10 would go red', Lp.setRows.length === 1);
   // S2: one set loader
   function s2(files) {
-    const hits = Object.keys(files).filter(f => /lv_set_cache_pw/.test(files[f]) || (/sheetsGet\([^)]*sets[^)]*A2:U/i.test(files[f]) && f !== 'app-data.js'));
-    return hits.length === 1 && hits[0] === 'app-data.js' && /rrEnsurePostwarSets\(/.test(files['tools.js']) && /rrEnsurePostwarSets\(\)/.test(files['wizard-suggestions.js']);
+    const hits = Object.keys(files).filter(f => /lv_set_cache_(pw|' \+ _e)/.test(files[f]) || (/sheetsGet\([^)]*sets[^)]*A2:U/i.test(files[f]) && f !== 'app-data.js'));
+    return hits.length === 1 && hits[0] === 'app-data.js' && /rrEnsurePostwarSets\(/.test(files['tools.js']) && /rrEnsurePostwarSets\(\)/.test(files['wizard-suggestions.js'])   /* 2026-11-15: the cache key is per era ('lv_set_cache_' + _e) */;
   }
   const LOADFILES = { 'app-data.js': DATA, 'tools.js': TOOLS, 'wizard-suggestions.js': SUG, 'wizard.js': WIZ };
   ok('S2 the Postwar set list has ONE fetch-when-missing (rrEnsurePostwarSets) — Set Builder and item box both ask it', s2(LOADFILES));

@@ -880,7 +880,11 @@ function buildPartnerMap() {
   });
 
   // 2. Sets tab: steam+tender pairs, diesel configs
-  (state.setData || []).forEach(s => {
+  // 2026-11-15 (prewarsets): Postwar's set list only. The map is keyed by
+  // number alone, and another era's set would mark a Postwar number a diesel
+  // or pair it with a tender it never had (Pre-War 252 is an electric engine,
+  // Postwar 252 a crossing gate).
+  ((typeof rrPostwarSets === 'function') ? rrPostwarSets() : (state.setData || [])).forEach(s => {
     if (s.steam && s.tender) {
       addUnique(ensure(s.steam).tenders, s.tender);
       addUnique(ensure(s.tender).locos, s.steam);

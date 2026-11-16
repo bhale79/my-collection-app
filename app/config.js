@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2151';
+const APP_VERSION = 'v0.9.2152';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -2631,6 +2631,10 @@ const ERA_TABS = {
   prewar: {
     items:    'Lionel Pre-War',
     catalogs: 'Lionel Pre-War - Catalogs',
+    // 2026-11-15 (prewarsets, Master Version 2.97; [stated] Brad 09:42 CT "lets
+    // get these into the master and get the app where it can read them"): the
+    // Pre-War sets with their pieces, in the Postwar Sets tab's own columns.
+    sets:     'Lionel Pre-War - Sets',
   },
   pw: {
     items:        'Lionel PW - Items',
@@ -3556,7 +3560,8 @@ const RR_PHOTO_HOME = {
   // Endings the app adds to an item's number for its box, master box and
   // sheet folders — 6-36814-BOX files with 6-36814.
   PART_SUFFIX: /-(BOX|MBOX|IS)$/i,
-  // The Sets tab is Lionel Postwar's (ERA_TABS.pw.sets).
+  // A set list is kept per era (ERA_TABS.<era>.sets); a set row says which
+  // (rrSetEra, app-data.js). This is the era of a row that does not say.
   SET_ERA: 'pw',
   // The tidy-up that moves loose top-level folders into their main folder.
   // v0.9.1995 shipped it OFF until Brad approved the move list for his own
@@ -4878,10 +4883,14 @@ window.MANUAL_MANUFACTURERS = {
   ],
 };
 window.MANUAL_ITEM_TYPES = {
-  common: ['Steam Engine', 'Diesel Engine', 'Freight Car', 'Passenger Car', 'Caboose', 'Accessory'],
+  // 2026-11-15 (unknownnum; [stated] Brad 12:26 CT "yes"): "Set" — a set
+  // entered by hand as ONE item. Saved with this type it is listed under My
+  // Sets (the onesets rule). A set entered WITH its pieces is the Add list's
+  // "My Own Set — not in our catalogs", unchanged.
+  common: ['Steam Engine', 'Diesel Engine', 'Freight Car', 'Passenger Car', 'Caboose', 'Accessory', 'Set'],
   all: [
     'Steam Engine', 'Diesel Engine', 'Electric Engine', 'Freight Car', 'Passenger Car',
-    'Caboose', 'Accessory', 'Track', 'Transformer', 'Rolling Stock', 'Paper', 'Other',
+    'Caboose', 'Accessory', 'Set', 'Track', 'Transformer', 'Rolling Stock', 'Paper', 'Other',
   ],
 };
 
@@ -5786,6 +5795,11 @@ const RR_ADD_FILTERS = {
   clearBtn:    'Clear filters',
   manualAsk:   'Add manually?',
   manualBtn:   'Add manually',
+  // 2026-11-15 (unknownnum; problem report #34): a number the catalog does not
+  // know is never saved blind (no type, the era of whatever view was open).
+  // The add asks who made it and what it is (wizard-steps.js addMaker, addType)
+  // and saves it under era "Manual" (wizard-save.js _rrAddNoRowItem).
+  unknownLine: 'Not in our Master Catalog — the next steps ask who made it and what it is',
   filterSep:   ' · ',
   // The maker · era tag (rrRowTagWords, wizard-suggestions.js): the maker word,
   // this separator, then the era word — or, for a Modern maker other than
@@ -5803,7 +5817,10 @@ const RR_ADD_FILTERS = {
   setPieceOne: '1 piece',
   setVersions: '{n} versions',
   // nothing fits the filters, but the typed number IS a Lionel Postwar set
-  setAsk:      '{num} is a Lionel Postwar set — add it as a set?',
+  // 2026-11-15 (prewarsets): {era} = the set's own catalog, from setEraWords —
+  // a set list is kept per era, and the line names the one this set is on.
+  setEraWords: { pw: 'Lionel Postwar', prewar: 'Lionel Pre-War' },
+  setAsk:      '{num} is a {era} set — add it as a set?',
   setBtn:      'Add as a set',
   // at most this many set rows join the list for a short number ("1" → 1000s)
   setRowsMax:  12,
@@ -5811,8 +5828,18 @@ const RR_ADD_FILTERS = {
   // 06:42 CT "yes"): the typed number IS a Lionel Postwar set — the green line
   // under the box names the set, not its box ("Found: Paper") or its old
   // catalog copy. {num} = the set number; the set's own details follow.
-  setFound:    'Lionel Postwar set {num}',
+  setFound:    '{era} set {num}',
 };
+// The words for a set's own catalog ("Lionel Postwar", "Lionel Pre-War") and
+// the two lines that name it. ONE reader of setEraWords.
+function rrSetEraWords(era) {
+  var w = RR_ADD_FILTERS.setEraWords || {};
+  return String(w[String(era || 'pw')] || w.pw || '');
+}
+function rrSetLine(key, num, era) {
+  return String(RR_ADD_FILTERS[key] || '{num}').replace('{era}', rrSetEraWords(era)).replace('{num}', String(num == null ? '' : num));
+}
+if (typeof window !== 'undefined') { window.rrSetEraWords = rrSetEraWords; window.rrSetLine = rrSetLine; }
 if (typeof window !== 'undefined') window.RR_ADD_FILTERS = RR_ADD_FILTERS;
 
 // ── 2026-11-03 — YOUR OWN SET (PLAN_2026-11-03_OWN_SETS) ──────────────────────

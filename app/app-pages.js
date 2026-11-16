@@ -3575,7 +3575,8 @@ function buildSetsPage() {
   if (gaugeEl && gaugeFilter) gaugeEl.value = gaugeFilter;
 
   // Filter
-  const entries = state.setData.filter(s => {
+  const _viewSets = (typeof rrSetsOnView === 'function') ? rrSetsOnView() : state.setData;   // 2026-11-15 (prewarsets)
+  const entries = _viewSets.filter(s => {
     if (yearFilter  && s.year  !== yearFilter)  return false;
     if (gaugeFilter && s.gauge !== gaugeFilter) return false;
     if (sq) {
@@ -3587,7 +3588,7 @@ function buildSetsPage() {
 
   // Update count label (v0.9.1711: the #nav-sets-count badge is born nowhere)
   const countLbl = document.getElementById('sets-count-label');
-  if (countLbl) countLbl.textContent = entries.length + ' of ' + state.setData.length + ' sets';
+  if (countLbl) countLbl.textContent = entries.length + ' of ' + _viewSets.length + ' sets';
 
   const cardsEl    = document.getElementById('sets-cards');
   const tableWrap  = document.getElementById('sets-table-wrap');
@@ -3677,7 +3678,7 @@ function addSetToCollection(setNum, setName) {
       tab: 'set',
       set_knowsNum: 'Yes',
       set_num: setNum,
-      _resolvedSet: state.setData.find(s => s.setNum === setNum) || null,
+      _resolvedSet: rrSetFind(setNum) || null,   // 2026-11-15 (prewarsets): the era on screen first — a number can be on two set lists
       _returnPage: _returnPage
     },
     steps: [],
@@ -3727,7 +3728,7 @@ function addSetToWantList(setNum, setName) {
       itemCategory: 'set',
       want_set_num: setNum,
       itemNum: setNum,
-      _resolvedSet: state.setData.find(s => s.setNum === setNum) || null,
+      _resolvedSet: rrSetFind(setNum) || null,
       _returnPage: _returnPage
     },
     steps: [],
@@ -3747,7 +3748,7 @@ function addSetToWantList(setNum, setName) {
 }
 
 function showSetDetail(setNum) {
-  const s = state.setData.find(x => x.setNum === setNum);
+  const s = rrSetFind(setNum);
   if (!s) return;
 
   const existing = document.getElementById('set-detail-popup');

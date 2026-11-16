@@ -239,7 +239,7 @@ const J = (o) => JSON.stringify(o).slice(0, 500);
     ok('P2 PLANTED the green line not asking the set → F2 can fail ("Found: Paper")', !P.err && !P.foundSet && /Paper/.test(P.found), J(P));
   }
   {
-    const P = await planted({ 'wizard.js': plant(WIZ, "      if (_setG) { _wizPickSetRow(_setG.setNum); return; }", "      if (false) { _wizPickSetRow(_setG.setNum); return; }", 'Next off') },
+    const P = await planted({ 'wizard.js': plant(WIZ, "      if (_setG) { _wizPickSetRow(_setG.setNum, _setG.era); return; }", "      if (false) { _wizPickSetRow(_setG.setNum, _setG.era); return; }", 'Next off') },
       async pg => { await pg.evaluate(async () => { await __T.fresh('', ''); await __T.type('2500WS'); await __T.next(); }); return look(pg); });
     ok('P3 PLANTED Next not asking the set → N2 can fail (no set flow)', !P.err && P.tab !== 'set', J(P));
   }
