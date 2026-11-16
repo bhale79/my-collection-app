@@ -1,8 +1,8 @@
 {
 "format": "rr-trainz-diagrams-1",
-"pulled": "2026-11-09",
+"pulled": "2026-11-16",
 "source": "newwishes.trainz.com/api/parts-diagrams/summary (Trainz’s own feed); every page opened, \"Diagram not found\" pages left out",
-"count": 715,
+"count": 718,
 "diagrams": [
 {
 "n": "671|671R|2020",
@@ -3578,6 +3578,21 @@
 "n": "618720|618721",
 "t": "Lionel LTI 6-18720 & 6-18721 4-4-0 General Tender",
 "h": "lionel-lti-6-18720-6-18721-4-4-0-general-tender-parts-diagram"
+},
+{
+"n": "35|19401942",
+"t": "Lionel 35 Prewar Boulevard Lamp (1940-1942)",
+"h": "lionel-35-prewar-parts-list-and-exploded-view-parts-diagram"
+},
+{
+"n": "65|19151926",
+"t": "Lionel 65 Prewar Single Arm Semaphore ( 1915-1926)",
+"h": "lionel-65-prewar-parts-list-and-exploded-view-parts-diagram"
+},
+{
+"n": "125|19231925",
+"t": "Lionel 125 Prewar Brick Lionville Station (1923-1925)",
+"h": "lionel-125-prewar-parts-list-and-exploded-view-parts-diagram"
 }
 ]
 }
