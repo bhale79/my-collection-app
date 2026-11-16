@@ -249,7 +249,7 @@ async function addChecks(pg) {
 
     // ── PLANTED: the bug as it was ──
     const cfg = fs.readFileSync(path.join(APP, 'config.js'), 'utf8');
-    const X = await start(browser, LAPTOP, { 'config.js': plant(cfg, "'bachmann_all', 'ross', 'gargraves'];", "'bachmann_all'];", 'REAL_ERA_IDS') });
+    const X = await start(browser, LAPTOP, { 'config.js': plant(cfg, "'bachmann_all', 'ross', 'gargraves',", "'bachmann_all',", 'REAL_ERA_IDS') });
     const x = await search(X.pg, 'RB2024');
     ok('X1  PLANTED (Ross and GarGraves left out of REAL_ERA_IDS): neither tab is asked for, no row of either loads, and RB2024 is nowhere',
        !X.S.askedRoss && !X.S.askedGG && !X.S.by.ross && !X.S.by.gargraves && !/TRACK CLEANING CAR/.test(x.txt), JSON.stringify(X.S));
@@ -268,7 +268,7 @@ async function addChecks(pg) {
     await Y.ctx.close();
     // PLANTED: the first version of the fix ("ross" as a plain maker word) — Betsy Ross vanishes
     const Z = await start(browser, LAPTOP, {
-      'wizard-suggestions.js': plant(sug, "'k-line':'K-Line', gargraves:'GarGraves' };", "'k-line':'K-Line', gargraves:'GarGraves', ross:'Ross Custom Switches' };", 'ross word'),
+      'wizard-suggestions.js': plant(sug, "'k-line':'K-Line', gargraves:'GarGraves', bluford:'Bluford Shops' };", "'k-line':'K-Line', gargraves:'GarGraves', bluford:'Bluford Shops', ross:'Ross Custom Switches' };", 'ross word'),
       'item-search-filters-config.js': plant(isf, "    'gargraves',   //", "    'ross', 'gargraves',   //", 'ross stop word') });
     const z = await addChecks(Z.pg);
     ok('X5  PLANTED ("ross" as a plain maker word, the review\'s finding): "betsy ross" loses the Betsy Ross boxcar — proof A7b can fail', !/Betsy Ross/i.test(z.betsy), z.betsy.slice(0, 200));

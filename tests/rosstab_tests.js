@@ -92,12 +92,12 @@ ok('W8  colour by REFERENCE (Weaver\'s), no new literal for the colour ratchet �
    CHECKS.colour(real) && noLiteral(OB) && !noLiteral(plant(OB, '    bachmann_all:   \'#4e342e\',   // darkest — the catch-all\n', '    bachmann_all:   \'#4e342e\',   // darkest — the catch-all\n    ross:           \'#123456\',\n', 'colour literal')));
 // the planted copies — each check must FAIL when its own wiring is taken out
 const P = {
-  real:   world(plant(CFG, "'bachmann_all', 'ross', 'gargraves'];", "'bachmann_all', 'gargraves'];", 'REAL_ERA_IDS'), OB),
+  real:   world(plant(CFG, "'bachmann_all', 'ross', 'gargraves',", "'bachmann_all', 'gargraves',", 'REAL_ERA_IDS'), OB),
   tab:    world(plant(CFG, "ross:           { items: 'Ross Custom Switches' }", "ross:           { items: 'Ross Custom Switch' }", 'ERA_TABS'), OB),
   eras:   world(plant(CFG, "manufacturer: 'Ross Custom Switches' },", "manufacturer: 'Ross' },", 'ERAS'), OB),
   makers: world(plant(CFG, "|\\bross\\s+custom\\b|", "|\\bross\\b|", 'maker words'), OB),
   mfrKey: world(CFG, plant(OB, "'ross custom switches': { id: 'ross custom switches'", "'ross': { id: 'ross'", 'MANUFACTURERS')),
-  order:  world(CFG, plant(OB, "                'ross', 'gargraves'],", "                'gargraves'],", 'eraOrder')),
+  order:  world(CFG, plant(OB, "                'ross', 'gargraves',", "                'gargraves',", 'eraOrder')),
   colour: world(CFG, plant(OB, 'WHAT_I_COLLECT.eraColors.ross = WHAT_I_COLLECT.eraColors.weaver;', '', 'eraColors')),
 };
 ok('W9  PLANTED: each check fails on a copy with its own Ross wiring removed (REAL_ERA_IDS, ERA_TABS, ERAS, maker words, maker key, order, colour)',
@@ -108,10 +108,10 @@ ok('W10 PLANTED: a maker renamed in ERAS alone ("Ross") fails BOTH the eras chec
 // the other places a new maker has to be named (scans, each with its plant)
 const scans = [
   ['W11 browse.js files it as a modern era (else year-less rows hide behind the period chips)', BR, /\n\s*ross:\s*'modern'/, ["  ross:           'modern',", '']],
-  ['W12 the research page searches it (modern group)', RS, /modern:\s*\[[^\]]*'ross'/, ["    'ross', 'gargraves'] };", "    'gargraves'] };"]],
+  ['W12 the research page searches it (modern group)', RS, /modern:\s*\[[^\]]*'ross'/, ["    'ross', 'gargraves',      // rosstab", "    'gargraves',      // rosstab"]],
   ['W13 Photo ID: a read that says "Ross" or "Ross Custom Switches" points at the Ross catalog', WP, /'ross custom switches':\s*'ross',\s*ross:\s*'ross'/, ["'ross custom switches': 'ross', ross: 'ross', ", '']],
   ['W14b the era badge: ROSS and GAR (short, like every other maker\'s)', read('era-badges-config.js'), /ross:\s*'ROSS',[^\n]*\n\s*gargraves:\s*'GAR'/, ["    gargraves:      'GAR',", '    ']],
-  ['W16 typing "gargraves" in the Add box is a maker FILTER, not a description word', SUG, /'k-line':'K-Line', gargraves:'GarGraves' \};/, ["'k-line':'K-Line', gargraves:'GarGraves' };", "'k-line':'K-Line' };"]],
+  ['W16 typing "gargraves" in the Add box is a maker FILTER, not a description word', SUG, /'k-line':'K-Line', gargraves:'GarGraves'[,} ]/, ["'k-line':'K-Line', gargraves:'GarGraves',", "'k-line':'K-Line',"]],
   ['W16b "ross" is a maker only beside a number or in its own words ("ross custom", "ross switches") — never alone in a word search (Betsy Ross)', SUG, /const _rossAsMaker = \(_rossBesideNum \|\| _rossPhrase\)/, ["const _rossAsMaker = (_rossBesideNum || _rossPhrase) &&", "const _rossAsMaker = true ||"]],
   ['W16c "ross" is NOT a stop word (so "betsy ross" keeps the word); "gargraves" is', read('item-search-filters-config.js'), /\n\s*'gargraves',\s*\/\//, ["    'gargraves',   //", "    'ross', 'gargraves',   //"]],
   ['W17 the Add screen\'s Scale filter asks a mixed catalog\'s ROW gauge (GarGraves 101 under O), as the Master Catalog does', WZ, /_blankOnPurpose[\s\S]{0,200}_scalesOfGauge\(m\.gauge(, m\._era)?\)/, ["_scalesOfGauge(m.gauge, m._era).indexOf(String(f.scale).toLowerCase()) < 0) return false;", "true) return false;"]],   // gargauge: + the era
@@ -222,7 +222,7 @@ function lookupWorld() {
   ok('G4  the one maker rule: GarGraves / Gar Graves / gar-graves / GarGraves Trackage are one maker, not Ross, not Lionel', GCHK.makers(real));
   ok('G5  What I Collect: maker key = ERAS manufacturer lowercased; placed in eraOrder; colour by reference', GCHK.mfrKey(real) && GCHK.order(real) && GCHK.colour(real) && !/gargraves:\s*'#/.test(OB));
   const GP = {
-    real:   world(plant(CFG, "'ross', 'gargraves'];", "'ross'];", 'REAL_ERA_IDS gargraves'), OB),
+    real:   world(plant(CFG, "'ross', 'gargraves', 'bluford_n'", "'ross', 'bluford_n'", 'REAL_ERA_IDS gargraves'), OB),
     tab:    world(plant(CFG, "gargraves:      { items: 'GarGraves' }", "gargraves:      { items: 'Gargraves' }", 'ERA_TABS gargraves'), OB),
     scale:  world(plant(CFG, "  gargraves: ['O', 'S', 'G', 'HO', 'N', 'Standard'] };", "  };", 'ERA_SCALES_MULTI'), OB),
     makers: world(plant(CFG, "[/\\bgar[\\s\\-]?graves\\b/i, 'gargraves', 'GarGraves']", "[/\\bgar-graves\\b/i, 'gargraves', 'GarGraves']", 'maker words gargraves'), OB),
@@ -230,9 +230,9 @@ function lookupWorld() {
   };
   ok('G6  PLANTED: each check fails on a copy with its GarGraves wiring removed or misspelled', Object.keys(GP).every(k => !GCHK[k](GP[k])), Object.keys(GP).filter(k => GCHK[k](GP[k])).join(', '));
   [['G7a browse files GarGraves as modern', BR, /\n\s*gargraves:\s*'modern'/, ["  gargraves:      'modern',", '']],
-   ['G7b the research page searches it', RS, /'ross', 'gargraves'\] \};/, ["    'ross', 'gargraves'] };", "    'ross'] };"]],
-   ['G7c Photo ID\'s maker map points GarGraves at its catalog', WP, /gargraves:\s*'gargraves',\s*'gar graves':\s*'gargraves'/, ["gargraves: 'gargraves', 'gar graves': 'gargraves' ", ""]],
-   ['G7d the saved maker is spelled "GarGraves"', AJ, /gargraves:'GarGraves'/, [", gargraves:'GarGraves' };", ' };']],
+   ['G7b the research page searches it', RS, /'ross', 'gargraves',      \/\/ rosstab/, ["    'ross', 'gargraves',      // rosstab", "    'ross',      // rosstab"]],
+   ['G7c Photo ID\'s maker map points GarGraves at its catalog', WP, /gargraves:\s*'gargraves',\s*'gar graves':\s*'gargraves'/, ["gargraves: 'gargraves', 'gar graves': 'gargraves', ", ""]],
+   ['G7d the saved maker is spelled "GarGraves"', AJ, /gargraves:'GarGraves'/, [", gargraves:'GarGraves', ", ', ']],
   ].forEach(([name, src, re, [from, to]]) => ok(name + ' — and FAILS on a planted copy without it', re.test(src) && !re.test(plant(src, from, to, name))));
   const M = require(path.join(__dirname, '..', 'tools', 'master-audit', 'audit.js'));
   const A = M.loadApp();

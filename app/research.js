@@ -331,7 +331,8 @@
   var ERA_GROUP = { prewar: ['prewar', 'marx'], pw: ['pw', 'marx', 'af_gilbert'], modern: ['mpc', 'mod_ho', 'mod_s', 'am_s', 'shelper', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb', 'kline', 'williams', 'other_o', 'marx', 'aristocraft', 'accucraft', 'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o', 'bachmann_on30', 'bachmann_hon30', 'bachmann_all',
     'marklin_h0', 'marklin_z', 'marklin_1',   // v0.9.1693: missed in v1690 — the research page groups by period
     'kato_n', 'kato_ho', 'kato_parts',
-    'ross', 'gargraves'] };   // rosstab (2026-11-05): Ross Custom Switches, GarGraves — current makers
+    'ross', 'gargraves',      // rosstab (2026-11-05): Ross Custom Switches, GarGraves — current makers
+    'bluford_n', 'bluford_ho', 'roundhouse_ho'] };   // sixtabs (2026-11-15): Bluford Shops, Roundhouse — current makers
   function _filterHits(list, opts) {
     var r = list || [];
     opts = opts || {};

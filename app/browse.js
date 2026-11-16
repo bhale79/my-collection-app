@@ -1068,6 +1068,9 @@ var _ERA_KEY_TO_PERIOD = {
   bachmann_all:   'modern',
   ross:           'modern',   // rosstab: Ross Custom Switches, current maker (no years on the tab)
   gargraves:      'modern',   // rosstab: GarGraves Trackage, current maker (no years on the tab)
+  bluford_n:      'modern',   // sixtabs (2026-11-15): Bluford Shops, founded 2007
+  bluford_ho:     'modern',
+  roundhouse_ho:  'modern',   // sixtabs: Athearn's current Roundhouse line (RND numbers)
   trepro:       'modern',   // v0.9.1747: T-Reproductions — website line 2011-2019; the earlier tinplate work is 1980s-90s, modern too
   microtrains_n: 'modern',  // v0.9.1719: Micro-Trains, 1972 onward — the maker's own database starts at 1972 and runs to 2026, so the whole tab is modern
   thirdrail:    'modern',   // 3rd Rail / Sunset Models brass, 1990s onward

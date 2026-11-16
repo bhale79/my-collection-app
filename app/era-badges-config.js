@@ -68,6 +68,9 @@ const ERA_BADGES = {
     bachmann_all:   'BAS',
     ross:           'ROSS',   // rosstab: Ross Custom Switches
     gargraves:      'GAR',    // rosstab: GarGraves
+    bluford_n:      'BLN',    // sixtabs (2026-11-15): Bluford Shops N
+    bluford_ho:     'BLHO',   // sixtabs: Bluford Shops HO
+    roundhouse_ho:  'RHO',    // sixtabs: Roundhouse HO
     // Session 86: Menards per-scale split ('MENARDS_HO' uppercased is noise).
     menards_ho:     'MNHO',
   },

@@ -403,7 +403,7 @@ function updateItemSuggestions(query) {
     // Session 172: typed maker/period words act as FILTERS (so "lionel seaboard"
     // shows only Lionel and "postwar hudson" only Postwar) instead of being
     // ignored. Recognized words are pulled out of the text match below.
-    var _MFR_WORDS = { lionel:'Lionel', atlas:'Atlas', mth:'MTH', weaver:'Weaver', rmt:'RMT', williams:'Williams', marx:'Marx', menards:'Menards', '3rd rail':'3rd Rail', sunset:'3rd Rail', 'usa trains':'USA Trains', lgb:'LGB', bachmann:'Bachmann', kline:'K-Line', 'k-line':'K-Line', gargraves:'GarGraves' };   // rosstab: "101 gargraves" filters to GarGraves ("ross" is handled above — only beside a number or in its own words)
+    var _MFR_WORDS = { lionel:'Lionel', atlas:'Atlas', mth:'MTH', weaver:'Weaver', rmt:'RMT', williams:'Williams', marx:'Marx', menards:'Menards', '3rd rail':'3rd Rail', sunset:'3rd Rail', 'usa trains':'USA Trains', lgb:'LGB', bachmann:'Bachmann', kline:'K-Line', 'k-line':'K-Line', gargraves:'GarGraves', bluford:'Bluford Shops' };   // rosstab: "101 gargraves" filters to GarGraves ("ross" is handled above — only beside a number or in its own words)
     var _PERIOD_WORDS = { prewar:'prewar', 'pre-war':'prewar', postwar:'postwar', 'post-war':'postwar', modern:'modern' };
     var _typedMfr = '', _typedPeriod = '';
     qParts.forEach(function(p){ if (_MFR_WORDS[p]) _typedMfr = _MFR_WORDS[p]; if (_PERIOD_WORDS[p]) _typedPeriod = _PERIOD_WORDS[p]; });

@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2152';
+const APP_VERSION = 'v0.9.2153';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -1225,7 +1225,8 @@ const RR_MAKER_ALIASES = {                // spelling on the submission → the 
   'ready made toys': 'rmt', 'menards inc': 'menards', '3rd rail division of sunset models': '3rd rail',
   'usa trains': 'usa trains', 'lgb of america': 'lgb', 'aristocraft': 'aristo-craft', 'aristo craft': 'aristo-craft',
   'ross': 'ross custom switches', 'ross switches': 'ross custom switches',   // rosstab
-  'gar graves': 'gargraves', 'gargraves trackage': 'gargraves'                 // rosstab: GarGraves
+  'gar graves': 'gargraves', 'gargraves trackage': 'gargraves',                // rosstab: GarGraves
+  'bluford': 'bluford shops', 'athearn roundhouse': 'roundhouse'                // sixtabs (2026-11-15)
 };
 // Words are matched whole (word boundaries), case-insensitive. Keep them lowercase.
 const RR_PRESORT_WORDS = {
@@ -1305,7 +1306,15 @@ const RR_MAKER_WORDS = [
   // longer text (a photo read's whole answer) it needs "Ross Custom" or "Ross Switches",
   // so a road or person named Ross never reads as the maker.
   [/^\s*ross\s*$|\bross\s+custom\b|\bross\s+switch(?:es)?\b/i, 'ross custom switches', 'Ross Custom Switches'],
-  [/\bgar[\s\-]?graves\b/i, 'gargraves', 'GarGraves']   // rosstab: GarGraves Trackage
+  [/\bgar[\s\-]?graves\b/i, 'gargraves', 'GarGraves'],   // rosstab: GarGraves Trackage
+  // sixtabs (2026-11-15): Bluford Shops; Roundhouse only when it IS the whole maker field or
+  // reads "Athearn Roundhouse" / "Roundhouse HO" / "RND" — "roundhouse" alone is also a
+  // building (Atlas's 3-stall roundhouse kit) and part of "Frank's Roundhouse" (Other O).
+  // Review (2026-11-15): "Roundhouse HO" / "Roundhouse RND…" count only at the START of the
+  // text (MDC Roundhouse is the same brand) — so "Frank's Roundhouse HO" and "Walthers
+  // Cornerstone Roundhouse HO Scale Kit" do not; "RND1166" (no dash) counts too.
+  [/\bbluford\b/i, 'bluford shops', 'Bluford Shops'],
+  [/^\s*(?:mdc\s+)?roundhouse\s*$|\bathearn\s+roundhouse\b|^\s*(?:mdc\s+)?roundhouse\s+(?:ho\b|rnd)/i, 'roundhouse', 'Roundhouse']
 ];
 // Words that sit where a maker goes but name a product LINE or nothing at all.
 // "Premier" is MTH's top line AND Atlas's — it can never settle a brand, so it
@@ -2051,9 +2060,17 @@ const ERAS = {
   // Gauge column says which, the bachmann_all pattern) and ERA_SCALES_MULTI lists the
   // scales its line belongs to in What I Collect. No years from the maker — 'All'.
   gargraves:      { id: 'gargraves',      label: 'GarGraves',            years: 'All', prefix: 'GarGraves',            manufacturer: 'GarGraves' },
+  // sixtabs (2026-11-15, [stated] Brad "we need to add these to the master list with their
+  // own tabs"; Melissa's makers, PLAN_2026-11-15_SIX_MAKERS.md): Bluford Shops (N freight
+  // cars + N and HO cabooses, every item on bluford-shops.com) and Roundhouse (Athearn's
+  // current RND line, all HO, every item on athearn.com). No model years from the makers — 'All'.
+  // Athearn writes RND-1166 and RND1166 for two DIFFERENT cars; the number is kept as written.
+  bluford_n:      { id: 'bluford_n',      label: 'Bluford Shops N',      years: 'All', prefix: 'Bluford Shops N',      manufacturer: 'Bluford Shops' },
+  bluford_ho:     { id: 'bluford_ho',     label: 'Bluford Shops HO',     years: 'All', prefix: 'Bluford Shops HO',     manufacturer: 'Bluford Shops' },
+  roundhouse_ho:  { id: 'roundhouse_ho',  label: 'Roundhouse HO',        years: 'All', prefix: 'Roundhouse HO',        manufacturer: 'Roundhouse' },
 };
 // Real-era IDs in load priority order (excluding 'all' meta-era).
-const REAL_ERA_IDS = ['pw', 'mpc', 'mod_ho', 'mod_s', 'af_gilbert', 'am_s', 'shelper', 'prewar', 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'marklin_h0', 'marklin_z', 'marklin_1', 'kato_n', 'kato_ho', 'kato_parts', 'microtrains_n', 'trepro', 'lionel_parts', 'mth_parts', 'traintender_parts', 'lionelstore_parts', 'atlas_parts', 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb', 'kline', 'williams', 'marx', 'other_o', 'aristocraft', 'accucraft', 'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o', 'bachmann_on30', 'bachmann_hon30', 'bachmann_all', 'ross', 'gargraves'];
+const REAL_ERA_IDS = ['pw', 'mpc', 'mod_ho', 'mod_s', 'af_gilbert', 'am_s', 'shelper', 'prewar', 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'marklin_h0', 'marklin_z', 'marklin_1', 'kato_n', 'kato_ho', 'kato_parts', 'microtrains_n', 'trepro', 'lionel_parts', 'mth_parts', 'traintender_parts', 'lionelstore_parts', 'atlas_parts', 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb', 'kline', 'williams', 'marx', 'other_o', 'aristocraft', 'accucraft', 'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o', 'bachmann_on30', 'bachmann_hon30', 'bachmann_all', 'ross', 'gargraves', 'bluford_n', 'bluford_ho', 'roundhouse_ho'];
 // v0.9.1749: eras that exist for LOOKUPS ONLY. They are in REAL_ERA_IDS (so
 // the background full-catalog index fetches and caches them, and the
 // Yardmaster can file rows into their tab) but _isEraEnabled says no for
@@ -2094,6 +2111,7 @@ const ERA_SCALE = {
   marklin_h0: 'HO', marklin_z: 'Z', marklin_1: 'G',   // v0.9.1690 — Maerklin Gauge 1 is 1:32 on 45mm track, the same track as G
   kato_n: 'N', kato_ho: 'HO', kato_parts: '',   // v0.9.1693 — parts span both scales; blank on purpose (same meaning as bachmann_all)
   microtrains_n: 'N',   // v0.9.1719
+  bluford_n: 'N', bluford_ho: 'HO', roundhouse_ho: 'HO',   // sixtabs (2026-11-15)
   lionel_parts: '',   // v0.9.1749 — parts span O and S; blank on purpose (same meaning as kato_parts)
   mth_parts: '',      // v0.9.1750 — parts span O, HO, S, G and tinplate; blank on purpose
   traintender_parts: '',   // v0.9.1755 — parts span O, OO and G; blank on purpose (the row's Gauge column says which)
@@ -2754,6 +2772,9 @@ const ERA_TABS = {
   bachmann_all:   { items: 'Bachmann All Scales' },
   ross:           { items: 'Ross Custom Switches' },   // rosstab — the tab's exact name
   gargraves:      { items: 'GarGraves' },              // rosstab — the tab's exact name
+  bluford_n:      { items: 'Bluford Shops N' },        // sixtabs (2026-11-15) — the tabs' exact names
+  bluford_ho:     { items: 'Bluford Shops HO' },
+  roundhouse_ho:  { items: 'Roundhouse HO' },
 };
 
 // ═══════════════════════════════════════════════════════════════════

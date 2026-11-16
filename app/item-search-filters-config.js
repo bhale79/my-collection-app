@@ -138,6 +138,7 @@ window.ITEM_SEARCH_FILTERS = {
     'menards', 'bachmann', 'premier', 'railking', 'rail-king', 'tinplate',
     '3rd', 'rail', 'sunset', 'lgb',
     'gargraves',   // rosstab (2026-11-05): a maker word — "101 gargraves" means GarGraves's 101. ("ross" is NOT here: Betsy Ross; wizard-suggestions.js decides it)
+    'bluford',     // sixtabs (2026-11-15): "60011 bluford" means Bluford's 60011. ("roundhouse" is NOT here — it is also a building.)
     'standard', 'o', 'ho', 's', 'g', 'gauge', 'scale', 'the', 'by',
   ],
 };

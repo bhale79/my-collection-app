@@ -3211,7 +3211,7 @@ if (typeof window !== 'undefined') { window.rrAlsoSoldAsNames = rrAlsoSoldAsName
 // Brand LABEL for an item, derived from the master catalog (Lionel/MTH/Atlas/...).
 // Single source of truth for 'what brand is this item' on every SAVE path.
 // Returns '' when the item isn't in the catalog (manual entry) so callers fall back.
-var _BRAND_LABELS = { lionel:'Lionel', mth:'MTH', atlas:'Atlas', menards:'Menards', '3rd rail':'3rd Rail', thirdrail:'3rd Rail', sunset:'3rd Rail', 'usa trains':'USA Trains', usatrains:'USA Trains', lgb:'LGB', williams:'Williams', weaver:'Weaver', rmt:'RMT', kline:'K-Line', 'k-line':'K-Line', 'k line':'K-Line', marx:'Marx', ives:'Ives', american:'American Flyer', 'american flyer':'American Flyer', 'ross custom switches':'Ross Custom Switches', gargraves:'GarGraves' };   // rosstab: else the fallback saves "Ross custom switches" / "Gargraves"
+var _BRAND_LABELS = { lionel:'Lionel', mth:'MTH', atlas:'Atlas', menards:'Menards', '3rd rail':'3rd Rail', thirdrail:'3rd Rail', sunset:'3rd Rail', 'usa trains':'USA Trains', usatrains:'USA Trains', lgb:'LGB', williams:'Williams', weaver:'Weaver', rmt:'RMT', kline:'K-Line', 'k-line':'K-Line', 'k line':'K-Line', marx:'Marx', ives:'Ives', american:'American Flyer', 'american flyer':'American Flyer', 'ross custom switches':'Ross Custom Switches', gargraves:'GarGraves', 'bluford shops':'Bluford Shops', bluford:'Bluford Shops', roundhouse:'Roundhouse' };   // rosstab: else the fallback saves "Ross custom switches" / "Gargraves"
 function _brandLabel(key) {
   if (!key) return '';
   var k = String(key).toLowerCase().trim();
