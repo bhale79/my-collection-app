@@ -464,7 +464,28 @@ if (typeof window !== 'undefined') window._rrMarkCatalogsStale = _rrMarkCatalogs
 // said "bump it" and the bump did nothing to them. Now a bump marks every
 // catalog stale too. Run by both loaders (single-era and all-eras); the
 // second call in a start finds the stamp current and does nothing.
+// nolionelstore (2026-11-16): a catalog the app no longer reads (RETIRED_ERA_IDS,
+// config.js) is DELETED from this device — its saved rows and its freshness stamp —
+// on EVERY start, never marked done: an old app window still open on the device can
+// save the rows again after this one deleted them (independent review, 2026-11-16),
+// and deleting a missing key costs one tiny transaction. Never touches a catalog the
+// app still reads: an id that is also in REAL_ERA_IDS is skipped.
+function _rrRetiredCatalogSweep() {
+  var gone = (typeof RETIRED_ERA_IDS !== 'undefined' && Array.isArray(RETIRED_ERA_IDS)) ? RETIRED_ERA_IDS : [];
+  var live = (typeof REAL_ERA_IDS !== 'undefined' && Array.isArray(REAL_ERA_IDS)) ? REAL_ERA_IDS : [];
+  var swept = [];
+  gone.forEach(function (e) {
+    if (!e || live.indexOf(e) >= 0) return;
+    try { if (typeof idbRemove === 'function') idbRemove('lv_master_cache_' + e); } catch (eI) {}
+    try { localStorage.removeItem('lv_master_cache_ts_' + e); } catch (eL) {}
+    swept.push(e);
+  });
+  return swept;
+}
+if (typeof window !== 'undefined') window._rrRetiredCatalogSweep = _rrRetiredCatalogSweep;
+
 function _rrCatalogShapeCheck() {
+  _rrRetiredCatalogSweep();   // nolionelstore: every start, both loaders
   var want = (typeof CATALOG_CACHE_VER !== 'undefined') ? String(CATALOG_CACHE_VER) : '125';
   var seen = null;
   try { seen = localStorage.getItem('lv_cache_ver'); } catch (e) { return false; }
@@ -2498,7 +2519,7 @@ window._mbAllGet = _mbAllGet;
 // v0.9.1756 (Brad: the Need-a-part popup's fourth lane, "Catalog parts for
 // No. 2343"): the REVERSE of the parts catalogs' Fits column. Item number →
 // every Part row, from every parts tab (Lionel Parts, Train Tender Parts,
-// Lionel Store Parts, MTH Parts…), whose Fits names it. Built once from the
+// MTH Parts, Atlas Parts…), whose Fits names it. Built once from the
 // same rows _mbAllGet reads (the full-catalog index when it is up, else the
 // loaded eras) and rebuilt only when those rows change — so the popup, the
 // item card and anything later all answer from ONE place.

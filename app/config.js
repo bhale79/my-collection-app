@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2153';
+const APP_VERSION = 'v0.9.2154';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -1967,14 +1967,11 @@ const ERAS = {
   // lionel_parts. partsLink = the word the drawer puts on the row's link (the
   // site has no diagrams; the link opens its price list).
   traintender_parts: { id: 'traintender_parts', label: 'Train Tender Parts', years: 'All', prefix: 'Train Tender Parts', manufacturer: 'Lionel', partsLink: 'listing' },
-  // v0.9.1756 (Brad, 2026-09-16: "only parts that name their item"): Lionel's
-  // own parts store (lionelsupport.com), swept 2026-09-16 — the 10,448 store
-  // parts whose SKU names the item they fit (48-2032010-550 → 2032010), one row
-  // per part; the other 58,000 store SKUs carry no item and stay on the PC.
-  // Lookup-only, like the other parts catalogs. partsLink = the link word when
-  // the part's own store page is shown (v0.9.1759: only on "The maker's own
-  // store"); partsOfficial = this is Lionel's own store, so that page may open.
-  lionelstore_parts: { id: 'lionelstore_parts', label: 'Lionel Store Parts', years: 'All', prefix: 'Lionel Store Parts', manufacturer: 'Lionel', partsLink: 'store', partsOfficial: true },
+  // nolionelstore (2026-11-16, [stated] Brad "the parts yes"): Lionel's own parts store
+  // (lionelsupport.com, 'Lionel Store Parts', v0.9.1756) is OUT until Lionel gives written
+  // permission — its terms forbid copying the store into a database. Listed in
+  // RETIRED_ERA_IDS below so every device drops the copy it saved. To bring it back:
+  // PLAN_2026-11-16_LIONEL_STORE_PARTS_PULLDOWN.md ("To put it back").
   // v0.9.1802 (Brad, 2026-09-26: Atlas parts on the Maintenance page "the same
   // way as MTH"): Atlas's own parts, read off its parts-diagram PDFs (O and HO
   // first, N to follow). Lookup-only. Each part row's "Parts Lists" names the
@@ -2070,15 +2067,21 @@ const ERAS = {
   roundhouse_ho:  { id: 'roundhouse_ho',  label: 'Roundhouse HO',        years: 'All', prefix: 'Roundhouse HO',        manufacturer: 'Roundhouse' },
 };
 // Real-era IDs in load priority order (excluding 'all' meta-era).
-const REAL_ERA_IDS = ['pw', 'mpc', 'mod_ho', 'mod_s', 'af_gilbert', 'am_s', 'shelper', 'prewar', 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'marklin_h0', 'marklin_z', 'marklin_1', 'kato_n', 'kato_ho', 'kato_parts', 'microtrains_n', 'trepro', 'lionel_parts', 'mth_parts', 'traintender_parts', 'lionelstore_parts', 'atlas_parts', 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb', 'kline', 'williams', 'marx', 'other_o', 'aristocraft', 'accucraft', 'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o', 'bachmann_on30', 'bachmann_hon30', 'bachmann_all', 'ross', 'gargraves', 'bluford_n', 'bluford_ho', 'roundhouse_ho'];
+const REAL_ERA_IDS = ['pw', 'mpc', 'mod_ho', 'mod_s', 'af_gilbert', 'am_s', 'shelper', 'prewar', 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'marklin_h0', 'marklin_z', 'marklin_1', 'kato_n', 'kato_ho', 'kato_parts', 'microtrains_n', 'trepro', 'lionel_parts', 'mth_parts', 'traintender_parts', 'atlas_parts', 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb', 'kline', 'williams', 'marx', 'other_o', 'aristocraft', 'accucraft', 'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o', 'bachmann_on30', 'bachmann_hon30', 'bachmann_all', 'ross', 'gargraves', 'bluford_n', 'bluford_ho', 'roundhouse_ho'];
 // v0.9.1749: eras that exist for LOOKUPS ONLY. They are in REAL_ERA_IDS (so
 // the background full-catalog index fetches and caches them, and the
 // Yardmaster can file rows into their tab) but _isEraEnabled says no for
 // them, so they never load at startup and never appear in Master Catalog.
 // A parts catalog is the case: findMaster('2343-13') must answer, but nobody
 // wants 30,000 screws in browse.
-const LOOKUP_ONLY_ERAS = ['lionel_parts', 'mth_parts', 'traintender_parts', 'lionelstore_parts', 'atlas_parts'];   // v0.9.1750: + MTH; v0.9.1755: + Train Tender; v0.9.1756: + Lionel's store; v0.9.1802: + Atlas
+const LOOKUP_ONLY_ERAS = ['lionel_parts', 'mth_parts', 'traintender_parts', 'atlas_parts'];   // v0.9.1750: + MTH; v0.9.1755: + Train Tender; v0.9.1756: + Lionel's store (out again 2026-11-16, see RETIRED_ERA_IDS); v0.9.1802: + Atlas
 if (typeof window !== 'undefined') window.LOOKUP_ONLY_ERAS = LOOKUP_ONLY_ERAS;
+// nolionelstore (2026-11-16): catalogs the app READ ONCE and no longer does. Their saved
+// copy on each device is deleted on start (_rrRetiredCatalogSweep, app-data.js), so data
+// we were asked to take down does not linger in a member's browser. An id here must not
+// also be in REAL_ERA_IDS (tests/nolionelstore_tests.js).
+const RETIRED_ERA_IDS = ['lionelstore_parts'];
+if (typeof window !== 'undefined') window.RETIRED_ERA_IDS = RETIRED_ERA_IDS;
 // v0.9.1934 — DUAL-SCALE ROWS FOLLOW EITHER LINE (Brad: "yes" — keep ONE row,
 // show it to both). Kato sells power packs, turnout switches, cords and
 // UniJoiners for N and HO track; they live ONCE, on the Kato N tab, Gauge
@@ -2115,7 +2118,6 @@ const ERA_SCALE = {
   lionel_parts: '',   // v0.9.1749 — parts span O and S; blank on purpose (same meaning as kato_parts)
   mth_parts: '',      // v0.9.1750 — parts span O, HO, S, G and tinplate; blank on purpose
   traintender_parts: '',   // v0.9.1755 — parts span O, OO and G; blank on purpose (the row's Gauge column says which)
-  lionelstore_parts: '',   // v0.9.1756 — the store sells O, S (American Flyer) and HO parts; blank on purpose
   atlas_parts: '',         // v0.9.1802 — O, HO and N parts on one tab (the Gauge column says which); blank on purpose
   trepro: '3¼"',     // v0.9.1747 — Buddy L 3¼-inch gauge; no other era runs on it
   mth_g: 'G',
@@ -2722,7 +2724,6 @@ const ERA_TABS = {
   lionel_parts:  { items: 'Lionel Parts' },     // v0.9.1749
   mth_parts:     { items: 'MTH Parts' },        // v0.9.1750
   traintender_parts: { items: 'Train Tender Parts' },   // v0.9.1755
-  lionelstore_parts: { items: 'Lionel Store Parts' },   // v0.9.1756
   atlas_parts:   { items: 'Atlas Parts' },      // v0.9.1802
   am_s:       { items: 'American Models S' },
   shelper:    { items: 'S-Helper Service S' },

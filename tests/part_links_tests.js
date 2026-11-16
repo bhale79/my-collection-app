@@ -68,24 +68,32 @@ function realEra(id) {
   const m = cfg.match(new RegExp('^\\s*' + id + ':\\s*(\\{.*?\\}),?\\s*$', 'm'));
   return m ? eval('(' + m[1] + ')') : null;
 }
+// nolionelstore (2026-11-16, [stated] Brad "the parts yes"): Lionel's own store
+// catalog (lionelstore_parts) is OUT of the app until Lionel gives written
+// permission. The two-link RULES below still hold for any maker whose own store
+// we carry (MTH Parts & Sales, Atlas today), so they are now proved on a STUB
+// "maker's own store" era for Lionel — a few fixture rows, no Lionel store data
+// in the repo — beside the REAL Trainz catalog and the real config.
 const ERAS = {};
-['lionel_parts', 'lionelstore_parts', 'traintender_parts', 'mth_parts'].forEach(id => {
+['lionel_parts', 'traintender_parts', 'mth_parts', 'atlas_parts'].forEach(id => {
   const e = realEra(id); if (e) ERAS[id] = e;
 });
+const STORE = 'maker_store_stub';
+ERAS[STORE] = { label: 'Maker store (test stub)', manufacturer: 'Lionel', partsLink: 'store', partsOfficial: true };
 
 section('A · the real era config, not a retyped copy');
-ok('all four parts eras were found in config.js', Object.keys(ERAS).length === 4, Object.keys(ERAS).join(','));
-ok('the Lionel STORE catalog is the maker\'s own (partsOfficial)', ERAS.lionelstore_parts && ERAS.lionelstore_parts.partsOfficial === true);
+ok('all four real parts eras were found in config.js', ['lionel_parts', 'traintender_parts', 'mth_parts', 'atlas_parts'].every(id => ERAS[id]),
+   Object.keys(ERAS).join(','));
+ok('Lionel\'s own store catalog is gone from config.js (nolionelstore)', !realEra('lionelstore_parts'));
+ok('…and that check can fail: a planted store era is found',
+   /^\s*lionelstore_parts:\s*\{/m.test("  lionelstore_parts: { id: 'lionelstore_parts' },"));
 ok('the Lionel PARTS catalog (Trainz-sourced) is NOT the maker\'s own',
    ERAS.lionel_parts && !ERAS.lionel_parts.partsOfficial);
-ok('both are Lionel, so one may answer for the other',
-   ERAS.lionel_parts && ERAS.lionelstore_parts
-   && ERAS.lionel_parts.manufacturer === 'Lionel' && ERAS.lionelstore_parts.manufacturer === 'Lionel');
+ok('MTH Parts & Sales and Atlas Parts ARE the makers\' own',
+   ERAS.mth_parts && ERAS.mth_parts.partsOfficial === true && ERAS.atlas_parts && ERAS.atlas_parts.partsOfficial === true);
 ok('MTH parts are MTH, and never Lionel', ERAS.mth_parts && ERAS.mth_parts.manufacturer === 'MTH');
 
-// ── the real rows, out of the harvests the sweeps wrote ────────────────────
-// Real part numbers, real addresses, real descriptions. A hand-typed row would
-// have let the 1.6% overlap go unnoticed.
+// ── the real Trainz rows, out of the harvest the sweep wrote ───────────────
 function harvest(files) {
   const out = [];
   for (const f of files) {
@@ -97,25 +105,25 @@ function harvest(files) {
   }
   return out;
 }
-const rawStore  = harvest(['lionelstore-parts-1.json', 'lionelstore-parts-2.json', 'lionelstore-parts-3.json']);
 const rawTrainz = harvest(['lionel-parts-1.json', 'lionel-parts-2.json']);
 const row = (raw, era) => ({ itemNum: String(raw[0]), itemType: 'Part', description: String(raw[7] || ''), refLink: String(raw[12] || ''), _era: era });
-const storeRows  = rawStore.map(r => row(r, 'lionelstore_parts'));
 const trainzRows = rawTrainz.map(r => row(r, 'lionel_parts'));
+// The stub store: Brad's own example part (Trainz does not carry it) plus 150
+// parts Trainz DOES carry, each with a page on the stub maker's site.
+const MAKER = 'https://www.maker-store.example/';
+const brad = { itemNum: '6101155203', itemType: 'Part', description: 'EYE DROPPER / SMOKE FILL', refLink: MAKER + 'EYE-DROPPER-SMOKE-FILL', _era: STORE };
+const storeRows = [brad].concat(trainzRows.filter(r => r.refLink && /^\d/.test(r.itemNum)).slice(0, 150)
+  .map(r => ({ itemNum: r.itemNum, itemType: 'Part', description: r.description, refLink: MAKER + 'p/' + encodeURIComponent(r.itemNum), _era: STORE })));
 
-section('B · the real catalogs, and the overlap that shapes the whole design');
-ok('the Lionel store catalog loaded', storeRows.length > 50000, String(storeRows.length));
+section('B · the real Trainz catalog beside the stub store');
 ok('the Trainz catalog loaded', trainzRows.length > 15000, String(trainzRows.length));
 const trainzNums = new Set(trainzRows.map(r => r.itemNum.trim().toUpperCase()));
 const shared = storeRows.filter(r => trainzNums.has(r.itemNum.trim().toUpperCase()));
-ok('a store part is USUALLY not at Trainz — so a search is the normal outcome',
-   shared.length / storeRows.length < 0.05, (100 * shared.length / storeRows.length).toFixed(1) + '%');
-ok('…but some store parts ARE at Trainz, or rule 2 could never be tested',
-   shared.length > 100, String(shared.length));
-const brad = storeRows.find(r => r.itemNum === '6101155203');
-ok('Brad\'s own example part is in the catalog', !!brad && /EYE DROPPER/i.test(brad.description),
-   brad && brad.description);
-ok('…and Trainz does not carry it, exactly as he said', !!brad && !trainzNums.has('6101155203'));
+ok('some store parts ARE at Trainz, or rule 2 could never be tested', shared.length >= 100, String(shared.length));
+ok('Brad\'s own example part is in the stub store', /EYE DROPPER/i.test(brad.description));
+ok('…and Trainz does not carry it, exactly as he said', !trainzNums.has('6101155203'));
+ok('no harvest file of Lionel\'s store holds rows any more (nolionelstore: a removed notice)',
+   harvest(['lionelstore-parts-1.json', 'lionelstore-parts-2.json', 'lionelstore-parts-3.json']).length === 0);
 
 // ── the real functions, lifted and run ─────────────────────────────────────
 // EVERY closure name they touch is handed in. Miss one and it throws here
@@ -175,8 +183,8 @@ const words = html => (html.match(/>([^<]+)<\/a>/g) || []).map(w => w.slice(1, -
   const h = hrefs(html), w = words(html);
   ok('TWO links, not one', h.length === 2, String(h.length) + ': ' + w.join(' / '));
   ok('the first is Lionel\'s own page for the part',
-     h[0] === 'https://www.lionelsupport.com/EYE-DROPPER-SMOKE-FILL', h[0]);
-  ok('…labelled with the era\'s own word', w[0] === (ERAS.lionelstore_parts.partsLink || 'store'), w[0]);
+     h[0] === MAKER + 'EYE-DROPPER-SMOKE-FILL', h[0]);
+  ok('…labelled with the era\'s own word', w[0] === (ERAS[STORE].partsLink || 'store'), w[0]);
   ok('the second is a SEARCH, because Trainz has no such part', /google\.com\/search/.test(h[1] || ''), h[1]);
   ok('…and says so on the link', w[1] === 'search trainz.com', w[1]);
   const q = decodeURIComponent((h[1] || '').split('q=')[1] || '').replace(/\+/g, ' ');
@@ -255,8 +263,8 @@ section('E · what the part is CALLED, without the measurements');
      api.phrase('GEAR / WORM SHAFT W/ BEARINGS W/ COUPLING') === 'GEAR WORM SHAFT',
      api.phrase('GEAR / WORM SHAFT W/ BEARINGS W/ COUPLING'));
   ok('nothing describable gives nothing, not a stray quote', api.phrase('') === '' && api.phrase('.625 ID') === '');
-  const long = storeRows.filter(r => api.phrase(r.description).split(' ').length > 4);
-  ok('no phrase anywhere in the real catalog runs past four words', long.length === 0, String(long.length));
+  const long = trainzRows.filter(r => api.phrase(r.description).split(' ').length > 4);
+  ok('no phrase anywhere in the real Trainz catalog runs past four words', long.length === 0, String(long.length));
   ok('a web address is a web address, however it is written',
      api.host('https://www.trainz.com/products/x') === 'trainz.com'
      && api.host('trainz.com') === 'trainz.com'

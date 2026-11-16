@@ -297,7 +297,10 @@ ok('no catalog row link is drawn anywhere but inside the one rule',
    && (mt.match(/target="_blank" rel="noopener" style="color:var\(--accent2\)"/g) || []).length === 1);
 
 section('config.js: which catalogs are the maker\'s own store');
-ok('Lionel\'s store and MTH Parts & Sales are official', /lionelstore_parts: \{[^}]*partsOfficial: true/.test(cfg) && /mth_parts: \{[^}]*partsOfficial: true/.test(cfg));
+ok('MTH Parts & Sales and Atlas Parts are official', /mth_parts: \{[^}]*partsOfficial: true/.test(cfg) && /atlas_parts: \{[^}]*partsOfficial: true/.test(cfg));
+// nolionelstore (2026-11-16): Lionel's own store catalog is out until Lionel gives permission.
+// The stub era above keeps testing the maker's-own-page RULE; the real config no longer has it.
+ok('Lionel\'s store catalog is no longer in the app (nolionelstore)', !/^\s*lionelstore_parts: \{/m.test(cfg));
 ok('Trainz and Train Tender are dealers — never official', !/lionel_parts: \{[^}]*partsOfficial/.test(cfg) && !/traintender_parts: \{[^}]*partsOfficial/.test(cfg));
 
 section('The trio moved together');

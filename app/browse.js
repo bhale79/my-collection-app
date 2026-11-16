@@ -1090,7 +1090,6 @@ var _ERA_KEY_TO_PERIOD = {
   lionel_parts: 'modern',   // v0.9.1749
   mth_parts:    'modern',   // v0.9.1750: lookup-only; the period never gates it (see LOOKUP_ONLY_ERAS)
   traintender_parts: 'modern',   // v0.9.1755: same
-  lionelstore_parts: 'modern',   // v0.9.1756: same
   atlas_parts:  'modern',   // v0.9.1802: same
 };
 function _itemEraPeriod(item) {
