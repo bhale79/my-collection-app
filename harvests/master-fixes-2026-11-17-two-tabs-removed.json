@@ -1,0 +1,26 @@
+{
+"kind": "rail-roster-master-fix",
+"made": "2026-11-17T13:50:00Z",
+"title": "Two tabs REMOVED from the master: \"Roundhouse HO\" (977 rows) and \"Lionel Store Parts\" (55,955 rows) — until each maker gives written permission",
+"stated": "Brad 2026-11-17 07:37 CT \"yes take it down\" (Roundhouse HO: the master tab and the published record) -> 07:40 CT \"we need to remove the lionel store parts tab too\" + \"approve the delete\" + \"Approve inserting the master version\".",
+"why": "Each site's own terms require written permission to copy its content. Brad is asking Horizon Hobby (Athearn Roundhouse) and Lionel. The app already stopped reading both tabs (v0.9.2154 Lionel Store Parts, v0.9.2155 Roundhouse HO).",
+"removed": [
+{
+"tab": "Roundhouse HO",
+"sheetId": 1987630026,
+"rows": 977,
+"columns": 25,
+"csv_sha256_at_removal": "2ba5c69c6fe0cd7a7ccd34d88cb134239da6572c32b21d89752b38dd3c28c676"
+},
+{
+"tab": "Lionel Store Parts",
+"sheetId": 187576712,
+"rows": 55955,
+"columns": 26,
+"csv_sha256_at_removal": "fc20de5b88c258f62522d6b675866e02807fc0d73498e3eb16d190c0d618d23e"
+}
+],
+"backup": "Each tab was saved whole (CSV + JSON + sha256) on the owner's computer only, never published; the Roundhouse copy matched the 2026-11-15 record row for row (977 of 977, Row IDs included). No rows are in this record on purpose.",
+"not_changed": "Every other tab. The Lionel train items read from lionel.com stay on their tabs (Brad 2026-11-16 \"the rest leave as is\").",
+"to_put_back": "Re-create the tab from the backup (Roundhouse HO with the same Row IDs) and put the era back in the app's lists."
+}
