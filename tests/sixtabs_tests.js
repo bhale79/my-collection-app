@@ -15,6 +15,13 @@
 //      DIFFERENT cars — each number finds its own car; a Bluford number is tagged
 //      BLUFORD SHOPS · N; the maker filter shows only that maker
 //   P  planted offenders — each turns its own check red
+//
+// noroundhouse (2026-11-16, [stated] Brad 16:36 CT "put it on hold for now"): the
+// Roundhouse HO catalog is ON HOLD until Horizon Hobby gives written permission
+// (tests/noroundhouse_tests.js proves it is out). So A now covers the two Bluford
+// tabs only; B still proves the maker WORD "Roundhouse" (a member's own piece keeps its
+// maker); C keeps Athearn's two real numbers, RND-1166 and RND1166, as the canary for
+// "a dash is part of the number" on stand-in rows of a catalog the app still reads.
 // ═══════════════════════════════════════════════════════════════════════════
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm');
@@ -27,7 +34,6 @@ const J = (o) => String(JSON.stringify(o)).slice(0, 400);
 const NEW = [
   { id: 'bluford_n', tab: 'Bluford Shops N', mfr: 'Bluford Shops', scale: 'N', wic: 'n' },
   { id: 'bluford_ho', tab: 'Bluford Shops HO', mfr: 'Bluford Shops', scale: 'HO', wic: 'ho' },
-  { id: 'roundhouse_ho', tab: 'Roundhouse HO', mfr: 'Roundhouse', scale: 'HO', wic: 'ho' },
 ];
 function world(files) {
   const ctx = { window: {}, console, localStorage: undefined, navigator: { userAgent: 'test' }, location: { hostname: 'test', search: '', origin: 'https://test' }, document: undefined,
@@ -76,8 +82,8 @@ console.log('\n== B · the maker words ==');
 
 console.log('\n== P · planted (config) ==');
 {
-  const p1 = Object.assign({}, FILES, { 'config.js': plant(FILES['config.js'], ", 'bluford_n', 'bluford_ho', 'roundhouse_ho'];", ", 'bluford_n', 'bluford_ho'];", 'REAL_ERA_IDS') });
-  ok('P1 PLANTED (Roundhouse HO left off REAL_ERA_IDS): A goes red', checksA(world(p1)).some(c => !c[1] && /roundhouse_ho: REAL_ERA_IDS/.test(c[0])));
+  const p1 = Object.assign({}, FILES, { 'config.js': plant(FILES['config.js'], ", 'bluford_n', 'bluford_ho'];", ", 'bluford_n'];", 'REAL_ERA_IDS') });
+  ok('P1 PLANTED (Bluford Shops HO left off REAL_ERA_IDS): A goes red', checksA(world(p1)).some(c => !c[1] && /bluford_ho: REAL_ERA_IDS/.test(c[0])));
   const p2 = Object.assign({}, FILES, { 'onboarding-config.js': plant(FILES['onboarding-config.js'], "    'bluford shops': { id: 'bluford shops'", "    'bluford-shops': { id: 'bluford shops'", 'maker key') });
   ok('P2 PLANTED (the maker choice keyed "bluford-shops"): A goes red', checksA(world(p2)).some(c => !c[1] && /bluford_n: the maker choice/.test(c[0])));
   const p3 = Object.assign({}, FILES, { 'config.js': plant(FILES['config.js'], "  bluford_ho:     { items: 'Bluford Shops HO' },", "  bluford_ho:     { items: 'Bluford HO' },", 'tab name') });
@@ -89,12 +95,12 @@ console.log('\n== P · planted (config) ==');
   const h4b = world(p4b).CFG._rrMakerHit("Frank's Roundhouse HO Scale Car");
   ok('P4b PLANTED (the old unanchored "Roundhouse HO"): Frank\'s Roundhouse reads as Roundhouse — B5 would go red', !!h4b && h4b[1] === 'roundhouse', J(h4b));
   const redA = (files, re) => checksA(world(files)).some(c => !c[1] && re.test(c[0]));
-  ok('P6 PLANTED (Roundhouse HO left off ERA_SCALE): A goes red', redA(Object.assign({}, FILES, { 'config.js': plant(FILES['config.js'], "bluford_ho: 'HO', roundhouse_ho: 'HO',", "bluford_ho: 'HO',", 'ERA_SCALE') }), /roundhouse_ho: ERA_SCALE/));
-  ok('P7 PLANTED (Roundhouse\'s maker written "Athearn"): A goes red', redA(Object.assign({}, FILES, { 'config.js': plant(FILES['config.js'], "prefix: 'Roundhouse HO',        manufacturer: 'Roundhouse' }", "prefix: 'Roundhouse HO',        manufacturer: 'Athearn' }", 'ERAS maker') }), /roundhouse_ho: ERAS/));
+  ok('P6 PLANTED (Bluford Shops HO left off ERA_SCALE): A goes red', redA(Object.assign({}, FILES, { 'config.js': plant(FILES['config.js'], "bluford_n: 'N', bluford_ho: 'HO',", "bluford_n: 'N',", 'ERA_SCALE') }), /bluford_ho: ERA_SCALE/));
+  ok('P7 PLANTED (Bluford HO\'s maker written "Bluford"): A goes red', redA(Object.assign({}, FILES, { 'config.js': plant(FILES['config.js'], "prefix: 'Bluford Shops HO',     manufacturer: 'Bluford Shops' }", "prefix: 'Bluford Shops HO',     manufacturer: 'Bluford' }", 'ERAS maker') }), /bluford_ho: ERAS/));
   ok('P8 PLANTED (no Bluford HO badge): A goes red', redA(Object.assign({}, FILES, { 'era-badges-config.js': plant(FILES['era-badges-config.js'], "    bluford_ho:     'BLHO',", "", 'badge') }), /bluford_ho: a badge/));
   ok('P9 PLANTED (no "Bluford Shops" brand label): A goes red', redA(Object.assign({}, FILES, { 'app.js': plant(FILES['app.js'], "'bluford shops':'Bluford Shops', bluford:'Bluford Shops', ", "", 'brand label') }), /bluford_n: the brand label/));
-  ok('P10 PLANTED (Roundhouse HO left out of the browse groups): A goes red', redA(Object.assign({}, FILES, { 'browse.js': plant(FILES['browse.js'], "  roundhouse_ho:  'modern',", "", 'browse group') }), /roundhouse_ho: Master Catalog browse/));
-  ok('P11 PLANTED (Bluford N left out of the What I Collect era order): A goes red', redA(Object.assign({}, FILES, { 'onboarding-config.js': plant(FILES['onboarding-config.js'], "                'bluford_n', 'bluford_ho', 'roundhouse_ho'],", "                'bluford_ho', 'roundhouse_ho'],", 'era order') }), /bluford_n: What I Collect/));
+  ok('P10 PLANTED (Bluford Shops HO left out of the browse groups): A goes red', redA(Object.assign({}, FILES, { 'browse.js': plant(FILES['browse.js'], "  bluford_ho:     'modern',", "", 'browse group') }), /bluford_ho: Master Catalog browse/));
+  ok('P11 PLANTED (Bluford N left out of the What I Collect era order): A goes red', redA(Object.assign({}, FILES, { 'onboarding-config.js': plant(FILES['onboarding-config.js'], "                'bluford_n', 'bluford_ho'],", "                'bluford_ho'],", 'era order') }), /bluford_n: What I Collect/));
 }
 
 // ═════ C · real Chromium, the real app ═════════════════════════════════════
@@ -103,10 +109,12 @@ try { chromium = require('playwright').chromium; } catch (e) { console.log('FAIL
 const L = (tab, era, num, type, desc, extra) => Object.assign({ _tab: tab, _era: era, itemNum: num, itemType: type, description: desc, subType: '', unit: '', poweredDummy: '', roadName: '',
   variation: '', varDesc: '', yearProd: '', gauge: era === 'bluford_n' ? 'N' : 'HO', rowId: (era + num).toUpperCase().replace(/[^A-Z0-9]/g, '') }, extra || {});
 const ROWS = [
-  // Athearn's own pages, read 2026-11-15: two different cars
-  L('Roundhouse HO', 'roundhouse_ho', 'RND-1166', 'Hopper', "24' Ore Car with Load, 8-pack", { roadName: 'Bessemer & Lake Erie', varDesc: '#20621 / #20655 / #20674 / #20717 / #20732 / #20743 / #20801 / #20823', rowId: 'RHDASHORE1' }),
-  L('Roundhouse HO', 'roundhouse_ho', 'RND1166', 'Boxcar', "36' Old Time Wood Box", { roadName: 'Chesapeake & Ohio', varDesc: '#6355', rowId: 'RHPLAINBOX' }),
-  L('Roundhouse HO', 'roundhouse_ho', 'RND1051', 'Boxcar', "40' High Cube Outside Braced Box", { roadName: 'AZER', varDesc: '#77013' }),
+  // Athearn's own pages, read 2026-11-15: two different cars. noroundhouse (2026-11-16):
+  // the Roundhouse catalog is on hold, so these stand on a catalog the app still reads —
+  // the rule under test is "RND-1166 is not RND1166", whichever tab holds the pair.
+  L('Bluford Shops HO', 'bluford_ho', 'RND-1166', 'Hopper', "24' Ore Car with Load, 8-pack", { roadName: 'Bessemer & Lake Erie', varDesc: '#20621 / #20655 / #20674 / #20717 / #20732 / #20743 / #20801 / #20823', rowId: 'RHDASHORE1' }),
+  L('Bluford Shops HO', 'bluford_ho', 'RND1166', 'Boxcar', "36' Old Time Wood Box", { roadName: 'Chesapeake & Ohio', varDesc: '#6355', rowId: 'RHPLAINBOX' }),
+  L('Bluford Shops HO', 'bluford_ho', 'RND1051', 'Boxcar', "40' High Cube Outside Braced Box", { roadName: 'AZER', varDesc: '#77013' }),
   L('Bluford Shops N', 'bluford_n', '60011', 'Hopper', "USRA 30'6\" 2-Bay Hopper", { roadName: 'Baltimore & Ohio', subType: "USRA 30'6\" 2-Bay Hopper" }),
   L('Bluford Shops N', 'bluford_n', '60012', 'Hopper', "USRA 30'6\" 2-Bay Hopper, 2-pack", { roadName: 'Baltimore & Ohio' }),
   L('Bluford Shops HO', 'bluford_ho', '31020', 'Caboose', 'Short Body Bay Window Caboose (Version 1)', { roadName: 'Union Pacific', varDesc: 'yellow; #13737' }),
@@ -163,7 +171,8 @@ async function road(pg) {
     console.log('\n== P · planted (the app) ==');
     {
       const sug = read('wizard-suggestions.js');
-      const bad = plant(sug, "var k = function (v) { return rrNumLinePrefixOff(v).replace(/-(?=[a-z]+$)/, ''); };", "var k = function (v) { return rrNumLinePrefixOff(v).replace(/-/g, ''); };", 'dash-blind number match');
+      // (planted at the function's first line, so it holds whichever way the body is written — officedash moved it onto rrNumKey)
+      const bad = plant(sug, "function rrNumSameAsTyped(rowNum, typed) {", "function rrNumSameAsTyped(rowNum, typed) { var _d = function (v) { return String(v || '').trim().toLowerCase().replace(/-/g, ''); }; if (_d(rowNum) && _d(rowNum) === _d(typed)) return true;", 'dash-blind number match');
       const o = await openApp(browser, { 'wizard-suggestions.js': bad });
       const R2 = await road(o.pg).catch(e => ({ err: String(e) }));
       ok('P5 PLANTED (a number match that ignores every dash): C1 or C2 goes red — RND-1166 and RND1166 become one car', !R2.err && (R2.dash.held !== 'RHDASHORE1' || R2.plain.held !== 'RHPLAINBOX'), R2.err || J([R2.dash.held, R2.plain.held]));

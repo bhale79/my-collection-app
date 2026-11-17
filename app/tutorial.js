@@ -619,6 +619,10 @@ function openHelpHub(opts) {
     // per-page guides gave way to narrated videos, drawn from the ONE list in
     // tutorial-gifs-config.js (rrVideoGroups). A video opens its player ON TOP
     // of this panel, so closing it lands back here — no X + in its row.
+    // 2026-11-16 (helpmanual; [stated] Brad "The regular manual, need to place
+    // it here in the help menu" / "make it downloadable"): the manuals first,
+    // from the ONE list in tutorial-gifs-config.js (rrManualsShown).
+    +   _helpHubManualsHtml(row, hdr)
     +   hdr('Guided tour')
     +   (GUIDES.tour ? row(X + "startGuide('tour');", GUIDES.tour.icon, GUIDES.tour.label, GUIDES.tour.desc) : '')
     +   _helpHubVideosHtml(row, hdr)
@@ -645,6 +649,22 @@ function openHelpHub(opts) {
   document.body.appendChild(modal);
 }
 window.openHelpHub = openHelpHub;
+
+// 2026-11-16 (helpmanual) — the Help Center's Manual block. Each manual this
+// person sees (rrManualsShown, tutorial-gifs-config.js); a tap downloads it.
+// No manual listed → no heading at all.
+function _helpHubManualsHtml(row, hdr) {
+  var list = (typeof rrManualsShown === 'function') ? rrManualsShown() : [];
+  if (!list.length) return '';
+  var esc = function (t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+  var h = hdr('Manual');
+  list.forEach(function (m) {
+    h += row("if(typeof rrManualOpen==='function')rrManualOpen('" + String(m.id).replace(/[^a-z0-9-]/gi, '') + "');",
+      m.icon || '\ud83d\udcd8', esc(m.title), esc(m.desc) + ' \u00B7 Download (PDF, ' + esc(m.size) + ')');
+  });
+  return h;
+}
+window._helpHubManualsHtml = _helpHubManualsHtml;
 
 // v0.9.1987 — the Help Center's Videos block. Every ready video, in its group,
 // from rrVideoGroups() (tutorial-gifs-config.js) — the one list. No video

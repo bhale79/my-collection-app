@@ -4,7 +4,7 @@
 // fetches fresh copies in the background for next load.
 // NEVER caches Google API, OAuth, or Sheets calls.
 
-const CACHE_NAME = 'mca-v2164';
+const CACHE_NAME = 'mca-v2165';
 
 // ── v0.9.1214: the version stamp has to survive as far as the cache ──
 // Brad, on v1213: "im reset twice and it still looks the same." He was
@@ -315,6 +315,11 @@ self.addEventListener('fetch', event => {
   // asks for them in pieces (Range requests, answered 206) which Cache Storage
   // refuses to store anyway. The browser streams them straight from the site.
   if (url.includes('/videos/')) return;
+
+  // 2026-11-16 (helpmanual): the step-by-step manuals (app/manual/, PDFs of
+  // several MB) are never cached either — same reasons as the videos: large,
+  // often never opened, and a kept copy would hide a new edition.
+  if (url.includes('/manual/')) return;
 
   // 2026-11-05 (gift list Stage 2): a STORE's product data (/products/<page>.js
   // on another website, read by rrStoreProduct) is never cached — a kept copy

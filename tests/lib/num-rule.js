@@ -2,7 +2,8 @@
 // tests/lib/num-rule.js — THE product-line prefix rule, read from app/app.js
 // (numspell, 2026-11-10). Lionel writes a modern number two ways — 6-18319
 // and 18319 — and every place in the app asks ONE rule which spellings are
-// the same number: rrNumBare / rrNumFull / rrNumSame / rrNumSpellings.
+// the same number: rrNumBare / rrNumFull / rrNumSame / rrNumSpellings, and
+// (officedash, 2026-11-16) rrNumKey — the key the Add screen and the Office share.
 //
 // A suite that runs real app code in a sandbox (vm, eval, a harness page)
 // loads the rule from here, exactly as app.js writes it — never a copy:
@@ -29,7 +30,7 @@ function numRuleSource(appSrc) {
   const line = (head) => { const a = s.indexOf(head); if (a < 0) throw new Error('num-rule: missing ' + head + ' in app.js'); return s.slice(a, s.indexOf('\n', a)); };
   return [line('var RR_NUM_PREFIX = '), line('var RR_NUM_PREFIX_ERAS = '),
     grab(s, 'function rrNumBare('), grab(s, 'function rrNumFull('),
-    grab(s, 'function rrNumSame('), grab(s, 'function rrNumSpellings(')].join('\n');
+    grab(s, 'function rrNumSame('), grab(s, 'function rrNumSpellings('), grab(s, 'function rrNumKey(')].join('\n');   // officedash: + THE same-number key
 }
 function numRuleGlobal(appSrc) {
   return numRuleSource(appSrc)

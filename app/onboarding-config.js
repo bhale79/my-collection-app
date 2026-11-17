@@ -89,7 +89,7 @@ const WHAT_I_COLLECT = {
                 'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o',
                 'bachmann_on30', 'bachmann_hon30', 'bachmann_all',
                 'ross', 'gargraves',                       // rosstab (2026-11-05): Ross Custom Switches, GarGraves — after the long tail
-                'bluford_n', 'bluford_ho', 'roundhouse_ho'],   // sixtabs (2026-11-15): Bluford Shops, Roundhouse — after the long tail
+                'bluford_n', 'bluford_ho'],   // sixtabs (2026-11-15): Bluford Shops — after the long tail (Roundhouse on hold 2026-11-16, noroundhouse)
 
   // Accent color per era — pulled into card styling.
   eraColors: {
@@ -244,7 +244,6 @@ const WHAT_I_COLLECT = {
     gargraves:      null,  // rosstab: mixed — the row's gauge decides; its What I Collect line sits under all six scales it sells (ERA_SCALES_MULTI.gargraves, [stated] Brad "Under all six scales")
     bluford_n:      'n',   // sixtabs (2026-11-15)
     bluford_ho:     'ho',
-    roundhouse_ho:  'ho',
   },
 
   // ── Session 137: Manufacturer preference (Tier 3.15) ──
@@ -281,7 +280,6 @@ const WHAT_I_COLLECT = {
     'ross custom switches': { id: 'ross custom switches', label: 'Ross Custom Switches', default: false },   // rosstab: key = ERAS.ross.manufacturer lowercased (an allow-list — a mismatch HIDES the tab)
     gargraves: { id: 'gargraves', label: 'GarGraves', default: false },   // rosstab: key = ERAS.gargraves.manufacturer lowercased
     'bluford shops': { id: 'bluford shops', label: 'Bluford Shops', default: false },   // sixtabs (2026-11-15): key = ERAS.bluford_*.manufacturer lowercased (an allow-list — a mismatch HIDES the tabs)
-    roundhouse: { id: 'roundhouse', label: 'Roundhouse', default: false },             // sixtabs: key = ERAS.roundhouse_ho.manufacturer lowercased
     // v0.9.1159 — these three makers have had ERAS entries, master tabs and
     // catalog rows since 2026-07-28, but were never added here, so they could not
     // be picked in the manufacturer chip OR in "What I Collect" — and because the
@@ -456,7 +454,6 @@ WHAT_I_COLLECT.eraColors.ross = WHAT_I_COLLECT.eraColors.weaver;   // rosstab: b
 WHAT_I_COLLECT.eraColors.gargraves = WHAT_I_COLLECT.eraColors.menards;   // rosstab: same
 WHAT_I_COLLECT.eraColors.bluford_n = WHAT_I_COLLECT.eraColors.kato_n;     // sixtabs (2026-11-15): by reference — no new literal for the colour ratchet
 WHAT_I_COLLECT.eraColors.bluford_ho = WHAT_I_COLLECT.eraColors.kato_ho;
-WHAT_I_COLLECT.eraColors.roundhouse_ho = WHAT_I_COLLECT.eraColors.bachmann_ho;
 WHAT_I_COLLECT.eraColors.lionel_parts = WHAT_I_COLLECT.eraColors.pw;   // v0.9.1749: by reference; the picker never shows it
 WHAT_I_COLLECT.eraColors.mth_parts = WHAT_I_COLLECT.eraColors.mth_o;   // v0.9.1750: same
 WHAT_I_COLLECT.eraColors.traintender_parts = WHAT_I_COLLECT.eraColors.pw;   // v0.9.1755: same

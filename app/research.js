@@ -332,7 +332,7 @@
     'marklin_h0', 'marklin_z', 'marklin_1',   // v0.9.1693: missed in v1690 — the research page groups by period
     'kato_n', 'kato_ho', 'kato_parts',
     'ross', 'gargraves',      // rosstab (2026-11-05): Ross Custom Switches, GarGraves — current makers
-    'bluford_n', 'bluford_ho', 'roundhouse_ho'] };   // sixtabs (2026-11-15): Bluford Shops, Roundhouse — current makers
+    'bluford_n', 'bluford_ho'] };   // sixtabs (2026-11-15): Bluford Shops — current makers (Roundhouse on hold 2026-11-16, noroundhouse)
   function _filterHits(list, opts) {
     var r = list || [];
     opts = opts || {};

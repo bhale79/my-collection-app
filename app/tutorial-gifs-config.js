@@ -228,3 +228,62 @@ window.rrVideoGroups = rrVideoGroups;
 
   window.rrPlayVideo = rrPlayVideo;
 })();
+
+// ═══════════════════════════════════════════════════════════
+// THE STEP-BY-STEP MANUALS — 2026-11-16 (helpmanual)
+// [stated] Brad 06:21 CT "The regular manual, need to place it here in the
+// help menu" → 06:22 CT "make it downloadable" → 06:24 CT "yes" to the plan.
+//
+// Two PDFs in app/manual/, made by the manual build on Brad's PC
+// (_Claude_Work_Files\app_manual\: manual_src.py is the words, shots.js takes
+// the pictures from the live app, build.py makes both PDFs from one source).
+//
+// TO PUT OUT A NEW EDITION — one step, no other code: replace the PDF in
+// app/manual/ (same file name) and update its `size` and `desc` below.
+// tests/help_manual_tests.js fails if a listed PDF is missing, if its `size`
+// does not match the real file, or if a file sits in app/manual/ that this
+// list does not use (the repo keeps every byte forever).
+//
+// A manual with `features` shows only to someone with at least one of those
+// beta switches on (rrFeatureOn, config.js — the one test); they are the
+// switches of the Beta Manual's pages. A beta page for a new switch → add the
+// switch here too.
+//
+// The manuals are NOT kept by the offline cache (sw.js skips /manual/) — they
+// are large and a phone may never open one.
+// ═══════════════════════════════════════════════════════════
+var RR_MANUAL_FOLDER = './manual/';
+var RR_MANUALS = [
+  { id: 'main', file: 'The_Rail_Roster_Manual.pdf', icon: '📘', title: 'The Rail Roster Manual',
+    desc: 'Every feature, step by step — November 2026 edition', size: '5.9 MB' },
+  { id: 'beta', file: 'The_Rail_Roster_Beta_Manual.pdf', icon: '📙', title: 'Beta Manual',
+    desc: 'The features our beta testers are trying', size: '0.8 MB',
+    features: ['maintenance', 'appearance', 'giftlist'] },
+];
+// The manuals this person sees, in list order — the ONE reader.
+function rrManualsShown() {
+  return RR_MANUALS.filter(function (m) {
+    if (!m.features) return true;
+    return (typeof rrFeatureOn === 'function') && m.features.some(function (f) { return rrFeatureOn(f); });
+  });
+}
+// Download one manual. A computer saves the PDF; a phone opens it in its own
+// PDF viewer, where its Share button saves it.
+function rrManualOpen(id) {
+  var m = RR_MANUALS.filter(function (x) { return x.id === id; })[0];
+  if (!m) return;
+  var a = document.createElement('a');
+  a.href = RR_MANUAL_FOLDER + m.file;
+  a.download = m.file;
+  a.target = '_blank';
+  a.rel = 'noopener';
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function () { if (a.parentNode) a.parentNode.removeChild(a); }, 0);
+}
+if (typeof window !== 'undefined') {
+  window.RR_MANUALS = RR_MANUALS;
+  window.rrManualsShown = rrManualsShown;
+  window.rrManualOpen = rrManualOpen;
+}

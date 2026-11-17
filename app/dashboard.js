@@ -327,6 +327,11 @@ function _eraOf(pd) {
   // Returns era key for a personal data item. Handles various era formats.
   var e = (pd.era || '').toLowerCase().trim();
   if (e && ERAS[e]) return e;
+  // noroundhouse (2026-11-16): a piece saved from a catalog that is now on hold
+  // (RETIRED_ERA_IDS, config.js) keeps its own era. Without this line it fell through
+  // to the last line below and was counted as a Postwar piece. Every caller buckets by
+  // this key and then walks ERAS, so a key with no ERAS entry is simply on no card.
+  if (e && typeof RETIRED_ERA_IDS !== 'undefined' && RETIRED_ERA_IDS.indexOf(e) >= 0) return e;
   // Map full names and variants to era keys
   if (e === 'postwar' || e === 'post-war') return 'pw';
   if (e === 'modern' || e === 'mod') return 'mod';

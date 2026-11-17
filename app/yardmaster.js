@@ -1124,9 +1124,12 @@
     var fm = String(dd.flag || '').match(/needs a tab \u2014 (?:no tab yet for )?(.+?)(?: has several)?(?:;|$)/);
     return (fm && fm[1].trim() !== 'no maker given') ? fm[1].trim() : '';
   }
-  // the cross-run duplicate key: number + variation (+ maker when known)
+  // the cross-run duplicate key: number + variation (+ maker when known).
+  // officedash (2026-11-16): the number part is rrNumKey (app.js) — the Add
+  // screen's same-number rule; it used to strip every dash, so RND-1166 and
+  // RND1166 (two Athearn cars) were one key.
   function _ymDupKey(mfr, num, variation) {
-    var k = String(num || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '') + '|' + String(variation || '').trim().toLowerCase();
+    var k = rrNumKey(num) + '|' + String(variation || '').trim().toLowerCase();
     var m = _ymMakerNorm(mfr);
     return m ? m + '|' + k : k;
   }
@@ -1185,10 +1188,10 @@
         var mg = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + MID2 + '/values:batchGet?' + tabsAll.map(function (t) { return 'ranges=' + encodeURIComponent("'" + t + "'!A2:A"); }).join('&'), { headers: H });
         if (!mg.ok) throw new Error('master read ' + mg.status);
         ((await mg.json()).valueRanges || []).forEach(function (vr, i) {
-          (vr.values || []).forEach(function (r) { var n = String(r[0] == null ? '' : r[0]).trim().toUpperCase().replace(/[^A-Z0-9]/g, ''); if (n && !inMaster[n]) inMaster[n] = tabsAll[i]; });
+          (vr.values || []).forEach(function (r) { var n = rrNumKey(r[0]); if (n && !inMaster[n]) inMaster[n] = tabsAll[i]; });   // officedash: rrNumKey, never strip every dash
         });
       } catch (e) { throw new Error('could not read the master item numbers \u2014 nothing was queued (try again)'); }
-      var normNum = function (n) { return String(n || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, ''); };
+      var normNum = rrNumKey;   // officedash: the same key as the master read above (app.js)
       // v0.9.1714: a number already WAITING in the queue is not queued again
       // (the 2026-09-11 batch held 565 second copies from a second run). The
       // filing is stamped queued — it IS in the queue, as the first copy.

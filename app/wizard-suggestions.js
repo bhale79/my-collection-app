@@ -1094,8 +1094,7 @@ function rrNumSameAsTyped(rowNum, typed) {
   var a = String(rowNum || '').trim().toLowerCase(), b = String(typed || '').trim().toLowerCase();
   if (!a || !b) return false;
   if (a === b) return true;
-  var k = function (v) { return rrNumLinePrefixOff(v).replace(/-(?=[a-z]+$)/, ''); };
-  return k(a) === k(b);
+  return rrNumKey(a) === rrNumKey(b);   // officedash: THE same-number key (app.js) — the Office uses it too
 }
 // The maker word for a catalog row ("MTH", "RMT"), the way the badges say it.
 function rrRowMakerWord(m) {

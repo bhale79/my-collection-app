@@ -1870,7 +1870,20 @@ function rrNumSpellings(n, opts) {
   }
   return out;
 }
-if (typeof window !== 'undefined') { window.rrNumBare = rrNumBare; window.rrNumFull = rrNumFull; window.rrNumSame = rrNumSame; window.rrNumSpellings = rrNumSpellings; }
+// officedash (2026-11-16, [stated] Brad 06:06 CT "yes and ship it"): THE key for
+// "the same catalog number" — the Add screen's rule (rrNumSameAsTyped) and the
+// Office's community check (yardmaster.js _ymDupKey, the master read, normNum)
+// both use it. Case and the edges never matter; the one-digit line prefix comes
+// off (rrNumBare: 6-31705 = 31705); a dash right before letters at the END does
+// not count (2343-P = 2343P, 1076-L = 1076L). EVERY OTHER character counts:
+// Athearn's RND-1166 (ore car) and RND1166 (boxcar) are two cars; Postwar
+// 6464-1 is not 64641; MTH 20-66238 is not 2066238. The Office used to strip
+// every dash and space, so a member's RND1166 was stamped "already in the
+// catalog" because RND-1166 exists.
+function rrNumKey(n) {
+  return rrNumBare(String(n == null ? '' : n).trim()).toUpperCase().replace(/-(?=[A-Z]+$)/, '');
+}
+if (typeof window !== 'undefined') { window.rrNumBare = rrNumBare; window.rrNumFull = rrNumFull; window.rrNumSame = rrNumSame; window.rrNumSpellings = rrNumSpellings; window.rrNumKey = rrNumKey; }
 
 // ── 2026-11-05: THE leading-zero rule (PLAN_2026-11-05_LEADING_ZEROS) ───────
 // [stated] Brad 06:16 CT: "on the leading zero, does are app not handle that

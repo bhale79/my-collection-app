@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2154';
+const APP_VERSION = 'v0.9.2155';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -2064,10 +2064,19 @@ const ERAS = {
   // Athearn writes RND-1166 and RND1166 for two DIFFERENT cars; the number is kept as written.
   bluford_n:      { id: 'bluford_n',      label: 'Bluford Shops N',      years: 'All', prefix: 'Bluford Shops N',      manufacturer: 'Bluford Shops' },
   bluford_ho:     { id: 'bluford_ho',     label: 'Bluford Shops HO',     years: 'All', prefix: 'Bluford Shops HO',     manufacturer: 'Bluford Shops' },
-  roundhouse_ho:  { id: 'roundhouse_ho',  label: 'Roundhouse HO',        years: 'All', prefix: 'Roundhouse HO',        manufacturer: 'Roundhouse' },
+  // noroundhouse (2026-11-16, [stated] Brad 16:36 CT "put it on hold for now"): the
+  // 'Roundhouse HO' catalog (era id roundhouse_ho, every row read from athearn.com) is ON
+  // HOLD until Horizon Hobby, Athearn's parent, gives written permission — athearn.com's
+  // terms allow copying only to order or for authorized retailers. Out of every catalog
+  // list in this file (this table, the real-era ids, the scale map, the tab map), and on
+  // the retired list below so every device drops the copy it saved. The master tab is
+  // untouched. The maker WORDS (the maker-word list, the brand label, the RHO badge)
+  // stay: a member's own Roundhouse piece is still a Roundhouse piece. To put it back:
+  // DEPLOY_noroundhouse_READY.md. (No list is NAMED in this comment on purpose: tests
+  // find a list by the first place its name appears in this file.)
 };
 // Real-era IDs in load priority order (excluding 'all' meta-era).
-const REAL_ERA_IDS = ['pw', 'mpc', 'mod_ho', 'mod_s', 'af_gilbert', 'am_s', 'shelper', 'prewar', 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'marklin_h0', 'marklin_z', 'marklin_1', 'kato_n', 'kato_ho', 'kato_parts', 'microtrains_n', 'trepro', 'lionel_parts', 'mth_parts', 'traintender_parts', 'atlas_parts', 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb', 'kline', 'williams', 'marx', 'other_o', 'aristocraft', 'accucraft', 'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o', 'bachmann_on30', 'bachmann_hon30', 'bachmann_all', 'ross', 'gargraves', 'bluford_n', 'bluford_ho', 'roundhouse_ho'];
+const REAL_ERA_IDS = ['pw', 'mpc', 'mod_ho', 'mod_s', 'af_gilbert', 'am_s', 'shelper', 'prewar', 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'marklin_h0', 'marklin_z', 'marklin_1', 'kato_n', 'kato_ho', 'kato_parts', 'microtrains_n', 'trepro', 'lionel_parts', 'mth_parts', 'traintender_parts', 'atlas_parts', 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb', 'kline', 'williams', 'marx', 'other_o', 'aristocraft', 'accucraft', 'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o', 'bachmann_on30', 'bachmann_hon30', 'bachmann_all', 'ross', 'gargraves', 'bluford_n', 'bluford_ho'];
 // v0.9.1749: eras that exist for LOOKUPS ONLY. They are in REAL_ERA_IDS (so
 // the background full-catalog index fetches and caches them, and the
 // Yardmaster can file rows into their tab) but _isEraEnabled says no for
@@ -2080,7 +2089,9 @@ if (typeof window !== 'undefined') window.LOOKUP_ONLY_ERAS = LOOKUP_ONLY_ERAS;
 // copy on each device is deleted on start (_rrRetiredCatalogSweep, app-data.js), so data
 // we were asked to take down does not linger in a member's browser. An id here must not
 // also be in REAL_ERA_IDS (tests/nolionelstore_tests.js).
-const RETIRED_ERA_IDS = ['lionelstore_parts'];
+// noroundhouse (2026-11-16): + roundhouse_ho — ON HOLD, not gone for good (see ERAS above;
+// tests/noroundhouse_tests.js).
+const RETIRED_ERA_IDS = ['lionelstore_parts', 'roundhouse_ho'];
 if (typeof window !== 'undefined') window.RETIRED_ERA_IDS = RETIRED_ERA_IDS;
 // v0.9.1934 — DUAL-SCALE ROWS FOLLOW EITHER LINE (Brad: "yes" — keep ONE row,
 // show it to both). Kato sells power packs, turnout switches, cords and
@@ -2114,7 +2125,7 @@ const ERA_SCALE = {
   marklin_h0: 'HO', marklin_z: 'Z', marklin_1: 'G',   // v0.9.1690 — Maerklin Gauge 1 is 1:32 on 45mm track, the same track as G
   kato_n: 'N', kato_ho: 'HO', kato_parts: '',   // v0.9.1693 — parts span both scales; blank on purpose (same meaning as bachmann_all)
   microtrains_n: 'N',   // v0.9.1719
-  bluford_n: 'N', bluford_ho: 'HO', roundhouse_ho: 'HO',   // sixtabs (2026-11-15)
+  bluford_n: 'N', bluford_ho: 'HO',   // sixtabs (2026-11-15); roundhouse_ho on hold 2026-11-16 (noroundhouse)
   lionel_parts: '',   // v0.9.1749 — parts span O and S; blank on purpose (same meaning as kato_parts)
   mth_parts: '',      // v0.9.1750 — parts span O, HO, S, G and tinplate; blank on purpose
   traintender_parts: '',   // v0.9.1755 — parts span O, OO and G; blank on purpose (the row's Gauge column says which)
@@ -2775,7 +2786,6 @@ const ERA_TABS = {
   gargraves:      { items: 'GarGraves' },              // rosstab — the tab's exact name
   bluford_n:      { items: 'Bluford Shops N' },        // sixtabs (2026-11-15) — the tabs' exact names
   bluford_ho:     { items: 'Bluford Shops HO' },
-  roundhouse_ho:  { items: 'Roundhouse HO' },
 };
 
 // ═══════════════════════════════════════════════════════════════════
