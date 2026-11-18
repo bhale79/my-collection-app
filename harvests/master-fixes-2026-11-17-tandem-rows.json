@@ -3566,7 +3566,7 @@
    "column": "Notes",
    "cell": "'Lionel PW - Items'!N1410",
    "oldSha256": "212865e1b3856016f8e73424a30b96e3e9f70ac7eefc1acdc3f6b26987946857",
-   "new": "Tandem-sourced (variation d); paraphrased — Tandem URL internal use only Facts from Tandem Associates; wording ours (rewritten 2026-11-17). This row held a broken text fragment, not a variation.",
+   "new": "Facts from Tandem Associates; wording ours (rewritten 2026-11-17). This row held a broken text fragment, not a variation.",
    "why": "Facts kept, wording ours; the old cell held Tandem Associates wording."
   },
   {
@@ -4010,7 +4010,7 @@
    "column": "Notes",
    "cell": "'Lionel PW - Items'!N1561",
    "oldSha256": "346965a7c3e28948ef47fa7a7e84076cdaee6dce36f53ab2cc5520c8db311e1c",
-   "new": "Reference book variation 3, kept as variation 5 — COTT lists no apple green finish for the 455 anywhere. Book text was truncated on import and has been trimmed to its last complete sentence; the book page is the fix, not this text. Facts from Tandem Associates; wording ours (rewritten 2026-11-17). Not on COTT yet.",
+   "new": "Reference book variation 3, kept as variation 5 — COTT lists no apple green finish for the 455 anywhere. Book text was truncated on import and has been trimmed to its last complete sentence; the book page is the fix, not this text. Wording ours (rewritten 2026-11-17).",
    "why": "Facts kept, wording ours; the old cell held Tandem Associates wording."
   },
   {
@@ -4046,7 +4046,7 @@
    "column": "Notes",
    "cell": "'Lionel PW - Items'!N1562",
    "oldSha256": "28fb3765b3c8f2a845bce6952ead64cb24249fde30a3dbcbc41e34beef0b7a3f",
-   "new": "Reference book variation 4, kept as variation 6 — the book describes a MATCHING pale green top where COTT A0585 (variation 1) describes a RED top on the same pale green derrick. The sources conflict; both are kept so the disagreement stays visible. Book text was truncated on import and has been trimmed to its last complete sentence. Facts from Tandem Associates; wording ours (rewritten 2026-11-17). Not on COTT yet.",
+   "new": "Reference book variation 4, kept as variation 6 — the book describes a MATCHING pale green top where COTT A0585 (variation 1) describes a RED top on the same pale green derrick. The sources conflict; both are kept so the disagreement stays visible. Book text was truncated on import and has been trimmed to its last complete sentence. Wording ours (rewritten 2026-11-17).",
    "why": "Facts kept, wording ours; the old cell held Tandem Associates wording."
   },
   {
@@ -4070,7 +4070,7 @@
    "column": "Notes",
    "cell": "'Lionel PW - Items'!N899",
    "oldSha256": "48d7a0dbb933602a1b15f877f48ad492405bfef7f33a41e8441b4db483c1cba4",
-   "new": "Facts from Tandem Associates; wording ours (rewritten 2026-11-17). Not on COTT yet. Same car as COTT row 2442 variation 1 (P0124); duplicate flagged, not removed.",
+   "new": "Facts from Tandem Associates; wording ours (rewritten 2026-11-17). Same car as COTT row 2442 variation 1 (P0124); duplicate flagged, not removed.",
    "why": "Facts kept, wording ours; the old cell held Tandem Associates wording."
   },
   {
@@ -4106,8 +4106,9 @@
    "column": "Notes",
    "cell": "'Lionel PW - Items'!N900",
    "oldSha256": "ce0dc31556068ac1975498ab95b57dfc0dd5b0f2c71f6aaa2302b20f2e043d2d",
-   "new": "Facts from Tandem Associates; wording ours (rewritten 2026-11-17). Not on COTT yet. Same car as COTT row 2442 variation 2 (P0124); duplicate flagged, not removed.",
+   "new": "Facts from Tandem Associates; wording ours (rewritten 2026-11-17). Same car as COTT row 2442 variation 2 (P0124); duplicate flagged, not removed.",
    "why": "Facts kept, wording ours; the old cell held Tandem Associates wording."
   }
- ]
+ ],
+ "corrected": "2026-11-18: 5 Notes cells (364 v1; 455 v5 and v6; 2442SM v1 and v2) now show the wording actually written to the sheet; no other cell differs from the first commit of this record (657df75d). Master Version 3.01."
 }
