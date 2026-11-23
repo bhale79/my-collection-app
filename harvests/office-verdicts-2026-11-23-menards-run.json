@@ -1,0 +1,56 @@
+{
+ "title": "Office verdicts — Menards run of 2026-11-23 (6 new items), approved",
+ "rule": "status approved/edited/rejected + decided date in P:Q; set = crawl_deltas cells by header; before = value the cell must hold now",
+ "review": "Task38_crawl\\weekly\\reports\\2026-11-23_W1-menards.md",
+ "said": "[stated] Brad 2026-11-23 16:42 CT \"run the menards run\"; 16:50 CT \"yes, Approve inserting the master version\"",
+ "rows": [
+  {
+   "delta_id": "CB-MENARDS-20261123-00001",
+   "batch": "CB-MENARDS-20261123",
+   "item_num": "275-9579",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-MENARDS-20261123-00002",
+   "batch": "CB-MENARDS-20261123",
+   "item_num": "275-9745",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-MENARDS-20261123-00003",
+   "batch": "CB-MENARDS-20261123",
+   "item_num": "275-9758",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-MENARDS-20261123-00004",
+   "batch": "CB-MENARDS-20261123",
+   "item_num": "275-9769",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-MENARDS-20261123-00005",
+   "batch": "CB-MENARDS-20261123",
+   "item_num": "275-9770",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-MENARDS-20261123-00006",
+   "batch": "CB-MENARDS-20261123",
+   "item_num": "275-9842",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  }
+ ]
+}
