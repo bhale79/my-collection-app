@@ -104,7 +104,7 @@ async function walkB(browser, planted) {
   const { pg, errs } = await open(browser, planted);
   const R = {};
   await pg.click('#mnav-collection'); await sleep(pg, 300);
-  await pg.click('#rr-mysets-door'); await sleep(pg, 300);
+  await require('./open-my-sets').openMySets(pg);   // 2026-11-22 (mysetsfilter): the Type list's Sets line, not the old button
   await openCard(pg, '#browse-sets-cards [data-my-set-card="203"]');
   R.page = await at(pg);
   R.b1 = await back(pg);          // → My Sets

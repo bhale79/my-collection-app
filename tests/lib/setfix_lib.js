@@ -648,8 +648,7 @@ async function removeWalk(browser, viewport, planted) {
   // R1–R3: My Collection → My Sets → the catalog set's page → Remove → Keep
   if (phone) await pg.click('#mnav-collection'); else await pg.click('.nav-item[onclick*="filterOwned"]');
   await sleep(pg, 250);
-  const door = await pg.$('#rr-mysets-door');
-  if (door && await door.isVisible()) { await door.click(); await sleep(pg, 250); }
+  await require('./open-my-sets').openMySets(pg);   // 2026-11-22 (mysetsfilter): the Type list's Sets line, not the old button
   const rowSel = phone ? '#browse-sets-cards [data-my-set-card="M1"]' : '#browse-sets-tbody tr[onclick*="M1"]';
   const row = await pg.$(rowSel);
   if (row && await row.isVisible()) { await row.click(); await sleep(pg, 350); }

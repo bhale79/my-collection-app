@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2156';
+const APP_VERSION = 'v0.9.2157';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -5914,7 +5914,18 @@ const RR_OWN_SETS = {
   // app shows the My Sets list"). My Collection's door to the list of the sets
   // you own, the list's heading, its way back, and the mark on a catalog set
   // you own. {n} = how many sets the list shows.
-  door:         '🎁 My Sets ({n})',
+  // 2026-11-22 (mysetsfilter — [stated] Brad: "why is sets separated like
+  // that, that should just be a filter not its own thing" → "what about
+  // under collections"): the title-row button is GONE. The door is now a
+  // line in the Type list's "My Collection" section (browse.js
+  // _openLevelPicker), beside Catalogs (all) and Paper Items. typeLine is
+  // its words (the count is added the way every Type line gets one) and the
+  // Type pill's words while the list is on screen; typeHead is the
+  // section's heading when no paper or catalog line put one there; typeId
+  // is the picker's value for it — never a Type a row can carry.
+  typeLine:     'Sets',
+  typeHead:     'My Collection',
+  typeId:       '__rr_my_sets__',
   myTitle:      'My Sets',
   back:         '← Back to My Collection',
   pageBack:     'Back to My Sets',   // a set's page, opened from My Sets (app-collection.js)

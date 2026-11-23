@@ -10,8 +10,15 @@
 // The list existed — renderSetsTab in My Collection mode — with no door to it,
 // and on a phone it drew nothing (the app hides every table on a phone).
 //
-//   A  phone: from My Collection (bottom-bar Collection) a visible "My Sets"
-//      button opens the list; an own set and an owned catalog set are both
+// 2026-11-22 (mysetsfilter): the door is no longer a title-row button — it is
+// the "Sets (n)" line in the Type list's "My Collection" section (Brad: "that
+// should just be a filter not its own thing"). Every walk below opens My Sets
+// the way a collector now does: Filters → Type → Sets on the phone, Type ▾ →
+// Sets on the computer. "door" in the checks is that line's number now; the
+// new entry point itself is proven in mysetsfilter_tests.js.
+//
+//   A  phone: from My Collection (bottom-bar Collection) the Type list's
+//      "Sets (n)" line opens the list; an own set and an owned catalog set are both
 //      cards, the own set badged "Your set"; tapping each opens its set page
 //      (its Back button says "Back to My Sets" and goes there); "Back to My
 //      Collection" works; a key and a name with quotes still open
@@ -121,7 +128,8 @@ const LOOK = `(() => {
   return {
     active,
     tab: state._browseTab,
-    door: vis(door) ? t(door) : '',
+    door: vis(door) ? t(door) : '',   // the old title-row button — must never come back
+    pill: /Sets\u00d7/.test(t(document.getElementById('hierarchy-chips') || document.body)),
     panel: vis(panel),
     head: vis(head) ? t(head) : '',
     count: cnt ? t(cnt) : '',
@@ -134,6 +142,9 @@ const LOOK = `(() => {
 })()`;
 const sleep = (pg, ms) => pg.waitForTimeout(ms);
 const doorN = d => { const m = String(d || '').match(/\((\d+)\)/); return m ? +m[1] : -1; };
+// 2026-11-22 (mysetsfilter): the door is the Type list's "Sets (n)" line — opened
+// and read through the ONE test helper (tests/lib/open-my-sets.js).
+const { setsLine: typeLine, openMySets } = require('./lib/open-my-sets');
 const PAGE = () => ({ active: (document.querySelector('.page.active') || {}).id,
   page: (document.getElementById('item-detail-content').textContent || '').replace(/\s+/g, ' '), popups: window._popups || [] });
 
@@ -146,8 +157,8 @@ async function phoneWalk(browser, planted, part) {
   await pg.click('#mnav-collection'); await sleep(pg, 250);
   R.coll = await pg.evaluate(LOOK);
   if (part === 'bottom') return bottomSets();
-  const door = await pg.$('#rr-mysets-door');
-  if (door && await door.isVisible()) { await door.click(); await sleep(pg, 250); }
+  R.collLine = await typeLine(pg);
+  await openMySets(pg);
   R.list = await pg.evaluate(LOOK);
   const tapCard = async (key) => {
     await pg.evaluate(() => { document.getElementById('item-detail-content').innerHTML = ''; window._popups = []; });
@@ -160,6 +171,7 @@ async function phoneWalk(browser, planted, part) {
     const back = await pg.$('#rr-mysets-head button');
     if (back && await back.isVisible()) { await back.click(); await sleep(pg, 250); }
     R.backToColl = await pg.evaluate(LOOK);
+    R.backToCollLine = await typeLine(pg);
   };
   if (part === 'list') return done();
   if (part === 'quoted') { R.quoted = await tapCard(QKEY); return done(); }
@@ -199,12 +211,10 @@ async function backWalk(browser, planted) {
   const back = async () => { await pg.evaluate(() => { if ((history.state || {}).appPage !== 'base') history.back(); }); await sleep(pg, 450); return pg.evaluate(LOOK); };
   await pg.click('#mnav-dashboard'); await sleep(pg, 150);
   await pg.click('#mnav-collection'); await sleep(pg, 250);
-  const door = await pg.$('#rr-mysets-door');
-  if (door && await door.isVisible()) { await door.click(); await sleep(pg, 250); }
+  await openMySets(pg);
   R.opened = await pg.evaluate(LOOK);
   R.back1 = await back();                                   // My Sets → My Collection
-  const door2 = await pg.$('#rr-mysets-door');
-  if (door2 && await door2.isVisible()) { await door2.click(); await sleep(pg, 250); }
+  await openMySets(pg);
   const c = await pg.$('#browse-sets-cards [data-my-set-card="201"]');
   if (c && await c.isVisible()) { await c.click(); await sleep(pg, 350); }
   R.onPage = await pg.evaluate(LOOK);
@@ -221,22 +231,22 @@ async function followWalk(browser, planted) {
   {
     const { pg, errs } = await open(browser, DESK, planted, { noSets: true });
     await pg.click('.nav-item[onclick*="filterOwned"]'); await sleep(pg, 250);
-    R.coldBefore = await pg.evaluate(LOOK);
+    R.coldBefore = await pg.evaluate(LOOK); R.coldBefore.line = await typeLine(pg);
     // the sheet load that brings the sets in later ends with a repaint (app-data.js → renderBrowse)
     await pg.evaluate(() => { state.mySetsData = { '203': { row: 42, setNum: '1467W', setName: 'Erie Alco Freight', year: '1955', groupId: 'SET-1467W-1', setId: 'SET-1467W', inventoryId: '203' } }; renderBrowse(); });
     await sleep(pg, 200);
-    R.coldAfter = await pg.evaluate(LOOK);
+    R.coldAfter = await pg.evaluate(LOOK); R.coldAfter.line = await typeLine(pg);
     // a set saved (the wizard's save ends with renderBrowse)
     await pg.evaluate(() => { state.mySetsData['301'] = { row: 50, setNum: '', setName: 'Saved Now', year: '', groupId: '', setId: 'OWN-SET', inventoryId: '301' }; renderBrowse(); });
     await sleep(pg, 200);
-    R.saved = await pg.evaluate(LOOK);
+    R.saved = await pg.evaluate(LOOK); R.saved.line = await typeLine(pg);
     R.errsA = errs;
     await pg.close();
   }
   {
     const { pg, errs } = await open(browser, DESK, planted);
     await pg.click('.nav-item[onclick*="filterOwned"]'); await sleep(pg, 250);
-    await pg.click('#rr-mysets-door').catch(() => {}); await sleep(pg, 250);
+    await openMySets(pg);
     R.beforeRemove = await pg.evaluate(LOOK);
     await pg.evaluate(async () => { await _removeOwnedSet('204'); }); await sleep(pg, 300);
     R.afterRemove = await pg.evaluate(LOOK);
@@ -244,12 +254,12 @@ async function followWalk(browser, planted) {
     await pg.evaluate(() => { delete state.mySetsData['201']; renderBrowse(); }); await sleep(pg, 200);
     R.afterRefresh = await pg.evaluate(LOOK);
     const b = await pg.$('#rr-mysets-head button'); if (b) { await b.click(); await sleep(pg, 250); }
-    R.collAfter = await pg.evaluate(LOOK);
+    R.collAfter = await pg.evaluate(LOOK); R.collAfter.line = await typeLine(pg);
     // G — share mode hides the button; ending it brings it back
     await pg.evaluate(() => startShareMode('collection')); await sleep(pg, 250);
-    R.sharing = await pg.evaluate(LOOK);
+    R.sharing = await pg.evaluate(LOOK); R.sharing.line = await typeLine(pg);
     await pg.evaluate(() => cancelShareMode()); await sleep(pg, 250);
-    R.shareDone = await pg.evaluate(LOOK);
+    R.shareDone = await pg.evaluate(LOOK); R.shareDone.line = await typeLine(pg);
     R.errsB = errs;
     await pg.close();
   }
@@ -264,9 +274,9 @@ async function deskWalk(browser, planted, part) {
   const done = async () => { R.errs = errs; await pg.close(); return R; };
   await pg.click('.nav-item[onclick*="filterOwned"]'); await sleep(pg, 250);
   R.coll = await pg.evaluate(LOOK);
+  R.collLine = await typeLine(pg);
   if (part === 'master') return master();
-  const door = await pg.$('#rr-mysets-door');
-  if (door && await door.isVisible()) { await door.click(); await sleep(pg, 250); }
+  await openMySets(pg);
   R.list = await pg.evaluate(LOOK);
   const tapRow = async (attr, key) => {
     await pg.evaluate(() => { document.getElementById('item-detail-content').innerHTML = ''; window._popups = []; });
@@ -286,6 +296,7 @@ async function deskWalk(browser, planted, part) {
   async function master() {
     await pg.click('.nav-item[onclick*="resetFilters"]'); await sleep(pg, 250);
     R.mCatalog = await pg.evaluate(LOOK);
+    R.mLine = await pg.evaluate(() => { _openLevelPicker('type'); const b = [...document.querySelectorAll('#ph-picker-overlay button')].find(x => /^Sets \(\d+\)/.test(x.textContent.trim())); const w = b ? b.textContent.trim() : ''; const o = document.getElementById('ph-picker-overlay'); if (o) o.remove(); return w; });
     await pg.evaluate(() => { const s = document.getElementById('browse-sets-search'); if (s) s.value = ''; renderBrowseTab('sets'); }); await sleep(pg, 200);
     R.mSets = await pg.evaluate(LOOK);
     await pg.evaluate(() => { window._popups = []; });
@@ -319,26 +330,26 @@ function pool(n) {
     // ── A — the phone ─────────────────────────────────────────────────
     const A = await pA;
     T('setup: the page is a phone', A.isPhone, true);
-    T('A1 phone, My Collection: a visible button reads "My Sets (4)"', /My Sets \(4\)/.test(A.coll.door), true);
-    T('A2 phone: the button opens the My Sets list, headed "My Sets" with a way back', [A.list.panel, /My Sets/.test(A.list.head), /Back to My Collection/.test(A.list.head)], [true, true, true]);
+    T('A1 phone, My Collection: the Type list reads "Sets (4)", and no title-row button', [A.collLine, A.coll.door], ['Sets (4)', '']);
+    T('A2 phone: the line opens the My Sets list, headed "My Sets" with a way back', [A.list.panel, /My Sets/.test(A.list.head), /Back to My Collection/.test(A.list.head)], [true, true, true]);
     T('A3 phone: every set you own is a card (4)', A.list.cards.length, 4);
     T('A4 phone: the own set is a card with its name, badged "Your set"', /30-4621/.test(A.list.cardByKey['201'] || '') && /TES DELEEME/.test(A.list.cardByKey['201']) && /Your set/.test(A.list.cardByKey['201']) && /MTH/.test(A.list.cardByKey['201']), true);
     T('A5 phone: the owned catalog set is a card with its name, "✓ Owned", not "Your set"', A.list.cards.filter(c => /1467W/.test(c) && /Erie Alco Freight/.test(c) && /✓ Owned/.test(c) && !/Your set/.test(c)).length, 2);
     T('A5b phone: a catalog set\'s card counts the pieces you saved with it (1 piece; the other copy none)', [/1 piece/.test(A.list.cardByKey['203'] || ''), /piece/.test(A.list.cardByKey['204'] || '')], [true, false]);
-    T('A6 phone: the door hides while the list is open', A.list.door, '');
+    T('A6 phone: while the list is open the Type pill says "Sets"', A.list.pill, true);
     T('A7 phone: tapping the own set opens ITS page (name, Made by MTH)', [A.own.tapped, A.own.active, /TES DELEEME/.test(A.own.page || ''), /Made by\s*MTH/.test(A.own.page || '')], [true, 'page-itemdetail', true, true]);
     T('A7b phone: the set page\'s Back button says "Back to My Sets"', A.ownBackLabel, 'Back to My Sets');
     T('A8 phone: that Back button comes back to My Sets', [A.afterBack.panel, A.afterBack.cards.length], [true, 4]);
     T('A9 phone: tapping the owned catalog set opens its set page, not the catalog popup', [A.cat.tapped, A.cat.active, /Erie Alco Freight|1467W/.test(A.cat.page || ''), /In Collection/.test(A.cat.page || ''), (A.cat.popups || []).length], [true, 'page-itemdetail', true, true, 0]);
     T('A11 phone: a set whose key and name hold quotes shows its name and opens its page', [/Club's "Big" Train/.test(A.list.cardByKey[QKEY] || ''), A.quoted.tapped, A.quoted.active, /Club's "Big" Train/.test(A.quoted.page || '')], [true, true, 'page-itemdetail', true]);
-    T('A10 phone: "Back to My Collection" returns to the list, and the door is back', [A.backToColl.tab, A.backToColl.panel, /My Sets \(4\)/.test(A.backToColl.door)], ['items', false, true]);
+    T('A10 phone: "Back to My Collection" returns to the list; the pill and the line are as before', [A.backToColl.tab, A.backToColl.panel, A.backToColl.pill, A.backToCollLine], ['items', false, false, 'Sets (4)']);
     T('D1 phone: the bottom-bar Sets still opens Complete Sets — the catalog, not your sets', [A.bottomSets.active, /2124W/.test(A.bottomSets.text), /2503WS/.test(A.bottomSets.text), /TES DELEEME/.test(A.bottomSets.text)], ['page-sets', true, true, false]);
     T('no page errors (phone)', A.errs, []);
 
     // ── F — the device Back button ───────────────────────────────────
     const F = await pF;
     T('F0 setup: My Sets opened', [F.opened.tab, F.opened.panel], ['sets', true]);
-    T('F1 device Back on My Sets → My Collection (not the Dashboard)', [F.back1.active, F.back1.tab, F.back1.panel, /My Sets/.test(F.back1.door)], ['page-browse', 'items', false, true]);
+    T('F1 device Back on My Sets → My Collection (not the Dashboard)', [F.back1.active, F.back1.tab, F.back1.panel, F.back1.pill], ['page-browse', 'items', false, false]);
     T('F2 setup: a set\'s page opened from My Sets', F.onPage.active, 'page-itemdetail');
     T('F3 device Back on the set\'s page → My Sets', [F.back2.active, F.back2.tab, F.back2.panel], ['page-browse', 'sets', true]);
     T('F4 device Back again → My Collection', [F.back3.active, F.back3.tab, F.back3.panel], ['page-browse', 'items', false]);
@@ -346,21 +357,21 @@ function pool(n) {
 
     // ── E / G — follows every repaint; hidden while sharing ──────────
     const E = await pE;
-    T('E1 cold start, no sets yet: no button', E.coldBefore.door, '');
-    T('E2 the sets arrive with a later load (renderBrowse): the button appears, "My Sets (1)"', doorN(E.coldAfter.door), 1);
-    T('E3 a set saved (renderBrowse after the save): the number follows, "My Sets (2)"', doorN(E.saved.door), 2);
+    T('E1 cold start, no sets yet: no Sets line', [E.coldBefore.line, E.coldBefore.door], ['', '']);
+    T('E2 the sets arrive with a later load (renderBrowse): the line appears, "Sets (1)"', doorN(E.coldAfter.line), 1);
+    T('E3 a set saved (renderBrowse after the save): the number follows, "Sets (2)"', doorN(E.saved.line), 2);
     T('E4 setup: My Sets open with 4 rows', [E.beforeRemove.panel, E.beforeRemove.rows.length], [true, 4]);
     T('E5 Remove on the My Sets list: the row leaves the list at once, and the count says 3', [E.afterRemove.panel, E.afterRemove.rows.length, E.afterRemove.rows.some(r => /1956/.test(r)), E.afterRemove.count], [true, 3, false, '3 sets']);
     T('E6 a background refresh while My Sets is open: a set gone from the sheet leaves the list', [E.afterRefresh.rows.length, E.afterRefresh.rows.some(r => /TES DELEEME/.test(r))], [2, false]);
-    T('E7 back on My Collection the button says "My Sets (2)"', doorN(E.collAfter.door), 2);
-    T('G1 picking rows to share: no My Sets button', E.sharing.door, '');
-    T('G2 sharing ended: the button is back', doorN(E.shareDone.door), 2);
+    T('E7 back on My Collection the line says "Sets (2)"', doorN(E.collAfter.line), 2);
+    T('G1 picking rows to share: no Sets line', E.sharing.line, '');
+    T('G2 sharing ended: the line is back', doorN(E.shareDone.line), 2);
     T('no page errors (follow)', [E.errsA, E.errsB], [[], []]);
 
     // ── B/C/D — the computer ──────────────────────────────────────────
     const D = await pD;
     T('setup: the page is a computer', D.isPhone, false);
-    T('B1 computer, My Collection: a visible button reads "My Sets (4)"', /My Sets \(4\)/.test(D.coll.door), true);
+    T('B1 computer, My Collection: the Type list reads "Sets (4)", and no title-row button', [D.collLine, D.coll.door], ['Sets (4)', '']);
     T('B2 computer: it opens the list, headed "My Sets"', [D.list.panel, /My Sets/.test(D.list.head)], [true, true]);
     T('B3 computer: the own set is a row with its name, badged "Your set"', D.list.ownBadgeRows.filter(r => /TES DELEEME/.test(r) && /Your set/.test(r)).length, 1);
     T('B4 computer: the owned catalog set is a row, "✓ Owned", not "Your set"', D.list.rows.filter(r => /1467W/.test(r) && /Erie Alco Freight/.test(r) && /✓ Owned/.test(r) && !/Your set/.test(r)).length, 2);
@@ -369,9 +380,9 @@ function pool(n) {
     T('B7 computer: Back from the set page comes back to My Sets', [D.afterBack.panel, D.afterBack.rows.length], [true, 4]);
     T('B8 computer: tapping a catalog set you own opens its set page, not the catalog popup', [D.cat.tapped, D.cat.active, /In Collection/.test(D.cat.page || ''), (D.cat.popups || []).length], [true, 'page-itemdetail', true, 0]);
     T('C1 every set you own is a row: the second copy and the 1956 one both list (4 rows)', D.list.rows.length, 4);
-    T('C2 the button\'s number is the number of rows', doorN(D.coll.door), D.list.rows.length);
+    T('C2 the line\'s number is the number of rows', doorN(D.collLine), D.list.rows.length);
     T('C3 a number the set catalog holds twice shows the record the set was saved from (O27, not the other era\'s HO)', [D.list.rows.filter(r => /1467W/.test(r)).every(r => /O27/.test(r) && !/HO|Wrong Era/.test(r))], [true]);
-    T('D2 Master Catalog: no My Sets button', D.mCatalog.door, '');
+    T('D2 Master Catalog: no My Sets button, no Sets line in its Type list', [D.mCatalog.door, D.mLine], ['', '']);
     T('D3 Master Catalog Sets list: the catalog\'s sets, no own set, no My Sets frame',
       [['2124W', '2503WS'].every(n => D.mSets.rows.some(r => r.indexOf(n) >= 0)), D.mSets.rows.some(r => /TES DELEEME|Big/.test(r)), D.mSets.head, D.mSets.ownBadgeRows.length], [true, false, '', 0]);
     T('D4 Master Catalog Sets list: the set you own still says "✓ Owned"', D.mSets.rows.some(r => /Erie Alco Freight/.test(r) && /✓ Owned/.test(r)), true);
@@ -380,9 +391,9 @@ function pool(n) {
 
     // ── S — source ────────────────────────────────────────────────────
     const words = CFG.slice(CFG.indexOf('const RR_OWN_SETS = {'), CFG.indexOf('window.RR_OWN_SETS = RR_OWN_SETS'));
-    T('S1 the words live in config.js RR_OWN_SETS (door, heading, back, page back, mark) and none says "AI"',
-      [/door:\s+'(?:\u{1F381}|\\ud83c\\udf81) My Sets \(\{n\}\)'/u.test(words), /myTitle:\s+'My Sets'/.test(words), /back:\s+'(?:\u2190|\\u2190) Back to My Collection'/.test(words), /pageBack:\s+'Back to My Sets'/.test(words), /ownedTag:/.test(words), /\bAI\b/.test(words)], [true, true, true, true, true, false]);
-    T('S2 the door\'s words come from RR_OWN_SETS.door', /btn\.textContent = RR_OWN_SETS\.door\.replace\('\{n\}', n\);/.test(B), true);
+    T('S1 the words live in config.js RR_OWN_SETS (Type line, heading, back, page back, mark) and none says "AI"',
+      [/typeLine:\s+'Sets'/.test(words), /myTitle:\s+'My Sets'/.test(words), /back:\s+'(?:\u2190|\\u2190) Back to My Collection'/.test(words), /pageBack:\s+'Back to My Sets'/.test(words), /ownedTag:/.test(words), /\bAI\b/.test(words)], [true, true, true, true, true, false]);
+    T('S2 the line\'s words come from RR_OWN_SETS.typeLine', /label: RR_OWN_SETS\.typeLine \+ ' \(' \+ n\.toLocaleString\(\) \+ '\)'/.test(B), true);
     T('S3 every set opener in browse.js passes its key through rrJsArg (at least the 3 kinds of row)', ALL_ESCAPED(B), true);
     T('S4 the bottom-bar Sets button is untouched (Complete Sets)', /id="mnav-sets" onclick="showPage\('sets', this\); buildSetsPage\(\);"/.test(HTML), true);
     T('S5 My Sets\' Back goes through the ONE back stack (BackStack.push / pop / drop)', /BackStack\.push\(_RR_MYSETS_BACK,/.test(B) && /BackStack\.pop\(_RR_MYSETS_BACK\)/.test(B) && /function drop\(id\)/.test(BS) && /drop:  drop,/.test(BS), true);
@@ -390,7 +401,7 @@ function pool(n) {
     // ── P — planted offenders ─────────────────────────────────────────
     // every plant made and every planted walk started first (they run side by side), then checked in turn
     const plant = (src, from, to, label) => { const out = src.replace(from, to); T('P  plant applied (' + label + ')', out !== src, true); return out; };
-    const noDoor = plant(B, "function _rrMySetsDoorSync() {\n  const title = document.querySelector('#page-browse > .page-title');", "function _rrMySetsDoorSync() {\n  const title = null;", 'no door');
+    const noDoor = plant(B, "  if (level === 'type') options = _rrMySetsTypeOptions(options);", '', 'no Sets line (no door)');
     const P1ap = run(() => phoneWalk(browser, { 'browse.js': noDoor }, 'list'));
     const P1bp = run(() => deskWalk(browser, { 'browse.js': noDoor }, 'list'));
     const noCards = plant(CSS, '#browse-sets-panel.rr-mysets #browse-sets-cards { display: flex;', '#browse-sets-panel.rr-mysets #browse-sets-cards { display: none;', 'phone cards hidden');
@@ -411,7 +422,7 @@ function pool(n) {
     const mTap = plant(B, 'onclick="showRefItemPopup(&apos;set&apos;,${si})"', 'onclick="void 0"', 'catalog tap changed');
     const P8p = run(() => deskWalk(browser, { 'browse.js': mTap }, 'master'));
     // 2026-11-14 (onesets, review): the cheap conditions are asked first (`here`), the count only where the door could show.
-    const doorEverywhere = plant(B, "const here = !!(state.filters && state.filters.owned) && (state._browseTab || 'items') === 'items' && !picking;", "const here = true;", 'door everywhere');
+    const doorEverywhere = plant(B, "    if (!(state.filters && state.filters.owned)) return options;\n", '', 'Sets line on the Master Catalog too');
     const P9p = run(() => deskWalk(browser, { 'browse.js': doorEverywhere }, 'master'));
     const bottom = plant(HTML, `id="mnav-sets" onclick="showPage('sets', this); buildSetsPage();"`, `id="mnav-sets" onclick="rrOpenMySets();"`, 'bottom bar Sets → My Sets');
     const P10p = run(() => phoneWalk(browser, { 'index.html': bottom }, 'bottom'));
@@ -425,7 +436,7 @@ function pool(n) {
     const P14p = run(() => backWalk(browser, { 'browse.js': noBackEntry }));
     const noDrop = plant(B, "if (!pg.classList.contains('active') && BackStack.has(_RR_MYSETS_BACK) && typeof BackStack.drop === 'function') BackStack.drop(_RR_MYSETS_BACK);", 'void 0;', 'entry not dropped');
     const P15p = run(() => backWalk(browser, { 'browse.js': noDrop }));
-    const shareDoor = plant(B, "=== 'items' && !picking;\n  const n = here", "=== 'items';\n  const n = here", 'door while sharing');
+    const shareDoor = plant(B, "    if (picking) return options;\n    const n = rrMySetsCount();", "    const n = rrMySetsCount();", 'Sets line while sharing');
     const P16p = run(() => followWalk(browser, { 'browse.js': shareDoor }));
     const oldLabel = plant(AC, "(fromMySets && typeof RR_OWN_SETS !== 'undefined') ? RR_OWN_SETS.pageBack : 'Back to Collection'", "'Back to Collection'", 'old back label');
     const P17p = run(() => phoneWalk(browser, { 'app-collection.js': oldLabel }, 'own'));
@@ -433,10 +444,10 @@ function pool(n) {
     const P18p = run(() => deskWalk(browser, { 'browse.js': numOnly }, 'list'));
     // P1 the door never shown (the old app: no way in)
     const P1a = await P1ap;
-    T('P1 no door is caught on the phone (A1 red)', /My Sets \(4\)/.test(P1a.coll.door), false);
+    T('P1 no door is caught on the phone (A1 red)', P1a.collLine === 'Sets (4)', false);
     T('P1 …and the list is never reached on the phone (A2 red)', P1a.list.panel, false);
     const P1b = await P1bp;
-    T('P1 no door is caught on the computer (B1 red)', /My Sets \(4\)/.test(P1b.coll.door), false);
+    T('P1 no door is caught on the computer (B1 red)', P1b.collLine === 'Sets (4)', false);
     // P2 the phone draws no cards (the old app: the table, hidden on a phone)
     const P2 = await P2p;
     T('P2 a phone with no cards is caught (A3 red)', P2.list.cards.length, 0);
@@ -455,7 +466,7 @@ function pool(n) {
     // P6 one row per catalog set number again (a second copy dropped)
     const P6 = await P6p;
     T('P6 a dropped second copy is caught (C1 red)', P6.list.rows.length === 4, false);
-    T('P6 …and the button\'s number no longer matches the rows (C2 red)', doorN(P6.coll.door) === P6.list.rows.length, false);
+    T('P6 …and the line\'s number no longer matches the rows (C2 red)', doorN(P6.collLine) === P6.list.rows.length, false);
     // P7 own sets leak into the Master Catalog's list
     const P7 = await P7p;
     T('P7 an own set in the Master Catalog\'s list is caught (D3 red)', P7.mSets.rows.some(r => /TES DELEEME/.test(r)), true);
@@ -464,7 +475,7 @@ function pool(n) {
     T('P8 a changed Master Catalog tap is caught (D5 red)', P8.mPopup.popups.length, 0);
     // P9 the door shown on the Master Catalog too
     const P9 = await P9p;
-    T('P9 a door on the Master Catalog is caught (D2 red)', P9.mCatalog.door !== '', true);
+    T('P9 a Sets line on the Master Catalog is caught (D2 red)', P9.mLine !== '', true);
     // P10 the bottom-bar Sets turned into My Sets (Complete Sets lost)
     const P10 = await P10p;
     T('P10 a bottom-bar Sets that no longer opens Complete Sets is caught (D1 red)', P10.bottomSets.active === 'page-sets', false);
@@ -477,10 +488,11 @@ function pool(n) {
     T('P12 an unescaped key is caught by the source check (S3 red)', ALL_ESCAPED(raw), false);
     const P12 = await P12p;
     T('P12 …and in the running app the quoted set no longer opens (A11 red)', P12.quoted.active === 'page-itemdetail', false);
-    // P13 (review 1/2) the repaint path forgets My Sets: no button after a later load, a save; a removed row stays
+    // P13 (review 1/2) the repaint path forgets My Sets: a removed row stays on the list.
+    // (2026-11-22 mysetsfilter: the Type list counts afresh each time it opens, so
+    // a stale NUMBER can no longer come from a forgotten repaint — E2/E3 have no
+    // repaint to forget; mysetsfilter_tests H1 pins the number after a save.)
     const P13 = await P13p;
-    T('P13 no button after the sets arrive later is caught (E2 red)', doorN(P13.coldAfter.door) === 1, false);
-    T('P13 a stale number after a save is caught (E3 red)', doorN(P13.saved.door) === 2, false);
     T('P13 a removed row left on the list is caught (E5 red)', P13.afterRemove.rows.length === 3, false);
     // P14 (review 3) no Back entry: device Back leaves My Sets for the page before My Collection
     const P14 = await P14p;
@@ -490,7 +502,7 @@ function pool(n) {
     T('P15 a stale Back entry under the set\'s page is caught (F3 red)', P15.back2.active === 'page-browse' && P15.back2.tab === 'sets', false);
     // P16 (review 4) the button shown while sharing
     const P16 = await P16p;
-    T('P16 a My Sets button while picking rows to share is caught (G1 red)', P16.sharing.door === '', false);
+    T('P16 a Sets line while picking rows to share is caught (G1 red)', P16.sharing.line === '', false);
     // P17 (review 5) the set page's Back says "Back to Collection" again
     const P17 = await P17p;
     T('P17 the old "Back to Collection" from My Sets is caught (A7b red)', P17.ownBackLabel === 'Back to My Sets', false);

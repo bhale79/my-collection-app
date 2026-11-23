@@ -129,6 +129,7 @@ window._collJumpTop = function() {
 // meanwhile is where you stay (rrCollSearchSection).
 // The picker's numbers are made the same way — each Type option is counted
 // where picking it would take the row (the count request in _rrBrowseCore).
+var _RR_SET_BUCKET = 'Set';       // 2026-11-22 (mysetsfilter): the catalog's Set bucket (type-groups.js) — left off My Collection's Type list; "Sets (n)" stands for it
 var _RR_PAPER_BUCKET = 'Paper';   // the short label of the catalog's 'Paper / Box / Misc' bucket (type-groups.js)
 var _RR_IS_CHIP = { label: '\ud83d\udccb Instruction Sheets', color: '#16a085' };   // the one place the sheets' chip is spelled and coloured
 // Where a Type-filter value lives: a section id, 'trains', 'all' (spans
@@ -199,6 +200,8 @@ window._collSectionSet = function(key) {
   state.currentPage = 1;
   var wrap = document.querySelector('.browse-table-wrap');
   if (wrap) wrap.scrollTo({ top: 0 });
+  // 2026-11-22 (mysetsfilter): a Show chip picked while My Sets is the list goes back to the items.
+  if (state.filters && state.filters.owned && state._browseTab === 'sets' && typeof renderBrowseTab === 'function') { renderBrowseTab('items'); return; }
   if (typeof renderBrowse === 'function') renderBrowse();
 };
 
@@ -1410,7 +1413,10 @@ function _renderHierarchyChips() {
     // "Paper / Box / Misc"), not the value behind it ("Paper Item", "Paper").
     var _tTxt2 = _tVal2;
     try { var _oSel = _ftSel2 && _ftSel2.options[_ftSel2.selectedIndex]; if (_oSel && _oSel.value === _tVal2 && (_oSel.textContent || '').trim()) _tTxt2 = _oSel.textContent.trim(); } catch (eTx) {}
-    if (_tVal2) { onCount++; html += _pillOn(_tTxt2, "_phClearOne('type')", "_openLevelPicker('type')"); }
+    // 2026-11-22 (mysetsfilter): while the My Sets list is on screen the pill
+    // says "Sets"; its × (→ _setHierarchyChoice('type','')) goes back to the items.
+    if (_phOwned && state._browseTab === 'sets') { onCount++; html += _pillOn(RR_OWN_SETS.typeLine, "_phClearOne('type')", "_openLevelPicker('type')"); }
+    else if (_tVal2) { onCount++; html += _pillOn(_tTxt2, "_phClearOne('type')", "_openLevelPicker('type')"); }
     // v0.9.2037 ([stated] Brad: the group "should just be under types"): a
     // dashboard card's group — Sets, Engines, Freight … — is worn by the Type
     // pill itself, never a chip of its own. Its × clears the group; the pill
@@ -1596,6 +1602,10 @@ if (typeof window !== 'undefined') {
 
 // v0.9.649 (Brad): one-tap reset of the whole filter hierarchy.
 function _clearHierarchyFilters() {
+  // 2026-11-22 (mysetsfilter): the Type pill says "Sets" while My Sets is the
+  // list, so Clear counts it — and clears it: back to the item list first
+  // (which also takes My Sets' Back step off), then the filters as always.
+  if (state.filters && state.filters.owned && state._browseTab === 'sets' && typeof renderBrowseTab === 'function') renderBrowseTab('items');
   var st = _phState();
   // v0.9.1915 (Brad): Clear clears FILTERS. The section you are looking at
   // is not one, so it stays where it is.
@@ -1802,6 +1812,11 @@ function _openLevelPicker(level) {
         // emptied the list. It is a heading, like the own-types divider below.
         if (o.disabled) { options.push({ id: '__divider', label: lblText.replace(/^[\s─—–-]+|[\s─—–-]+$/g, ''), divider: true }); continue; }
         _seenTypes[String(o.value).toLowerCase()] = 1;
+        // 2026-11-22 (mysetsfilter): on My Collection the "Set" bucket goes —
+        // the sets entered as one item are rows of My Sets, which the
+        // "Sets (n)" line below opens (one idea, one line, one number). Kept
+        // only while it is the pick already in force, so the way back stays.
+        if (state.filters.owned && o.value === _RR_SET_BUCKET && (state.filters.type || '') !== _RR_SET_BUCKET) continue;
         options.push({ id: o.value, label: lblText });
       }
     }
@@ -1809,7 +1824,7 @@ function _openLevelPicker(level) {
     // (Books, Vehicles, Wings of Texaco) exist on items but were unfilterable.
     if (state.filters.owned) {
       var _ownT = _phOwnTypeValues();
-      var _extraT = Object.keys(_ownT).filter(function (t) { return !_seenTypes[t.toLowerCase()]; });
+      var _extraT = Object.keys(_ownT).filter(function (t) { return !_seenTypes[t.toLowerCase()] && t !== _RR_SET_BUCKET; });   // mysetsfilter: "Set" is the Sets line's, here too
       if (_extraT.length) {
         options.push({ id: '__divider', label: 'Also in your collection', divider: true });
         _extraT.sort(function (a, b) { return _ownT[b] - _ownT[a] || a.localeCompare(b); })
@@ -1857,6 +1872,7 @@ function _openLevelPicker(level) {
     if (!o || !o.divider) return true;
     return arr.slice(i + 1).some(function (x) { return x && !x.divider; });
   });
+  if (level === 'type') options = _rrMySetsTypeOptions(options);   // 2026-11-22 (mysetsfilter): the "Sets (n)" line
   if (!options.length) options.push({ id: '', label: '(none available)' });
 
   var overlayId = 'ph-picker-overlay';
@@ -1887,7 +1903,7 @@ function _openLevelPicker(level) {
       modal.appendChild(dv);
       return;
     }
-    var isCur = (st[level] === opt.id);
+    var isCur = (level === 'type' && opt.id === RR_OWN_SETS.typeId) ? _rrMySetsOnScreen() : (st[level] === opt.id);
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.style.cssText = 'display:block;width:100%;text-align:left;'
@@ -1934,6 +1950,28 @@ function _setHierarchyChoice(level, value) {
   // S149 follow-up: type chip writes to the hidden #filter-type select
   // and reuses the existing applyFilters() flow. Doesn't persist to chip state.
   if (level === 'type') {
+    // 2026-11-22 (mysetsfilter): "Sets (n)" is not a Type a row carries — it
+    // opens the My Sets list through its ONE door. Any Type pick in force is
+    // replaced (a pick replaces a pick), so the pill wears "Sets" alone.
+    if (value === RR_OWN_SETS.typeId) {
+      var _ftS = document.getElementById('filter-type'); if (_ftS) _ftS.value = '';
+      state.filters.type = ''; state.filters.group = '';
+      // The phone's Filters sheet closes (the list it would show is now My
+      // Sets), and the list opens only AFTER the Type pop-up and the sheet are
+      // gone: both hold a Back step, and My Sets puts its own on top — opened
+      // first, the pop-up's closing would rewind My Sets' step instead of its
+      // own (back-stack.js matches steps by position). Next tick, the steps
+      // owed are settled first.
+      if (typeof _rrFilterSheetClose === 'function' && document.getElementById('rr-filter-sheet')) _rrFilterSheetClose();
+      setTimeout(function () {
+        rrOpenMySets();
+        if (typeof _renderHierarchyChips === 'function') _renderHierarchyChips();
+      }, 0);
+      return;
+    }
+    // Any other pick (All Types / the pill's × included) while My Sets is on
+    // screen goes back to the item list, filtered by that pick.
+    var _leaveSets = !!(state.filters.owned && state._browseTab === 'sets');
     var _ftSel = document.getElementById('filter-type');
     if (_ftSel) {
       // v0.9.1528: picking one of the user's OWN types ("Books", "Wings of
@@ -1964,7 +2002,8 @@ function _setHierarchyChoice(level, value) {
         state.filters.type = _ftSel.value;
         state.filters.group = '';   // v0.9.2037: a Type pick (All Types too) replaces a dashboard card's group — the pill wears one or the other
         state.currentPage = 1;
-        if (typeof renderBrowse === 'function') renderBrowse();
+        if (_leaveSets && typeof renderBrowseTab === 'function') renderBrowseTab('items');   // mysetsfilter: off the My Sets list, onto the items
+        else if (typeof renderBrowse === 'function') renderBrowse();
       } else if (typeof applyFilters === 'function') applyFilters();
     }
     if (typeof _renderHierarchyChips === 'function') _renderHierarchyChips();
@@ -3093,8 +3132,7 @@ function renderBrowseTab(tab) {
     const el = document.getElementById(id);
     if (el) el.style.display = key === state._browseTab ? '' : 'none';
   });
-  _rrMySetsDoorSync();   // 2026-11-08 (mysets): My Collection's "My Sets" door follows the tab and the count
-  _rrMySetsBackSync();   // …and the phone's Back steps from My Sets to My Collection
+  _rrMySetsBackSync();   // 2026-11-08 (mysets): the phone's Back steps from My Sets to My Collection
 
   const filterBar = document.querySelector('#page-browse .filter-bar');
   const disclaimer = document.getElementById('disclaimer-browse');
@@ -3322,8 +3360,9 @@ function renderSetsTab() {
 // THE decider every dashboard count uses; never a number matched against
 // catalog rows). A copy that is a PIECE of a My Sets row (same Group ID) is
 // that set's, and is not listed twice. rrMySetsCount is the size of this
-// union, and it is the number on the My Sets button AND the Total Sets card,
-// which both open the same list (rrOpenMySets). Display only — no sheet
+// union, and it is the number on the Type list's "Sets" line (mysetsfilter;
+// the My Sets button before it) AND the Total Sets card, which both open the
+// same list (rrOpenMySets). Display only — no sheet
 // changes; both ways of adding a set keep working. Nothing on the sheet moves.
 function rrOwnedSetItems() {
   if (typeof _ownedGroupOf !== 'function') return [];
@@ -3359,11 +3398,12 @@ if (typeof window !== 'undefined') { window.rrOwnedSetItems = rrOwnedSetItems; w
 // list existed (this panel, in My Collection mode) with no door to it, and on
 // a phone it drew nothing at all (the app hides every table on a phone).
 //
-// ONE door: rrOpenMySets(). ONE control calls it — the "My Sets (n)" button on
-// My Collection's title row, beside Share (and Filters on a phone), shown on
-// the phone and the computer alike whenever the collector owns a set. It sits
-// there, not on the computer's Show row, because the Show row is computer-only
-// and only appears when a collection has paper or catalog sections.
+// ONE door: rrOpenMySets(). (2026-11-08 → 2026-11-22 it was a "My Sets (n)"
+// button on My Collection's title row; since mysetsfilter it is the "Sets (n)"
+// line in the Type list's "My Collection" section — _rrMySetsTypeOptions
+// below. Not the computer's Show row: that row is computer-only and only
+// appears when a collection has paper or catalog sections.) The dashboard's
+// Total Sets card opens the same door.
 // n = the rows the list shows: one per My Sets row (renderSetsTab files each
 // one, catalog or own, and drops none) PLUS one per set entered as a single
 // item (2026-11-14 onesets, rrOwnedSetItems above), so the number is the
@@ -3385,38 +3425,42 @@ function rrOpenMySets() {
   renderBrowseTab('sets');
   try { const m = document.getElementById('main-content'); if (m) m.scrollTop = 0; window.scrollTo(0, 0); } catch (e) {}
 }
-// Shown only on My Collection's main list with at least one set, and never
-// while picking rows to share or to tag. renderBrowseTab and every repaint of
-// the page (_rrBrowseCore → _rrMySetsFollow) ask it, so it follows every
-// change: a set saved or removed, a sheet load that brings the sets in later.
-function _rrMySetsDoorSync() {
-  const title = document.querySelector('#page-browse > .page-title');
-  if (!title) return;
-  let btn = document.getElementById('rr-mysets-door');
-  const picking = (typeof isShareMode === 'function' && isShareMode('collection')) || (typeof rrTagActive === 'function' && rrTagActive());
-  // 2026-11-14 (onesets, review): the cheap questions first — the count walks
-  // every owned copy (rrOwnedSetItems), so it is asked only where the button
-  // could show (My Collection's Items list, not picking), never on the Master
-  // Catalog's every repaint.
-  const here = !!(state.filters && state.filters.owned) && (state._browseTab || 'items') === 'items' && !picking;
-  const n = here ? rrMySetsCount() : 0;
-  const show = here && n > 0;
-  if (!show) { if (btn) btn.style.display = 'none'; return; }
-  if (!btn) {
-    btn = document.createElement('button');
-    btn.id = 'rr-mysets-door';
-    btn.type = 'button';
-    btn.className = 'btn';
-    btn.setAttribute('onclick', 'rrOpenMySets()');
-    btn.style.cssText = 'display:flex;align-items:center;gap:0.3rem;font-size:0.8rem;padding:0.4rem 0.75rem;min-height:38px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-weight:700;border-radius:7px;white-space:nowrap';
-  }
-  // Beside Share: in the title row's right-hand group (the same place
-  // filterOwned puts Share). That group is rebuilt at start-up, so the button
-  // is put back in it on every draw.
-  const host = title.querySelector('.qa-tr-actions') || title.querySelector(':scope > div') || title;
-  if (btn.parentNode !== host) host.insertBefore(btn, host.firstChild);
-  btn.textContent = RR_OWN_SETS.door.replace('{n}', n);
-  btn.style.display = 'flex';
+// 2026-11-22 (mysetsfilter — [stated] Brad: "why is sets separated like that,
+// that should just be a filter not its own thing" → "what about under
+// collections"): the title-row "🎁 My Sets (n)" button is GONE. Its door is
+// now ONE line in the Type list (_openLevelPicker → this), in the "My
+// Collection" section beside Catalogs (all) and Paper Items, on the phone
+// (Filters → Type) and the computer alike. Shown only on My Collection with at
+// least one set, never while picking rows to share or to tag. Its number is
+// rrMySetsCount() — the one number the Total Sets card and the list's rows
+// also show. The section's heading is added when no paper or catalog line put
+// one there. Given the picker's options after every other rule has run;
+// returns them with the line in place.
+function _rrMySetsTypeOptions(options) {
+  options = (options || []).slice();
+  try {
+    if (!(state.filters && state.filters.owned)) return options;
+    const picking = (typeof isShareMode === 'function' && isShareMode('collection')) || (typeof rrTagActive === 'function' && rrTagActive());
+    if (picking) return options;
+    const n = rrMySetsCount();
+    if (!(n > 0)) return options;
+    const line = { id: RR_OWN_SETS.typeId, label: RR_OWN_SETS.typeLine + ' (' + n.toLocaleString() + ')' };
+    const head = String(RR_OWN_SETS.typeHead).toLowerCase();
+    const hi = options.findIndex(function (o) { return o && o.divider && String(o.label || '').trim().toLowerCase() === head; });
+    if (hi < 0) {
+      // No such section yet: it goes before "Also in your collection" (the
+      // collector's own type words), or at the end.
+      let at = options.findIndex(function (o) { return o && o.divider; });
+      if (at < 0) at = options.length;
+      options.splice(at, 0, { id: '__divider', label: RR_OWN_SETS.typeHead, divider: true }, line);
+    } else {
+      // The section's last line, then this one.
+      let at = hi + 1;
+      while (at < options.length && options[at] && !options[at].divider) at++;
+      options.splice(at, 0, line);
+    }
+  } catch (e) { console.warn('[my sets type line]', e); }
+  return options;
 }
 // Is My Sets the list on screen right now (My Collection, its Sets tab, the
 // page showing)?
@@ -3428,7 +3472,6 @@ function _rrMySetsOnScreen() {
 // screen — the list itself (a removal, a save or a sheet load must not leave
 // a row behind that opens "Record not found"), and its Back entry.
 function _rrMySetsFollow() {
-  _rrMySetsDoorSync();
   if (state.filters && state.filters.owned && state._browseTab === 'sets') renderSetsTab();
   _rrMySetsBackSync();
 }
@@ -3512,7 +3555,7 @@ function _rrMySetCardHtml(k, num, name, subParts, own, tap) {
     + '<div class="browse-card-right">' + badge + '</div></div>';
 }
 if (typeof window !== 'undefined') {
-  window.rrOpenMySets = rrOpenMySets; window.rrMySetsCount = rrMySetsCount; window._rrMySetsDoorSync = _rrMySetsDoorSync;
+  window.rrOpenMySets = rrOpenMySets; window.rrMySetsCount = rrMySetsCount; window._rrMySetsTypeOptions = _rrMySetsTypeOptions;
 }
 
 function renderCatalogsTab() {

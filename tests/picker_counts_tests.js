@@ -85,9 +85,21 @@ function T(n, got, want) { const ok = got === want; console.log((ok ? 'PASS' : '
         apply(pre);
         _openLevelPicker(level);
         const btn = Array.from(document.querySelectorAll('#ph-picker-overlay button')).filter(b => b.textContent.trim() !== 'Cancel')[idx];
+        const m = lbl.match(/\((\d[\d,]*)\)$/);
+        // 2026-11-22 (mysetsfilter): the Type list's "Sets (n)" line is not a
+        // filter of THIS list — it opens My Sets, one tick later (after the
+        // pop-up's Back step is settled). Its number is that list's rows, so it
+        // is held against them: the app's own door, then the rows it drew.
+        if (level === 'type' && /^Sets \(/.test(lbl)) {
+          document.getElementById('ph-picker-overlay').remove();
+          rrOpenMySets();
+          const setRows = document.querySelectorAll('#browse-sets-tbody tr[data-my-set-key], #browse-sets-tbody tr[data-own-set-key], #browse-sets-tbody tr[data-my-set-item]').length;
+          renderBrowseTab('items');
+          res.push({ level, pre: JSON.stringify(pre || []), label: lbl, said: m ? parseInt(m[1].replace(/,/g, ''), 10) : 0, got: setRows });
+          return;
+        }
         btn.click();                                   // the app's own pick
         const ov = document.getElementById('ph-picker-overlay'); if (ov) ov.remove();
-        const m = lbl.match(/\((\d[\d,]*)\)$/);
         res.push({ level, pre: JSON.stringify(pre || []), label: lbl, said: m ? parseInt(m[1].replace(/,/g, ''), 10) : 0, got: shown() });
       });
       return res;

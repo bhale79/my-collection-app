@@ -128,6 +128,9 @@ const LOOK = `(() => {
   };
 })()`;
 const sleep = (pg, ms) => pg.waitForTimeout(ms);
+// 2026-11-22 (mysetsfilter): My Sets' door is the Type list's "Sets (n)" line
+// (the title-row button is gone) — through the ONE test helper.
+const { setsLine: typeLine, openMySets } = require('./lib/open-my-sets');
 
 // A + B + C (phone) + E, in one page.
 async function phoneWalk(browser, planted) {
@@ -143,8 +146,8 @@ async function phoneWalk(browser, planted) {
   });
   await pg.click('#mnav-collection'); await sleep(pg, 300);
   R.coll = await pg.evaluate(LOOK);
-  const door = await pg.$('#rr-mysets-door');
-  if (door && await door.isVisible()) { await door.click(); await sleep(pg, 300); }
+  R.collLine = await typeLine(pg);
+  await openMySets(pg);
   R.list = await pg.evaluate(LOOK);
   // the search narrows every kind of row
   await pg.evaluate(() => { const s = document.getElementById('browse-sets-search'); s.value = '21787'; renderSetsTab(); });
@@ -173,8 +176,7 @@ async function deskWalk(browser, planted) {
   const { pg, errs } = await open(browser, DESK, planted);
   const R = {};
   await pg.click('.nav-item[onclick*="filterOwned"]'); await sleep(pg, 300);   // My Collection — leaves state.filters.owned on
-  const door = await pg.$('#rr-mysets-door');
-  if (door && await door.isVisible()) { await door.click(); await sleep(pg, 300); }
+  await openMySets(pg);
   R.list = await pg.evaluate(LOOK);
   const row = await pg.$('#browse-sets-tbody tr[data-my-set-item="104"]');
   if (row && await row.isVisible()) { await row.click(); await sleep(pg, 400); }
@@ -206,7 +208,7 @@ async function deskWalk(browser, planted) {
   console.log('== B · one number, one list ==');
   T('B1 the Total Sets card says 5 and opens My Sets', P.a.card, { value: '5', onclick: 'rrOpenMySets()' });
   T('B2 Collection by Type\'s Sets line is still the items by type (4: the three and the own set\'s piece) — a My Sets row is a wrapper, never a line', P.a.byType.Sets, 4);
-  T('B3 the My Sets button says 5', P.coll.door, '🎁 My Sets (5)');
+  T('B3 the Type list\'s Sets line says 5 (and no title-row button)', [P.collLine, P.coll.door], ['Sets (5)', '']);
   console.log('== C · the list ==');
   T('C1 phone: the two set cards, then the three item cards', P.list.cards, ['S1', 'S2', 'item:103', 'item:104', 'item:106']);
   T('C2 the count line says 5 sets', P.list.count, '5 sets');
@@ -229,13 +231,13 @@ async function deskWalk(browser, planted) {
   const B = rd('browse.js'), DB = rd('dashboard.js'), AC = rd('app-collection.js');
   const plant = (src, from, to, what) => { if (src.indexOf(from) < 0) throw new Error('plant anchor missing (' + what + '): ' + from.slice(0, 70)); return src.split(from).join(to); };
   const P1 = await phoneWalk(browser, { 'browse.js': plant(B, "  if (typeof _ownedGroupOf !== 'function') return [];\n  const setGids = {};", "  return [];\n  const setGids = {};", 'no items') });
-  T('P1 the items left out of the list is caught (A1, A4, B3, C1 red)', [P1.a.nums, P1.a.count, P1.coll.door, P1.list.cards.length], [[], 2, '🎁 My Sets (2)', 2]);
+  T('P1 the items left out of the list is caught (A1, A4, B3, C1 red)', [P1.a.nums, P1.a.count, P1.collLine, P1.list.cards.length], [[], 2, 'Sets (2)', 2]);
   const P2 = await phoneWalk(browser, { 'browse.js': plant(B, "    if (g && setGids[g]) return false;   // a piece of a set listed above\n", '', 'piece listed twice') });
   T('P2 a set\'s piece listed twice is caught (A1 red: 6-11748 appears)', P2.a.nums.indexOf('6-11748') >= 0 && P2.a.count === 6, true);
   const P3 = await phoneWalk(browser, { 'browse.js': plant(B, "  }).join('') + itemList.map(function (r) {", "  }).join('') + [].map(function (r) {", 'items not drawn') });
   T('P3 the item rows not drawn is caught (C1 red; the count still says 5)', [P3.list.cards, P3.list.count], [['S1', 'S2'], '5 sets']);
   const P4 = await phoneWalk(browser, { 'browse.js': plant(B, ".filter(Boolean).length + rrOwnedSetItems().length;", ".filter(Boolean).length;", 'old count') });
-  T('P4 the old count (rows alone) is caught (A4, B1, B3 red)', [P4.a.count, P4.a.card.value, P4.coll.door], [2, '2', '🎁 My Sets (2)']);
+  T('P4 the old count (rows alone) is caught (A4, B1, B3 red)', [P4.a.count, P4.a.card.value, P4.collLine], [2, '2', 'Sets (2)']);
   const P5 = await deskWalk(browser, { 'dashboard.js': plant(DB, "id: 'sets', label: 'Total Sets', color: '#d35400', onclick: 'rrOpenMySets()',", "id: 'sets', label: 'Total Sets', color: '#d35400', onclick: _dashGroupTap('Sets'),", 'old card tap') });
   T('P5 the card opening the Sets chip again is caught (D2 red: the Items tab, not My Sets)', [P5.fromDash.active, P5.fromDash.tab], ['page-browse', 'items']);
   const P6 = await deskWalk(browser, { 'browse.js': plant(B, "  if (!(state.filters && state.filters.owned) || !(_pg && _pg.classList.contains('active'))) {", "  if (!(state.filters && state.filters.owned)) {", 'hidden page') });
