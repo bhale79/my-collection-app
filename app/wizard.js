@@ -559,6 +559,44 @@ function _wizAddRow() {
 }
 if (typeof window !== 'undefined') window._wizAddRow = _wizAddRow;
 
+// 2026-11-22 (howmany): the "How many?" box on Purchase & Value (track and
+// switches only — rrHowManyOffered, wizard-save.js). The box writes the ONE
+// count (wizard.data._howMany); the price and worth labels say "each" while
+// the count is above 1. Typing past the cap stops at the cap and says why.
+function rrHowManyHtml(d) {
+  if (typeof rrHowManyOffered !== 'function' || !rrHowManyOffered(d)) return '';
+  var H = RR_HOW_MANY, n = rrHowManyCount(d);
+  return '<div id="pv-howmany-wrap" style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">' + rrEsc(H.label) + '</div>'
+    + '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem">'
+    + '<input type="number" inputmode="numeric" pattern="[0-9]*" id="pv-howmany" value="' + n + '" min="1" max="' + H.max + '" step="1" aria-label="' + rrEsc(H.label) + '" style="flex:1;min-width:0;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem" oninput="rrHowManyInput(this)" onblur="rrHowManyBlur(this)"></div>'
+    + '<div id="pv-howmany-hint" style="font-size:0.75rem;color:var(--text-dim);margin-top:0.2rem">' + rrEsc(H.hint) + '</div></div>';
+}
+function rrHowManyEachHtml(d) {
+  if (typeof rrHowManyOffered !== 'function' || !rrHowManyOffered(d)) return '';
+  return '<span class="pv-each"' + (rrHowManyCount(d) > 1 ? '' : ' style="display:none"') + '> ' + rrEsc(RR_HOW_MANY.each) + '</span>';
+}
+function _rrHowManyPaint(over) {
+  var n = rrHowManyCount(wizard.data);
+  document.querySelectorAll('.pv-each').forEach(function (e) { e.style.display = n > 1 ? '' : 'none'; });
+  var h = document.getElementById('pv-howmany-hint');
+  if (h) {
+    h.textContent = over ? String(RR_HOW_MANY.over).replace('{max}', RR_HOW_MANY.max) : RR_HOW_MANY.hint;
+    h.style.color = over ? 'var(--t-accent)' : 'var(--text-dim)';
+  }
+}
+function rrHowManyInput(el) {
+  var raw = parseInt(String(el.value || '').trim(), 10);
+  var over = !isNaN(raw) && raw > RR_HOW_MANY.max;
+  wizard.data._howMany = rrHowManyClamp(el.value);
+  if (over) el.value = String(RR_HOW_MANY.max);
+  _rrHowManyPaint(over);
+}
+function rrHowManyBlur(el) {
+  wizard.data._howMany = rrHowManyClamp(el.value);
+  el.value = String(wizard.data._howMany);
+}
+if (typeof window !== 'undefined') { window.rrHowManyHtml = rrHowManyHtml; window.rrHowManyEachHtml = rrHowManyEachHtml; window.rrHowManyInput = rrHowManyInput; window.rrHowManyBlur = rrHowManyBlur; }
+
 // v0.9.1463: the ONE answer to "which variation rows belong to this item".
 // Shared by the variation screen (wizard.js) and the three variation
 // skipIf checks (wizard-steps.js) — previously FOUR copies of the same
@@ -7082,20 +7120,25 @@ function renderWizardStep() {
     // v0.9.906 (Brad, item [1b]): field order is now Est. Worth → What did you
     // pay → Bought From → Date Purchased → (Location) → Notes.
 
+    // 2026-11-22 (howmany): "How many?" — track and switches only, first on the screen
+    const _pvHowMany = rrHowManyHtml(_pvD);
+    _pvHtml += _pvHowMany;
+
     // Est. Worth — loco and normal items only
     if (!_pvIsSetOther) {
-      _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">' + (_pvIsSetLoco ? 'Est. Worth of Whole Set ($)' : 'Est. Worth ($)') + ' <a href="javascript:_wizEbaySold()" style="float:right;color:var(--t-link);font-weight:700;text-decoration:none;text-transform:none;letter-spacing:0;margin-left:0.65rem">eBay Sold Listings</a><a href="javascript:_wizResearchPrice()" style="float:right;color:var(--t-green);font-weight:700;text-decoration:none;text-transform:none;letter-spacing:0">\uD83D\uDD0D Research</a></div>';
-      _pvHtml += '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem">';
+      _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">' + (_pvIsSetLoco ? 'Est. Worth of Whole Set ($)' : 'Est. Worth ($' + rrHowManyEachHtml(_pvD) + ')') + ' <a href="javascript:_wizEbaySold()" style="float:right;color:var(--t-link);font-weight:700;text-decoration:none;text-transform:none;letter-spacing:0;margin-left:0.65rem">eBay Sold Listings</a><a href="javascript:_wizResearchPrice()" style="float:right;color:var(--t-green);font-weight:700;text-decoration:none;text-transform:none;letter-spacing:0">\uD83D\uDD0D Research</a></div>';
+      // 2026-11-22 (howmany): clear:both — on a narrow phone the two research links drop under the label; the box takes its own full line below them
+      _pvHtml += '<div style="clear:both;display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem">';
       _pvHtml += '<span style="color:var(--text-dim);font-size:1.1rem">$</span>';
-      _pvHtml += '<input type="number" id="pv-worth" value="' + (_pvD.userEstWorth || '') + '" placeholder="0.00" min="0" step="0.01" style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem" oninput="wizard.data.userEstWorth=this.value"></div></div>';
+      _pvHtml += '<input type="number" id="pv-worth" value="' + (_pvD.userEstWorth || '') + '" placeholder="0.00" min="0" step="0.01" style="flex:1;min-width:0;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem" oninput="wizard.data.userEstWorth=this.value"></div></div>';
     }
 
     // Price paid — loco and normal items only, not set non-loco
     if (!_pvIsSetOther) {
-      _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">' + (_pvIsSetLoco ? 'What did you pay for the whole set? ($)' : 'What did you pay? ($)') + '</div>';
+      _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">' + (_pvIsSetLoco ? 'What did you pay for the whole set? ($)' : 'What did you pay? ($' + rrHowManyEachHtml(_pvD) + ')') + '</div>';
       _pvHtml += '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem">';
       _pvHtml += '<span style="color:var(--text-dim);font-size:1.1rem">$</span>';
-      _pvHtml += '<input type="number" id="pv-price" value="' + (_pvD.priceItem || '') + '" placeholder="0.00" min="0" step="0.01" style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem" oninput="wizard.data.priceItem=this.value"></div>';
+      _pvHtml += '<input type="number" id="pv-price" value="' + (_pvD.priceItem || '') + '" placeholder="0.00" min="0" step="0.01" style="flex:1;min-width:0;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem" oninput="wizard.data.priceItem=this.value"></div>';
       if (_pvIsPaired || _pvIsSet) {
         _pvHtml += '<div style="font-size:0.75rem;color:var(--accent2);margin-top:0.2rem">Full price — other units will reference this.</div>';
       }
@@ -7131,7 +7174,7 @@ function renderWizardStep() {
     // In two columns Notes takes the empty right-hand slot when the fields
     // before it are an odd count (Storage Location on, say), and runs across
     // both columns when they are even — so no row is left half empty.
-    var _pvCells = (_pvIsSetOther ? 0 : 4) + (_pvLocEnabled ? 1 : 0)
+    var _pvCells = (_pvIsSetOther ? 0 : 4) + (_pvLocEnabled ? 1 : 0) + (_pvHowMany ? 1 : 0)
       + ((typeof rrEnabledUserFields === 'function') ? rrEnabledUserFields().length : 0);
     _pvHtml += '<div class="wiz-pv-notes' + (_pvCells % 2 ? '' : ' wiz-pv-full') + '" style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Notes (optional)</div>';
     _pvHtml += '<textarea id="pv-notes" placeholder="e.g. Purchased at train show, minor rust on trucks, runs well" style="width:100%;min-height:60px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data.notes=this.value">' + rrEsc(_pvD.notes) + '</textarea></div>';
@@ -7341,6 +7384,11 @@ function renderWizardStep() {
       set_num:'Set Number',
       purchasedFrom:'Bought From',   // v0.9.1920: shown as the contact's name, not its code
     };
+    // 2026-11-22 (howmany): with a count above 1 the price and the worth are each
+    if (typeof rrHowManyCount === 'function' && rrHowManyCount(wizard.data) > 1) {
+      _keyLabels.priceItem = 'Price Paid (' + RR_HOW_MANY.each + ')';
+      _keyLabels.userEstWorth = 'Est. Worth (' + RR_HOW_MANY.each + ', insurance)';
+    }
     // 2026-10-31: the Command IDs set with "＋ Add command ID" show under their own names
     (window.RR_USER_FIELDS || []).forEach(function (f) {
       if (f.ownCard && !_keyLabels[f.key]) _keyLabels[f.key] = (typeof rrFieldLabel === 'function') ? rrFieldLabel(f) : f.label;
@@ -7495,6 +7543,13 @@ function renderWizardStep() {
       confirmHtml += '<div style="background:var(--surface2);border-radius:8px;padding:0.85rem;margin-bottom:1rem">'
         + '<div style="font-family:var(--font-mono);color:var(--accent2)">' + (wizard.data.itemCategory === 'set' ? 'Set ' : 'Item ') + (wizard.data.itemNum || wizard.data.set_num || '?') + (wizard.data.variation ? ' Var ' + wizard.data.variation : '') + '</div>'
         + '<div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.2rem">' + (wizard.data.itemCategory === 'set' ? 'Will be added to your Want List' : ((typeof _catalogReady === 'function' && !_catalogReady()) ? '⏳ Loading your catalog — one moment…' : 'Not found in master inventory — will save with entered data')) + '</div></div>';
+    }
+    // 2026-11-22 (howmany): a count above 1 is said in words before the save.
+    var _cfHowMany = (typeof rrHowManyCount === 'function') ? rrHowManyCount(wizard.data) : 1;
+    if (!_isEph && _cfHowMany > 1) {
+      confirmHtml += '<div id="cf-howmany" style="background:var(--surface2);border:1.5px solid var(--accent2);border-radius:10px;padding:0.75rem 0.85rem;margin-bottom:1rem">'
+        + '<div style="font-weight:700;color:var(--text);font-size:0.95rem">' + rrEsc(String(RR_HOW_MANY.confirm).replace(/\{n\}/g, _cfHowMany).replace('{num}', wizard.data.itemNum || '')) + '</div>'
+        + '<div style="font-size:0.78rem;color:var(--text-mid);margin-top:0.25rem;line-height:1.4">' + rrEsc(RR_HOW_MANY.confirmNote) + '</div></div>';
     }
     // Session 115: grouping-candidate section. When the user already owns
     // something that naturally groups with this new item, surface it as

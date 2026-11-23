@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2155';
+const APP_VERSION = 'v0.9.2156';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -139,6 +139,29 @@ if (typeof window !== 'undefined') {
   window.RR_PLAN_WORDS = RR_PLAN_WORDS;
   window.rrPlan = rrPlan;
 }
+
+// ── 2026-11-22 (howmany) — "HOW MANY?" WHEN ADDING TRACK AND SWITCHES ──
+// Problem report (Rex): "Can I add several 022 switches at once?"
+// [stated] Brad 2026-11-22 17:05 CT "one item per line, if a person says they
+// have 6 022 switches, there is 6 individual rows that are identical other
+// than the inventory id. price is listed as each. how many is just on track
+// and switches".
+// THE one place that says which kind of item is asked "How many?" (a type
+// bucket of type-groups.js), how many one add may make (the spreadsheet
+// import's own cap, import-core.js), and the words. The rules themselves live
+// in wizard-save.js (rrHowManyOffered / rrHowManyCount / rrHowManyCopies).
+const RR_HOW_MANY = {
+  bucket: 'Track',
+  max: 25,
+  label: 'How many?',
+  hint: 'Each one is saved as its own entry.',
+  each: 'each',
+  over: 'One add can make up to {max}. For more, add the rest in a second add.',
+  confirm: '{n} × {num} — {n} separate entries',
+  confirmNote: 'Each gets its own Inventory ID. The price and worth are for each one. Photos stay with the first.',
+  saved: '✓ {n} × {num} added to My Collection!',
+};
+if (typeof window !== 'undefined') window.RR_HOW_MANY = RR_HOW_MANY;
 
 // ── THE INVITE SCREEN — ONE switch (v0.9.1892, launch build) ─────────────
 // true  = new visitors type the beta code before they can sign in (before launch)

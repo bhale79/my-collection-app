@@ -4493,6 +4493,19 @@ window._rrOfflineAppendDrain = async function () {
       });
     } catch (e) {}
 
+    // 2026-11-22 (howmany, review): a fresh id must be past every WAITING row's
+    // id as well — after a reload the waiting rows are not in memory, and a
+    // re-minted row could otherwise be handed the number its own sibling holds.
+    try {
+      queued.forEach(function (q) {
+        if (q && q.args && q.args.sheetId && state.personalSheetId && String(q.args.sheetId) !== String(state.personalSheetId)) return;
+        ((q && q.args && q.args.values) || []).forEach(function (r) {
+          var n = parseInt(r && r[invIdx], 10);
+          if (!isNaN(n) && n > _maxInv) _maxInv = n;
+        });
+      });
+    } catch (e) {}
+
     var _drainP = rrOutboxDrainAppends(function (entry) {
       try {
         if (invIdx < 0) return false;
@@ -4505,6 +4518,38 @@ window._rrOfflineAppendDrain = async function () {
         if (!row) return false;
         var iv = row[invIdx];
         if (iv == null || iv === '') return false;   // not a collection row — replay it
+        // 2026-11-22 (howmany): an add of several copies waits as ONE entry of
+        // several rows (one append — at Google all of them land, or none).
+        //   • EVERY row's id is in the sheet at a real row as the same item
+        //     → the entry landed — drop it, never double it.
+        //   • anything less → SEND, and every row whose id the sheet already
+        //     holds (another device's piece) takes a fresh id first. One clash
+        //     on the first row must not delete six pieces: track is exactly
+        //     where "same number, another copy" is the everyday case.
+        // A one-row entry never comes in here — it is judged below, as always.
+        var _vs = entry.args.values;
+        if (_vs.length > 1) {
+          var _numOf = function (r) { return (_numIdx >= 0) ? String((r && r[_numIdx]) || '') : ''; };
+          var _allLanded = _vs.every(function (r) {
+            var v = r && r[invIdx];
+            return v != null && v !== '' && (String(v) in have) && have[String(v)] === _numOf(r);
+          });
+          if (_allLanded) {
+            try { console.warn('[outbox] queued add of ' + _vs.length + ' \u00d7 ' + _numOf(row) + ' is already in the sheet at real rows — dropping the duplicate'); } catch (eM1) {}
+            try { if (typeof rrSyncLog === 'function') rrSyncLog('DROP-dup', _numOf(row) + ' x' + _vs.length + ' inv=' + iv); } catch (eM2) {}
+            try { if (typeof showToast === 'function') showToast(_numOf(row) + ' was already in your sheet — the queued copies were dropped, not doubled.', 4000); } catch (eM3) {}
+            return true;
+          }
+          for (var ri = 0; ri < _vs.length; ri++) {
+            var rv = _vs[ri] && _vs[ri][invIdx];
+            if (rv == null || rv === '' || !(String(rv) in have)) continue;
+            var rf = String(++_maxInv);
+            try { if (typeof rrSyncLog === 'function') rrSyncLog('REMINT', _numOf(_vs[ri]) + ' ' + rv + '->' + rf); } catch (eM4) {}
+            _vs[ri][invIdx] = rf;
+            try { document.dispatchEvent(new CustomEvent('rr-remint', { detail: { from: String(rv), to: rf, num: _numOf(_vs[ri]) } })); } catch (eM5) {}
+          }
+          return false;
+        }
         if (!(String(iv) in have)) return false;     // unknown id — send
         var sheetNum = have[String(iv)];
         var queuedNum = (_numIdx >= 0) ? String(row[_numIdx] || '') : '';

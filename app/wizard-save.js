@@ -129,6 +129,77 @@ function _rrAddChosenType(d) {
 }
 if (typeof window !== 'undefined') { window._rrAddNoRowItem = _rrAddNoRowItem; window._rrAddChosenType = _rrAddChosenType; }
 
+// ── 2026-11-22 (howmany) — "HOW MANY?" FOR TRACK AND SWITCHES ──────────────
+// Brad's rule (config.js RR_HOW_MANY): 6 means SIX ROWS, identical except the
+// Inventory ID; the price is each; asked only for track and switches.
+// THREE functions own it — the Purchase & Value screen, the review screen and
+// the save all ask these and nothing else:
+//   rrHowManyOffered(d)  is this add asked "How many?" at all
+//   rrHowManyCount(d)    the number the save acts on (1 = today's save, exactly)
+//   rrHowManyCopies(...) the extra rows, made from the row the save built
+// The count is kept in ONE place: wizard.data._howMany (an underscore key, so
+// the review screen never lists it as an editable row).
+// Offered ONLY to a plain new add of one piece to My Collection: not a set
+// walk, a pair, an edit, a quick-entry fill, a box on its own, a photo-inbox
+// add, an add that is also listed for sale, or a piece added into a group.
+function rrHowManyOffered(d) {
+  try {
+    d = d || ((typeof wizard !== 'undefined' && wizard) ? wizard.data : null) || {};
+    if (typeof RR_HOW_MANY === 'undefined' || typeof wizard === 'undefined' || !wizard || wizard.tab !== 'collection') return false;
+    if (d._manualEntry || d._setMode || d._ownSet || d._updatePdKey || d.boxOnly || d._fillItemMode || d._completingQuickEntry) return false;
+    if (d._fromInbox || d._alsoListForSale || d._photoOnly || d._existingInventoryId || d._existingGroupId) return false;
+    if (d._addToGroupInv || d._addToGroupKey || d._addToGroupGid) return false;
+    if ((d.tenderMatch && d.tenderMatch !== 'none') || d.setMatch === 'set-now' || d.setMatch === 'link') return false;
+    var row = (typeof _wizAddRow === 'function') ? _wizAddRow() : wizard.matchedItem;
+    var typed = row ? '' : _rrAddChosenType(d);
+    var src = row || (typed ? { itemType: typed } : null);
+    if (!src || typeof getTypeBucket !== 'function') return false;
+    return getTypeBucket(src) === RR_HOW_MANY.bucket;
+  } catch (e) { return false; }
+}
+// What a typed number counts as: a whole number from 1 to the cap, else 1.
+function rrHowManyClamp(v) {
+  var max = (typeof RR_HOW_MANY !== 'undefined' && RR_HOW_MANY.max) || 1;
+  var n = parseInt(String(v == null ? '' : v).trim(), 10);
+  if (isNaN(n) || n < 1) return 1;
+  return n > max ? max : n;
+}
+function rrHowManyCount(d) {
+  d = d || ((typeof wizard !== 'undefined' && wizard) ? wizard.data : null) || {};
+  return rrHowManyOffered(d) ? rrHowManyClamp(d._howMany) : 1;
+}
+// The EXTRA rows for a count of n: n - 1 copies of the row the save built.
+// Every cell is the first row's, except:
+//   · the Inventory ID — its own, handed out here, all before anything is written;
+//   · the two photo links — blank. A copy's pictures live in a Drive folder named
+//     for its Inventory ID, and selling a copy moves THAT folder to Sold
+//     (drive.js driveMoveToSold); six rows on one folder would send the other
+//     five rows' link to Sold with it. The pictures stay with the first.
+//   · the Group ID — a copy that has its box gets a group of its own
+//     (opts.ownGroup); otherwise none (a link to a box you already had is the
+//     first row's alone).
+function rrHowManyCopies(row, n, opts) {
+  opts = opts || {};
+  var out = [];
+  n = parseInt(n, 10) || 1;
+  if (!Array.isArray(row) || n <= 1) return out;
+  var F = PERSONAL_FIELD_INDEX;
+  var ts = Date.now();
+  for (var i = 1; i < n; i++) {
+    var c = row.slice();
+    c[F.inventoryId] = nextInventoryId();
+    c[F.photoItem] = '';
+    c[F.photoBox] = '';
+    c[F.groupId] = opts.ownGroup ? ('GRP-' + (opts.lead || '') + '-' + (ts + i)) : '';
+    out.push(c);
+  }
+  return out;
+}
+if (typeof window !== 'undefined') {
+  window.rrHowManyOffered = rrHowManyOffered; window.rrHowManyClamp = rrHowManyClamp;
+  window.rrHowManyCount = rrHowManyCount; window.rrHowManyCopies = rrHowManyCopies;
+}
+
 function _rrAddNeedsMaker(d) {
   try {
     d = d || ((typeof wizard !== 'undefined' && wizard) ? wizard.data : null) || {};
@@ -2469,6 +2540,7 @@ async function saveWizardItem() {
   } catch (eSP) {}
 
   var _mainApRow = 0;   // v0.9.1196: the sheet row this item actually landed on
+  var _hmCopies = [];   // 2026-11-22 (howmany): the extra rows of a "How many?" add (rrHowManyCopies) — empty for every other add
   // v0.9.1941: the row as WRITTEN (an update carries the old row's columns) —
   // the in-memory record after the save is built from THIS, never a field list.
   var _mainWrittenRow = (typeof row !== 'undefined') ? row : null;
@@ -2507,7 +2579,11 @@ async function saveWizardItem() {
         _mainApRow = existing.row;
       } else {
         // Always append for a plain new collection add — never overwrite existing rows
-        _mainApRow = (await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [row])) || 0;
+        // 2026-11-22 (howmany): a count above 1 sends ALL its rows in this ONE
+        // append — Google lands them together or not at all. 1 (every other add)
+        // is the single row, exactly as before.
+        _hmCopies = (tab === 'collection') ? rrHowManyCopies(row, rrHowManyCount(d), { ownGroup: d.hasBox === 'Yes' && !!groupId, lead: _rawItemNum }) : [];
+        _mainApRow = (await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [row].concat(_hmCopies))) || 0;
       }
 
       // Session 115: general "adopt candidates into the group" block.
@@ -2945,7 +3021,12 @@ async function saveWizardItem() {
           const _bxVar = d.boxVariation || '';
           const _bxDesc = d.boxVariationDesc || '';
           const u1BoxRow = _buildGroupBoxRow(itemNum, d.boxCond || row[PERSONAL_FIELD_INDEX.boxCond], boxPhotos[0] || row[PERSONAL_FIELD_INDEX.photoBox] || '', groupId, d.datePurchased, itemNum, _bxVar, _bxDesc, _resolveSaveEra());
-          const _bx1ApRow = await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [u1BoxRow]);   // v0.9.1196
+          // 2026-11-22 (howmany): each copy that has its box gets its OWN box row in
+          // its own group — as if added one at a time. All the box rows go in one
+          // append. The box photo stays with the first.
+          const _hmBoxRows = _hmCopies.filter(c => c[PERSONAL_FIELD_INDEX.groupId]).map(c =>
+            _buildGroupBoxRow(itemNum, d.boxCond || row[PERSONAL_FIELD_INDEX.boxCond], '', c[PERSONAL_FIELD_INDEX.groupId], d.datePurchased, itemNum, _bxVar, _bxDesc, _resolveSaveEra()));
+          const _bx1ApRow = await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [u1BoxRow].concat(_hmBoxRows));   // v0.9.1196
           var _bxNote = 'Box for ' + itemNum;
           if (_bxDesc) _bxNote += ' — ' + _bxDesc;
           state.personalData[u1BoxRow[PERSONAL_FIELD_INDEX.inventoryId]] = rrSavedRecord(u1BoxRow, _bx1ApRow || 0, {
@@ -2956,6 +3037,18 @@ async function saveWizardItem() {
             inventoryId: u1BoxRow[PERSONAL_FIELD_INDEX.inventoryId], groupId: groupId,
           });
           _stampSaved(state.personalData[u1BoxRow[PERSONAL_FIELD_INDEX.inventoryId]]);
+          // 2026-11-22 (howmany): the copies' box rows, in memory as written
+          _hmBoxRows.forEach(function (bx, bi) {
+            var _hbId = bx[PERSONAL_FIELD_INDEX.inventoryId], _hbRow = _bx1ApRow ? (_bx1ApRow + 1 + bi) : 0;
+            state.personalData[_hbId] = rrSavedRecord(bx, _hbRow, {
+              row: _hbRow, itemNum: itemNum + '-BOX', variation: _bxVar,
+              status: 'Owned', owned: true,
+              condition: d.boxCond || row[PERSONAL_FIELD_INDEX.boxCond] || '', hasBox: 'Yes', boxCond: d.boxCond || row[PERSONAL_FIELD_INDEX.boxCond] || '',
+              notes: _bxNote, matchedTo: itemNum,
+              inventoryId: _hbId, groupId: bx[PERSONAL_FIELD_INDEX.groupId],
+            });
+            _stampSaved(state.personalData[_hbId]);
+          });
         }
         // Unit 2 box (set save)
         if (isSetSave && d.unit2HasBox === 'Yes' && d.unit2ItemNum) {
@@ -3337,6 +3430,16 @@ async function saveWizardItem() {
         era: _resolveSaveEra(), manufacturer: ((_mainWrittenRow || row) || [])[PERSONAL_FIELD_INDEX.manufacturer] || '',   // 2026-11-03: what the row wrote
       });
       _stampSaved(state.personalData[_optInvId]);
+      // 2026-11-22 (howmany): every copy is in memory as its own piece, read
+      // from the row it was written as — same reader, same rule as the first.
+      _hmCopies.forEach(function (c, ci) {
+        var _hcId = c[PERSONAL_FIELD_INDEX.inventoryId];
+        state.personalData[_hcId] = rrSavedRecord(c, _mainApRow ? (_mainApRow + 1 + ci) : 0, {
+          inventoryId: _hcId, itemNum: itemNum, variation: variation, groupId: c[PERSONAL_FIELD_INDEX.groupId] || '',
+          era: _resolveSaveEra(), manufacturer: c[PERSONAL_FIELD_INDEX.manufacturer] || '',
+        });
+        _stampSaved(state.personalData[_hcId]);
+      });
     } else if (tab === 'sold') {
       var _osk = _newSoldKey();
       state.soldData[_osk] = {
@@ -3392,7 +3495,8 @@ async function saveWizardItem() {
       // FIND BY ID: never "✓ Added to Sold!" over a copy that is still owned.
       showToast(String(((typeof RR_FIND_BY_ID !== 'undefined' && RR_FIND_BY_ID.saleKept) || '')).replace('{num}', _rrSaleKeptNum), 9000, true);
     } else {
-      showToast(`✓ Item ${itemNum} added to ${tab === 'collection' ? 'My Collection' : tab === 'forsale' ? 'For Sale' : tab === 'sold' ? 'Sold' : 'Want List'}!`);
+      if (tab === 'collection' && _hmCopies.length) showToast(String(RR_HOW_MANY.saved).replace('{n}', _hmCopies.length + 1).replace('{num}', itemNum));   // 2026-11-22 (howmany)
+      else showToast(`✓ Item ${itemNum} added to ${tab === 'collection' ? 'My Collection' : tab === 'forsale' ? 'For Sale' : tab === 'sold' ? 'Sold' : 'Want List'}!`);
     }
     // STALEPAGE (T-2026-11-05-01): the item page that sold copy was on said
     // "In Collection · 3 of 4" until a reload. The page follows the sale — left
