@@ -1,0 +1,870 @@
+{
+ "title": "Office verdicts — the 64 rows waiting since the 2026-11-03 crawl (56 approved with edits; 8 held for Brad), 2026-11-23",
+ "rule": "status approved/edited/rejected + decided date in P:Q; set = crawl_deltas cells by header; before = value the cell must hold now",
+ "review": "OFFICE_WAITING_REVIEW_2026-11-23.xlsx",
+ "said": "[stated] Brad 2026-11-23 16:33 CT \";yes\" to approving the 56 ready items with the fixes in the sheet",
+ "held": [
+  "CB-MENARDS-20261103-00055",
+  "CB-MENARDS-20261103-00056",
+  "CB-COTT-20261103-00003",
+  "CB-COTT-20261103-00004",
+  "CB-COTT-20261103-00005",
+  "CB-COTT-20261103-00006",
+  "CB-COTT-20261103-00007",
+  "CB-COTT-20261103-00008"
+ ],
+ "rows": [
+  {
+   "delta_id": "CB-MENARDS-20261103-00001",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9054",
+   "status": "edited",
+   "set": {
+    "variation": "1",
+    "msrp": "$119.96"
+   },
+   "before": {
+    "variation": "",
+    "msrp": "119.96"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00002",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9409",
+   "status": "edited",
+   "set": {
+    "description": "Burlington Northern Train Set",
+    "variation": "1",
+    "msrp": "$229.00"
+   },
+   "before": {
+    "description": "O Gauge Burlington Northern Train Set",
+    "variation": "",
+    "msrp": "229.00"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00003",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9513",
+   "status": "edited",
+   "set": {
+    "road_name": "Sinclair",
+    "variation": "1",
+    "msrp": "$124.94"
+   },
+   "before": {
+    "road_name": "",
+    "variation": "",
+    "msrp": "124.94"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00004",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9523",
+   "status": "edited",
+   "set": {
+    "description": "M&M's Train Set",
+    "variation": "1",
+    "msrp": "$249.00"
+   },
+   "before": {
+    "description": "O Gauge M&M's Train Set",
+    "variation": "",
+    "msrp": "249.00"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00005",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9576",
+   "status": "edited",
+   "set": {
+    "description": "Ranch House",
+    "variation": "1",
+    "msrp": "$89.99"
+   },
+   "before": {
+    "description": "O Scale Ranch House",
+    "variation": "",
+    "msrp": "89.99"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00006",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9577",
+   "status": "edited",
+   "set": {
+    "description": "Ranch House",
+    "variation": "1",
+    "msrp": "$59.99"
+   },
+   "before": {
+    "description": "HO Scale Ranch House",
+    "variation": "",
+    "msrp": "59.99"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00007",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9673",
+   "status": "edited",
+   "set": {
+    "description": "Milwaukee Road Locomotive AA Set",
+    "variation": "1",
+    "msrp": "$249.99"
+   },
+   "before": {
+    "description": "O Gauge Milwaukee Road Locomotive AA Set",
+    "variation": "",
+    "msrp": "249.99"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00008",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9674",
+   "status": "edited",
+   "set": {
+    "description": "Elevated Water Tower",
+    "variation": "1",
+    "msrp": "$59.99"
+   },
+   "before": {
+    "description": "O Scale Elevated Water Tower",
+    "variation": "",
+    "msrp": "59.99"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00009",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9675",
+   "status": "edited",
+   "set": {
+    "description": "Elevated Water Tower",
+    "variation": "1",
+    "msrp": "$49.99"
+   },
+   "before": {
+    "description": "HO Scale Elevated Water Tower",
+    "variation": "",
+    "msrp": "49.99"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00010",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9677",
+   "status": "edited",
+   "set": {
+    "description": "Christmas Gondola with Santa's Sleigh",
+    "variation": "1",
+    "msrp": "$34.99"
+   },
+   "before": {
+    "description": "O Gauge Christmas Gondola with Santa's Sleigh",
+    "variation": "",
+    "msrp": "34.99"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00011",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9678",
+   "status": "edited",
+   "set": {
+    "variation": "1",
+    "msrp": "$119.96"
+   },
+   "before": {
+    "variation": "",
+    "msrp": "119.96"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00012",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9679",
+   "status": "edited",
+   "set": {
+    "description": "Mobil Gas Station",
+    "variation": "1",
+    "msrp": "$49.99"
+   },
+   "before": {
+    "description": "O Scale Mobil Gas Station",
+    "variation": "",
+    "msrp": "49.99"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00013",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9680",
+   "status": "edited",
+   "set": {
+    "description": "Mobil Gas Station",
+    "variation": "1",
+    "msrp": "$39.99"
+   },
+   "before": {
+    "description": "HO Scale Mobil Gas Station",
+    "variation": "",
+    "msrp": "39.99"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00014",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9681",
+   "status": "edited",
+   "set": {
+    "description": "Sinclair Storage Tank",
+    "variation": "1",
+    "msrp": "$39.99"
+   },
+   "before": {
+    "description": "O Scale Sinclair Storage Tank",
+    "variation": "",
+    "msrp": "39.99"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00015",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9682",
+   "status": "edited",
+   "set": {
+    "description": "Sinclair Storage Tank",
+    "variation": "1",
+    "msrp": "$24.99"
+   },
+   "before": {
+    "description": "HO Scale Sinclair Storage Tank",
+    "variation": "",
+    "msrp": "24.99"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00016",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9687",
+   "status": "edited",
+   "set": {
+    "description": "Electrical Towers (3-Pack)",
+    "variation": "1",
+    "msrp": "$19.99"
+   },
+   "before": {
+    "description": "HO Scale Electrical Towers (3-Pack)",
+    "variation": "",
+    "msrp": "19.99"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00017",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9688",
+   "status": "edited",
+   "set": {
+    "variation": "1",
+    "msrp": "$34.99"
+   },
+   "before": {
+    "variation": "",
+    "msrp": "34.99"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00018",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9689",
+   "status": "edited",
+   "set": {
+    "variation": "1",
+    "msrp": "$119.96"
+   },
+   "before": {
+    "variation": "",
+    "msrp": "119.96"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00019",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9690",
+   "status": "edited",
+   "set": {
+    "variation": "1",
+    "msrp": "$34.99"
+   },
+   "before": {
+    "variation": "",
+    "msrp": "34.99"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00020",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9691",
+   "status": "edited",
+   "set": {
+    "variation": "1",
+    "msrp": "$119.96"
+   },
+   "before": {
+    "variation": "",
+    "msrp": "119.96"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00021",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9692",
+   "status": "edited",
+   "set": {
+    "variation": "1",
+    "msrp": "$34.99"
+   },
+   "before": {
+    "variation": "",
+    "msrp": "34.99"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00022",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9693",
+   "status": "edited",
+   "set": {
+    "variation": "1",
+    "msrp": "$119.96"
+   },
+   "before": {
+    "variation": "",
+    "msrp": "119.96"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00023",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9694",
+   "status": "edited",
+   "set": {
+    "variation": "1",
+    "msrp": "$34.99"
+   },
+   "before": {
+    "variation": "",
+    "msrp": "34.99"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00024",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9695",
+   "status": "edited",
+   "set": {
+    "variation": "1",
+    "msrp": "$119.96"
+   },
+   "before": {
+    "variation": "",
+    "msrp": "119.96"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00025",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9696",
+   "status": "edited",
+   "set": {
+    "variation": "1",
+    "msrp": "$6.99"
+   },
+   "before": {
+    "variation": "",
+    "msrp": "6.99"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00026",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9697",
+   "status": "edited",
+   "set": {
+    "variation": "1",
+    "msrp": "$6.99"
+   },
+   "before": {
+    "variation": "",
+    "msrp": "6.99"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00027",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9698",
+   "status": "edited",
+   "set": {
+    "variation": "1",
+    "msrp": "$6.99"
+   },
+   "before": {
+    "variation": "",
+    "msrp": "6.99"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00028",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9700",
+   "status": "edited",
+   "set": {
+    "variation": "1",
+    "msrp": "$6.99"
+   },
+   "before": {
+    "variation": "",
+    "msrp": "6.99"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00029",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9701",
+   "status": "edited",
+   "set": {
+    "variation": "1",
+    "msrp": "$6.99"
+   },
+   "before": {
+    "variation": "",
+    "msrp": "6.99"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00030",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9702",
+   "status": "edited",
+   "set": {
+    "variation": "1",
+    "msrp": "$6.99"
+   },
+   "before": {
+    "variation": "",
+    "msrp": "6.99"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00031",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9705",
+   "status": "edited",
+   "set": {
+    "variation": "1",
+    "msrp": "$69.90"
+   },
+   "before": {
+    "variation": "",
+    "msrp": "69.90"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00032",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9706",
+   "status": "edited",
+   "set": {
+    "description": "Sinclair Beam Pump",
+    "variation": "1",
+    "msrp": "$39.99"
+   },
+   "before": {
+    "description": "O Scale Sinclair Beam Pump",
+    "variation": "",
+    "msrp": "39.99"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00033",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9707",
+   "status": "edited",
+   "set": {
+    "description": "Sinclair Beam Pump",
+    "variation": "1",
+    "msrp": "$29.99"
+   },
+   "before": {
+    "description": "HO Scale Sinclair Beam Pump",
+    "variation": "",
+    "msrp": "29.99"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00034",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9718",
+   "status": "edited",
+   "set": {
+    "description": "UFO Hangar 51",
+    "variation": "1",
+    "msrp": "$79.99"
+   },
+   "before": {
+    "description": "O Scale UFO Hangar 51",
+    "variation": "",
+    "msrp": "79.99"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00035",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9719",
+   "status": "edited",
+   "set": {
+    "description": "UFO Hangar 51",
+    "variation": "1",
+    "msrp": "$59.99"
+   },
+   "before": {
+    "description": "HO Scale UFO Hangar 51",
+    "variation": "",
+    "msrp": "59.99"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00036",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9720",
+   "status": "edited",
+   "set": {
+    "road_name": "Gorilla Glue",
+    "description": "Gorilla Glue Boxcar",
+    "variation": "1",
+    "msrp": "$24.99"
+   },
+   "before": {
+    "road_name": "",
+    "description": "O Gauge Gorilla Glue Boxcar",
+    "variation": "",
+    "msrp": "24.99"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00037",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9721",
+   "status": "edited",
+   "set": {
+    "road_name": "Gorilla Glue",
+    "variation": "1",
+    "msrp": "$84.96"
+   },
+   "before": {
+    "road_name": "",
+    "variation": "",
+    "msrp": "84.96"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00038",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9722",
+   "status": "edited",
+   "set": {
+    "road_name": "Pepsi",
+    "description": "Pepsi Please Boxcar",
+    "variation": "1",
+    "msrp": "$24.99"
+   },
+   "before": {
+    "road_name": "",
+    "description": "O Gauge Pepsi Please Boxcar",
+    "variation": "",
+    "msrp": "24.99"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00039",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9723",
+   "status": "edited",
+   "set": {
+    "road_name": "Pepsi",
+    "variation": "1",
+    "msrp": "$84.96"
+   },
+   "before": {
+    "road_name": "",
+    "variation": "",
+    "msrp": "84.96"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00040",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9724",
+   "status": "edited",
+   "set": {
+    "road_name": "Sinclair",
+    "description": "Sinclair Boxcar (Silver)",
+    "variation": "1",
+    "msrp": "$24.99"
+   },
+   "before": {
+    "road_name": "",
+    "description": "O Gauge Sinclair Boxcar (Silver)",
+    "variation": "",
+    "msrp": "24.99"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00041",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9725",
+   "status": "edited",
+   "set": {
+    "road_name": "Sinclair",
+    "variation": "1",
+    "msrp": "$84.96"
+   },
+   "before": {
+    "road_name": "",
+    "variation": "",
+    "msrp": "84.96"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00042",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9726",
+   "status": "edited",
+   "set": {
+    "road_name": "SPAM",
+    "description": "SPAM Boxcar",
+    "variation": "1",
+    "msrp": "$24.99"
+   },
+   "before": {
+    "road_name": "",
+    "description": "O Gauge SPAM Boxcar",
+    "variation": "",
+    "msrp": "24.99"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00043",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9727",
+   "status": "edited",
+   "set": {
+    "road_name": "SPAM",
+    "variation": "1",
+    "msrp": "$84.96"
+   },
+   "before": {
+    "road_name": "",
+    "variation": "",
+    "msrp": "84.96"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00044",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9740",
+   "status": "edited",
+   "set": {
+    "description": "Chicago & North Western Boxcar with Lights",
+    "variation": "1",
+    "msrp": "$34.99"
+   },
+   "before": {
+    "description": "O Gauge Chicago & North Western Boxcar with Lights",
+    "variation": "",
+    "msrp": "34.99"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00045",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9741",
+   "status": "edited",
+   "set": {
+    "variation": "1",
+    "msrp": "$114.96"
+   },
+   "before": {
+    "variation": "",
+    "msrp": "114.96"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00046",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9774",
+   "status": "edited",
+   "set": {
+    "variation": "1",
+    "msrp": "$34.99"
+   },
+   "before": {
+    "variation": "",
+    "msrp": "34.99"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00047",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9775",
+   "status": "edited",
+   "set": {
+    "variation": "1",
+    "msrp": "$114.96"
+   },
+   "before": {
+    "variation": "",
+    "msrp": "114.96"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00048",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9776",
+   "status": "edited",
+   "set": {
+    "variation": "1",
+    "msrp": "$34.99"
+   },
+   "before": {
+    "variation": "",
+    "msrp": "34.99"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00049",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9777",
+   "status": "edited",
+   "set": {
+    "variation": "1",
+    "msrp": "$114.96"
+   },
+   "before": {
+    "variation": "",
+    "msrp": "114.96"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00050",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9778",
+   "status": "edited",
+   "set": {
+    "variation": "1",
+    "msrp": "$34.99"
+   },
+   "before": {
+    "variation": "",
+    "msrp": "34.99"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00051",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9779",
+   "status": "edited",
+   "set": {
+    "variation": "1",
+    "msrp": "$114.96"
+   },
+   "before": {
+    "variation": "",
+    "msrp": "114.96"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00052",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9780",
+   "status": "edited",
+   "set": {
+    "variation": "1",
+    "msrp": "$34.99"
+   },
+   "before": {
+    "variation": "",
+    "msrp": "34.99"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00053",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "275-9781",
+   "status": "edited",
+   "set": {
+    "variation": "1",
+    "msrp": "$114.96"
+   },
+   "before": {
+    "variation": "",
+    "msrp": "114.96"
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00054",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "279-8486",
+   "status": "edited",
+   "set": {
+    "description": "30\" Aerial Bridge w/ Lights",
+    "variation": "1",
+    "msrp": "$149.99"
+   },
+   "before": {
+    "description": "O Scale 30\" Aerial Bridge w/ Lights",
+    "variation": "",
+    "msrp": "149.99"
+   }
+  },
+  {
+   "delta_id": "CB-COTT-20261103-00001",
+   "batch": "CB-COTT-20261103",
+   "item_num": "214",
+   "status": "edited",
+   "set": {
+    "description": "Boxcar (std)",
+    "variation": "H"
+   },
+   "before": {
+    "description": "Boxcar (std), yellow body with orange roof and door guides, brass trim and plates, copper journals, T2 brake wheels",
+    "variation": ""
+   }
+  },
+  {
+   "delta_id": "CB-COTT-20261103-00002",
+   "batch": "CB-COTT-20261103",
+   "item_num": "516",
+   "status": "edited",
+   "set": {
+    "item_type": "Hopper",
+    "description": "Hopper Car (std)",
+    "variation": "D",
+    "ref_link": "https://cornucopiaoftoytrains.com/standard-gauge-500-series-freight-cars-hoppers/#NO514HOPPERSPD"
+   },
+   "before": {
+    "item_type": "Hopper Car",
+    "description": "Hopper Car (std), \"Special d\" version: red body with coal load, no data lettering, brass trim and plates, nickel journals, T3 brake wheels",
+    "variation": "",
+    "ref_link": "https://cornucopiaoftoytrains.com/standard-gauge-500-series-freight-cars-hoppers/#NO514SPD1934"
+   }
+  }
+ ]
+}
