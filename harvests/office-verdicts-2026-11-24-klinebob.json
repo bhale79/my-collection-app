@@ -1,0 +1,40 @@
+{
+ "title": "Office verdicts — 4 K-Line cars Bob reported or their companions, approved",
+ "rule": "status approved/edited/rejected + decided date in P:Q; set = crawl_deltas cells by header; before = value the cell must hold now",
+ "review": "_Claude_Work_Files\\kline_gap_20261124\\kline_bob_1124b.py (the 4 rows, shown to Brad in chat)",
+ "said": "[stated] Brad 2026-11-24 11:27 CT \"yes\" (add the Vlasic car, the TCA boom car, its crane car and the banquet boxcar as Master Version 3.06). Bob reported K-675402, K-689104 and K-689103.",
+ "rows": [
+  {
+   "delta_id": "CB-KLINEBOB-20261124-00001",
+   "batch": "CB-KLINEBOB-20261124",
+   "item_num": "K675402",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINEBOB-20261124-00002",
+   "batch": "CB-KLINEBOB-20261124",
+   "item_num": "K689104",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINEBOB-20261124-00003",
+   "batch": "CB-KLINEBOB-20261124",
+   "item_num": "K689103",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINEBOB-20261124-00004",
+   "batch": "CB-KLINEBOB-20261124",
+   "item_num": "K641-9013",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  }
+ ]
+}
