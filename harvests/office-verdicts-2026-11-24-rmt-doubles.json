@@ -1,0 +1,116 @@
+{
+ "title": "Office verdicts — 9 old approved RMT community rows closed: each is already on RMT O under its RMT- number",
+ "rule": "status approved/edited/rejected + decided date in P:Q; set = crawl_deltas cells by header; before = value the cell must hold now",
+ "review": "CB-COMMUNITY-SUBS commit preview 2026-11-24 read 'Append 10 rows — 1 to Lionel MPC-Modern, 9 to RMT O'; each of the 9 checked on RMT O by number and description (rows 399, 410-417)",
+ "said": "[stated] Brad 2026-11-24 12:20 CT \"yes\" (close those old RMT lines as already in the catalog, so 52540 can go in by itself)",
+ "rows": [
+  {
+   "delta_id": "CB-COMMUNITY-SUBS-0501",
+   "batch": "CB-COMMUNITY-SUBS",
+   "item_num": "92614",
+   "status": "rejected",
+   "set": {},
+   "before": {
+    "status": "approved",
+    "proposed_tab": "RMT O"
+   },
+   "why": "already on RMT O as RMT-92614"
+  },
+  {
+   "delta_id": "CB-COMMUNITY-SUBS-0502",
+   "batch": "CB-COMMUNITY-SUBS",
+   "item_num": "92615",
+   "status": "rejected",
+   "set": {},
+   "before": {
+    "status": "approved",
+    "proposed_tab": "RMT O"
+   },
+   "why": "already on RMT O as RMT-92615"
+  },
+  {
+   "delta_id": "CB-COMMUNITY-SUBS-0503",
+   "batch": "CB-COMMUNITY-SUBS",
+   "item_num": "92623",
+   "status": "rejected",
+   "set": {},
+   "before": {
+    "status": "approved",
+    "proposed_tab": "RMT O"
+   },
+   "why": "already on RMT O as RMT-92623"
+  },
+  {
+   "delta_id": "CB-COMMUNITY-SUBS-0504",
+   "batch": "CB-COMMUNITY-SUBS",
+   "item_num": "92715",
+   "status": "rejected",
+   "set": {},
+   "before": {
+    "status": "approved",
+    "proposed_tab": "RMT O"
+   },
+   "why": "already on RMT O as RMT-92715"
+  },
+  {
+   "delta_id": "CB-COMMUNITY-SUBS-0505",
+   "batch": "CB-COMMUNITY-SUBS",
+   "item_num": "92723",
+   "status": "rejected",
+   "set": {},
+   "before": {
+    "status": "approved",
+    "proposed_tab": "RMT O"
+   },
+   "why": "already on RMT O as RMT-92723"
+  },
+  {
+   "delta_id": "CB-COMMUNITY-SUBS-0508",
+   "batch": "CB-COMMUNITY-SUBS",
+   "item_num": "96262",
+   "status": "rejected",
+   "set": {},
+   "before": {
+    "status": "approved",
+    "proposed_tab": "RMT O"
+   },
+   "why": "already on RMT O as RMT-96262"
+  },
+  {
+   "delta_id": "CB-COMMUNITY-SUBS-0509",
+   "batch": "CB-COMMUNITY-SUBS",
+   "item_num": "96355",
+   "status": "rejected",
+   "set": {},
+   "before": {
+    "status": "approved",
+    "proposed_tab": "RMT O"
+   },
+   "why": "already on RMT O as RMT-96355"
+  },
+  {
+   "delta_id": "CB-COMMUNITY-SUBS-0510",
+   "batch": "CB-COMMUNITY-SUBS",
+   "item_num": "96562",
+   "status": "rejected",
+   "set": {},
+   "before": {
+    "status": "approved",
+    "proposed_tab": "RMT O"
+   },
+   "why": "already on RMT O as RMT-96562"
+  },
+  {
+   "delta_id": "CB-COMMUNITY-SUBS-0511",
+   "batch": "CB-COMMUNITY-SUBS",
+   "item_num": "CAB621",
+   "status": "rejected",
+   "set": {},
+   "before": {
+    "status": "approved",
+    "proposed_tab": "RMT O"
+   },
+   "why": "already on RMT O as RMT-611-621"
+  }
+ ]
+}
