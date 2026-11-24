@@ -8475,6 +8475,11 @@ async function _wizardNextCore() {
         wizard.data._partialNum = _numPart;
         wizard.matchedItem = null;   // 2026-11-01: the picker decides; no stale row rides on
       } else {
+        // 2026-11-23 (foundas; customer Bob, MTH + Flatcar + 30-72264 = an MTH
+        // Gondola): ONE filter is all that hides the number — the add stays
+        // here and says where it is ("Show it"), instead of slipping into a
+        // hand entry. "Add manually" is still one tap away on the same box.
+        if (typeof _wizFoundAsStop === 'function' && _wizFoundAsStop(_setTok || _numPart)) return;
         // No matches at all — allow adding as custom item
         wizard.data._partialMatches = [];
         // 2026-11-01: nothing inside the filters — the add holds NO catalog

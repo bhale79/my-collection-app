@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2157';
+const APP_VERSION = 'v0.9.2158';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -5846,6 +5846,28 @@ const RR_ADD_FILTERS = {
   noneFor:     'No {num} found for {filters} in our Master Catalog',
   noneAtAll:   'No item found in our Master Catalog',
   elsewhere:   '{num} is in the Master Catalog under other makers or eras',
+  // 2026-11-23 (foundas; customer Bob: picked MTH + Flatcar, typed 30-72264 —
+  // it is an MTH Gondola — and got "No item found"; [stated] Brad 16:46 CT "are
+  // we going to fix the typ issue", 16:54 CT "yes", 16:55 CT "emergency ship it").
+  // When ONE filter is all that hides the number, the box names where it is
+  // and offers it in one tap; the button sets that one filter (_wizShowFoundAs).
+  //   {where} — "MTH Gondola", "Lionel Prewar Steam Locomotive" (_wizWhereWords)
+  foundAs:     '{num} is in the Master Catalog as {where}',
+  showItBtn:   'Show it',
+  // Next pressed while that line is up: the add stays, and says why.
+  foundAsNext: '{num} is in the Master Catalog as {where} — tap “Show it” to pick it, or “Add manually”.',
+  whereSep:    ', ',
+  // Which filters may be named as "all that hides it". NOT the Maker or the
+  // Scale: makers reuse catalog numbers (RMT 66238 vs MTH 20-66238), so a number
+  // found only under ANOTHER maker or scale is most likely a different item —
+  // it keeps the plain "elsewhere" line (review of 2026-11-23, finding 2).
+  foundAsKeys:     ['type', 'road', 'period'],
+  // Of those, the ones where Next stays on the step (same maker, scale and
+  // era — the same item, filed under another type or road). The era alone
+  // only shows the line; Next goes on as before. My Collection only: on the
+  // Want list "Add manually" would switch to My Collection (finding 1).
+  foundAsStopKeys: ['type', 'road'],
+  foundAsStopTabs: ['collection'],
   clearAsk:    'Clear filters?',
   clearBtn:    'Clear filters',
   manualAsk:   'Add manually?',

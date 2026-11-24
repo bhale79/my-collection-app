@@ -1356,6 +1356,142 @@ function _wizNumberInCatalog(num) {
   var twin = function (r) { return r && typeof rrNumZeroTwin === 'function' && rrNumZeroTwin(r.itemNum, lc); };
   return !!((state.masterData || []).some(twin) || (_all && _all.some && _all.some(twin)));
 }
+// ── 2026-11-23 (foundas) — WHICH FILTER HIDES THE NUMBER ([stated] Brad 16:46 /
+// 16:54 / 16:55 CT; customer Bob picked MTH + Flatcar and typed 30-72264, an MTH
+// Gondola). THE one answer to "the number is in the catalog — is ONE filter all
+// that hides it, and set to what would show it?". Every row with this number
+// (any form of it, rrNumSameAsTyped; its leading-zero twin only when nothing
+// else answers — the _wizNumberInCatalog order) is asked THE one filter test,
+// _wizRowFitsFilters, one filter at a time. A fix is offered only when EVERY such
+// row is hidden by the SAME one filter and would show under the SAME value — a
+// number spread over several makers or eras keeps the plain "elsewhere" line.
+// Returns { rows, fix: { key, value } | null }. key = one of RR_ADD_FILTERS.foundAsKeys
+// (type | road | period — never the Maker or Scale, makers reuse numbers), and only
+// when that drop-down offers the value (value = the option's own value).
+var _WIZ_FILTER_KEYS = ['mfr', 'period', 'type', 'scale', 'road'];
+var _WIZ_FILTER_SELECT = { mfr: 'wiz-search-mfr', period: 'wiz-search-era', type: 'wiz-search-type', scale: 'wiz-search-scale', road: 'wiz-search-road' };
+function _wizRowFilterValue(m, key) {
+  try {
+    if (key === 'type')   return (typeof getTypeBucketLabel === 'function') ? String(getTypeBucketLabel(m) || '') : String(m.itemType || '').trim();
+    if (key === 'period') return (typeof _wizPeriodOfRow === 'function') ? String(_wizPeriodOfRow(m) || '') : '';
+    if (key === 'mfr')    return String(rrRowMakerWord(m) || '');
+    if (key === 'scale')  return (typeof _wizScaleOfRow === 'function') ? String(_wizScaleOfRow(m) || '') : '';
+    if (key === 'road')   return String(m.roadName || '').trim();
+  } catch (e) {}
+  return '';
+}
+// The drop-down option for a value, matched the way the filters match
+// (letters and digits only, any case) — "A.c. gilbert" finds "A.C. Gilbert".
+// null when the drop-down does not offer it: then no "Show it" is offered.
+function _wizFoundAsOption(key, value) {
+  try {
+    var sel = document.getElementById(_WIZ_FILTER_SELECT[key] || '');
+    var norm = function (v) { return String(v == null ? '' : v).toLowerCase().replace(/[^a-z0-9]/g, ''); };
+    var want = norm(value);
+    if (!sel || !want) return null;
+    var opts = sel.options || [];
+    // exact first (the Type filter compares exactly), then letters-and-digits only
+    var hit = Array.prototype.find.call(opts, function (o) { return o.value && o.value === String(value); })
+           || Array.prototype.find.call(opts, function (o) { return o.value && norm(o.value) === want; });
+    return hit ? { value: hit.value, label: String(hit.textContent || hit.value).trim() } : null;
+  } catch (e) { return null; }
+}
+function _wizHiddenBy(num) {
+  var out = { rows: [], fix: null };
+  var lc = String(num || '').trim().toLowerCase();
+  if (!lc) return out;
+  var seen = {};
+  var wantBoxes = !!(typeof wizard !== 'undefined' && wizard && wizard.data && wizard.data.boxOnly);
+  var keyOf = function (r) { return String(r.rowId || r._rowId || '') + '|' + String(r._tab || '') + '|' + String(r.itemNum || '') + '|' + String(r.variation || '') + '|' + String(r.description || ''); };
+  var collect = function (test) {
+    var _all = (typeof _allErasSearchCache !== 'undefined') ? _allErasSearchCache : null;
+    [(state.masterData || []), (_all && _all.forEach) ? _all : []].forEach(function (list) {
+      list.forEach(function (r) {
+        if (!r) return;
+        // the list shows Boxes-tab rows only with "Box only" ticked — so here too (review finding 4)
+        var isBox = !!(typeof SHEET_TABS !== 'undefined' && SHEET_TABS.boxes && r._tab === SHEET_TABS.boxes);
+        if (isBox !== wantBoxes) return;
+        if (test(r)) { var k = keyOf(r); if (!seen[k]) { seen[k] = 1; out.rows.push(r); } }
+      });
+    });
+  };
+  collect(function (r) { return rrNumSameAsTyped(r.itemNum, lc); });
+  if (!out.rows.length) collect(function (r) { return typeof rrNumZeroTwin === 'function' && rrNumZeroTwin(r.itemNum, lc); });
+  if (!out.rows.length) return out;
+  var f = (typeof _wizAddFilters === 'function') ? _wizAddFilters() : {};
+  var on = _WIZ_FILTER_KEYS.filter(function (k) { return f[k]; });
+  if (!on.length) return out;
+  var fixKey = null, fixVal = null, ok = true;
+  out.rows.forEach(function (m) {
+    if (!ok) return;
+    var fails = on.filter(function (k) { var one = { mfr: '', period: '', type: '', scale: '', road: '' }; one[k] = f[k]; return !_wizRowFitsFilters(m, one); });
+    if (fails.length !== 1) { ok = false; return; }   // fits every filter (not hidden) or hidden by two or more
+    var v = _wizRowFilterValue(m, fails[0]);
+    if (!v || (fixKey && (fixKey !== fails[0] || fixVal !== v))) { ok = false; return; }
+    fixKey = fails[0]; fixVal = v;
+  });
+  var W = (typeof window !== 'undefined' && window.RR_ADD_FILTERS) || {};
+  var allowed = W.foundAsKeys || ['type', 'road', 'period'];
+  var opt = (ok && fixKey && allowed.indexOf(fixKey) >= 0) ? _wizFoundAsOption(fixKey, fixVal) : null;
+  if (opt) out.fix = { key: fixKey, value: opt.value };
+  return out;
+}
+// "MTH Gondola", "Lionel Prewar Steam Locomotive" — where a row lives, in the
+// collector's words: the maker, the era where it tells something (Lionel, or a
+// real Pre-War / Postwar row — the maker · era tag's own rule), and the type.
+function _wizWhereWords(m) {
+  var W = (typeof window !== 'undefined' && window.RR_ADD_FILTERS) || {};
+  var maker = _wizRowFilterValue(m, 'mfr');
+  var mOpt = maker ? _wizFoundAsOption('mfr', maker) : null;
+  if (mOpt && mOpt.label) maker = mOpt.label;
+  var period = _wizRowFilterValue(m, 'period');
+  var isLionel = maker.toLowerCase().replace(/[^a-z]/g, '') === 'lionel';
+  var era = (period && (isLionel || period !== 'modern')) ? ((W.eraWords || {})[period] || '') : '';
+  return [maker, era, _wizRowFilterValue(m, 'type')].filter(Boolean).join(' ');
+}
+function _wizFoundAsWords(num, hid, key) {
+  var W = (typeof window !== 'undefined' && window.RR_ADD_FILTERS) || {};
+  var where = [];
+  (hid.rows || []).forEach(function (m) { var w = _wizWhereWords(m); if (w && where.indexOf(w) < 0) where.push(w); });
+  var whereTxt = where.join(W.whereSep || ', ');
+  return String(W[key] || '').replace('{num}', function () { return String(num); }).replace('{where}', function () { return whereTxt; });
+}
+// The "Show it" button: sets THAT one filter through its own drop-down (its own
+// change handler — the same path as the collector picking it, incl. the sticky
+// maker / era / scale), so the list and the banner answer again at once. A value
+// the drop-down does not offer (a maker typed in the box, a type outside this
+// era's list) is never offered (_wizHiddenBy asks the drop-down first); if one
+// slips through, nothing changes — the other filters are never wiped.
+function _wizShowFoundAs(key, value) {
+  var sel = document.getElementById(_WIZ_FILTER_SELECT[key] || '');
+  var opt = _wizFoundAsOption(key, value);
+  if (!sel || !opt) return false;   // never wipes the other filters (review finding 3)
+  sel.value = opt.value;
+  sel.dispatchEvent(new Event('change', { bubbles: true }));
+  return true;
+}
+// Next pressed on the item-number step with nothing inside the filters: when
+// ONE filter is all that hides the number, the add does not slip into a hand
+// entry — the box stays, and says where the item is. Only for a Type or Road
+// fix (RR_ADD_FILTERS.foundAsStopKeys) and only on My Collection (foundAsStopTabs).
+// Anything else (a number nowhere in the catalog, spread over several makers /
+// eras, or hidden by the era alone) goes on as before.
+function _wizFoundAsStop(num) {
+  try {
+    var W = (typeof window !== 'undefined' && window.RR_ADD_FILTERS) || {};
+    var tabs = W.foundAsStopTabs || ['collection'], keys = W.foundAsStopKeys || ['type', 'road'];
+    if (typeof wizard === 'undefined' || !wizard || tabs.indexOf(wizard.tab) < 0) return false;
+    var hid = _wizHiddenBy(num);
+    if (!hid.fix || keys.indexOf(hid.fix.key) < 0) return false;
+    var i = document.getElementById('wiz-input');
+    // the number the way the box shows it: the typed word that IS the number (finding 5)
+    var shown = String((i && i.value) || '').trim().split(/\s+/).filter(function (t) { return t.toLowerCase() === String(num).toLowerCase(); })[0] || num;
+    if (i && typeof updateItemSuggestions === 'function') updateItemSuggestions(i.value);
+    if (typeof showToast === 'function') showToast(_wizFoundAsWords(shown, hid, 'foundAsNext'), 6000);
+    return true;
+  } catch (e) { return false; }
+}
+if (typeof window !== 'undefined') { window._wizHiddenBy = _wizHiddenBy; window._wizShowFoundAs = _wizShowFoundAs; window._wizFoundAsStop = _wizFoundAsStop; window._wizWhereWords = _wizWhereWords; window._wizFoundAsOption = _wizFoundAsOption; }
 function _wizNothingFoundHtml(num) {
   var W = (typeof window !== 'undefined' && window.RR_ADD_FILTERS) || {};
   var esc = function (v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
@@ -1375,7 +1511,13 @@ function _wizNothingFoundHtml(num) {
       + '<button type="button" data-nf-btn="set" data-set-num="' + esc(setHit.setNum) + '" data-set-era="' + esc(setHit.era || '') + '" onclick="_wizPickSetRow(this.getAttribute(\'data-set-num\'), this.getAttribute(\'data-set-era\'))" style="' + btn + '">' + esc(W.setBtn) + '</button></div>';
   }
   if (on) {
-    var elsewhere = _wizNumberInCatalog(num);
+    // 2026-11-23 (foundas): ONE filter is all that hides it — say where it is, one tap shows it
+    var hidF = _wizHiddenBy(num);
+    if (hidF.fix) {
+      h += '<div data-nf-line="foundas" style="' + line + '"><span data-nf-foundas="1" style="font-weight:600">' + esc(_wizFoundAsWords(num, hidF, 'foundAs')) + '</span>'
+        + '<button type="button" data-nf-btn="showit" data-fa-key="' + esc(hidF.fix.key) + '" data-fa-val="' + esc(hidF.fix.value) + '" onclick="_wizShowFoundAs(this.getAttribute(\'data-fa-key\'), this.getAttribute(\'data-fa-val\'))" style="' + btn + '">' + esc(W.showItBtn) + '</button></div>';
+    }
+    var elsewhere = !hidF.fix && _wizNumberInCatalog(num);
     h += '<div data-nf-line="clear" style="' + line + '">'
       + (elsewhere ? '<span data-nf-elsewhere="1" style="color:var(--text-mid);flex-basis:100%">' + esc(fill(W.elsewhere)) + '</span>' : '')
       + '<span>' + esc(W.clearAsk) + '</span>'
