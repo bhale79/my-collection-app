@@ -1,0 +1,223 @@
+{
+ "title": "Office verdicts — the 17 rows Brad reviewed one by one on 2026-11-24 (9 add, 1 barcode, 6 closed/rejected; 1 stays deferred)",
+ "rule": "status approved/edited/rejected + decided date in P:Q; set = crawl_deltas cells by header; before = value the cell must hold now",
+ "review": "one by one in chat, Command Center chat, 2026-11-24 morning",
+ "said": "[stated] Brad 2026-11-24, one answer per item: 19683 / 19696 / 22998 / 28239 \"close it\"; 29606 \"stay deffered\"; 52517 \"close it\"; 52540 \"add it\"; RMT-66245-1776 \"reject it\"; barcode 658081474274 -> MTH 20-95715 on MTH O \"yes\"; Menards 787, 788 \"yes\"; COTT 3290, 3291, 3310-3313 \"yes\" (3291 \"ys\"). 12:04 CT \"go on those\" (write them).",
+ "held": [
+  "CB-COMMUNITY-SUBS-1089"
+ ],
+ "rows": [
+  {
+   "delta_id": "CB-COMMUNITY-SUBS-1041",
+   "batch": "CB-COMMUNITY-SUBS",
+   "item_num": "19683",
+   "status": "rejected",
+   "set": {},
+   "before": {
+    "status": "deferred"
+   },
+   "why": "closed: already on Lionel MPC-Modern (Oct 21 sweep)"
+  },
+  {
+   "delta_id": "CB-COMMUNITY-SUBS-1043",
+   "batch": "CB-COMMUNITY-SUBS",
+   "item_num": "19696",
+   "status": "rejected",
+   "set": {},
+   "before": {
+    "status": "deferred"
+   },
+   "why": "closed: already on Lionel MPC-Modern (Oct 21 sweep)"
+  },
+  {
+   "delta_id": "CB-COMMUNITY-SUBS-1056",
+   "batch": "CB-COMMUNITY-SUBS",
+   "item_num": "22998",
+   "status": "rejected",
+   "set": {},
+   "before": {
+    "status": "deferred"
+   },
+   "why": "closed: already on Lionel MPC-Modern (Oct 21 sweep)"
+  },
+  {
+   "delta_id": "CB-COMMUNITY-SUBS-1088",
+   "batch": "CB-COMMUNITY-SUBS",
+   "item_num": "28239",
+   "status": "rejected",
+   "set": {},
+   "before": {
+    "status": "deferred"
+   },
+   "why": "closed: already on Lionel MPC-Modern (Oct 21 sweep)"
+  },
+  {
+   "delta_id": "CB-COMMUNITY-SUBS-1105",
+   "batch": "CB-COMMUNITY-SUBS",
+   "item_num": "52517",
+   "status": "rejected",
+   "set": {},
+   "before": {
+    "status": "deferred"
+   },
+   "why": "closed: a typo for 52417, which the catalog has"
+  },
+  {
+   "delta_id": "CB-COMMUNITY-SUBS-1109",
+   "batch": "CB-COMMUNITY-SUBS",
+   "item_num": "52540",
+   "status": "edited",
+   "set": {
+    "item_type": "Accessory"
+   },
+   "before": {
+    "status": "deferred",
+    "item_type": "",
+    "proposed_tab": "Lionel MPC-Modern",
+    "description": "LCCA Passenger Shelter"
+   }
+  },
+  {
+   "delta_id": "CB-RMTDEALERS-20261026-00001",
+   "batch": "CB-RMTDEALERS-20261026",
+   "item_num": "RMT-66245-1776",
+   "status": "rejected",
+   "set": {},
+   "before": {
+    "status": "pending"
+   },
+   "why": "a store's temporary number for a 3-car pack, not an RMT number"
+  },
+  {
+   "delta_id": "CB-BARCODE-PAIRS-0003",
+   "batch": "CB-BARCODE-PAIRS",
+   "item_num": "20-95715",
+   "status": "edited",
+   "set": {
+    "proposed_tab": "MTH O"
+   },
+   "before": {
+    "status": "pending",
+    "proposed_tab": ""
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00055",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "787",
+   "status": "edited",
+   "set": {
+    "variation": "1",
+    "msrp": "$139.99"
+   },
+   "before": {
+    "status": "pending",
+    "variation": "",
+    "msrp": "139.99",
+    "proposed_tab": "Menards HO",
+    "road_name": ""
+   }
+  },
+  {
+   "delta_id": "CB-MENARDS-20261103-00056",
+   "batch": "CB-MENARDS-20261103",
+   "item_num": "788",
+   "status": "edited",
+   "set": {
+    "variation": "1",
+    "msrp": "$179.99"
+   },
+   "before": {
+    "status": "pending",
+    "variation": "",
+    "msrp": "179.99",
+    "proposed_tab": "Menards HO",
+    "road_name": ""
+   }
+  },
+  {
+   "delta_id": "CB-COTT-20261103-00003",
+   "batch": "CB-COTT-20261103",
+   "item_num": "3290",
+   "status": "edited",
+   "set": {
+    "variation": "1"
+   },
+   "before": {
+    "status": "pending",
+    "variation": "",
+    "proposed_tab": "Lionel PW - Science"
+   }
+  },
+  {
+   "delta_id": "CB-COTT-20261103-00004",
+   "batch": "CB-COTT-20261103",
+   "item_num": "3291",
+   "status": "edited",
+   "set": {
+    "variation": "1"
+   },
+   "before": {
+    "status": "pending",
+    "variation": "",
+    "proposed_tab": "Lionel PW - Science"
+   }
+  },
+  {
+   "delta_id": "CB-COTT-20261103-00005",
+   "batch": "CB-COTT-20261103",
+   "item_num": "3310",
+   "status": "edited",
+   "set": {
+    "variation": "1"
+   },
+   "before": {
+    "status": "pending",
+    "variation": "",
+    "proposed_tab": "Lionel PW - Science"
+   }
+  },
+  {
+   "delta_id": "CB-COTT-20261103-00006",
+   "batch": "CB-COTT-20261103",
+   "item_num": "3311",
+   "status": "edited",
+   "set": {
+    "variation": "1"
+   },
+   "before": {
+    "status": "pending",
+    "variation": "",
+    "proposed_tab": "Lionel PW - Science"
+   }
+  },
+  {
+   "delta_id": "CB-COTT-20261103-00007",
+   "batch": "CB-COTT-20261103",
+   "item_num": "3312",
+   "status": "edited",
+   "set": {
+    "variation": "1"
+   },
+   "before": {
+    "status": "pending",
+    "variation": "",
+    "proposed_tab": "Lionel PW - Science"
+   }
+  },
+  {
+   "delta_id": "CB-COTT-20261103-00008",
+   "batch": "CB-COTT-20261103",
+   "item_num": "3313",
+   "status": "edited",
+   "set": {
+    "variation": "1"
+   },
+   "before": {
+    "status": "pending",
+    "variation": "",
+    "proposed_tab": "Lionel PW - Science"
+   }
+  }
+ ]
+}
