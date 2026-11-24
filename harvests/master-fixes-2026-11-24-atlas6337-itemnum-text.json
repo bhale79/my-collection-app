@@ -1,0 +1,89 @@
+{
+ "title": "Master fix \u2014 Atlas O 6331-6339 hoppers: Item # stored as text",
+ "why": "The Office Commit wrote \"6331-1\" etc. so Google Sheets stored them as DATES (the app reads 6331-1 as 1618391). Rewritten as text, exactly the number approved in office-verdicts-2026-11-24-atlas6337.json.",
+ "said": "[stated] Brad 2026-11-24 16:32 CT \"yes\" (the 9 hoppers as Master Version 3.11) \u2014 this makes the stored cells match what he approved.",
+ "cells": [
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Row ID": "HFGE7MJ5JK"
+   },
+   "column": "Item #",
+   "old": "(a date the sheet made of 6331-1)",
+   "new": "6331-1"
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Row ID": "5SBU85DD52"
+   },
+   "column": "Item #",
+   "old": "(a date the sheet made of 6334-1)",
+   "new": "6334-1"
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Row ID": "3ENYDCTATC"
+   },
+   "column": "Item #",
+   "old": "(a date the sheet made of 6334-2)",
+   "new": "6334-2"
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Row ID": "QMNGB63DRE"
+   },
+   "column": "Item #",
+   "old": "(a date the sheet made of 6335-2)",
+   "new": "6335-2"
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Row ID": "U9K3QXBWYQ"
+   },
+   "column": "Item #",
+   "old": "(a date the sheet made of 6336-1)",
+   "new": "6336-1"
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Row ID": "Q3Y86QN2QF"
+   },
+   "column": "Item #",
+   "old": "(a date the sheet made of 6336-2)",
+   "new": "6336-2"
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Row ID": "2HH4QUCMDN"
+   },
+   "column": "Item #",
+   "old": "(a date the sheet made of 6339-1)",
+   "new": "6339-1"
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Row ID": "DGRSC6TMFW"
+   },
+   "column": "Item #",
+   "old": "(a date the sheet made of 6339-2)",
+   "new": "6339-2"
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Row ID": "VT4J655GF6"
+   },
+   "column": "Item #",
+   "old": "(a date the sheet made of 6337-1)",
+   "new": "6337-1"
+  }
+ ],
+ "undo": "none needed \u2014 the old values were the sheet's misreading; the Row IDs are unchanged"
+}
