@@ -1,0 +1,4880 @@
+{
+ "title": "Office verdicts — K-Line items on Trainz missing from K-Line O (609), approved",
+ "rule": "status approved/edited/rejected + decided date in P:Q; set = crawl_deltas cells by header; before = value the cell must hold now",
+ "review": "_Claude_Work_Files\\kline_gap_20261124\\KLINE_FROM_TRAINZ_REVIEW_2026-11-24.xlsx",
+ "said": "[stated] Brad 2026-11-24 08:11 CT \"yes, quickly\" (build the K-Line list); 08:35 CT \"Approve inserting the master version\" (all 609, incl. the 33 also on Lionel MPC-Modern)",
+ "rows": [
+  {
+   "delta_id": "CB-KLINE-20261124-00001",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K652-1392",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00002",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6538",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00003",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6349",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00004",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-21242",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00005",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-21593",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00006",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-22109",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00007",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6464510",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00008",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K10-645202",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00009",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K1997TF",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00010",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K511-010",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00011",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K511-029",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00012",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K511-030",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00013",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K511-045",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00014",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K5110",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00015",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K5113",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00016",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K5121",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00017",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K5134",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00018",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K5154014",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00019",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K5154017",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00020",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K640-1493",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00021",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K640-8011",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00022",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K641-1051",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00023",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K641-1093A",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00024",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K641-1251",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00025",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K641-1391",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00026",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K641-1791",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00027",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K641-1792",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00028",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K641-1895A",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00029",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K641-2011",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00030",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K641-5102",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00031",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K641-7404",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00032",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K641-7501",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00033",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6420",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00034",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K64237",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00035",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K643401",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00036",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K643402",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00037",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K64347",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00038",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K644-1251",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00039",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K646-1791",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00040",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6469",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00041",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6475",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00042",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6476",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00043",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K647702",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00044",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K648202",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00045",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K64852",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00046",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K649102",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00047",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K7008",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00048",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K7009",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00049",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K701-8011",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00050",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K751-1751",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00051",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K751-1892",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00052",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K751-1951",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00053",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K759101",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00054",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K761-1231",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00055",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K761-1251",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00056",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K761-1752",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00057",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K761-1753",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00058",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K761-1791",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00059",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K761-1792",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00060",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K761-1831",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00061",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K761-1896",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00062",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K761-2031",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00063",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K761-2033",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00064",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K761-2051",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00065",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K761-2171",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00066",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K761-8013",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00067",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K761-9012",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00068",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K765-7423",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00069",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-22110",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00070",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-22663",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00071",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "615602",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00072",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6158",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00073",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K611-2112",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00074",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6115-1986",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00075",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6118",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00076",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K612-1053",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00077",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K612-1771",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00078",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K612-2036",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00079",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K612-2113",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00080",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K612-2114",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00081",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K612-4461",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00082",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6127",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00083",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K613-1451",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00084",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K613-1791",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00085",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K613-1831",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00086",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K613-1932",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00087",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K613-2151",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00088",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K613-5301",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00089",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K613-7471",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00090",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K613902",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00091",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K614-1051",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00092",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K614-1091",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00093",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K614-1092",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00094",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K614-1232",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00095",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6147",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00096",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6155",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00097",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K616-1131",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00098",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K616-1251",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00099",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K616-1892",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00100",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K616-2031",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00101",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K616-2112",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00102",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K616-4461",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00103",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K617-1371",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00104",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K617-2111",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00105",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6178",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00106",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K618-1591",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00107",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6182",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00108",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K7407",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00109",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K651-9363",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00110",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6801",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00111",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K680702",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00112",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K681-2031",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00113",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6813",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00114",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6814",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00115",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-21280",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00116",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K-2200",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00117",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K21611",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00118",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2180-9612",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00119",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2211",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00120",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2240",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00121",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K22521",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00122",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K229101",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00123",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2299-0537A",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00124",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2321",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00125",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2324",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00126",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2407-2943",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00127",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2416-4545",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00128",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2438-0856HS",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00129",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2438-0857CC",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00130",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2439-1553",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00131",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2480-8701CC",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00132",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2480-8707HS",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00133",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2499-0053CC",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00134",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2510-4560",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00135",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2510-4561",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00136",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2510-4562",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00137",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2521-5651",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00138",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2521-5652",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00139",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2521-5653",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00140",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2530-0383",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00141",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2539-0624",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00142",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2552IC",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00143",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2581-0268",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00144",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2590-1476",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00145",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2630-03",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00146",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2630-04",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00147",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2630-09",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00148",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2630-20",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00149",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "KCC906",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00150",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-21268",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00151",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-21701",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00152",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2780-1776",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00153",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2780-4907",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00154",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2780-4935",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00155",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-21238",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00156",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-21239",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00157",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-21469",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00158",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-22161",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00159",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-22228",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00160",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-22235",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00161",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K511-021",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00162",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K511-022",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00163",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K661-1031",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00164",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K661-1411",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00165",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K661-1752",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00166",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K661-1871",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00167",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K661-1892",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00168",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K661-7501",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00169",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K661-7501A",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00170",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K661-7502",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00171",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K661-7503",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00172",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6611",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00173",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K662-1791",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00174",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K662-2191",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00175",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K662-5301",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00176",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6625",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00177",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6626",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00178",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6627",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00179",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K663-1211",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00180",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K663-1212",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00181",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K663-8011",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00182",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K663-8012",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00183",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K663-8013",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00184",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K663-8014",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00185",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K663-8015",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00186",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K663-8018",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00187",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K663-8019",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00188",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K663-8020",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00189",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K66321",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00190",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6638",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00191",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6640",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00192",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6652",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00193",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K665501",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00194",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6667",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00195",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6673",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00196",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6850",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00197",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6861",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00198",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6862",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00199",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K69001",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00200",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K69004",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00201",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K69011",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00202",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K691-1051",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00203",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K691-1231",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00204",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K691-1512",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00205",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K691-3421",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00206",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K691-4162",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00207",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K691-5305",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00208",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K691-5306",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00209",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K691-5307",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00210",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K691-6003",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00211",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K691-6004",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00212",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K691-8011",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00213",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K691-8012",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00214",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K692-1391",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00215",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K692-1531",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00216",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K693-1311",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00217",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K693-2111",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00218",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K77023D",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00219",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "54206",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00220",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K5623",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00221",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K651-1391",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00222",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K651-7501",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00223",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K651-7501A",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00224",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K651-8011A",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00225",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6511",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00226",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6512",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00227",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6514",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00228",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K652-1231",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00229",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K652-1895",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00230",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K652-2031",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00231",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K652-6001",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00232",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K652-7430",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00233",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6528",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00234",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K653-2011",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00235",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-21342",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00236",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-21637",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00237",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-21714",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00238",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-22108",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00239",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-22317",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00240",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "622-1891",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00241",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K41414",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00242",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K484329",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00243",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K531202",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00244",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K5318",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00245",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K5324",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00246",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6200",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00247",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K621-2011A",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00248",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K621-44631",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00249",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K621-44632",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00250",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K621-44633",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00251",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K621-44634",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00252",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K621-44635",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00253",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K621-44636",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00254",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K621-4463A",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00255",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K622-1471",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00256",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K622-1891",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00257",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K622-8011",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00258",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K623-1332",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00259",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K623-1333",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00260",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K623-1334",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00261",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K623-1452",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00262",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K623-1453",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00263",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K623-1672",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00264",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K623-2011",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00265",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K623-2116",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00266",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K623-44621",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00267",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K623-44622",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00268",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K623-44623",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00269",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K623-44632",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00270",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K623-44633",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00271",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K623-7432",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00272",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K623-8013",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00273",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K623-8018",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00274",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K623-8019",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00275",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6241",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00276",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6242-1254",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00277",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6242-1851",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00278",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6243-1711",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00279",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6244-1491",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00280",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6244-2032",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00281",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6250",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00282",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6253-1331",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00283",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6253-1891",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00284",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6253-18932",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00285",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6254-1251",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00286",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6255-1051",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00287",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K626-1491",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00288",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K626-2111",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00289",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6270",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00290",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K671-1211",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00291",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K671-1311",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00292",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K671-2111",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00293",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K671-3441",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00294",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K671-3741",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00295",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K671-4021",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00296",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6720",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00297",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K67261",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00298",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K67262",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00299",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "1-49",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00300",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2625-03B",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00301",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K7740",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00302",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K7740-110",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00303",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K7740-112",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00304",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K810902",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00305",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K860026",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00306",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-21279",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00307",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-22222",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00308",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2628-14",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00309",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2629-02",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00310",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-21236",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00311",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-21466",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00312",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-22254",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00313",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-22255",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00314",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-22256",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00315",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-22257",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00316",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-22628",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00317",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K0002",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00318",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K0003",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00319",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K0479",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00320",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K0750",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00321",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K0900",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00322",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K1131",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00323",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K1219",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00324",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K1468",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00325",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K1491",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00326",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K1498",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00327",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K1510",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00328",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K1600",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00329",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K1730",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00330",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K1731A",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00331",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K1733",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00332",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K1821",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00333",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2018",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00334",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K214",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00335",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2703",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00336",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K3119",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00337",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K3198",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00338",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K3510",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00339",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K42441",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00340",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4400-0003",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00341",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4400-0004",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00342",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4400-0005",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00343",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4400-0006",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00344",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4400-0007",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00345",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4400-100B",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00346",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4416-0003",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00347",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4416-0004",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00348",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4421-1002",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00349",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4439A",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00350",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4471B",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00351",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4490-5630",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00352",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4516-0004",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00353",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4516-0022",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00354",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4516-0023",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00355",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4516-0024",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00356",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4516-0025",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00357",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4516-0042",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00358",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4530-3119",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00359",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4530-3137-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00360",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4530-3198",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00361",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4530-3198-5",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00362",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4530-3432-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00363",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4530-3481",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00364",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4530-3481-8",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00365",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4532-0503",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00366",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4532-3358",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00367",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4539-2844",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00368",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4539-2845",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00369",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4580-0004",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00370",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4580-0005",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00371",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4580-006",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00372",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4580-4423",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00373",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4580-5468",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00374",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4580-6700",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00375",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4580-8018",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00376",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4583-0131-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00377",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4583-0132-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00378",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4586-0812",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00379",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4603-15350",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00380",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4613-40252",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00381",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4613-40375",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00382",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4613-40427",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00383",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4613-40811",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00384",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4613-41107",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00385",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4613-41121",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00386",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4613-41130",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00387",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4618-10003",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00388",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4630-40009",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00389",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4630A",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00390",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4630B",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00391",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4632-2984IC",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00392",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4649-30200",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00393",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4649-30400",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00394",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4649-30475",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00395",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4649-30909",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00396",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4649A",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00397",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4670",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00398",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4670-45021",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00399",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4670A",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00400",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4680-14149",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00401",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4680-14620",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00402",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4680-18795",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00403",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4680-21000",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00404",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4680-30012",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00405",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4690-31305",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00406",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4690-40001",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00407",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4690-45813",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00408",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4690-46206",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00409",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4690-47006",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00410",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4690-48001",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00411",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4690-49002",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00412",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4821A",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00413",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4838-0464",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00414",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4880-0015",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00415",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4880-0016",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00416",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4880-0018",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00417",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6015",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00418",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-21119",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00419",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-22167",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00420",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-22250",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00421",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-22662",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00422",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K511-037",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00423",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K642-1791",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00424",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K642-21121",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00425",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K642-21122",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00426",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K642-21123",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00427",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K642-21124",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00428",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K642-21125",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00429",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K642-21126",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00430",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K642-21131",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00431",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K642-21132",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00432",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K642-21133",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00433",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K642-21134",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00434",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K642-21135",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00435",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K642-21136",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00436",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K642-5204",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00437",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K642-5206",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00438",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K642-5207",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00439",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K642-5301",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00440",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K645-1911",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00441",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K742-1311",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00442",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K742-5201",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00443",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K742-8020",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00444",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K742-8024",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00445",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K742-8027",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00446",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K742-8029",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00447",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K742-8032",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00448",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K751401",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00449",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K752-1391",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00450",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K752-2112",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00451",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K7603",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00452",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K7608",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00453",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K761-1751",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00454",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K761-2011",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00455",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K762-1371",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00456",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K762-1894",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00457",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K762-21712",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00458",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K762-21721",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00459",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K762-5301",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00460",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K762-5302",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00461",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2625-031A",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00462",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K4532-04271C",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00463",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K641-9025",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00464",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K64231",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00465",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K64234",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00466",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K64235",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00467",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6457",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00468",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K661-7503A",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00469",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K661-8018",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00470",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6612",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00471",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K662-8021",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00472",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K671-3743",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00473",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K671-3744",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00474",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K671-3745",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00475",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K676-1052",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00476",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K676-1152",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00477",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K676-1172",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00478",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K676-1831",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00479",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K676-1832",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00480",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K694-1752",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00481",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K694-2111",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00482",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K7041-1891",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00483",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K707-8011",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00484",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K712-2111",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00485",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K7201",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00486",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K7203",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00487",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K721-1411",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00488",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K721-5103",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00489",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K7212",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00490",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K724-2011",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00491",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K775141",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00492",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K7764",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00493",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K7793",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00494",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K80-7508",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00495",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K81073",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00496",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K94551",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00497",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-21217",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00498",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K1301",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00499",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K1324",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00500",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K1417",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00501",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K1901",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00502",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K1923IC",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00503",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2090",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00504",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K21491",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00505",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2180-9611",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00506",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K25191",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00507",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K25305",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00508",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K25901",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00509",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K612-1531A",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00510",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K614-3741A",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00511",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6706A",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00512",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6713A",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00513",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K672-2171A",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00514",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K673701-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00515",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K691-1172A",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00516",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K761-1092A",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00517",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K3010",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00518",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K3270-5343",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00519",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K3270-5344W",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00520",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K3301-0001CC",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00521",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K3310-5217W",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00522",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K3380-3876W",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00523",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K3438-0002CC",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00524",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K3470-0010CC",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00525",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K3615-1060CC",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00526",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K3688-3508CC",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00527",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K3690-2480W",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00528",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K3690-2499CC",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00529",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K3799-09005",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00530",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K3799-0900S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00531",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K3799-0903W",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00532",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-22240",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00533",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-22629",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00534",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K763-1751",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00535",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K763-2111",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00536",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K763-2112",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00537",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K90009",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00538",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "875046",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00539",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K511-019",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00540",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K511-020",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00541",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K5413",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00542",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K5417",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00543",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K5427",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00544",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K632-1231",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00545",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K632-1896",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00546",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K632-2112",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00547",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K632-7421",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00548",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K632-7427",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00549",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K632-7429",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00550",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K632-7433",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00551",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K632-8019",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00552",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K632-8020",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00553",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K632-8030",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00554",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K63272",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00555",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6331-1591",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00556",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6333",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00557",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6333-2112A",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00558",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6334-0001",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00559",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6334-2031",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00560",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6334-8016",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00561",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6341-5601",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00562",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6341-8012",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00563",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6341-8015",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00564",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6342",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00565",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K635-8013",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00566",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K636-8011",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00567",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K636101",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00568",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K636102",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00569",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6361A",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00570",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6362",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00571",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K639106",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00572",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K661-7504A",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00573",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K693-1791",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00574",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2708",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00575",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2781-0001",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00576",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2781-0002",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00577",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K675-5301",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00578",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-21394",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00579",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-21437",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00580",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-22149",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00581",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-22673",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00582",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-22679",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00583",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-36839",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00584",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "94525",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00585",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "94539",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00586",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K132",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00587",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K43008",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00588",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K43016",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00589",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K43043",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00590",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K691-1152",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00591",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K721-5601",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00592",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K871-005",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00593",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K872-109",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00594",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K94363",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00595",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "21252-30",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00596",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "6-22366",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00597",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K1401-10",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00598",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2100-03",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00599",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2108-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00600",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2109-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00601",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2200-15",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00602",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2200-28",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00603",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2200-5",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00604",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2210-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00605",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K2300-E002",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00606",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K5004-M001R2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00607",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K6300-20A",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00608",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K7200-6",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-KLINE-20261124-00609",
+   "batch": "CB-KLINE-20261124",
+   "item_num": "K7751-01-06",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  }
+ ]
+}
