@@ -1,0 +1,468 @@
+{
+ "title": "Master fix — K-Line O: 46 Road Name cells held Trainz filler words, now blank (Master Version 3.05)",
+ "said": "[stated] Brad 2026-11-24 09:21 CT \"Yes\" (to: blank those 46 road names in the catalog — a small catalog edit with its own version number)",
+ "rule": "each cell: tab + row + Row ID + column; old = the value it must hold before the write; new = the value written. To put it back: write old to the Road Name column of the row with that Row ID.",
+ "note": "44 of the cells came from Master Version 3.04 (the K-Line import of 2026-11-24, MASTER_EDIT_2026-11-24_KLINE_FROM_TRAINZ.md); 2 (\"**** Assorted\") from the 2026-07-28 Trainz copy.",
+ "cells": [
+  {
+   "tab": "K-Line O",
+   "row": 1755,
+   "cell": "G1755",
+   "rowId": "HTTTPQWGJM",
+   "item": "K761-7610A",
+   "column": "Road Name",
+   "old": "**** Assorted",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 2434,
+   "cell": "G2434",
+   "rowId": "BUBHN8WJBZ",
+   "item": "K641-7416",
+   "column": "Road Name",
+   "old": "**** Assorted",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 2794,
+   "cell": "G2794",
+   "rowId": "JNX698H7Y6",
+   "item": "K5134",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 2800,
+   "cell": "G2800",
+   "rowId": "MKKCWDRAYK",
+   "item": "K641-1093A",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 2808,
+   "cell": "G2808",
+   "rowId": "A2U2JRQNHB",
+   "item": "K641-7404",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 2823,
+   "cell": "G2823",
+   "rowId": "5NGMGBG5VC",
+   "item": "K649102",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 2844,
+   "cell": "G2844",
+   "rowId": "6F97ZXCFTR",
+   "item": "K761-9012",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 2865,
+   "cell": "G2865",
+   "rowId": "K3J6GP5DUS",
+   "item": "K613-5301",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 2866,
+   "cell": "G2866",
+   "rowId": "DF7C9S3XEY",
+   "item": "K613-7471",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 2904,
+   "cell": "G2904",
+   "rowId": "VTPV53VG4F",
+   "item": "K2416-4545",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 2908,
+   "cell": "G2908",
+   "rowId": "KUVZERM2EM",
+   "item": "K2480-8701CC",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 2928,
+   "cell": "G2928",
+   "rowId": "4BVZP9XUTK",
+   "item": "6-21701",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 2958,
+   "cell": "G2958",
+   "rowId": "UVQME7C995",
+   "item": "K663-8011",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 2959,
+   "cell": "G2959",
+   "rowId": "EEDBPC7XVU",
+   "item": "K663-8012",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 2960,
+   "cell": "G2960",
+   "rowId": "EXD2SYPY7F",
+   "item": "K663-8013",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 2963,
+   "cell": "G2963",
+   "rowId": "QM7WUFJ99J",
+   "item": "K663-8018",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 2964,
+   "cell": "G2964",
+   "rowId": "NKAC6TCRDE",
+   "item": "K663-8019",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 2965,
+   "cell": "G2965",
+   "rowId": "QBV955JP6W",
+   "item": "K663-8020",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 2969,
+   "cell": "G2969",
+   "rowId": "TYDZ7VX29R",
+   "item": "K6652",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 3077,
+   "cell": "G3077",
+   "rowId": "X4V7WRTRGJ",
+   "item": "K2625-03B",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 3082,
+   "cell": "G3082",
+   "rowId": "USX24RB5RC",
+   "item": "K860026",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 3096,
+   "cell": "G3096",
+   "rowId": "W58X6XNCTN",
+   "item": "K0479",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 3111,
+   "cell": "G3111",
+   "rowId": "DNXBMH87F9",
+   "item": "K214",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 3168,
+   "cell": "G3168",
+   "rowId": "3Y954KYHBW",
+   "item": "K4632-2984IC",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 3194,
+   "cell": "G3194",
+   "rowId": "U4J42MKQUM",
+   "item": "K6015",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 3195,
+   "cell": "G3195",
+   "rowId": "2ZYC264U5S",
+   "item": "6-21119",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 3213,
+   "cell": "G3213",
+   "rowId": "JFZHH2F67U",
+   "item": "K642-5204",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 3223,
+   "cell": "G3223",
+   "rowId": "V6SKPPS8JJ",
+   "item": "K742-8029",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 3225,
+   "cell": "G3225",
+   "rowId": "6KK4JHWRT6",
+   "item": "K751401",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 3236,
+   "cell": "G3236",
+   "rowId": "E6ZTGUWR9A",
+   "item": "K762-5301",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 3260,
+   "cell": "G3260",
+   "rowId": "EYJGDVCCJP",
+   "item": "K707-8011",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 3276,
+   "cell": "G3276",
+   "rowId": "R5USQGCHRD",
+   "item": "K1324",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 3297,
+   "cell": "G3297",
+   "rowId": "QDFGMAM8J2",
+   "item": "K3301-0001CC",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 3316,
+   "cell": "G3316",
+   "rowId": "WUNWGF4R6Y",
+   "item": "K511-019",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 3319,
+   "cell": "G3319",
+   "rowId": "JU876QJWVU",
+   "item": "K5417",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 3335,
+   "cell": "G3335",
+   "rowId": "NKAWZ6EYR5",
+   "item": "K6334-0001",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 3337,
+   "cell": "G3337",
+   "rowId": "T5DGC7MS29",
+   "item": "K6334-8016",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 3352,
+   "cell": "G3352",
+   "rowId": "SUVCUBCX27",
+   "item": "K2781-0001",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 3354,
+   "cell": "G3354",
+   "rowId": "TU67K4VP7N",
+   "item": "K675-5301",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 3355,
+   "cell": "G3355",
+   "rowId": "7CGHBT67EG",
+   "item": "6-21394",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 3358,
+   "cell": "G3358",
+   "rowId": "Y78UQAZ6FU",
+   "item": "6-22673",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 3360,
+   "cell": "G3360",
+   "rowId": "JZN7EWSXH2",
+   "item": "6-36839",
+   "column": "Road Name",
+   "old": "**** Assorted Road Names",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 3363,
+   "cell": "G3363",
+   "rowId": "23W7EWXURX",
+   "item": "K132",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 3364,
+   "cell": "G3364",
+   "rowId": "S2DJFZR899",
+   "item": "K43008",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 3365,
+   "cell": "G3365",
+   "rowId": "5RZY6SKB8C",
+   "item": "K43016",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  },
+  {
+   "tab": "K-Line O",
+   "row": 3366,
+   "cell": "G3366",
+   "rowId": "UEAZXTWERK",
+   "item": "K43043",
+   "column": "Road Name",
+   "old": "**** No Road Name",
+   "new": ""
+  }
+ ]
+}
