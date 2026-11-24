@@ -1,0 +1,16 @@
+{
+ "title": "Office verdicts — IDM1005 Industrial Rail NS boxcar Bob asked for, approved",
+ "rule": "status approved/edited/rejected + decided date in P:Q; set = crawl_deltas cells by header; before = value the cell must hold now",
+ "review": "_Claude_Work_Files\\ir_gap_20261124\\ir_bob_1005.py (the 1 row, shown to Brad in chat)",
+ "said": "[stated] Brad 2026-11-24 12:42 CT \"yes\" (add IDM1005 now as Master Version 3.08, then build a review list of every Industrial Rail item Trainz has that we lack).",
+ "rows": [
+  {
+   "delta_id": "CB-IRBOB-20261124-00001",
+   "batch": "CB-IRBOB-20261124",
+   "item_num": "IDM1005",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  }
+ ]
+}

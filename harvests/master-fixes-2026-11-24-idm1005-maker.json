@@ -1,0 +1,18 @@
+{
+ "title": "Master fix — Other O Brands IDM1005: Manufacturer = Industrial Rail",
+ "why": "The Office does not fill Manufacturer on Commit (WAITING \"CRAWL side questions\" (1)); Other O Brands rows carry their maker in their own Manufacturer cell (column W), like the other 33 Industrial Rail rows.",
+ "said": "[stated] Brad 2026-11-24 12:42 CT \"yes\"",
+ "cells": [
+  {
+   "tab": "Other O Brands",
+   "find": {
+    "Item Number": "IDM1005",
+    "Source": "(as committed by CB-IRBOB-20261124)"
+   },
+   "column": "Manufacturer",
+   "old": "",
+   "new": "Industrial Rail"
+  }
+ ],
+ "undo": "write old back to the Manufacturer cell of the IDM1005 row (find it by its Row ID, recorded in MASTER_EDIT_2026-11-24_KLINE_FROM_TRAINZ.md 3.08)"
+}
