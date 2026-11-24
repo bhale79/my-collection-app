@@ -1,0 +1,80 @@
+{
+ "title": "Office verdicts — Atlas O 6-bay cylindrical hoppers 6331-6339 (Bob's 6337-1), approved",
+ "rule": "status approved/edited/rejected + decided date in P:Q; set = crawl_deltas cells by header; before = value the cell must hold now",
+ "review": "_Claude_Work_Files\\atlas6337_20261124\\atlas_6337_batch.py (the 9 rows, shown to Brad in chat)",
+ "said": "[stated] Brad 2026-11-24 16:32 CT \"yes\" (add the 9 Atlas O 6-bay cylindrical hoppers — 8 from Trainz + 6337-1 from the customer's box — as Master Version 3.11).",
+ "rows": [
+  {
+   "delta_id": "CB-ATLAS6337-20261124-00001",
+   "batch": "CB-ATLAS6337-20261124",
+   "item_num": "6331-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLAS6337-20261124-00002",
+   "batch": "CB-ATLAS6337-20261124",
+   "item_num": "6334-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLAS6337-20261124-00003",
+   "batch": "CB-ATLAS6337-20261124",
+   "item_num": "6334-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLAS6337-20261124-00004",
+   "batch": "CB-ATLAS6337-20261124",
+   "item_num": "6335-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLAS6337-20261124-00005",
+   "batch": "CB-ATLAS6337-20261124",
+   "item_num": "6336-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLAS6337-20261124-00006",
+   "batch": "CB-ATLAS6337-20261124",
+   "item_num": "6336-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLAS6337-20261124-00007",
+   "batch": "CB-ATLAS6337-20261124",
+   "item_num": "6339-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLAS6337-20261124-00008",
+   "batch": "CB-ATLAS6337-20261124",
+   "item_num": "6339-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLAS6337-20261124-00009",
+   "batch": "CB-ATLAS6337-20261124",
+   "item_num": "6337-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  }
+ ]
+}

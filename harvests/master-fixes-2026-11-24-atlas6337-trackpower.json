@@ -1,0 +1,98 @@
+{
+ "title": "Master fix — Atlas O 6331-6339 hoppers: Track/Power = 3-Rail",
+ "why": "The Office does not fill Track/Power on Commit (WAITING \"CRAWL side questions\" (1)); the sister rows 6340-6343 carry \"3-Rail\" in Track/Power (column T). Each of these is a 3-rail item number.",
+ "said": "[stated] Brad 2026-11-24 16:32 CT \"yes\" (add the 9 Atlas O 6-bay cylindrical hoppers — 8 from Trainz + 6337-1 from the customer's box — as Master Version 3.11).",
+ "cells": [
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Item #": "6331-1",
+    "Source": "(as committed by CB-ATLAS6337-20261124)"
+   },
+   "column": "Track/Power",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Item #": "6334-1",
+    "Source": "(as committed by CB-ATLAS6337-20261124)"
+   },
+   "column": "Track/Power",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Item #": "6334-2",
+    "Source": "(as committed by CB-ATLAS6337-20261124)"
+   },
+   "column": "Track/Power",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Item #": "6335-2",
+    "Source": "(as committed by CB-ATLAS6337-20261124)"
+   },
+   "column": "Track/Power",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Item #": "6336-1",
+    "Source": "(as committed by CB-ATLAS6337-20261124)"
+   },
+   "column": "Track/Power",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Item #": "6336-2",
+    "Source": "(as committed by CB-ATLAS6337-20261124)"
+   },
+   "column": "Track/Power",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Item #": "6339-1",
+    "Source": "(as committed by CB-ATLAS6337-20261124)"
+   },
+   "column": "Track/Power",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Item #": "6339-2",
+    "Source": "(as committed by CB-ATLAS6337-20261124)"
+   },
+   "column": "Track/Power",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Item #": "6337-1",
+    "Source": "(as committed by CB-ATLAS6337-20261124)"
+   },
+   "column": "Track/Power",
+   "old": "",
+   "new": "3-Rail"
+  }
+ ],
+ "undo": "write old (blank) back to the Track/Power cell of each row (find it by its Row ID, recorded in MASTER_EDIT_2026-11-24_KLINE_FROM_TRAINZ.md 3.11)"
+}
