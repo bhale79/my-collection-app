@@ -1,0 +1,7873 @@
+{
+ "title": "Office verdicts — Atlas special runs: 983 rows approved (967 Atlas O, 11 Atlas HO, 5 Atlas N)",
+ "rule": "status approved/edited/rejected + decided date in P:Q; set = crawl_deltas cells by header; before = value the cell must hold now",
+ "review": "_Claude_Work_Files\\atlas_specialruns\\ATLAS_SPECIAL_RUNS_REVIEW_2026-11-23.xlsx + ATLAS_DECISIONS_2026-11-25.md + atl_batch.py",
+ "said": "[stated] Brad on the Atlas special runs review list, the 87 \"needs your call\" rows decided group by group: 2026-11-24 \"Yes\" (54 with no matching model line: Sub Type left empty), \"Yes\" (the 4 with type blank as proposed); 2026-11-25 08:36 CT \"yes\" (the 13 marked check, as worked out), 08:40 CT \"yes\" (the 10 dashed numbers whose plain number is on the tab), 08:48 CT \"yes\" (the 6 numbers the tab has on a different car, each with a note), 08:48 CT \"yes\" (go ahead with the write).",
+ "not_added": "the 21 numbers on Atlas's lists that the catalog already has (the list's \"Already in catalog\" tab)",
+ "rows": [
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00001",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "30138413S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00002",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "30138414S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00003",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "30138370S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00004",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "30138371S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00005",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "TWTL01",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00006",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "TWTL02",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00007",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "TWTL03",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00008",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "TWTL04",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00009",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "TWTL05",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00010",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "TWTL06",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00011",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "TWTL07",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00012",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "TWTL08",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00013",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "TWTL09",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00014",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "TWTL10",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00015",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "TWTL11",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00016",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "TWTL12",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00017",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "TWTL13",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00018",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "TWTL14",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00019",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "TWTL15",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00020",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "TWTL16",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00021",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "300525S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00022",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "3001581-1S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00023",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "3001581-2S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00024",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "3007064S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00025",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "3007065S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00026",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "3007066S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00027",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "2003015",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00028",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "3009968S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00029",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "3001855S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00030",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "3001856S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00031",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "3007425S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00032",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "3007426S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00033",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "3007427S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00034",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "3003843S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00035",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "3004843S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00036",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "2002625S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00037",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "3003844S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00038",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "3004844S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00039",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "3003846-1S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00040",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "3003846-2S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00041",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "3007080S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00042",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "3007081S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR1-20261125-00043",
+   "batch": "CB-ATLASSR1-20261125",
+   "item_num": "3009969S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00001",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8015-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00002",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8015-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00003",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9015",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00004",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6471-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00005",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6471-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00006",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7471-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00007",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7471-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00008",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8110",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00009",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9110",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00010",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8015-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00011",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8015-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00012",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9015-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00013",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9015-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00014",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6116",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00015",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7116",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00016",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "5116",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00017",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8314-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00018",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8314-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00019",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9314-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00020",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9314-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00021",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8364-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00022",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8364-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00023",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9364-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00024",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9364-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00025",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8561-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00026",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8561-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00027",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8561-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00028",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8561-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00029",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9561-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00030",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9561-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00031",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9561-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00032",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9561-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00033",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8514-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00034",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8514-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00035",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8514-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00036",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8514-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00037",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9514-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00038",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9514-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00039",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9514-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00040",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9514-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00041",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6471-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00042",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6471-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00043",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7471-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00044",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7471-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00045",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6497-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00046",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6497-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00047",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7497-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00048",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7497-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00049",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8663-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00050",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8663-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00051",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9663-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00052",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9663-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00053",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "1412-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00054",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "1412-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00055",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "1462-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00056",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "1462-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00057",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8467-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00058",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8467-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00059",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9467-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00060",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9467-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00061",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8569-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00062",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8569-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00063",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9569-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00064",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9569-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00065",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8377-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00066",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8377-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00067",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9377-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00068",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9377-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00069",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8767-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00070",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8767-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00071",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9767-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00072",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9767-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00073",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8810-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00074",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8810-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00075",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9810-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00076",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9810-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00077",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8576-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00078",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8576-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00079",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9576-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00080",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9576-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00081",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8314-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00082",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8314-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00083",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9314-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00084",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9314-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00085",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8191-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00086",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8191-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00087",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9191-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00088",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9191-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00089",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0514",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00090",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0564",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00091",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0539",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00092",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0589",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00093",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8227-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00094",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8227-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00095",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8227-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00096",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8227-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00097",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9227-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00098",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9227-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00099",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9227-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00100",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9227-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00101",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8582-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00102",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8582-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00103",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9582-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00104",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9582-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00105",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3001010",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00106",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3002010",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00107",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8481-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00108",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8481-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00109",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8481-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00110",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8481-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00111",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9481-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00112",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9481-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00113",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9481-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00114",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9481-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00115",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8066-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00116",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8066-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00117",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9066-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00118",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9066-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00119",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8785-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00120",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8785-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00121",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9785-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00122",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9785-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00123",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8786-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00124",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8786-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00125",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9786-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00126",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9786-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00127",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8876-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00128",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8876-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00129",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9876-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00130",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9876-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00131",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2001109",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00132",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2001159",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00133",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2001209",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00134",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2001259",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00135",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2001309",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00136",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2001359",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00137",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2001409",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00138",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2001459",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00139",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8364",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00140",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9364",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00141",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2001021",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00142",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2001071",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00143",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3001117",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00144",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3002117",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00145",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "4041",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00146",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "4042",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00147",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "4043",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00148",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3001713",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00149",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3002713",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00150",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3003809",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00151",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3004809",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00152",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2002206",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00153",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2002256",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00154",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2002207",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00155",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2002257",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00156",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2002208",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00157",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2002258",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00158",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3001123",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00159",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3002123",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00160",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3001537A",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00161",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3002537A",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00162",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3001537B",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00163",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3002537B",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00164",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3001537C",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00165",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3002537C",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00166",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3001537D",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00167",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3002537D",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00168",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8060-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00169",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8060-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00170",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9060-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00171",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9060-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00172",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8079-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00173",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8079-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00174",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9079-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00175",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9079-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00176",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8067-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00177",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8067-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00178",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9067-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00179",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9067-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00180",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6472",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00181",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7472",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00182",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8138",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00183",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9138",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00184",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8137-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00185",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8137-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00186",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9137-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00187",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9137-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00188",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8121",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00189",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9121",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00190",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8136",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00191",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9136",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00192",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8182-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00193",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8182-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00194",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9182-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00195",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9182-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00196",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8193-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00197",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8193-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00198",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9193-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00199",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9193-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00200",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8078-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00201",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8078-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00202",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9078-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00203",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9078-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00204",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8092-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00205",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8092-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00206",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9092-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00207",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9092-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00208",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9345",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00209",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3001025",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00210",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3002025",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00211",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8243",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00212",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9243",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00213",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3003807",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00214",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3004807",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00215",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3003812",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00216",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3004812",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00217",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3005816",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00218",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3006816",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00219",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "1423-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00220",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3423-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00221",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "1423-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00222",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3423-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00223",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "1473-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00224",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2473-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00225",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "1473-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00226",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2473-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00227",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6743-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00228",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7743-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00229",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6744",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00230",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7744",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00231",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8107",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00232",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9107",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00233",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8213-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00234",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8213-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00235",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9213-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00236",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9213-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00237",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8122",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00238",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9122",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00239",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6478-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00240",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6478-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00241",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7478-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00242",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7478-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00243",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6743-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00244",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6743-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00245",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8183-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00246",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8183-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00247",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9183-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00248",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9183-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00249",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8164-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00250",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8164-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00251",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9164-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00252",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9164-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00253",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6744-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00254",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6744-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00255",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7744-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00256",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7744-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00257",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8170-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00258",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8170-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00259",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9170-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00260",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9170-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00261",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8584-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00262",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8584-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00263",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9584-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00264",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9584-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00265",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8085-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00266",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8085-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00267",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9085-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00268",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9085-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00269",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8091",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00270",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9091",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00271",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8194",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00272",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8194-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00273",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8194-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00274",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9194-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00275",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9194-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00276",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8038-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00277",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8038-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00278",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8051-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00279",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8051-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00280",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9051-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00281",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9051-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00282",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8662-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00283",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8662-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00284",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9662-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00285",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9662-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00286",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8568-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00287",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8568-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00288",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9568-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00289",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9568-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00290",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8058-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00291",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8058-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00292",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9058-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00293",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9058-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00294",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3001508",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00295",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3002508",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00296",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6745",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00297",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7745",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00298",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8109-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00299",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8109-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00300",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9109-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00301",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9109-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00302",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8130-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00303",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8130-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00304",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8130-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00305",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8130-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00306",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9130-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00307",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9130-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00308",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9130-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00309",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9130-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00310",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8181-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00311",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8181-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00312",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8181-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00313",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8181-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00314",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9181-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00315",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9181-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00316",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9181-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00317",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9181-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00318",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8192-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00319",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8192-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00320",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9192-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00321",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9192-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00322",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8075",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00323",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9075",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00324",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8710",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00325",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9710",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00326",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6742-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00327",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6742-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00328",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7742-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00329",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7742-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00330",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6282-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00331",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6282-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00332",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7282-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00333",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7282-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00334",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6749",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00335",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7749",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00336",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6799",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00337",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7799",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00338",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8021",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00339",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9021",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00340",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8111",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00341",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9011",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00342",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8029",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00343",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9029",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00344",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8120",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00345",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9120",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00346",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8316",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00347",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9316",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00348",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8128-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00349",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8128-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00350",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9128-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00351",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9128-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00352",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8133-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00353",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8133-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00354",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9133-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00355",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9133-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00356",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8365-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00357",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8365-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00358",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9365-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00359",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9365-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00360",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8140-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00361",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8140-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00362",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8140-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00363",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8140-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00364",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9140-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00365",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9140-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00366",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9140-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00367",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9140-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00368",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8148-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00369",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8148-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00370",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9148-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00371",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9148-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00372",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8175-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00373",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8175-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00374",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9175-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00375",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9175-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00376",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8065-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00377",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8065-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00378",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9065-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00379",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9065-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00380",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0519",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00381",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0569",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00382",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3001509",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00383",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3002509",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00384",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8112",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00385",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9112",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00386",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8315",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00387",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9315",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00388",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8129-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00389",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8129-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00390",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9129-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00391",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9129-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00392",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8135-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00393",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8135-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00394",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9135-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00395",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9135-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00396",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8040-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00397",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8040-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00398",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9040-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00399",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9040-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00400",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8142-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00401",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8142-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00402",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9142-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00403",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9142-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00404",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8143-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00405",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8143-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00406",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9143-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00407",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9143-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00408",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "1009006",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00409",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "1135-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00410",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "1135-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00411",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "1185-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00412",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3135-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00413",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3135-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00414",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2182-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00415",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "1624-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00416",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3624-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00417",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "1625-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00418",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3625-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00419",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "1674-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00420",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2674-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00421",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "1675-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00422",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2675-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00423",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8416-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00424",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8416-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00425",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9416-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00426",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9416-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00427",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8185-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00428",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8185-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00429",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9185-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00430",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9185-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00431",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8326-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00432",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8326-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00433",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9326-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00434",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9326-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00435",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8525-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00436",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8525-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00437",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9525-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00438",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9525-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00439",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8673-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00440",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8673-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00441",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9673-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00442",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9673-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00443",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8077-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00444",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8077-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00445",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9077-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00446",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9077-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00447",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8673",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00448",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9673",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00449",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0839",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00450",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0889",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00451",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0636",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00452",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0686",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00453",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0812",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00454",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0862",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00455",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2001509",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00456",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2001559",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00457",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6114-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00458",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7114-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00459",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6760-5",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00460",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6760-6",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00461",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6760-7",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00462",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6760-8",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00463",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7760-5",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00464",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7760-6",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00465",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7760-7",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00466",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7760-8",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00467",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6429",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00468",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7429",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00469",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6760-9",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00470",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6760-10",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00471",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6760-11",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00472",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6760-12",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00473",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7760-9",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00474",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7760-10",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00475",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7760-11",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00476",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7760-12",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00477",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3001529S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00478",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3002529S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00479",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3001553S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00480",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3002553S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00481",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3001525S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00482",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3002525S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00483",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3001526S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00484",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3002526S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00485",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3001527S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00486",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3002527S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00487",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3001528S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00488",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3002528S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00489",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6395",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00490",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7395",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00491",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6782-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00492",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6782-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00493",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6782-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00494",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6782-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00495",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7782-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00496",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7782-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00497",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7782-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00498",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7782-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00499",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6783-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00500",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6783-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00501",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7783-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00502",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7783-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00503",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8134-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00504",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8134-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00505",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9134-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00506",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9134-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00507",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8159",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00508",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9159",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00509",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8755-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00510",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8755-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00511",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8755-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00512",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8755-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00513",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9755-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00514",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9755-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00515",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9755-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00516",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9755-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00517",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8756-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00518",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8756-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00519",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8756-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00520",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8756-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00521",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9756-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00522",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9756-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00523",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9756-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00524",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9756-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00525",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8755-5",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00526",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8755-6",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00527",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9755-5",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00528",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9755-6",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00529",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8757-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00530",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8757-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00531",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9757-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00532",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9757-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00533",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8758-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00534",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8758-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00535",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9758-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00536",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9758-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00537",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8759-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00538",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8759-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00539",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9759-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00540",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9759-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00541",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8760",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00542",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9760",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00543",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8761",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00544",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9761",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00545",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8773",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00546",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9773",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00547",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8768",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00548",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9768",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00549",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8769",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00550",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9769",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00551",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8770",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00552",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9770",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00553",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8780",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00554",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9780",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00555",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "1009002",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00556",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6134",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00557",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7134",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00558",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6362",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00559",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7362",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00560",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6585",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00561",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7585",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00562",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6716-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00563",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7716-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00564",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6717-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00565",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7717-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00566",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6739",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00567",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7739",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00568",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6281-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00569",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7281-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00570",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6746",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00571",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7746",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00572",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8013",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00573",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9013",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00574",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6316-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00575",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6316-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00576",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7316-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00577",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7316-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00578",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6145",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00579",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7145",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00580",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "5145",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00581",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8119",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00582",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9119",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00583",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8131-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00584",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8131-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00585",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9131-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00586",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9131-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00587",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8461-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00588",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8461-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00589",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9461-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00590",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9461-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00591",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8149",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00592",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9149",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00593",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8180-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00594",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8180-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00595",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9180-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00596",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9180-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00597",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6722-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00598",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6722-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00599",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7722-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00600",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7722-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00601",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8039-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00602",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8039-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00603",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9039-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00604",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9039-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00605",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8463-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00606",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8463-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00607",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9463-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00608",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9463-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00609",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8462-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00610",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8462-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00611",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9462-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00612",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9462-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00613",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8046-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00614",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8046-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00615",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9046-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00616",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9046-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00617",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8468-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00618",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8468-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00619",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9468-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00620",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9468-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00621",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8469-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00622",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8469-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00623",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9469-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00624",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9469-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00625",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8039-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00626",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8039-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00627",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9039-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00628",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9039-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00629",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6591",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00630",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7591-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00631",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7591-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00632",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6658",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00633",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7658-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00634",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7658-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00635",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6590",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00636",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7590-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00637",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7590-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00638",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6748",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00639",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7748",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00640",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8014",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00641",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9014",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00642",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6885",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00643",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7885",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00644",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8020",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00645",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9020",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00646",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8027",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00647",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9027",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00648",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8214",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00649",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9214",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00650",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6390",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00651",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7390",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00652",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "1116",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00653",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2116",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00654",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7146",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00655",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8312",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00656",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9312",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00657",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8123-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00658",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8123-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00659",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9123-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00660",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9123-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00661",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8127-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00662",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8127-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00663",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8127-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00664",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8127-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00665",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9127-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00666",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9127-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00667",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9127-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00668",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9127-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00669",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8408",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00670",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9408",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00671",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9366-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00672",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9366-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00673",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8139-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00674",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8139-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00675",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8139-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00676",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8139-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00677",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9139-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00678",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9139-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00679",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9139-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00680",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9139-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00681",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8562-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00682",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8562-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00683",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9562-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00684",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9562-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00685",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6394-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00686",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6394-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00687",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7394-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00688",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7394-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00689",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "1129-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00690",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "1129-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00691",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2129-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00692",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2129-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00693",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "1179",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00694",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2179",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00695",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8141-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00696",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8141-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00697",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8141-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00698",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8141-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00699",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9141-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00700",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9141-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00701",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9141-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00702",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9141-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00703",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8141-5",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00704",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8141-6",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00705",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8141-7",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00706",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8141-8",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00707",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9141-5",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00708",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9141-6",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00709",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9141-7",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00710",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9141-8",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00711",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8141-9",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00712",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8141-10",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00713",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8141-11",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00714",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8141-12",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00715",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9141-9",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00716",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9141-10",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00717",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9141-11",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00718",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9141-12",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00719",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8312-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00720",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8312-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00721",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9312-3",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00722",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9312-4",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00723",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6637-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00724",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7637-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00725",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7637-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00726",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "1413",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00727",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2413",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00728",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6369-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00729",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6369-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00730",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7369-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00731",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7369-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00732",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9711",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00733",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8567",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00734",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9567",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00735",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6976",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00736",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7976",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00737",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6583",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00738",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7583",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00739",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8515",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00740",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9515",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00741",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6349",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00742",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7349",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00743",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8376",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00744",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9376",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00745",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8059",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00746",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9059",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00747",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8378",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00748",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9378",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00749",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8577-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00750",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8577-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00751",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9577-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00752",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9577-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00753",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8583-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00754",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8583-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00755",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9583-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00756",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9583-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00757",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9585-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00758",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9585-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00759",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8171-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00760",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8171-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00761",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9171-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00762",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9171-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00763",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8384-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00764",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8384-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00765",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9384-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00766",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9384-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00767",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8076-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00768",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8076-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00769",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9076-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00770",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9076-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00771",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8875-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00772",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9875-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00773",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9875-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00774",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8086-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00775",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8086-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00776",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9086-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00777",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9086-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00778",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8717-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00779",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8717-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00780",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9717-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00781",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9717-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00782",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8718-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00783",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8718-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00784",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9718-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00785",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9718-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00786",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8331-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00787",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8331-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00788",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9331-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00789",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9331-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00790",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9593",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00791",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8680",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00792",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9680",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00793",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8098",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00794",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9098",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00795",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8141-13",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00796",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8141-14",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00797",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9141-13",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00798",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9141-14",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00799",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8724",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00800",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9724",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00801",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8725",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00802",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9725",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00803",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0635",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00804",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0685",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00805",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0637",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00806",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0687",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00807",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0642",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00808",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0692",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00809",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3002409",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00810",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0520",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00811",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0570",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00812",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8729",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00813",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9729",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00814",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8730",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00815",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9730",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00816",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2001363",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00817",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0991",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00818",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0943",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00819",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0993",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00820",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2001030",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00821",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2001080",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00822",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3003808",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00823",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3004808",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00824",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3001317",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00825",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3002317",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00826",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2001621",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00827",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2001721",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00828",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3003819",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00829",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3004819",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00830",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3001820",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00831",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3002820",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00832",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3003827",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00833",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3004827",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00834",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3001544",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00835",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3002544",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00836",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3002812",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00837",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3623-1",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00838",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "1623-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00839",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3623-2",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00840",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "1673",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00841",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2673",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00842",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8495",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00843",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9495",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00844",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8679",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00845",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9679",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00846",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8678",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00847",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9678",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00848",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0639",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00849",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0689",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00850",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0640",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00851",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0690",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00852",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0641",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00853",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0691",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00854",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8344",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00855",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9344",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00856",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2001022",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00857",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2001072",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00858",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0942",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00859",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0992",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00860",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0939",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00861",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0989",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00862",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0940",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00863",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0990",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00864",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2001028",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00865",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2001078",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00866",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2001029",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00867",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2001079",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00868",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0944",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00869",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0994",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00870",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2001033",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00871",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2001083",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00872",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2001034",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00873",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2001084",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00874",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3003811",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00875",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3004811",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00876",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2001905",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00877",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2001955",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00878",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2002209",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00879",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2002259",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00880",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2002210",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00881",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2002260",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00882",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2002211",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00883",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2002261",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00884",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2002212",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00885",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2002262",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00886",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2001713",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00887",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2001763",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00888",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2001714",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00889",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2001764",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00890",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3005106",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00891",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3006106",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00892",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3005406",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00893",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3006406",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00894",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3003820",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00895",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3004820",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00896",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3005808",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00897",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3006808",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00898",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3001814",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00899",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3002814",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00900",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0516",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00901",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0566",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00902",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0643",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00903",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0693",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00904",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0638",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00905",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "0688",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00906",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8592",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00907",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9592",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00908",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8877",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00909",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9877",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00910",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3001014",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00911",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3002014",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00912",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8015",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00913",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8113",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00914",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9113",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00915",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "6315",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00916",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "7315",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00917",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8132",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00918",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9132",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00919",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8037",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00920",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9037",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00921",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8045",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00922",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9045",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00923",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8050",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00924",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9050",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00925",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8057",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00926",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9057",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00927",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8728",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00928",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9728",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00929",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8879",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00930",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9779",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00931",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "1122",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00932",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2122",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00933",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "3122",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00934",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "2001856S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00935",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "HUML-03",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00936",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "HUML-04",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00937",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8030",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00938",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9030",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00939",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "8031",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-ATLASSR2-20261125-00940",
+   "batch": "CB-ATLASSR2-20261125",
+   "item_num": "9031",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  }
+ ]
+}
