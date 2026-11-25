@@ -1,0 +1,127 @@
+{
+ "title": "Master fix — Atlas special runs: Variation + Variation Description cleared on the 6 new rows whose number the tab already has on a different car",
+ "why": "The Office holds a number the tab already has unless the row carries Variation Details, and then gives it the next open variation. Atlas O leaves Variation and Variation Description blank on every one of its 13,198 rows (773 numbers have two or more rows, told apart by their descriptions), so the 6 new rows are put in the tab's own style: both cells blank. The existing rows of those numbers are not touched. Each new row's Notes says the catalog also has the number on a different car.",
+ "said": "[stated] Brad 2026-11-25 08:48 CT \"yes\" (add all 6 under the number Atlas lists, each with a note that the same number is also on a different car; the existing rows stay untouched).",
+ "cells": [
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Item #": "9011",
+    "Source": "(as committed by CB-ATLASSR2-20261125)"
+   },
+   "column": "Variation",
+   "old": "(as the Office wrote it: the next open variation / the batch's \"special run: <road>\" key)",
+   "new": ""
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Item #": "9011",
+    "Source": "(as committed by CB-ATLASSR2-20261125)"
+   },
+   "column": "Variation Description",
+   "old": "(as the Office wrote it: the next open variation / the batch's \"special run: <road>\" key)",
+   "new": ""
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Item #": "2182-1",
+    "Source": "(as committed by CB-ATLASSR2-20261125)"
+   },
+   "column": "Variation",
+   "old": "(as the Office wrote it: the next open variation / the batch's \"special run: <road>\" key)",
+   "new": ""
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Item #": "2182-1",
+    "Source": "(as committed by CB-ATLASSR2-20261125)"
+   },
+   "column": "Variation Description",
+   "old": "(as the Office wrote it: the next open variation / the batch's \"special run: <road>\" key)",
+   "new": ""
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Item #": "2001721",
+    "Source": "(as committed by CB-ATLASSR2-20261125)"
+   },
+   "column": "Variation",
+   "old": "(as the Office wrote it: the next open variation / the batch's \"special run: <road>\" key)",
+   "new": ""
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Item #": "2001721",
+    "Source": "(as committed by CB-ATLASSR2-20261125)"
+   },
+   "column": "Variation Description",
+   "old": "(as the Office wrote it: the next open variation / the batch's \"special run: <road>\" key)",
+   "new": ""
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Item #": "3001544",
+    "Source": "(as committed by CB-ATLASSR2-20261125)"
+   },
+   "column": "Variation",
+   "old": "(as the Office wrote it: the next open variation / the batch's \"special run: <road>\" key)",
+   "new": ""
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Item #": "3001544",
+    "Source": "(as committed by CB-ATLASSR2-20261125)"
+   },
+   "column": "Variation Description",
+   "old": "(as the Office wrote it: the next open variation / the batch's \"special run: <road>\" key)",
+   "new": ""
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Item #": "3002544",
+    "Source": "(as committed by CB-ATLASSR2-20261125)"
+   },
+   "column": "Variation",
+   "old": "(as the Office wrote it: the next open variation / the batch's \"special run: <road>\" key)",
+   "new": ""
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Item #": "3002544",
+    "Source": "(as committed by CB-ATLASSR2-20261125)"
+   },
+   "column": "Variation Description",
+   "old": "(as the Office wrote it: the next open variation / the batch's \"special run: <road>\" key)",
+   "new": ""
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Item #": "8879",
+    "Source": "(as committed by CB-ATLASSR2-20261125)"
+   },
+   "column": "Variation",
+   "old": "(as the Office wrote it: the next open variation / the batch's \"special run: <road>\" key)",
+   "new": ""
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Item #": "8879",
+    "Source": "(as committed by CB-ATLASSR2-20261125)"
+   },
+   "column": "Variation Description",
+   "old": "(as the Office wrote it: the next open variation / the batch's \"special run: <road>\" key)",
+   "new": ""
+  }
+ ]
+}
