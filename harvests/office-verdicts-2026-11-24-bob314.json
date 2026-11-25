@@ -1,0 +1,24 @@
+{
+ "title": "Office verdicts \u2014 K77025 (K-Line O) + Atlas 1000080 (Atlas O) for Bob, approved",
+ "rule": "status approved/edited/rejected + decided date in P:Q; set = crawl_deltas cells by header; before = value the cell must hold now",
+ "review": "_Claude_Work_Files\\bob_3.14_20261124\\bob_314_batch.py (the 2 rows, shown to Brad in chat)",
+ "said": "[stated] Brad 2026-11-24 18:28 CT \"yes\" (add K77025 from the customer's box and Atlas 1000080 from its Trainz page as Master Version 3.14).",
+ "rows": [
+  {
+   "delta_id": "CB-BOB314-20261124-00001",
+   "batch": "CB-BOB314-20261124",
+   "item_num": "K77025",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-BOB314-20261124-00002",
+   "batch": "CB-BOB314-20261124",
+   "item_num": "1000080",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  }
+ ]
+}
