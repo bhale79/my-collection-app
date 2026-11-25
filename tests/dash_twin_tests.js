@@ -448,7 +448,7 @@ if (!JSDOM) {
     return (Ws2._wizResolveAddRow('4001-2', { raw: true }) || {}).rowId || null; };
   let st2 = staleW(SUG);
   ok('L44 tap Atlas O 4001, type 4002, back to 4001 (picked again by number, not tapped), then 4001-2 → no pick: the tap was let go', st2 === null, st2);
-  st2 = staleW(plant(SUG, "    if (!(rrNumSameAsTyped(_tr.itemNum, _tn) || (typeof rrNumLooseTwin === 'function' && rrNumLooseTwin(_tr, _tn)))) delete wizard.data._tappedRow;\n", "", 'stale-tap'));
+  st2 = staleW(plant(SUG, "    if (!(rrNumSameAsTyped(_tr.itemNum, _tn) || (typeof rrNumLooseTwin === 'function' && rrNumLooseTwin(_tr, _tn)) || (typeof rrNumCarTwin === 'function' && rrNumCarTwin(_tr, _tn)))) delete wizard.data._tappedRow;   // weavercr: or the number on its car\n", "", 'stale-tap'));
   ok('L45 PLANTED: the tap never let go → 4001-2 picks Atlas O 4001 by the old tap (caught)', st2 === 'AO4001', st2);
   // a row-cell maker before any of its rows are loaded (eras [])
   const We = addWorld(SUG);

@@ -562,5 +562,33 @@ T('regression: 9099 scale hint still HO',
   T('itemnumfix: Lionel 38586 itself still resolves to Norfolk Southern', (_findMasterCore(m, '38586', null, null) || {}).roadName, 'Norfolk Southern');
 }
 
+// ── CANARY: the number on a custom-run car (weavercr, 2026-11-24) — Weaver's
+// CUSTOM RUN rows carry the car's number in Variation (Bob's Norfolk Southern
+// Centerflow 311202). 932 car numbers are also another catalog's item number
+// (Lionel Pre-War 1914 vs the 4-H Club custom run 1914) and 108 are on more than
+// one run. A custom run answers ONLY with Weaver named and ONE car carrying it.
+// Full coverage: weaver_custom_run_tests.js.
+{
+  const _appCR = fs.readFileSync(path.join(__dirname, '..', 'app', 'app.js'), 'utf8');
+  global.RR_CUSTOM_RUN = { eras: ['weaver'], noNumber: /^CUSTOM\s*RUN$/i };
+  ['rrCustomRunRow', '_rrCarNumKey', 'rrCustomRunNumber', 'rrNumCarTwin'].forEach(n => eval(grab(_appCR, n).replace('function ' + n, 'global.' + n + ' = function')));
+  global._ckCache = new WeakMap();
+  eval(grab(dat, '_carKinRows').replace('function _carKinRows', 'global._carKinRows = function'));
+  const cr = (n, road, id) => ({ itemNum: 'CUSTOM RUN', variation: n, roadName: road, _era: 'weaver', _tab: 'Weaver O', itemType: 'Hopper', rowId: id });
+  const ns = cr('311202', 'NORFOLK SOUTHERN', 'WV311202'), h4 = cr('1914', '4-H CLUB', 'WV1914'), e1 = cr('98539', 'ERIE', 'WVE'), r1 = cr('98539', 'READING', 'WVR');
+  const p1914 = { itemNum: '1914', _era: 'prewar', _tab: 'Lionel Pre-War - Items', itemType: 'Accessory' };
+  const C = new Map([['CUSTOM RUN', [ns, h4, e1, r1]], ['1914', [p1914]]]);
+  ERA_TABS.weaver = { items: 'Weaver O' }; ERA_TABS.prewar = { items: 'Lionel Pre-War - Items' };
+  T('weavercr: 311202 + Weaver named -> the Norfolk Southern car', (_findMasterCore(C, '311202', null, { era: 'weaver' }) || {}).rowId, 'WV311202');
+  T('weavercr: 311202 + Weaver as an era list (the photo reader) -> the car', (_findMasterCore(C, '311202', null, { eras: ['weaver'] }) || {}).rowId, 'WV311202');
+  T('weavercr: 311202 + nothing named -> nothing (a number alone never picks a custom run)', _findMasterCore(C, '311202', null, null), null);
+  T('weavercr: 311202 + Pre-War named -> nothing', _findMasterCore(C, '311202', null, { era: 'prewar' }), null);
+  T('weavercr: 1914 + nothing named -> Lionel\'s 1914 (exact wins)', (_findMasterCore(C, '1914', null, null) || {})._era, 'prewar');
+  T('weavercr: 1914 + Pre-War named -> Lionel\'s 1914', (_findMasterCore(C, '1914', null, { era: 'prewar' }) || {})._era, 'prewar');
+  T('weavercr: 1914 + Weaver named -> the 4-H Club custom run', (_findMasterCore(C, '1914', null, { era: 'weaver' }) || {}).rowId, 'WV1914');
+  T('weavercr: 98539 + Weaver named -> nothing (two runs carry it; never chosen for you)', _findMasterCore(C, '98539', null, { era: 'weaver' }), null);
+  delete ERA_TABS.weaver; delete ERA_TABS.prewar;
+}
+
 console.log(fails ? ('\n' + fails + ' CANARY FAILURE(S) — a lookup path regressed.') : '\nALL CANARIES GREEN');
 process.exit(fails ? 1 : 0);

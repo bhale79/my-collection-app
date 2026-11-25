@@ -64,6 +64,25 @@ function buildToolsPage() {
       '<div id="check-makers-results" style="margin-top:1rem"></div>' +
     '</div>';
 
+  // 2026-11-24 (catalognow): "Now in the catalog" — every word from RR_CATALOG_NOW (the config file)
+  var _CNW = (typeof RR_CATALOG_NOW !== 'undefined' && RR_CATALOG_NOW) || {};
+  // [stated] Brad 2026-11-24 13:50 CT "on the button, should say the '3 of you......' line" /
+  // "well, next to the button itself, not on it directly": when the scan finds some, the
+  // line BESIDE the button (and the folded heading) says how many. The button keeps its words.
+  var _cnwOn = (typeof rrCatalogNowOn === 'function') && rrCatalogNowOn();   // owners only for now (the one switch, RR_CATALOG_NOW.who)
+  var _cnwWords = (_cnwOn && typeof rrCatalogNowButtonWords === 'function') ? rrCatalogNowButtonWords() : { button: _CNW.button || '', beside: '', note: _CNW.note || '' };
+  var CARD_CATALOG_NOW =
+    '<div class="tools-card">' +
+      '<div class="tools-card-title">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#27ae60" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><polyline points="9 11 11 13 15 9"/></svg>' +
+        rrEsc(_CNW.name || '') +
+      '</div>' +
+      '<div class="tools-card-desc">' + rrEsc(_CNW.desc || '') + '</div>' +
+      '<button id="catalog-now-run" onclick="runCatalogNow()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #27ae60;background:var(--bg-card);background:color-mix(in srgb, rgb(39,174,96) 10%, var(--bg-card));color:var(--text);font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">' + rrEsc(_cnwWords.button) + '</button>' +
+      '<span id="catalog-now-count" style="display:inline-block;margin-left:0.7rem;font-size:0.88rem;font-weight:700;color:var(--text);vertical-align:middle">' + rrEsc(_cnwWords.beside) + '</span>' +
+      '<div id="catalog-now-results" style="margin-top:1rem"></div>' +
+    '</div>';
+
   var CARD_SET_BUILDER =
     '<div class="tools-card">' +
       '<div class="tools-card-title">' +
@@ -346,6 +365,12 @@ function buildToolsPage() {
   html += SECTION_HEADER('makers', 'Check Makers', 'Items whose maker needs a look', true);
   html += '<div id="makers-body" style="display:none">' + CARD_CHECK_MAKERS + '</div>';
 
+  // 2026-11-24 (catalognow): its own section beside Check Makers, folded the same way
+  if (_cnwOn) {
+    html += SECTION_HEADER('catalognow', rrEsc(_CNW.name || ''), rrEsc(_cnwWords.note), true);
+    html += '<div id="catalognow-body" style="display:none">' + CARD_CATALOG_NOW + '</div>';
+  }
+
   // Postwar Lionel = tools that rely on Lionel postwar catalog data (grouping,
   // sets, companions). Smart Group Finder lives here (it's postwar-Lionel only).
   if (showLionelSection) {
@@ -481,6 +506,341 @@ function rrCheckMakerSave(i, btn) {
   return (typeof rrOnce === 'function') ? rrOnce('check-maker:' + e.key, run, btn || null) : run();
 }
 if (typeof window !== 'undefined') { window.runCheckMakers = runCheckMakers; window.rrCheckMakerSave = rrCheckMakerSave; }
+
+// ═══ 2026-11-24 — NOW IN THE CATALOG (catalognow) ═══════════════════════════
+// PLAN_2026-11-24_HAND_TYPED_NOW_IN_CATALOG.md. Customer Bob's idea; [stated]
+// Brad: "a collection button that checks their list for manual entries, see if
+// its cataloged now, show each line item and what would update. then it would
+// leave what they input in its notes" / "once they okay it, it would then
+// update their list".
+//
+// WHICH COPIES (rrCatalogNowList — the ONE scan): owned copies that are not
+// tied to a catalog entry (rrCopyIsUnlinked, the Check Makers rule). Left out,
+// and said on the screen: a piece saved in a group, a set, a box / sheet /
+// carton row, an app-made number, and a copy with no maker.
+// WHICH ROWS (rrCatalogNowFits): the rows the copy COULD be — the ONE list
+// "Change catalog entry" offers (rrCatalogCandidates, app-data.js) — kept only
+// when the row's maker is the maker saved on the copy (rrMakerSame). NEVER the
+// number alone: 165,000 rows reuse numbers across makers. One row = a line;
+// several = the member picks; none = not listed.
+// THE UPDATE (rrCatalogNowUpdateOne): the fields a catalog entry decides
+// (rrCopyFieldsFromEntry — the same rule as Update Info's "Change catalog
+// entry"), through the same safe write (rrPersonalSafeWrite), one copy at a
+// time, each found again by its Inventory ID. What the member typed is ADDED
+// to the notes. The copy keeps its number: an entry from the copy's own list
+// is never a number move (rrNumberMovePlan says so, and is asked).
+function rrCatalogNowSkips(pd) {
+  if (!pd || !pd.owned || !pd.itemNum) return 'not-owned';
+  var n = String(pd.itemNum).trim();
+  if (typeof rrIsAppMadeNumber === 'function' && rrIsAppMadeNumber(n)) return 'app-made';
+  var pieceRe = (typeof RR_ADD_PIECE !== 'undefined' && RR_ADD_PIECE.pieceRe) || /-(BOX|MBOX|IS)$/i;
+  if (pieceRe.test(n)) return 'piece';
+  if (String(pd.groupId || '').trim() || String(pd.setId || '').trim()) return 'group';
+  if (typeof rrCopyIsUnlinked !== 'function' || !rrCopyIsUnlinked(pd)) return 'linked';
+  if (!String(pd.manufacturer || '').trim()) return 'no-maker';
+  return '';
+}
+function rrCatalogNowFits(pd) {
+  if (rrCatalogNowSkips(pd)) return [];
+  if (typeof rrCatalogCandidates !== 'function' || typeof rrMakerOf !== 'function' || typeof rrMakerSame !== 'function') return [];
+  var mk = String(pd.manufacturer || '').trim();
+  var rows = [];
+  try { rows = rrCatalogCandidates(pd.itemNum) || []; } catch (e) { rows = []; }
+  var keep = function (r) {
+    if (!r || !r.itemNum) return false;
+    if (/\bSets$/i.test(String(r._tab || '').trim())) return false;   // a Sets tab row is a set, not an item
+    var rm = '';
+    try { rm = rrMakerOf({ row: r }); } catch (e2) { rm = ''; }
+    return !!rm && rrMakerSame(rm, mk);
+  };
+  var out = rows.filter(keep);
+  // 2026-11-24 (weavercr, review finding 4): a Weaver hand entry whose number is
+  // ALSO another maker's item number (1914) — the candidates are that maker's, so
+  // the custom-run cars carrying the number are asked for this maker directly.
+  if (!out.length && typeof rrCarNumberRows === 'function') {
+    try { out = (rrCarNumberRows(pd.itemNum) || []).filter(keep); } catch (e3) { out = []; }
+  }
+  return out;
+}
+// The scan. { list: [{ key, pd, rows }], noMaker: n } — keyed by the copy's
+// store key (its Inventory ID), never by a row number or a place on a list.
+function rrCatalogNowList() {
+  var out = [], noMaker = 0;
+  var pdAll = (typeof state !== 'undefined' && state && state.personalData) || {};
+  Object.keys(pdAll).forEach(function (k) {
+    var pd = pdAll[k];
+    var why = rrCatalogNowSkips(pd);
+    if (why === 'no-maker') { noMaker++; return; }
+    if (why) return;
+    var rows = rrCatalogNowFits(pd);
+    if (rows.length) out.push({ key: k, pd: pd, rows: rows });
+  });
+  out.sort(function (a, b) {
+    return String(a.pd.itemNum || '').localeCompare(String(b.pd.itemNum || ''), undefined, { numeric: true });
+  });
+  return { list: out, noMaker: noMaker };
+}
+// The button's words, the line BESIDE the button and the words by the folded
+// heading. beside = the count when the scan finds some ("3 of your hand-typed
+// items are in the catalog now"), blank when it finds none or the collection is
+// not loaded yet. The button itself always reads the same. ONE place.
+function rrCatalogNowButtonWords() {
+  var C = (typeof RR_CATALOG_NOW !== 'undefined' && RR_CATALOG_NOW) || {};
+  var n = 0;
+  try { n = rrCatalogNowList().list.length; } catch (e) { n = 0; }
+  if (!n) return { n: 0, button: String(C.button || ''), beside: '', note: String(C.note || '') };
+  var line = String(C.nudge || '').replace('{n}', n).replace('{are}', n === 1 ? 'is' : 'are');
+  return { n: n, button: String(C.button || ''), beside: line, note: line };
+}
+if (typeof window !== 'undefined') window.rrCatalogNowButtonWords = rrCatalogNowButtonWords;
+// What the member typed, in one line — for the notes.
+function rrCatalogNowTyped(pd) {
+  var seen = {}, parts = [];
+  [pd.itemNum, pd.customName, pd.description, pd.roadName, pd.itemType].forEach(function (v) {
+    v = String(v == null ? '' : v).replace(/\s+/g, ' ').trim();
+    if (!v || seen[v.toLowerCase()]) return;
+    seen[v.toLowerCase()] = 1; parts.push(v);
+  });
+  var mk = String(pd.manufacturer || '').trim();
+  return parts.join(' ') + (mk ? ' (' + mk + ')' : '');
+}
+// The notes after the update: the notes as they are + ONE line. Never replaced;
+// a line already there is not added twice.
+function rrCatalogNowNotes(pd) {
+  var C = (typeof RR_CATALOG_NOW !== 'undefined' && RR_CATALOG_NOW) || {};
+  var old = String(pd.notes == null ? '' : pd.notes).trim();
+  var d = String(pd.dateAdded || '').trim();
+  var line = String(C.noteLine || '').replace('{date}', d ? String(C.noteDate || ' {date}').replace('{date}', d) : '')
+    .replace('{what}', rrCatalogNowTyped(pd)).slice(0, C.maxNote || 500);
+  if (!line) return old;
+  if (old.indexOf(line) >= 0) return old;
+  return old ? old + ' | ' + line : line;
+}
+// THE fields one update writes. entry = the picked catalog row; notSure = the
+// member is not sure of the variation: tied to the item, variation left blank
+// (the Add screen's rule — never a silent variation 1).
+function rrCatalogNowFields(pd, entry, notSure) {
+  var f = rrCopyFieldsFromEntry(entry, pd);
+  if (notSure) { f.variation = ''; f.variationDescription = ''; }
+  f.description = '';
+  f.customName = '';
+  f.notes = rrCatalogNowNotes(pd);
+  return f;
+}
+function _cnwEraLabel(r) {
+  return (typeof ERAS !== 'undefined' && r && r._era && ERAS[r._era]) ? ERAS[r._era].label : String((r && (r._era || r._tab)) || '');
+}
+function _cnwRowLabel(r) {
+  return [_cnwEraLabel(r), r.variation ? 'Var ' + r.variation : '', [r.itemType, r.roadName].filter(Boolean).join(' \u00b7 '),
+    String(r.varDesc || r.description || '').slice(0, 60), r.yearProd].filter(Boolean).join(' \u00b7 ');
+}
+function _cnwRowSig(r) {
+  return r && r.rowId ? '#' + String(r.rowId).trim()
+    : [r.itemNum, r.variation || '', r._tab || '', r._era || '', r.description || ''].join('|');
+}
+// "Not sure of the variation" is offered only when every choice is the same
+// item in the same catalog — the choices differ by variation alone.
+function _cnwSameItem(rows) {
+  if (!rows || rows.length < 2) return false;
+  // weavercr (second review): Weaver custom runs that carry one number are
+  // DIFFERENT cars (the ERIE and the READING 98539), never variations of one item
+  if (typeof rrCustomRunRow === 'function' && rows.some(rrCustomRunRow)) return false;
+  var a = rows[0];
+  return rows.every(function (r) {
+    return String(r.itemNum) === String(a.itemNum) && String(r._era || '') === String(a._era || '') && String(r._tab || '') === String(a._tab || '');
+  });
+}
+function _cnwFacts(pairs) {
+  return pairs.filter(function (p) { return String(p[1] == null ? '' : p[1]).trim(); }).map(function (p) {
+    return '<div style="display:flex;gap:0.4rem;font-size:0.8rem;line-height:1.45"><span style="color:var(--text-dim);flex:0 0 4.6rem">' + rrEsc(p[0]) + '</span><span style="color:var(--text);min-width:0;overflow-wrap:anywhere">' + rrEsc(String(p[1])) + '</span></div>';
+  }).join('');
+}
+function _cnwEntryFacts(r) {
+  return _cnwFacts([['Catalog', _cnwEraLabel(r)], ['Maker', (typeof rrMakerOf === 'function') ? rrMakerOf({ row: r }) : ''], ['Type', r.itemType],
+    ['Road', r.roadName], ['Describes', r.description], ['Variation', [r.variation, r.varDesc].filter(Boolean).join(' \u2014 ')], ['Year', r.yearProd]]);
+}
+function runCatalogNow() {
+  var out = document.getElementById('catalog-now-results');
+  var C = (typeof RR_CATALOG_NOW !== 'undefined' && RR_CATALOG_NOW) || {};
+  if (!out) return;
+  if (typeof rrCatalogNowOn !== 'function' || !rrCatalogNowOn()) return;
+  var note = function (msg, good) {
+    return '<div style="padding:0.75rem;background:' + (good ? 'rgba(46,204,113,0.08)' : 'rgba(240,80,8,0.08)') + ';border:1px solid ' + (good ? 'rgba(46,204,113,0.25)' : 'rgba(240,80,8,0.25)') + ';border-radius:8px;color:' + (good ? '#4dc880' : 'var(--t-accent)') + ';font-size:0.85rem">' + rrEsc(msg) + '</div>';
+  };
+  if (!state.personalData || !Object.keys(state.personalData).length) { out.innerHTML = note(C.notLoaded, false); return; }
+  var got = rrCatalogNowList(), list = got.list;
+  var tail = '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.7rem;line-height:1.45">' + rrEsc(C.leftOut || '') + '</div>'
+    + (got.noMaker ? '<div id="cnw-nomaker" style="font-size:0.75rem;color:var(--text-dim);margin-top:0.3rem;line-height:1.45">'
+      + rrEsc(String(C.noMaker || '').replace('{n}', got.noMaker).replace('{items}', got.noMaker === 1 ? 'item has' : 'items have').replace('{them}', got.noMaker === 1 ? 'it' : 'them')) + '</div>' : '');
+  window._cnwList = list;
+  if (!list.length) { out.innerHTML = note(C.none, true) + tail; return; }
+  var html = '<div style="font-size:0.85rem;color:var(--text);margin-bottom:0.4rem">'
+    + rrEsc(String(C.found || '').replace('{n}', list.length).replace('{are}', list.length === 1 ? 'is' : 'are')) + '</div>'
+    + '<div style="font-size:0.78rem;color:var(--text-mid);line-height:1.45;margin-bottom:0.7rem">' + rrEsc(C.keeps || '') + ' ' + rrEsc(C.noteAdds || '') + '</div>';
+  var jobs = [];
+  list.forEach(function (e, i) {
+    var pd = e.pd, one = e.rows.length === 1;
+    var thumbId = 'cnw-thumb-' + i;
+    jobs.push({ id: thumbId, pd: pd });
+    var pick = '';
+    if (!one) {
+      pick = '<div style="font-size:0.78rem;color:var(--text-mid);margin:0.2rem 0">' + rrEsc(C.pick || '') + '</div>'
+        + '<select id="cnw-pick-' + i + '" onchange="rrCatalogNowPick(' + i + ')" aria-label="' + rrEsc(C.pick || '') + '" style="width:100%;max-width:100%;padding:0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem">'
+        + '<option value="">' + rrEsc(C.choose || '') + '</option>'
+        + e.rows.map(function (r, j) { return '<option value="' + j + '">' + rrEsc(_cnwRowLabel(r)) + '</option>'; }).join('')
+        + (_cnwSameItem(e.rows) ? '<option value="notsure">' + rrEsc(C.notSure || '') + '</option>' : '')
+        + '</select>';
+    }
+    html += '<div class="cnw-row" data-key="' + rrEsc(e.key) + '" style="border:1px solid var(--border);border-radius:10px;padding:0.7rem;margin-bottom:0.6rem;background:var(--surface2)">'
+      + '<div style="display:flex;gap:0.6rem;align-items:center;margin-bottom:0.5rem">'
+      +   '<div class="rr-row-thumb" id="' + thumbId + '"></div>'
+      +   '<div style="font-family:var(--font-mono);font-weight:700;color:var(--t-accent);min-width:0;overflow-wrap:anywhere">' + rrEsc(String(pd.itemNum || '')) + '</div>'
+      + '</div>'
+      + '<div style="display:flex;gap:0.6rem;flex-wrap:wrap">'
+      +   '<div style="flex:1 1 13rem;min-width:0"><div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim);margin-bottom:0.2rem">' + rrEsc(C.yours || '') + '</div>'
+      +     _cnwFacts([['Maker', pd.manufacturer], ['Type', pd.itemType], ['Road', pd.roadName], ['Name', pd.customName], ['Describes', pd.description], ['Year', pd.yearMade]]) + '</div>'
+      +   '<div style="flex:1 1 13rem;min-width:0"><div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim);margin-bottom:0.2rem">' + rrEsc(C.theirs || '') + '</div>'
+      +     '<div id="cnw-entry-' + i + '">' + (one ? _cnwEntryFacts(e.rows[0]) : '') + '</div>' + pick + '</div>'
+      + '</div>'
+      + '<label id="cnw-lab-' + i + '" style="display:flex;gap:0.5rem;align-items:center;margin-top:0.55rem;font-size:0.88rem;color:var(--text);cursor:pointer">'
+      +   '<input type="checkbox" id="cnw-tick-' + i + '"' + (one ? '' : ' disabled') + ' style="width:1.15rem;height:1.15rem;flex-shrink:0">' + rrEsc(C.tick || '') + '</label>'
+      + '<div id="cnw-msg-' + i + '" style="font-size:0.8rem;margin-top:0.35rem"></div>'
+      + '</div>';
+  });
+  html += '<button id="cnw-go" onclick="rrCatalogNowApply(this)" style="padding:0.65rem 1.2rem;border-radius:8px;border:none;background:#27ae60;color:#fff;font-weight:700;font-family:var(--font-body);font-size:0.9rem;cursor:pointer">' + rrEsc(C.go || '') + '</button>'
+    + '<div id="cnw-sum" style="font-size:0.85rem;margin-top:0.5rem;color:var(--text)"></div>' + tail;
+  out.innerHTML = html;
+  if (typeof rrFillRowThumbs === 'function') rrFillRowThumbs(jobs);
+}
+// A line with several choices: the pick shows that entry's facts and frees the tick box.
+function rrCatalogNowPick(i) {
+  var e = (window._cnwList || [])[i];
+  var sel = document.getElementById('cnw-pick-' + i), box = document.getElementById('cnw-entry-' + i), tick = document.getElementById('cnw-tick-' + i);
+  if (!e || !sel) return;
+  var v = sel.value;
+  var r = v === 'notsure' ? e.rows[0] : (v === '' ? null : e.rows[Number(v)]);
+  if (box) box.innerHTML = r ? _cnwEntryFacts(v === 'notsure' ? Object.assign({}, r, { variation: '', varDesc: '' }) : r) : '';
+  if (tick) { tick.disabled = !r; if (!r) tick.checked = false; }
+}
+// One copy. Returns { ok, why }. Found again by its key AND its Inventory ID;
+// still hand-typed; the entry still one of its own. undo keeps the old values.
+var _cnwUndo = {};
+async function rrCatalogNowUpdateOne(key, inv, entry, notSure) {
+  var C = (typeof RR_CATALOG_NOW !== 'undefined' && RR_CATALOG_NOW) || {};
+  if (typeof rrCatalogNowOn !== 'function' || !rrCatalogNowOn()) return { ok: false, why: '' };   // not switched on for this person: nothing is written
+  var live = state.personalData[key];
+  if (!live || String(live.inventoryId || '') !== String(inv || '')) return { ok: false, why: C.gone };
+  var fits = rrCatalogNowFits(live), sig = _cnwRowSig(entry);
+  if (!fits.some(function (r) { return r === entry || _cnwRowSig(r) === sig; })) return { ok: false, why: C.gone };
+  // the copy keeps its number — a row from its own list is never a number move (the ONE rule says so)
+  var mv = (typeof rrNumberMovePlan === 'function') ? rrNumberMovePlan(live, entry, null, '') : null;
+  if (mv && mv.change) return { ok: false, why: '' };
+  var base = Object.assign({}, live);
+  var fields = rrCatalogNowFields(live, entry, !!notSure);
+  var pd = Object.assign({}, live, fields);
+  var newRow = rrPersonalUpdateRow(pd, Object.assign({ dateAdded: live.dateAdded || '' }, fields));
+  var _out = {};
+  if (!(await rrPersonalSafeWrite(pd, newRow, base, { out: _out, user: true }))) return { ok: false, why: '' };   // STALEPAGE: the person's own save
+  var old = {};
+  Object.keys(fields).forEach(function (k) { old[k] = base[k] == null ? '' : base[k]; });
+  var _now = (_out.row && typeof rrSavedRecord === 'function') ? rrSavedRecord(_out.row, pd.row, {}) : {};
+  Object.assign(live, fields, _now);
+  _cnwUndo[key] = { inv: String(inv || ''), old: old };
+  return { ok: true };
+}
+// The line beside the button follows what is left to update (the list on screen stays put).
+function _cnwRecount() {
+  var b = document.getElementById('catalog-now-count');
+  if (b) b.textContent = rrCatalogNowButtonWords().beside;
+}
+// "Update the ticked items": one at a time; a line that fails says so and is
+// left as it was; the others are neither rolled back nor sent again.
+async function rrCatalogNowApply(btn) {
+  var C = (typeof RR_CATALOG_NOW !== 'undefined' && RR_CATALOG_NOW) || {};
+  if (window._cnwBusy) return;
+  var list = window._cnwList || [], todo = [];
+  list.forEach(function (e, i) {
+    var t = document.getElementById('cnw-tick-' + i);
+    if (!t || !t.checked || t.disabled || e._done) return;
+    var sel = document.getElementById('cnw-pick-' + i), v = sel ? sel.value : '0';
+    if (v === '') return;
+    todo.push({ i: i, e: e, entry: v === 'notsure' ? e.rows[0] : e.rows[Number(v)], notSure: v === 'notsure' });
+  });
+  if (!todo.length) { showToast(C.goNone, 2500, true); return; }
+  if (typeof _rrOfflineNow === 'function' && _rrOfflineNow()) { showToast(C.offline, 5000, true); return; }
+  window._cnwBusy = true;
+  var label = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = C.busy; }
+  var good = 0, bad = 0;
+  try {
+    for (var q = 0; q < todo.length; q++) {
+      var j = todo[q], res;
+      try { res = await rrCatalogNowUpdateOne(j.e.key, j.e.pd.inventoryId, j.entry, j.notSure); }
+      catch (err) { res = { ok: false, why: (typeof rrSaveError === 'function') ? rrSaveError(err, 'this item') : '' }; }
+      var msg = document.getElementById('cnw-msg-' + j.i), tick = document.getElementById('cnw-tick-' + j.i), sel = document.getElementById('cnw-pick-' + j.i);
+      if (res.ok) {
+        good++; j.e._done = true;
+        if (tick) { tick.checked = false; tick.disabled = true; }
+        if (sel) sel.disabled = true;
+        if (msg) msg.innerHTML = '<span style="color:#4dc880;font-weight:700">' + rrEsc(C.done) + '</span> '
+          + '<button onclick="rrCatalogNowUndo(' + j.i + ', this)" style="margin-left:0.4rem;padding:0.3rem 0.7rem;border-radius:7px;border:1px solid var(--border);background:var(--bg-card);color:var(--text);font-family:var(--font-body);font-size:0.8rem;cursor:pointer">' + rrEsc(C.undo) + '</button>';
+      } else {
+        bad++;
+        if (msg) msg.innerHTML = '<span style="color:var(--t-accent)">' + rrEsc(String(C.failed || '').replace('{why}', res.why || '')) + '</span>';
+      }
+    }
+  } finally {
+    window._cnwBusy = false;
+    if (btn) { btn.disabled = false; btn.textContent = label; }
+  }
+  if (good) {
+    if (typeof _rebuildPdIndex === 'function') { try { _rebuildPdIndex(); } catch (eIx) {} }
+    if (typeof _cachePersonalData === 'function') _cachePersonalData();
+  }
+  _cnwRecount();
+  var sum = document.getElementById('cnw-sum');
+  if (sum) sum.textContent = bad ? String(C.summaryLeft || '').replace('{n}', good).replace('{m}', bad) : String(C.summary || '').replace('{n}', good);
+}
+// "Put it back": the old values of exactly the fields the update wrote, through
+// the same safe write. Kept for this visit to the page only.
+function rrCatalogNowUndo(i, btn) {
+  var C = (typeof RR_CATALOG_NOW !== 'undefined' && RR_CATALOG_NOW) || {};
+  var e = (window._cnwList || [])[i];
+  if (!e) return null;
+  var run = async function () {
+    var u = _cnwUndo[e.key], live = state.personalData[e.key];
+    if (!u || !live || String(live.inventoryId || '') !== u.inv) { showToast(C.gone, 4000, true); return false; }
+    if (typeof _rrOfflineNow === 'function' && _rrOfflineNow()) { showToast(C.offline, 5000, true); return false; }
+    var base = Object.assign({}, live), pd = Object.assign({}, live, u.old);
+    try {
+      var newRow = rrPersonalUpdateRow(pd, Object.assign({ dateAdded: live.dateAdded || '', _noCatalogRow: true }, u.old));
+      var _out = {};
+      if (!(await rrPersonalSafeWrite(pd, newRow, base, { out: _out, user: true }))) return false;   // STALEPAGE: the person's own save
+      var _now = (_out.row && typeof rrSavedRecord === 'function') ? rrSavedRecord(_out.row, pd.row, {}) : {};
+      Object.assign(live, u.old, _now);
+      delete _cnwUndo[e.key];
+      e._done = false;
+      if (typeof _rebuildPdIndex === 'function') { try { _rebuildPdIndex(); } catch (eIx) {} }
+      if (typeof _cachePersonalData === 'function') _cachePersonalData();
+      var msg = document.getElementById('cnw-msg-' + i), tick = document.getElementById('cnw-tick-' + i), sel = document.getElementById('cnw-pick-' + i);
+      if (msg) msg.innerHTML = '<span style="color:#4dc880">' + rrEsc(C.undone) + '</span>';
+      _cnwRecount();
+      if (sel) sel.disabled = false;
+      if (tick) tick.disabled = !!(sel && sel.value === '');
+      return true;
+    } catch (err) {
+      showToast((typeof rrSaveError === 'function') ? rrSaveError(err, 'this item') : String(C.failed || '').replace('{why}', ''), 4000, true);
+      return false;
+    }
+  };
+  return (typeof rrOnce === 'function') ? rrOnce('catalog-now-undo:' + e.key, run, btn || null) : run();
+}
+if (typeof window !== 'undefined') {
+  window.rrCatalogNowSkips = rrCatalogNowSkips; window.rrCatalogNowFits = rrCatalogNowFits; window.rrCatalogNowList = rrCatalogNowList;
+  window.rrCatalogNowTyped = rrCatalogNowTyped; window.rrCatalogNowNotes = rrCatalogNowNotes; window.rrCatalogNowFields = rrCatalogNowFields;
+  window.runCatalogNow = runCatalogNow; window.rrCatalogNowPick = rrCatalogNowPick; window.rrCatalogNowUpdateOne = rrCatalogNowUpdateOne;
+  window.rrCatalogNowApply = rrCatalogNowApply; window.rrCatalogNowUndo = rrCatalogNowUndo;
+}
 
 // Collapsible Collection-Tools sections.
 function _toolsToggleSection(id) {

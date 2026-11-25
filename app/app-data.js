@@ -634,6 +634,10 @@ const MASTER_COL_SPEC = [
   // Corporation" on MTH's licensed tinplate) — optional column, added at the
   // end of a tab. Read by rrAlsoSoldAsNames / rrRowAlsoSoldBy (app.js) only.
   ['alsoSoldAs',     null, ['alsosoldas']],
+  // 2026-11-24 (weavercr): who ordered a Weaver custom run ("Run Commissioned
+  // By", Weaver O since Master Version 1.71) — shown beside a custom run on the
+  // Add list, and part of which RUN a row is (rrCustomRunRunKey, app.js).
+  ['runBy',          null, ['runcommissionedby']],
 ];
 
 // Build a field -> column-index map from a sheet's header row.
@@ -943,7 +947,8 @@ function _rrRowIdFits(row, itemNum, variation) {
   var _zt = (typeof rrNumZeroTwin === 'function') && (rrNumZeroTwin(_kn, _in) || (typeof baseItemNum === 'function' && rrNumZeroTwin(_kn, baseItemNum(_in))));
   var _6t = (typeof rrNumSame === 'function') && (rrNumSame(_kn, _in) || (typeof baseItemNum === 'function' && rrNumSame(_kn, baseItemNum(_in))));   // numspell: 18319 saved, 6-18319 in the catalog
   var _lt = (typeof rrNumLooseTwin === 'function') && rrNumLooseTwin(row, _in);   // dashmaker: K-675402 saved, K675402 in the catalog
-  if (!(_kn === _in || (typeof baseItemNum === 'function' && baseItemNum(_in) === _kn) || _zt || _6t || _lt)) {
+  var _ct = (typeof rrNumCarTwin === 'function') && rrNumCarTwin(row, _in);       // weavercr: 311202 saved, the car's CUSTOM RUN row in the catalog
+  if (!(_kn === _in || (typeof baseItemNum === 'function' && baseItemNum(_in) === _kn) || _zt || _6t || _lt || _ct)) {
     // zerobridge: a copy of a deleted book row whose link a back-fill moved to
     // its keeper (RR_BOOK_COPY_REDIRECT) keeps that link — the pair is the table's
     return (typeof _rrBookCopyPairFits === 'function') && _rrBookCopyPairFits(row, _in, variation);
@@ -1741,6 +1746,10 @@ function rrCatalogCandidates(itemNum) {
       keys.forEach(function (k) { _looseKinRows(idx, k, { suffix: true }).forEach(take); });
     });
   }
+  // 2026-11-24 (weavercr): then the custom-run cars that carry the number (a
+  // copy typed by hand as Weaver 311202) — candidates the member picks from,
+  // each showing its own catalog; "Now in the catalog" keeps only the copy's maker.
+  if (!out.length && typeof rrCarNumberRows === 'function') rrCarNumberRows(n).forEach(take);
   return out;
 }
 if (typeof window !== 'undefined') window.rrCatalogCandidates = rrCatalogCandidates;
@@ -1780,6 +1789,9 @@ function rrNumberMovePlan(copy, entry, st, typed) {
   // The number the copy takes: what the collector TYPED (in capitals) when it names
   // this entry (2367-P keeps its -P; the catalog writes 2367P / 2367), else the entry's own.
   var to = (ty && (up(ty) === up(entNum) || base(ty) === base(entNum))) ? ty : entNum;
+  // 2026-11-24 (weavercr, review finding 1): a Weaver custom run has no item
+  // number — the copy takes the number on the car (311202), never "CUSTOM RUN".
+  if (typeof rrCustomRunNumber === 'function' && rrCustomRunNumber(entry)) to = rrCustomRunNumber(entry);
   var out = { from: from, to: to, change: false, pieces: [], partners: [], forSale: null, upgrade: null, sheets: [], parts: [],
               others: 0, oldShared: 0, sharedGroup: 0 };
   if (!copy || !entry || !from || !to || canon(from) === canon(to)) return out;
@@ -1995,6 +2007,7 @@ function findMaster(itemNum, variation, prefer) {
           || (typeof rrNumZeroTwin === 'function' && rrNumZeroTwin(_kn, _in))   // 2026-11-05: 1511 saved, 01511 in the catalog
           || (typeof rrNumSame === 'function' && rrNumSame(_kn, _in))           // numspell: 18319 saved, 6-18319 in the catalog
           || (typeof rrNumLooseTwin === 'function' && rrNumLooseTwin(_byKey, _in)) // dashmaker: K-675402 saved, K675402 in the catalog
+          || (typeof rrNumCarTwin === 'function' && rrNumCarTwin(_byKey, _in))     // weavercr: 311202 saved, the car's CUSTOM RUN row in the catalog
           || (typeof _rrBookCopyPairFits === 'function' && _rrBookCopyPairFits(_byKey, _in, variation))) return _byKey;   // zerobridge: a back-filled keeper's key holds
     }
   }
@@ -2322,6 +2335,53 @@ function _looseKinRows(idx, num, o) {
 }
 if (typeof window !== 'undefined') window._looseKinRows = _looseKinRows;
 
+// ── 2026-11-24 (weavercr) — the custom runs whose CAR carries the asked number
+// (Weaver's CUSTOM RUN rows: the number on the car is the row's Variation —
+// RR_CUSTOM_RUN, config.js; the rule is rrNumCarTwin, app.js; this only
+// indexes it). Built FROM the index's own "no number" rows, once per index,
+// keyed by the car number — so only a number some car really carries is ever
+// offered. Like the other bridges it is consulted ONLY when the number as
+// written has nothing for the catalog being asked about, and findMaster takes
+// one only for a caller that NAMED the catalog (see _findMasterCore).
+var _ckCache = (typeof WeakMap !== 'undefined') ? new WeakMap() : null;
+function _carKinRows(idx, num) {
+  if (!idx || typeof idx.forEach !== 'function' || typeof rrNumCarTwin !== 'function' || typeof _rrCarNumKey !== 'function') return [];
+  var asked = String(num == null ? '' : num).trim();
+  if (!asked || !/\d/.test(asked)) return [];
+  var ent = _ckCache && _ckCache.get(idx);
+  if (!ent || ent.n !== idx.size) {
+    var m = new Map();
+    idx.forEach(function (rows, key) {
+      if (!Array.isArray(rows)) return;
+      for (var i = 0; i < rows.length; i++) {
+        var r = rows[i], n = (typeof rrCustomRunNumber === 'function') ? rrCustomRunNumber(r) : '';
+        if (!n) continue;   // not a custom run, or a car with no number to type
+        var k = _rrCarNumKey(n), cur = m.get(k);
+        if (!cur) { cur = []; m.set(k, cur); }
+        if (cur.indexOf(r) < 0) cur.push(r);
+      }
+    });
+    ent = { n: idx.size, map: m };
+    if (_ckCache) _ckCache.set(idx, ent);
+  }
+  return (ent.map.get(_rrCarNumKey(asked)) || []).filter(function (r) { return rrNumCarTwin(r, asked); });
+}
+// The custom runs carrying a car number, from BOTH indexes (the loaded
+// catalogs, then the whole-catalog index), each row once. The Add list and the
+// "Now in the catalog" scan ask this — the choices, never a pick.
+function rrCarNumberRows(num) {
+  var out = [], seen = {};
+  [state && state.masterByItem, state && state.masterByItemAll].forEach(function (idx) {
+    _carKinRows(idx, num).forEach(function (r) {
+      var sig = r.rowId ? '#' + String(r.rowId).trim() : (String(r._tab || '') + '|' + String(r.variation || '') + '|' + (typeof rrCustomRunRunKey === 'function' ? rrCustomRunRunKey(r) : ''));
+      if (seen[sig]) return;
+      seen[sig] = 1; out.push(r);
+    });
+  });
+  return out;
+}
+if (typeof window !== 'undefined') { window._carKinRows = _carKinRows; window.rrCarNumberRows = rrCarNumberRows; }
+
 function _findMasterCore(idx, itemNum, variation, prefer) {
   const k = String(itemNum).trim();
   const exact = (idx && idx.get(k)) || [];
@@ -2495,6 +2555,16 @@ function _findMasterCore(idx, itemNum, variation, prefer) {
     const _lkCats = {};
     _lk.forEach(r => { _lkCats[String((typeof _manufacturerOfItem === 'function' ? _manufacturerOfItem(r) : '') || '').toLowerCase() + '|' + String(r._era || '')] = 1; });
     if (_lk.length && Object.keys(_lkCats).length === 1) pool = _lk.concat(pool);
+  }
+  // 2026-11-24 (weavercr) — the number on a custom-run car (_carKinRows, rule
+  // rrNumCarTwin in app.js), behind the SAME gate, and ONLY for a caller that
+  // NAMED its catalog (Weaver): 932 car numbers are also another catalog's
+  // item number, so the number alone never picks a custom run. And only when
+  // exactly ONE car carries it — 108 car numbers are on two or more runs
+  // (98539 is on three), and findMaster must never choose between them.
+  if (_kinNamed && typeof _carKinRows === 'function' && !pool.some(_kinSatisfied)) {
+    const _ck = _carKinRows(idx, k).filter(r => pool.indexOf(r) < 0 && _kinBelongs(r));
+    if (_ck.length === 1) pool = _ck.concat(pool);
   }
   // Non-suffixed item whose exact key exists = the common case → keep legacy
   // behavior exactly (variation match, else first) so nothing regresses —
@@ -2872,6 +2942,9 @@ function findAllMaster(itemNum) {
     });
     if (mergedL.length) b = mergedL;
   }
+  // 2026-11-24 (weavercr) — still nothing: the custom-run cars that carry the
+  // number (Weaver's CUSTOM RUN rows). A list, each with its own maker; fills a blank only.
+  if (!b.length && typeof rrCarNumberRows === 'function') b = rrCarNumberRows(k);
   return b;
 }
 window.findMaster = findMaster;

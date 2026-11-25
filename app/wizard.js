@@ -2752,7 +2752,8 @@ function _renderAddingBannerItem() {
     // 1511 read "0-4-0 Locomotive" — the Pre-War 1511 — under a Postwar filter.
     var _heldNum = wizard.matchedItem ? String(wizard.matchedItem.itemNum || '').trim() : '';
     if (wizard.matchedItem && (_heldNum === num
-        || (typeof baseItemNum === 'function' && baseItemNum(_heldNum) === baseItemNum(num)))) {   // 2343-P held for a typed 2343
+        || (typeof baseItemNum === 'function' && baseItemNum(_heldNum) === baseItemNum(num))   // 2343-P held for a typed 2343
+        || (typeof rrNumCarTwin === 'function' && rrNumCarTwin(wizard.matchedItem, num)))) {     // weavercr: a custom-run car held for the number on it
       match = wizard.matchedItem;
       // A held row that no longer fits the filters on screen is let go — the
       // add holds the row the one picker finds inside them, or none.

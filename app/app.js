@@ -1980,10 +1980,62 @@ function rrNumSaveAs(row, typed) {
   var rn = (row && typeof row === 'object') ? String(row.itemNum == null ? '' : row.itemNum) : '';
   var y = String(typed == null ? '' : typed).trim();
   if (!rn) return y;
+  if (y && typeof rrNumCarTwin === 'function' && rrNumCarTwin(row, y)) return rrCustomRunNumber(row);   // weavercr: a custom run is saved under the number on the car — never "CUSTOM RUN"
   if (!y || !rrNumLooseTwin(row, y)) return rn;
   return rrNumSuffixBase(y) ? y : rn;   // the ending kept; a letters' dash (K-675402) has no ending, so takes the catalog's
 }
 if (typeof window !== 'undefined') { window.rrNumDashKey = rrNumDashKey; window.rrNumSuffixBase = rrNumSuffixBase; window.rrNumLooseTwin = rrNumLooseTwin; window.rrNumMayHaveLooseTwin = rrNumMayHaveLooseTwin; window.rrNumSaveAs = rrNumSaveAs; }
+
+// ── 2026-11-24 (weavercr) — THE NUMBER ON A CAR THAT HAS NO CATALOG NUMBER ───
+// [stated] Brad 19:07 CT "Yes" (PLAN_2026-11-24_WEAVER_CUSTOM_RUN_ROAD_NUMBERS).
+// Customer Bob typed 311202, the number on his Weaver Norfolk Southern
+// Centerflow, and got nothing: Weaver listed the car as Item Number CUSTOM RUN
+// with 311202 in Variation (RR_CUSTOM_RUN, config.js). 932 of those car
+// numbers are ALSO another catalog's item number (1914, 400, 8521…), so — like
+// the dash twin above — this is a FALLBACK the callers ask only when nothing
+// answers the number as written, and a number alone never picks a custom run
+// for you: findMaster answers with one only when the catalog is NAMED (Weaver),
+// and the Add list shows them as choices. The rule lives here and nowhere else
+// — weaver_custom_run_tests scans for a second copy.
+//   • rrCustomRunRow(row)    — a row of an RR_CUSTOM_RUN catalog whose Item
+//                              Number says it has none
+//   • rrCustomRunNumber(row) — the number on that car (its Variation), '' when
+//                              the Variation holds no digit (166 rows hold words,
+//                              56 nothing — there is no number to type)
+//   • rrNumCarTwin(row, typed) — `row` IS a custom run and `typed` is the
+//                              number on the car (any capitals, a leading "#" or
+//                              "No." and spaces ignored). Never for a bare number.
+//   • rrCustomRunRunKey(row) — which RUN a row is (the same cars made for the
+//                              same order): two rows with one key are one run.
+function rrCustomRunRow(row) {
+  if (!row || typeof row !== 'object') return false;
+  var C = (typeof RR_CUSTOM_RUN !== 'undefined' && RR_CUSTOM_RUN) || null;
+  if (!C || !Array.isArray(C.eras) || C.eras.indexOf(String(row._era || '')) < 0) return false;
+  return !!(C.noNumber && C.noNumber.test(String(row.itemNum == null ? '' : row.itemNum).trim()));
+}
+function _rrCarNumKey(n) {
+  return String(n == null ? '' : n).trim().replace(/^(#\s*|no\.\s*|no\s+(?=\d))/i, '').replace(/\.+$/, '').replace(/\s+/g, '').toUpperCase();
+}
+function rrCustomRunNumber(row) {
+  if (!rrCustomRunRow(row)) return '';
+  // review finding 5: 27 cells carry extra marks — "#90111", "180733.", "26957(yellow"
+  // — the number is what is left without them (the row's own Variation is untouched).
+  var v = String(row.variation == null ? '' : row.variation).trim()
+    .replace(/^(#\s*|no\.\s*|no\s+(?=\d))/i, '').replace(/\(.*$/, '').replace(/[.\s]+$/, '').trim();
+  return /\d/.test(v) ? v : '';
+}
+function rrNumCarTwin(row, typed) {
+  var n = rrCustomRunNumber(row);
+  if (!n) return false;
+  var y = _rrCarNumKey(typed);
+  return !!y && /\d/.test(y) && _rrCarNumKey(n) === y;
+}
+function rrCustomRunRunKey(row) {
+  if (!rrCustomRunRow(row)) return '';
+  var t = function (v) { return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().toUpperCase(); };
+  return [row._era, row._tab, row.roadName, row.description, row.yearProd, row.runBy, row.originalDesc].map(t).join('|');
+}
+if (typeof window !== 'undefined') { window.rrCustomRunRow = rrCustomRunRow; window.rrCustomRunNumber = rrCustomRunNumber; window.rrNumCarTwin = rrNumCarTwin; window.rrCustomRunRunKey = rrCustomRunRunKey; }
 
 // ── v0.9.1901 — THE catalog number order (Brad: "i should be seeing 004
 // first, then 4, before i see 1008") ───────────────────────────────────────

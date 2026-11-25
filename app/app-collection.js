@@ -4866,8 +4866,10 @@ function showItemPanel(idx, pdKey, mode) {
   // (app-data.js rrNumberMovePlan); the field says the change in words before Save.
   let _numDoorTyped = '';
   let _stagedTyped = '';   // the number typed for the STAGED pick ('' = picked from the copy's own list)
+  // weavercr: a Weaver custom run's number is the one on its car (rrCustomRunNumber, app.js) — never "CUSTOM RUN"
+  function _entryNum(r) { return String((r && ((typeof rrCustomRunNumber === 'function' && rrCustomRunNumber(r)) || r.itemNum)) || '').trim(); }
   function _otherNum(r) {
-    var a = String((r && r.itemNum) || '').trim().toUpperCase(), b = String(_base.itemNum || '').trim().replace(/^'/, '').toUpperCase();
+    var a = _entryNum(r).toUpperCase(), b = String(_base.itemNum || '').trim().replace(/^'/, '').toUpperCase();
     return !!a && a !== b;
   }
   function _panelMove() {
@@ -5142,6 +5144,12 @@ function showItemPanel(idx, pdKey, mode) {
         const cur = _panelCurrentRow();
         const curId = cur && cur.rowId ? String(cur.rowId).trim() : '';
         const cands = rrCatalogCandidates(pd.itemNum || item.itemNum);
+        // weavercr (review finding 4): the copy's CURRENT entry is always one of its
+        // choices — a Weaver 1914 custom run is not under Lionel's 1914, which fills the list
+        // (the SAVED entry — not a pick staged in this panel; second review, finding 4)
+        const _savedRow = (typeof findMaster === 'function') ? findMaster(pd.itemNum || item.itemNum, pd.variation || '', pd) : null;
+        const _savedId = _savedRow && _savedRow.rowId ? String(_savedRow.rowId).trim() : '';
+        if (_savedRow && cands.indexOf(_savedRow) < 0 && !(_savedId && cands.some(function (r) { return r && String(r.rowId || '').trim() === _savedId; }))) cands.unshift(_savedRow);
         const cList = document.createElement('div');
         cList.style.cssText = 'display:flex;flex-direction:column;gap:0.45rem;width:100%;max-height:45vh;max-height:45dvh;overflow-y:auto;padding-right:0.2rem';
         if (!cands.length) {
@@ -5160,7 +5168,7 @@ function showItemPanel(idx, pdKey, mode) {
           card.style.cssText = 'border:1.5px solid ' + (isCur ? 'var(--accent)' : 'var(--border)') + ';border-radius:9px;padding:0.55rem 0.7rem;cursor:pointer;background:var(--surface2)';
           const era = (typeof ERAS !== 'undefined' && r._era && ERAS[r._era]) ? ERAS[r._era].label : String(r._era || r._tab || '');
           card.innerHTML =
-            '<div style="font-size:0.8rem;font-weight:700;color:' + (isCur ? 'var(--t-accent)' : 'var(--text)') + ';margin-bottom:0.2rem">' + (_otherNum(r) ? 'No. ' + rrEsc(String(r.itemNum)) + ' · ' : '') + rrEsc(era) + (r.variation ? ' · Var ' + rrEsc(String(r.variation)) : '') + (isCur ? ' — current' : '') + '</div>' +
+            '<div style="font-size:0.8rem;font-weight:700;color:' + (isCur ? 'var(--t-accent)' : 'var(--text)') + ';margin-bottom:0.2rem">' + (_otherNum(r) ? 'No. ' + rrEsc(_entryNum(r)) + ' · ' : '') + rrEsc(era) + (r.variation ? ' · Var ' + rrEsc(String(r.variation)) : '') + (isCur ? ' — current' : '') + '</div>' +
             '<div style="font-size:0.78rem;color:var(--text-mid);line-height:1.5;white-space:normal">' + rrEsc([r.itemType, r.roadName, r.yearProd].filter(Boolean).join(' · ')) + '</div>' +
             '<div style="font-size:0.78rem;color:var(--text-mid);line-height:1.5;white-space:normal">' + rrEsc(String(r.description || '')) + (r.varDesc ? ' — ' + rrEsc(String(r.varDesc)) : '') + '</div>';
           const u = _panelEntryRefUrl(r);
@@ -6178,7 +6186,10 @@ function addFromBrowse(idx) {
   if (!item) return;
   _buildWizardModal();
   // Open the collection wizard with itemNum + variation pre-filled
-  wizard = { step: 0, tab: 'collection', data: { tab: 'collection', itemNum: item.itemNum, variation: item.variation || '', itemCategory: 'lionel' }, steps: getSteps('collection'), matchedItem: item };
+  // weavercr (review finding 3): a Weaver custom run is saved under the number on
+  // its car (rrCustomRunNumber, app.js) — the same number the Add list saves it under
+  const _addNum = ((typeof rrCustomRunNumber === 'function') && rrCustomRunNumber(item)) || item.itemNum;
+  wizard = { step: 0, tab: 'collection', data: { tab: 'collection', itemNum: _addNum, variation: item.variation || '', itemCategory: 'lionel' }, steps: getSteps('collection'), matchedItem: item };
   document.getElementById('wizard-modal').classList.add('open');
   document.body.style.overflow = 'hidden';
   // Skip all steps before condition — item number, variation, and entry mode are already known

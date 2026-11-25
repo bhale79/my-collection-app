@@ -2040,7 +2040,11 @@ async function saveWizardItem() {
   // no -P / -D). Only a flow that never states it falls back to the old rule.
   const _unit2PowerOf = (dd) => (typeof dd.unit2Power === 'string') ? dd.unit2Power : (dd.setType === 'AA' ? 'Dummy' : '');
   const itemNum = _pdSuffix(_rawItemNum, d.unitPower);
-  const variation = (d.variation || '').trim();
+  // 2026-11-24 (weavercr): a Weaver custom run added by the number on its car
+  // (rrNumCarTwin, app.js) — that number IS the catalog row's variation, so it
+  // is saved as the copy's variation too (the copy is that one car).
+  const _carRow = (!d.variation && typeof rrNumCarTwin === 'function' && wizard.matchedItem && rrNumCarTwin(wizard.matchedItem, _rawItemNum)) ? wizard.matchedItem : null;
+  const variation = (d.variation || (_carRow ? String(_carRow.variation) : '')).trim();
   const key = `${itemNum}|${variation}`;
   // Photos are now Drive URL objects keyed by view
   const photoObj = d.photosItem || {};

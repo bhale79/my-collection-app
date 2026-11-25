@@ -5563,7 +5563,9 @@ function _rrBrowseCore(_co) {
       // notes column never joined the haystack — yourDescription and
       // yourGrade did in v1506, notes were simply missed. Owned rows only
       // (pd is null for the other 141K), so the cost is ~nothing.
-      const haystack = `${item.itemNum} ${item.roadName||''} ${item.description||''} ${item.itemType||''} ${item.category||''} ${item.alsoSoldAs||''} ${(pd&&pd.yourDescription)||''} ${(pd&&pd.yourGrade)||''} ${(pd&&pd.notes)||''}`.toLowerCase();
+      // 2026-11-24 (weavercr): a Weaver custom run has no item number — the
+      // number on its car (rrCustomRunNumber, app.js) is searched instead.
+      const haystack = `${item.itemNum} ${item.roadName||''} ${item.description||''} ${item.itemType||''} ${item.category||''} ${item.alsoSoldAs||''} ${(pd&&pd.yourDescription)||''} ${(pd&&pd.yourGrade)||''} ${(pd&&pd.notes)||''} ${(typeof rrCustomRunNumber === 'function') ? rrCustomRunNumber(item) : ''}`.toLowerCase();
       // 2026-11-05: a leading-zero twin of a one-number search is let through
       // and held (_zAdmitted) — _zKeep drops it again beside an exact row.
       if (_zQ && rrNumZeroTwin(item.itemNum, _zQ) && !_aliasSearch(haystack, search)) { _zAdmitted.add(item); return true; }

@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2161';
+const APP_VERSION = 'v0.9.2162';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -5988,6 +5988,25 @@ if (typeof window !== 'undefined') window.RR_ADD_FILTERS = RR_ADD_FILTERS;
 // MTH -2 = 2-rail), so it never reaches the bare number. ONE list, here.
 const RR_ROAD_NUMBER_ENDING_ERAS = ['atlas', 'atlas_ho', 'atlas_n', 'atlas_z'];
 if (typeof window !== 'undefined') window.RR_ROAD_NUMBER_ENDING_ERAS = RR_ROAD_NUMBER_ENDING_ERAS;
+// 2026-11-24 (weavercr; PLAN_2026-11-24_WEAVER_CUSTOM_RUN_ROAD_NUMBERS, [stated]
+// Brad 19:07 CT "Yes") — THE CAR THAT HAS NO CATALOG NUMBER. Weaver gave its
+// custom runs (cars made for a shop or club) no number of its own: the Item
+// Number cell says CUSTOM RUN and the number painted on the car — the one the
+// collector has in hand (Bob's Norfolk Southern Centerflow 311202) — is the
+// row's Variation. 2,524 such rows hold a number (2,311 different ones). The
+// rule that reads this is rrNumCarTwin (app.js); ONE list of catalogs and ONE
+// spelling of "no number", here.
+//   eras      — the catalogs that file a car this way
+//   noNumber  — the Item Number cell that means "this car has no number"
+//   tag       — the label on the Add list's row, beside its maker tag
+//   madeFor   — added after the details when the row names who ordered the run
+const RR_CUSTOM_RUN = {
+  eras:     ['weaver'],
+  noNumber: /^CUSTOM\s*RUN$/i,
+  tag:      'Custom run · No. on the car',
+  madeFor:  'made for {who}',
+};
+if (typeof window !== 'undefined') window.RR_CUSTOM_RUN = RR_CUSTOM_RUN;
 
 // ── 2026-11-03 — YOUR OWN SET (PLAN_2026-11-03_OWN_SETS) ──────────────────────
 // [stated] Brad 16:46 CT: "the ability for users to add their own unlisted sets
@@ -6676,6 +6695,68 @@ const RR_CHANGE_NUMBER = {
   offline: 'Connect to the internet to change the item number \u2014 nothing was changed.',
 };
 if (typeof window !== 'undefined') window.RR_CHANGE_NUMBER = RR_CHANGE_NUMBER;
+
+// ══ 2026-11-24 — "NOW IN THE CATALOG" (catalognow) ═════════════════════════
+// PLAN_2026-11-24_HAND_TYPED_NOW_IN_CATALOG.md ([stated] Brad 11:30 CT "a
+// collection button that checks their list for manual entries, see if its
+// cataloged now, show each line item and what would update. then it would
+// leave what they input in its notes", 11:31 "once they okay it, it would then
+// update their list"; the name: 13:27 CT "yes"). Customer Bob's idea. Every
+// word of the tool is here; tools.js (rrCatalogNowList / runCatalogNow /
+// rrCatalogNowApply) reads it. {n} = a count, {num} = an item number,
+// {date} = a date, {what} = what the member typed, {maker} = a maker.
+const RR_CATALOG_NOW = {
+  // WHO sees it — the section's ONE switch (the RR_QUIET_RENEW shape):
+  //   'off' — nobody · 'owners' — RR_OWNER_EMAILS only · 'all' — every member
+  // [stated] Brad 2026-11-24 13:57 CT "owners now, until i can test it".
+  who: 'owners',
+  name: 'Now in the catalog',
+  note: 'Hand-typed items the catalog has now',
+  desc: 'Checks the items you typed in by hand against the catalog. When the catalog has one now, you see what you typed beside the catalog’s entry, and you choose which to update. Nothing changes until you say so.',
+  button: 'Check my hand-typed items',
+  notLoaded: 'Collection data not loaded yet. Open My Collection first, then come back.',
+  none: '✓ Nothing to update — none of your hand-typed items is in the catalog yet.',
+  found: '{n} of your hand-typed items {are} in the catalog now. Tick the ones to update.',
+  yours: 'What you typed',
+  theirs: 'The catalog’s entry',
+  keeps: 'Stays exactly as it is: condition, price, worth, photos, box, dates, location and your notes.',
+  noteAdds: 'What you typed is added to the item’s notes.',
+  pick: 'Which one is yours?',
+  choose: 'Choose…',
+  notSure: 'Not sure of the variation',
+  tick: 'Update this one',
+  go: 'Update the ticked items',
+  goNone: 'Tick at least one item first.',
+  busy: 'Updating…',
+  done: '✓ Updated — now a catalog entry',
+  failed: 'Not updated — left as it was. {why}',
+  gone: 'That item is no longer in your collection — refresh and try again.',
+  offline: 'Connect to the internet to update — nothing was changed.',
+  undo: 'Put it back',
+  undone: '✓ Put back — as you typed it',
+  summary: '{n} updated.',
+  summaryLeft: '{n} updated, {m} left as they were.',
+  noteLine: 'Entered by hand{date} as: {what}',     // ADDED to the notes, never replacing them
+  noteDate: ' {date}',
+  leftOut: 'Not checked here: sets, pieces saved in a group, and items with no maker.',
+  noMaker: '{n} hand-typed {items} no maker, so the catalog cannot be checked for {them}. Set the maker in Check Makers first.',
+  nudge: '{n} of your hand-typed items {are} in the catalog now',
+  nudgeGo: 'Take a look',
+  maxNote: 500                                // the notes line is cut to this many characters
+};
+// Is the tool on for the person signed in? Like every owner-only feature it is
+// hidden while recording mode is on. ONE place: the section, the scan and every
+// write ask this.
+function rrCatalogNowOn() {
+  var w = String(RR_CATALOG_NOW.who || 'off');
+  if (w === 'all') return true;
+  if (w !== 'owners') return false;
+  try {
+    if (typeof rrRecordingMode === 'function' && rrRecordingMode()) return false;
+    return typeof rrIsRealOwner === 'function' && rrIsRealOwner();
+  } catch (e) { return false; }
+}
+if (typeof window !== 'undefined') { window.RR_CATALOG_NOW = RR_CATALOG_NOW; window.rrCatalogNowOn = rrCatalogNowOn; }
 
 // ══ 2026-11-13 — "BOUGHT FROM": the words, and where the box must be ════════
 // (boughtfrom; [stated] Brad 20:12 CT "Yes"). A collector entering N scale cars

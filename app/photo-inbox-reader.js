@@ -855,7 +855,7 @@
         var _qm3 = _pinQuoteMatch(_offLead, prefer, dbg);
         if (_qm3 && _qm3.row && _qm3.row.itemNum) {
           dbg.quoted = _offLead + ' \u2192 ' + _qm3.row.itemNum;
-          return { num: String(_qm3.row.itemNum), matched: true, viaQuote: _offLead, dbg: dbg };
+          return { num: String((typeof rrCustomRunNumber === 'function' && rrCustomRunNumber(_qm3.row)) || _qm3.row.itemNum), matched: true, viaQuote: _offLead, dbg: dbg };   // weavercr: a custom run answers with the number on its car
         }
       }
       // ══ v0.9.1831 — THE FAMILY THE CAR NAMES OUTRANKS ANOTHER CATALOG'S LEAD ═
@@ -1115,7 +1115,7 @@
         var qm = _pinQuoteMatch(loose[qi], prefer, dbg);
         if (qm && qm.row && qm.row.itemNum) {
           dbg.quoted = qm.quoted + ' \u2192 ' + qm.row.itemNum;
-          return { num: String(qm.row.itemNum), matched: true, viaQuote: qm.quoted, dbg: dbg };
+          return { num: String((typeof rrCustomRunNumber === 'function' && rrCustomRunNumber(qm.row)) || qm.row.itemNum), matched: true, viaQuote: qm.quoted, dbg: dbg };   // weavercr: as above
         }
       }
     }
@@ -1838,7 +1838,7 @@
             var _row = findMaster(_try[lt], null, prefer || null);
             if (!_row) continue;
             if (prefer && typeof window.rrRowFitsPrefer === 'function' && !window.rrRowFitsPrefer(_row, prefer)) continue;
-            best = { num: String(_row.itemNum || _try[lt]), matched: true, alts: (best && best.alts) || [],
+            best = { num: String((typeof rrCustomRunNumber === 'function' && rrCustomRunNumber(_row)) || _row.itemNum || _try[lt]), matched: true, alts: (best && best.alts) || [],   // weavercr: a custom run is the number on its car
                      dbg: Object.assign({}, (best && best.dbg) || {}, { boxLabel: _lr, note: 'read by the box-label rules' }) };
             text = textAll; break;
           }

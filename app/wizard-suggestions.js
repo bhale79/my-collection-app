@@ -598,6 +598,48 @@ function updateItemSuggestions(query) {
       var _exactX = !!(_allX && _allX.some && _allX.some(function (r) { return r && rrNumSameAsTyped(r.itemNum, numPart) && (!_fits || _fits(r, _fset)); }));
       if (!_exactX) candidates = candidates.concat(_dashTwins);
     }
+    // 2026-11-24 (weavercr): the custom-run cars that CARRY the typed number
+    // (Weaver's CUSTOM RUN rows — rrCarNumberRows, app-data.js; rule rrNumCarTwin,
+    // app.js). Rows the collector picks from, never a pick: with Weaver named
+    // they always join; with no maker named only when nothing else answers the
+    // number anywhere in the catalog (932 car numbers are also another maker's
+    // item number); another maker picked → the filters already keep them out.
+    if (startsWithDigit && typeof rrCarNumberRows === 'function') {
+      var _crRows = rrCarNumberRows(numPart).filter(function (r) {
+        if (_fits && !_fits(r, _fset)) return false;
+        var _crHay = ((r.roadName || '') + ' ' + (r.description || '') + ' ' + (r.varDesc || '') + ' ' + (r.itemType || '')).toLowerCase();
+        return !keyParts.length || keyParts.every(function (kp) { return _mfrPhraseWords.indexOf(kp) >= 0 || _crHay.includes(kp); });
+      });
+      // (review finding 2: a row that only CONTAINS the digits — MTH 20-98539 for
+      // 98539 — does not answer the number, so it never hides the cars)
+      var _crJoin = _crRows.length && (_wizCarNumNamed(_fset) || (!candidates.some(function (c) { return c && (c._zeroTwin || rrNumSameAsTyped(c.num, numPart)); }) && !(function () {
+        var _allC = (typeof _allErasSearchCache !== 'undefined') ? _allErasSearchCache : null;
+        return !!(_allC && _allC.some && _allC.some(function (r) { return r && rrNumSameAsTyped(r.itemNum, numPart) && (!_fits || _fits(r, _fset)); }));
+      })()));
+      if (_crJoin) {
+        var _crW = (typeof RR_CUSTOM_RUN !== 'undefined' && RR_CUSTOM_RUN) || {};
+        _crRows.forEach(function (m) {
+          var _who = String(m.runBy || '').trim();
+          candidates.push({
+            _carTwin:    true,
+            num:         rrCustomRunNumber(m),
+            roadName:    m.roadName || '',
+            itemType:    m.itemType || '',
+            subType:     m.subType || '',
+            varDesc:     m.varDesc || '',
+            description: [_who ? String(_crW.madeFor || '{who}').replace('{who}', _who) : '', m.yearProd || '', m.description || ''].filter(Boolean).join(' · '),   // who ordered the run first — the line is cut short on a phone
+            trackPower:  m.trackPower || '',
+            refLink:     m.refLink || ((typeof window._itemExternalLinkURL === 'function') ? window._itemExternalLinkURL(m) : ''),
+            label:       rrCustomRunNumber(m),
+            deliveryStatus: m.deliveryStatus || '',
+            alsoSoldAs:  m.alsoSoldAs || '',
+            _era:        m._era || '',
+            _tab:        m._tab || '',
+            _row:        m,
+          });
+        });
+      }
+    }
 
     // 2026-11-01 (Lars typed the set 1467W here): a Lionel Postwar SET number.
     // The set list answers too, each set through THE one filter test
@@ -738,7 +780,25 @@ function updateItemSuggestions(query) {
   // manufacturer/era) can't try to draw thousands of rows and freeze the list.
   var _totalMatches = candidates.length;
   var _RENDER_CAP = 75;
+  // ── unknownline (2026-11-25; [stated] Brad 2026-11-24 20:27 CT "Yes"): a NUMBER search where no
+  // row IS the typed number, but a row is the typed number plus ONE letter (typed 1008201, the
+  // catalog's 1008201A). Those rows lead the list and "Use … as typed" follows them; a row that
+  // only CONTAINS the digits (20-66238 for 66238) stays below it, as v0.9.2031 set it.
+  // Done before the cap so a leading row is never cut off; the rows keep their own order.
+  var _ulLead = 0;
+  try {
+    var _ulNum = (typeof _extractSearchItemNum === 'function') ? String(_extractSearchItemNum(q) || '').trim().toLowerCase() : String(q || '').trim().toLowerCase();
+    if (tab !== 'sold' && tab !== 'forsale' && /^\d/.test(_ulNum) && !_rrIsWheelArrangement(_ulNum)
+        && !candidates.some(function (c) { return rrNumSameAsTyped(c.num, _ulNum) || c._zeroTwin; })) {
+      var _ulA = candidates.filter(function (c) { return rrNumPlusLetter(c.num, _ulNum); });
+      if (_ulA.length) {
+        candidates = _ulA.concat(candidates.filter(function (c) { return !rrNumPlusLetter(c.num, _ulNum); }));
+        _ulLead = _ulA.length;
+      }
+    }
+  } catch (eUL) { _ulLead = 0; }
   if (candidates.length > _RENDER_CAP) candidates = candidates.slice(0, _RENDER_CAP);
+  if (_ulLead > candidates.length) _ulLead = candidates.length;
 
   // Count header
   const countBar = document.createElement('div');
@@ -788,6 +848,7 @@ function updateItemSuggestions(query) {
       if (!candidates.some(function (c) { return rrNumSameAsTyped(c.num, _hlNum) || c._zeroTwin; })) _typedNum = _numQ;   // 2026-11-05: a zero twin IS the number
     }
   } catch (eTN) {}
+  var _typedRow = null;   // unknownline: held back until the leading rows are drawn
   if (_typedNum) {
     const tRow = document.createElement('div');
     tRow.setAttribute('role', 'button');
@@ -810,7 +871,7 @@ function updateItemSuggestions(query) {
     tRow.onkeydown = function(e) {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectSuggestion(_typedNum, '', '', { asTyped: true }); }
     };
-    el.appendChild(tRow);
+    if (_ulLead > 0) _typedRow = tRow; else el.appendChild(tRow);
   }
   candidates.forEach(function(c, i) {
     // Outer row is a column flex so we get a visual line-1 (item# + road
@@ -906,6 +967,17 @@ function updateItemSuggestions(query) {
     // maker — "MTH · contains 66238" — so nobody takes it for the number typed.
     // 2026-11-05: a leading-zero twin says what it is instead — "S-Helper ·
     // listed as 1511" — so nobody wonders why 1511 answered 01511.
+    // 2026-11-24 (weavercr): a custom-run car found by the number on it says so
+    // ("Custom run · No. on the car") — its catalog row has no number of its own.
+    if (c._carTwin) {
+      const cSpan = document.createElement('span');
+      cSpan.setAttribute('data-car-twin', String(c.num || ''));
+      cSpan.style.cssText = 'font-size:0.7rem;font-weight:700;letter-spacing:0.04em;'
+        + 'color:var(--text-dim);background:transparent;border:1px solid currentColor;'
+        + 'padding:0.1rem 0.4rem;border-radius:4px;flex-shrink:0;white-space:nowrap';
+      cSpan.textContent = String(((typeof RR_CUSTOM_RUN !== 'undefined' && RR_CUSTOM_RUN) || {}).tag || '');
+      line1.appendChild(cSpan);
+    } else
     if (c._zeroTwin) {
       const zSpan = document.createElement('span');
       zSpan.setAttribute('data-zero-twin', String(c.num || ''));
@@ -992,6 +1064,7 @@ function updateItemSuggestions(query) {
     }
 
     el.appendChild(row);
+    if (_typedRow && i === _ulLead - 1) { el.appendChild(_typedRow); _typedRow = null; }   // unknownline: after the leading rows
   });
   el.style.display = 'flex';
 }
@@ -1120,6 +1193,16 @@ function highlightSuggestion(idx) {
 // catalog writes both forms. Two or more digits in front (MTH 20-66238) or a
 // dash later on (Postwar 6464-1) is a DIFFERENT number, as before.
 function rrNumLinePrefixOff(t) { return rrNumBare(t || ''); }   // numspell: the ONE prefix rule (app.js)
+// unknownline: the row's number is the typed number plus ONE letter and nothing else
+// (1008201A for 1008201; 2343P or 2343-P for 2343) — by THE same-number key, so the
+// dash before the letter does not matter. Never true for a row that IS the number.
+function rrNumPlusLetter(rowNum, typed) {
+  var a = String(rowNum || '').trim(), b = String(typed || '').trim();
+  if (!a || !b || typeof rrNumKey !== 'function') return false;
+  var ka = rrNumKey(a), kb = rrNumKey(b);
+  return ka.length === kb.length + 1 && ka.indexOf(kb) === 0 && /\d$/.test(kb) && /[A-Z]$/.test(ka);
+}
+if (typeof window !== 'undefined') window.rrNumPlusLetter = rrNumPlusLetter;
 function rrNumSameAsTyped(rowNum, typed) {
   var a = String(rowNum || '').trim().toLowerCase(), b = String(typed || '').trim().toLowerCase();
   if (!a || !b) return false;
@@ -1394,8 +1477,25 @@ function _wizNumberInCatalog(num) {
   if (_all && _all.some && _all.some(hit)) return true;
   // 2026-11-05: only then its leading-zero twin (01511 ↔ 1511)
   var twin = function (r) { return r && ((typeof rrNumZeroTwin === 'function' && rrNumZeroTwin(r.itemNum, lc)) || (typeof rrNumLooseTwin === 'function' && rrNumLooseTwin(r, lc))); };   // dashmaker: + the dash twin (the row itself: the ending rule is per catalog)
-  return !!((state.masterData || []).some(twin) || (_all && _all.some && _all.some(twin)));
+  if ((state.masterData || []).some(twin) || (_all && _all.some && _all.some(twin))) return true;
+  // weavercr: …and last, a custom-run car that carries it (Weaver 311202)
+  return !!(typeof rrCarNumberRows === 'function' && rrCarNumberRows(lc).length);
 }
+// 2026-11-24 (weavercr): has the collector NAMED a catalog that files cars by
+// the number on them (RR_CUSTOM_RUN.eras — Weaver)? The Maker filter or a typed
+// maker word (fset.mfr, _wizAddFilters), or the add opened on that catalog.
+// Only then may the one row picker take a custom run by its car number alone.
+function _wizCarNumNamed(fset) {
+  var C = (typeof RR_CUSTOM_RUN !== 'undefined' && RR_CUSTOM_RUN) || null;
+  if (!C || !Array.isArray(C.eras)) return false;
+  var d = (typeof wizard !== 'undefined' && wizard && wizard.data) ? wizard.data : {};
+  if (C.eras.indexOf(String(d._era || '')) >= 0) return true;
+  var norm = function (v) { return String(v == null ? '' : v).toLowerCase().replace(/[^a-z0-9]/g, ''); };
+  var mk = norm((fset && fset.mfr) || '');
+  if (!mk) return false;
+  return C.eras.some(function (e) { return typeof _manufacturerOfEra === 'function' && norm(_manufacturerOfEra(e)) === mk; });
+}
+if (typeof window !== 'undefined') window._wizCarNumNamed = _wizCarNumNamed;
 // ── 2026-11-23 (foundas) — WHICH FILTER HIDES THE NUMBER ([stated] Brad 16:46 /
 // 16:54 / 16:55 CT; customer Bob picked MTH + Flatcar and typed 30-72264, an MTH
 // Gondola). THE one answer to "the number is in the catalog — is ONE filter all
@@ -1795,6 +1895,18 @@ function _wizResolveAddRow(numText, opts) {
       if (!_exactElsewhere) rows = _lt;
     }
   }
+  // 2026-11-24 (weavercr): then the custom-run car that carries the number
+  // (Weaver's CUSTOM RUN rows, rrCarNumberRows) — taken ONLY with Weaver named
+  // (the maker filter, a typed "weaver", or the Weaver O catalog) and only when
+  // exactly ONE car carries it; with no maker named, or two runs carrying it,
+  // the list under the box shows them and the collector taps one.
+  if (!rows.length && typeof rrCarNumberRows === 'function' && _wizCarNumNamed(fset)) {
+    var _cr = rrCarNumberRows(numLC).filter(fits);
+    if (_cr.length === 1) {
+      var _allCR = (typeof _allErasSearchCache !== 'undefined') ? _allErasSearchCache : null;
+      if (!(_allCR && _allCR.some && _allCR.some(function (i) { return i && rrNumSameAsTyped(i.itemNum, numLC) && fits(i); }))) rows = _cr;
+    }
+  }
   var cur = (typeof wizard !== 'undefined' && wizard) ? wizard.matchedItem : null;
   // dashmaker: the row the add holds also answers the road-number ending typed
   // over it (tapped Atlas 6502 with 6502-2 in the box) — unless an exact row
@@ -1808,7 +1920,11 @@ function _wizResolveAddRow(numText, opts) {
     var _all = (typeof _allErasSearchCache !== 'undefined') ? _allErasSearchCache : null;
     return !(_all && _all.some && _all.some(function (i) { return i && rrNumSameAsTyped(i.itemNum, numLC) && fits(i); }));
   };
-  if (cur && (rrNumSameAsTyped(cur.itemNum, numLC) || (typeof rrNumLooseTwin === 'function' && rrNumLooseTwin(cur, numLC) && (rows.indexOf(cur) >= 0 || (!rows.length && _tappedTwin())))) && fits(cur)
+  // weavercr: …and a custom-run car tapped for the number on it, the same way.
+  var _twinOk = function (twin) { return twin && (rows.indexOf(cur) >= 0 || (!rows.length && _tappedTwin())); };
+  if (cur && (rrNumSameAsTyped(cur.itemNum, numLC)
+              || _twinOk(typeof rrNumLooseTwin === 'function' && rrNumLooseTwin(cur, numLC))
+              || _twinOk(typeof rrNumCarTwin === 'function' && rrNumCarTwin(cur, numLC))) && fits(cur)
       && (!prefType || String(cur.itemType || '').trim() === prefType)) return cur;
   if (!rows.length) return null;
   if (prefType) {
@@ -1833,7 +1949,7 @@ function lookupItem(num) {
   // row's number or a twin of it — typing another number lets go of it.
   if (wizard.data && wizard.data._tappedRow) {
     var _tr = wizard.data._tappedRow, _tn = String(_searchNum || '').trim().toLowerCase();
-    if (!(rrNumSameAsTyped(_tr.itemNum, _tn) || (typeof rrNumLooseTwin === 'function' && rrNumLooseTwin(_tr, _tn)))) delete wizard.data._tappedRow;
+    if (!(rrNumSameAsTyped(_tr.itemNum, _tn) || (typeof rrNumLooseTwin === 'function' && rrNumLooseTwin(_tr, _tn)) || (typeof rrNumCarTwin === 'function' && rrNumCarTwin(_tr, _tn)))) delete wizard.data._tappedRow;   // weavercr: or the number on its car
   }
   // 2026-11-01: THE one row picker for this number (_wizResolveAddRow above).
   let match = _wizResolveAddRow(_searchNum);
@@ -1924,7 +2040,7 @@ function lookupItem(num) {
       var _mInfo = _mInfoParts.join(' \u00B7 ') || '(no details)';
       el.innerHTML = `<div style="background:rgba(46,204,113,0.1);border:1px solid var(--green);border-radius:8px;padding:0.65rem 0.85rem;font-size:0.82rem">
         <span style="color:var(--green)">✓ Found:</span> ${_mInfo}${(typeof rrCatalogStatusChip === 'function') ? rrCatalogStatusChip(match, { block: true }) : ''}
-        ${((typeof _wizAsksVariation === 'function') ? _wizAsksVariation(match.itemNum) : !!match.variation) ? '<br><span style="color:var(--text-dim)">Note: multiple variations exist — select on next step</span>' : ''}
+        ${(!(typeof rrNumCarTwin === 'function' && rrNumCarTwin(match, trimmed)) && ((typeof _wizAsksVariation === 'function') ? _wizAsksVariation(match.itemNum) : !!match.variation)) ? '<br><span style="color:var(--text-dim)">Note: multiple variations exist — select on next step</span>' : ''}
         ${hasBoxOnlyRow ? `<div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid rgba(255,255,255,0.08)">
           <span style="color:var(--accent2)">📦 A box for this item is already in your collection.</span>
           <label style="display:flex;align-items:center;gap:0.5rem;margin-top:0.4rem;cursor:pointer;font-size:0.82rem;color:var(--text-mid)">
@@ -1936,8 +2052,13 @@ function lookupItem(num) {
     } else {
       // 2026-11-01: when the list under the box is already saying "No 1511
       // found …" (_wizNothingFoundHtml), this line stays empty — one message.
-      var _sgNF = document.getElementById('wiz-suggestions');
-      _sgNF = !!(_sgNF && _sgNF.style.display !== 'none' && _sgNF.querySelector('[data-nothing-found]'));
+      // unknownline (2026-11-25): the same "one message" rule when the list under the box is
+      // showing a catalog row (typed 1008201, the row 1008201A listed) — "Not in our Master
+      // Catalog" right under a catalog match sent a collector to type the item in by hand.
+      // The list's own heading and its "Use … as typed" row already say it.
+      var _sgEl = document.getElementById('wiz-suggestions');
+      var _sgShown = !!(_sgEl && _sgEl.style.display !== 'none');
+      var _sgNF = _sgShown && (!!_sgEl.querySelector('[data-nothing-found]') || !!_sgEl.querySelector('[data-idx]'));
       el.innerHTML = (typeof _catalogReady === 'function' && !_catalogReady())
         ? `<div style="font-size:0.8rem;color:#e0a800">⏳ Loading your catalog — one moment…</div>`
         : (_sgNF ? '' : ((typeof _rrAddNoRowItem === 'function' && _rrAddNoRowItem((typeof wizard !== 'undefined' && wizard) ? wizard.data : null, true))
