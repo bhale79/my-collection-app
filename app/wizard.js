@@ -321,13 +321,17 @@ function rrReaderPreferFrom(f) {
   if (!mfr && !scale && !period) return type ? { era: '', eras: [], manufacturer: '', scale: '', period: '', type: type, kind: '', _fromFilter: true } : null;
   var norm = function (v) { return String(v || '').toLowerCase().replace(/[^a-z0-9]/g, ''); };
   var eras = [], maker = '', lineEras = [];
+  // 2026-11-24 (dashmaker, third review): a maker no catalog TAB is made by
+  // (Industrial Rail — named in its rows' own cells on Other O Brands) means the
+  // catalogs whose rows name it, and each row must name it too (rowMaker).
+  var rowEras = (mfr && typeof rrErasOfRowMaker === 'function') ? rrErasOfRowMaker(mfr) : null;
   try {
     // the item catalogs (REAL_ERA_IDS) — the parts lists are lookup-only
     var _lookupOnly = (typeof LOOKUP_ONLY_ERAS !== 'undefined') ? LOOKUP_ONLY_ERAS : [];
     ((typeof REAL_ERA_IDS !== 'undefined') ? REAL_ERA_IDS : Object.keys(ERAS || {})).forEach(function (k) {
       var e = ERAS[k];
       if (!e || e._isAll || k === 'all' || _lookupOnly.indexOf(k) >= 0) return;
-      if (mfr && norm(e.manufacturer) !== norm(mfr)) return;
+      if (rowEras ? rowEras.indexOf(k) < 0 : (mfr && norm(e.manufacturer) !== norm(mfr))) return;
       if (scale) {
         var sc = (typeof rrLineScales === 'function') ? rrLineScales(k) : [String((typeof ERA_SCALE !== 'undefined' && ERA_SCALE[k]) || '').toLowerCase()];
         if (sc.indexOf(scale.toLowerCase()) < 0) {   // a catalog of no stated scale does not carry O
@@ -344,8 +348,8 @@ function rrReaderPreferFrom(f) {
       if (!maker) maker = e.manufacturer || '';
     });
   } catch (eE) {}
-  return { era: lineEras.length === 1 ? lineEras[0] : '', eras: eras, manufacturer: maker || mfr, scale: scale, period: period,
-           type: type, kind: '', label: '', years: '', _fromFilter: true };
+  return { era: lineEras.length === 1 ? lineEras[0] : '', eras: eras, manufacturer: rowEras ? mfr : (maker || mfr), scale: scale, period: period,
+           type: type, kind: '', label: '', years: '', _fromFilter: true, rowMaker: rowEras ? mfr : '' };
 }
 // Does a catalog row fit a reader preference? Its catalog is one of the
 // preference's catalogs, and its period / scale agree when the row knows them
@@ -355,7 +359,12 @@ function rrRowFitsPrefer(m, pref) {
   try {
     var es = (pref.eras && pref.eras.length) ? pref.eras : (pref.era ? [pref.era] : []);
     if (es.length && m._era && es.indexOf(m._era) < 0) return false;
-    if (!es.length && pref.manufacturer && pref.scale) return false;   // no catalog of that maker carries that scale
+    if (!es.length && pref.manufacturer && pref.scale && !pref.rowMaker) return false;   // no catalog of that maker carries that scale (a row-cell maker: each row answers below)
+    // dashmaker: a maker named only in row cells — the row itself must name it
+    if (pref.rowMaker && typeof rrRowMakerWord === 'function') {
+      var _rmN = (typeof _rrMakerWord === 'function') ? _rrMakerWord : function (v) { return String(v || '').toLowerCase().replace(/[^a-z0-9]/g, ''); };   // the ONE maker-name rule (app.js)
+      if (_rmN(rrRowMakerWord(m)) !== _rmN(pref.rowMaker) && !(typeof rrRowAlsoSoldBy === 'function' && rrRowAlsoSoldBy(m, pref.rowMaker))) return false;
+    }
     if (pref.period) { var rp = _wizPeriodOfRow(m); if (rp && rp !== pref.period) return false; }
     if (pref.scale) { var rs = _wizScaleOfRow(m); if (rs && rs.toLowerCase() !== String(pref.scale).toLowerCase()) return false; }
   } catch (eR) {}
@@ -457,6 +466,29 @@ function _wizAnyAddFilter(f) {
   f = f || _wizAddFilters();
   return !!(f.mfr || f.period || f.type || f.scale || f.road);
 }
+// 2026-11-24 (dashmaker): the Manufacturer drop-down already on screen picks up
+// makers the full-catalog copy brings (it loads after the box opens). The list
+// is rrMakerChoices (app.js); the choice already made is kept.
+function _wizRefreshMakerList() {
+  try {
+    var sel = document.getElementById('wiz-search-mfr');
+    if (!sel || typeof rrMakerChoices !== 'function') return;
+    var list = rrMakerChoices();
+    var want = (typeof wizard !== 'undefined' && wizard && wizard.data && wizard.data._searchFilterManufacturer) || sel.value || '';
+    if (want && list.indexOf(want) < 0) {   // the chosen maker stays a choice (review finding 4) — in its A–Z place
+      list = list.concat([want]).sort(function (a, b) { return String(a).toLowerCase().localeCompare(String(b).toLowerCase()); });
+    }
+    var have = Array.prototype.slice.call(sel.options, 1).map(function (o) { return o.value; });
+    if (have.join('\u0001') === list.join('\u0001')) return;
+    var cur = want, first = sel.options[0] ? sel.options[0].cloneNode(true) : null;
+    while (sel.options.length) sel.remove(0);
+    if (first) sel.add(first);
+    list.forEach(function (m) { var o = document.createElement('option'); o.value = m; o.textContent = m; sel.add(o); });
+    if (cur && list.indexOf(cur) >= 0) sel.value = cur;
+  } catch (e) {}
+}
+if (typeof window !== 'undefined') window._wizRefreshMakerList = _wizRefreshMakerList;
+
 function _wizRowFitsFilters(m, f) {
   if (!m) return false;
   f = f || _wizAddFilters();
@@ -1669,7 +1701,10 @@ async function openWizard(tab) {
     // is instant. Non-blocking; never changes the current view/era.
     if (typeof _currentEra !== 'undefined' && _currentEra !== 'all'
         && typeof _getAllErasMasterForSearch === 'function') {
-      _getAllErasMasterForSearch().catch(function(){});
+      _getAllErasMasterForSearch().then(function () {
+        // dashmaker: the full catalog is in — its makers join the list on screen
+        if (typeof _wizRefreshMakerList === 'function') _wizRefreshMakerList();
+      }).catch(function(){});
     }
   }
   // Session 154: Want skips the category/era picker and lands on the catalog
@@ -2179,7 +2214,17 @@ function _buildItemSearchFiltersDOM() {
   // Session 154: Manufacturer + Scale options from the era config. Shown only
   // in All-Collection mode (the want flow) where multiple makers/scales mix.
   var _allMode = (wizard.data && wizard.data._era === 'all');
-  var mfrs = (function(){ var seen={}, out=[]; if (typeof ERAS!=='undefined') Object.keys(ERAS).forEach(function(k){ var m=ERAS[k]&&ERAS[k].manufacturer; if(m&&!seen[m]){seen[m]=1;out.push(m);} }); return out.sort(); })();
+  // 2026-11-24 (dashmaker): every maker the catalog holds — the tabs' makers AND
+  // each row's own Manufacturer / Also Sold As (Industrial Rail, KMT …). ONE list:
+  // rrMakerChoices (app.js).
+  var mfrs = (typeof rrMakerChoices === 'function') ? rrMakerChoices()
+    : (function(){ var seen={}, out=[]; if (typeof ERAS!=='undefined') Object.keys(ERAS).forEach(function(k){ var m=ERAS[k]&&ERAS[k].manufacturer; if(m&&!seen[m]){seen[m]=1;out.push(m);} }); return out.sort(); })();
+  // The maker already chosen (remembered from last time) is always a choice on
+  // screen — never a filter the drop-down hides behind "(any)" while the full
+  // catalog is still loading (review finding 4).
+  var _mfrNow = (wizard && wizard.data && wizard.data._searchFilterManufacturer) || '';
+  // A new array, in its A–Z place — rrMakerChoices hands back its remembered list.
+  if (_mfrNow && mfrs.indexOf(_mfrNow) < 0) mfrs = mfrs.concat([_mfrNow]).sort(function (a, b) { return String(a).toLowerCase().localeCompare(String(b).toLowerCase()); });
   var scales = (function(){ var seen={}, out=[]; if (typeof ERA_SCALE!=='undefined') Object.keys(ERA_SCALE).forEach(function(k){ var v=ERA_SCALE[k]; if(v&&!seen[v]){seen[v]=1;out.push(v);} }); return out.sort(); })();
   var minCount = cfg.showOnlyIfAtLeast || 2;
   var showType = types.length >= minCount;
@@ -8414,7 +8459,9 @@ async function _wizardNextCore() {
     // 6-31705, catalog 31705 — or the other way round) gives the add the
     // catalog's form, as the hyphen fallback below always has, so the save and
     // every later lookup align.
-    if (_exactMatch && String(_exactMatch.itemNum || '').toLowerCase() !== _rawLC) wizard.data.itemNum = _exactMatch.itemNum;
+    // 2026-11-24 (dashmaker): …except a road-number ending the collector typed
+    // (Atlas 6502-2 found as 6502) — rrNumSaveAs keeps "6502-2" (Brad: "should show the -2").
+    if (_exactMatch && String(_exactMatch.itemNum || '').toLowerCase() !== _rawLC) wizard.data.itemNum = (typeof rrNumSaveAs === 'function') ? rrNumSaveAs(_exactMatch, _rawInput) : _exactMatch.itemNum;
     // Hyphen-variant fallback (2026-05-18). Some manufacturers store item
     // numbers with a hyphen before the letter suffix (Weaver "1076-L") while
     // Google Lens / casual text drops it ("1076L"). Try both forms before
@@ -8489,7 +8536,7 @@ async function _wizardNextCore() {
     } else {
       // Exact match found
       wizard.data._partialMatches = [];
-      wizard.data.itemNum = _exactMatch.itemNum;
+      wizard.data.itemNum = (typeof rrNumSaveAs === 'function') ? rrNumSaveAs(_exactMatch, _rawInput) : _exactMatch.itemNum;   // dashmaker: a typed road-number ending stays
       wizard.matchedItem = _exactMatch;
     }
 

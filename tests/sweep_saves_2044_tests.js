@@ -67,12 +67,17 @@ const GUARDED = [
   ['10-1024', 'an MTH-style number (a DATE before)'],
   ['1/2', 'a fraction-like number (Jan 2 before)'],
   ['20-2619-3', 'a three-part MTH number'],
+  ['6331-1', 'an Atlas road-number ending (a DATE before — the app read 1618391; datefix 2026-11-24)'],
+  ['8907-3', 'an Atlas number with a one-digit ending (a DATE in the master since 2026-10-21)'],
+  ['1304-1', 'a 4-digit number with an ending'],
+  ['773-12', 'a 3-digit number with a 2-digit ending'],
 ];
 const UNCHANGED = [
   ['2343', 'a plain number'], ['25.00', 'a price'], ['-12.50', 'a negative amount'], ['0', 'zero'], ['0.50', 'fifty cents'],
   ['2026-10-29', 'an ISO date'], ['10/29/2026', 'a US date'], ['https://drive.google.com/file/d/abc/view', 'a link'],
   ['Shelf 3', 'ordinary words'], ['2343-P', 'a dashed engine number'], ['6-24122', 'a 6- number Google never reads as a date'],
   ['', 'blank'], ["'already text", 'a value that already carries the mark'],
+  ['1955-1957', 'a year range (datefix near-miss: the year-month line leaves it alone)'],
 ];
 
 function runA(src, tag) {
@@ -230,6 +235,8 @@ function scanToday(files) {
   ok('P3 PLANTED the plain-number line taken out: A2 goes red (-12.50 would turn to text)', pA3.moved.length > 0, pA3.moved);
   const pA4 = runA(plant(SHEETS, "if (/^\\d{1,2}[-\\/]\\d{1,4}$/.test(t)) return \"'\" + v;", ''), 'planted');
   ok('P4 PLANTED the date-shape line taken out: A1 goes red on "6-8459" and "10-1024"', pA4.bad.some(x => /6-8459/.test(x)) && pA4.bad.some(x => /10-1024/.test(x)), pA4.bad);
+  const pA5 = runA(plant(SHEETS, "if (/^\\d{3,}[-\\/]\\d{1,2}$/.test(t)) return \"'\" + v;", ''), 'planted');
+  ok('P4b PLANTED the year-month line taken out: A1 goes red on "6331-1" and "8907-3" (datefix)', pA5.bad.some(x => /6331-1/.test(x)) && pA5.bad.some(x => /8907-3/.test(x)), pA5.bad);
   const pB = await runB(plant(SHEETS, "values: (opts && opts.setup) ? values : rrSheetCells(values) }", 'values }'), TAG);
   ok('P5 PLANTED sheetsUpdate without the rule: B1 goes red', !pB.update, pB.sent[0]);
   const pB2 = await runB(plant(SHEETS, "values: (opts && opts.setup) ? values : rrSheetCells(values) }", 'values: rrSheetCells(values) }'), TAG);

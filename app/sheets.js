@@ -209,6 +209,11 @@ function rrSheetCell(v) {
   if (/^[=+\-@]/.test(t)) return "'" + v;                          // = + - @ at the front: Google reads a formula
   if (/^0\d/.test(t)) return "'" + v;                              // 0209, 001, 0401-1: the zero would be dropped
   if (/^\d{1,2}[-\/]\d{1,4}$/.test(t)) return "'" + v;             // 6-8459, 10-1024, 1/2: Google makes a date
+  // 2026-11-24 (datefix): a 3-or-more-digit number with a short ending — Atlas 6331-1,
+  // 8907-3, Lionel 1304-1 — is read as YEAR-MONTH: the Office's commit of Bob's
+  // 6337-1 stored a date (the app read 1618391), and 30 Atlas O rows from the
+  // 2026-10-21 commit had been dates since. Measured on the master 2026-11-24.
+  if (/^\d{3,}[-\/]\d{1,2}$/.test(t)) return "'" + v;
   var m3 = /^(\d{1,4})[-\/](\d{1,4})[-\/](\d{1,4})$/.exec(t);
   if (m3 && !/^\d{4}[-\/]\d{1,2}[-\/]\d{1,2}$/.test(t)                      // not an ISO date
       && !(m3[3].length === 4 && +m3[1] <= 12 && +m3[2] <= 31)              // not a US date

@@ -942,7 +942,8 @@ function _rrRowIdFits(row, itemNum, variation) {
   // check only refuses a stale or foreign ID, and a zero twin is neither.
   var _zt = (typeof rrNumZeroTwin === 'function') && (rrNumZeroTwin(_kn, _in) || (typeof baseItemNum === 'function' && rrNumZeroTwin(_kn, baseItemNum(_in))));
   var _6t = (typeof rrNumSame === 'function') && (rrNumSame(_kn, _in) || (typeof baseItemNum === 'function' && rrNumSame(_kn, baseItemNum(_in))));   // numspell: 18319 saved, 6-18319 in the catalog
-  if (!(_kn === _in || (typeof baseItemNum === 'function' && baseItemNum(_in) === _kn) || _zt || _6t)) {
+  var _lt = (typeof rrNumLooseTwin === 'function') && rrNumLooseTwin(row, _in);   // dashmaker: K-675402 saved, K675402 in the catalog
+  if (!(_kn === _in || (typeof baseItemNum === 'function' && baseItemNum(_in) === _kn) || _zt || _6t || _lt)) {
     // zerobridge: a copy of a deleted book row whose link a back-fill moved to
     // its keeper (RR_BOOK_COPY_REDIRECT) keeps that link — the pair is the table's
     return (typeof _rrBookCopyPairFits === 'function') && _rrBookCopyPairFits(row, _in, variation);
@@ -1733,6 +1734,13 @@ function rrCatalogCandidates(itemNum) {
       keys.forEach(function (k) { _zeroKinRows(idx, k).forEach(take); });
     });
   }
+  // 2026-11-24 (dashmaker): then its dash twin (K-675402 ↔ K675402, 6502-2 →
+  // 6502) — candidates the member picks from, each showing its own catalog.
+  if (!out.length && typeof _looseKinRows === 'function') {
+    [state.masterByItem, state.masterByItemAll].forEach(function (idx) {
+      keys.forEach(function (k) { _looseKinRows(idx, k, { suffix: true }).forEach(take); });
+    });
+  }
   return out;
 }
 if (typeof window !== 'undefined') window.rrCatalogCandidates = rrCatalogCandidates;
@@ -1986,6 +1994,7 @@ function findMaster(itemNum, variation, prefer) {
       if (_kn === _in || (typeof baseItemNum === 'function' && baseItemNum(_in) === _kn)
           || (typeof rrNumZeroTwin === 'function' && rrNumZeroTwin(_kn, _in))   // 2026-11-05: 1511 saved, 01511 in the catalog
           || (typeof rrNumSame === 'function' && rrNumSame(_kn, _in))           // numspell: 18319 saved, 6-18319 in the catalog
+          || (typeof rrNumLooseTwin === 'function' && rrNumLooseTwin(_byKey, _in)) // dashmaker: K-675402 saved, K675402 in the catalog
           || (typeof _rrBookCopyPairFits === 'function' && _rrBookCopyPairFits(_byKey, _in, variation))) return _byKey;   // zerobridge: a back-filled keeper's key holds
     }
   }
@@ -2012,14 +2021,16 @@ function findMaster(itemNum, variation, prefer) {
   // 2026-11-05: a Layer-1 answer that is only the number's leading-zero twin
   // (01511 → 1511) does not end the search either — the full catalog may hold
   // the number exactly as written, and an exact row always wins.
-  var _rTwin = !!(_r && typeof rrNumZeroTwin === 'function' && rrNumZeroTwin(_r.itemNum, itemNum));
+  // 2026-11-24 (dashmaker): nor does one that is only its dash twin (K-675402 → K675402).
+  var _twinOf = function (r) { return !!r && ((typeof rrNumZeroTwin === 'function' && rrNumZeroTwin(r.itemNum, itemNum)) || (typeof rrNumLooseTwin === 'function' && rrNumLooseTwin(r, itemNum))); };
+  var _rTwin = !!(_r && _twinOf(_r));
   // 2026-11-10 (numspell): nor does an answer that is only the number's "6-"
   // spelling (18319 asked, 6-18319 found) — the full catalog may hold 18319.
   var _asked = String(itemNum).trim();
   var _rSpell = !!(_r && typeof rrNumFull === 'function' && String(_r.itemNum).trim() !== _asked && String(_r.itemNum).trim() === rrNumFull(_asked));
   if (_r && (_rTwin || _rSpell) && state.masterByItemAll) {
     var _rX = _findMasterCore(state.masterByItemAll, itemNum, variation, prefer);
-    var _rXok = _rX && (_rTwin ? !rrNumZeroTwin(_rX.itemNum, itemNum) : String(_rX.itemNum).trim() === _asked);
+    var _rXok = _rX && (_rTwin ? !_twinOf(_rX) : String(_rX.itemNum).trim() === _asked);
     if (_rXok && (!_want || String(_rX._era || '') === _want)) return _rX;
   }
   if (_r && (!_want || String(_r._era || '') === _want)) return _r;
@@ -2255,6 +2266,62 @@ function _zeroKinRows(idx, num) {
 }
 if (typeof window !== 'undefined') window._zeroKinRows = _zeroKinRows;
 
+// ── 2026-11-24 (dashmaker) — rows whose number is the asked number apart
+// from a dash: the one after its leading letters (K-675402 ↔ K675402, IDM-1007
+// ↔ IDM1007) and, with o.suffix, the asked number's road-number ending
+// (6502-2 → 6502). Built FROM the master — only a spelling the catalog holds is
+// offered — and, like _zeroKinRows, consulted ONLY when the number as written
+// has nothing for the catalog being asked about. The rule is rrNumLooseTwin /
+// rrNumDashKey / rrNumSuffixBase (app.js); this only indexes it.
+var _dkCache = (typeof WeakMap !== 'undefined') ? new WeakMap() : null;
+function _looseKinRows(idx, num, o) {
+  if (!idx || typeof idx.forEach !== 'function' || typeof rrNumLooseTwin !== 'function') return [];
+  var asked = String(num == null ? '' : num).trim();
+  if (!asked) return [];
+  // Exact always wins, in EITHER index and in any capitals: a number the catalog
+  // holds as written (GarGraves DZ-1000 for a typed dz-1000; Lionel Parts 1001-12
+  // in the full catalog) never has a twin (review findings 1b, 3). With
+  // o.belongs (the caller named a catalog) only an exact row OF THAT CATALOG
+  // counts — another maker's 6464-1 never hides the named Atlas 6464.
+  var _bel = (o && typeof o.belongs === 'function') ? o.belongs : null;
+  var _exactSomewhere = [state && state.masterByItem, state && state.masterByItemAll].some(function (ix) {
+    return ix && typeof ix.get === 'function' && [asked, asked.toUpperCase(), asked.toLowerCase()].some(function (k) {
+      var g = ix.get(k);
+      return Array.isArray(g) && g.length && (!_bel || g.some(_bel));
+    });
+  });
+  if (_exactSomewhere) return [];
+  var ent = _dkCache && _dkCache.get(idx);
+  if (!ent || ent.n !== idx.size) {
+    // only the keys that START with letters and then reach a digit need an entry
+    var m = new Map();
+    idx.forEach(function (rows, key) {
+      var s = String(key || '');
+      if (!/^[A-Za-z]+-?\d/.test(s) || !Array.isArray(rows)) return;
+      var d = rrNumDashKey(s).toLowerCase(), cur = m.get(d);
+      if (!cur) { cur = []; m.set(d, cur); }
+      for (var i = 0; i < rows.length; i++) if (cur.indexOf(rows[i]) < 0) cur.push(rows[i]);
+    });
+    ent = { n: idx.size, map: m };
+    if (_dkCache) _dkCache.set(idx, ent);
+  }
+  var out = [];
+  var add = function (r) {
+    if (!r || out.indexOf(r) >= 0) return;
+    if (!rrNumLooseTwin(r, asked)) return;   // the rule decides, row by row — never the index alone (the ending rule is per catalog)
+    out.push(r);
+  };
+  var looks = [asked];
+  var base = (o && o.suffix && typeof rrNumSuffixBase === 'function') ? rrNumSuffixBase(asked) : '';
+  if (base) looks.push(base);
+  looks.forEach(function (n) {
+    if (n !== asked) { (idx.get(n) || []).forEach(add); (idx.get(n.toUpperCase()) || []).forEach(add); }
+    if (/^[A-Za-z]+-?\d/.test(n)) (ent.map.get(rrNumDashKey(n).toLowerCase()) || []).forEach(add);
+  });
+  return out;
+}
+if (typeof window !== 'undefined') window._looseKinRows = _looseKinRows;
+
 function _findMasterCore(idx, itemNum, variation, prefer) {
   const k = String(itemNum).trim();
   const exact = (idx && idx.get(k)) || [];
@@ -2408,6 +2475,26 @@ function _findMasterCore(idx, itemNum, variation, prefer) {
     const _zk = _zeroKinRows(idx, k)
       .filter(r => pool.indexOf(r) < 0 && (!_kinNamed || _kinBelongs(r)));
     if (_zk.length) pool = _zk.concat(pool);
+  }
+  // 2026-11-24 (dashmaker) — the dash twin (_looseKinRows, rule rrNumLooseTwin
+  // in app.js), behind the SAME gate. The leading-letters dash (K-675402 ↔
+  // K675402) is asked like the zero; the road-number ending (6502-2 → 6502) only
+  // when the caller NAMES its catalog — a bare 6502 is Lionel's flatcar AND
+  // Atlas's boxcar, and a number alone must never pick between makers.
+  if (typeof _looseKinRows === 'function'
+      && !(_kinNamed ? pool.some(_kinSatisfied) : pool.length)) {
+    // Named: "exact wins" is asked of the NAMED catalog only (second review,
+    // finding 1 — Lionel PW 6464-1 must not hide Atlas 6464 when Atlas is asked).
+    const _lk = _looseKinRows(idx, k, { suffix: _kinNamed, belongs: _kinNamed ? _kinSatisfied : null })
+      .filter(r => pool.indexOf(r) < 0 && (!_kinNamed || _kinBelongs(r)));
+    // A twin answers only when every twin is ONE catalog's (maker AND era) —
+    // the number alone never picks between makers (first review, finding 2:
+    // American Models RB2024 vs Ross RB2024 for a typed RB-2024), nor between
+    // one maker's scales (second review, finding 3: Atlas O 4001 vs Atlas HO
+    // 4001 for a typed 4001-2 with only "Atlas" named).
+    const _lkCats = {};
+    _lk.forEach(r => { _lkCats[String((typeof _manufacturerOfItem === 'function' ? _manufacturerOfItem(r) : '') || '').toLowerCase() + '|' + String(r._era || '')] = 1; });
+    if (_lk.length && Object.keys(_lkCats).length === 1) pool = _lk.concat(pool);
   }
   // Non-suffixed item whose exact key exists = the common case → keep legacy
   // behavior exactly (variation match, else first) so nothing regresses —
@@ -2771,6 +2858,19 @@ function findAllMaster(itemNum) {
       });
     });
     if (mergedZ.length) b = mergedZ;
+  }
+  // 2026-11-24 (dashmaker) — still nothing: its dash twin (K-675402 ↔ K675402,
+  // 6502-2 → 6502). A list of candidates, each with its own maker, so the
+  // road-number ending is offered here; fills a blank only.
+  if (!b.length && typeof _looseKinRows === 'function') {
+    const seenL = {}, mergedL = [];
+    [state.masterByItem, state.masterByItemAll].forEach(function (ix) {
+      _looseKinRows(ix, k, { suffix: true }).forEach(function (r) {
+        const s = (r.itemNum || '') + '|' + (r.variation || '') + '|' + (r._tab || '');
+        if (!seenL[s]) { seenL[s] = 1; mergedL.push(r); }
+      });
+    });
+    if (mergedL.length) b = mergedL;
   }
   return b;
 }

@@ -632,6 +632,12 @@ function openHelpHub(opts) {
     +   row(X + "if(typeof showAiUsageCard==='function')showAiUsageCard(true);", '📷', 'Scanning and photo ID', ((typeof rrAutoReadOn === 'function') && rrAutoReadOn()) ? 'What is free and unlimited, and the daily photo ID allowance' : 'How the app reads barcodes, labels and photos')
     // v0.9.2027 (a York customer: "maybe it would be helpful to have a page with Term Definitions?")
     +   row(X + "if(typeof rrTermsOpen==='function')rrTermsOpen();", '\ud83d\udcd8', 'Terms and what they mean', 'Master Carton, Error Item, All Original and the other words the app uses')
+    // 2026-11-24 (helpimport; [stated] Brad "add it to the help center"): the
+    // spreadsheet import's only doors were Preferences \u2192 Data (a section that
+    // starts folded shut) and page 57 of the manual \u2014 a viewer of the YouTube
+    // demo came for "uploading from my excel spreadsheet". This row opens the
+    // Import screen itself, which walks through every step.
+    +   row(X + "if(typeof rrImportOpen==='function')rrImportOpen();", '\ud83d\udcca', 'Bring in your spreadsheet', 'Import a list you keep in Excel or Google Sheets')
     +   hdr('Tips & Recovery')
     +   row(X + "if(typeof _uiShowVersionHistoryHelp==='function')_uiShowVersionHistoryHelp();", '↩️', 'How to undo a mistake', 'Restore an earlier version of your data')
     +   row(X + "if(typeof _rrTwoDevicesHelp==='function')_rrTwoDevicesHelp();", '\ud83d\udcf1', 'Using more than one device', 'Phone and computer both work \u2014 here is the one thing to know')

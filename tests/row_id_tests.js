@@ -144,7 +144,7 @@ const heads = ['Item Number', 'Item Type', 'Description', 'Source', 'Row ID'];
 const plan = { heads, shape: null, allVals: [heads, ['111', 'Boxcar', 'old', 'x', 'ABCDEFGH23']], fresh: [{ num: '900', type: 'Boxcar', desc: 'a' }, { num: '901', type: 'Boxcar', desc: 'b' }] };
 const out = rowsFor(plan, '2026-10-05');
 const ids = out.map(r => r[4]);
-T('E1 every row filed gets a Row ID, in the Row ID column, by header name', out.length === 2 && ids.every(D.isId) && out[0][0] === '900' && out[1][0] === '901', out);
+T('E1 every row filed gets a Row ID, in the Row ID column, by header name (the number goes as text — datefix)', out.length === 2 && ids.every(D.isId) && out[0][0] === "'900" && out[1][0] === "'901", out);
 T('E2 …never one already on the tab, never two alike in one batch', ids.indexOf('ABCDEFGH23') < 0 && ids[0] !== ids[1], ids);
 // the taken set reaches the minting: a mint that offers the taken ID first must be refused
 const offered = ['ABCDEFGH23', 'ABCDEFGH23', 'KKKKKKKKKK', 'KKKKKKKKKK', 'MMMMMMMMMM'];

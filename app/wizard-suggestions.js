@@ -403,10 +403,22 @@ function updateItemSuggestions(query) {
     // Session 172: typed maker/period words act as FILTERS (so "lionel seaboard"
     // shows only Lionel and "postwar hudson" only Postwar) instead of being
     // ignored. Recognized words are pulled out of the text match below.
-    var _MFR_WORDS = { lionel:'Lionel', atlas:'Atlas', mth:'MTH', weaver:'Weaver', rmt:'RMT', williams:'Williams', marx:'Marx', menards:'Menards', '3rd rail':'3rd Rail', sunset:'3rd Rail', 'usa trains':'USA Trains', lgb:'LGB', bachmann:'Bachmann', kline:'K-Line', 'k-line':'K-Line', gargraves:'GarGraves', bluford:'Bluford Shops' };   // rosstab: "101 gargraves" filters to GarGraves ("ross" is handled above — only beside a number or in its own words)
+    var _MFR_WORDS = { lionel:'Lionel', atlas:'Atlas', mth:'MTH', weaver:'Weaver', rmt:'RMT', williams:'Williams', marx:'Marx', menards:'Menards', '3rd rail':'3rd Rail', sunset:'3rd Rail', 'usa trains':'USA Trains', 'industrial rail':'Industrial Rail', lgb:'LGB', bachmann:'Bachmann', kline:'K-Line', 'k-line':'K-Line', gargraves:'GarGraves', bluford:'Bluford Shops' };   // rosstab: "101 gargraves" filters to GarGraves ("ross" is handled above — only beside a number or in its own words)
     var _PERIOD_WORDS = { prewar:'prewar', 'pre-war':'prewar', postwar:'postwar', 'post-war':'postwar', modern:'modern' };
     var _typedMfr = '', _typedPeriod = '';
     qParts.forEach(function(p){ if (_MFR_WORDS[p]) _typedMfr = _MFR_WORDS[p]; if (_PERIOD_WORDS[p]) _typedPeriod = _PERIOD_WORDS[p]; });
+    // 2026-11-24 (dashmaker): a TWO-word maker ("industrial rail", "usa trains",
+    // "3rd rail") never matched — the box is split into single words. Asked of
+    // the whole text instead, and its words then leave the text match below
+    // (only when the whole phrase was typed — "rail" alone stays a search word).
+    var _mfrPhraseWords = [];
+    Object.keys(_MFR_WORDS).forEach(function (k) {
+      if (k.indexOf(' ') < 0) return;
+      if ((' ' + qParts.join(' ') + ' ').indexOf(' ' + k + ' ') >= 0) {
+        _typedMfr = _MFR_WORDS[k];
+        _mfrPhraseWords = _mfrPhraseWords.concat(k.split(' '));
+      }
+    });
     if (_rossAsMaker && !_typedMfr) _typedMfr = 'Ross Custom Switches';   // rosstab: see _rossAsMaker above
     var _effMfr = _filterMfr || _typedMfr;   // dropdown filter wins, else typed word
     var _effPeriod = _filterPeriod || _typedPeriod;   // Session 176: Era dropdown wins, else typed period word
@@ -423,7 +435,7 @@ function updateItemSuggestions(query) {
     // The filters this scan answers to — read ONCE, asked of every row below.
     var _fits = (typeof _wizRowFitsFilters === 'function') ? _wizRowFitsFilters : null;
     var _fset = (typeof _wizAddFilters === 'function') ? _wizAddFilters() : null;
-    var _searchParts = qParts.filter(function(p){ return p && !_stopWords.has(p) && !_MFR_WORDS[p] && !_PERIOD_WORDS[p] && _rossWords.indexOf(p) < 0; });
+    var _searchParts = qParts.filter(function(p){ return p && !_stopWords.has(p) && !_MFR_WORDS[p] && !_PERIOD_WORDS[p] && _rossWords.indexOf(p) < 0 && _mfrPhraseWords.indexOf(p) < 0; });
 
     // Session 115 fix: era scope guard. If the wizard has a selected era
     // (set at wizard start or via the era pill), restrict suggestions to
@@ -442,6 +454,12 @@ function updateItemSuggestions(query) {
     // typed number — Lionel's 022 and 22 are two real items, so with 022 in
     // the list 22 never joins it. The rule: rrNumZeroTwin (app.js).
     var _zeroTwins = [], _exactNumSeen = false;
+    // 2026-11-24 (dashmaker): dash twins (K-675402 ↔ K675402; an Atlas row's
+    // 6502 for a typed 6502-2) are held in their OWN list — unlike a zero twin
+    // they never stop the all-eras widening below, where the exact number may
+    // live (review: a Lionel Parts 1001-12 must not lose to the 1001 loco).
+    var _dashTwins = [];
+    var _looseQ = startsWithDigit && typeof rrNumLooseTwin === 'function' && typeof rrNumMayHaveLooseTwin === 'function' && rrNumMayHaveLooseTwin(numPart);   // asked once, not per row
     // Session 156: Box Only — hide Boxes-tab rows unless the user explicitly
     // asked for boxes via the Box Only checkbox. Keeps the Step 1 list clean
     // (only one row per number) for normal item searches.
@@ -468,14 +486,17 @@ function updateItemSuggestions(query) {
 
       const haystack = ((m.roadName || '') + ' ' + (m.description || '') + ' ' + (m.varDesc || '') + ' ' + (m.itemType || '')).toLowerCase();
 
-      let matches = false, _isZeroTwin = false;
+      let matches = false, _isZeroTwin = false, _isDashTwin = false;
       if (startsWithDigit) {
         // Number-led search: item number must match first token; extra words filter by description
         if (!m.itemNum.toLowerCase().includes(numPart) && !rrNumSameAsTyped(m.itemNum, numPart)) {
-          if (!(typeof rrNumZeroTwin === 'function' && rrNumZeroTwin(m.itemNum, numPart))) return;
+          if (!(typeof rrNumZeroTwin === 'function' && rrNumZeroTwin(m.itemNum, numPart))) {
+            if (!(_looseQ && rrNumLooseTwin(m, numPart))) return;   // dashmaker: or its dash twin (K-675402 ↔ K675402, Atlas 6502-2 → 6502)
+            _isDashTwin = true;
+          }
           _isZeroTwin = true;   // held aside below — joins only if no row IS the number
         }
-        if (keyParts.length > 0 && !keyParts.every(kp => haystack.includes(kp))) return;
+        if (keyParts.length > 0 && !keyParts.every(kp => _mfrPhraseWords.indexOf(kp) >= 0 || haystack.includes(kp))) return;   // dashmaker: a two-word maker's words are the maker, not description words
         if (!_isZeroTwin && rrNumSameAsTyped(m.itemNum, numPart)) _exactNumSeen = true;
         matches = true;
       } else {
@@ -510,7 +531,7 @@ function updateItemSuggestions(query) {
       if (!seen.has(_dedupeKey)) {
         seen.add(_dedupeKey);
         const road = m.roadName || '';
-        (_isZeroTwin ? _zeroTwins : candidates).push({
+        (_isDashTwin ? _dashTwins : (_isZeroTwin ? _zeroTwins : candidates)).push({
           _zeroTwin:   _isZeroTwin,   // 2026-11-05: "listed in our catalog as …"
           num:         m.itemNum,
           roadName:    road,
@@ -554,7 +575,7 @@ function updateItemSuggestions(query) {
       if (_allData && _allData.length) {
         seen = new Set();
         candidates = [];
-        _zeroTwins = []; _exactNumSeen = false;   // 2026-11-05: the wider pass decides afresh
+        _zeroTwins = []; _dashTwins = []; _exactNumSeen = false;   // 2026-11-05: the wider pass decides afresh
         _scanRows(_allData, false);
       } else if (typeof _getAllErasMasterForSearch === 'function') {
         _getAllErasMasterForSearch().then(function() {
@@ -568,6 +589,15 @@ function updateItemSuggestions(query) {
     // join ONLY when no row is the typed number itself — a fallback, never a
     // second match. Each says "listed in our catalog as …" when drawn below.
     if (startsWithDigit && !_exactNumSeen && _zeroTwins.length) candidates = candidates.concat(_zeroTwins);
+    // dashmaker: the same rule — and, like the row picker, never while the FULL
+    // catalog holds the number exactly in a row the filters accept (fourth
+    // review: the list offered Atlas 6464 for 6464-1 while Lionel's 6464-1 sat
+    // in the full catalog, and the picker then refused the tapped row).
+    if (startsWithDigit && !_exactNumSeen && _dashTwins.length) {
+      var _allX = (typeof _allErasSearchCache !== 'undefined') ? _allErasSearchCache : null;
+      var _exactX = !!(_allX && _allX.some && _allX.some(function (r) { return r && rrNumSameAsTyped(r.itemNum, numPart) && (!_fits || _fits(r, _fset)); }));
+      if (!_exactX) candidates = candidates.concat(_dashTwins);
+    }
 
     // 2026-11-01 (Lars typed the set 1467W here): a Lionel Postwar SET number.
     // The set list answers too, each set through THE one filter test
@@ -1160,6 +1190,16 @@ if (typeof window !== 'undefined') { window.rrNumLinePrefixOff = rrNumLinePrefix
 // opts.asTyped (v0.9.2031): the "Use N as typed" row — the number stands as
 // typed, no catalog row behind it; wizardNext must not go hunting for one.
 function selectSuggestion(num, roadName, itemType, opts) {
+  // 2026-11-24 (dashmaker): a tapped row found through the road-number ending
+  // the collector typed (6502-2 → Atlas 6502) keeps HIS number in the box and
+  // the save — rrNumSaveAs (app.js); the tapped row stays the add's row.
+  if (opts && opts.row) wizard.data._tappedRow = opts.row; else delete wizard.data._tappedRow;   // third review: only a TAPPED twin may stand alone
+  if (opts && opts.row && typeof rrNumSaveAs === 'function') {
+    var _inpT = document.getElementById('wiz-input');
+    var _typedT = _inpT ? String(_inpT.value || '').trim() : '';
+    if (_typedT && typeof _extractSearchItemNum === 'function') _typedT = String(_extractSearchItemNum(_typedT) || _typedT);
+    if (_typedT) num = rrNumSaveAs(opts.row, _typedT);
+  }
   wizard.data.itemNum = num;
   if (opts && opts.asTyped) {
     wizard.data._typedAsIs = String(num).trim().toLowerCase();
@@ -1353,7 +1393,7 @@ function _wizNumberInCatalog(num) {
   var _all = (typeof _allErasSearchCache !== 'undefined') ? _allErasSearchCache : null;
   if (_all && _all.some && _all.some(hit)) return true;
   // 2026-11-05: only then its leading-zero twin (01511 ↔ 1511)
-  var twin = function (r) { return r && typeof rrNumZeroTwin === 'function' && rrNumZeroTwin(r.itemNum, lc); };
+  var twin = function (r) { return r && ((typeof rrNumZeroTwin === 'function' && rrNumZeroTwin(r.itemNum, lc)) || (typeof rrNumLooseTwin === 'function' && rrNumLooseTwin(r, lc))); };   // dashmaker: + the dash twin (the row itself: the ending rule is per catalog)
   return !!((state.masterData || []).some(twin) || (_all && _all.some && _all.some(twin)));
 }
 // ── 2026-11-23 (foundas) — WHICH FILTER HIDES THE NUMBER ([stated] Brad 16:46 /
@@ -1417,6 +1457,7 @@ function _wizHiddenBy(num) {
   };
   collect(function (r) { return rrNumSameAsTyped(r.itemNum, lc); });
   if (!out.rows.length) collect(function (r) { return typeof rrNumZeroTwin === 'function' && rrNumZeroTwin(r.itemNum, lc); });
+  if (!out.rows.length) collect(function (r) { return typeof rrNumLooseTwin === 'function' && rrNumLooseTwin(r, lc); });   // dashmaker
   if (!out.rows.length) return out;
   var f = (typeof _wizAddFilters === 'function') ? _wizAddFilters() : {};
   var on = _WIZ_FILTER_KEYS.filter(function (k) { return f[k]; });
@@ -1468,6 +1509,10 @@ function _wizShowFoundAs(key, value) {
   if (!sel || !opt) return false;   // never wipes the other filters (review finding 3)
   sel.value = opt.value;
   sel.dispatchEvent(new Event('change', { bubbles: true }));
+  // 2026-11-24 (foundas2; hand-test T-2026-11-23-03): the Type and Road
+  // drop-downs sit hidden under a type-to-filter box (road-typeahead.js) —
+  // the box on screen must say the new value too, not "All".
+  if (window.RoadTypeahead && typeof RoadTypeahead.refresh === 'function') RoadTypeahead.refresh(sel);
   return true;
 }
 // Next pressed on the item-number step with nothing inside the filters: when
@@ -1723,8 +1768,47 @@ function _wizResolveAddRow(numText, opts) {
       return rrNumZeroTwin(i.itemNum, numLC) && fits(i);
     });
   }
+  // 2026-11-24 (dashmaker): then its dash twin (K-675402 → K675402, 6502-2 →
+  // Atlas 6502) — taken only when every such row is ONE maker's: typed 6502-2
+  // with no maker picked reaches Lionel's 6502 AND Atlas's, and a number alone
+  // never picks between makers (the list below the box still shows both).
+  // … and never while the FULL catalog holds the number exactly as typed IN A
+  // ROW THE FILTERS ACCEPT (a row of an era not loaded here). Second review:
+  // an exact row of ANOTHER maker (Lionel 6464-1 while Atlas is picked) must
+  // not block — the list below the box shows Atlas 6464, so Next must too.
+  // One CATALOG, not one maker word: Atlas O 4001 and Atlas HO 4001 are two.
+  // Cheap gate first — the full-catalog scan runs only when a twin was found.
+  if (!rows.length && typeof rrNumLooseTwin === 'function'
+      && (typeof rrNumMayHaveLooseTwin !== 'function' || rrNumMayHaveLooseTwin(numLC))) {
+    var _lt = ((typeof state !== 'undefined' && state.masterData) || []).filter(function (i) {
+      return rrNumLooseTwin(i, numLC) && fits(i);
+    });
+    var _ltMk = {};
+    _lt.forEach(function (i) {
+      _ltMk[((typeof rrRowMakerWord === 'function') ? String(rrRowMakerWord(i)).toLowerCase() : '') + '|' + String(i._era || '')] = 1;
+    });
+    if (_lt.length && Object.keys(_ltMk).length === 1) {
+      var _all = (typeof _allErasSearchCache !== 'undefined') ? _allErasSearchCache : null;
+      var _exactElsewhere = !!(_all && _all.some && _all.some(function (i) {
+        return i && rrNumSameAsTyped(i.itemNum, numLC) && fits(i);
+      }));
+      if (!_exactElsewhere) rows = _lt;
+    }
+  }
   var cur = (typeof wizard !== 'undefined' && wizard) ? wizard.matchedItem : null;
-  if (cur && rrNumSameAsTyped(cur.itemNum, numLC) && fits(cur)
+  // dashmaker: the row the add holds also answers the road-number ending typed
+  // over it (tapped Atlas 6502 with 6502-2 in the box) — unless an exact row
+  // for the number is in hand, which always wins.
+  // Third review: a row only HELD (from an earlier pause in typing — "6464",
+  // then "-1") never gets past the guards above; only a row the collector
+  // TAPPED may stand when they leave no row (and then never beside an exact
+  // row the filters accept anywhere in the catalog).
+  var _tappedTwin = function () {
+    if (!cur || d._tappedRow !== cur) return false;
+    var _all = (typeof _allErasSearchCache !== 'undefined') ? _allErasSearchCache : null;
+    return !(_all && _all.some && _all.some(function (i) { return i && rrNumSameAsTyped(i.itemNum, numLC) && fits(i); }));
+  };
+  if (cur && (rrNumSameAsTyped(cur.itemNum, numLC) || (typeof rrNumLooseTwin === 'function' && rrNumLooseTwin(cur, numLC) && (rows.indexOf(cur) >= 0 || (!rows.length && _tappedTwin())))) && fits(cur)
       && (!prefType || String(cur.itemType || '').trim() === prefType)) return cur;
   if (!rows.length) return null;
   if (prefType) {
@@ -1745,6 +1829,12 @@ function lookupItem(num) {
   // Bug 9 (Session 154): match on the item-number token, not the full
   // descriptive string the user may have typed.
   const _searchNum = (typeof _extractSearchItemNum === 'function') ? _extractSearchItemNum(num) : num;
+  // dashmaker (fourth review): a tap counts only while the box still holds that
+  // row's number or a twin of it — typing another number lets go of it.
+  if (wizard.data && wizard.data._tappedRow) {
+    var _tr = wizard.data._tappedRow, _tn = String(_searchNum || '').trim().toLowerCase();
+    if (!(rrNumSameAsTyped(_tr.itemNum, _tn) || (typeof rrNumLooseTwin === 'function' && rrNumLooseTwin(_tr, _tn)))) delete wizard.data._tappedRow;
+  }
   // 2026-11-01: THE one row picker for this number (_wizResolveAddRow above).
   let match = _wizResolveAddRow(_searchNum);
   wizard.matchedItem = match || null;

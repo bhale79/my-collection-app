@@ -1915,6 +1915,76 @@ function rrNumZeroTwin(a, b) {
 }
 if (typeof window !== 'undefined') { window.rrNumZeroKey = rrNumZeroKey; window.rrNumZeroTwin = rrNumZeroTwin; }
 
+// ── 2026-11-24 (dashmaker) — THE spelling-twin rule for a dash ───────────────
+// [stated] Brad 11:59 / 12:04 / 12:15 CT "yes" (PLAN_2026-11-24_DASH_AND_INDUSTRIAL_RAIL).
+// Customer Bob typed numbers the way his boxes print them and found nothing:
+// K-675402 (the catalog writes K675402), IDM-1007 (IDM1007), Atlas 6502-2
+// (Atlas's own archive and the catalog write 6502 — the -2 is the road number).
+// A dash is sometimes the WHOLE difference (Athearn RND-1166 ore car vs RND1166
+// boxcar; Lionel 6464-1 is its own car), so — exactly like the leading-zero
+// rule above — a dash twin is a FALLBACK, never a match: every caller asks it
+// ONLY when nothing answers to the number exactly as written. The rule lives
+// here and nowhere else — dash_twin_tests scans for a second copy.
+//   • rrNumDashKey(n)     — ONE dash between the LEADING letters and the first
+//                           digit taken off (K-675402 → K675402, IDM-1007 →
+//                           IDM1007); every other dash stays. Capitals kept.
+//   • rrNumSuffixBase(n)  — a number ending in "-" + one or two digits, with
+//                           that ending taken off (6502-2 → 6502); '' when
+//                           there is none (2343-P, 20-66238, K652-1392 → '')
+//                           or what is left is under 3 characters (6-14, 30-1
+//                           are half-typed numbers, never "6" or "30").
+//   • rrNumLooseTwin(row, typed) — `row` is the catalog ROW (or just its
+//                           number): its number is the TYPED one apart from
+//                           the leading-letters dash (either way), or — ONLY
+//                           for a row of a catalog that uses road-number
+//                           endings (RR_ROAD_NUMBER_ENDING_ERAS, config.js:
+//                           Atlas) — apart from the typed ending, one way only
+//                           (6502 never reaches 6502-2). A bare number with no
+//                           row never takes the ending rule. Never true when
+//                           the two are the same as written.
+//   Review 2026-11-24 (fresh agent): a dash ending is usually a DIFFERENT item
+//   (Lionel 175-50, 6456-50; Lionel Parts 1001-12 under the 1001 Scout loco);
+//   the ending rule for every catalog had them answer as their base.
+function rrNumDashKey(n) {
+  return String(n == null ? '' : n).trim().replace(/^([A-Za-z]+)-(?=\d)/, '$1');
+}
+function rrNumSuffixBase(n) {
+  var m = String(n == null ? '' : n).trim().match(/^(.*\d)-\d{1,2}$/);
+  return (m && m[1].length >= 3) ? m[1] : '';
+}
+function rrNumLooseTwin(row, typed) {
+  var isRow = !!row && typeof row === 'object';
+  var x = String(isRow ? (row.itemNum == null ? '' : row.itemNum) : (row == null ? '' : row)).trim().toLowerCase();
+  var y = String(typed == null ? '' : typed).trim().toLowerCase();
+  if (!x || !y || x === y) return false;
+  if (/^[a-z]/.test(x) && /^[a-z]/.test(y) && rrNumDashKey(x) === rrNumDashKey(y)) return true;
+  if (!isRow) return false;
+  var eras = (typeof RR_ROAD_NUMBER_ENDING_ERAS !== 'undefined' && Array.isArray(RR_ROAD_NUMBER_ENDING_ERAS)) ? RR_ROAD_NUMBER_ENDING_ERAS : [];
+  if (eras.indexOf(String(row._era || '')) < 0) return false;
+  var b = rrNumSuffixBase(y);
+  return !!b && (x === b.toLowerCase() || (/^[a-z]/.test(x) && rrNumDashKey(x) === rrNumDashKey(b)));
+}
+// "Could this typed number have a dash twin at all?" — asked ONCE per search,
+// so a plain 6502 never pays the per-row check (review finding 5).
+function rrNumMayHaveLooseTwin(typed) {
+  var y = String(typed == null ? '' : typed).trim();
+  return /^[A-Za-z]+-?\d/.test(y) || !!rrNumSuffixBase(y);
+}
+// The number an add SAVES once it holds a catalog row. [stated] Brad 2026-11-24
+// 13:38 CT "should show the -2": a road-number ending the collector typed
+// (Atlas 6502-2, found as the catalog's 6502) is HIS car's number and stays —
+// two road numbers of one car stay told apart; the row link (Row ID) still
+// points at 6502. Every other form takes the catalog's spelling as before
+// (K-675402 → K675402, 6-31705 → 31705, 1076L → 1076-L).
+function rrNumSaveAs(row, typed) {
+  var rn = (row && typeof row === 'object') ? String(row.itemNum == null ? '' : row.itemNum) : '';
+  var y = String(typed == null ? '' : typed).trim();
+  if (!rn) return y;
+  if (!y || !rrNumLooseTwin(row, y)) return rn;
+  return rrNumSuffixBase(y) ? y : rn;   // the ending kept; a letters' dash (K-675402) has no ending, so takes the catalog's
+}
+if (typeof window !== 'undefined') { window.rrNumDashKey = rrNumDashKey; window.rrNumSuffixBase = rrNumSuffixBase; window.rrNumLooseTwin = rrNumLooseTwin; window.rrNumMayHaveLooseTwin = rrNumMayHaveLooseTwin; window.rrNumSaveAs = rrNumSaveAs; }
+
 // ── v0.9.1901 — THE catalog number order (Brad: "i should be seeing 004
 // first, then 4, before i see 1008") ───────────────────────────────────────
 // The Master Catalog sorted by number ONLY in Era All + Maker Any; every
@@ -3221,6 +3291,84 @@ function rrRowAlsoSoldBy(row, want) {
   });
 }
 if (typeof window !== 'undefined') { window.rrAlsoSoldAsNames = rrAlsoSoldAsNames; window.rrRowAlsoSoldBy = rrRowAlsoSoldBy; }
+// ── 2026-11-24 (dashmaker) — THE Add screen's maker list ─────────────────────
+// [stated] Brad 11:59 / 12:04 CT "yes" (PLAN_2026-11-24_DASH_AND_INDUSTRIAL_RAIL).
+// Customer Bob: "Not even the manufacturer!" — the list held ONE maker per tab
+// (ERAS[..].manufacturer), and "Other O Brands" names no maker of its own on
+// purpose: its rows carry their own Manufacturer cell (Industrial Rail, KMT,
+// Crown Model Products, RGS …), so none of them could ever be picked, although
+// the maker filter (_wizRowFitsFilters → rrRowMakerWord) already understands a
+// row's own maker. The list is now every maker the catalog HOLDS: the tabs'
+// makers, then each row's own Manufacturer cell, then its "Also Sold As" names
+// (a name a listed maker already covers — "Lionel Corporation" under Lionel —
+// is not repeated; rrRowAlsoSoldBy matches it from the shorter name). Read from
+// the loaded catalog and the full-catalog copy when it exists; built again only
+// when either changes size. Names keep the catalog's own spelling.
+var _rrMakerChoicesMemo = null;
+function rrMakerChoices() {
+  var lists = [];
+  try { if (typeof state !== 'undefined' && Array.isArray(state.masterData)) lists.push(state.masterData); } catch (e) {}
+  try { if (typeof _allErasSearchCache !== 'undefined' && Array.isArray(_allErasSearchCache)) lists.push(_allErasSearchCache); } catch (e) {}
+  var sig = lists.map(function (l) { return l.length; }).join('|') + '|' + ((typeof ERAS !== 'undefined') ? Object.keys(ERAS).length : 0);
+  if (_rrMakerChoicesMemo && _rrMakerChoicesMemo.sig === sig) return _rrMakerChoicesMemo.list.slice();
+  var seen = {}, out = [];
+  var put = function (name) {
+    var n = String(name == null ? '' : name).trim(), k = _rrMakerWord(n);
+    if (!k || seen[k]) return;
+    seen[k] = 1; out.push(n);
+  };
+  if (typeof ERAS !== 'undefined') Object.keys(ERAS).forEach(function (k) { put(ERAS[k] && ERAS[k].manufacturer); });
+  var alsoNames = [];
+  lists.forEach(function (list) {
+    for (var i = 0; i < list.length; i++) {
+      var r = list[i];
+      if (!r) continue;
+      if (r.manufacturer) put(r.manufacturer);
+      if (r.alsoSoldAs) rrAlsoSoldAsNames(r).forEach(function (n) { alsoNames.push(n); });
+    }
+  });
+  alsoNames.forEach(function (n) {
+    var k = _rrMakerWord(n);
+    if (!k || Object.keys(seen).some(function (s) { return k.indexOf(s) === 0; })) return;   // already covered by a listed maker's name
+    put(n);
+  });
+  out.sort(function (a, b) { return a.toLowerCase() < b.toLowerCase() ? -1 : (a.toLowerCase() > b.toLowerCase() ? 1 : 0); });
+  _rrMakerChoicesMemo = { sig: sig, list: out };
+  return out.slice();
+}
+if (typeof window !== 'undefined') window.rrMakerChoices = rrMakerChoices;
+// 2026-11-24 (dashmaker, third review): a maker no TAB is made by — named only
+// in its rows' own Manufacturer / Also Sold As cells (Industrial Rail, KMT on
+// Other O Brands). Returns the catalogs (era keys) whose rows name it, or null
+// when a tab IS made by that maker (the tab rule then answers, as always).
+// Read from the loaded rows (state.masterData + the full-catalog copy).
+// opts.shown: only state.masterData rows on catalogs What I Collect keeps on
+// the shelf — the Master Catalog's own list.
+function rrErasOfRowMaker(mfr, opts) {
+  var w = _rrMakerWord(mfr);
+  if (!w) return null;
+  try {
+    if (typeof ERAS !== 'undefined') {
+      var tabMade = Object.keys(ERAS).some(function (k) { return ERAS[k] && ERAS[k].manufacturer && _rrMakerWord(ERAS[k].manufacturer) === w; });
+      if (tabMade) return null;
+    }
+  } catch (e) {}
+  var lists = [];
+  try { if (typeof state !== 'undefined' && Array.isArray(state.masterData)) lists.push(state.masterData); } catch (e) {}
+  if (!(opts && opts.shown)) { try { if (typeof _allErasSearchCache !== 'undefined' && Array.isArray(_allErasSearchCache)) lists.push(_allErasSearchCache); } catch (e) {} }
+  var off = (opts && opts.shown && typeof _offShelfEras === 'function') ? _offShelfEras() : null;
+  var out = [];
+  lists.forEach(function (list) {
+    for (var i = 0; i < list.length; i++) {
+      var r = list[i];
+      if (!r || !r._era || out.indexOf(r._era) >= 0) continue;
+      if (off && off.has && off.has(r._era)) continue;
+      if ((r.manufacturer && _rrMakerWord(r.manufacturer) === w) || (r.alsoSoldAs && rrRowAlsoSoldBy(r, mfr))) out.push(r._era);
+    }
+  });
+  return out;
+}
+if (typeof window !== 'undefined') window.rrErasOfRowMaker = rrErasOfRowMaker;
 // Brand LABEL for an item, derived from the master catalog (Lionel/MTH/Atlas/...).
 // Single source of truth for 'what brand is this item' on every SAVE path.
 // Returns '' when the item isn't in the catalog (manual entry) so callers fall back.

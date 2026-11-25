@@ -21,6 +21,8 @@
 //   B  a Boxes-tab row of the same number does not spoil it (6462)
 //   O  Show it with a value the drop-down lacks changes nothing, wipes nothing
 //   (W, M, B, O, G3 added after the independent review of 2026-11-23)
+//   F6b (2026-11-24, foundas2): after Show it the Type box ON SCREEN (the type-to-filter
+//      box over the hidden drop-down) says Gondola — found by hand-test T-2026-11-23-03
 //   H  spread over several makers / eras (Lionel · Postwar · 1511): NO found-as
 //      line, the plain "elsewhere" line as before, Next goes on as before
 //   N  a number nowhere: no found-as line, Next goes on as before
@@ -138,6 +140,8 @@ async function scenario(pg) {
     if (show) show.click();
     await sleep(400);
     R.fTypeNow = (document.getElementById('wiz-search-type') || {}).value;
+    { const ts = document.getElementById('wiz-search-type'); const box = ts && ts.parentNode && ts.parentNode.querySelector('.road-ty-input');
+      R.fTypeBox = box ? box.value : '(no type-to-filter box)'; }
     R.fMfrNow = (document.getElementById('wiz-search-mfr') || {}).value;
     R.fRowsNow = rows().map(r => (r.querySelector('span') || {}).textContent).join(',');
     R.fNfGone = !nf();
@@ -232,6 +236,7 @@ async function scenario(pg) {
       ok('F4 Next does NOT slip into a hand entry — the item-number step stays', R.fStepAfterNext === 'itemNumGrouping' && !R.fManualAfterNext, R.fStepAfterNext);
       ok('F5 …and a toast says where it is', /30-72264 is in the Master Catalog as MTH Gondola/.test(R.fToast), R.fToast);
       ok('F6 Show it: Type = Gondola, Maker stays MTH, the row is listed, the box is gone', R.fTypeNow === 'Gondola' && R.fMfrNow === 'MTH' && /30-72264/.test(R.fRowsNow) && R.fNfGone, JSON.stringify([R.fTypeNow, R.fMfrNow, R.fRowsNow, R.fNfGone]));
+      ok('F6b …and the Type box on screen says Gondola, not "All" (hand-test T-2026-11-23-03)', R.fTypeBox === 'Gondola', R.fTypeBox);
       ok('F7 the tapped row = the later step\'s = the saved Row ID (MTH72264)', R.fPicked === 'MTH72264' && R.fStep2 !== 'itemNumGrouping' && R.fRow2 === 'MTH72264' && R.fSave === 'MTH72264|30-72264', JSON.stringify([R.fPicked, R.fStep2, R.fRow2, R.fSave]));
       ok('G1 the era alone hides it: "2999 is in the Master Catalog as Lionel Prewar Boxcar"', R.gFound === '2999 is in the Master Catalog as Lionel Prewar Boxcar', R.gFound);
       ok('G2 Show it sets Era = Pre-War and the row shows', R.gEra === 'prewar' && /2999/.test(R.gRows), JSON.stringify([R.gEra, R.gRows]));
@@ -252,10 +257,11 @@ async function scenario(pg) {
   const plants = [
     ['no fix is ever offered', { 'wizard-suggestions.js': plant(sugg, 'if (opt) out.fix = { key: fixKey, value: opt.value };', 'if (false) out.fix = null;', 'nofix') }, (R) => R.fFound === '' ],
     ['Next slips into a hand entry again', { 'wizard.js': plant(wiz, "if (typeof _wizFoundAsStop === 'function' && _wizFoundAsStop(_setTok || _numPart)) return;", '', 'nostop') }, (R) => R.fStepAfterNext !== 'itemNumGrouping' ],
-    ['Show it sets the value but skips the drop-down\'s own change handler', { 'wizard-suggestions.js': plant(sugg, "  sel.dispatchEvent(new Event('change', { bubbles: true }));\n  return true;", '  return true;', 'nochange') }, (R) => !(R.fNfGone && /30-72264/.test(R.fRowsNow)) ],
+    ['Show it sets the value but skips the drop-down\'s own change handler', { 'wizard-suggestions.js': plant(sugg, "  sel.dispatchEvent(new Event('change', { bubbles: true }));\n  // 2026-11-24 (foundas2", '  // 2026-11-24 (foundas2', 'nochange') }, (R) => !(R.fNfGone && /30-72264/.test(R.fRowsNow)) ],
     ['the Maker may be named as all that hides it', { ['con' + 'fig.js']: plant(cfg, "foundAsKeys:     ['type', 'road', 'period']", "foundAsKeys:     ['type', 'road', 'period', 'mfr']", 'mfrkey') }, (R) => R.mFound !== '' ],
     ['Next is blocked on the Want list too', { ['con' + 'fig.js']: plant(cfg, "foundAsStopTabs: ['collection']", "foundAsStopTabs: ['collection', 'want']", 'wanttab') }, (R) => R.wStep === 'itemNumGrouping' ],
     ['box rows are counted', { 'wizard-suggestions.js': plant(sugg, "if (isBox !== wantBoxes) return;", "", 'boxrows') }, (R) => R.bFound === '' ],
+    ['Show it leaves the Type box on screen saying "All"', { 'wizard-suggestions.js': plant(sugg, "  if (window.RoadTypeahead && typeof RoadTypeahead.refresh === 'function') RoadTypeahead.refresh(sel);\n", '', 'tybox') }, (R) => R.fTypeBox !== 'Gondola' ],
     ['the era alone blocks Next', { ['con' + 'fig.js']: plant(cfg, "foundAsStopKeys: ['type', 'road']", "foundAsStopKeys: ['type', 'road', 'period']", 'erastop') }, (R) => R.g3Step === 'itemNumGrouping' ],
   ];
   for (const [label, served, red] of plants) {

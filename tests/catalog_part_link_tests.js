@@ -54,6 +54,7 @@ const SRC = [
   'function _plainWords(s)',
   'function _partPhrase(desc)',
   'function _dealerPick()',
+  'function _builtInDealer()',   // 2026-11-24 (trainzfirst): read by _dealerPick + _favPanelHtml; no RR_BUILTIN_STORE in this room → the pre-2026-11-24 list (trainzfirst_tests.js holds the built-in store)
   'function _catalogPartLinkHtml(r, item)',
   'function _partLinkA(href, word)',
   'function _favRow(prefKey, selectId, label)',

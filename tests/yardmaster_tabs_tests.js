@@ -97,15 +97,28 @@ ok('number column: a tab with none of the expected headers → -1 (the commit st
 
 const dd = { num: '1409W', desc: 'Lionel 1409W set — 1946', years: '1946', gauge: 'O27', type: 'Set', road: '', notes: 'submitted by a member', source: 'Community queue' };
 const setRow = SETS_HEADS.map(h => lifted.cell(h, dd, '2026-09-15', SHAPES.special.sets));
-ok('a Sets row: Set Number ← number, Set Name ← description, Year, Gauge', setRow[0] === '1409W' && setRow[1] === 'Lionel 1409W set — 1946' && setRow[2] === '1946' && setRow[3] === 'O27');
+ok('a Sets row: Set Number ← number, Set Name ← description, Year, Gauge', setRow[0] === "'1409W" && setRow[1] === 'Lionel 1409W set — 1946' && setRow[2] === '1946' && setRow[3] === 'O27');
 ok('…Notes = the notes + the approval trail (no Source column on that tab)', /^submitted by a member — Community queue — approved 2026-09-15 \(Yardmaster cockpit\)$/.test(setRow[11]), setRow[11]);
 ok('…every other Sets column stays blank (engine, cars, price never guessed)', setRow.slice(4, 11).every(v => v === ''));
 const catRow = CAT_HEADS.map(h => lifted.cell(h, { num: 'C1957', desc: '1957 Consumer Catalog', years: '1957', type: 'Consumer', notes: '', source: 'Community queue' }, '2026-09-15', SHAPES.special.catalogs));
-ok('a PW Catalogs row: Catalog ID, Year, Type, Title filled; Notes = trail alone when there are no notes', catRow[0] === 'C1957' && catRow[1] === '1957' && catRow[2] === 'Consumer' && catRow[3] === '1957 Consumer Catalog' && catRow[4] === '' && catRow[5] === 'Community queue — approved 2026-09-15 (Yardmaster cockpit)');
+ok('a PW Catalogs row: Catalog ID, Year, Type, Title filled; Notes = trail alone when there are no notes', catRow[0] === "'C1957" && catRow[1] === '1957' && catRow[2] === 'Consumer' && catRow[3] === '1957 Consumer Catalog' && catRow[4] === '' && catRow[5] === 'Community queue — approved 2026-09-15 (Yardmaster cockpit)');
 const mpcRow = MPC_HEADS.map(h => lifted.cell(h, { num: '1985', desc: '1985 Traditional Catalog', years: '1985', notes: 'n', source: 'Community queue' }, '2026-09-15', SHAPES.special.catalogs));
 ok('an MPC-Modern Catalogs row: Year, Catalog Name ← description, Description ← notes + trail', mpcRow[0] === '1985' && mpcRow[1] === '1985 Traditional Catalog' && /^n — Community queue — approved/.test(mpcRow[2]));
 const itemRow = ITEM_HEADS.map(h => lifted.cell(h, dd, '2026-09-15', null));
-ok('an items-layout row is unchanged: Item Number, Item Type, Road Name, Description, Gauge, Year Produced, Source trail', itemRow[0] === '1409W' && itemRow[1] === 'Set' && itemRow[3] === 'Lionel 1409W set — 1946' && itemRow[4] === 'O27' && itemRow[5] === '1946' && itemRow[6] === 'Community queue — approved 2026-09-15 (Yardmaster cockpit)');
+// datefix (2026-11-24; [stated] Brad 16:43 CT "fix the date thing now"): Google read Atlas 6331-1 as a date
+// when the Office appended it (the app saw 1618391). The number cell always carries Sheets' text mark.
+const dfRow = ITEM_HEADS.map(h => lifted.cell(h, Object.assign({}, dd, { num: '6331-1' }), '2026-11-24', null));
+const dfMarked = ITEM_HEADS.map(h => lifted.cell(h, Object.assign({}, dd, { num: "'6331-1" }), '2026-11-24', null));
+ok('datefix: an item number goes as TEXT (6331-1 → \'6331-1); one already marked is not marked twice; a blank stays blank', dfRow[0] === "'6331-1" && dfMarked[0] === "'6331-1" && ITEM_HEADS.map(h => lifted.cell(h, Object.assign({}, dd, { num: '' }), '2026-11-24', null))[0] === '', dfRow[0]);
+{ // planted offender: the item-number case without the text mark
+  const ymP = ym.replace("case 'itemNum': return numText(dd.num);", "case 'itemNum': return dd.num;");
+  if (ymP === ym) throw new Error('datefix plant target not found');
+  const liftedP = new Function('REAL_ERA_IDS', 'ERA_TABS', 'MASTER_TAB_SHAPES', 'MASTER_COL_SPEC', '_normHdr',
+    grab(ymP, 'function _ymHeaderField(') + '\n' + grab(ymP, 'function _ymMasterCell(') + '\nreturn { cell: _ymMasterCell };')(FIX.REAL_ERA_IDS, FIX.ERA_TABS, SHAPES, MCS.MASTER_COL_SPEC, MCS._normHdr);
+  const pr = ITEM_HEADS.map(h => liftedP.cell(h, Object.assign({}, dd, { num: '6331-1' }), '2026-11-24', null));
+  ok('datefix PLANTED: the item-number case without the mark → 6331-1 goes bare (what the check above forbids — caught)', pr[0] === '6331-1', pr[0]);
+}
+ok('an items-layout row is unchanged: Item Number, Item Type, Road Name, Description, Gauge, Year Produced, Source trail', itemRow[0] === "'1409W" && itemRow[1] === 'Set' && itemRow[3] === 'Lionel 1409W set — 1946' && itemRow[4] === 'O27' && itemRow[5] === '1946' && itemRow[6] === 'Community queue — approved 2026-09-15 (Yardmaster cockpit)');
 
 section('Source pins — the dropdown, the commit, the maker label');
 const commit = grab(ym, 'window._ymCommit = async function ()');

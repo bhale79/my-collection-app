@@ -211,7 +211,9 @@ window._hubSnapshot = function () {
       // v0.9.1987: the two Suggestions rows. Grading used to be slipped in by
       // help-guides.js after the hub drew; openHelpHub draws it now.
       { label: 'Photographing a large collection', fn: '_rrGuidePhotos' },
-      { label: 'Condition grading (the C-scale)',  fn: 'rrgOpen' }
+      { label: 'Condition grading (the C-scale)',  fn: 'rrgOpen' },
+      // 2026-11-24 (helpimport): the spreadsheet import's door in Help.
+      { label: 'Bring in your spreadsheet',         fn: 'rrImportOpen' }
     ];
     for (const t of NONGUIDE) {
       const r = await page.evaluate(async (t) => {
@@ -231,6 +233,30 @@ window._hubSnapshot = function () {
       ok('…and its row is pressable, not covered', r.press && !r.press.covered, JSON.stringify(r));
       ok('…and pressing it visibly does something', r.changed, JSON.stringify(r));
     }
+
+    // 2026-11-24 (helpimport): "does something" is not enough for this row —
+    // it must be the Import screen itself that opens, and it is closed again
+    // here so nothing below runs under it.
+    const imp = await page.evaluate(async () => {
+      window._hubClear();
+      if (document.getElementById('imp-overlay') && typeof rrImportClose === 'function') rrImportClose();
+      openHelpHub();
+      await new Promise(res => setTimeout(res, 500));
+      await window._hubPress('Bring in your spreadsheet');
+      const ov = document.getElementById('imp-overlay');
+      const t = document.getElementById('imp-title');
+      const out = { open: !!ov, title: t ? t.textContent.trim() : null,
+                    hubClosed: !document.getElementById('help-hub-modal') };
+      if (ov && typeof rrImportClose === 'function') rrImportClose();
+      await new Promise(res => setTimeout(res, 300));
+      out.closedAfter = !document.getElementById('imp-overlay');
+      window._hubClear();
+      return out;
+    });
+    ok('BRAD\'S ASK: "Bring in your spreadsheet" opens the Import a Spreadsheet screen',
+       imp.open && imp.title === 'Import a Spreadsheet', JSON.stringify(imp));
+    ok('…and closes the Help Centre on the way, so Import is not hidden under it',
+       imp.hubClosed, JSON.stringify(imp));
 
     // ── 5. THE HELP CENTRE CLOSES, BOTH WAYS ────────────────────────────────
     const closes = await page.evaluate(async () => {

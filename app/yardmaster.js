@@ -1411,17 +1411,25 @@
     }).join('\r\n');
   }
   function _ymMasterCell(h, dd, today, shape) {
+    // 2026-11-24 (datefix; [stated] Brad 16:43 CT "fix the date thing now"):
+    // the item number goes into the master as TEXT, whatever its shape. Shape
+    // rules (rrSheetCell) cannot tell Lionel part 2023-10-11 from a date, and
+    // Google read Atlas 6331-1 as a date (the app saw 1618391; 30 rows from the
+    // 2026-10-21 commit too). Sheets' text mark, never read back; a value
+    // already marked is left alone. My Collection does the same (buildPersonalRow).
+    var numText = function (n) { var v = (n == null) ? '' : String(n); return (!v || v.charAt(0) === "'") ? v : "'" + v; };
     var trail = (dd.source || 'Wayback sweep') + ' \u2014 approved ' + today + ' (Yardmaster cockpit)';
     if (shape) {   // v0.9.1754: a Sets / Catalogs tab — its own headers, mapped by MASTER_TAB_SHAPES (config.js)
       var f = shape.map[String(h)];
       if (!f) return '';
       if (f === 'notesWithTrail') return (dd.notes ? String(dd.notes) + ' \u2014 ' : '') + trail;
+      if (f === 'num') return numText(dd.num);   // datefix: a set / catalog number is text too
       return dd[f] || '';
     }
     // v0.9.2014: the header is read by MEANING (_ymHeaderField → MASTER_COL_SPEC),
     // so 'Item #' / 'Item Description' / 'Variation #' fill like their twins.
     switch (_ymHeaderField(h)) {
-      case 'itemNum': return dd.num;
+      case 'itemNum': return numText(dd.num);   // datefix: always text (above)
       case 'itemType': return dd.type;
       case 'roadName': return dd.road;
       case 'description': return dd.desc;

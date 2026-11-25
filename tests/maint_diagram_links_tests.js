@@ -101,8 +101,9 @@ const pop = build(maint, GP7, { where: 'pop' });
 ok('where = \'pop\': the same list, no LCCA note anywhere', !/maint-lcca-note/.test(pop) && /trainz\.com\/pages\/parts-diagram/.test(pop));
 const phone = build(maint, GP7, { phone: true });
 ok('on a phone: no LCCA button (v1846), Trainz + Google still there', !/_maintLccaGo\(/.test(phone) && /trainz\.com\/pages\/parts-diagram/.test(phone) && /Google the parts diagram/.test(phone));
-// v0.9.1896: our service-manual scans come first, on phones too, postwar only
-ok('postwar: our service-manual slot comes before the Trainz button', desk.indexOf('<!--SM-SLOT-->') >= 0 && desk.indexOf('<!--SM-SLOT-->') < desk.indexOf('trainz.com/pages/parts-diagram'));
+// v0.9.1896: our service-manual scans, on phones too, postwar only — since 2026-11-24
+// (trainzfirst, [stated] Brad "Yes, Trainz first") right AFTER the Trainz button
+ok('postwar: the Trainz button comes before our service-manual slot', desk.indexOf('<!--SM-SLOT-->') >= 0 && desk.indexOf('trainz.com/pages/parts-diagram') >= 0 && desk.indexOf('trainz.com/pages/parts-diagram') < desk.indexOf('<!--SM-SLOT-->'));
 ok('…and stays on a phone (Drive opens anywhere)', phone.indexOf('<!--SM-SLOT-->') >= 0);
 ok('prewar (same LCCA route) gets no service-manual slot', build(maint, GP7, { era: 'prewar' }).indexOf('<!--SM-SLOT-->') < 0);
 const noTz = build(maint, GP7, { tz: null });
@@ -120,8 +121,9 @@ section('C2 · 2026-11-01: the Trainz diagram comes FIRST ([stated] Brad "add tr
     modern: at(build(src, { itemNum: '18860' }, { route: 'lionel', era: 'mpc' })), mth: at(build(src, { itemNum: '30-2101-1' }, { route: 'mth', era: 'mth_o', maker: 'MTH' })),
   });
   const rule = (o) => ({
-    pwDesk: o.pwDesk.sm >= 0 && o.pwDesk.sm < o.pwDesk.tz && o.pwDesk.tz < o.pwDesk.google && o.pwDesk.lcca < 0,   // 2026-11-07: no LCCA row
-    pwPhone: o.pwPhone.sm >= 0 && o.pwPhone.sm < o.pwPhone.tz && o.pwPhone.tz < o.pwPhone.google && o.pwPhone.lcca < 0,
+    // 2026-11-24 (trainzfirst): Trainz FIRST on a postwar item too, then our sheets, then Google
+    pwDesk: o.pwDesk.tz >= 0 && o.pwDesk.tz < o.pwDesk.sm && o.pwDesk.sm < o.pwDesk.google && o.pwDesk.lcca < 0,   // 2026-11-07: no LCCA row
+    pwPhone: o.pwPhone.tz >= 0 && o.pwPhone.tz < o.pwPhone.sm && o.pwPhone.sm < o.pwPhone.google && o.pwPhone.lcca < 0,
     prewar: o.prewar.sm < 0 && o.prewar.tz >= 0 && o.prewar.tz < o.prewar.google && o.prewar.lcca < 0,
     modern: o.modern.tz >= 0 && o.modern.tz < o.modern.lionel && o.modern.lionel < o.modern.google,
     mth: o.mth.tz >= 0 && o.mth.tz < o.mth.mth && o.mth.mth < o.mth.google,
@@ -129,20 +131,20 @@ section('C2 · 2026-11-01: the Trainz diagram comes FIRST ([stated] Brad "add tr
   const o = order(maint), r = rule(o);
   ok('C2a a modern Lionel item: Trainz first, then Lionel Support, then Google', r.modern, JSON.stringify(o.modern));
   ok('C2b another maker (MTH): Trainz first, then the maker\'s own row', r.mth, JSON.stringify(o.mth));
-  ok('C2c a Lionel POSTWAR item: the service manual sheets FIRST (Brad\'s 2026-10-08 standard), Trainz right after, then Google (no LCCA since 2026-11-07)', r.pwDesk, JSON.stringify(o.pwDesk));
+  ok('C2c a Lionel POSTWAR item: Trainz FIRST ([stated] Brad 2026-11-24 "Yes, Trainz first"), our service manual sheets right after, then Google (no LCCA since 2026-11-07)', r.pwDesk, JSON.stringify(o.pwDesk));
   ok('C2d …the same on a phone (no LCCA button there)', r.pwPhone, JSON.stringify(o.pwPhone));
   ok('C2e a prewar item (no service manual sheets): Trainz first, then Google', r.prewar, JSON.stringify(o.prewar));
   ok('C2f the Trainz buttons are drawn ONCE per list', (build(maint, { itemNum: '18860' }, { route: 'lionel', era: 'mpc' }).match(/trainz\.com\/pages\/parts-diagram/g) || []).length === 1);
   // PLANTED: the old place (after the maker's row, just above Google)
-  const old = maint.replace("    if (route !== 'lcca') h += tzHtml;\n", '').replace('    // (the Trainz buttons moved to the top of this list — see tzHtml above)\n', '    h += tzHtml;\n')
-    .replace("      h += tzHtml;   // 2026-11-01: right after the service manual sheets (a prewar item has none: Trainz first)\n", '');
+  const old = maint.replace("    h += tzHtml;\n    // ── the manufacturer row ──\n", "    // ── the manufacturer row ──\n").replace('    // (the Trainz buttons moved to the top of this list — see tzHtml above)\n', '    h += tzHtml;\n');
   const ro = rule(order(old));
   // (2026-11-07: with no LCCA row a prewar list is Trainz then Google either way, so C2e no longer separates the two)
   ok('C2g PLANTED: Trainz back at the bottom → C2a and C2b fail', old !== maint && !ro.modern && !ro.mth);
-  // PLANTED: Trainz above Brad's own service manual sheets on a postwar item
-  const above = maint.replace("      if (String(eraKey || '').toLowerCase() === 'pw') h += _smSlotHtml(item, where);\n      h += tzHtml;",
-    "      h += tzHtml;\n      if (String(eraKey || '').toLowerCase() === 'pw') h += _smSlotHtml(item, where);");
-  ok('C2h PLANTED: Trainz above the postwar service manual sheets → C2c fails', above !== maint && !rule(order(above)).pwDesk);
+  // PLANTED: the pre-2026-11-24 order — our postwar sheets above Trainz
+  const below = maint.replace("    h += tzHtml;\n    // ── the manufacturer row ──\n", "    if (route !== 'lcca') h += tzHtml;\n    // ── the manufacturer row ──\n")
+    .replace("      if (String(eraKey || '').toLowerCase() === 'pw') h += _smSlotHtml(item, where);   // 2026-11-24: right after the Trainz buttons\n",
+             "      if (String(eraKey || '').toLowerCase() === 'pw') h += _smSlotHtml(item, where);\n      h += tzHtml;\n");
+  ok('C2h PLANTED: our postwar sheets back above Trainz → C2c and C2d fail', below !== maint && !rule(order(below)).pwDesk && !rule(order(below)).pwPhone);
 }
 
 section('D · planted offenders are caught');

@@ -400,7 +400,7 @@
     var _inEraSet = _prefEras(prefer);
     var inEra = function (row) {
       if (!_inEraSet.length) return true;           // genuinely unfiltered — old behaviour
-      return !!(row && _inEraSet.indexOf(row._era) >= 0);
+      return !!(row && _inEraSet.indexOf(row._era) >= 0) && (typeof _pinRowMakerOk !== 'function' || _pinRowMakerOk(row, prefer));   // dashmaker: and a row-cell maker's own rows only
     };
     // ══ v0.9.1886 / v0.9.1887 — THE LETTER STAMPED ON THE CAR, READ AS STAMPED ══
     // Brad's Baby Ruth boxcar is lettered X6014 BUILT BY LIONEL. The token
@@ -1377,6 +1377,17 @@
     if (prefer.eras && prefer.eras.length) return prefer.eras;
     return prefer.era ? [prefer.era] : [];
   }
+  // 2026-11-24 (dashmaker, fourth review): a maker named only in its rows' own
+  // cells (Industrial Rail) shares its catalog (Other O Brands) with other
+  // makers — the era list alone would let KMT's or Crown's row answer for an
+  // Industrial Rail photo. The row must name the maker too (prefer.rowMaker,
+  // set by rrReaderPreferFrom / rrActiveFilter). Asked wherever an era list is.
+  function _pinRowMakerOk(row, prefer) {
+    if (!prefer || !prefer.rowMaker || !row) return true;
+    var n = (typeof _rrMakerWord === 'function') ? _rrMakerWord : function (v) { return String(v || '').toLowerCase().replace(/[^a-z0-9]/g, ''); };   // the ONE maker-name rule (app.js)
+    var w = (typeof rrRowMakerWord === 'function') ? rrRowMakerWord(row) : (row.manufacturer || '');
+    return n(w) === n(prefer.rowMaker) || (typeof rrRowAlsoSoldBy === 'function' && rrRowAlsoSoldBy(row, prefer.rowMaker));
+  }
 
   function _pinQuoteMatch(num, prefer, dbg) {
     var eras = _prefEras(prefer);
@@ -1395,6 +1406,7 @@
       var idx = _quoteIndexFor(eras[i]);
       if (!idx) continue;
       var rows = idx[String(num).trim()];
+      if (rows && prefer && prefer.rowMaker && typeof _pinRowMakerOk === 'function') rows = rows.filter(function (r) { return _pinRowMakerOk(r, prefer); });   // dashmaker
       if (rows && rows.length === 1) {
         // Gate 2: a paper/catalog/drawing row can never be the answer for an
         // ITEM photo (Paper-tagged photos never reach these reads at all).
@@ -1557,6 +1569,7 @@
         var _rt0 = String(row.itemType || '').toLowerCase();
         var _rn0 = String(row.itemNum || '');
         if (/paper|catalog|instruction|drawing|ephemera/.test(_rt0) || /^(EP|DWG|IS|CAT)-/i.test(_rn0)) return;
+        if (typeof _pinRowMakerOk === 'function' && !_pinRowMakerOk(row, prefer)) return;   // dashmaker: Industrial Rail's photo never answers as KMT's row
         var k = _rn0 + '|' + String(row._tab || '');
         if (seenRow[k]) return;
         seenRow[k] = 1;
@@ -2009,7 +2022,7 @@
       if (!c) return false;
       try {
         var r = findMaster(c, null, prefer);
-        return !!(r && _eras.indexOf(r._era) >= 0);
+        return !!(r && _eras.indexOf(r._era) >= 0 && (typeof _pinRowMakerOk !== 'function' || _pinRowMakerOk(r, prefer)));   // dashmaker (fifth review): a row-cell maker's own rows only
       } catch (e) { return false; }
     };
     // Already right — leave it alone.

@@ -130,7 +130,7 @@ function boot(v, src) {
     rrEsc: (x) => String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'),
     rrRegisterPage: () => {},
     // the guarded append (sheets.js) — writes straight into the fake master
-    sheetsAppend: async (id, range, rows) => { const tab = range.replace(/'/g, '').split('!')[0]; rows.forEach(r => { v.tabs[tab].push(r.slice()); appended.push(tab + '|' + r[0]); }); return true; }
+    sheetsAppend: async (id, range, rows) => { const tab = range.replace(/'/g, '').split('!')[0]; rows.forEach(r0 => { const r = r0.map(c => (typeof c === 'string' && c.charAt(0) === "'") ? c.slice(1) : c); v.tabs[tab].push(r); appended.push(tab + '|' + r[0]); }); return true; }   // datefix: Sheets keeps the text mark to itself, as the real sheet does
   };
   sandbox.rrJsArg = (x) => sandbox.rrEsc(String(x == null ? '' : x).replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
   // v0.9.2044 (ships before this one) gives the app ONE today (rrToday, config.js); hand it in when it is there

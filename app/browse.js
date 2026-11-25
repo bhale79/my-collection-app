@@ -1185,7 +1185,14 @@ function _phErasFor(mfr, scale) {
 function _phPrefAllows(level, id) {
   try {
     if (id == null || id === '' || id === 'any' || String(id).indexOf('own:') === 0) return true;
-    if (level === 'manufacturer') return (typeof _isManufacturerEnabled !== 'function') || _isManufacturerEnabled(id);
+    if (level === 'manufacturer') {
+      // dashmaker: a maker only a catalog row names (Industrial Rail) is not a
+      // What I Collect choice — no tick can hide it; its rows still follow the
+      // lines collected.
+      var _MFs = ((typeof window !== 'undefined' && window.WHAT_I_COLLECT) || {}).MANUFACTURERS || {};
+      if (!_MFs[String(id).toLowerCase()]) return true;
+      return (typeof _isManufacturerEnabled !== 'function') || _isManufacturerEnabled(id);
+    }
     if (level === 'scale')        return (typeof _isScaleEnabled !== 'function') || _isScaleEnabled(id);
     if (level === 'era') {
       var p = (id === 'postwar') ? 'pw' : id;             // picker says 'postwar'; the preference says 'pw'
@@ -1195,6 +1202,41 @@ function _phPrefAllows(level, id) {
   return true;
 }
 if (typeof window !== 'undefined') window._phPrefAllows = _phPrefAllows;
+
+// 2026-11-24 (dashmaker): the makers the catalog's own rows name that What I
+// Collect does not list (it lists one maker per tab). Read from rrMakerChoices
+// — the ONE maker list — never typed here. Their display names are kept for
+// _phLabelFor (a pick is stored by its lowercased name).
+var _phCatMakerLabels = {};
+function _phCatalogOnlyMakers(known) {
+  var out = [];
+  try {
+    var WIC = (typeof window !== 'undefined' && window.WHAT_I_COLLECT) || {};
+    var MFs = WIC.MANUFACTURERS || {};
+    var k = known || {};
+    var list = (typeof rrMakerChoices === 'function') ? rrMakerChoices() : [];
+    // Third review: only a maker with a row ON THE SHELF — the Master Catalog's
+    // own rows (state.masterData, less the catalogs What I Collect leaves off).
+    // The Add screen's full-catalog copy names makers this list cannot show.
+    var word = (typeof _rrMakerWord === 'function') ? _rrMakerWord : function (v) { return String(v || '').toLowerCase().replace(/[^a-z0-9]/g, ''); };
+    var off = (typeof _offShelfEras === 'function') ? _offShelfEras() : null;
+    var onShelf = {};
+    ((typeof state !== 'undefined' && state.masterData) || []).forEach(function (r) {
+      if (!r || (off && off.has && off.has(r._era))) return;
+      if (r.manufacturer) onShelf[word(r.manufacturer)] = 1;
+      if (r.alsoSoldAs && typeof rrAlsoSoldAsNames === 'function') rrAlsoSoldAsNames(r).forEach(function (n) { onShelf[word(n)] = 1; });
+    });
+    list.forEach(function (m) {
+      var lc = String(m || '').trim().toLowerCase();
+      if (!lc || MFs[lc]) return;
+      _phCatMakerLabels[lc] = m;   // its own spelling, for a pick saved earlier too
+      if (k[lc] || !onShelf[word(m)]) return;
+      out.push(m);
+    });
+  } catch (e) {}
+  return out;
+}
+if (typeof window !== 'undefined') window._phCatalogOnlyMakers = _phCatalogOnlyMakers;
 
 // Manufacturer -> list of scale ids that have at least one era available.
 function _phScalesFor(mfr) {
@@ -1295,7 +1337,12 @@ function _phLabelFor(level, id) {
     if (level === 'scale')        return 'Any Scale';
     if (level === 'era')          return 'Any Era';
   }
-  if (level === 'manufacturer') return (WIC.MANUFACTURERS && WIC.MANUFACTURERS[id] && WIC.MANUFACTURERS[id].label) || id;
+  if (level === 'manufacturer') {
+    if (WIC.MANUFACTURERS && WIC.MANUFACTURERS[id] && WIC.MANUFACTURERS[id].label) return WIC.MANUFACTURERS[id].label;
+    // dashmaker: a maker a catalog row names (Industrial Rail) — its own spelling
+    if (!_phCatMakerLabels[id]) _phCatalogOnlyMakers();
+    return _phCatMakerLabels[id] || id;
+  }
   if (level === 'scale')        return (WIC.SCALES && WIC.SCALES[id] && WIC.SCALES[id].label) || id;
   if (level === 'era')          return _ERA_PERIOD_LABELS[id] || id;
   if (level === 'section') {
@@ -1763,8 +1810,21 @@ function _openLevelPicker(level) {
     Object.keys(MFs).forEach(function(k) {
       var _lbl = MFs[k].label;
       _catalogLabels[String(_lbl).toLowerCase()] = 1;
+      _catalogLabels[String(k).toLowerCase()] = 1;
       options.push({ id: k, label: _lbl });
     });
+    // 2026-11-24 (dashmaker, PLAN_2026-11-24_DASH_AND_INDUSTRIAL_RAIL item 4):
+    // the MASTER CATALOG also offers every maker a catalog row names itself
+    // (Industrial Rail, KMT, Crown Model Products … on Other O Brands) — the
+    // SAME list the Add screen uses (rrMakerChoices, app.js). Each is picked by
+    // its lowercased name, which is what _manufacturerOfItem returns for its rows.
+    if (!state.filters.owned) {
+      var _catOnly = _phCatalogOnlyMakers(_catalogLabels);
+      if (_catOnly.length) {
+        options.push({ id: '__divider', label: 'More makers in the catalog', divider: true });
+        _catOnly.forEach(function (m) { _catalogLabels[m.toLowerCase()] = 1; options.push({ id: m.toLowerCase(), label: m }); });
+      }
+    }
     // v0.9.1512 (Brad, live: Scott owns Micro-Trains, Ertl, First Gear,
     // Die-cast Masters... none of which could EVER be filtered to, because
     // this list came only from the catalog). In MY COLLECTION the list is
@@ -5361,13 +5421,18 @@ function _rrBrowseCore(_co) {
   // (Lionel 022 and 22 are two real items). Twins are let through here and
   // dropped again right after the filter if an exact row turned up.
   var _zQ = String(state.filters.search || '').trim();
+  // 2026-11-24 (dashmaker): a one-number search may also reach its dash twin
+  // (K-675402 ↔ K675402, IDM-1007 ↔ IDM1007, 6502-2 → 6502) — same hold, same
+  // drop beside an exact row. The rule: rrNumLooseTwin (app.js).
+  var _dQ = (!_cmdQ && /^[A-Za-z]*-?\d\S*$/.test(_zQ) && typeof rrNumLooseTwin === 'function'
+             && typeof rrNumMayHaveLooseTwin === 'function' && rrNumMayHaveLooseTwin(_zQ)) ? _zQ : '';   // a plain 6502 never pays the per-row check
   if (_cmdQ || !/^\d\S*$/.test(_zQ) || typeof rrNumZeroTwin !== 'function') _zQ = '';
-  var _zAdmitted = _zQ ? new Set() : null;
+  var _zAdmitted = (_zQ || _dQ) ? new Set() : null;
   // the one "keep the twins?" step, used on every list _rowPasses makes
   // (the screen's rows and every count beside a picker option)
   function _zKeep(list) {
     if (!_zAdmitted || !_zAdmitted.size || !Array.isArray(list)) return list;
-    var _zLC = _zQ.toLowerCase();
+    var _zLC = (_zQ || _dQ).toLowerCase();
     var exact = list.some(function (it) { return !_zAdmitted.has(it) && String(it && it.itemNum || '').trim().toLowerCase() === _zLC; });
     return exact ? list.filter(function (it) { return !_zAdmitted.has(it); }) : list;
   }
@@ -5502,6 +5567,7 @@ function _rrBrowseCore(_co) {
       // 2026-11-05: a leading-zero twin of a one-number search is let through
       // and held (_zAdmitted) — _zKeep drops it again beside an exact row.
       if (_zQ && rrNumZeroTwin(item.itemNum, _zQ) && !_aliasSearch(haystack, search)) { _zAdmitted.add(item); return true; }
+      if (_dQ && rrNumLooseTwin(item, _dQ) && !_aliasSearch(haystack, search)) { _zAdmitted.add(item); return true; }   // dashmaker (the row itself: the ending rule is per catalog)
       if (!_aliasSearch(haystack, search)) return false;
     }
     return true;

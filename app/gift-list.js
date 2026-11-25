@@ -9,10 +9,11 @@
 // nothing starts ticked ("none"). Plan: PLAN_2026-10-31_GIFT_LIST_STAGE1.md.
 //
 // What it does, all from the Want / Upgrade page → "🎁 Gift list":
-//   • MY STORES are the Contacts ticked "Preferred Vendor" with a website
-//     (_ctPreferredVendors, contacts.js — the ONE list of the collector's
-//     stores). Suggested stores (RR_GIFT.suggestedStores) are OFFERED, never
-//     added on their own.
+//   • MY STORES are the built-in store (RR_BUILTIN_STORE, config.js — Trainz,
+//     always first, nothing to set up: [stated] Brad 2026-11-24) and then the
+//     Contacts ticked "Preferred Vendor" with a website (_ctPreferredVendors,
+//     contacts.js — the collector's own stores). Suggested stores
+//     (RR_GIFT.suggestedStores) are OFFERED, never added on their own.
 //   • Each Want item can be ticked onto the gift list, given an "about"
 //     price, and given up to RR_GIFT.maxLinks store links. A link is kept only
 //     after the collector has OPENED it from here and tapped "Yes, that's it" —
@@ -71,8 +72,22 @@
   }
 
   // ── the collector's stores ───────────────────────────────────────────
+  // 2026-11-24 (trainzfirst, [stated] Brad 16:53 CT "we need to have trainz.com
+  // listed here at the top already for all users without them having to do
+  // anything"): the built-in store comes FIRST, then his own. A contact on the
+  // same website is the same store — listed once, in the built-in place.
+  function _builtInStore() {
+    var b = null;
+    try { b = (typeof RR_BUILTIN_STORE !== 'undefined' && RR_BUILTIN_STORE) || window.RR_BUILTIN_STORE || null; } catch (e) { b = window.RR_BUILTIN_STORE || null; }
+    var site = b ? String(b.site || '').trim().toLowerCase().replace(/^www\./, '') : '';
+    return site ? { name: String(b.name || site), site: site } : null;
+  }
   function _stores() {
-    try { return (typeof window._ctPreferredVendors === 'function') ? (window._ctPreferredVendors() || []) : []; } catch (e) { return []; }
+    var mine = [];
+    try { mine = (typeof window._ctPreferredVendors === 'function') ? (window._ctPreferredVendors() || []) : []; } catch (e) { mine = []; }
+    var b = _builtInStore();
+    if (!b) return mine;
+    return [b].concat(mine.filter(function (s) { return String((s && s.site) || '').toLowerCase() !== b.site; }));
   }
   // The store a web address belongs to: its domain or a sub-address of it
   // (www.), never a look-alike — the same test as the last stop.
@@ -418,7 +433,8 @@
     });
     if ((g.links || []).length < (_G().maxLinks || 2)) {
       var p = _pending[k] || {};
-      var opts = stores.map(function (s) { return '<option value="' + _esc(s.site) + '"' + (p.store === s.site ? ' selected' : '') + '>' + _esc(s.name) + '</option>'; }).join('')
+      // the pick starts on the first store (the built-in one) until he picks
+      var opts = stores.map(function (s, i) { return '<option value="' + _esc(s.site) + '"' + ((p.store ? p.store === s.site : i === 0) ? ' selected' : '') + '>' + _esc(s.name) + '</option>'; }).join('')
         + '<option value="__other"' + (p.store === '__other' ? ' selected' : '') + '>Another store</option>';
       var finds = stores.map(function (s) {
         return '<button class="rr-btn rr-btn--quiet" onclick="rrGiftFind(\'' + ka + '\',\'' + _arg(s.site) + '\')" style="margin:0 0.3rem 0.3rem 0">Find it at ' + _esc(s.name) + '</button>';
@@ -678,6 +694,10 @@
     if (cb) cb.disabled = true;
     var sel = document.querySelector('[data-gift-store="' + (window.CSS && CSS.escape ? CSS.escape(k) : k) + '"]');
     if (sel && s) sel.value = s.site;
+    // 2026-11-24: the box starts on the built-in store; a page from a store
+    // that is not on his list, with no store picked, shows "Another store"
+    // (the link is saved under its own website) — never the wrong name.
+    else if (sel && !p.store && _hostOf(p.url)) sel.value = '__other';
     // Read the store's page once he stops typing / pasting (only a real web
     // address is asked about); the answer is drawn in the link's own box.
     clearTimeout(_pendTimer[k]);

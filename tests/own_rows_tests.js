@@ -85,7 +85,8 @@ T('…and re-checks once the personal sheet is in', /await loadPersonalData\(\);
 
 // ── 3. browse: four catalog lists honour the shelf; own rows never number-only ─
 const br = read('browse.js');
-T('browse gates items, sets, catalogs and sheets off-shelf', (code(br).match(/_offShelfEras\(\)/g) || []).length, 4);
+// dashmaker (2026-11-24): the fifth is the Master Catalog's "More makers in the catalog" list — a maker is offered only with a row on the shelf
+T('browse gates items, sets, catalogs, sheets and the extra maker list off-shelf', (code(br).match(/_offShelfEras\(\)/g) || []).length, 5);
 T('collection view is never gated (owned → empty set)', /const _offShelf = \(!owned && /.test(br), true);
 const bareFM = s => (code(s).match(/findMaster\([^,()]*\)/g) || []).length;
 T('browse.js makes NO number-only findMaster call', bareFM(br), 0);

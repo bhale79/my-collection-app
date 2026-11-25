@@ -274,7 +274,8 @@ async function story(opts) {
   ok('the tab is registered where it is born', /var TAB = \(typeof rrFeatureTab === 'function' \? rrFeatureTab : String\)\('Gift List'\);/.test(GIFT));
   ok('the switch is RR_GIFT.feature through rrFeatureOn', /rrFeatureOn\(_G\(\)\.feature \|\| 'giftlist'\)/.test(GIFT) && /feature: 'giftlist'/.test(GIFT_CFG));
   ok('the disclosure words live only in config.js', GIFT.indexOf('small commission') < 0 && /disclosure: 'Some links on this list may earn The Rail Roster a small commission, at no extra cost to you\.'/.test(GIFT_CFG));
-  ok('Trainz is only SUGGESTED (config), never hard-coded in the screen', !/trainz/i.test(GIFT.replace(/^\s*\/\/.*$/gm, '')) && /suggestedStores: \[\{ name: 'Trainz', site: 'trainz\.com' \}\]/.test(GIFT_CFG));
+  // 2026-11-24 (trainzfirst): Trainz moved from "suggested" to the ONE built-in store (config.js) — tests/trainzfirst_tests.js
+  ok('Trainz is named only in config.js (RR_BUILTIN_STORE), never hard-coded in the screen', !/trainz/i.test(GIFT.replace(/^\s*\/\/.*$/gm, '')) && /const RR_BUILTIN_STORE = \{ name: 'Trainz', site: 'trainz\.com' \};/.test(CONFIG) && /suggestedStores: \[\],/.test(GIFT_CFG));
   ok('every link out goes through the last stop (rrAffiliateUrl in _outgoing), tracking codes off first', /function _outgoing\(\)[\s\S]{0,1800}var clean = _clean\(L\.url\);\s*var out = \(typeof rrAffiliateUrl === 'function'\) \? rrAffiliateUrl\(clean\) : clean;/.test(GIFT));
   ok('no "AI" in anything a person reads', !/\bAI\b|🤖/.test(GIFT.replace(/^\s*\/\/.*$/gm, '')));
   ok('no "bought" boxes (Brad: hidden or not at all)', !/bought/i.test(GIFT.replace(/^\s*\/\/.*$/gm, '')));

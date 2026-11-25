@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2159';
+const APP_VERSION = 'v0.9.2160';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -2908,10 +2908,14 @@ function rrErasMatchingChips(st) {
   var wantP = (st.era          && st.era          !== 'any') ? String(st.era).toLowerCase()          : '';
   if (!wantM && !wantS && !wantP) return out;
   var ids = (typeof REAL_ERA_IDS !== 'undefined') ? REAL_ERA_IDS : Object.keys(ERAS);
+  // 2026-11-24 (dashmaker): a maker named only in rows' own cells (Industrial
+  // Rail on Other O Brands) — the catalogs whose rows name it (app.js).
+  var rowEras = (arguments.length > 1) ? arguments[1]   // the caller already asked (rrActiveFilter) — one scan, not two
+    : ((wantM && typeof rrErasOfRowMaker === 'function') ? rrErasOfRowMaker(wantM) : null);
   for (var i = 0; i < ids.length; i++) {
     var k = ids[i], d = ERAS[k];
     if (!d || k === 'all') continue;
-    if (wantM && String(d.manufacturer || '').toLowerCase() !== wantM) continue;
+    if (rowEras ? rowEras.indexOf(k) < 0 : (wantM && String(d.manufacturer || '').toLowerCase() !== wantM)) continue;
     if (wantS) {
       // ERA_SCALE, not WHAT_I_COLLECT.ERA_TO_SCALE: ERA_SCALE covers every era
       // in REAL_ERA_IDS, while ERA_TO_SCALE is missing the newer makers
@@ -2946,8 +2950,11 @@ function rrActiveFilter(photoEra) {
     var scId  = (st.scale        && st.scale        !== 'any') ? String(st.scale).toLowerCase()        : '';
     var perId = (st.era          && st.era          !== 'any') ? String(st.era).toLowerCase()          : '';
     if (!mfrId && !scId && !perId) return null;      // genuinely unfiltered
-    var hits = rrErasMatchingChips(st);
-    if (hits.length === 1) return _rrFilterForEra(hits[0], true, perId);
+    // dashmaker: a row-cell maker's one catalog (Other O Brands) holds other
+    // makers too — the filter stays the maker's, never the whole catalog's.
+    var _rowMk = (mfrId && typeof rrErasOfRowMaker === 'function') ? rrErasOfRowMaker(mfrId) : null;
+    var hits = rrErasMatchingChips(st, _rowMk);
+    if (hits.length === 1 && !_rowMk) return _rrFilterForEra(hits[0], true, perId);
     // Several eras (or none) fit. Say what IS known and leave `era` blank —
     // callers that need a single era key check for it; the maker and scale
     // constraints, which is what the readers were getting wrong, still apply.
@@ -2958,6 +2965,7 @@ function rrActiveFilter(photoEra) {
                   && window.WHAT_I_COLLECT.MANUFACTURERS) || {};
         mfrLabel = (MF[mfrId] && MF[mfrId].label) || '';
       } catch (eM) {}
+      if (!mfrLabel && _rowMk && typeof _phLabelFor === 'function') mfrLabel = _phLabelFor('manufacturer', mfrId);
       if (!mfrLabel && hits.length) mfrLabel = ERAS[hits[0]].manufacturer || '';
       if (!mfrLabel) mfrLabel = mfrId.replace(/\b\w/g, function (c) { return c.toUpperCase(); });
     }
@@ -2977,6 +2985,7 @@ function rrActiveFilter(photoEra) {
       scale:        scLabel,
       period:       perId,
       fromChips:    true,
+      rowMaker:     _rowMk ? mfrLabel : '',   // dashmaker: rrRowFitsPrefer asks each row to name this maker
     };
   } catch (e) { return null; }
 }
@@ -5918,6 +5927,15 @@ function rrSetLine(key, num, era) {
 }
 if (typeof window !== 'undefined') { window.rrSetEraWords = rrSetEraWords; window.rrSetLine = rrSetLine; }
 if (typeof window !== 'undefined') window.RR_ADD_FILTERS = RR_ADD_FILTERS;
+// 2026-11-24 (dashmaker; PLAN_2026-11-24_DASH_AND_INDUSTRIAL_RAIL Part A2) — the
+// catalogs whose numbers carry a ROAD-NUMBER ending: Atlas writes 6502-1 / 6502-2
+// on its boxes for the road numbers of its item 6502, and its archive (and our
+// catalog) often lists only 6502. Only rows of these catalogs answer a typed
+// 6502-2 with their 6502 (rrNumLooseTwin, app.js). Everywhere else a dash ending
+// is a DIFFERENT thing (Lionel 175-50 Extra Rocket, 6456-50; parts 1001-12;
+// MTH -2 = 2-rail), so it never reaches the bare number. ONE list, here.
+const RR_ROAD_NUMBER_ENDING_ERAS = ['atlas', 'atlas_ho', 'atlas_n', 'atlas_z'];
+if (typeof window !== 'undefined') window.RR_ROAD_NUMBER_ENDING_ERAS = RR_ROAD_NUMBER_ENDING_ERAS;
 
 // ── 2026-11-03 — YOUR OWN SET (PLAN_2026-11-03_OWN_SETS) ──────────────────────
 // [stated] Brad 16:46 CT: "the ability for users to add their own unlisted sets
@@ -6642,6 +6660,19 @@ const RR_FIND_BY_ID = {
 };
 if (typeof window !== 'undefined') window.RR_FIND_BY_ID = RR_FIND_BY_ID;
 
+// ══ THE BUILT-IN STORE — ONE place (2026-11-24, trainzfirst) ═══════════════
+// [stated] Brad 2026-11-24 16:53 CT: "we need to have trainz.com listed here at
+// the top already for all users without them having to do anything" (the gift
+// list's My Stores) and "i want trainz.com already pre selected here first"
+// (Need a part's store list) → 16:55 CT "okay". This REVERSES the September
+// rule "no store is ever pre-loaded" (v0.9.1760) for this one store, on Brad's
+// word. Read by gift-list.js (first under My Stores, the store pick starts on
+// it) and maintenance.js (first in Need a part's store list, picked until the
+// member picks something else). Name it nowhere else.
+//   name  what a member reads      site  its web address, no www.
+const RR_BUILTIN_STORE = { name: 'Trainz', site: 'trainz.com' };
+if (typeof window !== 'undefined') window.RR_BUILTIN_STORE = RR_BUILTIN_STORE;
+
 // ══ THE GIFT WISH LIST — Stage 1, owner-only beta (gift-list.js) ══════════
 // [stated] Brad 2026-10-31: turn the Want list into a birthday / Christmas
 // wish list the collector gives his wife — the items, about what they cost,
@@ -6654,9 +6685,10 @@ if (typeof window !== 'undefined') window.RR_FIND_BY_ID = RR_FIND_BY_ID;
 //   maxLinks         store links one item can carry
 //   disclosure       [stated] Brad 07:03 CT "yes" — shown only when a link
 //                    carries a store code (RR_AFFILIATE)
-//   suggestedStores  OFFERED as "+ Trainz" — never added on their own
-//                    ([stated] Brad 2026-10-27: Trainz prelisted for the user
-//                    to select is fine; "plastered over every button" is not)
+//   suggestedStores  OFFERED as "+ Name" — never added on their own. Empty
+//                    since 2026-11-24: Trainz moved up to RR_BUILTIN_STORE
+//                    (always listed). Still [stated] Brad 2026-10-27: Trainz
+//                    "plastered over every button" is not wanted.
 const RR_GIFT = {
   feature: 'giftlist',
   headers: ['Item Number', 'Variation', 'On Gift List', 'About Price', 'Store 1', 'Link 1', 'Checked 1',
@@ -6665,7 +6697,7 @@ const RR_GIFT = {
   title: 'Gift ideas',
   footer: 'Made with The Rail Roster.',
   disclosure: 'Some links on this list may earn The Rail Roster a small commission, at no extra cost to you.',
-  suggestedStores: [{ name: 'Trainz', site: 'trainz.com' }],
+  suggestedStores: [],
   // "Find it at …" for a store with its OWN search page: {q} = maker + number
   // ([stated] Brad 2026-11-07, Trainz: their search, not Google's; checked
   // 2026-11-07 — "Lionel 2245P" lists the Texas Special first). Any store not

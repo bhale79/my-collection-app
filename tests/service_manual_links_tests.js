@@ -127,10 +127,17 @@ section('B · where the block sits');
 const builder = grab(maint, '_maintDiagramLinksHtml');
 const lccaBranch = builder.slice(builder.indexOf("if (route === 'lcca') {"), builder.indexOf("} else if (route === 'atlas' && _atlasHit)"));
 const slotAt = lccaBranch.indexOf("h += _smSlotHtml(item, where)");
-// 2026-11-07 ([stated] Brad: the LCCA button removed completely): no phone guard is left — the
-// slot is FIRST in the branch, above the Trainz buttons, on every device.
-const tzAt = lccaBranch.indexOf('h += tzHtml;');
-ok('the slot is first in the branch — above the Trainz buttons, on every device (no phone guard left)', slotAt > 0 && tzAt > slotAt && !/IS_MOBILE_UA/.test(lccaBranch.replace(/\/\/[^\n]*/g, '')));
+// 2026-11-07 ([stated] Brad: the LCCA button removed completely): no phone guard is left.
+// 2026-11-24 (trainzfirst, [stated] Brad "Yes, Trainz first"): the Trainz buttons are drawn
+// ONCE, above the maker's branch, on every item — so the slot is first INSIDE the branch,
+// right under Trainz, and the branch draws no Trainz buttons of its own.
+function slotPlaced(b) {
+  const br = b.slice(b.indexOf("if (route === 'lcca') {"), b.indexOf("} else if (route === 'atlas' && _atlasHit)"));
+  const tzTop = b.indexOf('h += tzHtml;'), lcca = b.indexOf("if (route === 'lcca') {");
+  return br.indexOf("h += _smSlotHtml(item, where)") > 0 && tzTop > 0 && tzTop < lcca && br.indexOf('h += tzHtml;') < 0
+    && !/IS_MOBILE_UA/.test(br.replace(/\/\/[^\n]*/g, ''));
+}
+ok('the slot is first in the branch, right under the Trainz buttons (drawn above the branch), on every device (no phone guard left)', slotAt > 0 && slotPlaced(builder));
 ok('the slot is for era \'pw\' only', /if \(String\(eraKey \|\| ''\)\.toLowerCase\(\) === 'pw'\) h \+= _smSlotHtml\(item, where\);/.test(lccaBranch));
 
 section('C · reading the tab');
@@ -240,10 +247,10 @@ section('G · the loader');
 
   section('H · planted offenders are caught');
   ok('H1 the tab name typed into maintenance.js is caught', nameTypedElsewhere(APP_FILES.map(([f, t]) => [f, f === 'maintenance.js' ? t + "\nvar T = 'Lionel PW - Service Manual';" : t])).indexOf('maintenance.js') >= 0);
-  ok('H2 the slot moved under the LCCA button is caught', (() => {
-    const b = lccaBranch.replace("      if (String(eraKey || '').toLowerCase() === 'pw') h += _smSlotHtml(item, where);\n", '') + "\n h += _smSlotHtml(item, where);";
-    const s = b.indexOf('h += _smSlotHtml(item, where)'), g = b.indexOf('h += tzHtml;');
-    return !(s > 0 && g > s); })());
+  ok('H2 the old order put back (our sheets, then Trainz inside the branch) is caught', (() => {
+    const b = builder.replace("    h += tzHtml;\n", "    if (route !== 'lcca') h += tzHtml;\n")
+      .replace("h += _smSlotHtml(item, where);   // 2026-11-24: right after the Trainz buttons\n", "h += _smSlotHtml(item, where);\n      h += tzHtml;\n");
+    return b !== builder && !slotPlaced(b); })());
   ok('H3 the pw gate dropped (prewar borrows postwar sheets) is caught', !/=== 'pw'\) h \+= _smSlotHtml/.test(lccaBranch.replace("if (String(eraKey || '').toLowerCase() === 'pw') h += _smSlotHtml", 'h += _smSlotHtml')));
   const P = s => load(s)._smParse(VALUES);
   const m1 = maint.replace("if (!tk.k || steps[s].indexOf(tk.k) < 0) continue;", "if (!tk.k || steps.some(function (st) { return st.indexOf(tk.k) >= 0; }) === false) continue;");

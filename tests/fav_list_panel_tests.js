@@ -47,7 +47,7 @@ function page(src, prefKey, selectId, label, favs, pick) {
   const el = (id, extra) => (els[id] = Object.assign({ id, value: '', textContent: '', innerHTML: '', style: { display: '' }, focus() { store.focused = id; }, getAttribute(n) { return this._a ? this._a[n] : undefined; } }, extra || {}));
   const win = { _maintDealerPicked: h => store.picked.push(h.value) };
   const code = ['function _favKind(prefKey)', 'function _favPanelHtml(prefKey, selectId, label, pick)', 'function _favRow(prefKey, selectId, label)', 'function _favPanelRedraw(prefKey, selectId)',
-    'function _dealerPick()', 'window._favPanelToggle = function', 'window._favPick = function', 'window._favAddShow = function', 'window._maintAddFav = async function', 'window._maintDelFav = function']
+    'function _dealerPick()', 'function _builtInDealer()', 'window._favPanelToggle = function', 'window._favPick = function', 'window._favAddShow = function', 'window._maintAddFav = async function', 'window._maintDelFav = function']
     .map(s => grab(src, s)).join('\n');
   const api = new Function('MAINT', '_esc', 'rrJsArg', '_btnPrimary', '_favs', '_saveFavs', '_prefGet', '_prefSet', 'document', 'window', 'appPrompt',
     code + '\nreturn { row: _favRow, panelHtml: _favPanelHtml, toggle: window._favPanelToggle, pick: window._favPick, addShow: window._favAddShow, add: window._maintAddFav, del: window._maintDelFav };')(

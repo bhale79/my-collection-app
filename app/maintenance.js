@@ -32,8 +32,12 @@
     PREF_DEALERS:  'maint_parts_dealers', // JSON array of dealer names
     // v0.9.1759: the dealer dropdown remembers its pick ('' = Any dealer, a
     // favorite as typed, or MAKER_STORE) so the Workbench drawer's catalog
-    // lines search the same store the popup does. MAKER_STORE is the ONE
-    // built-in choice — "The maker's own store" — never a hardcoded dealer.
+    // lines search the same store the popup does. MAKER_STORE is a built-in
+    // choice — "The maker's own store". 2026-11-24 (trainzfirst, [stated] Brad
+    // 16:53 CT "i want trainz.com already pre selected here first" → "okay"):
+    // the ONE built-in dealer, RR_BUILTIN_STORE (config.js), is listed first and
+    // is the pick until the member picks something else (an unset pref — never
+    // a saved '' = Any dealer, which he chose). See _builtInDealer.
     PREF_DEALER_PICK: 'maint_parts_dealer_pick',
     MAKER_STORE: '__maker',
     PREF_SUPPLIERS: 'maint_diagram_suppliers', // JSON array; never seeded (v0.9.1760)
@@ -110,7 +114,9 @@
       // the supplier list with Trainz / The Train Tender / Henning's; the dropdown
       // that read it went away in v1662, so the seed had been dead code since —
       // but dead code comes back. Every one of these lists now starts empty and
-      // holds only what the user typed.
+      // holds only what the user typed. (2026-11-24: the ONE built-in store,
+      // RR_BUILTIN_STORE, is drawn beside these lists by _favPanelHtml — it is
+      // never written into them; see _builtInDealer.)
       return a;
     } catch (e) { return []; }
   }
@@ -1868,10 +1874,27 @@
   // the store the user picked: the popup's dropdown when it is on screen, else
   // what it last remembered — so the drawer's lines search the same place. A
   // favorite that has since been removed counts as Any dealer.
+  // 2026-11-24 (trainzfirst): the built-in store's web address (RR_BUILTIN_STORE,
+  // config.js — the ONE place it is named), '' when there is none. Its value in
+  // the list is the address, so _partsUrl and _partLinkOn treat it exactly as a
+  // member's own "trainz.com" favourite: a direct page when we hold one, else a
+  // search naming the store.
+  function _builtInDealer() {
+    var b = null;
+    try { b = (typeof RR_BUILTIN_STORE !== 'undefined' && RR_BUILTIN_STORE) || window.RR_BUILTIN_STORE || null; } catch (e) { b = (typeof window !== 'undefined' && window.RR_BUILTIN_STORE) || null; }
+    return b ? String(b.site || '').trim().toLowerCase().replace(/^www\./, '') : '';
+  }
   function _dealerPick() {
     var sel = (typeof document !== 'undefined') ? document.getElementById('maint-pop-dealer') : null;
-    var v = sel ? String(sel.value || '') : String((typeof _prefGet === 'function') ? _prefGet(MAINT.PREF_DEALER_PICK, '') : '');
-    if (!v || v === MAINT.MAKER_STORE || _favs(MAINT.PREF_DEALERS).indexOf(v) >= 0) return v;
+    var v;
+    if (sel) v = String(sel.value || '');
+    else {
+      // never picked on this account → the built-in store; a saved '' is his
+      // own "Any dealer" and is kept (_prefGet answers the default only when unset)
+      var saved = (typeof _prefGet === 'function') ? _prefGet(MAINT.PREF_DEALER_PICK, null) : null;
+      v = (saved === null || saved === undefined) ? _builtInDealer() : String(saved);
+    }
+    if (!v || v === MAINT.MAKER_STORE || v === _builtInDealer() || _favs(MAINT.PREF_DEALERS).indexOf(v) >= 0) return v;
     return '';
   }
   window._maintDealerPicked = function (sel) {
@@ -1977,6 +2000,10 @@
   }
   function _favPanelHtml(prefKey, selectId, label, pick) {
     var k = _favKind(prefKey), favs = _favs(prefKey);
+    // 2026-11-24 (trainzfirst): the built-in store FIRST in the dealer list, no ✕;
+    // a favourite typed as the same address is not listed twice
+    var bi = k.isDealer ? _builtInDealer() : '';
+    if (bi) favs = favs.filter(function (f) { return String(f).trim().toLowerCase() !== bi; });
     var LINE = 'display:flex;align-items:center;justify-content:space-between;gap:0.5rem;width:100%;box-sizing:border-box;text-align:left;padding:0.45rem 0.7rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem;font-weight:500;cursor:pointer';
     var line = function (v, t, removable) {
       var on = String(v) === String(pick || '');
@@ -1986,6 +2013,7 @@
         + '</button>';
     };
     return '<div style="display:flex;flex-direction:column;gap:0.35rem">'
+      + (bi ? line(bi, bi, false) : '')
       + line('', label, false)
       + (k.isDealer ? line(MAINT.MAKER_STORE, "The maker's own store", false) : '')
       + favs.map(function (f) { return line(f, f, true); }).join('')
@@ -2063,6 +2091,7 @@
     var gone = String(name || '').trim();
     if (!gone) return;
     if (gone === MAINT.MAKER_STORE) return;   // v0.9.1759: the built-in choice is not a favorite
+    if (prefKey === MAINT.PREF_DEALERS && gone === _builtInDealer()) return;   // 2026-11-24: nor is the built-in store
     var favs = _favs(prefKey).filter(function (f) { return f !== gone; });
     _saveFavs(prefKey, favs);
     try { if (typeof _prefSet === 'function') _prefSet(prefKey + '_touched', '1'); } catch (e2) {}
@@ -2191,22 +2220,23 @@
     // v0.9.2042: every diagram of the right kind, one button each (221: 1946 + 1947)
     // 2026-11-01 ([stated] Brad: "add trainz parts diagrams above lionel parts
     // diagram if the item has a trainz parts diagram" → "yes"): Trainz comes
-    // FIRST, above the maker's own row — except on a Lionel POSTWAR item, where
-    // Lionel's service manual sheets stay first (Brad's 2026-10-08 standard for
-    // postwar) and Trainz comes right after them.
+    // FIRST, above the maker's own row. 2026-11-24 (trainzfirst, [stated] Brad
+    // 16:57 CT "part diagrams shows trainz first on the list then ours that are
+    // the lionel postwar" → asked → "Yes, Trainz first"): on a Lionel POSTWAR
+    // item too — Trainz first, then our service manual sheets. (Until then the
+    // postwar sheets came first, Brad's 2026-10-08 standard.)
     var tzHtml = '';
     _tzDiagrams(item, eraKey).forEach(function (tzd) {
       tzHtml += '<div class="maint-tz-row" style="margin-bottom:0.5rem"><button title="' + _esc(tzd.t) + '" onclick="window.open(\'https://www.trainz.com/pages/parts-diagram/' + _esc(tzd.h) + '\',\'_blank\')" ' + linkBtn + '>Trainz diagram: ' + _esc(_tzLabel(tzd, item.itemNum)) + ' →</button></div>';
     });
-    if (route !== 'lcca') h += tzHtml;
+    h += tzHtml;
     // ── the manufacturer row ──
     if (route === 'lcca') {
       // v0.9.1896: Brad's scans of Lionel's own service manual FIRST, above
       // LCCA, on every device (Drive opens anywhere) — Lionel POSTWAR only;
       // the sheets are postwar, a prewar item never borrows one. The LCCA
       // button below goes when the set is complete ([stated] Brad).
-      if (String(eraKey || '').toLowerCase() === 'pw') h += _smSlotHtml(item, where);
-      h += tzHtml;   // 2026-11-01: right after the service manual sheets (a prewar item has none: Trainz first)
+      if (String(eraKey || '').toLowerCase() === 'pw') h += _smSlotHtml(item, where);   // 2026-11-24: right after the Trainz buttons
       // 2026-11-07 ([stated] Brad: "Remove the LCCA 'Service Manual pages'
       // button completely (my decision 2026-11-07)"). It was a copy-the-link-
       // and-paste route into LCCA's members' archive (desktop only since
