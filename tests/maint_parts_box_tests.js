@@ -256,14 +256,17 @@ function runRender(opts) {
       contains: el => st.appended.indexOf(el) >= 0 && st.removed.indexOf(el) < 0,
     },
   };
+  st.popped = [];
   const win = {
     _maintPanelInvId: '190',
     rrDismissGuard: ov => st.guarded.push(ov),
+    BackStack: { pop: id => st.popped.push(id), push: () => {}, has: () => false },
   };
   const state = { maintLog: tasks, partsData: {} };
   parts.forEach((p, i) => { state.partsData['p' + i] = p; });
-  // _maintOpenTaskId and _maintPaintTaskCard live OUTSIDE the lifted function,
-  // so they are declared here; everything else is the shipped body, run as-is.
+  // _maintOpenTaskId lives OUTSIDE the lifted function, so it is declared here
+  // (_maintPaintTaskCard is gone since 2026-11-25 taskinbox; the empty stub is
+  // harmless); everything else is the shipped body, run as-is.
   const api = new Function(
     'document', 'window', 'state', '_panelItem', '_itemTasks', '_taskParts', '_taskOpen',
     '_esc', 'rrJsArg', '_btn', '_btnQuiet', '_btnPrimary', '_QUIET', '_loadLog',
@@ -350,41 +353,42 @@ const wordOf = html => (html.match(/class="maint-task-parts"[^>]*>([^<]+)</) || 
      wordOf(h.els['maint-tasks'].innerHTML) === '');
 }
 
-section('F · the card: one job, opened by id, and it leaves when the job does');
+section('F · the task view: one job, opened by id, drawn IN the Tasks section, and it leaves when the job does');
+// 2026-11-25 (taskinbox — [stated] Brad "why is the task card so small?" → "yes" → "go"): v0.9.1788's
+// separate pop-up (maint-task-ov, 680px, zoom 1, in front of the zoomed Maintenance box) is gone. The
+// task is drawn in #maint-tasks IN PLACE of the list, the box's own size; its history step is
+// BackStack.push/pop (window._maintOpenTask / _maintCloseTask, outside this slice), not a guard on an
+// element. The pins below used to say "it is the overlay, not something pasted into the list" — the
+// opposite is the rule now, with this ledger line as the reason.
 {
   const h = runRender({ tasks: [T('t1', 'E-unit service', 'e unit sticking'), T('t2', 'Fix railing')] });
   h.api.render();
-  ok('nothing is opened until he taps a row', h.st.appended.length === 0);
+  ok('nothing is opened until he taps a row', h.st.appended.length === 0 && !/maint-task-card/.test(h.els['maint-tasks'].innerHTML));
 
   h.api.open('t2');
-  ok('tapping a row puts a card on the screen', h.st.appended.length === 1);
-  const ov = h.st.appended[0];
-  ok('…and it is the overlay, not something pasted into the list', ov.id === 'maint-task-ov');
-  ok('the card is guarded — a stray tap outside cannot take the note he is writing (v1786)',
-     h.st.guarded.length === 1 && h.st.guarded[0] === ov);
-  ok('the card carries the job it was opened for', /data-id="t2"/.test(ov.innerHTML));
-  ok('…and says which of how many, so the list is not lost', /Task 2 of 2/.test(ov.innerHTML));
-  ok('the notes box lives HERE, with its own save-as-you-type wiring',
-     /<textarea id="task-notes-t2"/.test(ov.innerHTML) && /_maintSaveTaskNotes/.test(ov.innerHTML));
-  ok('Need a part is on the card', /_maintPartsPopup\('t2'/.test(ov.innerHTML));
-  ok('Mark complete is on the card', /Mark complete/.test(ov.innerHTML));
-  ok('Remove moved onto the card, where it takes a deliberate press',
-     /_maintRemoveTask\('t2'\)/.test(ov.innerHTML));
-  ok('…and there is a way out that is not the backdrop', /_maintCloseTask\(\)/.test(ov.innerHTML));
-
-  ok('the list is still drawn behind it', (h.els['maint-tasks'].innerHTML.match(/class="maint-task"/g) || []).length === 2);
+  const view = h.els['maint-tasks'].innerHTML;
+  ok('tapping a row draws the task IN the Tasks section (nothing appended to the page)', h.st.appended.length === 0 && /class="maint-task-card"/.test(view));
+  ok('…in place of the list — the rows are gone while the job is open', !/class="maint-task"/.test(view));
+  ok('the view carries the job it was opened for', /data-id="t2"/.test(view));
+  ok('…and says which of how many, so the list is not lost', /Task 2 of 2/.test(view));
+  ok('the notes box lives HERE, six lines to start, with its own save-as-you-type wiring',
+     /<textarea id="task-notes-t2"[^>]*rows="6"/.test(view) && /_maintSaveTaskNotes/.test(view));
+  ok('Need a part is on the view', /_maintPartsPopup\('t2'/.test(view));
+  ok('Mark complete is on the view', /Mark complete/.test(view));
+  ok('Remove is on the view, where it takes a deliberate press', /_maintRemoveTask\('t2'\)/.test(view));
+  ok('…and there is a way back to the list', /_maintCloseTask\(\)/.test(view) && /Back to the list/.test(view));
 }
 {
-  // Mark complete / Remove take the job off the list; the card must go with it.
+  // Mark complete / Remove take the job off the list; the view must go with it.
   const tasks = [T('t1', 'E-unit service'), T('t2', 'Fix railing')];
   const h = runRender({ tasks });
   h.api.open('t2');
-  ok('the card is open', h.st.appended.length === 1);
+  ok('the task is open', /class="maint-task-card"/.test(h.els['maint-tasks'].innerHTML));
   tasks[1].status = 'done';                        // marked complete
-  h.st.removed.push(h.st.appended[0]);
   h.api.render();
-  ok('finishing the job closes its card — no card for a job that is gone',
-     h.api.openId() === null || h.api.openId() === '');
+  ok('finishing the job closes its view — the list is back, no view for a job that is gone',
+     (h.api.openId() === null || h.api.openId() === '') && !/maint-task-card/.test(h.els['maint-tasks'].innerHTML) && /class="maint-task"/.test(h.els['maint-tasks'].innerHTML));
+  ok('…and the step it held is given back (BackStack.pop)', h.st.popped.indexOf('maint-task') >= 0);
 }
 {
   // The number renumbers; the id does not. This is the whole reason the number
@@ -412,15 +416,22 @@ section('F · planted offenders — the new rules can actually fail');
   ok('opening the card by the ROW NUMBER instead of the id is caught',
      byIndex !== renderSrc, 'the by-id call site was not found — check the anchor');
 
-  const noGuard = renderSrc.replace(/window\.rrDismissGuard\(ov\)/, 'void 0');
-  ok('dropping the v1786 guard on the card is caught', !/rrDismissGuard\(ov\)/.test(noGuard));
+  // 2026-11-25 (taskinbox): the v1786 guard belonged to the pop-up; the view has no element of its own to
+  // guard — its step is BackStack's (pinned above and in task_in_box_tests). The plant here: a view drawn
+  // somewhere other than the Tasks section is caught.
+  const elsewhere = renderSrc.replace(/el\.innerHTML = taskViewHtml\(ot, openIdx, tasks\.length\);/, "document.body.insertAdjacentHTML('beforeend', taskViewHtml(ot, openIdx, tasks.length));");
+  ok('drawing the task anywhere but IN the Tasks section is caught', elsewhere !== renderSrc && !/el\.innerHTML = taskViewHtml\(/.test(elsewhere));
 
   ok('the card is NOT a second copy of the task guts — one taskBodyHtml, called once',
      (renderSrc.match(/var taskBodyHtml = function/g) || []).length === 1 &&
      (renderSrc.match(/taskBodyHtml\(t\)/g) || []).length === 1);
 
-  ok('the row and the card both come from the ONE renderer',
-     (renderSrc.match(/_maintPaintTaskCard\(\)/g) || []).length === 2);
+  // 2026-11-25 (taskinbox): the view is drawn by render() itself (taskViewHtml, once) — the same
+  // closure, the same partRow, as the rows; _maintPaintTaskCard only takes down an older copy's pop-up.
+  ok('the row and the view both come from the ONE renderer',
+     (renderSrc.match(/var taskViewHtml = function/g) || []).length === 1 &&
+     (renderSrc.match(/taskViewHtml\(ot, openIdx, tasks\.length\)/g) || []).length === 1 && !/_maintPaintTaskCard/.test(renderSrc) &&
+     renderSrc.indexOf('var taskViewHtml') > renderSrc.indexOf('var render = function'));
 }
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');

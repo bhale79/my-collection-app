@@ -161,7 +161,7 @@ section('D · the real _maintAddChore: the task, then the ticked parts, then Nee
   }
 
   section('E · planted offenders are caught');
-  ok('E1 the dropdown put back in the Tasks box is caught', /_choreFormHtml/.test(tasksSec.replace("'<button onclick=\"_maintAddTaskPopup()\" '", "_choreFormHtml('_maintAddChore()') + '<button '")));
+  ok('E1 the dropdown put back in the Tasks box is caught', /_choreFormHtml/.test(tasksSec.replace("'<button id=\"maint-task-add\" onclick=\"_maintAddTaskPopup()\" '", "_choreFormHtml('_maintAddChore()') + '<button '")));
   ok('E2 a part line without the tick box is caught', !/name="maint-chore-part" value="part-7"/.test(buildForm(maint.replace('name="maint-chore-part" value="', 'name="x" value="'), { onHand: [DRUM], wanted: [] })));
   ok('E3 the × put on a built-in is caught', (() => { const o = maint.replace("var custom = CHORES.indexOf(ch) < 0;", "var custom = true;"); return /_maintDelChore\('Oil/.test(buildForm(o, null)); })());
   {

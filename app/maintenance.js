@@ -2380,9 +2380,9 @@
       // ── Workbench (phase 3): chores + service history ──
       + sec('Tasks for this item',
           // v0.9.1858 ([stated] Brad): just the tasks, and the button — the picker is a pop-up now
-          '<button onclick="_maintAddTaskPopup()" ' + _btnPrimary('padding:0.5rem 0.9rem;font-size:0.78rem') + '>+ Add task</button>'
+          '<button id="maint-task-add" onclick="_maintAddTaskPopup()" ' + _btnPrimary('padding:0.5rem 0.9rem;font-size:0.78rem') + '>+ Add task</button>'
           + '<div id="maint-tasks" style="margin-top:0.6rem"></div>'
-          + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Each task is a card: notes, a part if it needs one, videos for the job, Done when it\'s done.</div>', 'work')
+          + '<div id="maint-tasks-hint" style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Each task opens here: notes, a part if it needs one, Done when it\'s done.</div>', 'work')
 
       // ── v0.9.1766 (Brad): "we need a parts box like the tasks for this item.
       // In this box, we need to show the parts available the user has on hand
@@ -2431,6 +2431,10 @@
     try { if (window.rrDismissGuard) window.rrDismissGuard(document.getElementById('maint-overlay'), window._maintClosePanel); } catch (eG) {}
     window._maintShowGrp = function (g) {
       var ov = document.getElementById('maint-overlay'); if (!ov) return;
+      // 2026-11-25 (taskinbox, review 1): leaving the Work group with a task
+      // open closes the task too — its history step goes back with it, or the
+      // next device Back would close an invisible task and change nothing.
+      if (g !== 'work' && _maintOpenTaskId && typeof window._maintCloseTask === 'function') window._maintCloseTask();
       ov.querySelectorAll('.maint-sec').forEach(function (el) { el.style.display = (g && el.getAttribute('data-grp') === g) ? '' : 'none'; });
       var l = document.getElementById('maint-launcher'); if (l) l.style.display = g ? 'none' : 'flex';
       var b = document.getElementById('maint-back'); if (b) b.style.display = g ? '' : 'none';
@@ -3226,9 +3230,9 @@
   // parts", "Ready to work"). So the column is blank / Waiting / On hand, in
   // the same words the chips use. He was told before this was built.
   var _maintOpenTaskId = null;
-  // Assigned by the renderer below, because the card is drawn from the SAME
-  // closure (and the same partRow) the list is — one renderer, never two.
-  var _maintPaintTaskCard = function () {};
+  // (2026-11-25 taskinbox: the task view is drawn by the renderer below, from
+  // the SAME closure and the same partRow as the list — one renderer, never
+  // two. v0.9.1788's separate painter is gone with its pop-up.)
   function _maintRenderTasks() {
     var el = document.getElementById('maint-tasks');
     if (!el || !_panelItem) return;
@@ -3310,7 +3314,9 @@
       // partRow is the same function the Parts box uses, for the same reason.
       var taskBodyHtml = function (t) {
         var partLine = _taskParts(t.id).map(function (p) { return partRow(p, false); }).join('');   // v0.9.1766: loose parts live in the Parts box now
-        return '<textarea id="task-notes-' + _esc(t.id) + '" placeholder="Notes for this repair… (saves by itself)" rows="3" oninput="_maintNotesTyped(' + t.row + ',\'' + rrJsArg(t.id) + '\')" onblur="_maintSaveTaskNotes(' + t.row + ',\'' + rrJsArg(t.id) + '\',true)" style="' + IN + ';resize:vertical">' + _esc(t.notes || '') + '</textarea>'
+        // 2026-11-25 (taskinbox): room to write — six lines to start, and the
+        // box grows with the note (never shrinks under the cursor).
+        return '<textarea id="task-notes-' + _esc(t.id) + '" placeholder="Notes for this repair… (saves by itself)" rows="6" oninput="_maintNotesGrow(this);_maintNotesTyped(' + t.row + ',\'' + rrJsArg(t.id) + '\')" onblur="_maintSaveTaskNotes(' + t.row + ',\'' + rrJsArg(t.id) + '\',true)" style="' + IN + ';resize:vertical;line-height:1.4">' + _esc(t.notes || '') + '</textarea>'
           + '<div id="task-notes-hint-' + _esc(t.id) + '" style="font-size:0.7rem;color:var(--text-dim);min-height:0.9rem"></div>'
           + '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;margin-top:0.3rem">'
           +   '<button onclick="_maintPartsPopup(\'' + rrJsArg(t.id) + '\',\'' + rrJsArg(t.text) + '\')" ' + _btn('orange') + '>Need a part</button>'
@@ -3320,69 +3326,81 @@
           +   '<button onclick="_maintChoreDoneAsk(' + t.row + ',\'' + rrJsArg(t.id) + '\')" ' + _btnPrimary('padding:0.45rem 0.8rem;font-size:0.74rem') + '>Mark complete — job finished</button>'
           + '</div>';
       };
-      _maintPaintTaskCard = function () {
-        var tasks2 = _itemTasks();
-        var idx = -1;
-        for (var i2 = 0; i2 < tasks2.length; i2++) { if (tasks2[i2].id === _maintOpenTaskId) { idx = i2; break; } }
-        var ov = document.getElementById('maint-task-ov');
-        // Marked complete, or removed, or the panel moved to another item —
-        // the job is gone, so the card goes with it and we land back on the list.
-        if (idx < 0) { _maintOpenTaskId = null; if (ov && ov.parentNode) ov.parentNode.removeChild(ov); return; }
-        var t = tasks2[idx];
-        // Keep what he is typing across a redraw: buying a part redraws this
-        // card, and losing a half-written note to that would be the v1786 bug
-        // wearing different clothes.
-        var ta = document.getElementById('task-notes-' + t.id);
-        var keep = (ta && document.activeElement === ta)
-          ? { v: ta.value, s: ta.selectionStart, e: ta.selectionEnd } : null;
-        if (!ov) {
-          ov = document.createElement('div');
-          ov.id = 'maint-task-ov';
-          ov.style.cssText = 'position:fixed;inset:0;z-index:100020;display:flex;align-items:center;justify-content:center;'
-            + 'padding:1rem;background:var(--scrim)';
-          document.body.appendChild(ov);
-          // v0.9.1786: a tap on the backdrop does nothing at all. This card
-          // holds a note that saves itself — a stray tap must not take it.
-          // rrDismissGuard also wires BackStack, so the device Back button
-          // still closes it: a deliberate press is a way out, a stray tap is not.
-          try { if (window.rrDismissGuard) window.rrDismissGuard(ov); } catch (eG) {}
-          // BackStack closes by REMOVING the element. The id must not outlive
-          // the element, or the very next redraw would put a card he just
-          // backed out of straight back on the screen.
-          try {
-            var obs = new MutationObserver(function () {
-              if (document.body.contains(ov)) return;
-              try { obs.disconnect(); } catch (e2) {}
-              _maintOpenTaskId = null;
-            });
-            obs.observe(document.body, { childList: true });
-          } catch (eO) {}
-        }
-        ov.innerHTML = '<div class="maint-task-card" data-id="' + _esc(t.id) + '" style="width:min(680px,calc(100vw - 2rem));max-height:calc(100vh - 2.5rem);max-height:calc(100dvh - 2.5rem);overflow:auto;'
-            + 'background:var(--bg-card);border:1px solid var(--accent2);border-radius:14px;padding:1rem 1.1rem">'
+      // ── 2026-11-25 (taskinbox — [stated] Brad: "why is the task card so
+      // small?" → "yes" → "go"): THE TASK IS DRAWN HERE, IN THE TASKS SECTION,
+      // IN PLACE OF THE LIST — no second pop-up. v0.9.1788's card was a
+      // separate overlay on body (680px, zoom 1) in front of the Maintenance
+      // box, which is a .maint-card and so is drawn at the desk zoom
+      // (app.css --rr-pop-zoom, 1.25–1.5x on a computer): small text in a
+      // small box in front of a big one. Inside the box it is the box's own
+      // size, as v0.9.1671's rule always wanted ("EVERY maintenance screen
+      // shares .maint-card and the same scale"). The + Add task button and
+      // the hint step aside, the Parts box and the videos below stay in view
+      // (Need a part puts a part in that Parts box). ← Back, the box's ✕ and
+      // the device Back all land on the list (BackStack.push/pop, the same
+      // helper every overlay uses). Same writers, same ids, same words.
+      var taskViewHtml = function (t, idx, n) {
+        return '<div class="maint-task-card" data-id="' + _esc(t.id) + '" style="border:1px solid var(--accent2);border-radius:12px;padding:0.9rem 1rem;background:var(--bg-card)">'
           + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.6rem;margin-bottom:0.7rem">'
           +   '<div style="min-width:0">'
-          +     '<div style="font-family:var(--font-mono);font-size:0.72rem;color:var(--text-dim)">Task ' + (idx + 1) + ' of ' + tasks2.length + '</div>'
+          +     '<div style="font-family:var(--font-mono);font-size:0.72rem;color:var(--text-dim)">Task ' + (idx + 1) + ' of ' + n + '</div>'
           +     '<div style="font-weight:700;font-size:1.05rem;color:var(--text)">' + _esc(t.text) + '</div>'
           +     '<div style="font-size:0.72rem;color:var(--text-dim)">since ' + _esc(t.dateAdded) + '</div>'
           +   '</div>'
-          +   '<button onclick="_maintCloseTask()" title="Back to the task list" ' + _btnQuiet('sm', 'flex-shrink:0') + '>← Back</button>'
+          +   '<button onclick="_maintCloseTask()" title="Back to the task list" ' + _btnQuiet('sm', 'flex-shrink:0') + '>← Back to the list</button>'
           + '</div>'
           + taskBodyHtml(t)
-          // v0.9.1752's Remove lives HERE now, not on the row. In a list you
+          // v0.9.1752's Remove lives HERE, not on the row. In a list you
           // scan and tap, a destructive button is one stray thumb from gone.
           + '<div style="display:flex;justify-content:flex-start;margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)">'
           +   '<button onclick="_maintRemoveTask(\'' + rrJsArg(t.id) + '\')" title="Added by mistake? Remove this task (its parts stay on the list)" ' + _btn('red', 'sm') + '>Remove task</button>'
           + '</div>'
           + '</div>';
-        if (keep) {
-          var t2 = document.getElementById('task-notes-' + t.id);
-          if (t2) { t2.value = keep.v; try { t2.focus(); t2.setSelectionRange(keep.s, keep.e); } catch (e3) {} }
-        }
       };
+      // The Tasks section's own furniture — + Add task and the hint — steps
+      // aside while a task is open and comes back with the list. Found by id,
+      // never by position (the section can grow another child any day). The
+      // section's title stays: the view's own "Task 1 of 2" line says the rest.
+      var sectionMode = function (openTask) {
+        var add = document.getElementById('maint-task-add');
+        var hint = document.getElementById('maint-tasks-hint');
+        if (add) add.style.display = openTask ? 'none' : '';
+        if (hint) hint.style.display = openTask ? 'none' : '';
+      };
+      // Keep what he is typing across a redraw: buying a part redraws this
+      // view, and losing a half-written note to that would be the v1786 bug
+      // wearing different clothes. (_maintPartsRedraw also waits while a box
+      // in here has focus — this is the belt to its braces.)
+      var keepTyping = function (t) {
+        var ta = document.getElementById('task-notes-' + t.id);
+        return (ta && document.activeElement === ta) ? { v: ta.value, s: ta.selectionStart, e: ta.selectionEnd } : null;
+      };
+      var restoreTyping = function (t, keep) {
+        if (!keep) return;
+        var t2 = document.getElementById('task-notes-' + t.id);
+        if (t2) { t2.value = keep.v; try { t2.focus(); t2.setSelectionRange(keep.s, keep.e); } catch (e3) {} }
+      };
+      // An open task? Draw IT, in place of the list.
+      var openIdx = -1;
+      if (_maintOpenTaskId) {
+        for (var i0 = 0; i0 < tasks.length; i0++) { if (tasks[i0].id === _maintOpenTaskId) { openIdx = i0; break; } }
+        // Marked complete, or removed, or the panel moved to another item —
+        // the job is gone, so the view goes with it and we land on the list.
+        if (openIdx < 0) { _maintOpenTaskId = null; try { if (window.BackStack && window.BackStack.pop) window.BackStack.pop('maint-task'); } catch (eP) {} }
+      }
+      if (openIdx >= 0) {
+        var ot = tasks[openIdx];
+        var keep = keepTyping(ot);
+        el.innerHTML = taskViewHtml(ot, openIdx, tasks.length);
+        sectionMode(true);
+        restoreTyping(ot, keep);
+        try { _maintNotesGrow(document.getElementById('task-notes-' + ot.id)); } catch (eGr) {}
+        try { el.scrollIntoView({ block: 'nearest' }); } catch (eS) {}
+        return;
+      }
+      sectionMode(false);
       if (!tasks.length) {
         el.innerHTML = '<div style="font-size:0.8rem;color:var(--text-dim);padding:0.3rem 0">No open tasks on this one.</div>';
-        _maintPaintTaskCard();
         return;
       }
       // THE LIST. `.maint-task[data-id]` is kept exactly as it was: the Parts
@@ -3406,7 +3424,6 @@
           + '<span style="color:var(--text-dim);flex-shrink:0">›</span>'
           + '</div>';
       }).join('');
-      _maintPaintTaskCard();
     };
     if (state.maintLog) render();
     else _loadLog().then(function () {
@@ -3418,14 +3435,31 @@
   window._maintRenderTasks = _maintRenderTasks;
   // v0.9.1788: open one job. Keyed by the task's OWN id, never the row number
   // beside it — that number is paint and renumbers as jobs are finished.
+  // 2026-11-25 (taskinbox): the notes box grows to fit what is in it — up only,
+  // so a line deleted never pulls the box out from under the cursor.
+  window._maintNotesGrow = function (ta) {
+    if (!ta || !ta.style || !ta.clientHeight) return;   // hidden (the section is away): nothing to measure
+    var want = ta.scrollHeight + 2;
+    if (want > (ta.clientHeight || 0)) ta.style.height = want + 'px';
+  };
   window._maintOpenTask = function (taskId) {
+    if (!document.getElementById('maint-tasks')) return;   // no panel on screen: nothing to open, no step to take
     _maintOpenTaskId = String(taskId || '');
+    // 2026-11-25 (taskinbox): the task is a VIEW inside the Maintenance box,
+    // not an element of its own, so it tells BackStack itself: one step, and
+    // the device Back lands on the list (closeFn), never on the page under
+    // the box. push de-dupes, so opening another task re-uses the step.
+    try { if (window.BackStack && window.BackStack.push) window.BackStack.push('maint-task', function () { window._maintCloseTask(true); }); } catch (eB) {}
     _maintRenderTasks();
   };
-  window._maintCloseTask = function () {
+  // fromBack = BackStack is closing it (its entry is already off the stack):
+  // nothing to pop. Any other way out (← Back, the box's ✕, the panel moving
+  // to another item) pops the step it took.
+  window._maintCloseTask = function (fromBack) {
+    var was = _maintOpenTaskId;
     _maintOpenTaskId = null;
-    var ov = document.getElementById('maint-task-ov');
-    if (ov && ov.parentNode) ov.parentNode.removeChild(ov);   // BackStack's own observer pops the stack
+    if (!fromBack && was) { try { if (window.BackStack && window.BackStack.pop) window.BackStack.pop('maint-task'); } catch (eP) {} }
+    if (document.getElementById('maint-tasks')) _maintRenderTasks();
   };
   // v0.9.1676: the part's lifecycle from the task card — same writers the
   // Parts Needed page uses (markPartBought / markPartInstalled in
@@ -3503,6 +3537,9 @@
       if (!ok) { if (h) h.textContent = 'not saved — refresh'; return; }
       if (l) l.notes = txt;
       if (h) h.textContent = 'saved';
+      // 2026-11-25 (taskinbox, review 3): the save lands after ← Back has
+      // redrawn the list — the row's note preview catches up here.
+      if (!_maintOpenTaskId && document.getElementById('maint-tasks')) { try { _maintRenderTasks(); } catch (eR) {} }
       if (!quiet && typeof showToast === 'function') showToast('✓ Notes saved');
     } catch (e) { if (h) h.textContent = 'not saved'; if (typeof showToast === 'function') showToast('Could not save the notes', 3500, true); }
   };
@@ -5233,6 +5270,9 @@
   };
   // the panel's × — closes it and brings the preview underneath up to date
   window._maintClosePanel = function () {
+    // 2026-11-25 (taskinbox): an open task holds a BackStack step above the
+    // panel's own — give it back first, or the next device Back would eat it.
+    if (_maintOpenTaskId) { _maintOpenTaskId = null; try { if (window.BackStack && window.BackStack.pop) window.BackStack.pop('maint-task'); } catch (eP) {} }
     var ov = document.getElementById('maint-overlay');
     if (ov) ov.remove();
     if (_previewArgs && document.getElementById('maint-preview')) {

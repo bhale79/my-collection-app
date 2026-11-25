@@ -266,7 +266,9 @@ ok('every guarded overlay offers Cancel / Done / Close / ✕', trapped.length ==
 // Close and Back close it, a tap beside the picture does not.
 // 2026-11-13 (staffownerfix): 71 — "Reset an Owner's PIN" (rr-staff-reset, staff.js _resetShell):
 // ✕ and Back close it, an outside tap does not.
-ok('71 guarded call sites, and ONE helper behind them', sites === 71, String(sites));
+// 2026-11-25 (taskinbox): 70 — the task card is drawn INSIDE the Maintenance panel now (its step is
+// BackStack.push/pop in _maintOpenTask/_maintCloseTask); the pop-up's own guard went with the pop-up.
+ok('70 guarded call sites, and ONE helper behind them', sites === 70, String(sites));
 
 // nobody double-wires BackStack any more — the guard does it, once
 let dbl = 0;

@@ -9,7 +9,7 @@
 //
 // THE RULE THIS SUITE PROTECTS — the Workbench's stacking order, lowest first:
 //   wb-card (the Maintenance card)      9600
-//   maint-task-ov (a task's card)       100020
+//   maint-overlay (the item's Maintenance panel — the task is drawn INSIDE it since 2026-11-25 taskinbox)   9500
 //   maint-addtask-pop (Add a task)      > the task card   (v0.9.1858)
 //   maint-parts-pop (Need a part)       > the Add-task pop-up ("+ Add a part for it" opens it on top)
 //   _parts-chooser (which job? / dup)   > the popup
@@ -38,7 +38,10 @@ function zOf(src, idMarker) {
 function layers(m, p, u) {
   return {
     card: zOf(m, "id=\"wb-card\""),
-    task: zOf(m, "ov.id = 'maint-task-ov'"),
+    // 2026-11-25 (taskinbox): the task is a VIEW inside the item's Maintenance
+    // panel (id="maint-overlay"), not an overlay of its own — its layer is the
+    // panel's. Every pop-up it opens still has to sit above THAT.
+    task: zOf(m, 'id="maint-overlay" style="position:fixed'),
     addtask: zOf(m, 'id="maint-addtask-pop"'),
     pop: zOf(m, 'id="maint-parts-pop"'),
     dg: zOf(m, 'el.id = DG_ID;'),   // v0.9.1898: the Parts diagrams pop-up beside Need-a-part
@@ -51,7 +54,10 @@ function judge(L) {
   const bad = [];
   if (!(L.card != null && L.task != null && L.addtask != null && L.pop != null && L.dg != null && L.chooser != null && L.confirm != null && L.prompt != null)) bad.push('a layer could not be read: ' + JSON.stringify(L));
   else {
-    if (!(L.task > L.card)) bad.push('task card not above the Maintenance card');
+    // 2026-11-25 (taskinbox): the task is drawn INSIDE the item's panel (9500), which the
+    // Workbench pick card (9600) is REMOVED for before it opens (_wbPicked) — the two are never up
+    // together, so "task above the card" is no longer a layer question; the panel-replaces-
+    // card order is checked in A below instead.
     if (!(L.addtask > L.task)) bad.push('Add-task popup not above the task card (' + L.addtask + ' vs ' + L.task + ')');
     if (!(L.pop > L.addtask)) bad.push('Need-a-part popup not above the Add-task popup (' + L.pop + ' vs ' + L.addtask + ')');
     if (!(L.pop > L.task)) bad.push('Need-a-part popup not above the task card (' + L.pop + ' vs ' + L.task + ')');
@@ -67,16 +73,25 @@ section('A · the real stacking order');
 const L = layers(maint, pages, utils);
 ok('every layer read off the source', Object.values(L).every(v => v != null), JSON.stringify(L));
 const bad = judge(L);
-ok('Maintenance card < task card < Add-task popup < Need-a-part popup < Parts diagrams pop-up < chooser < appConfirm/appPrompt', bad.length === 0, bad.join('; '));
+ok('Maintenance card < the panel with the task < Add-task popup < Need-a-part popup < Parts diagrams pop-up < chooser < appConfirm/appPrompt', bad.length === 0, bad.join('; '));
 ok('the task card still opens the popup with the task\'s id (the "Need a part" button)', /_maintPartsPopup\(\\'' \+ rrJsArg\(t\.id\)/.test(maint));
+// 2026-11-25 (taskinbox): the Workbench card goes BEFORE the item's panel (with the task in it) opens
+(() => {
+  // the one path from the Workbench's pick card (wb-card) to an item's panel is _wbPicked → _wbOpen → _maintOpenPanel
+  const i = maint.indexOf('window._wbPicked = function');
+  const gone = maint.indexOf("var c = document.getElementById('wb-card'); if (c) c.remove();", i);
+  const open = maint.indexOf('window._wbOpen(o.invId, o.itemNum', i);
+  ok('the Workbench pick card is removed before the item\'s Maintenance panel (where the task is drawn) opens — never both up', i >= 0 && gone > i && open > gone);
+  ok('the task is drawn in the Tasks section, not as an overlay of its own', /el\.innerHTML = taskViewHtml\(ot, openIdx, tasks\.length\)/.test(maint) && !/maint-task-ov/.test(maint));
+})();
 
 section('B · planted offenders are caught');
 ok('B1 the v1854 popup (9650, under the task card) is caught',
    judge(layers(maint.replace('id="maint-parts-pop" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100030', 'id="maint-parts-pop" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9650'), pages, utils)).length > 0);
 ok('B2 the v1854 chooser (10090) is caught',
    (() => { const o = pages.replace(/(ov\.id = '_parts-chooser';[\s\S]{0,400}?z-index:)100035/, '$110090'); return o !== pages && judge(layers(maint, o, utils)).length > 0; })());
-ok('B3 a task card raised above the popup is caught',
-   judge(layers(maint.replace("ov.id = 'maint-task-ov';\n          ov.style.cssText = 'position:fixed;inset:0;z-index:100020", "ov.id = 'maint-task-ov';\n          ov.style.cssText = 'position:fixed;inset:0;z-index:100040"), pages, utils)).length > 0);
+ok('B3 the Maintenance panel (where the task is drawn) raised above the popup is caught',
+   (() => { const o = maint.replace('id="maint-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9500', 'id="maint-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100040'); return o !== maint && judge(layers(o, pages, utils)).length > 0; })());
 ok('B5 an Add-task popup drawn above Need-a-part (the part pop-up it opens would hide) is caught',
    judge(layers(maint.replace('id="maint-addtask-pop" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100025', 'id="maint-addtask-pop" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100031'), pages, utils)).length > 0);
 ok('B6 a Parts diagrams pop-up drawn under Need-a-part (or over the chooser) is caught',
