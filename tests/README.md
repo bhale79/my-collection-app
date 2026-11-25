@@ -117,3 +117,4 @@ that touches navigation, modals or the reports.
 <!-- re-publish 2026-11-25 (second try): GitHub's deploy-pages step said "Deployment failed, try again later" for a05f2643 too. No test change. -->
 <!-- re-publish 2026-11-25: GitHub's "Publish website" run for 19a470dd (v0.9.2164) failed at deploy-pages on their side ("Deployment failed, try again later"); this one line re-runs it. No test change. -->
 <!-- re-publish 2026-11-25 (second try for v0.9.2164): GitHub's deploy-pages step failed for beaffc52 too ("Deployment failed, try again later"). No test change. -->
+<!-- re-publish 2026-11-25: GitHub's "Publish website" run for 67daab5a (v0.9.2165) failed at deploy-pages on their side ("No artifacts named github-pages"); this one line re-runs it. No test change. -->
