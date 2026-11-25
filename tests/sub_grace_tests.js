@@ -77,6 +77,7 @@ function device(src, opts) {
   let code = grab(APP, 'function rrAccountFingerprint(email)') + '\n';
   code += 'var SUB_CHECKOUT_KEY = "rr_checkout_done"; var SUB_RETRY_MAX = 6, SUB_RETRY_MS = 4000; var _subRetries = 0;\n';
   code += 'function _subCheckoutPending() { return false; }\n';
+  code += "function _subFrom() { return { src: '', at: '' }; }\n";   // 2026-11-24 (referrals): no partner link in these cases
   const a = src.indexOf('var SUB_OPEN_KEY'), b = src.indexOf('function rrSubGateStart');
   code += src.slice(a, b) + '\n';
   code += grab(src, 'function rrSubBlocks(r)') + '\n';

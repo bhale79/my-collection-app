@@ -84,6 +84,7 @@ const VAULT = {
   IDENTITY_ACTIONS: ['sub_check', 'ai_identify', 'ai_identify2', 'ai_verify_photo',
                      'ref_photo', 'ai_card', 'ai_quota', 'import_map',
                      'store_read',    // 2026-11-05 relay v5.0: a store page read for the gift list (signed in, counted per account)
+                     'referral_report',   // 2026-11-24 relay v5.7: the Office's partner report (owners only — the relay checks)
                      'gift_publish', 'gift_link', 'gift_stop',   // 2026-11-05 relay v5.0: the family gift page (never gift_marks — the collector does not see what was bought)
                      'staff_list', 'staff_check', 'staff_save', 'staff_switch', 'staff_settings',
                      'staff_who', 'staff_reset_code', 'staff_reset_pin'],   // 2026-11-11 relay v5.1: TRR Pro staff PINs (signed in as the business account; staff.js)
@@ -1167,6 +1168,7 @@ async function subCheck() {
       betaCode: (typeof _isBetaVerified === 'function' && _isBetaVerified()
                  && typeof _BETA_CODE !== 'undefined') ? _BETA_CODE : '',
       appVersion: (typeof APP_VERSION !== 'undefined') ? APP_VERSION : '',
+      from: _subFrom().src, fromAt: _subFrom().at, fromTs: _subFrom().ts,   // referrals: a partner's link, if this browser followed one (the relay decides whether it counts)
       fresh: _subCheckoutPending() ? 1 : 0 });
     if (!r || r.status !== 200 || !r.sub) { _subNoAnswer(); return; }   // v0.9.1904: grace, then the no-check screen
     _subRememberAnswer(r);                                 // v0.9.1904: the last answer, per account
@@ -1401,11 +1403,24 @@ function _subEsc(v) {
 function _subDate(iso) {
   return iso ? (typeof _formatDateLong === 'function' ? _formatDateLong(iso) : iso) : '';
 }
-// The checkout link, with the signed-in email filled in AND locked.
+// referrals (2026-11-24): the partner's word this browser is carrying, or blanks.
+// ONE reader (rrFromTag, config.js) — the sign-in check and the checkout link both ask here.
+function _subFrom() {
+  var t = (typeof rrFromTag === 'function') ? rrFromTag() : null;
+  return t ? { src: t.src, at: t.at, ts: t.ts || 0 } : { src: '', at: '', ts: 0 };
+}
+// The checkout link, with the signed-in email filled in AND locked — and, when
+// this browser followed a partner's link, the partner's word as Stripe's own
+// reference on the checkout (a plain word, never anything personal).
 function _subCheckoutUrl(base) {
   if (!base) return '';
   var em = String((state.user && state.user.email) || '');
-  return base + (base.indexOf('?') < 0 ? '?' : '&') + 'locked_prefilled_email=' + encodeURIComponent(em);
+  var url = base + (base.indexOf('?') < 0 ? '?' : '&') + 'locked_prefilled_email=' + encodeURIComponent(em);
+  var src = _subFrom().src;
+  if (src && typeof RR_REFERRAL !== 'undefined' && url.indexOf(RR_REFERRAL.stripeParam + '=') < 0) {
+    url += '&' + RR_REFERRAL.stripeParam + '=' + encodeURIComponent(src);
+  }
+  return url;
 }
 
 // ── the trial bar (last 7 days; closed = closed for this tab) ─────────────

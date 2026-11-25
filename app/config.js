@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2160';
+const APP_VERSION = 'v0.9.2161';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -954,6 +954,12 @@ const SIGNOUT_KEEP_KEYS = [
   'rr_sub_open_v1',     // v0.9.1900: accounts this device last saw OPEN (no 'Opening' cover for them)
   'lv_ios_hint_dismissed',
   'rr_orient_tip_off',
+  // 2026-11-24 (referrals): the partner link THIS BROWSER followed ({ src, at,
+  // ts }) — a word and a time, nobody's data. A new member who signs in on a
+  // browser that held another account must not lose it before the sign-in
+  // check carries it (independent review, minor 5). The relay still refuses an
+  // existing member, so a kept note can never credit one.
+  'rr_from',
   // Brad's diagnostics switch — already documented as per-device (see
   // rrDiagnostics above). Clearing it would silently take his tools away.
   'rr_diag'
@@ -1574,6 +1580,52 @@ const RR_RENEW_WAIT_MS = 25000;
 // asks Google and nothing times out — the window's own answer (or closing it)
 // decides. This is only the outer limit, for a window that never answers at all.
 const RR_LINK_WINDOW_MAX_MS = 180000;
+
+// ══ 2026-11-24 — REFERRALS: a partner sends us members (Trainz first) ══════
+// PLAN_2026-11-24_TRAINZ_REFERRALS.md ([stated] Brad 17:14 CT "give trains an
+// affiliate link so that when some click the rail roster product on the
+// trainz.com site, they sign up on our site and we know that they came from
+// trainz.com. the deal is that trainz.com get 10% of the purchase price").
+// The link is therailroster.com/?from=trainz. /site/from-tag.js (the ONE place
+// that reads the link) keeps the word and the day of the click in this browser
+// under `key`. The app only READS it (rrFromTag): the sign-in check carries it
+// to the relay (vault.js), and the checkout link carries it to Stripe
+// (_subCheckoutUrl). WHO counts, for how long, and the percentage are the
+// relay's — the Vault's config tab — never typed here.
+const RR_REFERRAL = {
+  key: 'rr_from',                       // { src, at } — written by /site/from-tag.js
+  wordRe: /^[a-z0-9_-]{1,24}$/,         // a partner's word
+  dayRe: /^\d{4}-\d{2}-\d{2}$/,
+  stripeParam: 'client_reference_id',   // Stripe keeps this on its own record of the checkout
+  report: {                             // the Office card (owners only)
+    title: 'Partner report',
+    lead: 'What a partner is owed for one month: every payment Stripe received from a member they sent, in that member’s first year.',
+    month: 'Month',
+    run: 'Show the month',
+    busy: 'Asking Stripe…',
+    none: 'No payments from referred members in {month}.',
+    head: ['Paid on', 'Member', 'Partner', 'Clicked', 'Paid', 'Owed'],
+    totals: '{n} {payments} — {paid} paid, {owed} owed ({percent}% of what was actually paid).',
+    members: '{n} referred {members} so far; {w} {have} not paid yet (a trial, or a trial that was cancelled) — nothing is owed for them.',
+    save: 'Save the file',
+    fileName: 'rail-roster-partner-report-{month}.csv',
+    noInvoices: 'The Stripe key cannot read invoices yet. Add “Invoices: Read” to the restricted key in Stripe, then try again.',
+    failed: 'The report could not be read just now. Try again in a minute.',
+    badMonth: 'Pick a month first.'
+  }
+};
+// The tag this browser is carrying, or null. Read-only; never trusts what it finds.
+function rrFromTag() {
+  try {
+    var o = JSON.parse(localStorage.getItem(RR_REFERRAL.key) || 'null');
+    if (!o || typeof o !== 'object') return null;
+    var src = String(o.src || '').toLowerCase(), at = String(o.at || '');
+    if (!RR_REFERRAL.wordRe.test(src) || !RR_REFERRAL.dayRe.test(at)) return null;
+    var ts = Number(o.ts);                                   // the moment of the click (ms); 0 when the browser did not keep one
+    return { src: src, at: at, ts: (isFinite(ts) && ts > 0) ? Math.floor(ts) : 0 };
+  } catch (e) { return null; }
+}
+if (typeof window !== 'undefined') { window.RR_REFERRAL = RR_REFERRAL; window.rrFromTag = rrFromTag; }
 
 function rrRecordingMode() {
   try { return localStorage.getItem(RR_RECORDING_MODE_KEY) === '1'; } catch (e) { return false; }

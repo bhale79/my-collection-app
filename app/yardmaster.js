@@ -391,6 +391,98 @@
       + inner + '</div>';
   }
 
+  // ── PARTNER REPORT (referrals, 2026-11-24) ─────────────────────
+  // PLAN_2026-11-24_TRAINZ_REFERRALS.md. The relay (referral_report, owners
+  // only) answers from the Vault's referrals tab and Stripe's paid invoices;
+  // this card only shows it and saves it as a file. Money arrives in cents.
+  var _ymRef = { month: '', busy: false, report: null, note: '' };
+  function _refWords() { return (typeof RR_REFERRAL !== 'undefined' && RR_REFERRAL.report) || {}; }
+  function _refMoney(cents) {
+    var n = Math.round(Number(cents) || 0);
+    return '$' + Math.floor(n / 100).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '.' + ('0' + (n % 100)).slice(-2);
+  }
+  // last month, as yyyy-mm — the month a report is usually made for
+  function _refLastMonth(now) {
+    var d = (now instanceof Date) ? now : new Date();
+    var y = d.getFullYear(), m = d.getMonth();           // getMonth() is last month's number, 1-based
+    if (m === 0) { y -= 1; m = 12; }
+    return y + '-' + (m < 10 ? '0' : '') + m;
+  }
+  // The file for the partner: one line per payment, then the totals. Plain CSV.
+  function _refCsv(r) {
+    // a cell that starts like a formula (= + - @) gets a leading ' so a spreadsheet shows it as text (independent review, minor 6)
+    var W = _refWords(), q = function (v) { v = String(v == null ? '' : v); if (/^[=+\-@\t\r]/.test(v)) v = "'" + v; return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+    var out = [(W.head || []).map(q).join(',')];
+    (r.lines || []).forEach(function (l) {
+      out.push([l.paidOn, l.email, l.source, l.clicked, _refMoney(l.amount), _refMoney(l.owed)].map(q).join(','));
+    });
+    out.push(['', '', '', 'Total', _refMoney(r.total), _refMoney(r.owed)].map(q).join(','));
+    out.push(['', '', '', 'Share', (r.percent || 0) + '% of what was actually paid', 'first ' + (r.months || 0) + ' months only'].map(q).join(','));
+    return out.join('\r\n') + '\r\n';
+  }
+  function _refResultHtml() {
+    var W = _refWords(), r = _ymRef.report;
+    if (_ymRef.busy) return '<div style="color:var(--text-dim)">' + _esc(W.busy || '') + '</div>';
+    if (_ymRef.note) return '<div style="color:var(--t-accent)">' + _esc(_ymRef.note) + '</div>';
+    if (!r) return '';
+    var n = (r.lines || []).length, w = Number(r.waiting) || 0, mem = Number(r.members) || 0;
+    var members = '<div style="color:var(--text-dim);font-size:0.95rem;margin-top:0.45rem">'
+      + _esc(String(W.members || '').replace('{n}', mem).replace('{members}', mem === 1 ? 'member' : 'members').replace('{w}', w).replace('{have}', w === 1 ? 'has' : 'have')) + '</div>';
+    if (!n) return '<div style="color:var(--text-mid)">' + _esc(String(W.none || '').replace('{month}', r.month || '')) + '</div>' + members;
+    var th = 'padding:0.3rem 0.6rem 0.3rem 0;text-align:left;color:var(--text-dim);font-weight:600;white-space:nowrap';
+    var td = 'padding:0.3rem 0.6rem 0.3rem 0;color:var(--text);white-space:nowrap';
+    var rows = r.lines.map(function (l) {
+      return '<tr><td style="' + td + '">' + _esc(l.paidOn) + '</td><td style="' + td + ';white-space:normal;overflow-wrap:anywhere">' + _esc(l.email) + '</td><td style="' + td + '">' + _esc(l.source)
+        + '</td><td style="' + td + '">' + _esc(l.clicked) + '</td><td style="' + td + '">' + _esc(_refMoney(l.amount)) + '</td><td style="' + td + ';font-weight:700">' + _esc(_refMoney(l.owed)) + '</td></tr>';
+    }).join('');
+    return '<div style="overflow-x:auto"><table id="ym-ref-table" style="border-collapse:collapse;font-size:1rem"><tr>'
+      + (W.head || []).map(function (h) { return '<th style="' + th + '">' + _esc(h) + '</th>'; }).join('') + '</tr>' + rows + '</table></div>'
+      + '<div id="ym-ref-totals" style="color:var(--text);font-size:1.05rem;margin-top:0.5rem">'
+      + _esc(String(W.totals || '').replace('{n}', n).replace('{payments}', n === 1 ? 'payment' : 'payments').replace('{paid}', _refMoney(r.total)).replace('{owed}', _refMoney(r.owed)).replace('{percent}', r.percent || 0)) + '</div>'
+      + members
+      + '<button id="ym-ref-save" onclick="_ymReferralSave()" style="margin-top:0.6rem;padding:0.4rem 1rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:1rem;cursor:pointer">' + _esc(W.save || '') + '</button>';
+  }
+  function _ymReferralCard() {
+    var W = _refWords();
+    if (!W.title) return '';
+    if (!_ymRef.month) _ymRef.month = _refLastMonth();
+    // The title is escaped on its own line: the button audit (photo-inbox-tests 273) reads an
+    // escaper call whose argument list runs on into button markup as "markup handed to an escaper".
+    var title = _esc(W.title);
+    return _card(title,
+      '<div style="color:var(--text-dim);font-size:1rem;margin-bottom:0.55rem">' + _esc(W.lead || '') + '</div>'
+      + '<div style="display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap">'
+      + '<label for="ym-ref-month" style="color:var(--text-mid)">' + _esc(W.month || '') + '</label>'
+      + '<input type="month" id="ym-ref-month" value="' + _esc(_ymRef.month) + '" onchange="_ymReferralMonth(this.value)" style="padding:0.35rem 0.5rem;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:1rem">'
+      + '<button id="ym-ref-run" onclick="_ymReferralRun()"' + (_ymRef.busy ? ' disabled' : '') + ' style="padding:0.4rem 1rem;border-radius:8px;border:1px solid var(--accent2);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:1rem;cursor:pointer">' + _esc(W.run || '') + '</button>'
+      + '</div><div id="ym-ref-result" aria-live="polite" style="margin-top:0.7rem">' + _refResultHtml() + '</div>');
+  }
+  function _refPaint() { var box = document.getElementById('ym-ref-result'); if (box) box.innerHTML = _refResultHtml(); var b = document.getElementById('ym-ref-run'); if (b) b.disabled = !!_ymRef.busy; }
+  window._ymReferralMonth = function (v) { _ymRef.month = String(v || '').trim(); };
+  window._ymReferralRun = async function () {
+    var W = _refWords();
+    if (!_isOwner() || _ymRef.busy) return;                       // owners only; one question at a time
+    var el = document.getElementById('ym-ref-month');
+    if (el) _ymRef.month = String(el.value || '').trim();
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(_ymRef.month)) { _ymRef.note = W.badMonth || ''; _ymRef.report = null; _refPaint(); return; }
+    _ymRef.busy = true; _ymRef.note = ''; _ymRef.report = null; _refPaint();
+    var r = null;
+    try { r = await vaultPost({ action: 'referral_report', month: _ymRef.month }); } catch (e) { r = null; }
+    _ymRef.busy = false;
+    if (r && r.status === 200 && Array.isArray(r.lines)) { _ymRef.report = r; _ymRef.note = ''; }
+    else { _ymRef.report = null; _ymRef.note = (r && r.message === 'stripe_invoices') ? (W.noInvoices || '') : (W.failed || ''); }
+    _refPaint();
+  };
+  window._ymReferralSave = function () {
+    var W = _refWords(), r = _ymRef.report;
+    if (!r) return;
+    var blob = new Blob([_refCsv(r)], { type: 'text/csv;charset=utf-8' });
+    var url = URL.createObjectURL(blob), a = document.createElement('a');
+    a.href = url; a.download = String(W.fileName || 'partner-report-{month}.csv').replace('{month}', r.month || ''); a.click();
+    setTimeout(function () { try { URL.revokeObjectURL(url); } catch (e) {} }, 4000);
+  };
+  window._ymReferralCsv = _refCsv; window._ymReferralMoney = _refMoney; window._ymReferralLastMonth = _refLastMonth;
+
   window.ymBuildPage = function (refetch) {
     var page = document.getElementById('page-yardmaster');
     if (!page || !_isOwner()) return;
@@ -487,6 +579,9 @@
       shown.length
         ? brows + qfoot + crawlBox   // v0.9.1712: the "read-only for now" line is gone — verdicts have worked since v0.9.1625
         : '<div style="color:var(--text-dim)">No crawl batches waiting. New sweeps land here automatically.</div>' + qfoot + crawlBox);
+
+    // 1b — PARTNER REPORT (referrals, 2026-11-24): what a partner is owed for one month
+    html += _ymReferralCard();
 
     // 2 — CHORES
     var due = d.chores.filter(function (c) { return c.due; });
