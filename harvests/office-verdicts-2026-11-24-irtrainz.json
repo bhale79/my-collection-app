@@ -1,0 +1,297 @@
+{
+ "title": "Office verdicts — Industrial Rail from Trainz: 36 rows approved (21 Other O Brands, 15 Atlas O)",
+ "rule": "status approved/edited/rejected + decided date in P:Q; set = crawl_deltas cells by header; before = value the cell must hold now",
+ "review": "_Claude_Work_Files\\ir_gap_20261124\\INDUSTRIAL_RAIL_FROM_TRAINZ_REVIEW_2026-11-24.xlsx + IR_DECISIONS_2026-11-24.md + ir_trainz_batch.py",
+ "said": "[stated] Brad 2026-11-24 19:34-19:44 CT, group by group on the Industrial Rail review list: \"Yes\" (19 first-years cars and trolleys), \"Yes\" (Atlas-era sets), \"Yes\" (the 13 track and power pieces to Atlas O), \"Yes\" (the 2 building kits); the rest left out or skipped.",
+ "not_added": "1001 powered handcar (same number as the IDM1001 boxcar on Trainz); 2 with no number; 4 N/HO; 5 skips; 1008201 + 1008202 (Atlas O already holds them as 1008201A / 1008202A)",
+ "rows": [
+  {
+   "delta_id": "CB-IRTRAINZ-20261124-00001",
+   "batch": "CB-IRTRAINZ-20261124",
+   "item_num": "HTUSA98",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-IRTRAINZ-20261124-00002",
+   "batch": "CB-IRTRAINZ-20261124",
+   "item_num": "IDM1001",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-IRTRAINZ-20261124-00003",
+   "batch": "CB-IRTRAINZ-20261124",
+   "item_num": "IDM1101",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-IRTRAINZ-20261124-00004",
+   "batch": "CB-IRTRAINZ-20261124",
+   "item_num": "IDM1106",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-IRTRAINZ-20261124-00005",
+   "batch": "CB-IRTRAINZ-20261124",
+   "item_num": "IDM14001",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-IRTRAINZ-20261124-00006",
+   "batch": "CB-IRTRAINZ-20261124",
+   "item_num": "IDM14003",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-IRTRAINZ-20261124-00007",
+   "batch": "CB-IRTRAINZ-20261124",
+   "item_num": "IDM3001",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-IRTRAINZ-20261124-00008",
+   "batch": "CB-IRTRAINZ-20261124",
+   "item_num": "IDM4008",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-IRTRAINZ-20261124-00009",
+   "batch": "CB-IRTRAINZ-20261124",
+   "item_num": "IDM4102",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-IRTRAINZ-20261124-00010",
+   "batch": "CB-IRTRAINZ-20261124",
+   "item_num": "IDM4225",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-IRTRAINZ-20261124-00011",
+   "batch": "CB-IRTRAINZ-20261124",
+   "item_num": "IDM6008",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-IRTRAINZ-20261124-00012",
+   "batch": "CB-IRTRAINZ-20261124",
+   "item_num": "IDM6010",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-IRTRAINZ-20261124-00013",
+   "batch": "CB-IRTRAINZ-20261124",
+   "item_num": "IDM7005",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-IRTRAINZ-20261124-00014",
+   "batch": "CB-IRTRAINZ-20261124",
+   "item_num": "IDM7502",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-IRTRAINZ-20261124-00015",
+   "batch": "CB-IRTRAINZ-20261124",
+   "item_num": "IDM7503",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-IRTRAINZ-20261124-00016",
+   "batch": "CB-IRTRAINZ-20261124",
+   "item_num": "IDM8001",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-IRTRAINZ-20261124-00017",
+   "batch": "CB-IRTRAINZ-20261124",
+   "item_num": "IDM8002",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-IRTRAINZ-20261124-00018",
+   "batch": "CB-IRTRAINZ-20261124",
+   "item_num": "IDM8050",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-IRTRAINZ-20261124-00019",
+   "batch": "CB-IRTRAINZ-20261124",
+   "item_num": "IDMU7002",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-IRTRAINZ-20261124-00020",
+   "batch": "CB-IRTRAINZ-20261124",
+   "item_num": "7012",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-IRTRAINZ-20261124-00021",
+   "batch": "CB-IRTRAINZ-20261124",
+   "item_num": "7015",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-IRTRAINZ-20261124-00022",
+   "batch": "CB-IRTRAINZ-20261124",
+   "item_num": "1009005S",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-IRTRAINZ-20261124-00023",
+   "batch": "CB-IRTRAINZ-20261124",
+   "item_num": "1009203",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-IRTRAINZ-20261124-00024",
+   "batch": "CB-IRTRAINZ-20261124",
+   "item_num": "1000030",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-IRTRAINZ-20261124-00025",
+   "batch": "CB-IRTRAINZ-20261124",
+   "item_num": "1001010",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-IRTRAINZ-20261124-00026",
+   "batch": "CB-IRTRAINZ-20261124",
+   "item_num": "1001049",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-IRTRAINZ-20261124-00027",
+   "batch": "CB-IRTRAINZ-20261124",
+   "item_num": "1001050",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-IRTRAINZ-20261124-00028",
+   "batch": "CB-IRTRAINZ-20261124",
+   "item_num": "1001051",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-IRTRAINZ-20261124-00029",
+   "batch": "CB-IRTRAINZ-20261124",
+   "item_num": "1001052",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-IRTRAINZ-20261124-00030",
+   "batch": "CB-IRTRAINZ-20261124",
+   "item_num": "1001053",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-IRTRAINZ-20261124-00031",
+   "batch": "CB-IRTRAINZ-20261124",
+   "item_num": "1001059",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-IRTRAINZ-20261124-00032",
+   "batch": "CB-IRTRAINZ-20261124",
+   "item_num": "1001066",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-IRTRAINZ-20261124-00033",
+   "batch": "CB-IRTRAINZ-20261124",
+   "item_num": "1001067",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-IRTRAINZ-20261124-00034",
+   "batch": "CB-IRTRAINZ-20261124",
+   "item_num": "1001068",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-IRTRAINZ-20261124-00035",
+   "batch": "CB-IRTRAINZ-20261124",
+   "item_num": "1001080",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-IRTRAINZ-20261124-00036",
+   "batch": "CB-IRTRAINZ-20261124",
+   "item_num": "1001096",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  }
+ ]
+}

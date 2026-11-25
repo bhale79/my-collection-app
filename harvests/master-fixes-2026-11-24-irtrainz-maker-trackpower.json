@@ -1,0 +1,358 @@
+{
+ "title": "Master fix — Industrial Rail from Trainz: Manufacturer = Industrial Rail (21 Other O Brands rows), Track/Power = 3-Rail (14 Atlas O rows)",
+ "why": "The Office does not fill Manufacturer or Track/Power on Commit. Other O Brands rows carry their maker in their own Manufacturer cell, like the other 34 Industrial Rail rows; the Atlas-era Industrial Rail sets carry 3-Rail in Track/Power, and the track is Atlas's 3-rail Industrial Rail roadbed track. The 30 Watt transformer is left blank like the 80 Watt power pack row.",
+ "said": "[stated] Brad 2026-11-24 19:34-19:44 CT, group by group on the Industrial Rail review list: \"Yes\" (19 first-years cars and trolleys), \"Yes\" (Atlas-era sets), \"Yes\" (the 13 track and power pieces to Atlas O), \"Yes\" (the 2 building kits); the rest left out or skipped.",
+ "cells": [
+  {
+   "tab": "Other O Brands",
+   "find": {
+    "Item Number": "HTUSA98",
+    "Source": "(as committed by CB-IRTRAINZ-20261124)"
+   },
+   "column": "Manufacturer",
+   "old": "",
+   "new": "Industrial Rail"
+  },
+  {
+   "tab": "Other O Brands",
+   "find": {
+    "Item Number": "IDM1001",
+    "Source": "(as committed by CB-IRTRAINZ-20261124)"
+   },
+   "column": "Manufacturer",
+   "old": "",
+   "new": "Industrial Rail"
+  },
+  {
+   "tab": "Other O Brands",
+   "find": {
+    "Item Number": "IDM1101",
+    "Source": "(as committed by CB-IRTRAINZ-20261124)"
+   },
+   "column": "Manufacturer",
+   "old": "",
+   "new": "Industrial Rail"
+  },
+  {
+   "tab": "Other O Brands",
+   "find": {
+    "Item Number": "IDM1106",
+    "Source": "(as committed by CB-IRTRAINZ-20261124)"
+   },
+   "column": "Manufacturer",
+   "old": "",
+   "new": "Industrial Rail"
+  },
+  {
+   "tab": "Other O Brands",
+   "find": {
+    "Item Number": "IDM14001",
+    "Source": "(as committed by CB-IRTRAINZ-20261124)"
+   },
+   "column": "Manufacturer",
+   "old": "",
+   "new": "Industrial Rail"
+  },
+  {
+   "tab": "Other O Brands",
+   "find": {
+    "Item Number": "IDM14003",
+    "Source": "(as committed by CB-IRTRAINZ-20261124)"
+   },
+   "column": "Manufacturer",
+   "old": "",
+   "new": "Industrial Rail"
+  },
+  {
+   "tab": "Other O Brands",
+   "find": {
+    "Item Number": "IDM3001",
+    "Source": "(as committed by CB-IRTRAINZ-20261124)"
+   },
+   "column": "Manufacturer",
+   "old": "",
+   "new": "Industrial Rail"
+  },
+  {
+   "tab": "Other O Brands",
+   "find": {
+    "Item Number": "IDM4008",
+    "Source": "(as committed by CB-IRTRAINZ-20261124)"
+   },
+   "column": "Manufacturer",
+   "old": "",
+   "new": "Industrial Rail"
+  },
+  {
+   "tab": "Other O Brands",
+   "find": {
+    "Item Number": "IDM4102",
+    "Source": "(as committed by CB-IRTRAINZ-20261124)"
+   },
+   "column": "Manufacturer",
+   "old": "",
+   "new": "Industrial Rail"
+  },
+  {
+   "tab": "Other O Brands",
+   "find": {
+    "Item Number": "IDM4225",
+    "Source": "(as committed by CB-IRTRAINZ-20261124)"
+   },
+   "column": "Manufacturer",
+   "old": "",
+   "new": "Industrial Rail"
+  },
+  {
+   "tab": "Other O Brands",
+   "find": {
+    "Item Number": "IDM6008",
+    "Source": "(as committed by CB-IRTRAINZ-20261124)"
+   },
+   "column": "Manufacturer",
+   "old": "",
+   "new": "Industrial Rail"
+  },
+  {
+   "tab": "Other O Brands",
+   "find": {
+    "Item Number": "IDM6010",
+    "Source": "(as committed by CB-IRTRAINZ-20261124)"
+   },
+   "column": "Manufacturer",
+   "old": "",
+   "new": "Industrial Rail"
+  },
+  {
+   "tab": "Other O Brands",
+   "find": {
+    "Item Number": "IDM7005",
+    "Source": "(as committed by CB-IRTRAINZ-20261124)"
+   },
+   "column": "Manufacturer",
+   "old": "",
+   "new": "Industrial Rail"
+  },
+  {
+   "tab": "Other O Brands",
+   "find": {
+    "Item Number": "IDM7502",
+    "Source": "(as committed by CB-IRTRAINZ-20261124)"
+   },
+   "column": "Manufacturer",
+   "old": "",
+   "new": "Industrial Rail"
+  },
+  {
+   "tab": "Other O Brands",
+   "find": {
+    "Item Number": "IDM7503",
+    "Source": "(as committed by CB-IRTRAINZ-20261124)"
+   },
+   "column": "Manufacturer",
+   "old": "",
+   "new": "Industrial Rail"
+  },
+  {
+   "tab": "Other O Brands",
+   "find": {
+    "Item Number": "IDM8001",
+    "Source": "(as committed by CB-IRTRAINZ-20261124)"
+   },
+   "column": "Manufacturer",
+   "old": "",
+   "new": "Industrial Rail"
+  },
+  {
+   "tab": "Other O Brands",
+   "find": {
+    "Item Number": "IDM8002",
+    "Source": "(as committed by CB-IRTRAINZ-20261124)"
+   },
+   "column": "Manufacturer",
+   "old": "",
+   "new": "Industrial Rail"
+  },
+  {
+   "tab": "Other O Brands",
+   "find": {
+    "Item Number": "IDM8050",
+    "Source": "(as committed by CB-IRTRAINZ-20261124)"
+   },
+   "column": "Manufacturer",
+   "old": "",
+   "new": "Industrial Rail"
+  },
+  {
+   "tab": "Other O Brands",
+   "find": {
+    "Item Number": "IDMU7002",
+    "Source": "(as committed by CB-IRTRAINZ-20261124)"
+   },
+   "column": "Manufacturer",
+   "old": "",
+   "new": "Industrial Rail"
+  },
+  {
+   "tab": "Other O Brands",
+   "find": {
+    "Item Number": "7012",
+    "Source": "(as committed by CB-IRTRAINZ-20261124)"
+   },
+   "column": "Manufacturer",
+   "old": "",
+   "new": "Industrial Rail"
+  },
+  {
+   "tab": "Other O Brands",
+   "find": {
+    "Item Number": "7015",
+    "Source": "(as committed by CB-IRTRAINZ-20261124)"
+   },
+   "column": "Manufacturer",
+   "old": "",
+   "new": "Industrial Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Item #": "1009005S",
+    "Source": "(as committed by CB-IRTRAINZ-20261124)"
+   },
+   "column": "Track/Power",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Item #": "1009203",
+    "Source": "(as committed by CB-IRTRAINZ-20261124)"
+   },
+   "column": "Track/Power",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Item #": "1001010",
+    "Source": "(as committed by CB-IRTRAINZ-20261124)"
+   },
+   "column": "Track/Power",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Item #": "1001049",
+    "Source": "(as committed by CB-IRTRAINZ-20261124)"
+   },
+   "column": "Track/Power",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Item #": "1001050",
+    "Source": "(as committed by CB-IRTRAINZ-20261124)"
+   },
+   "column": "Track/Power",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Item #": "1001051",
+    "Source": "(as committed by CB-IRTRAINZ-20261124)"
+   },
+   "column": "Track/Power",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Item #": "1001052",
+    "Source": "(as committed by CB-IRTRAINZ-20261124)"
+   },
+   "column": "Track/Power",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Item #": "1001053",
+    "Source": "(as committed by CB-IRTRAINZ-20261124)"
+   },
+   "column": "Track/Power",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Item #": "1001059",
+    "Source": "(as committed by CB-IRTRAINZ-20261124)"
+   },
+   "column": "Track/Power",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Item #": "1001066",
+    "Source": "(as committed by CB-IRTRAINZ-20261124)"
+   },
+   "column": "Track/Power",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Item #": "1001067",
+    "Source": "(as committed by CB-IRTRAINZ-20261124)"
+   },
+   "column": "Track/Power",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Item #": "1001068",
+    "Source": "(as committed by CB-IRTRAINZ-20261124)"
+   },
+   "column": "Track/Power",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Item #": "1001080",
+    "Source": "(as committed by CB-IRTRAINZ-20261124)"
+   },
+   "column": "Track/Power",
+   "old": "",
+   "new": "3-Rail"
+  },
+  {
+   "tab": "Atlas O",
+   "find": {
+    "Item #": "1001096",
+    "Source": "(as committed by CB-IRTRAINZ-20261124)"
+   },
+   "column": "Track/Power",
+   "old": "",
+   "new": "3-Rail"
+  }
+ ],
+ "undo": "write old back to that cell of the row (find it by its Row ID, recorded in MASTER_EDIT_2026-11-24_INDUSTRIAL_RAIL_FROM_TRAINZ.md)"
+}
