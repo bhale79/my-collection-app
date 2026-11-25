@@ -112,3 +112,4 @@ that touches navigation, modals or the reports.
 <!-- 2026-11-02: re-publish of v0.9.2097 after GitHub's "Publish website" deploy step failed (artifact metadata fetch). No test change. -->
 <!-- 2026-11-14: re-publish of v0.9.2148 after GitHub's "Publish website" deploy step failed (artifact metadata fetch) — the same GitHub-side failure as 2026-11-02. No test change. -->
 <!-- 2026-11-24: re-publish of v0.9.2159 after GitHub's "Publish website" deploy step failed (artifact metadata fetch) — the same GitHub-side failure as 2026-11-02 and 2026-11-14. No test change. -->
+<!-- 2026-11-25: re-publish of v0.9.2160 + v0.9.2161 after GitHub's "Publish website" deploy step failed twice (artifact metadata fetch) — the same GitHub-side failure as 2026-11-02, 2026-11-14 and 2026-11-24. No test change. -->
