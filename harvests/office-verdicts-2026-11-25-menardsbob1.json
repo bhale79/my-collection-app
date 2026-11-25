@@ -1,0 +1,16 @@
+{
+ "title": "Office verdicts \u2014 275-9388 (Menards O) for Bob, approved",
+ "rule": "status approved/edited/rejected + decided date in P:Q; set = crawl_deltas cells by header; before = value the cell must hold now",
+ "review": "_Claude_Work_Files\\menards_gap_20261125\\menards_bob_1125.py (the 1 row, shown to Brad in chat)",
+ "said": "[stated] Brad 2026-11-25 16:22 CT \"Yes\" (add 275-9388, the Burlington Northern flatcar with 1954 GMC Sinclair tractor & trailer, from the series pattern, three sale listings and Bob's box, as the next Master Version).",
+ "rows": [
+  {
+   "delta_id": "CB-MENARDSBOB1-20261125-00001",
+   "batch": "CB-MENARDSBOB1-20261125",
+   "item_num": "275-9388",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  }
+ ]
+}
