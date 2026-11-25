@@ -336,27 +336,43 @@ async function runAll(browser, planted, only) {
       [w.one === '1 of your hand-typed items is in the catalog now' && w.none === '' && w.btn === 'Check my hand-typed items', w];
     await ctx.close();
   }
-  // J — owners only for now
+  // J — who sees it: every member since 2026-11-25 ([stated] Brad; the switch RR_CATALOG_NOW.who = 'all').
+  // The switch itself still works: set back to 'owners' or 'off' in the page, a member sees nothing and
+  // nothing can be written for them.
   if (want('J')) {
     const { ctx, pg } = await boot(browser, 'laptop', planted, true);
     const m = await pg.evaluate(async () => {
+      const shipped = RR_CATALOG_NOW.who;
       buildToolsPage();
-      const res = await rrCatalogNowUpdateOne('h1', '301', state.masterData[0], false);
-      return { section: !!document.getElementById('catalognow-body'), button: !!document.getElementById('catalog-now-run'), on: rrCatalogNowOn(), who: RR_CATALOG_NOW.who,
-        text: /Now in the catalog/i.test(document.getElementById('page-tools').textContent), wrote: res.ok, puts: window.__puts.length };
+      const all = { on: rrCatalogNowOn(), section: !!document.getElementById('catalognow-body'), button: !!document.getElementById('catalog-now-run') };
+      const look = async (who) => {
+        RR_CATALOG_NOW.who = who; window.__puts.length = 0;
+        buildToolsPage();
+        const res = await rrCatalogNowUpdateOne('h1', '301', state.masterData[0], false);
+        return { on: rrCatalogNowOn(), section: !!document.getElementById('catalognow-body'), button: !!document.getElementById('catalog-now-run'),
+          text: /Now in the catalog/i.test(document.getElementById('page-tools').textContent), wrote: res.ok, puts: window.__puts.length };
+      };
+      const owners = await look('owners'), off = await look('off');
+      RR_CATALOG_NOW.who = shipped;
+      return { shipped, all, owners, off };
     });
-    R['J1 the switch says owners; a member sees no section, no button, no words — and nothing can be written for them'] =
-      [m.who === 'owners' && m.on === false && !m.section && !m.button && !m.text && m.wrote === false && m.puts === 0, m];
+    const shut = x => x.on === false && !x.section && !x.button && !x.text && x.wrote === false && x.puts === 0;
+    R['J0 the switch says all: a MEMBER sees the section and the button'] = [m.shipped === 'all' && m.all.on === true && m.all.section && m.all.button, m];
+    R['J1 the switch set back to owners (or off): a member sees no section, no button, no words — and nothing can be written for them'] = [shut(m.owners) && shut(m.off), m];
     await ctx.close();
     const rec = await boot(browser, 'laptop', planted);
     const o = await rec.pg.evaluate(() => {
+      const shipped = RR_CATALOG_NOW.who;
       const a = rrCatalogNowOn();
+      RR_CATALOG_NOW.who = 'owners';
+      const own = rrCatalogNowOn();
       rrSetRecordingMode(true); buildToolsPage();
       const b = { on: rrCatalogNowOn(), section: !!document.getElementById('catalognow-body') };
       rrSetRecordingMode(false);
-      return { owner: a, rec: b };
+      RR_CATALOG_NOW.who = shipped;
+      return { owner: a, own: own, rec: b };
     });
-    R['J2 an owner sees it; recording mode hides it like every owner-only tool'] = [o.owner === true && o.rec.on === false && o.rec.section === false, o];
+    R['J2 an owner sees it; with the switch on owners, recording mode hides it like every owner-only tool'] = [o.owner === true && o.own === true && o.rec.on === false && o.rec.section === false, o];
     await rec.ctx.close();
   }
   // H — identity

@@ -1952,6 +1952,57 @@ function rrNumSuffixBase(n) {
   var m = String(n == null ? '' : n).trim().match(/^(.*\d)-\d{1,2}$/);
   return (m && m[1].length >= 3) ? m[1] : '';
 }
+// ── 2026-11-25 (oldnumbers) — A MAKER'S OTHER WAY OF WRITING THE SAME NUMBER ──
+// [stated] Brad 2026-11-25 09:32 CT "yes" (to building both for customer Bob).
+// Bob typed two MTH numbers the way his paperwork writes them and found nothing:
+//   • 30-1906-01 — MTH writes its endings as ONE digit (30-1906-1 = Proto-Sound,
+//     -0 = horn / whistle, -3 = Proto 3 Hi-Rail …); the extra zero is how people
+//     write it out.
+//   • RK-2005LP — MTH's 1990s RailKing number. MTH renumbered the line in 1997:
+//     RK-NNNN became 30-NNNN, "L" (loco with horn / whistle) became -0 and "LP"
+//     (with Proto-Sound) became -1. Proven on two engines against MTH's own
+//     pages: RK-2005LP Conrail SD60 = 30-2005-1 (delivered March 1997) and
+//     RK-1111LP Norfolk & Western 0-8-0 = 30-1111-1.
+// Both are a FALLBACK like the zero and dash twins above — asked only when
+// nothing answers to the number exactly as written — and ONLY for rows of the
+// catalogs named in RR_OLD_NUMBER_ERAS (config.js): on K-Line and the parts
+// tabs an ending's zero is the WHOLE difference (K2625-01 / K2625-1, Lionel
+// Parts 2367-055 / 2367-55 are different things). The rule lives here and
+// nowhere else — old_numbers_tests scans for a second copy.
+//   • rrNumOtherSpellings(n) — [{ num, rule }]: the other way(s) the typed
+//                              number may be written; [] for most numbers
+//   • rrNumOldSpellingTwin(row, typed) — the catalog ROW is one of them, and
+//                              its catalog takes that rule. Never true when the
+//                              two are the same as written.
+function rrNumOtherSpellings(n) {
+  var s = String(n == null ? '' : n).trim(), out = [];
+  // the ENDING of a number that already has a dash before it (30-1906-01): a two-part
+  // number (MTH 40-0200) or a half-typed one (30-01) has no ending to speak of
+  var z = s.match(/^(.*\d-.*\d)-0+(\d+)$/);
+  if (z) out.push({ num: z[1] + '-' + z[2], rule: 'zeroEnding' });
+  var k = s.match(/^RK-?(\d{4})(LP|L)?$/i);
+  if (k) out.push({ num: '30-' + k[1] + (k[2] ? (k[2].toUpperCase() === 'LP' ? '-1' : '-0') : ''), rule: 'railKing' });
+  return out;
+}
+function rrNumOldSpellingTwin(row, typed) {
+  if (!row || typeof row !== 'object') return false;
+  var x = String(row.itemNum == null ? '' : row.itemNum).trim().toLowerCase();
+  var y = String(typed == null ? '' : typed).trim();
+  if (!x || !y || x === y.toLowerCase()) return false;
+  var E = (typeof RR_OLD_NUMBER_ERAS !== 'undefined' && RR_OLD_NUMBER_ERAS) ? RR_OLD_NUMBER_ERAS : {};
+  var era = String(row._era || '');
+  // asked once per catalog row (170,000 a search): a row of a catalog on NO list leaves at
+  // once, and the typed number's other spellings are worked out once, not per row (review 2026-11-25)
+  var listed = false;
+  for (var rule in E) { if (Array.isArray(E[rule]) && E[rule].indexOf(era) >= 0) { listed = true; break; } }
+  if (!listed) return false;
+  if (_rrOldSpellMemo.typed !== y) { _rrOldSpellMemo.typed = y; _rrOldSpellMemo.out = rrNumOtherSpellings(y); }
+  return _rrOldSpellMemo.out.some(function (o) {
+    return o.num.toLowerCase() === x && Array.isArray(E[o.rule]) && E[o.rule].indexOf(era) >= 0;
+  });
+}
+var _rrOldSpellMemo = { typed: null, out: [] };
+if (typeof window !== 'undefined') { window.rrNumOtherSpellings = rrNumOtherSpellings; window.rrNumOldSpellingTwin = rrNumOldSpellingTwin; }
 function rrNumLooseTwin(row, typed) {
   var isRow = !!row && typeof row === 'object';
   var x = String(isRow ? (row.itemNum == null ? '' : row.itemNum) : (row == null ? '' : row)).trim().toLowerCase();
@@ -1959,6 +2010,7 @@ function rrNumLooseTwin(row, typed) {
   if (!x || !y || x === y) return false;
   if (/^[a-z]/.test(x) && /^[a-z]/.test(y) && rrNumDashKey(x) === rrNumDashKey(y)) return true;
   if (!isRow) return false;
+  if (typeof rrNumOldSpellingTwin === 'function' && rrNumOldSpellingTwin(row, typed)) return true;   // oldnumbers: MTH 30-1906-01 → 30-1906-1, RK-2005LP → 30-2005-1
   var eras = (typeof RR_ROAD_NUMBER_ENDING_ERAS !== 'undefined' && Array.isArray(RR_ROAD_NUMBER_ENDING_ERAS)) ? RR_ROAD_NUMBER_ENDING_ERAS : [];
   if (eras.indexOf(String(row._era || '')) < 0) return false;
   var b = rrNumSuffixBase(y);
@@ -1968,7 +2020,7 @@ function rrNumLooseTwin(row, typed) {
 // so a plain 6502 never pays the per-row check (review finding 5).
 function rrNumMayHaveLooseTwin(typed) {
   var y = String(typed == null ? '' : typed).trim();
-  return /^[A-Za-z]+-?\d/.test(y) || !!rrNumSuffixBase(y);
+  return /^[A-Za-z]+-?\d/.test(y) || !!rrNumSuffixBase(y) || (typeof rrNumOtherSpellings === 'function' && rrNumOtherSpellings(y).length > 0);   // oldnumbers
 }
 // The number an add SAVES once it holds a catalog row. [stated] Brad 2026-11-24
 // 13:38 CT "should show the -2": a road-number ending the collector typed
@@ -1982,6 +2034,7 @@ function rrNumSaveAs(row, typed) {
   if (!rn) return y;
   if (y && typeof rrNumCarTwin === 'function' && rrNumCarTwin(row, y)) return rrCustomRunNumber(row);   // weavercr: a custom run is saved under the number on the car — never "CUSTOM RUN"
   if (!y || !rrNumLooseTwin(row, y)) return rn;
+  if (typeof rrNumOldSpellingTwin === 'function' && rrNumOldSpellingTwin(row, y)) return rn;   // oldnumbers: an old spelling is saved as the catalog writes it (30-1906-1), never as typed
   return rrNumSuffixBase(y) ? y : rn;   // the ending kept; a letters' dash (K-675402) has no ending, so takes the catalog's
 }
 if (typeof window !== 'undefined') { window.rrNumDashKey = rrNumDashKey; window.rrNumSuffixBase = rrNumSuffixBase; window.rrNumLooseTwin = rrNumLooseTwin; window.rrNumMayHaveLooseTwin = rrNumMayHaveLooseTwin; window.rrNumSaveAs = rrNumSaveAs; }

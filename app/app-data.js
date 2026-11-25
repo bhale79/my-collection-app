@@ -1743,7 +1743,15 @@ function rrCatalogCandidates(itemNum) {
   // 6502) — candidates the member picks from, each showing its own catalog.
   if (!out.length && typeof _looseKinRows === 'function') {
     [state.masterByItem, state.masterByItemAll].forEach(function (idx) {
-      keys.forEach(function (k) { _looseKinRows(idx, k, { suffix: true }).forEach(take); });
+      keys.forEach(function (k) {
+        _looseKinRows(idx, k, { suffix: true }).forEach(function (r) {
+          // oldnumbers (2026-11-25): the base key of RK-2005LP is RK-2005L (the P off), whose old-number
+          // twin is the HORN engine 30-2005-0 — a different item. An old-spelling twin counts only for
+          // the number as saved.
+          if (k !== n && typeof rrNumOldSpellingTwin === 'function' && rrNumOldSpellingTwin(r, k) && !rrNumOldSpellingTwin(r, n)) return;
+          take(r);
+        });
+      });
     });
   }
   // 2026-11-24 (weavercr): then the custom-run cars that carry the number (a
@@ -2327,6 +2335,9 @@ function _looseKinRows(idx, num, o) {
   var looks = [asked];
   var base = (o && o.suffix && typeof rrNumSuffixBase === 'function') ? rrNumSuffixBase(asked) : '';
   if (base) looks.push(base);
+  // oldnumbers (2026-11-25): the maker's other way of writing it (MTH 30-1906-01 → 30-1906-1,
+  // RK-2005LP → 30-2005-1) — looked up as the catalog writes it; the rule still decides per row.
+  if (typeof rrNumOtherSpellings === 'function') rrNumOtherSpellings(asked).forEach(function (o) { if (looks.indexOf(o.num) < 0) looks.push(o.num); });
   looks.forEach(function (n) {
     if (n !== asked) { (idx.get(n) || []).forEach(add); (idx.get(n.toUpperCase()) || []).forEach(add); }
     if (/^[A-Za-z]+-?\d/.test(n)) (ent.map.get(rrNumDashKey(n).toLowerCase()) || []).forEach(add);

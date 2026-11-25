@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2162';
+const APP_VERSION = 'v0.9.2163';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -5988,6 +5988,23 @@ if (typeof window !== 'undefined') window.RR_ADD_FILTERS = RR_ADD_FILTERS;
 // MTH -2 = 2-rail), so it never reaches the bare number. ONE list, here.
 const RR_ROAD_NUMBER_ENDING_ERAS = ['atlas', 'atlas_ho', 'atlas_n', 'atlas_z'];
 if (typeof window !== 'undefined') window.RR_ROAD_NUMBER_ENDING_ERAS = RR_ROAD_NUMBER_ENDING_ERAS;
+// 2026-11-25 (oldnumbers; [stated] Brad 09:32 CT "yes") — the catalogs that take a
+// maker's OTHER way of writing a number (rrNumOldSpellingTwin, app.js), one list
+// per rule. A fallback only: asked when nothing answers to the number as written.
+//   zeroEnding — MTH ends its numbers in ONE digit (30-1906-1); people write
+//                30-1906-01. Measured on the live catalog 2026-11-25: no MTH tab
+//                holds a number both ways. NOT K-Line (K2625-01 and K2625-1 are
+//                two items) and NOT the parts tabs (Lionel Parts 2367-055 / 2367-55,
+//                38 such pairs; Train Tender 9).
+//   railKing   — MTH's 1990s RailKing numbers: RK-2005LP is today's 30-2005-1
+//                (LP = with Proto-Sound = -1, L = horn / whistle = -0). RailKing is
+//                O gauge, so the MTH O catalog only.
+// ONE list, here.
+const RR_OLD_NUMBER_ERAS = {
+  zeroEnding: ['mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g'],
+  railKing: ['mth_o'],
+};
+if (typeof window !== 'undefined') window.RR_OLD_NUMBER_ERAS = RR_OLD_NUMBER_ERAS;
 // 2026-11-24 (weavercr; PLAN_2026-11-24_WEAVER_CUSTOM_RUN_ROAD_NUMBERS, [stated]
 // Brad 19:07 CT "Yes") — THE CAR THAT HAS NO CATALOG NUMBER. Weaver gave its
 // custom runs (cars made for a shop or club) no number of its own: the Item
@@ -6709,7 +6726,10 @@ const RR_CATALOG_NOW = {
   // WHO sees it — the section's ONE switch (the RR_QUIET_RENEW shape):
   //   'off' — nobody · 'owners' — RR_OWNER_EMAILS only · 'all' — every member
   // [stated] Brad 2026-11-24 13:57 CT "owners now, until i can test it".
-  who: 'owners',
+  // 2026-11-25: hand-test T-2026-11-25-06 PASSED on the live app (his laptop, his
+  // owner account); opened to every member on his say-so, for customer Bob's
+  // hand-typed entries.
+  who: 'all',
   name: 'Now in the catalog',
   note: 'Hand-typed items the catalog has now',
   desc: 'Checks the items you typed in by hand against the catalog. When the catalog has one now, you see what you typed beside the catalog’s entry, and you choose which to update. Nothing changes until you say so.',

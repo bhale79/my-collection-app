@@ -69,7 +69,7 @@ function buildToolsPage() {
   // [stated] Brad 2026-11-24 13:50 CT "on the button, should say the '3 of you......' line" /
   // "well, next to the button itself, not on it directly": when the scan finds some, the
   // line BESIDE the button (and the folded heading) says how many. The button keeps its words.
-  var _cnwOn = (typeof rrCatalogNowOn === 'function') && rrCatalogNowOn();   // owners only for now (the one switch, RR_CATALOG_NOW.who)
+  var _cnwOn = (typeof rrCatalogNowOn === 'function') && rrCatalogNowOn();   // who sees it: the one switch, RR_CATALOG_NOW.who
   var _cnwWords = (_cnwOn && typeof rrCatalogNowButtonWords === 'function') ? rrCatalogNowButtonWords() : { button: _CNW.button || '', beside: '', note: _CNW.note || '' };
   var CARD_CATALOG_NOW =
     '<div class="tools-card">' +
