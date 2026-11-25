@@ -18,7 +18,7 @@
 //     price, and given up to RR_GIFT.maxLinks store links. A link is kept only
 //     after the collector has OPENED it from here and tapped "Yes, that's it" —
 //     so every link that can ever be sent was looked at by him first.
-//   • Preview shows exactly what she gets; Email / Text / Print go from there.
+//   • Preview shows exactly what they get; Email / Text / Print go from there.
 //     Every link written into a message or a printed QR code goes through the
 //     store-link last stop (rrAffiliateUrl, store-links.js) at the moment the
 //     message is built. The disclosure line (RR_GIFT.disclosure, Brad's
@@ -515,7 +515,7 @@
     if (!o.items.length) return '<div style="padding:1.5rem 0;color:var(--text-dim)">Nothing is ticked yet. Go back and tick the items for the gift list.</div>'
       + '<button class="rr-btn" onclick="rrGiftView(\'edit\')">Back</button>';
     var h = (o.leftOff ? '<div data-gift-leftoff="' + o.leftOff + '" style="font-size:0.84rem;color:var(--t-red);font-weight:600;margin-bottom:0.5rem">' + _esc(_W('leftOff').replace('{n}', o.leftOff)) + '</div>' : '')
-      + '<div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:0.6rem">This is exactly what she will see.</div>'
+      + '<div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:0.6rem">This is exactly what they will see.</div>'
       + '<div data-gift-preview="1" style="border:1px solid var(--border);border-radius:10px;padding:0.8rem;background:var(--bg-card)">'
       + '<div style="font-weight:700;margin-bottom:0.5rem;color:var(--text)">' + _esc(_title()) + '</div>';
     o.items.forEach(function (it, i) {
