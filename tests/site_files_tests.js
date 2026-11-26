@@ -17,6 +17,14 @@
 //      deploy-pages, runs on every push to main, and refuses a missing path
 //   G  the gather step, run here exactly as the workflow runs it, produces a
 //      site holding every published file and none of the private ones
+//   R  (2026-11-25, publishretry — 9 of 20 publishes failed at GitHub's deploy
+//      step that day) the deploy is tried up to THREE times in one run: tries
+//      1 and 2 fail quietly, each next try (and the wait before it) runs ONLY
+//      when the try before failed, ONLY try 3 can fail the run, the site
+//      address comes from whichever try worked, and the run says which try
+//      published. What a test cannot prove — that GitHub takes a second deploy
+//      in the same run — the first real failure after it ships proves ("Website
+//      published on: try 2" in the run's summary).
 
 const fs = require('fs');
 const path = require('path');
@@ -88,6 +96,40 @@ function checkWorkflow(wf) {
   if (!/set -euo pipefail/.test(wf)) return 'the gather step does not stop on errors';
   return '';
 }
+// R — the deploy's three tries (2026-11-25, publishretry).
+function wfSteps(wf) {
+  const i = wf.indexOf('\n    steps:\n');
+  if (i < 0) return [];
+  return wf.slice(i).split(/\n      - /).slice(1).map(b => '- ' + b);
+}
+function checkRetry(wf) {
+  const st = wfSteps(wf);
+  const dep = st.filter(b => /uses:\s*actions\/deploy-pages@v\d+/.test(b));
+  if (dep.length !== 3) return 'deploys ' + dep.length + ' time(s) — not three tries';
+  const id = b => (b.match(/\bid:\s*(\S+)/) || [])[1];
+  if (dep.map(id).join() !== 'deploy1,deploy2,deploy3') return 'the tries are not deploy1, deploy2, deploy3 in that order: ' + dep.map(id).join();
+  const quiet = b => /\n\s*continue-on-error:\s*true/.test(b);
+  if (!quiet(dep[0]) || !quiet(dep[1])) return 'try 1 or try 2 would end the run on a failure (no continue-on-error)';
+  if (quiet(dep[2])) return 'try 3 keeps going on a failure — a real outage would show green';
+  const cond = b => ((b.match(/\n\s*if:\s*(.+)/) || [])[1] || '').trim();
+  if (cond(dep[0])) return 'try 1 has a condition — it must always run';
+  const f1 = /steps\.deploy1\.outcome == 'failure'/, f2 = /steps\.deploy2\.outcome == 'failure'/;
+  if (!f1.test(cond(dep[1]))) return 'try 2 runs without waiting for try 1 to fail';
+  if (!f1.test(cond(dep[2])) || !f2.test(cond(dep[2]))) return 'try 3 runs without waiting for tries 1 and 2 to fail';
+  const at = dep.map(b => st.indexOf(b));
+  const waits = st.map((b, k) => (/\n\s*run:\s*sleep\s+\d+/.test(b) ? k : -1)).filter(k => k >= 0);
+  const w1 = waits.find(k => k > at[0] && k < at[1]), w2 = waits.find(k => k > at[1] && k < at[2]);
+  if (w1 == null || w2 == null) return 'no wait between the tries';
+  if (cond(st[w1]) !== cond(dep[1]) || cond(st[w2]) !== cond(dep[2])) return 'a wait runs at a different time than the try after it';
+  if (!/url:\s*\$\{\{\s*steps\.deploy1\.outputs\.page_url \|\| steps\.deploy2\.outputs\.page_url \|\| steps\.deploy3\.outputs\.page_url\s*\}\}/.test(wf)) return 'the site address does not come from whichever try worked';
+  if (!st.some(b => /if:\s*always\(\)/.test(b) && /GITHUB_STEP_SUMMARY/.test(b) && /deploy1\.outcome/.test(b) && /deploy2\.outcome/.test(b) && /deploy3\.outcome/.test(b))) return 'the run does not say which try published the site';
+  return '';
+}
+function plantR(from, to, what) {
+  if (!wfText().includes(from)) throw new Error('planted offender "' + what + '" no longer matches the workflow — update the test');
+  return wfText().split(from).join(to);
+}
+function wfText() { return fs.existsSync(WF) ? fs.readFileSync(WF, 'utf8') : ''; }
 
 console.log('site_files_tests — the real repo');
 const text = fs.existsSync(LIST) ? fs.readFileSync(LIST, 'utf8') : '';
@@ -97,6 +139,7 @@ ok('L every top-level entry decided once', !checkList(text, top), checkList(text
 ok('M the site keeps what it needs', !checkMust(text), checkMust(text));
 ok('N working files stay private', !checkNever(text), checkNever(text));
 ok('W the workflow reads the one list', !checkWorkflow(wf), checkWorkflow(wf));
+ok('R the deploy is tried up to three times, only the last can fail the run', !checkRetry(wf), checkRetry(wf));
 
 // G — run the workflow's own gather step on a copy of the listed paths.
 (function gather() {
@@ -134,6 +177,13 @@ const PLANTS = [
   ['W', () => checkWorkflow(wf.split('.github/site-files.txt').join('files.txt')), 'workflow reads another list'],
   ['W', () => checkWorkflow(wf.replace(/branches: \[main\]/, 'branches: [dev]')), 'workflow not run on main'],
   ['W', () => checkWorkflow(wf.replace(/is not in the repo"; exit 1/, 'is not in the repo"')), 'a missing path no longer stops it'],
+  // R (2026-11-25): the file as it was before publishretry — one deploy, no second try
+  ['R', () => checkRetry(wf.slice(0, wf.indexOf('      # 2026-11-25 (publishretry')) + '      - id: deployment\n        uses: actions/deploy-pages@v4\n'), 'one deploy only (the old file)'],
+  ['R', () => checkRetry(plantR("      - name: Wait a minute before trying again\n        if: steps.deploy1.outcome == 'failure'\n        run: sleep 60\n\n", '', 'the first wait')), 'no wait before try 2'],
+  ['R', () => checkRetry(plantR("        name: Publish (try 3 - a failure here fails the run)\n        if: steps.deploy1.outcome == 'failure' && steps.deploy2.outcome == 'failure'\n        uses: actions/deploy-pages@v4\n",
+                               "        name: Publish (try 3 - a failure here fails the run)\n        if: steps.deploy1.outcome == 'failure' && steps.deploy2.outcome == 'failure'\n        uses: actions/deploy-pages@v4\n        continue-on-error: true\n", 'try 3 made quiet')), 'try 3 keeps going on a failure (a real outage would show green)'],
+  ['R', () => checkRetry(plantR("        name: Publish (try 2)\n        if: steps.deploy1.outcome == 'failure'\n", "        name: Publish (try 2)\n", 'try 2 condition')), 'try 2 runs even after try 1 worked'],
+  ['R', () => checkRetry(plantR('url: ${{ steps.deploy1.outputs.page_url || steps.deploy2.outputs.page_url || steps.deploy3.outputs.page_url }}', 'url: ${{ steps.deploy1.outputs.page_url }}', 'the address')), 'the site address only from try 1'],
 ];
 for (const [tag, f, what] of PLANTS) { const e = f(); ok(tag + ' catches: ' + what, !!e, 'the planted offender got through'); }
 

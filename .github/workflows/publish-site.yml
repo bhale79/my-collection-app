@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deploy1.outputs.page_url || steps.deploy2.outputs.page_url || steps.deploy3.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -50,5 +50,45 @@ jobs:
         with:
           path: _site
 
-      - id: deployment
+      # 2026-11-25 (publishretry, [stated] Brad "Yes" → "Go"): GitHub's deploy step fails on
+      # its own side now and then ("Deployment failed, try again later", "No artifacts named
+      # github-pages") — 9 of 20 runs on 2026-11-25. So the deploy is tried up to THREE times
+      # in this run: try 1 and try 2 may fail quietly ("outcome" failure, run goes on), a wait,
+      # then the next try. Only try 3 can fail the run, so a real outage still shows red and
+      # the tests-only re-publish commit (DEPLOY_ROUTE.md) is still the cure for it. A try
+      # runs ONLY when the one before it failed. tests/site_files_tests.js check R holds all of
+      # this, with planted offenders.
+      - id: deploy1
+        name: Publish (try 1)
         uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      - name: Wait a minute before trying again
+        if: steps.deploy1.outcome == 'failure'
+        run: sleep 60
+
+      - id: deploy2
+        name: Publish (try 2)
+        if: steps.deploy1.outcome == 'failure'
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      - name: Wait three minutes before the last try
+        if: steps.deploy1.outcome == 'failure' && steps.deploy2.outcome == 'failure'
+        run: sleep 180
+
+      - id: deploy3
+        name: Publish (try 3 - a failure here fails the run)
+        if: steps.deploy1.outcome == 'failure' && steps.deploy2.outcome == 'failure'
+        uses: actions/deploy-pages@v4
+
+      - name: Say which try published the site
+        if: always()
+        shell: bash
+        run: |
+          if [ "${{ steps.deploy1.outcome }}" = "success" ]; then t="try 1"
+          elif [ "${{ steps.deploy2.outcome }}" = "success" ]; then t="try 2 (try 1 failed on GitHub's side)"
+          elif [ "${{ steps.deploy3.outcome }}" = "success" ]; then t="try 3 (tries 1 and 2 failed on GitHub's side)"
+          else t="NONE - all tries failed or the run stopped earlier"; fi
+          echo "Website published on: $t"
+          echo "### Website published on: $t" >> "$GITHUB_STEP_SUMMARY"
