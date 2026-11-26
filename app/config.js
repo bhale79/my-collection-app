@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2165';
+const APP_VERSION = 'v0.9.2166';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -1255,7 +1255,8 @@ const RR_MAKER_ALIASES = {                // spelling on the submission → the 
   'usa trains': 'usa trains', 'lgb of america': 'lgb', 'aristocraft': 'aristo-craft', 'aristo craft': 'aristo-craft',
   'ross': 'ross custom switches', 'ross switches': 'ross custom switches',   // rosstab
   'gar graves': 'gargraves', 'gargraves trackage': 'gargraves',                // rosstab: GarGraves
-  'bluford': 'bluford shops', 'athearn roundhouse': 'roundhouse'                // sixtabs (2026-11-15)
+  'bluford': 'bluford shops', 'athearn roundhouse': 'roundhouse',               // sixtabs (2026-11-15)
+  'blma models': 'blma', 'a.h.m.': 'ahm', 'associated hobby manufacturers': 'ahm'   // blmaahm (2026-11-25)
 };
 // Words are matched whole (word boundaries), case-insensitive. Keep them lowercase.
 const RR_PRESORT_WORDS = {
@@ -1343,7 +1344,12 @@ const RR_MAKER_WORDS = [
   // text (MDC Roundhouse is the same brand) — so "Frank's Roundhouse HO" and "Walthers
   // Cornerstone Roundhouse HO Scale Kit" do not; "RND1166" (no dash) counts too.
   [/\bbluford\b/i, 'bluford shops', 'Bluford Shops'],
-  [/^\s*(?:mdc\s+)?roundhouse\s*$|\bathearn\s+roundhouse\b|^\s*(?:mdc\s+)?roundhouse\s+(?:ho\b|rnd)/i, 'roundhouse', 'Roundhouse']
+  [/^\s*(?:mdc\s+)?roundhouse\s*$|\bathearn\s+roundhouse\b|^\s*(?:mdc\s+)?roundhouse\s+(?:ho\b|rnd)/i, 'roundhouse', 'Roundhouse'],
+  // blmaahm (2026-11-25): BLMA (BLMA Models) and AHM (Associated Hobby Manufacturers, written
+  // "A.H.M." on its boxes). Whole words only, so a word that merely contains the
+  // letters ("ahmed", "blmax") never reads as either maker.
+  [/\bblma\b/i, 'blma', 'BLMA'],
+  [/\bahm\b|(?:^|[^a-z])a\.\s?h\.\s?m\.|\bassociated\s+hobby\s+manufacturers\b/i, 'ahm', 'AHM']
 ];
 // Words that sit where a maker goes but name a product LINE or nothing at all.
 // "Premier" is MTH's top line AND Atlas's — it can never settle a brand, so it
@@ -2139,6 +2145,17 @@ const ERAS = {
   // Athearn writes RND-1166 and RND1166 for two DIFFERENT cars; the number is kept as written.
   bluford_n:      { id: 'bluford_n',      label: 'Bluford Shops N',      years: 'All', prefix: 'Bluford Shops N',      manufacturer: 'Bluford Shops' },
   bluford_ho:     { id: 'bluford_ho',     label: 'Bluford Shops HO',     years: 'All', prefix: 'Bluford Shops HO',     manufacturer: 'Bluford Shops' },
+  // blmaahm (2026-11-25), [stated] Brad 2026-11-25 "you build it" / "yes and ship it"; Melissa's
+  // makers, PLAN_2026-11-15_SIX_MAKERS.md): BLMA (out of business — bought by Atlas in
+  // 2016) and AHM (Associated Hobby Manufacturers, an importer, closed in the 1980s). No
+  // maker list survives, so every row came from Trainz listings ([stated] Brad 2026-11-16
+  // "yes", each row's Notes say "one source: Trainz"). Tabs written 2026-11-16, Master
+  // Version 2.99 (MASTER_EDIT_2026-11-16_BLMA_AHM_TABS.md). No model years — 'All'.
+  blma_n:         { id: 'blma_n',         label: 'BLMA N',               years: 'All', prefix: 'BLMA N',               manufacturer: 'BLMA' },
+  blma_ho:        { id: 'blma_ho',        label: 'BLMA HO',              years: 'All', prefix: 'BLMA HO',              manufacturer: 'BLMA' },
+  blma_z:         { id: 'blma_z',         label: 'BLMA Z',               years: 'All', prefix: 'BLMA Z',               manufacturer: 'BLMA' },
+  ahm_ho:         { id: 'ahm_ho',         label: 'AHM HO',               years: 'All', prefix: 'AHM HO',               manufacturer: 'AHM' },
+  ahm_n:          { id: 'ahm_n',          label: 'AHM N',                years: 'All', prefix: 'AHM N',                manufacturer: 'AHM' },
   // noroundhouse (2026-11-16, [stated] Brad 16:36 CT "put it on hold for now"): the
   // 'Roundhouse HO' catalog (era id roundhouse_ho, every row read from athearn.com) is ON
   // HOLD until Horizon Hobby, Athearn's parent, gives written permission — athearn.com's
@@ -2151,7 +2168,7 @@ const ERAS = {
   // find a list by the first place its name appears in this file.)
 };
 // Real-era IDs in load priority order (excluding 'all' meta-era).
-const REAL_ERA_IDS = ['pw', 'mpc', 'mod_ho', 'mod_s', 'af_gilbert', 'am_s', 'shelper', 'prewar', 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'marklin_h0', 'marklin_z', 'marklin_1', 'kato_n', 'kato_ho', 'kato_parts', 'microtrains_n', 'trepro', 'lionel_parts', 'mth_parts', 'traintender_parts', 'atlas_parts', 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb', 'kline', 'williams', 'marx', 'other_o', 'aristocraft', 'accucraft', 'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o', 'bachmann_on30', 'bachmann_hon30', 'bachmann_all', 'ross', 'gargraves', 'bluford_n', 'bluford_ho'];
+const REAL_ERA_IDS = ['pw', 'mpc', 'mod_ho', 'mod_s', 'af_gilbert', 'am_s', 'shelper', 'prewar', 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'marklin_h0', 'marklin_z', 'marklin_1', 'kato_n', 'kato_ho', 'kato_parts', 'microtrains_n', 'trepro', 'lionel_parts', 'mth_parts', 'traintender_parts', 'atlas_parts', 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb', 'kline', 'williams', 'marx', 'other_o', 'aristocraft', 'accucraft', 'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o', 'bachmann_on30', 'bachmann_hon30', 'bachmann_all', 'ross', 'gargraves', 'bluford_n', 'bluford_ho', 'blma_n', 'blma_ho', 'blma_z', 'ahm_ho', 'ahm_n'];
 // v0.9.1749: eras that exist for LOOKUPS ONLY. They are in REAL_ERA_IDS (so
 // the background full-catalog index fetches and caches them, and the
 // Yardmaster can file rows into their tab) but _isEraEnabled says no for
@@ -2201,6 +2218,7 @@ const ERA_SCALE = {
   kato_n: 'N', kato_ho: 'HO', kato_parts: '',   // v0.9.1693 — parts span both scales; blank on purpose (same meaning as bachmann_all)
   microtrains_n: 'N',   // v0.9.1719
   bluford_n: 'N', bluford_ho: 'HO',   // sixtabs (2026-11-15); roundhouse_ho on hold 2026-11-16 (noroundhouse)
+  blma_n: 'N', blma_ho: 'HO', blma_z: 'Z', ahm_ho: 'HO', ahm_n: 'N',   // blmaahm (2026-11-25)
   lionel_parts: '',   // v0.9.1749 — parts span O and S; blank on purpose (same meaning as kato_parts)
   mth_parts: '',      // v0.9.1750 — parts span O, HO, S, G and tinplate; blank on purpose
   traintender_parts: '',   // v0.9.1755 — parts span O, OO and G; blank on purpose (the row's Gauge column says which)
@@ -2861,6 +2879,11 @@ const ERA_TABS = {
   gargraves:      { items: 'GarGraves' },              // rosstab — the tab's exact name
   bluford_n:      { items: 'Bluford Shops N' },        // sixtabs (2026-11-15) — the tabs' exact names
   bluford_ho:     { items: 'Bluford Shops HO' },
+  blma_n:         { items: 'BLMA N' },                 // blmaahm (2026-11-25) — the tabs' exact names
+  blma_ho:        { items: 'BLMA HO' },
+  blma_z:         { items: 'BLMA Z' },
+  ahm_ho:         { items: 'AHM HO' },
+  ahm_n:          { items: 'AHM N' },
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -6128,7 +6151,14 @@ function rrIsPhone() {
       && !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
   } catch (e) { return false; }
 }
-if (typeof window !== 'undefined') { window.RR_PHONE = RR_PHONE; window.rrIsPhone = rrIsPhone; }
+// 2026-11-25 (phonechecks): the same ONE definition, spelled as a media query,
+// for the few places that write a <style> from JS (contacts.js's card thumb).
+// It is app.css's phone rule, word for word, built from the numbers above — a
+// script never types "(max-width:640px)" for a phone again (iphone_2032 D3).
+function rrPhoneMedia() {
+  return '(max-width: ' + RR_PHONE.maxWidth + 'px), (max-height: ' + RR_PHONE.shortHeight + 'px) and (pointer: coarse)';
+}
+if (typeof window !== 'undefined') { window.RR_PHONE = RR_PHONE; window.rrIsPhone = rrIsPhone; window.rrPhoneMedia = rrPhoneMedia; }
 
 // ── 2026-11-08 (R7 listlayout, Brad's iPad want list): a TABLET is a touch
 // screen wider than a phone — an iPad (upright AND sideways) or an Android

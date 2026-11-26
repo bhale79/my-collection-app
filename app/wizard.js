@@ -90,12 +90,15 @@ function _wizBoxHeight() {
   // Engine + Tender scrolled 142px out of sight. 92% of the VISUAL viewport
   // (not dvh, which ignores the keyboard) keeps this inside the keyboard
   // guard above: keyboard up -> vv < 596 -> the short branch already won.
-  // Scoped to <=640px wide so small tablets keep their exact old box.
+  // Scoped to PHONES so small tablets keep their exact old box.
   // 2026-11-01 (Brad's iPhone: Photo ID / ✕ / Next under the menu bar): a phone's
   // box ends ABOVE the bottom menu bar — the bar's MEASURED cover
   // (back-stack.js rrBottomBarMeasure), never a share of the screen that guesses
   // how tall the bar is. Same space app.css leaves (bar + 23px).
-  if ((window.innerWidth || 0) <= 640) {
+  // 2026-11-25 (phonechecks): "phone" is rrIsPhone() (config.js), the one test —
+  // this was the last width-only spelling in the box. Nothing on screen moves:
+  // a phone on its side is short, so the vv < 596 branch above already wins.
+  if (typeof window.rrIsPhone === 'function' && window.rrIsPhone()) {
     var _bar = (typeof window.rrBottomBarMeasure === 'function') ? window.rrBottomBarMeasure() : 85;
     return Math.max(300, Math.round(Math.min(vv * 0.92, vv - _bar - 23)));
   }
@@ -7464,7 +7467,7 @@ function renderWizardStep() {
         && !wizard.data._photoOnly && !wizard.data._setMode && !wizard.data.hasIS) {
       wizard.data.hasIS = 'No';
     }
-    const _skipKeys = new Set(['tab','itemCategory','_photoOnly','_tenderDone','_setDone','tenderMatch','setMatch','setType','unitPower','unit2Power','unit3Power','wantErrorPhotos','photosMasterBox','boxOnly','entryMode','_setId','_rawItemNum','matchedItem','_partialMatches','_partialQuery','_partialNum','_typedAsIs','_itemGrouping','_fromWantList','_fromWantKey','_returnPage','_manualEntry','_drivePhotos','_setMode','_setGroupId','_setFinalItems','_setItemIndex','_setItemsSaved','_setEntryMode','_resolvedSet','_setLocoNum','_setPrice','_setDate','_setWorth','_setCondition','_setHasBoxChecked','_setWantPhotos','_setPhotoThenSave','_prefilledCondition','_setQEPhotos','_setMemberPhotos','set_hasBox','set_boxCond','set_boxPhotos','set_notes','_suggestions_cache','_biBoxPhotoFile','_idItemPhotoFile','_boxAutoKnown','_completingQuickEntry','_existingGroupId','_fillItemMode','_wizSaveLock','_photoInventoryId','_addPhotoDriveId','_addPhotoDriveIds','_saveComplete','_era','suggestedRoadName','_manualEra','_alsoListForSale','_fromUpgradeList','_fromUpgradeKey','_cleanupWishlistMatches','_suggestedPricePaid','forSale_salePrice','forSale_dateListed','selectedForSaleKey','selectedSoldKey',
+    const _skipKeys = new Set(['tab','itemCategory','_photoOnly','_tenderDone','_setDone','tenderMatch','setMatch','setType','unitPower','unit2Power','unit3Power','wantErrorPhotos','photosMasterBox','boxOnly','entryMode','_setId','_rawItemNum','matchedItem','_partialMatches','_partialQuery','_partialNum','_typedAsIs','_itemGrouping','_fromWantList','_fromWantKey','_fromWantMateKeys','_returnPage','_manualEntry','_drivePhotos','_setMode','_setGroupId','_setFinalItems','_setItemIndex','_setItemsSaved','_setEntryMode','_resolvedSet','_setLocoNum','_setPrice','_setDate','_setWorth','_setCondition','_setHasBoxChecked','_setWantPhotos','_setPhotoThenSave','_prefilledCondition','_setQEPhotos','_setMemberPhotos','set_hasBox','set_boxCond','set_boxPhotos','set_notes','_suggestions_cache','_biBoxPhotoFile','_idItemPhotoFile','_boxAutoKnown','_completingQuickEntry','_existingGroupId','_fillItemMode','_wizSaveLock','_photoInventoryId','_addPhotoDriveId','_addPhotoDriveIds','_saveComplete','_era','suggestedRoadName','_manualEra','_alsoListForSale','_fromUpgradeList','_fromUpgradeKey','_fromUpgradeMateKeys','_cleanupWishlistMatches','_suggestedPricePaid','forSale_salePrice','forSale_dateListed','selectedForSaleKey','selectedSoldKey',
       '_photoUploadsInFlight','_identifyMeta','_identifyMfrHints','_identifyScaleHint','_identifyTypeHint','_alreadyOwnedFyi',
       '_skipAllPhotos','soldTo','soldAt','_hasISExisting']);  // v0.9.906 + v1585: internal flags — never review rows
     // Skip set_num from summary if it's already shown in the header

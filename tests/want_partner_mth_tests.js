@@ -87,7 +87,7 @@ const BY_NUM = {}; ROWS.forEach(r => { BY_NUM[r.itemNum] = r; });
 // ── the real map + the real helpers, bound to one shared state ─────────────
 const state = { masterData: ROWS, companionData: [], setData: [], personalData: {}, wantData: {}, personalSheetId: 'x' };
 const HELPERS = ['normalizeItemNum', 'baseItemNum', 'rrMthUnitRole', 'buildPartnerMap', '_stripSuffix', '_getPartner', 'isTender', 'isLocomotive',
-  'getMatchingTenders', 'getMatchingLocos', 'getBUnit', 'getAUnit', 'getADummyPartner', 'getAUnits', 'getSetPartner', 'getADummyUnit', 'foldWantEntries'];
+  'getMatchingTenders', 'getMatchingLocos', 'getBUnit', 'getAUnit', 'getADummyPartner', 'getAUnits', 'getSetPartner', 'getADummyUnit', '_wantGroupOf', '_wantIsCompanion', 'foldWantEntries'];   // 2026-11-25 (wantsets): the fold's two helpers
 function buildWorld(src) {
   const code = HELPERS.map(n => grab(src, n)).join('\n') + '\nreturn { ' + HELPERS.join(', ') + ' };';
   return new Function('state', 'console', 'window', code)(state, { log() {}, warn() {} }, {});

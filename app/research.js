@@ -328,11 +328,12 @@
   // williams, other_o — pre-existing gap, Brad approved) plus the nine Phase
   // C tabs. Marx spans all three periods (ERA_SPANS_PERIODS), so it appears
   // in each group rather than being findable in none.
-  var ERA_GROUP = { prewar: ['prewar', 'marx'], pw: ['pw', 'marx', 'af_gilbert'], modern: ['mpc', 'mod_ho', 'mod_s', 'am_s', 'shelper', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb', 'kline', 'williams', 'other_o', 'marx', 'aristocraft', 'accucraft', 'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o', 'bachmann_on30', 'bachmann_hon30', 'bachmann_all',
+  var ERA_GROUP = { prewar: ['prewar', 'marx'], pw: ['pw', 'marx', 'af_gilbert', 'ahm_ho'], modern: ['mpc', 'mod_ho', 'mod_s', 'am_s', 'shelper', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb', 'kline', 'williams', 'other_o', 'marx', 'aristocraft', 'accucraft', 'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o', 'bachmann_on30', 'bachmann_hon30', 'bachmann_all',
     'marklin_h0', 'marklin_z', 'marklin_1',   // v0.9.1693: missed in v1690 — the research page groups by period
     'kato_n', 'kato_ho', 'kato_parts',
     'ross', 'gargraves',      // rosstab (2026-11-05): Ross Custom Switches, GarGraves — current makers
-    'bluford_n', 'bluford_ho'] };   // sixtabs (2026-11-15): Bluford Shops — current makers (Roundhouse on hold 2026-11-16, noroundhouse)
+    'bluford_n', 'bluford_ho',    // sixtabs (2026-11-15): Bluford Shops — current makers (Roundhouse on hold 2026-11-16, noroundhouse)
+    'blma_n', 'blma_ho', 'blma_z', 'ahm_ho', 'ahm_n'] };   // blmaahm (2026-11-25): BLMA, AHM (AHM HO is under Postwar too — it ran from ~1957, the marx pattern)
   function _filterHits(list, opts) {
     var r = list || [];
     opts = opts || {};

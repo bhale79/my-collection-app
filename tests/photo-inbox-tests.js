@@ -9337,11 +9337,23 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // function its subject calls tests nothing but its own ReferenceError.
     const hsrc = wz.slice(wz.indexOf('function _wizBoxHeight()'),
                           wz.indexOf('window._wizWide = _wizWide;'));
-    const H = (innerWidth, innerHeight, vvHeight, bar) => {
-      const win = { innerWidth, innerHeight, visualViewport: vvHeight ? { height: vvHeight } : null };
+    // 2026-11-25 (phonechecks): the phone branch asks window.rrIsPhone() — the
+    // ONE phone test — instead of `innerWidth <= 640`. The pretend window gets
+    // the REAL rrIsPhone, cut from config.js and bound to that window, so these
+    // lines still measure the app's own rule (a pretend window without it made
+    // every phone line below read 580 — seen red first).
+    const cfgPh = fs.readFileSync(APP_FILE('config.js'), 'utf8');
+    const phSrc = cfgPh.slice(cfgPh.indexOf('const RR_PHONE = '), cfgPh.indexOf('\n', cfgPh.indexOf('const RR_PHONE = ')))
+      + '\n' + cfgPh.slice(cfgPh.indexOf('function rrIsPhone() {'), cfgPh.indexOf('function rrPhoneMedia() {'));
+    const H = (innerWidth, innerHeight, vvHeight, bar, coarse) => {
+      const win = { innerWidth, innerHeight, visualViewport: vvHeight ? { height: vvHeight } : null,
+        matchMedia: q => ({ matches: !!coarse && /pointer:\s*coarse/.test(q) }) };
       if (bar != null) win.rrBottomBarMeasure = () => bar;   // 2026-11-01: the bottom bar's measured cover
+      win.rrIsPhone = new Function('window', '"use strict";' + phSrc + '; return rrIsPhone;')(win);
       return new Function('window', '"use strict";' + hsrc + '; return _wizBoxHeight();')(win);
     };
+    ok('the box-height lines below run the REAL phone test from config.js (rrIsPhone cut whole, RR_PHONE with it)',
+       /function rrIsPhone\(\)/.test(phSrc) && /const RR_PHONE = \{ maxWidth: \d+, shortHeight: \d+ \}/.test(phSrc) && !/rrPhoneMedia/.test(phSrc), phSrc.slice(0, 80));
     // v0.9.1407 — the phone stops wasting its screen too (Brad: the grouping
     // question sat below the fold). 92% of the VISUAL viewport, same courtesy
     // the desktop got in v0.9.1389. This line was 'a phone is left exactly as
@@ -9366,6 +9378,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
        H(2560, 1440, 1440) === 900, String(H(2560, 1440, 1440)));
     ok('a small tablet keeps the old box',
        H(760, 1024, 1024) === 580, String(H(760, 1024, 1024)));
+    // 2026-11-25 (phonechecks): a phone on its side IS a phone now (rrIsPhone),
+    // and its box is unchanged — it is short, so the short-screen branch wins.
+    ok('a phone on its side (844x390, touch) keeps the short-screen box it always had',
+       H(844, 390, 390, 85, true) === 374, String(H(844, 390, 390, 85, true)));
 
     // ── the single item finally gets the width ──────────────────────────
     ok('a single-item Condition & Details widens on a desktop',
@@ -15745,7 +15761,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
         // sale off Sold through rrRemoveRowConfirmed, a copy kept like every other.
         // v0.9.2038: 68 → 69 — savePart's edit (app-pages.js) writes through the
         // guarded writer instead of its own inline rrRowStillIs.
-        ok('234 the sweep really landed — 76 sites write through the one guarded writer',
+        ok('234 the sweep really landed — 77 sites write through the one guarded writer',
            // v0.9.2047: 69 → 70 — the contact EDIT joins the guarded set (see
            // the retired exception above): the last remembered-row write that
            // did not check its row.
@@ -15768,7 +15784,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
            // another number carries its For Sale listing, its Upgrade entry and its
            // group's instruction sheet through the guarded writer (app-collection.js
            // rrApplyNumberMove, +3; its parts go through rrPartsRowWrite).
-           wrapped === 76, String(wrapped));
+           // 2026-11-25 (wantsets, "it should just be one row like the my collection"):
+           // 76 → 77 — Got It on a want SET takes the set's other pieces off the Want
+           // list too (wizard-save.js, the _fromWantMateKeys loop), through the same
+           // guarded writer as the lead's row beside it (+1).
+           wrapped === 77, String(wrapped));
       }
     })();
 

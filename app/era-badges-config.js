@@ -71,6 +71,11 @@ const ERA_BADGES = {
     bluford_n:      'BLN',    // sixtabs (2026-11-15): Bluford Shops N
     bluford_ho:     'BLHO',   // sixtabs: Bluford Shops HO
     roundhouse_ho:  'RHO',    // sixtabs: Roundhouse HO
+    blma_n:         'BLMN',   // blmaahm (2026-11-25): BLMA N
+    blma_ho:        'BLMHO',
+    blma_z:         'BLMZ',
+    ahm_ho:         'AHMHO',  // blmaahm (2026-11-25): AHM HO
+    ahm_n:          'AHMN',
     // Session 86: Menards per-scale split ('MENARDS_HO' uppercased is noise).
     menards_ho:     'MNHO',
   },

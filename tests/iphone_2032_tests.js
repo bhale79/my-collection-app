@@ -247,7 +247,14 @@ function strayWidthChecks(files) {
   Object.keys(files).forEach(f => {
     if (f === 'config.js') return;
     const src = files[f].split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
-    if (/innerWidth\s*(<=|>|<|>=)\s*640\b/.test(src) || /max-width:\s*640px\)'\)/.test(src)) bad.push(f);
+    // 2026-11-25 (phonechecks): two spellings walked past this scan for a month —
+    // `(window.innerWidth || 0) <= 640` (wizard.js, wizard-handlers.js) and a
+    // phone rule a script writes into a <style> (`@media (max-width:640px){`,
+    // contacts.js, wizard-handlers.js). Both count now; a box that is simply
+    // 640 wide (`max-width:640px;` as a size) is not a phone rule and does not.
+    if (/innerWidth\s*(\|\|\s*0\s*\)\s*)?(<=|>|<|>=)\s*64[01]\b/.test(src)
+      || /max-width:\s*640px\)'\)/.test(src)
+      || /@media\s*\(\s*max-width:\s*640px\s*\)\s*\{/.test(src)) bad.push(f);
   });
   return bad;
 }
@@ -375,6 +382,23 @@ fs.readdirSync(APP).forEach(f => { if (/\.css$/.test(f) || /\.html$/.test(f)) CS
     ok('P6b PLANTED vh-only heights in style attributes: D4 can fail (mid-attribute and at the closing quote, after an accept="image/*"; a twinned one, a script and a CSS comment are fine)', vh2.length === 2, JSON.stringify(vh2));
     const stray = strayWidthChecks({ 'x.js': "const isMobile = window.innerWidth <= 640;", 'y.js': "// const isMobile = window.innerWidth <= 640;\nvar a = rrIsPhone();", 'z.js': "var p = window.matchMedia('(max-width: 640px)').matches;" });
     ok('P7 PLANTED stray width checks: D3 can fail (a comment is not an offender)', stray.length === 2 && stray.indexOf('x.js') >= 0 && stray.indexOf('z.js') >= 0, JSON.stringify(stray));
+    // 2026-11-25 (phonechecks): the two spellings D3 used to miss, each planted
+    // alone, and a plain 640-wide box (a size, not a phone rule) left alone.
+    const stray2 = strayWidthChecks({
+      'a.js': "if ((window.innerWidth || 0) <= 640) { x(); }",
+      'b.js': "s.textContent = '@media(max-width:640px){#r{flex-direction:column}}';",
+      'c.js': "page.innerHTML = '<style>@media (max-width:640px){.t{display:none}}</style>';",
+      'd.js': "el.style.cssText = 'max-width:640px;width:100%';",
+      'e.js': "s.textContent = '@media ' + rrPhoneMedia() + '{.t{display:none}}';",
+    });
+    ok('P7b PLANTED (window.innerWidth || 0) <= 640 and a script-written @media(max-width:640px): D3 can fail on each; a 640px box and rrPhoneMedia() are fine', JSON.stringify(stray2.sort()) === JSON.stringify(['a.js', 'b.js', 'c.js']), JSON.stringify(stray2));
+    // the real offenders this release removed, put back one at a time
+    [['wizard.js', 'if (typeof window.rrIsPhone === \'function\' && window.rrIsPhone()) {', 'if ((window.innerWidth || 0) <= 640) {'],
+     ['wizard-handlers.js', 'if (_grpWasHidden && _isMobile) {', 'if (_grpWasHidden && (window.innerWidth || 0) <= 640) {'],
+     ['contacts.js', "'<style>@media ' + rrPhoneMedia() + '{", "'<style>@media (max-width:640px){"]].forEach(([f, now, was]) => {
+      const back = {}; back[f] = plant(JS_FILES[f], now, was, f + ' old phone check');
+      ok('P7c PLANTED ' + f + "'s old width-only check put back: D3 names it", strayWidthChecks(back).indexOf(f) >= 0, JSON.stringify(strayWidthChecks(back)));
+    });
     const pr = phoneRules(APPCSS.replace(PHONE_Q, '(max-width: 640px)'));
     ok('P8 PLANTED one phone rule written the old way: D1 can fail', pr.wrong.length === 1, JSON.stringify(pr.wrong));
   }

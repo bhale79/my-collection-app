@@ -268,7 +268,7 @@ async function addChecks(pg) {
     await Y.ctx.close();
     // PLANTED: the first version of the fix ("ross" as a plain maker word) — Betsy Ross vanishes
     const Z = await start(browser, LAPTOP, {
-      'wizard-suggestions.js': plant(sug, "'k-line':'K-Line', gargraves:'GarGraves', bluford:'Bluford Shops' };", "'k-line':'K-Line', gargraves:'GarGraves', bluford:'Bluford Shops', ross:'Ross Custom Switches' };", 'ross word'),
+      'wizard-suggestions.js': plant(sug, "'k-line':'K-Line', gargraves:'GarGraves', bluford:'Bluford Shops', blma:'BLMA', ahm:'AHM' };", "'k-line':'K-Line', gargraves:'GarGraves', bluford:'Bluford Shops', blma:'BLMA', ahm:'AHM', ross:'Ross Custom Switches' };", 'ross word'),
       'item-search-filters-config.js': plant(isf, "    'gargraves',   //", "    'ross', 'gargraves',   //", 'ross stop word') });
     const z = await addChecks(Z.pg);
     ok('X5  PLANTED ("ross" as a plain maker word, the review\'s finding): "betsy ross" loses the Betsy Ross boxcar — proof A7b can fail', !/Betsy Ross/i.test(z.betsy), z.betsy.slice(0, 200));

@@ -3359,6 +3359,18 @@ async function saveWizardItem() {
         rrVerifiedRowUpdate(state.personalSheetId, 'Want-Upgrade List', wantEntry.row, `Want-Upgrade List!A${wantEntry.row}:I${wantEntry.row}`, [['','','','','','','','','']], { num: wantEntry.itemNum || '', invId: wantEntry.inventoryId || '' }, 'Want list').catch(e => console.warn('Want cleanup error:', e));
       }
       delete state.wantData[d._fromWantKey];
+      // 2026-11-25 (wantsets, [stated] Brad "it should just be one row like the
+      // my collection"): Got It on a want SET adds every piece — so every piece's
+      // want row comes off too, not just the lead's. Only a partner this save
+      // really added (the walk can be changed to one piece on the way).
+      var _wmSaved = [d.tenderMatch, d.unit2ItemNum, d.unit3ItemNum].filter(function (x) { return x && x !== 'none'; }).map(String);
+      if ((d._itemGrouping || 'single') !== 'single') (d._fromWantMateKeys || []).forEach(function (mk) {
+        if (!mk || _wmSaved.indexOf(String(mk.num)) < 0) return;
+        var _we = state.wantData[mk.key];
+        if (!_we) return;
+        if (_we.row) rrVerifiedRowUpdate(state.personalSheetId, 'Want-Upgrade List', _we.row, `Want-Upgrade List!A${_we.row}:I${_we.row}`, [['','','','','','','','','']], { num: _we.itemNum || '', invId: _we.inventoryId || '' }, 'Want list').catch(e => console.warn('Want cleanup error:', e));
+        delete state.wantData[mk.key];
+      });
       buildWantPage();
       if (typeof showToast === 'function') showToast('Removed from Want list', 2500);
     }
@@ -3369,6 +3381,13 @@ async function saveWizardItem() {
         rrVerifiedRowUpdate(state.personalSheetId, 'Want-Upgrade List', ugEntry.row, `Want-Upgrade List!A${ugEntry.row}:I${ugEntry.row}`, [['','','','','','','','','']], { num: ugEntry.itemNum || '', invId: ugEntry.inventoryId || '' }, 'Want list').catch(e => console.warn('Upgrade cleanup error:', e));
       }
       delete state.upgradeData[d._fromUpgradeKey];
+      // 2026-11-25 (upgradesets): Got It on an Upgrade SET — every piece this
+      // save really added comes off the Upgrade list (one owner: removeUpgradeItem).
+      var _umSaved = [d.tenderMatch, d.unit2ItemNum, d.unit3ItemNum].filter(function (x) { return x && x !== 'none'; }).map(String);
+      if ((d._itemGrouping || 'single') !== 'single' && typeof removeUpgradeItem === 'function') (d._fromUpgradeMateKeys || []).forEach(function (mk) {
+        if (!mk || _umSaved.indexOf(String(mk.num)) < 0 || !state.upgradeData[mk.key]) return;
+        removeUpgradeItem(mk.key, { quiet: true }).catch(function (e) { console.warn('Upgrade cleanup error:', e); });
+      });
       if (typeof buildUpgradePage === 'function') buildUpgradePage();
       if (typeof showToast === 'function') showToast('Removed from Upgrade list', 2500);
     }

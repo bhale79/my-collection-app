@@ -1174,12 +1174,61 @@ function getDieselConfigs(itemNum) {
 // v0.9.714 (Brad): the want list showed engine+tender / A+B pairs as TWO
 // rows. Fold companions into their lead for DISPLAY: lead keeps the row,
 // gains _wantMates (numbers) + _pairPrice (summed expected price).
+//
+// 2026-11-25 (wantsets, PLAN_2026-11-25_WANT_SETS_ONE_ROW.md — [stated] Brad
+// 11:39 CT "it should just be one row like the my collection"): this is THE
+// fold for every want / upgrade list — the Want / Upgrade page, the gift list,
+// the menu count, Dashboard, Reports, show mode. (The page had its own fold,
+// _wuFoldPairs, that never folded the second A unit: an AA set drew two rows,
+// the pair's price on each.) Two ways rows are one set:
+//   1. SAVED TOGETHER — the same group (the want save marks every piece of a
+//      set with one group). Whatever their numbers, like My Collection.
+//   2. ADDED SEPARATELY — the catalog says they belong together (tender,
+//      B unit, second A unit), as since v0.9.714.
+// Rows are told apart by POSITION in the list handed in, never by number
+// alone: two rows with one number (two copies on the Upgrade list) are two
+// rows. Each folded lead also carries _mateRows (the pieces' own entries) so
+// Got It / Remove can act on every piece.
+function _wantGroupOf(e) {
+  // A loaded row keeps its group as a "[grp:ID]" mark at the front of its
+  // notes; a row the want save just made keeps it in .groupId (clean notes).
+  // Both are the same group — read either. (Reading only the notes is how a
+  // just-saved $350 AA set showed $700 on the Dashboard until a reload.)
+  if (!e) return '';
+  if (e.groupId) return String(e.groupId);
+  var m = String(e.notes || '').match(/^\[grp:([^\]]+)\]/);
+  return m ? m[1] : '';
+}
+window._wantGroupOf = _wantGroupOf;
+function _wantIsCompanion(n) {
+  // My Collection's rule for "this piece is never the lead" (browse.js
+  // _isGroupCompanionSfx) when it is loaded; the same words otherwise.
+  if (typeof _isGroupCompanionSfx === 'function') return _isGroupCompanionSfx(n);
+  var s = String(n || '');
+  if (/-(D|T|C|BOX|MBOX|IS)$/i.test(s) || /\d[DTC]$/i.test(s)) return true;
+  return (typeof isTender === 'function' && isTender(s));
+}
 function foldWantEntries(rows) {
-  var byNum = {}, absorbedBy = {};
-  rows.forEach(function (w) { byNum[String(w.itemNum)] = w; });
-  rows.forEach(function (w) {
+  rows = rows || [];
+  var leadOf = rows.map(function () { return -1; });   // index of the row this one folds into
+  var isLead = rows.map(function () { return false; });
+  var nk = function (x) { return String(x == null ? '' : x).toUpperCase().replace(/[\s-]/g, ''); };
+  // 1. saved together — one group is one set
+  var byGrp = {};
+  rows.forEach(function (w, i) { var g = _wantGroupOf(w); if (g) (byGrp[g] = byGrp[g] || []).push(i); });
+  Object.keys(byGrp).forEach(function (g) {
+    var ix = byGrp[g];
+    if (ix.length < 2) return;
+    var lead = ix.filter(function (i) { return !_wantIsCompanion(rows[i].itemNum); })[0];
+    if (lead === undefined) lead = ix[0];
+    ix.forEach(function (i) { if (i !== lead) { leadOf[i] = lead; isLead[lead] = true; } });
+  });
+  // 2. added separately — the catalog's partners
+  var byNum = {};
+  rows.forEach(function (w, i) { if (leadOf[i] < 0) { var k = nk(w.itemNum); if (!(k in byNum)) byNum[k] = i; } });
+  rows.forEach(function (w, i) {
+    if (leadOf[i] >= 0) return;
     var n = String(w.itemNum);
-    if (absorbedBy[n]) return;
     var mates = [];
     try {
       if (typeof getMatchingTenders === 'function') mates = mates.concat(getMatchingTenders(n) || []);
@@ -1190,40 +1239,50 @@ function foldWantEntries(rows) {
       }
     } catch (e) {}
     mates.forEach(function (mn) {
-      mn = String(mn);
-      if (mn !== n && byNum[mn] && !absorbedBy[mn]) absorbedBy[mn] = n;
+      var j = byNum[nk(mn)];
+      if (j === undefined || j === i || leadOf[j] >= 0 || isLead[j]) return;
+      leadOf[j] = i; isLead[i] = true;
     });
   });
-  return rows.filter(function (w) { return !absorbedBy[String(w.itemNum)]; }).map(function (w) {
-    var n = String(w.itemNum);
-    var mates = Object.keys(absorbedBy).filter(function (k) { return absorbedBy[k] === n; });
-    if (!mates.length) return w;
-    var out = Object.assign({}, w);
-    out._wantMates = mates;
+  var out = [];
+  rows.forEach(function (w, i) {
+    if (leadOf[i] >= 0) return;
+    var mi = [];
+    rows.forEach(function (x, j) { if (leadOf[j] === i) mi.push(j); });
+    if (!mi.length) { out.push(w); return; }
+    var o = Object.assign({}, w);
+    var mates = mi.map(function (j) { return String(rows[j].itemNum); });
+    o._wantMates = mates;
+    o._mateRows = mi.map(function (j) { return rows[j]; });
     // v0.9.717 (Brad's $700 AB set showing $1,400): the grouped want-save
-    // writes the GROUP price onto EVERY row of the pair ([grp:ID] marker in
-    // notes). Same group ⇒ ONE price, not a sum. Only sum truly separate
-    // wants (no shared group marker).
-    function _grpOf(e) {
-      var m = String((e && e.notes) || '').match(/^\[grp:([^\]]+)\]/);
-      return m ? m[1] : '';
-    }
-    var _leadGrp = _grpOf(w);
+    // writes the GROUP price onto EVERY row of the set. Same group ⇒ ONE
+    // price, not a sum. Only sum truly separate wants.
+    var _leadGrp = _wantGroupOf(w);
     var sum = parseFloat(w.expectedPrice) || 0;
     var _summed = false;
-    mates.forEach(function (k) {
-      var mate = byNum[k] || {};
-      if (_leadGrp && _grpOf(mate) === _leadGrp) return;   // same group — price already covers it
+    mi.forEach(function (j) {
+      var mate = rows[j] || {};
+      if (_leadGrp && _wantGroupOf(mate) === _leadGrp) return;   // same group — price already covers it
       var mp = parseFloat(mate.expectedPrice) || 0;
       if (mp) { sum += mp; _summed = true; }
     });
-    out._pairPrice = sum > 0 ? String(sum) : '';
-    out._pairIsGroup = !_summed;   // label: group price vs summed pieces
-    out._groupCfg = (typeof window.groupConfigLabel === 'function') ? window.groupConfigLabel(n, mates) : '';   // v0.9.723
-    return out;
+    o._pairPrice = sum > 0 ? String(sum) : '';
+    o._pairIsGroup = !_summed;   // label: group price vs summed pieces
+    o._groupCfg = (typeof window.groupConfigLabel === 'function') ? window.groupConfigLabel(String(w.itemNum), mates) : '';   // v0.9.723
+    out.push(o);
   });
+  return out;
 }
 window.foldWantEntries = foldWantEntries;
+// 2026-11-25 (wantsets): the set tag, worded like My Collection's ("AA SET ·
+// 2 pieces", browse.js _grpFoldInfo) — ONE place for the want list's words.
+function wantSetLabel(e) {
+  if (!e || !e._wantMates || !e._wantMates.length) return '';
+  var cfg = e._groupCfg || '';
+  var n = e._wantMates.length + 1;
+  return (cfg === 'Engine + Tender' ? 'ENGINE + TENDER' : (cfg && cfg !== 'Set' ? cfg + ' SET' : 'SET')) + ' · ' + n + ' pieces';
+}
+window.wantSetLabel = wantSetLabel;
 // v0.9.722: ONE badge count — folded want + folded upgrade (pairs count once),
 // matching every list view. All nav-wishlist-count writers use this.
 // v0.9.723 (Brad): name the pairing — "AA", "AB", "ABA", "Engine + Tender".
@@ -1235,7 +1294,7 @@ window.groupConfigLabel = function (leadNum, mates) {
     mates.forEach(function (m) {
       var s = String(m);
       if (/C$/i.test(s.replace(/-(P|D)$/i, ''))) c++;
-      else if (/-D$/i.test(s)) d++;
+      else if (/-D$/i.test(s) || /\dT$/i.test(s)) d++;   // 2026-11-25 (wantsets): the want save names the second A "2343T" (no -D)
     });
     if (c && d) return 'ABA';
     if (c) return 'AB';
@@ -3477,7 +3536,7 @@ if (typeof window !== 'undefined') window.rrErasOfRowMaker = rrErasOfRowMaker;
 // Brand LABEL for an item, derived from the master catalog (Lionel/MTH/Atlas/...).
 // Single source of truth for 'what brand is this item' on every SAVE path.
 // Returns '' when the item isn't in the catalog (manual entry) so callers fall back.
-var _BRAND_LABELS = { lionel:'Lionel', mth:'MTH', atlas:'Atlas', menards:'Menards', '3rd rail':'3rd Rail', thirdrail:'3rd Rail', sunset:'3rd Rail', 'usa trains':'USA Trains', usatrains:'USA Trains', lgb:'LGB', williams:'Williams', weaver:'Weaver', rmt:'RMT', kline:'K-Line', 'k-line':'K-Line', 'k line':'K-Line', marx:'Marx', ives:'Ives', american:'American Flyer', 'american flyer':'American Flyer', 'ross custom switches':'Ross Custom Switches', gargraves:'GarGraves', 'bluford shops':'Bluford Shops', bluford:'Bluford Shops', roundhouse:'Roundhouse' };   // rosstab: else the fallback saves "Ross custom switches" / "Gargraves"
+var _BRAND_LABELS = { lionel:'Lionel', mth:'MTH', atlas:'Atlas', menards:'Menards', '3rd rail':'3rd Rail', thirdrail:'3rd Rail', sunset:'3rd Rail', 'usa trains':'USA Trains', usatrains:'USA Trains', lgb:'LGB', williams:'Williams', weaver:'Weaver', rmt:'RMT', kline:'K-Line', 'k-line':'K-Line', 'k line':'K-Line', marx:'Marx', ives:'Ives', american:'American Flyer', 'american flyer':'American Flyer', 'ross custom switches':'Ross Custom Switches', gargraves:'GarGraves', 'bluford shops':'Bluford Shops', bluford:'Bluford Shops', roundhouse:'Roundhouse', blma:'BLMA', 'blma models':'BLMA', ahm:'AHM' };   // rosstab: else the fallback saves "Ross custom switches" / "Gargraves"
 function _brandLabel(key) {
   if (!key) return '';
   var k = String(key).toLowerCase().trim();

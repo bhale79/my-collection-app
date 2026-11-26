@@ -730,7 +730,10 @@
   window.buildContactsPage = async function () {
     var page = document.getElementById('page-contacts');
     if (!page) return;
-    page.innerHTML = '<style>@media (max-width:640px){.ct-cthumb{display:none!important}.ct-clink{display:inline!important}}</style>'
+    // 2026-11-25 (phonechecks): on a PHONE the card picture gives way to a small
+    // "📇 Card" link — the ONE phone definition (rrPhoneMedia, config.js), so an
+    // iPhone on its side gets the link too; this rule was width-only before.
+    page.innerHTML = '<style>@media ' + rrPhoneMedia() + '{.ct-cthumb{display:none!important}.ct-clink{display:inline!important}}</style>'
       + '<div class="page-title">Contacts</div>'
       + '<div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.8rem;flex-wrap:wrap">'
       + '<input id="ct-search" type="text" placeholder="Search name, business, specialty…" oninput="_ctRenderList()" style="flex:1;min-width:200px;padding:0.6rem 0.8rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.9rem">'

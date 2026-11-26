@@ -32,10 +32,10 @@ function _updateGroupingButtons() {
   if (!document.getElementById('qe1-worth-style')) {
     var _ws2 = document.createElement('style');
     _ws2.id = 'qe1-worth-style';
-    _ws2.textContent = '#qe1-worth-row{display:flex;gap:0.4rem;align-items:stretch}'
-      + '@media(max-width:640px){#qe1-worth-row{flex-direction:column}}'
-      + '.wiz-grp-btns-row{display:flex;flex-wrap:wrap;gap:0.35rem}'
-      + '@media(max-width:640px){.wiz-grp-btn{flex:1 1 calc(50% - 0.35rem) !important;min-width:0}}';
+    // 2026-11-25 (phonechecks): two width-only phone rules here aimed at nothing
+    // (#qe1-worth-row and .wiz-grp-btn are on no page; the buttons' phone width
+    // is set inline from rrIsPhone below) — removed, not converted.
+    _ws2.textContent = '.wiz-grp-btns-row{display:flex;flex-wrap:wrap;gap:0.35rem}';
     document.head.appendChild(_ws2);
   }
   const container = document.getElementById('wiz-grouping-btns');
@@ -112,7 +112,10 @@ function _updateGroupingButtons() {
   // from hidden to shown, scroll it into view. 'nearest' moves the body the
   // minimum amount, so nothing jumps when the row is already visible, and the
   // guard above keeps later keystrokes from re-scrolling under the user.
-  if (_grpWasHidden && (window.innerWidth || 0) <= 640) {
+  // 2026-11-25 (phonechecks): "a phone" is the answer this function already
+  // asked above (_isMobile = rrIsPhone()) — a phone on its side, where the
+  // question sits lowest of all, now gets the nudge too.
+  if (_grpWasHidden && _isMobile) {
     // Twice: once now, once after the debounced suggestion card has rendered —
     // that card grows the content ABOVE this row ~300ms later and pushed the
     // row back under the fold when this only fired once (measured at 390x844).

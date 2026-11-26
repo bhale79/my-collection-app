@@ -319,10 +319,23 @@
   }
 
   // ── the Want items ───────────────────────────────────────────────────
+  // 2026-11-25 (wantsets, [stated] Brad 11:39 CT "it should just be one row
+  // like the my collection"): a set on the Want list (an AA pair saved as
+  // 2343-P + 2343T) is ONE line here too — folded by THE fold, app.js
+  // foldWantEntries, the same one the Want page and the menu count use. The
+  // line is the lead's (its key, its saved links); the other pieces ride on it.
   function _wants() {
     var w = (state && state.wantData) || {};
-    return Object.keys(w).map(function (k) { return w[k]; }).filter(function (e) { return e && e.itemNum; })
-      .sort(function (a, b) { return String(a.itemNum).localeCompare(String(b.itemNum), undefined, { numeric: true }); });
+    var list = Object.keys(w).map(function (k) { return w[k]; }).filter(function (e) { return e && e.itemNum; });
+    if (typeof foldWantEntries === 'function') list = foldWantEntries(list);
+    return list.sort(function (a, b) { return String(a.itemNum).localeCompare(String(b.itemNum), undefined, { numeric: true }); });
+  }
+  // A set's pieces and kind, for its name: " + 2343T (AA set)".
+  function _setWords(e) {
+    if (!e || !e._wantMates || !e._wantMates.length) return '';
+    var cfg = e._groupCfg || '';
+    var kind = cfg === 'Engine + Tender' ? 'engine and tender' : (cfg && cfg !== 'Set' ? cfg + ' set' : 'set');
+    return ' + ' + e._wantMates.join(' + ') + ' (' + kind + ')';
   }
   function _master(e) { try { return (typeof findMaster === 'function') ? (findMaster(e.itemNum, e.variation || '', e) || {}) : {}; } catch (x) { return {}; } }
   // forFamily: what SHE sees (preview, email, text, print, the family page)
@@ -342,12 +355,12 @@
   function _name(e, forFamily) {
     var m = _master(e);
     var words = _words(m);
-    return ((e.manufacturer ? e.manufacturer + ' ' : '') + e.itemNum + (e.variation && !forFamily ? ' (' + e.variation + ')' : '') + (words ? ' — ' + words : '')).trim();
+    return ((e.manufacturer ? e.manufacturer + ' ' : '') + e.itemNum + (e.variation && !forFamily ? ' (' + e.variation + ')' : '') + _setWords(e) + (words ? ' — ' + words : '')).trim();
   }
   function _rowFor(e) {
     var k = _key(e.itemNum, e.variation);
     if (!_rows[k]) _rows[k] = { row: 0, itemNum: String(e.itemNum), variation: String(e.variation || ''), on: false,
-                                price: e.expectedPrice || '', links: [], notes: '' };
+                                price: e._pairPrice || e.expectedPrice || '', links: [], notes: '' };   // a set: its ONE price
     return _rows[k];
   }
   // A store with its own search page (RR_GIFT.storeSearch) is searched THERE —
@@ -359,6 +372,9 @@
     var own = (_G().storeSearch || {})[String(store.site || '').toLowerCase()];
     if (own) {
       var num = String(e.itemNum || '').trim().replace(/-([A-Za-z]{1,2})$/, '$1');
+      // A set is searched by its plain number ("Lionel 2343"), which is how the
+      // store lists the pair — not by the powered unit alone ("2343P").
+      if (e._wantMates && e._wantMates.length) num = (typeof baseItemNum === 'function') ? String(baseItemNum(e.itemNum) || num) : num.replace(/[PD]$/i, '');
       return own.replace('{q}', encodeURIComponent([e.manufacturer, num].filter(Boolean).join(' ')));
     }
     var words = [e.manufacturer, e.itemNum, m.roadName, m.description].filter(Boolean).join(' ').slice(0, 140);

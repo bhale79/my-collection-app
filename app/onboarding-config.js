@@ -89,7 +89,8 @@ const WHAT_I_COLLECT = {
                 'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o',
                 'bachmann_on30', 'bachmann_hon30', 'bachmann_all',
                 'ross', 'gargraves',                       // rosstab (2026-11-05): Ross Custom Switches, GarGraves — after the long tail
-                'bluford_n', 'bluford_ho'],   // sixtabs (2026-11-15): Bluford Shops — after the long tail (Roundhouse on hold 2026-11-16, noroundhouse)
+                'bluford_n', 'bluford_ho',    // sixtabs (2026-11-15): Bluford Shops — after the long tail (Roundhouse on hold 2026-11-16, noroundhouse)
+                'blma_n', 'blma_ho', 'blma_z', 'ahm_ho', 'ahm_n'],   // blmaahm (2026-11-25): BLMA, AHM — after the long tail
 
   // Accent color per era — pulled into card styling.
   eraColors: {
@@ -244,6 +245,11 @@ const WHAT_I_COLLECT = {
     gargraves:      null,  // rosstab: mixed — the row's gauge decides; its What I Collect line sits under all six scales it sells (ERA_SCALES_MULTI.gargraves, [stated] Brad "Under all six scales")
     bluford_n:      'n',   // sixtabs (2026-11-15)
     bluford_ho:     'ho',
+    blma_n:         'n',   // blmaahm (2026-11-25)
+    blma_ho:        'ho',
+    blma_z:         'z',
+    ahm_ho:         'ho',
+    ahm_n:          'n',
   },
 
   // ── Session 137: Manufacturer preference (Tier 3.15) ──
@@ -279,6 +285,8 @@ const WHAT_I_COLLECT = {
     't-reproductions': { id: 't-reproductions', label: 'T-Reproductions', default: false },   // v0.9.1747: key = ERAS.trepro.manufacturer lowercased
     'ross custom switches': { id: 'ross custom switches', label: 'Ross Custom Switches', default: false },   // rosstab: key = ERAS.ross.manufacturer lowercased (an allow-list — a mismatch HIDES the tab)
     gargraves: { id: 'gargraves', label: 'GarGraves', default: false },   // rosstab: key = ERAS.gargraves.manufacturer lowercased
+    blma: { id: 'blma', label: 'BLMA', default: false },   // blmaahm (2026-11-25): key = ERAS.blma_*.manufacturer lowercased (an allow-list — a mismatch HIDES the tabs)
+    ahm: { id: 'ahm', label: 'AHM', default: false },      // blmaahm (2026-11-25): key = ERAS.ahm_*.manufacturer lowercased
     'bluford shops': { id: 'bluford shops', label: 'Bluford Shops', default: false },   // sixtabs (2026-11-15): key = ERAS.bluford_*.manufacturer lowercased (an allow-list — a mismatch HIDES the tabs)
     // v0.9.1159 — these three makers have had ERAS entries, master tabs and
     // catalog rows since 2026-07-28, but were never added here, so they could not
@@ -454,6 +462,11 @@ WHAT_I_COLLECT.eraColors.ross = WHAT_I_COLLECT.eraColors.weaver;   // rosstab: b
 WHAT_I_COLLECT.eraColors.gargraves = WHAT_I_COLLECT.eraColors.menards;   // rosstab: same
 WHAT_I_COLLECT.eraColors.bluford_n = WHAT_I_COLLECT.eraColors.kato_n;     // sixtabs (2026-11-15): by reference — no new literal for the colour ratchet
 WHAT_I_COLLECT.eraColors.bluford_ho = WHAT_I_COLLECT.eraColors.kato_ho;
+WHAT_I_COLLECT.eraColors.blma_n = WHAT_I_COLLECT.eraColors.atlas_n;       // blmaahm (2026-11-25): by reference — no new literal for the colour ratchet (BLMA's line is Atlas's now)
+WHAT_I_COLLECT.eraColors.blma_ho = WHAT_I_COLLECT.eraColors.atlas_ho;
+WHAT_I_COLLECT.eraColors.blma_z = WHAT_I_COLLECT.eraColors.atlas_z;
+WHAT_I_COLLECT.eraColors.ahm_ho = WHAT_I_COLLECT.eraColors.bachmann_ho;
+WHAT_I_COLLECT.eraColors.ahm_n = WHAT_I_COLLECT.eraColors.bachmann_n;
 WHAT_I_COLLECT.eraColors.lionel_parts = WHAT_I_COLLECT.eraColors.pw;   // v0.9.1749: by reference; the picker never shows it
 WHAT_I_COLLECT.eraColors.mth_parts = WHAT_I_COLLECT.eraColors.mth_o;   // v0.9.1750: same
 WHAT_I_COLLECT.eraColors.traintender_parts = WHAT_I_COLLECT.eraColors.pw;   // v0.9.1755: same

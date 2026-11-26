@@ -248,7 +248,8 @@ async function backOnPrompt(pg) {
     // R7 (2026-11-08, listlayout): the card and the table row share ONE Want/Upgrade menu (_wuMenu);
     // its Remove — the only Upgrade Remove there is — runs the asking Remove.
     T('F9b the Upgrade Remove (the ⋯ sheet, card and table alike) calls the asking Remove',
-      /removeUpgradeItemAsk\(_ugEntryKey\(u\)\)/.test(AP) && !/removeUpgradeItem\(_ugEntryKey\(u\)\)/.test(AP) &&
+      // 2026-11-25 (upgradesets): a set hands its other pieces' keys too — removeUpgradeItemAsk(_ugEntryKey(u), _wuMateKeys(u)).
+      /removeUpgradeItemAsk\(_ugEntryKey\(u\)(, _wuMateKeys\(u\))?\)/.test(AP) && !/removeUpgradeItem\(_ugEntryKey\(u\)/.test(AP) &&
       !/onclick="event\.stopPropagation\(\);removeUpgradeItem\(/.test(AP));
     T('F9c "Got It" still takes the entry off quietly (the person already decided)', /if \(upgradeEntry\) await removeUpgradeItem\(ugKey\);/.test(AP));
     const pq = await removeAsks(pg, "removePartAsk('P-1')");
@@ -345,8 +346,8 @@ async function backOnPrompt(pg) {
     await pg.close();
   }
   {
-    const bad = AP.replace(/removeUpgradeItemAsk\(_ugEntryKey\(u\)\)/g, 'removeUpgradeItem(_ugEntryKey(u))');
-    T('P-F9 PLANTED the one-tap Remove in the menu → F9b would fail', bad !== AP && /removeUpgradeItem\(_ugEntryKey\(u\)\)/.test(bad));
+    const bad = AP.replace(/removeUpgradeItemAsk\(_ugEntryKey\(u\)(, _wuMateKeys\(u\))?\)/g, 'removeUpgradeItem(_ugEntryKey(u))');
+    T('P-F9 PLANTED the one-tap Remove in the menu → F9b would fail', bad !== AP && /removeUpgradeItem\(_ugEntryKey\(u\)/.test(bad));
   }
   {
     const a = "run: function () { removePartAsk(p.id); } });";

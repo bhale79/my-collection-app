@@ -82,7 +82,7 @@ console.log('\n== B · the maker words ==');
 
 console.log('\n== P · planted (config) ==');
 {
-  const p1 = Object.assign({}, FILES, { 'config.js': plant(FILES['config.js'], ", 'bluford_n', 'bluford_ho'];", ", 'bluford_n'];", 'REAL_ERA_IDS') });
+  const p1 = Object.assign({}, FILES, { 'config.js': plant(FILES['config.js'], ", 'bluford_n', 'bluford_ho', 'blma_n',", ", 'bluford_n', 'blma_n',", 'REAL_ERA_IDS') });
   ok('P1 PLANTED (Bluford Shops HO left off REAL_ERA_IDS): A goes red', checksA(world(p1)).some(c => !c[1] && /bluford_ho: REAL_ERA_IDS/.test(c[0])));
   const p2 = Object.assign({}, FILES, { 'onboarding-config.js': plant(FILES['onboarding-config.js'], "    'bluford shops': { id: 'bluford shops'", "    'bluford-shops': { id: 'bluford shops'", 'maker key') });
   ok('P2 PLANTED (the maker choice keyed "bluford-shops"): A goes red', checksA(world(p2)).some(c => !c[1] && /bluford_n: the maker choice/.test(c[0])));
@@ -100,7 +100,7 @@ console.log('\n== P · planted (config) ==');
   ok('P8 PLANTED (no Bluford HO badge): A goes red', redA(Object.assign({}, FILES, { 'era-badges-config.js': plant(FILES['era-badges-config.js'], "    bluford_ho:     'BLHO',", "", 'badge') }), /bluford_ho: a badge/));
   ok('P9 PLANTED (no "Bluford Shops" brand label): A goes red', redA(Object.assign({}, FILES, { 'app.js': plant(FILES['app.js'], "'bluford shops':'Bluford Shops', bluford:'Bluford Shops', ", "", 'brand label') }), /bluford_n: the brand label/));
   ok('P10 PLANTED (Bluford Shops HO left out of the browse groups): A goes red', redA(Object.assign({}, FILES, { 'browse.js': plant(FILES['browse.js'], "  bluford_ho:     'modern',", "", 'browse group') }), /bluford_ho: Master Catalog browse/));
-  ok('P11 PLANTED (Bluford N left out of the What I Collect era order): A goes red', redA(Object.assign({}, FILES, { 'onboarding-config.js': plant(FILES['onboarding-config.js'], "                'bluford_n', 'bluford_ho'],", "                'bluford_ho'],", 'era order') }), /bluford_n: What I Collect/));
+  ok('P11 PLANTED (Bluford N left out of the What I Collect era order): A goes red', redA(Object.assign({}, FILES, { 'onboarding-config.js': plant(FILES['onboarding-config.js'], "                'bluford_n', 'bluford_ho',", "                'bluford_ho',", 'era order') }), /bluford_n: What I Collect/));
 }
 
 // ═════ C · real Chromium, the real app ═════════════════════════════════════

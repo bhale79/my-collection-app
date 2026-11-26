@@ -1131,13 +1131,93 @@ function showWantDesc(idx) {
 }
 
 // ── Want List Actions ──────────────────────────────────────────
-async function removeWantItem(itemNum, variation, row) {
-  if (!(await appConfirm('Remove this item from your Want List?', { danger: true, ok: 'Remove' }))) return;
-  const key = `${itemNum}|${variation}`;
-  if (row) {
-    if (!(await rrVerifiedRowUpdate(state.personalSheetId, 'Want-Upgrade List', row, `Want-Upgrade List!A${row}:I${row}`, [['','','','','','','','','']], { num: itemNum || '' }, 'Want list'))) return;
+// 2026-11-25 (wantsets): a set row (app.js foldWantEntries) hands in its other
+// pieces as `mates` — asked ONCE, and every piece's row is cleared, so no piece
+// is left behind on its own (it used to clear only the lead's row).
+// 2026-11-25 (upgradesets, [stated] Brad 15:40 CT "Fix now" — Got It / Remove on
+// an Upgrade SET): the set-partner finder and the grouping seed, lifted out of
+// moveWantToCollection unchanged so the Want list's Got It and the Upgrade
+// list's Got It add a set the SAME way (one owner, no drift).
+function _wcNorm(x) { return (typeof normalizeItemNum === 'function') ? normalizeItemNum(x) : (x||'').toString().trim().toUpperCase(); }
+// The lead's possible partners, found the SAME way the wizard does: role tags
+// (+T dummy, +C B-unit) plus the companion table (Tender / B Unit / A Dummy).
+function _wcPartnersOf(itemNum) {
+  var _wcBase = (typeof baseItemNum === 'function') ? baseItemNum(itemNum) : itemNum;
+  var _wcNN = _wcNorm(itemNum), _wcNB = _wcNorm(_wcBase);
+  var _pTender = '', _pBunit = '', _pDummy = '';
+  (state.masterData || []).forEach(function(m){
+    if (!m.itemNum) return; var mi = _wcNorm(m.itemNum);
+    if (m.unit === 'A' && m.poweredDummy === 'D' && !_pDummy && mi === _wcNorm(_wcBase + 'T')) _pDummy = m.itemNum;
+    if (m.unit === 'B' && m.poweredDummy === 'C' && !_pBunit && mi === _wcNorm(_wcBase + 'C')) _pBunit = m.itemNum;
+  });
+  (state.companionData || []).forEach(function(c){
+    var _en = _wcNorm(c.engineNum); if (_en !== _wcNN && _en !== _wcNB) return;
+    var _cn = String(c.companionNum || ''); if (_wcNorm(_cn) === _wcNN) return;   // skip same-number self-pairs
+    var _t = (c.companionType || '').toLowerCase();
+    if (/tender/.test(_t)) { if (!_pTender) _pTender = _cn; }
+    else if (/b\s*-?\s*unit/.test(_t)) { if (!_pBunit) _pBunit = _cn; }
+    else if (/a\s*dummy/.test(_t)) { if (!_pDummy) _pDummy = _cn; }
+  });
+  return { tender: _pTender, bunit: _pBunit, dummy: _pDummy };
+}
+// Seed the wizard's grouping for the partners that come along (blank = not in
+// the set): engine + tender, ABA, AB, AA — else a single piece.
+function _wcSeedGrouping(data, itemNum, _wcTender, _wcBunit, _wcDummy) {
+  var _wcNewSetId = function(){ return (typeof genSetId === 'function') ? genSetId(itemNum) : ('set-' + Date.now()); };
+  if (_wcTender) {
+    // Engine + Tender pair
+    data._itemGrouping = 'engine_tender';
+    data.tenderMatch   = _wcTender;
+  } else if (_wcBunit && _wcDummy) {
+    // A powered + B unit + A dummy (ABA set)
+    data._itemGrouping = 'aba';
+    data.unitPower     = 'Powered';
+    data.setMatch      = 'set-now';
+    data.setType       = 'ABA';
+    data._setId        = _wcNewSetId();
+    data.unit2ItemNum  = _wcBunit;
+    data.unit3ItemNum  = _wcDummy;
+    data.unit3Power    = 'Dummy';
+    data.tenderMatch   = '';
+  } else if (_wcBunit) {
+    // A powered + B unit (AB set)
+    data._itemGrouping = 'ab';
+    data.unitPower     = 'Powered';
+    data.setMatch      = 'set-now';
+    data.setType       = 'AB';
+    data._setId        = _wcNewSetId();
+    data.unit2ItemNum  = _wcBunit;
+    data.tenderMatch   = '';
+  } else if (_wcDummy) {
+    // A powered + A dummy (AA set)
+    data._itemGrouping = 'aa';
+    data.unitPower     = 'Powered';
+    data.setMatch      = 'set-now';
+    data.setType       = 'AA';
+    data._setId        = _wcNewSetId();
+    data.unit2ItemNum  = _wcDummy;
+    data.unit2Power    = 'Dummy';
+    data.tenderMatch   = '';
+  } else {
+    data._itemGrouping = data._itemGrouping || 'single'; // default; user can change later via Edit Group
   }
-  delete state.wantData[key];
+}
+
+async function removeWantItem(itemNum, variation, row, mates) {
+  const _set = (Array.isArray(mates) ? mates : []).filter(function (m) { return m && m.itemNum; });
+  const _q = _set.length ? ('Remove this set (' + (_set.length + 1) + ' pieces) from your Want List?') : 'Remove this item from your Want List?';
+  if (!(await appConfirm(_q, { danger: true, ok: 'Remove' }))) return;
+  const _all = [{ itemNum: itemNum, variation: variation, row: row }].concat(_set.map(function (m) { return { itemNum: m.itemNum, variation: m.variation || '', row: m.row }; }));
+  for (const _p of _all) {
+    const _k = `${_p.itemNum}|${_p.variation || ''}`;
+    if (_p.row) {
+      if (!(await rrVerifiedRowUpdate(state.personalSheetId, 'Want-Upgrade List', _p.row, `Want-Upgrade List!A${_p.row}:I${_p.row}`, [['','','','','','','','','']], { num: _p.itemNum || '' }, 'Want list'))) {
+        if (_p === _all[0]) return;   // the lead could not be cleared: nothing changes
+        continue;                     // a piece the sheet refused stays listed (its own row)
+      }
+    }
+    delete state.wantData[_k];
+  }
   _cachePersonalData();
   buildWantPage();
   if (typeof buildUpgradePage === 'function') buildUpgradePage();
@@ -1176,69 +1256,23 @@ function moveWantToCollection(itemNum, variation) {
     // Covers engine+tender, A+B-unit (AB), A+dummy (AA) and A+B+dummy (ABA).
     // Partners must be DISTINCT numbers also on the want list (so a single same-number
     // AA want entry isn't silently expanded — user can still pick AA in the wizard).
-    var _wcN = function(x){ return (typeof normalizeItemNum === 'function') ? normalizeItemNum(x) : (x||'').toString().trim().toUpperCase(); };
+    var _wcN = _wcNorm;   // 2026-11-25 (upgradesets): the shared normalizer
     var _wcWantSet = {};
     Object.keys(state.wantData || {}).forEach(function(k){ _wcWantSet[_wcN(k.split('|')[0])] = true; });
-    var _wcBase = (typeof baseItemNum === 'function') ? baseItemNum(itemNum) : itemNum;
-    var _wcNN = _wcN(itemNum), _wcNB = _wcN(_wcBase);
-    // Candidate partners derived the SAME way the wizard does: role tags (+T dummy,
-    // +C B-unit) plus the companion table (Tender / B Unit / A Dummy).
-    var _pTender = '', _pBunit = '', _pDummy = '';
-    (state.masterData || []).forEach(function(m){
-      if (!m.itemNum) return; var mi = _wcN(m.itemNum);
-      if (m.unit === 'A' && m.poweredDummy === 'D' && !_pDummy && mi === _wcN(_wcBase + 'T')) _pDummy = m.itemNum;
-      if (m.unit === 'B' && m.poweredDummy === 'C' && !_pBunit && mi === _wcN(_wcBase + 'C')) _pBunit = m.itemNum;
-    });
-    (state.companionData || []).forEach(function(c){
-      var _en = _wcN(c.engineNum); if (_en !== _wcNN && _en !== _wcNB) return;
-      var _cn = String(c.companionNum || ''); if (_wcN(_cn) === _wcNN) return;   // skip same-number self-pairs
-      var _t = (c.companionType || '').toLowerCase();
-      if (/tender/.test(_t)) { if (!_pTender) _pTender = _cn; }
-      else if (/b\s*-?\s*unit/.test(_t)) { if (!_pBunit) _pBunit = _cn; }
-      else if (/a\s*dummy/.test(_t)) { if (!_pDummy) _pDummy = _cn; }
-    });
+    // Candidate partners — 2026-11-25 (upgradesets): found by _wcPartnersOf, the ONE
+    // finder the Upgrade list's Got It uses too.
+    var _wcP = _wcPartnersOf(itemNum), _pTender = _wcP.tender, _pBunit = _wcP.bunit, _pDummy = _wcP.dummy;
     // Only pair partners that are ALSO on the want list, so we add the whole wanted group.
     var _wcTender = _wcWantSet[_wcN(_pTender)] ? _pTender : '';
     var _wcBunit  = _wcWantSet[_wcN(_pBunit)]  ? _pBunit  : '';
     var _wcDummy  = _wcWantSet[_wcN(_pDummy)]  ? _pDummy  : '';
-    var _wcNewSetId = function(){ return (typeof genSetId === 'function') ? genSetId(itemNum) : ('set-' + Date.now()); };
-    if (_wcTender) {
-      // Engine + Tender pair
-      wizard.data._itemGrouping = 'engine_tender';
-      wizard.data.tenderMatch   = _wcTender;
-    } else if (_wcBunit && _wcDummy) {
-      // A powered + B unit + A dummy (ABA set)
-      wizard.data._itemGrouping = 'aba';
-      wizard.data.unitPower     = 'Powered';
-      wizard.data.setMatch      = 'set-now';
-      wizard.data.setType       = 'ABA';
-      wizard.data._setId        = _wcNewSetId();
-      wizard.data.unit2ItemNum  = _wcBunit;
-      wizard.data.unit3ItemNum  = _wcDummy;
-      wizard.data.unit3Power    = 'Dummy';
-      wizard.data.tenderMatch   = '';
-    } else if (_wcBunit) {
-      // A powered + B unit (AB set)
-      wizard.data._itemGrouping = 'ab';
-      wizard.data.unitPower     = 'Powered';
-      wizard.data.setMatch      = 'set-now';
-      wizard.data.setType       = 'AB';
-      wizard.data._setId        = _wcNewSetId();
-      wizard.data.unit2ItemNum  = _wcBunit;
-      wizard.data.tenderMatch   = '';
-    } else if (_wcDummy) {
-      // A powered + A dummy (AA set)
-      wizard.data._itemGrouping = 'aa';
-      wizard.data.unitPower     = 'Powered';
-      wizard.data.setMatch      = 'set-now';
-      wizard.data.setType       = 'AA';
-      wizard.data._setId        = _wcNewSetId();
-      wizard.data.unit2ItemNum  = _wcDummy;
-      wizard.data.unit2Power    = 'Dummy';
-      wizard.data.tenderMatch   = '';
-    } else {
-      wizard.data._itemGrouping = wizard.data._itemGrouping || 'single'; // default; user can change later via Edit Group
-    }
+    // 2026-11-25 (wantsets): the want rows of the partners this Got It adds with
+    // the lead — the save takes them off the Want list too (wizard-save.js),
+    // but only the ones still in the set when it saves.
+    var _wcKeyOf = function (num) { var hit = ''; Object.keys(state.wantData || {}).forEach(function (k) { if (!hit && _wcN(k.split('|')[0]) === _wcN(num)) hit = k; }); return hit; };
+    wizard.data._fromWantMateKeys = [_wcTender, _wcBunit, _wcDummy].filter(Boolean)
+      .map(function (n) { return { num: String(n), key: _wcKeyOf(n) }; }).filter(function (x) { return x.key; });
+    _wcSeedGrouping(wizard.data, itemNum, _wcTender, _wcBunit, _wcDummy);   // 2026-11-25 (upgradesets): the ONE seeding
     wizard.data.entryMode = wizard.data.entryMode || 'full'; // skips entryMode picker
     // v0.9.1920 (Brad, booth camera list #8): the want's target condition and
     // target price are NOT carried into the item — "that is what you wanted;
@@ -3983,13 +4017,29 @@ function _wuSortVal(u, col) {
   if (col === 'price') return parseFloat(u.expectedPrice || u.maxPrice) || 0;
   return '';
 }
+// 2026-11-25 (wantsets): a set row reads like My Collection's — the lead's
+// number, then "🔗 AA SET · 2 pieces" (browse.js, the collection row's tag,
+// same size and colour), the pieces named in its tooltip.
 function _wuItemNumHTML(u) {
   var num = String(u.itemNum || '');
-  if (u._mergedTender) {
-    var _cfg = (typeof groupConfigLabel === 'function') ? groupConfigLabel(num, [u._mergedTender]) : '';
-    return num + ' <span style="opacity:0.6;font-size:0.8em" title="Paired set — priced together">\uD83D\uDD17</span> <span style="font-size:0.85em;color:var(--text-mid)">' + u._mergedTender + '</span>' + (_cfg ? ' <span style="font-size:0.6rem;font-weight:700;color:var(--accent3,#2ecc71);border:1px solid var(--accent3,#2ecc71);border-radius:4px;padding:0.05rem 0.3rem;vertical-align:middle">' + _cfg + '</span>' : '');
+  if (u._wantMates && u._wantMates.length) {
+    var _lbl = (typeof wantSetLabel === 'function') ? wantSetLabel(u) : 'SET';
+    return rrEsc(num) + '<br><span class="wu-set-tag" style="font-size:0.7rem;color:var(--accent3);font-weight:600;font-family:var(--font-body)" title="' + rrEsc('Grouped: ' + [num].concat(u._wantMates).join(' + ')) + '">🔗 ' + rrEsc(_lbl) + '</span>';
   }
   return num;
+}
+// The price a Want / Upgrade row shows: a set's ONE price (its group price,
+// or its separately-added pieces added up) — app.js foldWantEntries works it out.
+function _wuPriceOf(u, isWant) {
+  // 2026-11-25 (upgradesets): an Upgrade SET — each piece is its own owned copy
+  // with its own target price, so the set's price is the pieces added up.
+  if (u && u._wantMates && !isWant) {
+    var _ut = parseFloat(u.maxPrice) || 0;
+    (u._mateRows || []).forEach(function (m) { _ut += parseFloat(m && m.maxPrice) || 0; });
+    if (_ut > 0) return String(_ut);
+  }
+  if (u && u._wantMates && u._pairPrice) return u._pairPrice;
+  return isWant ? u.expectedPrice : u.maxPrice;
 }
 function _renderWuHeader() {
   var thead = document.querySelector('#upgrade-table thead tr');
@@ -4013,10 +4063,15 @@ function _renderWuHeader() {
 function _wuSheetKey(u) {
   return 'wu|' + (u.listType || '') + '|' + (u.inventoryId || ((u.itemNum || '') + '|' + (u.variation || '') + '|' + (u.row || 0)));
 }
+// 2026-11-25 (upgradesets): the store keys of the pieces folded into an Upgrade
+// row (a set), joined for an onclick string. Blank for a single piece.
+function _wuMateKeys(u) {
+  return ((u && u._mateRows) || []).map(function (m) { return _ugEntryKey(m); }).filter(Boolean).join('|');
+}
 function _wuMain(u, isWant) {
   return { label: RR_LIST_LAYOUT.gotIt, tone: 'green', cls: isWant ? 'row-add-collection' : '',
            call: isWant ? "moveWantToCollection('" + rrJsArg(u.itemNum) + "','" + rrJsArg(u.variation || '') + "')"
-                        : "upgradeGotIt('" + rrJsArg(_ugEntryKey(u)) + "')" };
+                        : "upgradeGotIt('" + rrJsArg(_ugEntryKey(u)) + "','" + rrJsArg(_wuMateKeys(u)) + "')" };   // 2026-11-25 (upgradesets): a set — every piece
 }
 function _wuMenu(u, isWant, name) {
   return [
@@ -4024,8 +4079,8 @@ function _wuMenu(u, isWant, name) {
     { label: RR_LIST_LAYOUT.ebay, run: function () { wantFindOnEbay(u.itemNum, name || '', u.variation || ''); } },
     { label: RR_LIST_LAYOUT.search, run: function () { wantSearchOtherSites(u.itemNum, name || '', u.variation || ''); } },
     { label: RR_LIST_LAYOUT.remove, danger: true, run: isWant
-        ? function () { removeWantItem(u.itemNum, u.variation || '', u.row); }
-        : function () { removeUpgradeItemAsk(_ugEntryKey(u)); } }
+        ? function () { removeWantItem(u.itemNum, u.variation || '', u.row, u._mateRows); }   // 2026-11-25 (wantsets): a set — every piece
+        : function () { removeUpgradeItemAsk(_ugEntryKey(u), _wuMateKeys(u)); } }   // 2026-11-25 (upgradesets): a set — every piece
   ];
 }
 function _wuSortBy(col) {
@@ -4209,35 +4264,19 @@ function buildUpgradePage() {
   // beside the filters compared the FOLDED rows with the UNFOLDED total, so a
   // paired 2245-P + 2245C read as one hidden item. The total is now folded by
   // this SAME function (on copies), so the two sides count the same way.
+  // 2026-11-25 (wantsets, [stated] Brad 11:39 CT "it should just be one row
+  // like the my collection"): the page's own fold is retired — it never folded
+  // the second A unit, so an AA set drew two rows with the pair's price on
+  // each, and the "items" count disagreed with the menu count. THE fold is
+  // app.js foldWantEntries (sets saved together by their group, pieces added
+  // separately by the catalog), run on the Want rows and the Upgrade rows each
+  // on their own — a want never folds into an upgrade. The sorted order stays.
   function _wuFoldPairs(entries) {
-    var byNum = {};
-    entries.forEach(function(e) { if (!byNum[e.itemNum]) byNum[e.itemNum] = e; });
-    var absorbed = {};
-    entries.forEach(function(e) {
-      if (absorbed[e.itemNum]) return;
-      if (typeof isLocomotive === 'function' && isLocomotive(e.itemNum)) {
-        var tenders = (typeof getMatchingTenders === 'function') ? (getMatchingTenders(e.itemNum) || []) : [];
-        for (var i = 0; i < tenders.length; i++) {
-          var t = tenders[i];
-          if (t && t !== e.itemNum && byNum[t] && !absorbed[t] && byNum[t].listType === e.listType) {
-            e._mergedTender = t; absorbed[t] = true; break;
-          }
-        }
-      }
-      // v0.9.721 (Brad's 2245-P + 2245C at $700 EACH): diesel A units absorb
-      // their wanted B/C partner the same way — one row, one group price.
-      if (!e._mergedTender && typeof getSetPartner === 'function') {
-        var _b = String(e.itemNum).replace(/-(P|D)$/i, '');
-        if (!/C$/i.test(_b)) {
-          var _sp = getSetPartner(e.itemNum);
-          if (_sp && String(_sp) !== String(e.itemNum) && byNum[_sp] && !absorbed[_sp] && byNum[_sp].listType === e.listType) {
-            e._mergedTender = String(_sp); absorbed[_sp] = true;
-          }
-        }
-      }
-    });
-    if (Object.keys(absorbed).length) entries = entries.filter(function(e) { return !absorbed[e.itemNum]; });
-    return entries;
+    if (typeof foldWantEntries !== 'function') return entries;
+    entries.forEach(function (e, i) { e._wuAt = i; });
+    var folded = foldWantEntries(entries.filter(function (e) { return e.listType === 'Want'; }))
+      .concat(foldWantEntries(entries.filter(function (e) { return e.listType !== 'Want'; })));
+    return folded.sort(function (a, b) { return a._wuAt - b._wuAt; });
   }
   const _wuShownRaw = entries.length;   // R7: before folding — did any filter hide something?
   entries = _wuFoldPairs(entries);
@@ -4248,7 +4287,7 @@ function buildUpgradePage() {
   // Count display
   const upgradeCountEl = document.getElementById('upgrade-count');
   if (upgradeCountEl) {
-    const labelTotal = _wuFoldPairs(_collect.map(function (e) { return Object.assign({}, e, { _mergedTender: undefined }); })).length;   // R7: folded the same way as the rows
+    const labelTotal = _wuFoldPairs(_collect.map(function (e) { return Object.assign({}, e); })).length;   // R7: folded the same way as the rows
     upgradeCountEl.textContent = (_wuShownRaw === _collect.length && entries.length === labelTotal)
       ? labelTotal + ' item' + (labelTotal !== 1 ? 's' : '')
       : 'Showing ' + entries.length + ' of ' + labelTotal;
@@ -4323,7 +4362,7 @@ function buildUpgradePage() {
       const _ltColor = _isWant ? '#3b82f6' : '#8b5cf6';
       const _ltBg    = _isWant ? 'rgba(59,130,246,0.12)' : 'rgba(139,92,246,0.12)';
       const _priceLabel = _isWant ? 'Want: ' : 'Max: ';
-      const _priceVal = _isWant ? u.expectedPrice : u.maxPrice;
+      const _priceVal = _wuPriceOf(u, _isWant);   // 2026-11-25 (wantsets): a set shows its ONE price
       // v0.9.1151 (pre-beta audit, finding 5 — a hole in yesterday's 5.3 fix):
       // share mode was wired ONLY into the desktop table branch below, so on a
       // phone the Want/Upgrade cards rendered no checkbox, registered nothing in
@@ -4405,7 +4444,7 @@ function buildUpgradePage() {
       const pColor = priorityColor[u.priority] || 'var(--text-dim)';
       const _ltColor = _isWant ? '#3b82f6' : '#8b5cf6';
       const _ltBg    = _isWant ? 'rgba(59,130,246,0.12)' : 'rgba(139,92,246,0.12)';
-      const _priceVal = _isWant ? u.expectedPrice : u.maxPrice;
+      const _priceVal = _wuPriceOf(u, _isWant);   // 2026-11-25 (wantsets): a set shows its ONE price
       // Share-mode: unique key + register in _shareDataMap.
       // v0.9.924: per-copy share key — upgrade entries carry inventoryId, so
       // two copies of the same item on the upgrade list select independently.
@@ -4867,22 +4906,31 @@ async function _saveUpgradeItemNow(itemNum, variation, existingRow, invId) {
 // the same way the Want row's does (removeWantItem). The question lives here,
 // at the button, because removeUpgradeItem is also the quiet last step of
 // "Got It" (_upgradeGotItFinish), where the person has already decided.
-async function removeUpgradeItemAsk(ugKey) {
-  if (!(await appConfirm('Remove this item from your Upgrade List?', { danger: true, ok: 'Remove' }))) return;
-  return removeUpgradeItem(ugKey);
+// 2026-11-25 (upgradesets): on a SET (mateKeys = the other pieces' keys, "a|b")
+// it asks once and clears every piece; if the lead's row is refused, nothing
+// else changes; a piece the sheet refuses stays listed (its own row).
+async function removeUpgradeItemAsk(ugKey, mateKeys) {
+  var _mates = String(mateKeys || '').split('|').filter(function (k) { return k && k !== ugKey && state.upgradeData && state.upgradeData[k]; });
+  var _q = _mates.length ? ('Remove this set (' + (_mates.length + 1) + ' pieces) from your Upgrade List?') : 'Remove this item from your Upgrade List?';
+  if (!(await appConfirm(_q, { danger: true, ok: 'Remove' }))) return;
+  if (!_mates.length) return removeUpgradeItem(ugKey);
+  await removeUpgradeItem(ugKey, { quiet: true });
+  if (state.upgradeData[ugKey]) return;   // the lead could not be cleared: nothing changes
+  for (var _i = 0; _i < _mates.length; _i++) await removeUpgradeItem(_mates[_i], { quiet: true });
+  showToast('Removed from Upgrade List');
 }
 if (typeof window !== 'undefined') window.removeUpgradeItemAsk = removeUpgradeItemAsk;
 
 // Phase 3: signature is now (ugKey). ugKey is the inventoryId (or
 // 'legacy-row-N' fallback) of the Upgrade entry to remove.
-async function removeUpgradeItem(ugKey) {
+async function removeUpgradeItem(ugKey, opts) {   // opts.quiet (2026-11-25 upgradesets): no toast — a set says it once
   if (!state.personalSheetId) return;
   const ug = state.upgradeData[ugKey];
   if (!ug || !ug.row) { showToast('Upgrade entry not found'); return; }
   try {
     if (!(await rrVerifiedRowUpdate(state.personalSheetId, 'Want-Upgrade List', ug.row, `Want-Upgrade List!A${ug.row}:I${ug.row}`, [['','','','','','','','','']], { num: ug.itemNum || '', invId: ug.inventoryId || '' }, 'Want list'))) return;
     delete state.upgradeData[ugKey];
-    showToast('Removed from Upgrade List');
+    if (!(opts && opts.quiet)) showToast('Removed from Upgrade List');
     buildUpgradePage();
     buildDashboard();
     const badge = document.getElementById('nav-wishlist-count');
@@ -4893,7 +4941,7 @@ async function removeUpgradeItem(ugKey) {
 }
 
 // Phase 3: signature is now (ugKey). Look up the entry to render its display name.
-function upgradeGotIt(ugKey) {
+function upgradeGotIt(ugKey, mateKeys) {   // mateKeys (2026-11-25 upgradesets): the set's other pieces, "a|b"
   // Brad's preference (Session 161+): "Got It" should open the Add wizard
   // pre-filled with the item info + target condition/price as suggestions so
   // the user can capture condition / price-paid / photos in one flow.
@@ -4915,6 +4963,18 @@ function upgradeGotIt(ugKey) {
     wizard.data.itemNum = itemNum;
     if (variation) wizard.data.variation = variation;
     wizard.data.itemCategory = 'lionel';
+    // 2026-11-25 (upgradesets, [stated] Brad 15:40 CT "Fix now"): Got It on an
+    // Upgrade SET adds the whole set, the SAME way the Want list's Got It does
+    // (_wcPartnersOf + _wcSeedGrouping) — only partners that are pieces of THIS
+    // row — and the save takes every piece it added off the Upgrade list.
+    var _ugMates = String(mateKeys || '').split('|').filter(function (k) { return k && k !== ugKey && state.upgradeData[k]; })
+      .map(function (k) { return { num: String(state.upgradeData[k].itemNum || ''), key: k }; });
+    if (_ugMates.length) {
+      var _ugIn = function (n) { return n && _ugMates.some(function (m) { return _wcNorm(m.num) === _wcNorm(n); }) ? n : ''; };
+      var _ugP = _wcPartnersOf(itemNum);
+      _wcSeedGrouping(wizard.data, itemNum, _ugIn(_ugP.tender), _ugIn(_ugP.bunit), _ugIn(_ugP.dummy));
+      wizard.data._fromUpgradeMateKeys = _ugMates;
+    }
     wizard.data._itemGrouping = wizard.data._itemGrouping || 'single';
     wizard.data.entryMode = wizard.data.entryMode || 'full';
     // v0.9.1920 (Brad): the upgrade's target condition / max price stay on the
@@ -4934,6 +4994,16 @@ function upgradeGotIt(ugKey) {
       }
     }
     // Advance through the lookup steps to land on Condition & Details
+    if (_ugMates.length) {
+      // 2026-11-25 (upgradesets): a set lands where the Want list's Got It lands —
+      // the step list rebuilt for the set, then Condition & Details.
+      wizard.steps = getSteps('collection');
+      var _ugT = wizard.steps.findIndex(function (s) { return s.id === 'conditionDetails'; });
+      if (_ugT < 0) _ugT = wizard.steps.findIndex(function (s) { return s.id === 'itemNumGrouping'; });
+      wizard.step = _ugT >= 0 ? _ugT : 0;
+      if (typeof renderWizardStep === 'function') renderWizardStep();
+      return;
+    }
     var skipIds = new Set(['itemNumGrouping','itemPicker','variation','entryMode','itemCategory']);
     while (wizard.step < wizard.steps.length - 1) {
       var s = wizard.steps[wizard.step];

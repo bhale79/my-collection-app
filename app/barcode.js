@@ -33,7 +33,8 @@ function eraSupportsBarcode(era) {
               'microtrains_n',   // v0.9.1719: the maker publishes UPCs; 1,194 of them shipped with the tab
               'kline','williams','other_o',
               'aristocraft','accucraft','bachmann_ho','bachmann_n','bachmann_g',
-              'bachmann_o','bachmann_on30','bachmann_hon30','bachmann_all'];
+              'bachmann_o','bachmann_on30','bachmann_hon30','bachmann_all',
+              'blma_n','blma_ho','blma_z'];   // blmaahm (2026-11-25): 599 of BLMA's 614 rows carry a barcode; AHM's carry none (the marx pattern)
   return SHOW.indexOf(String(era).toLowerCase()) >= 0;
 }
 window.eraSupportsBarcode = eraSupportsBarcode;

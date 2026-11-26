@@ -159,13 +159,13 @@ section('P · planted (the lists)');
     let on = null; try { on = listsNaming(world(Object.assign({}, FILES, { [file]: plant(FILES[file], from, to, label) }))); } catch (e) { on = ['ERR ' + (e && e.message)]; }
     ok('PLANTED (' + label + '): section 1 goes red', on.some(x => want.test(x)), on.join(', '));
   };
-  back('config.js', ", 'bluford_n', 'bluford_ho'];", ", 'bluford_n', 'bluford_ho', 'roundhouse_ho'];", 'P4 era back in REAL_ERA_IDS', /^REAL_ERA_IDS$/);
+  back('config.js', ", 'ahm_ho', 'ahm_n'];", ", 'ahm_ho', 'ahm_n', 'roundhouse_ho'];", 'P4 era back in REAL_ERA_IDS', /^REAL_ERA_IDS$/);
   back('config.js', "  bluford_ho:     { items: 'Bluford Shops HO' },", "  bluford_ho:     { items: 'Bluford Shops HO' },\n  roundhouse_ho:  { items: 'Roundhouse HO' },", 'P5 the tab back in ERA_TABS', /^ERA_TABS/);
   back('config.js', "bluford_n: 'N', bluford_ho: 'HO',", "bluford_n: 'N', bluford_ho: 'HO', roundhouse_ho: 'HO',", 'P6 era back in ERA_SCALE', /^ERA_SCALE$/);
-  back('onboarding-config.js', "                'bluford_n', 'bluford_ho'],", "                'bluford_n', 'bluford_ho', 'roundhouse_ho'],", 'P7 era back in the What I Collect order', /era order/);
+  back('onboarding-config.js', "'blma_z', 'ahm_ho', 'ahm_n'],", "'blma_z', 'ahm_ho', 'ahm_n', 'roundhouse_ho'],", 'P7 era back in the What I Collect order', /era order/);
   back('onboarding-config.js', "    'bluford shops': { id: 'bluford shops'", "    roundhouse: { id: 'roundhouse', label: 'Roundhouse', default: false },\n    'bluford shops': { id: 'bluford shops'", 'P8 the maker choice back', /maker choice/);
   back('browse.js', "  bluford_ho:     'modern',", "  bluford_ho:     'modern',\n  roundhouse_ho:  'modern',", 'P9 the browse group back', /browse group/);
-  back('research.js', "    'bluford_n', 'bluford_ho'] };", "    'bluford_n', 'bluford_ho', 'roundhouse_ho'] };", 'P10 the research group back', /research page/);
+  back('research.js', "'blma_z', 'ahm_ho', 'ahm_n'] };", "'blma_z', 'ahm_ho', 'ahm_n', 'roundhouse_ho'] };", 'P10 the research group back', /research page/);
   back('wizard-photos.js', ", bluford: 'bluford_n' /*", ", bluford: 'bluford_n', roundhouse: 'roundhouse_ho' /*", 'P11 Photo ID sends Roundhouse to the held catalog', /Photo ID/);
 }
 
@@ -251,7 +251,7 @@ const SCENE = () => {
     {
       // the held catalog switched back on in config.js only — the app must then show it as a catalog again, so 5a can fail
       const cfg = read('config.js');
-      const bad = plant(plant(cfg, ", 'bluford_n', 'bluford_ho'];", ", 'bluford_n', 'bluford_ho', 'roundhouse_ho'];", 'REAL_ERA_IDS'),
+      const bad = plant(plant(cfg, ", 'ahm_ho', 'ahm_n'];", ", 'ahm_ho', 'ahm_n', 'roundhouse_ho'];", 'REAL_ERA_IDS'),
         "const RETIRED_ERA_IDS = ['lionelstore_parts', 'roundhouse_ho'];", "const RETIRED_ERA_IDS = ['lionelstore_parts'];", 'RETIRED_ERA_IDS');
       const R2 = await run({ 'config.js': bad });
       ok('P12 PLANTED (the catalog back in REAL_ERA_IDS and off the retired list): 5a goes red', !R2.crashed && R2.eras && (R2.eras.real === true || R2.eras.retired.indexOf('roundhouse_ho') < 0), R2.crashed || J(R2.eras));
