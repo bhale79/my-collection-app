@@ -4675,6 +4675,31 @@ function rrCopyMakerIs(pd, maker) {
   var _omp = pd && pd.manufacturer ? String(pd.manufacturer).trim().toLowerCase() : '';
   return _omp === String(maker || '').trim().toLowerCase();
 }
+// 2026-11-26 (makersearch — [stated] Brad 13:37 CT "Not thrilled with search of
+// already entered items. Put in MTH and only showed 3 entries, when there are
+// many more" → 13:38 CT "Emergency fix that now"): the search box never read an
+// item's MAKER, so "MTH" found only rows whose description happened to say MTH.
+// The words the search adds for the maker, asked the SAME two ways the filters
+// ask it: the row's maker through THE ONE maker rule (rrMakerOf, app.js — the
+// Manufacturer chip's answer) and the copy's own saved Manufacturer cell (the
+// "My maker" pick, rrCopyMakerIs above) when it says something else. The row's
+// half is remembered per row object (a WeakMap — a rebuilt catalog is new
+// objects, so nothing goes stale), so a keystroke over 165K rows costs a lookup.
+var _rrRowMakerMemo = (typeof WeakMap === 'function') ? new WeakMap() : null;
+function rrSearchMakerWords(item, pd) {
+  var _rm = '';
+  if (item && typeof item === 'object') {
+    if (_rrRowMakerMemo && _rrRowMakerMemo.has(item)) _rm = _rrRowMakerMemo.get(item);
+    else {
+      try { _rm = (typeof rrMakerOf === 'function') ? String(rrMakerOf({ row: item }) || '') : ''; } catch (e) { _rm = ''; }
+      if (_rrRowMakerMemo) _rrRowMakerMemo.set(item, _rm);
+    }
+  }
+  var _cm = (pd && pd.manufacturer) ? String(pd.manufacturer).trim() : '';
+  if (_cm && _cm.toLowerCase() !== _rm.toLowerCase()) return (_rm ? _rm + ' ' : '') + _cm;
+  return _rm;
+}
+if (typeof window !== 'undefined') window.rrSearchMakerWords = rrSearchMakerWords;
 // v0.9.985 (perf), moved here 2026-10-31 so the Workbench can build a typed-in
 // copy's row the same way: indexed replacement for masterData.find(...) — same
 // answer (variation match within the same item number, else the first row
@@ -5025,6 +5050,11 @@ function _rrBrowseCore(_co) {
   if (typeof _renderHierarchyChips === 'function') _renderHierarchyChips();
   }   // end if (!_co)
   let { type, road, owned, unowned, boxed, search } = state.filters;   // v0.9.1798: `type` is re-pointed per count variant
+  // 2026-11-26 (makersearch): a space before or after the words typed (a phone
+  // adds one after a picked suggestion — "MTH ") made every search find only
+  // rows with that space in them. The ends are trimmed here, the one place the
+  // list reads the box; the words between are kept as typed.
+  search = String(search == null ? '' : search).trim();
   // v0.9.1007b (Brad): rebuild the collection header in the SAME pass as the
   // rows. It used to be rendered only when you switched INTO My Collection,
   // so turning selection mode on added the gutter cell to every row and left
@@ -5608,7 +5638,7 @@ function _rrBrowseCore(_co) {
       // (pd is null for the other 141K), so the cost is ~nothing.
       // 2026-11-24 (weavercr): a Weaver custom run has no item number — the
       // number on its car (rrCustomRunNumber, app.js) is searched instead.
-      const haystack = `${item.itemNum} ${item.roadName||''} ${item.description||''} ${item.itemType||''} ${item.category||''} ${item.alsoSoldAs||''} ${(pd&&pd.yourDescription)||''} ${(pd&&pd.yourGrade)||''} ${(pd&&pd.notes)||''} ${(typeof rrCustomRunNumber === 'function') ? rrCustomRunNumber(item) : ''}`.toLowerCase();
+      const haystack = `${item.itemNum} ${item.roadName||''} ${item.description||''} ${item.itemType||''} ${item.category||''} ${item.alsoSoldAs||''} ${(pd&&pd.yourDescription)||''} ${(pd&&pd.yourGrade)||''} ${(pd&&pd.notes)||''} ${(typeof rrCustomRunNumber === 'function') ? rrCustomRunNumber(item) : ''} ${(typeof rrSearchMakerWords === 'function') ? rrSearchMakerWords(item, pd) : ''}`.toLowerCase();
       // 2026-11-05: a leading-zero twin of a one-number search is let through
       // and held (_zAdmitted) — _zKeep drops it again beside an exact row.
       if (_zQ && rrNumZeroTwin(item.itemNum, _zQ) && !_aliasSearch(haystack, search)) { _zAdmitted.add(item); return true; }
