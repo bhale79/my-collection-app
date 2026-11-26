@@ -604,7 +604,36 @@ function rrHowManyHtml(d) {
   return '<div id="pv-howmany-wrap" style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">' + rrEsc(H.label) + '</div>'
     + '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem">'
     + '<input type="number" inputmode="numeric" pattern="[0-9]*" id="pv-howmany" value="' + n + '" min="1" max="' + H.max + '" step="1" aria-label="' + rrEsc(H.label) + '" style="flex:1;min-width:0;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem" oninput="rrHowManyInput(this)" onblur="rrHowManyBlur(this)"></div>'
-    + '<div id="pv-howmany-hint" style="font-size:0.75rem;color:var(--text-dim);margin-top:0.2rem">' + rrEsc(H.hint) + '</div></div>';
+    + '<div id="pv-howmany-hint" style="font-size:0.75rem;color:var(--text-dim);margin-top:0.2rem">' + rrEsc(H.hint) + '</div>'
+    + '<div id="pv-carnums">' + rrCarNumbersHtml(d) + '</div></div>';
+}
+// 2026-11-26 (menardscars): one "Number on the car" line per car, under the
+// "How many?" box — only for a listed maker's car (rrCarNumbersOffered,
+// wizard-save.js). Each line writes its own place in wizard.data._carNums;
+// a changed count redraws the lines and keeps what was typed.
+function rrCarNumbersHtml(d) {
+  if (typeof rrCarNumbersOffered !== 'function' || !rrCarNumbersOffered(d)) return '';
+  var H = RR_HOW_MANY, n = rrHowManyCount(d);
+  var vals = Array.isArray(d._carNums) ? d._carNums : [];
+  var h = '<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin:0.6rem 0 0.3rem">' + rrEsc(H.carLabel) + '</div>';
+  for (var i = 0; i < n; i++) {
+    var lab = n > 1 ? String(H.carLineLabel).replace('{i}', i + 1) : H.carLabel;
+    h += '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.5rem 0.75rem;margin-bottom:0.35rem">'
+      + (n > 1 ? '<span style="color:var(--text-dim);font-size:0.85rem;white-space:nowrap;min-width:3.2rem">' + rrEsc(lab) + '</span>' : '')
+      + '<input type="text" inputmode="text" autocomplete="off" class="pv-carnum" data-car="' + i + '" value="' + rrEsc(vals[i] == null ? '' : String(vals[i])) + '" placeholder="' + rrEsc(H.carPlaceholder) + '" aria-label="' + rrEsc(lab) + '" style="flex:1;min-width:0;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem" oninput="rrCarNumInput(this)"></div>';
+  }
+  h += '<div id="pv-carnums-hint" style="font-size:0.75rem;color:var(--text-dim);margin-top:0.1rem">' + rrEsc(H.carHint) + '</div>';
+  return h;
+}
+function rrCarNumInput(el) {
+  var i = parseInt(el.getAttribute('data-car'), 10);
+  if (isNaN(i) || i < 0) return;
+  if (!Array.isArray(wizard.data._carNums)) wizard.data._carNums = [];
+  wizard.data._carNums[i] = el.value;
+}
+function _rrCarNumsRepaint() {
+  var box = document.getElementById('pv-carnums');
+  if (box) box.innerHTML = rrCarNumbersHtml(wizard.data);
 }
 function rrHowManyEachHtml(d) {
   if (typeof rrHowManyOffered !== 'function' || !rrHowManyOffered(d)) return '';
@@ -622,15 +651,19 @@ function _rrHowManyPaint(over) {
 function rrHowManyInput(el) {
   var raw = parseInt(String(el.value || '').trim(), 10);
   var over = !isNaN(raw) && raw > RR_HOW_MANY.max;
+  var _was = rrHowManyCount(wizard.data);
   wizard.data._howMany = rrHowManyClamp(el.value);
   if (over) el.value = String(RR_HOW_MANY.max);
   _rrHowManyPaint(over);
+  if (rrHowManyCount(wizard.data) !== _was) _rrCarNumsRepaint();   // 2026-11-26 (menardscars): one line per car
 }
 function rrHowManyBlur(el) {
+  var _was = rrHowManyCount(wizard.data);
   wizard.data._howMany = rrHowManyClamp(el.value);
   el.value = String(wizard.data._howMany);
+  if (rrHowManyCount(wizard.data) !== _was) _rrCarNumsRepaint();
 }
-if (typeof window !== 'undefined') { window.rrHowManyHtml = rrHowManyHtml; window.rrHowManyEachHtml = rrHowManyEachHtml; window.rrHowManyInput = rrHowManyInput; window.rrHowManyBlur = rrHowManyBlur; }
+if (typeof window !== 'undefined') { window.rrHowManyHtml = rrHowManyHtml; window.rrHowManyEachHtml = rrHowManyEachHtml; window.rrHowManyInput = rrHowManyInput; window.rrHowManyBlur = rrHowManyBlur; window.rrCarNumbersHtml = rrCarNumbersHtml; window.rrCarNumInput = rrCarNumInput; }
 
 // v0.9.1463: the ONE answer to "which variation rows belong to this item".
 // Shared by the variation screen (wizard.js) and the three variation
@@ -7595,10 +7628,16 @@ function renderWizardStep() {
     }
     // 2026-11-22 (howmany): a count above 1 is said in words before the save.
     var _cfHowMany = (typeof rrHowManyCount === 'function') ? rrHowManyCount(wizard.data) : 1;
+    // 2026-11-26 (menardscars): the car numbers typed, in order ('—' for a blank line)
+    var _cfCars = (typeof rrCarNumbersOffered === 'function' && rrCarNumbersOffered(wizard.data)) ? rrCarNumbers(wizard.data) : [];
+    var _cfCarsLine = _cfCars.some(Boolean) ? String(RR_HOW_MANY.confirmCars).replace('{list}', _cfCars.map(function (v) { return v || '—'; }).join(', ')) : '';
     if (!_isEph && _cfHowMany > 1) {
       confirmHtml += '<div id="cf-howmany" style="background:var(--surface2);border:1.5px solid var(--accent2);border-radius:10px;padding:0.75rem 0.85rem;margin-bottom:1rem">'
         + '<div style="font-weight:700;color:var(--text);font-size:0.95rem">' + rrEsc(String(RR_HOW_MANY.confirm).replace(/\{n\}/g, _cfHowMany).replace('{num}', wizard.data.itemNum || '')) + '</div>'
+        + (_cfCarsLine ? '<div id="cf-carnums" style="font-size:0.85rem;color:var(--text);margin-top:0.25rem">' + rrEsc(_cfCarsLine) + '</div>' : '')
         + '<div style="font-size:0.78rem;color:var(--text-mid);margin-top:0.25rem;line-height:1.4">' + rrEsc(RR_HOW_MANY.confirmNote) + '</div></div>';
+    } else if (!_isEph && _cfCarsLine) {
+      confirmHtml += '<div id="cf-carnums" style="background:var(--surface2);border-radius:8px;padding:0.6rem 0.85rem;margin-bottom:1rem;font-size:0.85rem;color:var(--text)">' + rrEsc(String(RR_HOW_MANY.carLabel) + ': ' + _cfCars[0]) + '</div>';
     }
     // Session 115: grouping-candidate section. When the user already owns
     // something that naturally groups with this new item, surface it as

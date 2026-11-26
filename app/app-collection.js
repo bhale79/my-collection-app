@@ -1372,6 +1372,9 @@ function showItemDetailPage(idx, copyInvId, opts) {
   // carries a STABLE id (rule 4 \u2014 never a label, labels get reworded and
   // custom columns get renamed), so the picker's saved choice survives.
   let details = [
+    // 2026-11-26 (menardscars): THIS copy's own number on the car (Road Number) —
+    // two Menards cars under one item number differ only here. Shown when filled.
+    { id: 'roadNumber', label: (typeof rrTermOf === 'function' && rrTermOf('roadNumber')) ? rrTermOf('roadNumber').word : 'Road Number', val: pd && pd.roadNumber ? rrEsc(String(pd.roadNumber)) : null },
     { id: 'condition', label: 'Condition', val: cond ? `<span class="condition-pip ${condClass}"></span> ${cond}/10` : null },
     { id: 'allOriginal', label: 'All Original', val: pd && pd.allOriginal && pd.allOriginal !== 'Unknown' ? pd.allOriginal : null },
     { id: 'notOriginal', label: 'Not Original', val: pd && pd.notOriginalDesc ? rrEsc(pd.notOriginalDesc) : null },
@@ -4951,6 +4954,9 @@ function showItemPanel(idx, pdKey, mode) {
     // user-field loop below draws it (with the saved list as suggestions) —
     // this manual-only box steps aside so it is never shown twice.
     ...((idx < 0 || pd.era === 'Manual') && !_rrSubTypeIsUserField() ? [{ label: 'Sub Type', key: 'subType', val: pd.subType || '—', type: 'text' }] : []),
+    // 2026-11-26 (menardscars): THIS copy's own number on the car — changeable on
+    // every piece (a Menards car with the wrong number typed, an engine's cab number)
+    ...((typeof _isBoxItemNum === 'function' && _isBoxItemNum(pd.itemNum || item.itemNum || '')) ? [] : [{ label: 'Road Number', key: 'roadNumber', val: pd.roadNumber || '—', type: 'text' }]),
     { label: 'Condition',     key: 'condition',     val: pd.condition || '—',     type: 'number', min:1, max:10 },
     { label: 'All Original',  key: 'allOriginal',   val: pd.allOriginal || '—',   type: 'select', options: ['Yes','No','Unknown'] },
     { label: 'Has Box',       key: 'hasBox',        val: pd.hasBox || '—',        type: 'select', options: ['Yes','No'] },

@@ -24,6 +24,22 @@ function _rrRowDomKey(item) {
     .replace(/[^A-Za-z0-9_-]/g, '_') + _cp;   // underscore, not strip: "53 x" and "53x" stay distinct
 }
 
+// 2026-11-26 (menardscars): "car 6302" on a My Collection row — ONLY when the
+// row is one of several copies drawn for one catalog row (_copyPd, set by
+// _expandCopies), the copy carries its own Road Number, and the catalog row is
+// a listed maker's car (rrHowManyCarRow, wizard-save.js; RR_HOW_MANY.carMakers).
+// Every other row is unchanged. '' = nothing to show.
+function rrCopyCarLabel(item, pd) {
+  try {
+    if (!item || !item._copyPd || !pd) return '';
+    var n = String(pd.roadNumber == null ? '' : pd.roadNumber).trim().replace(/^#\s*/, '');
+    if (!n || typeof rrHowManyCarRow !== 'function' || typeof RR_HOW_MANY === 'undefined') return '';
+    if (!rrHowManyCarRow(item._origItem || item)) return '';
+    return String(RR_HOW_MANY.cardWord || 'car') + ' ' + n;
+  } catch (e) { return ''; }
+}
+if (typeof window !== 'undefined') window.rrCopyCarLabel = rrCopyCarLabel;
+
 // v0.9.1203 (Brad: "some say o and some say o gauge. they should all say O
 // gauge"): the scale line under the maker badge is fed by THREE sources —
 // the saved row's gauge, the master row's gauge, and the era default — and
@@ -5432,6 +5448,28 @@ function _rrBrowseCore(_co) {
   var _dQ = (!_cmdQ && /^[A-Za-z]*-?\d\S*$/.test(_zQ) && typeof rrNumLooseTwin === 'function'
              && typeof rrNumMayHaveLooseTwin === 'function' && rrNumMayHaveLooseTwin(_zQ)) ? _zQ : '';   // a plain 6502 never pays the per-row check
   if (_cmdQ || !/^\d\S*$/.test(_zQ) || typeof rrNumZeroTwin !== 'function') _zQ = '';
+  // 2026-11-26 (menardscars): a one-word search may be the number painted on a
+  // copy (its own Road Number — two Menards cars under one item number differ
+  // only there). Exact, case-blind, a leading # ignored. Asked only of rows the
+  // search did NOT already find by their own words (_rowPasses), and those rows
+  // draw only the copies carrying the number (_expandCopies).
+  var _carQ = (function () {
+    var q = String(state.filters.search || '').trim().replace(/^#\s*/, '').toLowerCase();
+    return (!q || /\s/.test(q) || _cmdQ) ? '' : q;
+  })();
+  var _carRows = new Set();
+  function _carNumHit(p, q) {
+    return !!(p && q && String(p.roadNumber == null ? '' : p.roadNumber).trim().replace(/^#\s*/, '').toLowerCase() === q);
+  }
+  // Does an OWNED row get in on a copy's painted number? The SAME copy must
+  // carry the number AND pass the per-copy filters (Boxed, Group …).
+  function _carAdmits(item, pd, isOwned) {
+    if (!_carQ || !isOwned) return false;
+    var _ccps = _copiesOfRow(item);
+    if (_ccps.length <= 1) _ccps = [pd];
+    if (_ccps.some(function (p) { return _carNumHit(p, _carQ) && (!_copyFiltersOn() || _copyPasses(p)); })) { _carRows.add(item); return true; }
+    return false;
+  }
   var _zAdmitted = (_zQ || _dQ) ? new Set() : null;
   // the one "keep the twins?" step, used on every list _rowPasses makes
   // (the screen's rows and every count beside a picker option)
@@ -5575,7 +5613,11 @@ function _rrBrowseCore(_co) {
       // and held (_zAdmitted) — _zKeep drops it again beside an exact row.
       if (_zQ && rrNumZeroTwin(item.itemNum, _zQ) && !_aliasSearch(haystack, search)) { _zAdmitted.add(item); return true; }
       if (_dQ && rrNumLooseTwin(item, _dQ) && !_aliasSearch(haystack, search)) { _zAdmitted.add(item); return true; }   // dashmaker (the row itself: the ending rule is per catalog)
-      if (!_aliasSearch(haystack, search)) return false;
+      // 2026-11-26 (menardscars): …or the number painted on one of the
+      // collector's OWN copies (Road Number) — 6302 finds that Menards car
+      // (_carAdmits: remembers the row in _carRows; _expandCopies then draws
+      // ONLY the copies carrying that number). Still the search box's rule.
+      if (!_aliasSearch(haystack, search) && !_carAdmits(item, pd, isOwned)) return false;
     }
     return true;
   };
@@ -5867,6 +5909,16 @@ function _rrBrowseCore(_co) {
     _list.forEach(function(it) {
       if (it._personalOnly) { _expandedFD.push(it); return; }
       var _copiesFD = _copiesOfRow(it);
+      // 2026-11-26 (menardscars): a row found by a copy's painted number draws
+      // only the copies carrying it — one left is NAMED (_copyPd), like below.
+      if (_carRows.has(it) && _copiesFD.length > 1) {
+        var _carCps = _copiesFD.filter(function (cp) { return _carNumHit(cp, _carQ) && (!_perCopy || _copyPasses(cp)); });
+        if (_carCps.length) _copiesFD = _carCps;
+        if (_copiesFD.length === 1) {
+          var _cc1 = Object.assign({}, it); _cc1._copyPd = _copiesFD[0]; _cc1._origItem = it;
+          _expandedFD.push(_cc1); return;
+        }
+      }
       if (_copiesFD.length <= 1) { _expandedFD.push(it); return; }
       // v0.9.1820: with a per-copy filter on, only the copies that pass are
       // drawn — and when one is left it is NAMED (_copyPd), so the row shows
@@ -6401,7 +6453,7 @@ function _rrBrowseCore(_co) {
               <span class="browse-card-num" style="white-space:nowrap">${rrEsc(_displayItemNum(item))}${_cv.variation ? ' <span style="font-size:0.72rem;color:var(--text-dim)">' + rrEsc(_cv.variation) + '</span>' : ''}</span>${rrSampleTag(item)}${_noNumTag(item.itemNum)}${(typeof eraBadgeHTML === 'function' && window.ERA_BADGES && window.ERA_BADGES.showInBrowse) ? eraBadgeHTML(item._tab) : ''}${(typeof lineBadgeHTML === 'function') ? lineBadgeHTML(item) : ''}
               <span style="display:flex;gap:0.2rem;align-items:center">${_statusIcons}</span>
             </div>
-            ${item.roadName ? `<div class="browse-card-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${rrEsc(item.roadName)}</div>` : ''}
+            ${(function(){ var _car = rrCopyCarLabel(item, pd); /* 2026-11-26 (menardscars) */ var _nm = [item.roadName || '', _car].filter(Boolean).join(' · '); return _nm ? `<div class="browse-card-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${rrEsc(item.roadName || '')}${_car ? `${item.roadName ? ' · ' : ''}<span class="rr-car-num" style="font-weight:700;color:var(--text)">${rrEsc(_car)}</span>` : ''}</div>` : ''; })()}
             <div class="browse-card-sub" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${rrEsc([(typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(item) : item.itemType), item.yearProd].filter(Boolean).join(' · '))}</div>
             ${(typeof rrCatalogStatusChip === 'function') ? rrCatalogStatusChip(item, { block: true }) : ''}
           </div>
@@ -6493,6 +6545,7 @@ function _rrBrowseCore(_co) {
         _cells.num = `<td data-col="num" style="max-width:170px;overflow:hidden">
           <span class="item-num" style="display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom" title="${rrEsc(_displayItemNum(item))}">${rrEsc(_displayItemNum(item))}</span>${rrSampleTag(item)}${_noNumTag(item.itemNum)}
           <div class="rr-num-badges" style="margin-top:1px;line-height:1.25">
+            ${(function(){ var _car = rrCopyCarLabel(item, pd); /* 2026-11-26 (menardscars): this copy's own car number */ return _car ? '<span class="rr-car-num" style="font-size:0.72rem;font-weight:700;color:var(--text);margin-right:4px">' + rrEsc(_car) + '</span>' : ''; })()}
             ${(typeof eraBadgeHTML === 'function' && window.ERA_BADGES && window.ERA_BADGES.showInBrowse) ? eraBadgeHTML(item._tab) : ''}${(typeof lineBadgeHTML === 'function') ? lineBadgeHTML(item) : ''}
             ${(function(){
               // v0.9.1569 (audit step 4): the folded lead row wears the

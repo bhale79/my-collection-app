@@ -154,8 +154,48 @@ function rrHowManyOffered(d) {
     var typed = row ? '' : _rrAddChosenType(d);
     var src = row || (typed ? { itemType: typed } : null);
     if (!src || typeof getTypeBucket !== 'function') return false;
-    return getTypeBucket(src) === RR_HOW_MANY.bucket;
+    var bucket = getTypeBucket(src);
+    if (bucket === RR_HOW_MANY.bucket) return true;
+    // 2026-11-26 (menardscars): …or a car / engine of a listed maker (rrHowManyCarRow)
+    return rrHowManyCarRow(row, bucket);
   } catch (e) { return false; }
+}
+// 2026-11-26 (menardscars): is this CATALOG row a car or engine of a maker on
+// RR_HOW_MANY.carMakers? A bucket that runs on the track (rrBucketOnTrack, the
+// one answer in type-groups.js), never a Set, never Track itself; the maker is
+// the row's own (rrMakerOf — THE maker rule, app.js). No catalog row = no.
+function rrHowManyCarRow(row, bucket) {
+  try {
+    if (!row || typeof row !== 'object' || typeof RR_HOW_MANY === 'undefined') return false;
+    var makers = RR_HOW_MANY.carMakers || [];
+    if (!makers.length || typeof rrMakerOf !== 'function') return false;
+    if (bucket == null) bucket = (typeof getTypeBucket === 'function') ? getTypeBucket(row) : '';
+    if (!bucket || bucket === RR_HOW_MANY.bucket || bucket === 'Set') return false;
+    if (typeof rrBucketOnTrack !== 'function' || !rrBucketOnTrack(bucket)) return false;
+    var m = String(rrMakerOf({ row: row }) || '').trim().toLowerCase();
+    return !!m && makers.some(function (x) { return String(x).trim().toLowerCase() === m; });
+  } catch (e) { return false; }
+}
+// Does this add get the "Number on the car" lines? Only a How-many add of a
+// listed maker's car — track and switches never do.
+function rrCarNumbersOffered(d) {
+  try {
+    d = d || ((typeof wizard !== 'undefined' && wizard) ? wizard.data : null) || {};
+    if (!rrHowManyOffered(d)) return false;
+    var row = (typeof _wizAddRow === 'function') ? _wizAddRow() : wizard.matchedItem;
+    return rrHowManyCarRow(row);
+  } catch (e) { return false; }
+}
+// The car numbers the save acts on: exactly rrHowManyCount(d) entries, each
+// the typed number trimmed ('' when the line was left blank or the add has no
+// car lines). Kept in ONE place: wizard.data._carNums (an underscore key).
+function rrCarNumbers(d) {
+  d = d || ((typeof wizard !== 'undefined' && wizard) ? wizard.data : null) || {};
+  var n = rrHowManyCount(d), out = [];
+  var on = rrCarNumbersOffered(d);
+  var src = (on && Array.isArray(d._carNums)) ? d._carNums : [];
+  for (var i = 0; i < n; i++) out.push(on ? String(src[i] == null ? '' : src[i]).trim().replace(/^#\s*/, '') : '');
+  return out;
 }
 // What a typed number counts as: a whole number from 1 to the cap, else 1.
 function rrHowManyClamp(v) {
@@ -178,6 +218,9 @@ function rrHowManyCount(d) {
 //   · the Group ID — a copy that has its box gets a group of its own
 //     (opts.ownGroup); otherwise none (a link to a box you already had is the
 //     first row's alone).
+//   · the Road Number — 2026-11-26 (menardscars): when opts.roadNumbers is given
+//     (a listed maker's cars, rrCarNumbersOffered), copy i takes opts.roadNumbers[i]
+//     — ITS OWN car number, never the first car's.
 function rrHowManyCopies(row, n, opts) {
   opts = opts || {};
   var out = [];
@@ -191,6 +234,11 @@ function rrHowManyCopies(row, n, opts) {
     c[F.photoItem] = '';
     c[F.photoBox] = '';
     c[F.groupId] = opts.ownGroup ? ('GRP-' + (opts.lead || '') + '-' + (ts + i)) : '';
+    if (Array.isArray(opts.roadNumbers) && F.roadNumber !== undefined) {
+      // kept as TEXT, the way buildPersonalRow writes the first car's ("06302" stays 06302)
+      var _rn = String(opts.roadNumbers[i] == null ? '' : opts.roadNumbers[i]);
+      c[F.roadNumber] = (_rn && _rn.charAt(0) !== "'") ? "'" + _rn : _rn;
+    }
     out.push(c);
   }
   return out;
@@ -198,6 +246,7 @@ function rrHowManyCopies(row, n, opts) {
 if (typeof window !== 'undefined') {
   window.rrHowManyOffered = rrHowManyOffered; window.rrHowManyClamp = rrHowManyClamp;
   window.rrHowManyCount = rrHowManyCount; window.rrHowManyCopies = rrHowManyCopies;
+  window.rrHowManyCarRow = rrHowManyCarRow; window.rrCarNumbersOffered = rrCarNumbersOffered; window.rrCarNumbers = rrCarNumbers;
 }
 
 function _rrAddNeedsMaker(d) {
@@ -2337,6 +2386,9 @@ async function saveWizardItem() {
           manufacturer: _resolveSaveMfr(),
           // 2026-11-15 (unknownnum): what the collector said the item is (the addType step) — only when there is no catalog row
           itemType: _rrAddChosenType(d) || undefined,
+          // 2026-11-26 (menardscars): the FIRST car's own number (rrCarNumbers);
+          // blank / not a car add = undefined, so the catalog's number fills it as before
+          roadNumber: (rrCarNumbers(d)[0] || undefined),
           // 2026-11-01: an Add-screen number with NO catalog row inside the
           // filters saves as exactly that — buildPersonalRow must not go and
           // borrow another maker's or era's row (its description, key or Row ID)
@@ -2586,7 +2638,15 @@ async function saveWizardItem() {
         // 2026-11-22 (howmany): a count above 1 sends ALL its rows in this ONE
         // append — Google lands them together or not at all. 1 (every other add)
         // is the single row, exactly as before.
-        _hmCopies = (tab === 'collection') ? rrHowManyCopies(row, rrHowManyCount(d), { ownGroup: d.hasBox === 'Yes' && !!groupId, lead: _rawItemNum }) : [];
+        // 2026-11-26 (menardscars): a listed maker's cars each carry their OWN
+        // number (rrCarNumbers) — a line left blank takes what the catalog row
+        // says, exactly what a blank first car gets.
+        var _hmCars = null;
+        if (tab === 'collection' && rrCarNumbersOffered(d)) {
+          var _hmCatRoad = String((wizard && wizard.matchedItem && wizard.matchedItem.roadNum) || '');
+          _hmCars = rrCarNumbers(d).map(function (v) { return v || _hmCatRoad; });   // index i = car i+1 (copy i of rrHowManyCopies)
+        }
+        _hmCopies = (tab === 'collection') ? rrHowManyCopies(row, rrHowManyCount(d), { ownGroup: d.hasBox === 'Yes' && !!groupId, lead: _rawItemNum, roadNumbers: _hmCars || undefined }) : [];
         _mainApRow = (await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [row].concat(_hmCopies))) || 0;
       }
 

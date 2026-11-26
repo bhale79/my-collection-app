@@ -376,7 +376,7 @@ const RULES = {
   const src = (n) => fs.readFileSync(path.join(APP, n), 'utf8');
   const plant = (n, from, to) => { const s = src(n); const c = s.split(from).length - 1; if (c !== 1) throw new Error('plant anchor found ' + c + ' times in ' + n + ': ' + from.slice(0, 60)); return { [n]: s.split(from).join(to) }; };
   const plants = [
-    ['P1 the box shown on a boxcar', () => plant('wizard-save.js', '    return getTypeBucket(src) === RR_HOW_MANY.bucket;', '    return true;'), ['A3', 'B7']],
+    ['P1 the box shown on a boxcar', () => plant('wizard-save.js', '    return rrHowManyCarRow(row, bucket);', '    return true;'), ['A3', 'B7']],   // 2026-11-26 (menardscars): the "else" line is now the listed-maker car rule
     ['P2 two rows sharing an Inventory ID', () => plant('wizard-save.js', '    c[F.inventoryId] = nextInventoryId();', ''), ['D2']],
     ['P3 the price divided by the count', () => plant('wizard-save.js', '    var c = row.slice();', '    var c = row.slice(); c[F.priceItem] = String((parseFloat(row[F.priceItem]) || 0) / n);'), ['D3', 'D4']],
     ['P4 the rows written one at a time (a partial batch is possible)', () => plant('wizard-save.js', "[row].concat(_hmCopies))) || 0;", "[row])) || 0; for (const _c of _hmCopies) await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [_c]);"), ['D1']],

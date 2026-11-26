@@ -652,7 +652,9 @@ function buildPersonalRow(fields) {
   }
   // Force identifier columns to TEXT so Google's USER_ENTERED doesn't
   // date-parse item numbers like "0401-1" into a (negative) serial number.
-  ['itemNum', 'matchedTo'].forEach(function (_k) {
+  // 2026-11-26 (menardscars): + roadNumber — the number painted on a car is
+  // typed by the collector ("06302", "1-2") and must stay exactly as typed.
+  ['itemNum', 'matchedTo', 'roadNumber'].forEach(function (_k) {
     var _ci = PERSONAL_FIELD_INDEX[_k];
     if (_ci !== undefined && row[_ci] !== '' && row[_ci] !== null && row[_ci] !== undefined) {
       var _v = String(row[_ci]);

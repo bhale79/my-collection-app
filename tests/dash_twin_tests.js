@@ -616,7 +616,7 @@ ok('S8 the Master Catalog search admits a dash twin into the same hold (_zAdmitt
   /if \(_dQ && rrNumLooseTwin\(item, _dQ\) && !_aliasSearch\(haystack, search\)\) \{ _zAdmitted\.add\(item\); return true; \}/.test(BROWSE)
   && /var _zLC = \(_zQ \|\| _dQ\)\.toLowerCase\(\);/.test(BROWSE)
   && BROWSE.indexOf('if (_dQ && rrNumLooseTwin(item, _dQ)') >= 0
-  && BROWSE.indexOf('if (_dQ && rrNumLooseTwin(item, _dQ)') < BROWSE.indexOf('if (!_aliasSearch(haystack, search)) return false;', BROWSE.indexOf('if (_dQ && rrNumLooseTwin(item, _dQ)') - 400));
+  && BROWSE.indexOf('if (_dQ && rrNumLooseTwin(item, _dQ)') < BROWSE.indexOf('if (!_aliasSearch(haystack, search)', BROWSE.indexOf('if (_dQ && rrNumLooseTwin(item, _dQ)') - 400));   // 2026-11-26 (menardscars): the last word check now also asks _carAdmits (a copy's painted number) before its return
 ok('S8b … and only for a search that can have a twin at all (rrNumMayHaveLooseTwin), never every plain number', /rrNumMayHaveLooseTwin\(_zQ\)\) \? _zQ : ''/.test(BROWSE));
 ok('S8c the Add screen keeps the remembered maker as a choice', /if \(_mfrNow && mfrs\.indexOf\(_mfrNow\) < 0\) mfrs = mfrs\.concat\(\[_mfrNow\]\)\.sort\(/.test(WIZ));
 // the WeakMap caches stay apart (two kin indexes sharing one cache name corrupt each other)

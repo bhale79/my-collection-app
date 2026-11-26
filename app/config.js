@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2167';
+const APP_VERSION = 'v0.9.2168';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -160,6 +160,20 @@ const RR_HOW_MANY = {
   confirm: '{n} × {num} — {n} separate entries',
   confirmNote: 'Each gets its own Inventory ID. The price and worth are for each one. Photos stay with the first.',
   saved: '✓ {n} × {num} added to My Collection!',
+  // 2026-11-26 (menardscars, [stated] Brad 2026-11-25 22:01 CT "Menards has the
+  // same item number but the number on the car is different" → 2026-11-26 07:39 CT
+  // "Go" to PLAN_2026-11-26_MENARDS_CAR_NUMBERS): the second kind of item asked
+  // "How many?" — a car or engine (a bucket that runs on the track, not a Set)
+  // from a maker on this list. Each one gets its own "Number on the car" line;
+  // the number is saved in that row's own Road Number column. Track and switches
+  // never get the car lines. Add a maker here and nowhere else.
+  carMakers: ['Menards'],
+  carLabel: 'Number on the car',
+  carLineLabel: 'Car {i}',
+  carHint: 'The number painted on each car. Leave a line blank if you don’t know it.',
+  carPlaceholder: 'e.g. 6302',
+  confirmCars: 'Cars: {list}',
+  cardWord: 'car',
 };
 if (typeof window !== 'undefined') window.RR_HOW_MANY = RR_HOW_MANY;
 
