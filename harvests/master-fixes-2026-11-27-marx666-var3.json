@@ -1,0 +1,24 @@
+{
+ "title": "Master fix — Marx O: 666 Variation 3 (olive drab, Sears Army Set) Item Type \"Set\" → \"Steam Locomotive\" (1 row)",
+ "rule": "cell UPDATE keyed by Row ID + sheet row; before = the value that must be in the cell right before the write; nothing else on the tab changes",
+ "said": "[stated] Brad 2026-11-27 \"yes\" (to: change Marx 666 Variation 3 from Set to Steam Locomotive) — left open since PLAN_2026-11-12_PHOTO_ID_MARX_666.md \"Not in this fix\".",
+ "source": "the row's own Description (\"Die-cast 2-4-2 Locomotive, dull black\"), Category (\"Steam Locomotives\") and source (Greenberg Marx Pocket Price Guide p.28 — Steam Locomotives / Electric); Variations 1, 2 and 4 of 666 are already Steam Locomotive",
+ "tab": "Marx O",
+ "read": "2026-11-27 live (export csv gid 2037724056), 1,549 lines",
+ "counts": {
+  "rows": 1,
+  "cells": 1,
+  "Item Type": 1
+ },
+ "changes": [
+  {
+   "row": 1451,
+   "row_id": "9E2XF3UM87",
+   "num": "666",
+   "col": "Item Type",
+   "cell": "B1451",
+   "old": "Set",
+   "new": "Steam Locomotive"
+  }
+ ]
+}
