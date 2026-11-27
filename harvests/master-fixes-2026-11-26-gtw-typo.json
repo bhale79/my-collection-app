@@ -1,0 +1,123 @@
+{
+ "title": "Master fix — Weaver O: Road Name typo \"GRAND TRUCK WESTERN\" → \"GRAND TRUNK WESTERN\" (12 rows)",
+ "rule": "cell UPDATE keyed by Row ID + sheet row; before = the value that must be in the cell right before the write; nothing else on the tab changes",
+ "said": "[stated] Brad 2026-11-25 22:23 CT \"Yes\" (to planning the typo fix, PLAN_2026-11-25_GTW_TYPO.md); 2026-11-26 20:58 CT \"Yes\" (go).",
+ "source": "the spelling the other 6 Weaver O GTW rows already use; column R (Original Description, the Weaver spreadsheet word for word) left as the source wrote it",
+ "tab": "Weaver O",
+ "read": "2026-11-26 21:0x CT live (export csv gid 1527621781)",
+ "counts": {
+  "rows": 12,
+  "cells": 12,
+  "Road Name": 12
+ },
+ "changes": [
+  {
+   "row": 369,
+   "row_id": "KSCDBU3YH3",
+   "num": "1270-L",
+   "col": "Road Name",
+   "cell": "G369",
+   "old": "GTW / GRAND TRUCK WESTERN",
+   "new": "GTW / GRAND TRUNK WESTERN"
+  },
+  {
+   "row": 370,
+   "row_id": "HQ66XKFQNN",
+   "num": "1270-S",
+   "col": "Road Name",
+   "cell": "G370",
+   "old": "GTW / GRAND TRUCK WESTERN",
+   "new": "GTW / GRAND TRUNK WESTERN"
+  },
+  {
+   "row": 371,
+   "row_id": "EG3YMDMEZR",
+   "num": "1271-L",
+   "col": "Road Name",
+   "cell": "G371",
+   "old": "GTW / GRAND TRUCK WESTERN",
+   "new": "GTW / GRAND TRUNK WESTERN"
+  },
+  {
+   "row": 372,
+   "row_id": "JVYTH2PVBM",
+   "num": "1271-S",
+   "col": "Road Name",
+   "cell": "G372",
+   "old": "GTW / GRAND TRUCK WESTERN",
+   "new": "GTW / GRAND TRUNK WESTERN"
+  },
+  {
+   "row": 846,
+   "row_id": "MZS43XBDH7",
+   "num": "1713-L",
+   "col": "Road Name",
+   "cell": "G846",
+   "old": "GTW / GRAND TRUCK WESTERN",
+   "new": "GTW / GRAND TRUNK WESTERN"
+  },
+  {
+   "row": 847,
+   "row_id": "HHGA22TBJU",
+   "num": "1713-LP",
+   "col": "Road Name",
+   "cell": "G847",
+   "old": "GTW / GRAND TRUCK WESTERN",
+   "new": "GTW / GRAND TRUNK WESTERN"
+  },
+  {
+   "row": 848,
+   "row_id": "YZ2DAS8NJM",
+   "num": "1713-S",
+   "col": "Road Name",
+   "cell": "G848",
+   "old": "GTW / GRAND TRUCK WESTERN",
+   "new": "GTW / GRAND TRUNK WESTERN"
+  },
+  {
+   "row": 849,
+   "row_id": "FPUGEFXY2Y",
+   "num": "1713-SP",
+   "col": "Road Name",
+   "cell": "G849",
+   "old": "GTW / GRAND TRUCK WESTERN",
+   "new": "GTW / GRAND TRUNK WESTERN"
+  },
+  {
+   "row": 1002,
+   "row_id": "3MU6978U2D",
+   "num": "1902-L",
+   "col": "Road Name",
+   "cell": "G1002",
+   "old": "GTW / GRAND TRUCK WESTERN",
+   "new": "GTW / GRAND TRUNK WESTERN"
+  },
+  {
+   "row": 1003,
+   "row_id": "25GA2TK9ZA",
+   "num": "1902-LP",
+   "col": "Road Name",
+   "cell": "G1003",
+   "old": "GTW / GRAND TRUCK WESTERN",
+   "new": "GTW / GRAND TRUNK WESTERN"
+  },
+  {
+   "row": 1004,
+   "row_id": "CZT58D6VKR",
+   "num": "1902-S",
+   "col": "Road Name",
+   "cell": "G1004",
+   "old": "GTW / GRAND TRUCK WESTERN",
+   "new": "GTW / GRAND TRUNK WESTERN"
+  },
+  {
+   "row": 1005,
+   "row_id": "AF9P5G6SDE",
+   "num": "1902-SP",
+   "col": "Road Name",
+   "cell": "G1005",
+   "old": "GTW / GRAND TRUCK WESTERN",
+   "new": "GTW / GRAND TRUNK WESTERN"
+  }
+ ]
+}
