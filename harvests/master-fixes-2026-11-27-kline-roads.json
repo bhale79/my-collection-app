@@ -1,0 +1,42 @@
+{
+ "title": "Master fix — K-Line O: Road Name on three K-Line Collectors Club rows lettered for another road (Grand Trunk Western gondola, Pennsylvania electric)",
+ "rule": "cell UPDATE keyed by Row ID + sheet row; before = the value that must be in the cell right before the write; nothing else on the tab changes",
+ "said": "[stated] Brad 2026-11-27 08:56 CT \"the kcc and kennecott are both correct. kline did this as a play on words\"; 08:57 CT \"yes\" (plan: add the crane car, change the road name on just three rows — PLAN_2026-11-27_KLINE_BOB_FIXES.md); 08:58 CT \"go\".",
+ "source": "K90005 / K90005IC: listing photos (ebay.de 312697743391) show the car lettered \"GRAND TRUNK WESTERN / GTW 90005\" with the GT herald; customer Bob has K90005IC in hand. K2780-48921C: its own description \"Pennsylvania KCC Exclusive Electric Locomotive #4892\". Spellings as the tab uses them (Pennsylvania Railroad (PRR) on 152 rows).",
+ "tab": "K-Line O",
+ "read": "2026-11-27 08:55 CT live (export csv gid 327179064)",
+ "counts": {
+  "rows": 3,
+  "cells": 3,
+  "Road Name": 3
+ },
+ "changes": [
+  {
+   "row": 889,
+   "row_id": "DGSH3QGAGV",
+   "num": "K90005IC",
+   "col": "Road Name",
+   "cell": "G889",
+   "old": "Kennecott Copper (KCCX)",
+   "new": "Grand Trunk Western (GTW)"
+  },
+  {
+   "row": 1776,
+   "row_id": "NXY2BSC89Z",
+   "num": "K90005",
+   "col": "Road Name",
+   "cell": "G1776",
+   "old": "Kennecott Copper (KCCX)",
+   "new": "Grand Trunk Western (GTW)"
+  },
+  {
+   "row": 2411,
+   "row_id": "CAU7Y3XHJF",
+   "num": "K2780-48921C",
+   "col": "Road Name",
+   "cell": "G2411",
+   "old": "Kennecott Copper (KCCX)",
+   "new": "Pennsylvania Railroad (PRR)"
+  }
+ ]
+}

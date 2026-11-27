@@ -1,0 +1,16 @@
+{
+ "title": "Office verdicts — K681-7501 (K-Line O) Kennecott Copper crane car for Bob, approved",
+ "rule": "status approved/edited/rejected + decided date in P:Q; set = crawl_deltas cells by header; before = value the cell must hold now",
+ "review": "_Claude_Work_Files\\bob_kline_20261127\\kline_bob_1127.py (the 1 row, in PLAN_2026-11-27_KLINE_BOB_FIXES.md shown to Brad)",
+ "said": "[stated] Brad 2026-11-27 08:56 CT \"the kcc and kennecott are both correct. kline did this as a play on words\"; 08:57 CT \"yes\" (plan: add the crane car, change the road name on just three rows — PLAN_2026-11-27_KLINE_BOB_FIXES.md); 08:58 CT \"go\". Add K681-7501 from three sale listings (ebay.de 326857092053, 203583047183, 267444589954) and Bob's report.",
+ "rows": [
+  {
+   "delta_id": "CB-KLINEBOB1-20261127-00001",
+   "batch": "CB-KLINEBOB1-20261127",
+   "item_num": "K681-7501",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  }
+ ]
+}
