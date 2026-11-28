@@ -1,0 +1,144 @@
+{
+ "title": "Office verdicts — Kato + Bachmann new items from the 2026-11-23 crawl (Kato N 10, Kato Parts 1, Bachmann HO 1), approved",
+ "rule": "status approved + decided date in P:Q; set = crawl_deltas cells by header (none — the files were corrected before loading); before = value the cell must hold now",
+ "review": "KATO_BACHMANN_NEW_ITEMS_REVIEW_2026-11-28.xlsx (main folder) — each item opened on its own katousa.com / shop.bachmanntrains.com page 2026-11-28; crawler originals _Claude_Work_Files\\kato_bachmann_1128\\crawl_originals\\",
+ "said": "[stated] Brad 2026-11-28 08:09 CT \"yes\" (check them the same way); 08:34 CT \"yes\" to \"Should I load these 12 into the Office, approve them and commit them to the catalog?\"",
+ "files": {
+  "Task38_crawl/crawl_inbox/CB-KATO-20261123.json": "89a37fb3e2469f23a9660a78fd22aa863ff8a4189159de538b5ae683ebea2755",
+  "Task38_crawl/crawl_inbox/CB-BACHMANN-20261123.json": "2d05159809d43053c08a2765b00ac2c980aa15e375f07a47294c508586c63644"
+ },
+ "rows": [
+  {
+   "delta_id": "CB-KATO-20261123-00001",
+   "batch": "CB-KATO-20261123",
+   "item_num": "20-152",
+   "proposed_tab": "Kato N",
+   "status": "approved",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-KATO-20261123-00002",
+   "batch": "CB-KATO-20261123",
+   "item_num": "20-114",
+   "proposed_tab": "Kato N",
+   "status": "approved",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-KATO-20261123-00003",
+   "batch": "CB-KATO-20261123",
+   "item_num": "20-067",
+   "proposed_tab": "Kato N",
+   "status": "approved",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-KATO-20261123-00004",
+   "batch": "CB-KATO-20261123",
+   "item_num": "20-066",
+   "proposed_tab": "Kato N",
+   "status": "approved",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-KATO-20261123-00005",
+   "batch": "CB-KATO-20261123",
+   "item_num": "20-017",
+   "proposed_tab": "Kato N",
+   "status": "approved",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-KATO-20261123-00006",
+   "batch": "CB-KATO-20261123",
+   "item_num": "176-1776UP",
+   "proposed_tab": "Kato N",
+   "status": "approved",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-KATO-20261123-00007",
+   "batch": "CB-KATO-20261123",
+   "item_num": "106-107",
+   "proposed_tab": "Kato N",
+   "status": "approved",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-KATO-20261123-00008",
+   "batch": "CB-KATO-20261123",
+   "item_num": "106-106",
+   "proposed_tab": "Kato N",
+   "status": "approved",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-KATO-20261123-00009",
+   "batch": "CB-KATO-20261123",
+   "item_num": "31-650",
+   "proposed_tab": "Kato N",
+   "status": "approved",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-KATO-20261123-00010",
+   "batch": "CB-KATO-20261123",
+   "item_num": "22-015",
+   "proposed_tab": "Kato N",
+   "status": "approved",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-KATO-20261123-00011",
+   "batch": "CB-KATO-20261123",
+   "item_num": "x07-2449",
+   "proposed_tab": "Kato Parts",
+   "status": "approved",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-BACHMANN-20261123-00001",
+   "batch": "CB-BACHMANN-20261123",
+   "item_num": "44515",
+   "proposed_tab": "Bachmann HO",
+   "status": "approved",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  }
+ ]
+}
