@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2169';
+const APP_VERSION = 'v0.9.2170';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -103,7 +103,7 @@ function rrFeaturesRemember(r) {
     var em = String((window.state && window.state.user && window.state.user.email) || '').toLowerCase();
     if (!em) return;
     localStorage.setItem(RR_FEATURES_CACHE_KEY, JSON.stringify({ email: em, features: r.features,
-      plan: r.plan === RR_PLAN_PRO ? RR_PLAN_PRO : 'regular', at: Date.now() }));   // v0.9.2040: the plan too
+      plan: rrPlanKnown(r.plan), at: Date.now() }));   // v0.9.2040: the plan too (Pro Lite: 'lite' kept as well)
   } catch (e) {}
 }
 // ── WHICH PLAN — Regular or Pro (v0.9.2040, TRR Pro release 2) ─────────────
@@ -118,16 +118,22 @@ function rrFeaturesRemember(r) {
 // remembered answer on this device (a backend outage never turns a business
 // back into a regular account), else regular. Recording mode = a new regular
 // member, so a help video never shows Pro.
+// Pro Lite (2026-11-27, PLAN_2026-11-27_PRO_LITE.md): the backend may also
+// answer plan 'lite' (multiple collections only). Like 'pro' it only names
+// the plan on My Subscription ("Pro Lite"); what shows is still the feature
+// list. An unknown plan word is 'regular'.
 const RR_PLAN_PRO = 'pro';
-const RR_PLAN_WORDS = { pro: 'Pro' };
+const RR_PLAN_LITE = 'lite';
+const RR_PLAN_WORDS = { pro: 'Pro', lite: 'Pro Lite' };
+function rrPlanKnown(p) { return (p === RR_PLAN_PRO || p === RR_PLAN_LITE) ? p : 'regular'; }
 function rrPlan() {
   try {
     if (typeof rrRecordingMode === 'function' && rrRecordingMode()) return 'regular';
     var s = (typeof window !== 'undefined') && window._subState;
-    if (s && s.sub) return s.plan === RR_PLAN_PRO ? RR_PLAN_PRO : 'regular';
+    if (s && s.sub) return rrPlanKnown(s.plan);
     var em = String((window.state && window.state.user && window.state.user.email) || '').toLowerCase();
     var c = JSON.parse(localStorage.getItem(RR_FEATURES_CACHE_KEY) || 'null');
-    if (c && em && c.email === em && c.plan === RR_PLAN_PRO) return RR_PLAN_PRO;
+    if (c && em && c.email === em) return rrPlanKnown(c.plan);
   } catch (e) {}
   return 'regular';
 }
@@ -136,8 +142,10 @@ if (typeof window !== 'undefined') {
   window.rrFeatureList = rrFeatureList;
   window.rrFeaturesRemember = rrFeaturesRemember;
   window.RR_PLAN_PRO = RR_PLAN_PRO;
+  window.RR_PLAN_LITE = RR_PLAN_LITE;
   window.RR_PLAN_WORDS = RR_PLAN_WORDS;
   window.rrPlan = rrPlan;
+  window.rrPlanKnown = rrPlanKnown;
 }
 
 // ── 2026-11-22 (howmany) — "HOW MANY?" WHEN ADDING TRACK AND SWITCHES ──
@@ -4057,6 +4065,33 @@ var RR_COLLECTIONS = {
   },
 };
 if (typeof window !== 'undefined') window.RR_COLLECTIONS = RR_COLLECTIONS;
+// ── PRO LITE — ONE SWITCH PER PRO PIECE (2026-11-27, Pro chat) ─────────────
+// [stated] 2026-11-26 07:24 CT: "a lite version of it that just handles the
+// multiple collections, same app as the base one, but can handle 10 plus
+// collections"; 2026-11-27 09:08 CT "yes" to splitting the switch
+// (PLAN_2026-11-27_PRO_LITE.md). Until now ONE name, 'collections', switched
+// on every Pro piece but the shelf labels. Now each piece has its own name on
+// the Vault `features` tab, so Pro Lite = 'collections' alone and full Pro =
+// all of them. THE list: every Pro block below takes its name from here, and
+// each screen asks rrFeatureOn(<its block>.feature). Never "is this Pro?".
+//   collections  the drop-down, the details card, All Collections + export,
+//                archive / restore / Recently deleted, move between
+//                collections, the Photo Inbox for another collection
+//                (Pro Lite AND Pro)
+//   invoices     the Invoices tab and "We do our own invoices" (needs collections)
+//   capture      sticker, photos, shelf intake + blank labels (needs collections)
+//   staff        staff PINs + the file picker (the Business tools proof row)
+//   handover     the hand-over button (one already under way always shows,
+//                so it can be finished or cancelled)
+//   The shelf labels keep their own name, RR_SHELVE.feature ('scan_shelve').
+var RR_PRO_FEATURES = {
+  collections: 'collections',
+  invoices: 'invoices',
+  capture: 'capture',
+  staff: 'staff',
+  handover: 'handover',
+};
+if (typeof window !== 'undefined') window.RR_PRO_FEATURES = RR_PRO_FEATURES;
 // ── v0.9.2071 — COLLECTIONS YOU CAN SEE (TRR Pro release 5; design agreed with
 // Brad 2026-10-28, Step 3 Sections 1–2 + 4; [stated] Brad 2026-10-30 17:42 CT
 // "yes" to building it). A Pro feature: rrFeatureOn(RR_COLL_UI.feature) — the
@@ -4065,7 +4100,7 @@ if (typeof window !== 'undefined') window.RR_COLLECTIONS = RR_COLLECTIONS;
 // collections.js (the list file, making a collection, the list switches) and
 // collections-ui.js (the drop-down, the details card, the client header).
 var RR_COLL_UI = {
-  feature: 'collections',
+  feature: RR_PRO_FEATURES.collections,
   fileName: 'rail-roster-collections.json',     // beside the settings file, in The Rail Roster folder
   folderName: 'Collections',                    // My Drive › The Rail Roster › Collections › "7 – Hale"
   photosName: 'Photos',
@@ -4325,6 +4360,7 @@ if (typeof window !== 'undefined') window.RR_COLL_ARCHIVE = RR_COLL_ARCHIVE;
 // do. Every word and setting here; the engine and screens are
 // collections-handover.js.
 var RR_COLL_HANDOVER = {
+  feature: RR_PRO_FEATURES.handover,   // Pro Lite: its own switch (a hand-over under way always shows)
   batch: 20,                // requests sent between two saves of where it got to (a stop part way carries on)
   emailFirstOnly: true,     // Google's email goes with the FIRST request (the sheet) only — not one per photo
   logHow: 'Handed over to the client',
@@ -4434,6 +4470,7 @@ if (typeof window !== 'undefined') window.RR_COLL_ALL = RR_COLL_ALL;
 // sheet (the sheet is backed up before the tab is added). Every word and
 // setting here; the screens are collections-invoice.js.
 var RR_COLL_INVOICE = {
+  feature: RR_PRO_FEATURES.invoices,   // Pro Lite: its own switch, on top of RR_COLL_UI.feature
   // the tab's name is born where it is registered (collections-invoice.js: rrFeatureTab('Invoices'))
   backupReason: 'before-invoices',
   settingsKey: 'lv_inv_business',   // ACCOUNT setting: the business header, default tax rate, terms
@@ -4534,7 +4571,7 @@ if (typeof window !== 'undefined') window.RR_COLL_INVOICE = RR_COLL_INVOICE;
 // identified yet". THE rule for that is rrToIdentify (app-data.js); every
 // word is here; the screens are capture.js.
 var RR_CAPTURE = {
-  feature: 'collections',          // on the same switch as the rest of Pro (RR_COLL_UI.feature)
+  feature: RR_PRO_FEATURES.capture, // Pro Lite: its own switch, on top of RR_COLL_UI.feature
   queueKey: 'rr_capture_queue_v1', // items finished OFFLINE, waiting on THIS phone (their photos are staged here too)
   photoProp: 'rrCap',              // the Drive appProperty on each Inbox photo: the item's STICKER CODE
   blankPrefix: 'RRB-',             // Print blank labels: RRB-<random> — tied to no item until it is scanned
@@ -4620,7 +4657,7 @@ if (typeof window !== 'undefined') window.RR_CAPTURE = RR_CAPTURE;
 //   appId  — the Cloud project NUMBER; Google ties the picked files to the
 //            app with it (it must be the project the sign-in belongs to).
 var RR_DRIVE_PICKER = {
-  feature: 'collections',          // on the same switch as the rest of Pro
+  feature: RR_PRO_FEATURES.staff,  // Pro Lite: with staff PINs (staff reach the business's files through it)
   apiKey: 'AIzaSyDvn4VTi7pxeQLatAIhrraZrLeK6iMySKI',
   appId: '161569968813',
   loader: 'https://apis.google.com/js/api.js',   // Google's loader; it brings in the picker
@@ -4696,7 +4733,7 @@ if (typeof window !== 'undefined') window.RR_DRIVE_PICKER = RR_DRIVE_PICKER;
 //   cacheKey  this device's copy of the list, so PINs work with no signal
 //   whoKey    who is working on this device, and when they last did something
 const RR_STAFF = {
-  feature: 'collections',
+  feature: RR_PRO_FEATURES.staff,
   may: {
     staff:   ['add', 'edit', 'photos', 'scan', 'sell'],
     manager: ['add', 'edit', 'photos', 'scan', 'sell', 'move', 'archive', 'handover', 'clients', 'details', 'staff'],
@@ -6230,6 +6267,47 @@ function rrToday(d) {
 }
 if (typeof window !== 'undefined') window.rrToday = rrToday;
 
+// ── 2026-11-27 (nonumlabel — [stated] Brad 08:51 CT sent Bob's share card
+// "No. Amtrak" → 08:52 CT "yes" to planning → 09:19 CT "yes" go): a piece
+// entered by hand with NO item number keeps its NAME in the number slot
+// (Session 166 — the member's own Custom Name, or maker · road · type · #road
+// number). THE one rule for "this number slot holds a name": a space in it
+// (the Session 168 rule — a real catalog number never has one), or the
+// copy's own Custom Name IS what the slot holds. Given a copy (pd) that
+// carries a customName field, that copy decides; given nothing (or a catalog
+// row), the member's own copies of that slot decide — a name only when every
+// copy holding it says so (a typed real number "6464-100" stays a number).
+// rrNumLabel is the ONE way to write "No. 2343" for something a member owns:
+// a name is written as itself, never "No. Amtrak". The "NO #" tag (browse.js
+// _noNumTag) asks the same rule. tests/no_number_label_tests.js.
+function rrNoNumberName(num, pd) {
+  var v = String(num == null ? '' : num).trim();
+  if (!v) return false;
+  if (v.indexOf(' ') !== -1) return true;
+  if (pd && typeof pd === 'object' && pd.customName !== undefined && pd.customName !== null) {
+    var cn = String(pd.customName).trim();
+    return !!cn && cn === v;
+  }
+  try {
+    var P = (typeof state !== 'undefined' && state && state.personalData) || null;
+    if (!P) return false;
+    var named = false, numbered = false;
+    for (var k in P) {
+      if (!Object.prototype.hasOwnProperty.call(P, k)) continue;
+      var p = P[k];
+      if (!p || String(p.itemNum == null ? '' : p.itemNum).trim() !== v) continue;
+      var c = String(p.customName == null ? '' : p.customName).trim();
+      if (c && c === v) named = true; else numbered = true;
+    }
+    return named && !numbered;
+  } catch (e) { return false; }
+}
+function rrNumLabel(num, pd) {
+  var v = String(num == null ? '' : num);
+  return rrNoNumberName(v, pd) ? v : 'No. ' + v;
+}
+if (typeof window !== 'undefined') { window.rrNoNumberName = rrNoNumberName; window.rrNumLabel = rrNumLabel; }
+
 // ── v0.9.2073 (known-problems sweep, A8): THE one way a 📅 button opens its
 // date box's calendar. input.showPicker() does not exist on iPhones before
 // iOS 16.4 (nor in older desktop browsers) — calling it threw, and the 📅
@@ -6870,6 +6948,23 @@ if (typeof window !== 'undefined') window.RR_FIND_BY_ID = RR_FIND_BY_ID;
 const RR_BUILTIN_STORE = { name: 'Trainz', site: 'trainz.com' };
 if (typeof window !== 'undefined') window.RR_BUILTIN_STORE = RR_BUILTIN_STORE;
 
+// ══ SUGGESTED VIDEO CHANNELS — ONE place (2026-11-28, suggestchan) ═════════
+// [stated] Brad 2026-11-27 23:52 CT "we need to add his channel to the
+// maintenance videos as a prefilled channel" (Mike Moore, Toy Train Tips And
+// Tricks, whose Rail Roster demo video went up 2026-11-22) → 2026-11-28 07:29
+// CT "for Mike, no, just leave it as a drop down selection". Listed in the
+// Toolbox's Repair Videos channel list for everyone with the Toolbox, marked
+// "Suggested", NEVER the starting pick ("All of YouTube" stays first; being
+// picked first is for Trainz in the store list only). Drawn beside the
+// member's own channels by maintenance.js, never written into them; a member
+// can take one off (remembered in maint_yt_channels_hidden). Video channels
+// only — the store lists get nothing from here. Name them nowhere else.
+//   name    what a member reads     handle  the YouTube @handle
+const RR_SUGGESTED_CHANNELS = [
+  { name: 'Toy Train Tips And Tricks', handle: '@ToyTrainTipsAndTricks' }
+];
+if (typeof window !== 'undefined') window.RR_SUGGESTED_CHANNELS = RR_SUGGESTED_CHANNELS;
+
 // ══ THE GIFT WISH LIST — Stage 1, owner-only beta (gift-list.js) ══════════
 // [stated] Brad 2026-10-31: turn the Want list into a birthday / Christmas
 // wish list the collector gives his wife — the items, about what they cost,
@@ -6888,8 +6983,9 @@ if (typeof window !== 'undefined') window.RR_BUILTIN_STORE = RR_BUILTIN_STORE;
 //                    "plastered over every button" is not wanted.
 const RR_GIFT = {
   feature: 'giftlist',
+  // 2026-11-25 (giftmax): 'Don't Go Over' added at the END (column L) — never in the middle
   headers: ['Item Number', 'Variation', 'On Gift List', 'About Price', 'Store 1', 'Link 1', 'Checked 1',
-            'Store 2', 'Link 2', 'Checked 2', 'Notes'],
+            'Store 2', 'Link 2', 'Checked 2', 'Notes', 'Don\u2019t Go Over'],
   maxLinks: 2,
   title: 'Gift ideas',
   footer: 'Made with The Rail Roster.',
@@ -6918,6 +7014,15 @@ const RR_GIFT = {
     leftOff: '{n} link(s) no longer work and were left off. Go back to fix them.',
     // two versions of one item on the list, with no description to tell them apart
     anotherVersion: 'version {n}',
+    // 2026-11-25 (giftmax, [stated] Brad 2026-11-07 "max price don't go over
+    // this price kind of thing to help the wife not overspend" → 2026-11-25
+    // 16:40 CT "Don't go over"): the per-item limit. maxLine is what family
+    // reads ({price} = the limit) — the family page (gift/index.html) carries
+    // the same words; overLimit is for the collector only, never sent.
+    maxLabel: 'Don\u2019t go over',
+    maxPlaceholder: 'limit',
+    maxLine: 'Please don\u2019t spend more than {price}',
+    overLimit: 'Store price is over your limit',
   },
   // ── the family gift page (2026-11-05, Release B of the same plan) ──
   // [stated] Brad 2026-10-31 07:02 CT the bought boxes "should be hidden from

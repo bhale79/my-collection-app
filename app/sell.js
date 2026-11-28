@@ -140,7 +140,7 @@ function _rrCard(d, photoImg, source, photoIdx, photoTotal) {
   var priceW = 0;
   if (d.price) { x.font = '700 38px Arial'; priceW = x.measureText(d.price).width + 24; }
   x.fillStyle = '#fff'; x.font = '700 46px Arial';
-  x.fillText(_rrFitText(x, 'No. ' + (d.num || ''), (W - 72) - priceW), 36, by);
+  x.fillText(_rrFitText(x, (typeof rrNumLabel === 'function' ? rrNumLabel(d.num || '') : 'No. ' + (d.num || '')), (W - 72) - priceW), 36, by);
   if (d.price) { x.fillStyle = accent; x.font = '700 38px Arial'; x.textAlign = 'right'; x.fillText(d.price, W - 36, by); x.textAlign = 'left'; }
   x.fillStyle = '#c8b88a'; x.font = '400 24px Arial'; _rrWrap(x, d.name || '', 36, by + 38, W - 72, 30, 2);
   var cy = by + 96, cx = 36;
@@ -179,7 +179,7 @@ function _rrPhotoCard(num, photoImg, source, idx, total) {
   var _pl = 'Photo ' + idx + ' of ' + total;
   x.font = '700 28px Arial'; var _plw = x.measureText(_pl).width + 24;
   x.fillStyle = '#fff'; x.font = '700 40px Arial'; x.textAlign = 'left';
-  x.fillText(_rrFitText(x, 'No. ' + (num || ''), (W - 72) - _plw), 36, by);
+  x.fillText(_rrFitText(x, (typeof rrNumLabel === 'function' ? rrNumLabel(num || '') : 'No. ' + (num || '')), (W - 72) - _plw), 36, by);
   x.fillStyle = accent; x.font = '700 28px Arial'; x.textAlign = 'right'; x.fillText(_pl, W - 36, by); x.textAlign = 'left';
   x.strokeStyle = 'rgba(255,255,255,0.1)'; x.beginPath(); x.moveTo(36, H - 56); x.lineTo(W - 36, H - 56); x.stroke();
   x.fillStyle = '#6b769a'; x.font = '400 17px Arial'; x.fillText('Additional photo', 36, H - 30);
@@ -276,7 +276,7 @@ async function shareAsCards() {
       // _rrCardData the card is drawn from (so the two can never disagree),
       // whether or not it has photos to link.
       var _cd = _rrCardData(it, source) || {};
-      _src.push({ name: ('No. ' + (it.itemNum || '') + (_cd.name ? ' ' + _cd.name.replace(/ · /g, ' ') : '')).replace(/\s+/g, ' ').trim(),
+      _src.push({ name: ((typeof rrNumLabel === 'function' ? rrNumLabel(it.itemNum || '', it) : 'No. ' + (it.itemNum || '')) + (_cd.name ? ' ' + _cd.name.replace(/ · /g, ' ') : '')).replace(/\s+/g, ' ').trim(),
         words: _rrItemWords(_cd), ids: photoIds.slice() });
       var N = photoUrls.length;
       var mainImg = N ? await _rrLoadImg(photoUrls[0]) : null;

@@ -60,6 +60,11 @@ const SRC = [
   'function _favRow(prefKey, selectId, label)',
   'function _favKind(prefKey)',          // v0.9.1860: the list panel behind the row
   'function _favPanelHtml(prefKey, selectId, label, pick)',
+  // 2026-11-28 (suggestchan): read by _favPanelHtml for the channel list
+  'function _chanKey(v)',
+  'function _suggestedChannelList()',
+  'function _suggestedChannels()',
+  'function _suggestedChannelName(v)',
   'function _maintCatalogLaneHtml(rows, q, taskId, item)',
 ].map(grab);
 // v0.9.1770: the part line now offers the MAKER'S page as well as the store's,

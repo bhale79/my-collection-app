@@ -46,7 +46,7 @@ const ROWS = [PW('2343', 'A', 'P'), PW('2343T', 'A', 'D'), PW('2343C', 'B', 'C')
 
 // ── THE fold + its helpers, from app.js, on one shared state ────────────────
 const FOLD_HELPERS = ['rrMthUnitRole', 'buildPartnerMap', '_stripSuffix', '_getPartner', 'isTender', 'isLocomotive', 'getMatchingTenders', 'getBUnit', 'getAUnit',
-  'getADummyPartner', 'getSetPartner', 'normalizeItemNum', 'baseItemNum', '_wantGroupOf', '_wantIsCompanion', 'foldWantEntries', 'wantSetLabel'];
+  'getADummyPartner', 'getSetPartner', 'normalizeItemNum', 'baseItemNum', '_wantGroupOf', '_wantOwnedGroupOf', '_wantPieceKey', '_wantIsCompanion', 'foldWantEntries', 'wantSetLabel'];
 function foldWorld(appSrc) {
   const state = { masterData: ROWS, companionData: [], setData: [], personalData: {}, wantData: {} };
   const win = {};
@@ -178,7 +178,7 @@ function gotItChecks(saveSrc, pagesSrc, wizSrc) {
   const r = {};
   const a = saveSrc.indexOf('// ── If this came from the Want List, clean up the want entry ──');
   const b = saveSrc.indexOf('// ── If this came from the Upgrade List', a);
-  const block = saveSrc.slice(a, b);
+  const block = saveSrc.slice(a, b) + '\n' + grab(saveSrc, '_wsPieceKey');   // 2026-11-27 (upgradesets3): the clean-up's same-piece rule
   function run(d) {
     const state = { personalSheetId: 'S', wantData: { '2343-P|': { itemNum: '2343-P', row: 11 }, '2343T|': { itemNum: '2343T', row: 12 }, '6520|': { itemNum: '6520', row: 14 } } };
     const rows = [];

@@ -53,6 +53,9 @@
   'use strict';
 
   var TAB = (typeof rrFeatureTab === 'function' ? rrFeatureTab : String)('Gift List');
+  // The tab's columns run A to LAST — one letter per header in RR_GIFT.headers
+  // (config.js). 2026-11-25 (giftmax): L "Don't Go Over" added at the END.
+  var LAST = 'L';
 
   function _G() { return (typeof RR_GIFT !== 'undefined' && RR_GIFT) || window.RR_GIFT || {}; }
   function _on() {
@@ -70,6 +73,10 @@
     if (!isFinite(n) || n <= 0) return '';
     return (typeof _formatPrice === 'function') ? _formatPrice(n) : ('$' + n.toLocaleString());
   }
+
+  // 2026-11-25 (giftmax): the ONE line family reads under an item with a limit
+  // (RR_GIFT.words.maxLine, {price} = the limit) — preview, email, text, print.
+  function _maxLine(p) { return String(_W('maxLine') || '').split('{price}').join(p); }
 
   // ── the collector's stores ───────────────────────────────────────────
   // 2026-11-24 (trainzfirst, [stated] Brad 16:53 CT "we need to have trainz.com
@@ -178,7 +185,7 @@
   function _publishList(o) {
     return { title: _title(), who: _who(), disclosure: o.disclosure || '', footer: _G().footer || '',
       items: o.items.map(function (it) {
-        return { key: it.key, name: it.name, price: it.price, image: it.image || '',
+        return { key: it.key, name: it.name, price: it.price, max: it.max || '', image: it.image || '',
                  links: it.links.map(function (L) { return { store: L.store, url: L.url, soldOut: !!L.soldOut }; }) };
       }) };
   }
@@ -234,7 +241,7 @@
       [[4, 5, 6], [7, 8, 9]].forEach(function (t) { if (c(t[1]).trim()) links.push({ store: c(t[0]), url: c(t[1]).trim(), confirmed: c(t[2]) }); });
       var k = _key(c(0).trim(), c(1).trim());
       out[k] = { row: i + 2, itemNum: c(0).trim(), variation: c(1).trim(), on: c(2).trim().toLowerCase() === 'yes',
-                 price: c(3), links: links, notes: c(10) };
+                 price: c(3), links: links, notes: c(10), max: c(11) };   // max: 2026-11-25 giftmax
     });
     return out;
   }
@@ -243,7 +250,7 @@
     if (!sh || typeof sheetsGet !== 'function') { _loaded = true; return _rows; }
     var fresh = {};
     try {
-      var r = await sheetsGet(sh, TAB + '!A2:K');
+      var r = await sheetsGet(sh, TAB + '!A2:' + LAST);
       fresh = _parse(r && r.values);
     } catch (e) {
       // No tab yet (first use) reads as an error — that is an empty list, not a failure.
@@ -258,8 +265,10 @@
   function _rowValues(g) {
     var L = g.links || [], a = L[0] || {}, b = L[1] || {};
     var p = (typeof _money === 'function') ? _money(g.price) : parseFloat(g.price);
+    var mx = (typeof _money === 'function') ? _money(g.max) : parseFloat(g.max);
     return [g.itemNum, g.variation || '', g.on ? 'Yes' : '', (isFinite(p) && p > 0) ? p : '',
-            a.store || '', a.url || '', a.confirmed || '', b.store || '', b.url || '', b.confirmed || '', g.notes || ''];
+            a.store || '', a.url || '', a.confirmed || '', b.store || '', b.url || '', b.confirmed || '', g.notes || '',
+            (isFinite(mx) && mx > 0) ? mx : ''];
   }
   var _tabReady = false;
   async function _ensureTab() {
@@ -274,7 +283,13 @@
         method: 'POST', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
         body: JSON.stringify({ requests: [{ addSheet: { properties: { title: TAB } } }] }) }); })).json();
       if (add.error && String(add.error.message || '').indexOf('already exists') < 0) throw new Error(add.error.message || 'could not create the Gift List tab');
-      await sheetsUpdate(sh, TAB + '!A1:K1', [(_G().headers || []).slice(0, 11)]);
+      await sheetsUpdate(sh, TAB + '!A1:' + LAST + '1', [(_G().headers || []).slice(0, 12)]);
+    } else {
+      // 2026-11-25 (giftmax): a tab made before column L names it the first time.
+      try {
+        var hd = await sheetsGet(sh, TAB + '!' + LAST + '1');
+        if (!(hd && hd.values && hd.values[0] && String(hd.values[0][0] || '').trim())) await sheetsUpdate(sh, TAB + '!' + LAST + '1', [[(_G().headers || [])[11] || '']]);
+      } catch (e) { /* the heading is a label only — the save goes on */ }
     }
     _tabReady = true;
     return true;
@@ -303,10 +318,10 @@
       try {
         await _ensureTab();
         if (g.row) {
-          var ok = await rrVerifiedRowUpdate(sh, TAB, g.row, TAB + '!A' + g.row + ':K' + g.row, [_rowValues(g)], { num: g.itemNum }, 'gift list');
+          var ok = await rrVerifiedRowUpdate(sh, TAB, g.row, TAB + '!A' + g.row + ':' + LAST + g.row, [_rowValues(g)], { num: g.itemNum }, 'gift list');
           if (!ok) { await _load(); _paint(); return false; }
         } else {
-          var r = await sheetsAppend(sh, TAB + '!A:K', [_rowValues(g)]);
+          var r = await sheetsAppend(sh, TAB + '!A:' + LAST, [_rowValues(g)]);
           if (r) g.row = r; else { await _load(); }
         }
         return true;
@@ -360,7 +375,7 @@
   function _rowFor(e) {
     var k = _key(e.itemNum, e.variation);
     if (!_rows[k]) _rows[k] = { row: 0, itemNum: String(e.itemNum), variation: String(e.variation || ''), on: false,
-                                price: e._pairPrice || e.expectedPrice || '', links: [], notes: '' };   // a set: its ONE price
+                                price: e._pairPrice || e.expectedPrice || '', links: [], notes: '', max: '' };   // a set: its ONE price
     return _rows[k];
   }
   // A store with its own search page (RR_GIFT.storeSearch) is searched THERE —
@@ -427,8 +442,12 @@
       + '</label>';
     if (!g.on) return h + '</div>';
     h += '<div style="display:flex;align-items:center;gap:0.4rem;margin:0.55rem 0 0.4rem;flex-wrap:wrap">'
-      +   '<span style="font-size:0.82rem;color:var(--text-dim)">About</span>'
-      +   '<input inputmode="decimal" data-gift-price="' + _esc(k) + '" value="' + _esc(g.price) + '" placeholder="price" onchange="rrGiftPrice(\'' + ka + '\',this.value)" style="width:7rem;padding:0.4rem 0.55rem;border-radius:7px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-size:1rem">'
+      // each label stays with its own box when the row wraps on a phone (2026-11-25 giftmax)
+      +   '<span style="display:inline-flex;align-items:center;gap:0.4rem;margin-right:0.4rem"><span style="font-size:0.82rem;color:var(--text-dim)">About</span>'
+      +   '<input inputmode="decimal" data-gift-price="' + _esc(k) + '" value="' + _esc(g.price) + '" placeholder="price" onchange="rrGiftPrice(\'' + ka + '\',this.value)" style="width:7rem;padding:0.4rem 0.55rem;border-radius:7px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-size:1rem"></span>'
+      // 2026-11-25 (giftmax, [stated] Brad "Don't go over"): the family's limit — blank shows nothing
+      +   '<span style="display:inline-flex;align-items:center;gap:0.4rem;margin-right:0.4rem"><span style="font-size:0.82rem;color:var(--text-dim)">' + _esc(_W('maxLabel')) + '</span>'
+      +   '<input inputmode="decimal" data-gift-max="' + _esc(k) + '" value="' + _esc(g.max || '') + '" placeholder="' + _esc(_W('maxPlaceholder')) + '" onchange="rrGiftMax(\'' + ka + '\',this.value)" style="width:7rem;padding:0.4rem 0.55rem;border-radius:7px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-size:1rem"></span>'
       + '</div>';
     (g.links || []).forEach(function (L, i) {
       h += '<div style="display:flex;align-items:center;gap:0.45rem;flex-wrap:wrap;font-size:0.84rem;margin:0.25rem 0">'
@@ -441,6 +460,11 @@
       if (r) {
         h += '<div data-gift-link-live="' + _esc(k) + '|' + i + '" style="margin:0 0 0.35rem 1.3rem">' + _liveHtml(L.url, false);
         var mine = (typeof _money === 'function') ? _money(g.price) : parseFloat(g.price);
+        // 2026-11-25 (giftmax): for HIM only, never sent — the store asks more than his limit
+        var lim = (typeof _money === 'function') ? _money(g.max) : parseFloat(g.max);
+        if (r.state === 'ok' && r.price && isFinite(lim) && lim > 0 && r.price > lim + 0.005) {
+          h += '<span data-gift-over="' + _esc(k) + '|' + i + '" style="font-size:0.8rem;color:var(--t-red);font-weight:600;margin-right:0.4rem">' + _esc(_W('overLimit')) + '</span>';
+        }
         if (r.state === 'ok' && r.price && !(isFinite(mine) && Math.abs(mine - r.price) < 0.005)) {
           h += '<button class="rr-btn rr-btn--quiet" data-gift-use-price="' + _esc(k) + '|' + i + '" onclick="rrGiftUseStorePrice(\'' + ka + '\',' + i + ')" style="padding:0.2rem 0.55rem;min-height:32px">' + _esc(_W('useStorePrice')) + '</button>';
         }
@@ -495,7 +519,7 @@
         return { store: _storeLabel(L), url: out, confirmed: L.confirmed,
                  soldOut: !!(r && r.state === 'ok' && !r.inStock) };
       });
-      items.push({ key: _key(e.itemNum, e.variation), name: _name(e, true), price: _price(g.price), links: links, image: image });
+      items.push({ key: _key(e.itemNum, e.variation), name: _name(e, true), price: _price(g.price), max: _price(g.max), links: links, image: image });
     });
     // Two versions of ONE item ticked (6464-1 var 1 and var 2): without the
     // variation number their names would be the same, so each gets its own
@@ -518,6 +542,7 @@
     if (_family.code) { lines.push(_F('textLine').replace('{link}', _familyUrl())); lines.push(''); }
     o.items.forEach(function (it, i) {
       lines.push((i + 1) + '. ' + it.name + (it.price ? ' — about ' + it.price : ''));
+      if (it.max) lines.push('   ' + _maxLine(it.max));
       if (!it.links.length) lines.push('   Ask me where to find this one.');
       it.links.forEach(function (L) { lines.push('   ' + L.store + (L.soldOut ? ' (' + _W('soldOut').toLowerCase() + ' right now)' : '') + ': ' + L.url); });
     });
@@ -537,7 +562,8 @@
     o.items.forEach(function (it, i) {
       h += '<div style="margin-bottom:0.6rem;display:flex;gap:0.6rem;align-items:flex-start">'
         + (it.image ? '<img src="' + _esc(it.image) + '" alt="" loading="lazy" style="width:56px;height:56px;object-fit:contain;border-radius:6px;background:white;flex:none">' : '')
-        + '<div><div style="color:var(--text)">' + (i + 1) + '. ' + _esc(it.name) + (it.price ? ' <span style="color:var(--text-dim)">— about ' + _esc(it.price) + '</span>' : '') + '</div>';
+        + '<div><div style="color:var(--text)">' + (i + 1) + '. ' + _esc(it.name) + (it.price ? ' <span style="color:var(--text-dim)">— about ' + _esc(it.price) + '</span>' : '') + '</div>'
+        + (it.max ? '<div data-gift-maxline="1" style="font-size:0.84rem;color:var(--text-dim);margin-left:1.1rem">' + _esc(_maxLine(it.max)) + '</div>' : '');
       if (!it.links.length) h += '<div style="font-size:0.84rem;color:var(--text-dim);margin-left:1.1rem">Ask me where to find this one.</div>';
       it.links.forEach(function (L) {
         h += '<div style="font-size:0.84rem;margin-left:1.1rem"><a href="' + _esc(L.url) + '" target="_blank" rel="noopener" style="color:var(--t-link)">' + _esc(L.store) + '</a>'
@@ -680,6 +706,14 @@
   window.rrGiftPrice = function (k, v) {
     if (!_on() || !_rows[k]) return;
     _rows[k].price = String(v || '').trim();
+    _save(k);
+  };
+  // 2026-11-25 (giftmax): the "don't go over" price — repainted so the
+  // over-your-limit note beside a store price follows it at once.
+  window.rrGiftMax = function (k, v) {
+    if (!_on() || !_rows[k]) return;
+    _rows[k].max = String(v || '').trim();
+    _paint();
     _save(k);
   };
 
@@ -878,12 +912,13 @@
       }).join('') : '<div class="ask">Ask me where to find this one.</div>';
       var pic = /^https:\/\//i.test(String(it.image || '')) ? '<img class="ph" src="' + _esc(it.image) + '" alt="">' : '';
       // 2026-11-07: the photo sits BESIDE its item (it floated to the far right)
-      return '<div class="it">' + pic + '<div class="bd"><div class="nm">' + (i + 1) + '. ' + _esc(it.name) + (it.price ? ' <span class="pr">— about ' + _esc(it.price) + '</span>' : '') + '</div>' + links + '</div></div>';
+      return '<div class="it">' + pic + '<div class="bd"><div class="nm">' + (i + 1) + '. ' + _esc(it.name) + (it.price ? ' <span class="pr">— about ' + _esc(it.price) + '</span>' : '') + '</div>'
+        + (it.max ? '<div class="mx">' + _esc(_maxLine(it.max)) + '</div>' : '') + links + '</div></div>';
     }).join('');
     return '<!doctype html><html><head><meta charset="utf-8"><title>' + _esc(_title()) + '</title><style>'
       + 'body{font-family:Georgia,serif;color:black;background:white;max-width:720px;margin:24px auto;padding:0 18px}'
       + 'h1{font-size:22px;margin:0 0 14px}.it{margin:0 0 16px;page-break-inside:avoid}.nm{font-size:16px;margin-bottom:6px}'
-      + '.pr{color:dimgray}.lk{display:flex;gap:12px;align-items:center;margin:4px 0 4px 18px}.qr svg{width:104px;height:104px}'
+      + '.pr{color:dimgray}.mx{font-size:14px;color:dimgray;margin:0 0 4px 18px}.lk{display:flex;gap:12px;align-items:center;margin:4px 0 4px 18px}.qr svg{width:104px;height:104px}'
       + '.u{font-size:10px;color:dimgray;word-break:break-all}.ask{margin-left:18px;color:dimgray;font-style:italic}'
       + '.dc{font-size:11px;color:dimgray;margin-top:18px}.ft{font-size:11px;color:gray;margin-top:6px}'
       + '.ph{width:90px;height:90px;object-fit:contain;flex:none}.so{color:dimgray;font-style:italic}.it{display:flex;gap:14px;align-items:flex-start}.bd{flex:1;min-width:0}'

@@ -791,7 +791,7 @@ async function _buildPDF(items, fields, message) {
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(13);
         doc.setTextColor(skin.num[0], skin.num[1], skin.num[2]);
-        doc.text('No. ' + itemNum + (varNum ? '  ·  Var. ' + varNum : ''), textX, cy);
+        doc.text((typeof rrNumLabel === 'function' ? rrNumLabel(itemNum, pd) : 'No. ' + (itemNum)) + (varNum ? '  ·  Var. ' + varNum : ''), textX, cy);
       } else if (row.kind === 'road') {
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(10);

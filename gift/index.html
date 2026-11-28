@@ -31,6 +31,7 @@
   .item img { width:84px; height:84px; object-fit:contain; background:white; border-radius:8px; flex:none; }
   .name { font-weight:bold; }
   .price { color:var(--dim); }
+  .max { color:var(--dim); font-size:0.95rem; }
   .links a { color:var(--accent); display:inline-block; margin:0.25rem 0.9rem 0 0; font-size:1rem; }
   .so { color:var(--dim); font-size:0.9rem; }
   .ask { color:var(--dim); font-style:italic; font-size:0.95rem; }
@@ -82,6 +83,8 @@
     undo: 'Undo',
     ask: 'Ask {who} where to find this one.',
     soldOut: 'sold out right now',
+    // 2026-11-25 (giftmax): the same words as RR_GIFT.words.maxLine in the app's config.js
+    maxLine: 'Please don\u2019t spend more than {price}',
     gone: 'This gift list is no longer shared.',
     trouble: 'The gift list could not be loaded right now. Please try again in a minute.',
     busy: 'Too many people are looking at once — please try again in a minute.',
@@ -121,6 +124,8 @@
       var nm = el('div', 'name', (i + 1) + '. ' + (it.name || ''));
       body.appendChild(nm);
       if (it.price) body.appendChild(el('div', 'price', 'About ' + it.price));
+      // 2026-11-25 (giftmax): his "don't go over" price, when he set one (relay v5.9 carries it)
+      if (it.max) body.appendChild(el('div', 'max', WORDS.maxLine.split('{price}').join(it.max)));
       var links = el('div', 'links');
       var good = (it.links || []).filter(function (L) { return !!safeLink(L.url); });
       // bought (and the marks are showing): nothing on the box opens a store

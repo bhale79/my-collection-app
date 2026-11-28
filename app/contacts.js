@@ -890,7 +890,7 @@
     d.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:420px;width:100%;padding:1rem;max-height:80vh;max-height:80dvh;overflow-y:auto">'
       + '<div style="font-family:var(--font-head);font-size:1rem;color:var(--text);margin-bottom:0.6rem">🛒 Bought from ' + _esc((c && (c.name || c.business)) || 'this contact') + '</div>'
       + items.map(function (pd) {
-          var label = 'No. ' + _esc(pd.itemNum || '?') + (pd.customName ? ' — ' + _esc(pd.customName) : (pd.description ? ' — ' + _esc(String(pd.description).substring(0, 40)) : ''));
+          var label = _esc((typeof rrNumLabel === 'function' ? rrNumLabel(pd.itemNum || '?', pd) : 'No. ' + (pd.itemNum || '?'))) + ((pd.customName && !(typeof rrNoNumberName === 'function' && rrNoNumberName(pd.itemNum, pd))) ? ' — ' + _esc(pd.customName) : (pd.description ? ' — ' + _esc(String(pd.description).substring(0, 40)) : ''));
           var when = pd.datePurchased ? ' <span style="color:var(--text-dim);font-size:0.72rem">' + _esc(pd.datePurchased) + '</span>' : '';
           return '<div style="padding:0.45rem 0.2rem;border-bottom:1px solid var(--border);font-size:0.85rem;color:var(--text);cursor:pointer" onclick="_ctClose(\'ct-bought-modal\'); if (typeof _openOwnedByInvId === \'function\') _openOwnedByInvId(\'' + rrJsArg(pd.inventoryId || '') + '\')">' + label + when + '</div>';
         }).join('')

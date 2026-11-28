@@ -56,6 +56,15 @@
     return (typeof rrCollectionLabel === 'function') ? rrCollectionLabel(c) : (c.number + ' – ' + c.name);
   }
   function _clone(o) { return JSON.parse(JSON.stringify(o)); }
+  // Pro Lite (2026-11-27): starting a hand-over has its own switch (RR_COLL_HANDOVER.feature).
+  function rrHandOverOn() {
+    try { return typeof rrFeatureOn === 'function' && !!rrFeatureOn(H().feature); } catch (e) { return false; }
+  }
+  // a hand-over already started for this collection (sending / waiting) — it can always be finished or cancelled
+  function _underWay(key) {
+    var e = _entry(key), h = e && e.handover;
+    return !!(h && (h.state === 'sending' || h.state === 'waiting' || h.state === 'accepted'));
+  }
   function _entry(key) {
     var d = (typeof rrCollectionsData === 'function') ? rrCollectionsData() : null;
     return (d && d.items && d.items[key]) || null;
@@ -312,6 +321,7 @@
     if (typeof rrStaffGate === 'function' && !rrStaffGate('handover')) return;   // TRR Pro staff PINs: the roles door (staff.js)
     var c = rrCollectionByKey(key);
     if (!c || c.home) return;
+    if (!rrHandOverOn() && !_underWay(c.key)) return;   // Pro Lite: a NEW hand-over needs the switch; one under way can always go on
     var cur = rrCurrentCollection();
     if (!cur || cur.key !== key) { toast(W('openFirst', { label: _label(c) }), 4000, true); return; }
     if (typeof rrCollectionIsArchived === 'function' && rrCollectionIsArchived(key)) { toast(W('archivedFirst'), 4000, true); return; }
@@ -437,13 +447,14 @@
         row('<button type="button" data-ho-remove onclick="rrHandOverRemoveGo(' + k + ', this)" style="' + _BTN2 + '">' + esc(W('removeBtn')) + '</button>' +
             '<button type="button" data-ho-keep onclick="rrHandOverKeepGo(' + k + ', this)" style="' + _BTN + '">' + esc(W('keepBtn')) + '</button>');
     }
+    if (!rrHandOverOn()) return '';   // Pro Lite: the button that STARTS a hand-over has its own switch
     return '<div style="margin-top:0.6rem"><button type="button" data-ho-open onclick="rrHandOverOpen(' + k + ')" style="' + _BTN2 + '">' + esc(W('btn')) + '</button></div>';
   }
 
   var api = {
     rrHandOverFiles: rrHandOverFiles, rrHandOverStart: rrHandOverStart, rrHandOverCheck: rrHandOverCheck,
     rrHandOverCancel: rrHandOverCancel, rrHandOverKeep: rrHandOverKeep, rrHandOverRemove: rrHandOverRemove,
-    rrHandOverOpen: rrHandOverOpen, rrHandOverReport: rrHandOverReport, rrHandOverSend: rrHandOverSend,
+    rrHandOverOpen: rrHandOverOpen, rrHandOverReport: rrHandOverReport, rrHandOverSend: rrHandOverSend, rrHandOverOn: rrHandOverOn,
     rrHandOverCheckGo: rrHandOverCheckGo, rrHandOverCancelGo: rrHandOverCancelGo, rrHandOverKeepGo: rrHandOverKeepGo,
     rrHandOverRemoveGo: rrHandOverRemoveGo, rrHandOverDetailsHtml: rrHandOverDetailsHtml,
   };

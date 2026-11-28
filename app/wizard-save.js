@@ -2082,7 +2082,15 @@ async function saveWizardItem() {
   const _rawItemNum = _normalizeEnteredItemNum(d.itemNum || d.set_num || '');
   const _pdSuffix = (raw, power) => {
     if (!power || raw.endsWith('C')) return raw;
-    return raw + (power === 'Powered' ? '-P' : '-D');
+    const _mark = (power === 'Powered' ? '-P' : '-D');
+    // 2026-11-27 (gotitp, PLAN_2026-11-26_GOT_IT_DOUBLE_P.md): a number that
+    // already carries this mark keeps it — never 2343-P-P (Got It on a Want set
+    // handed over "2343-P" and the save added -P again).
+    if (raw.toUpperCase().endsWith(_mark)) return raw;
+    // …and the catalog's own spelling of a powered unit (2343P, no dash) takes
+    // the app's dash (2343-P), never 2343P-P (the fresh review of gotitp).
+    if (power === 'Powered' && /\dP$/i.test(raw)) return raw.slice(0, -1) + '-P';
+    return raw + _mark;
   };
   // v0.9.1848: the second unit's power is what the grouping SAID (applyGrouping
   // sets unit2Power on every choice — '' for an MTH family, whose numbers carry
@@ -3425,7 +3433,7 @@ async function saveWizardItem() {
       // really added (the walk can be changed to one piece on the way).
       var _wmSaved = [d.tenderMatch, d.unit2ItemNum, d.unit3ItemNum].filter(function (x) { return x && x !== 'none'; }).map(String);
       if ((d._itemGrouping || 'single') !== 'single') (d._fromWantMateKeys || []).forEach(function (mk) {
-        if (!mk || _wmSaved.indexOf(String(mk.num)) < 0) return;
+        if (!mk || !_wmSaved.some(function (x) { return _wsPieceKey(x) === _wsPieceKey(mk.num); })) return;   // 2026-11-27 (upgradesets3): 2343T = 2343T-D
         var _we = state.wantData[mk.key];
         if (!_we) return;
         if (_we.row) rrVerifiedRowUpdate(state.personalSheetId, 'Want-Upgrade List', _we.row, `Want-Upgrade List!A${_we.row}:I${_we.row}`, [['','','','','','','','','']], { num: _we.itemNum || '', invId: _we.inventoryId || '' }, 'Want list').catch(e => console.warn('Want cleanup error:', e));
@@ -3445,7 +3453,7 @@ async function saveWizardItem() {
       // save really added comes off the Upgrade list (one owner: removeUpgradeItem).
       var _umSaved = [d.tenderMatch, d.unit2ItemNum, d.unit3ItemNum].filter(function (x) { return x && x !== 'none'; }).map(String);
       if ((d._itemGrouping || 'single') !== 'single' && typeof removeUpgradeItem === 'function') (d._fromUpgradeMateKeys || []).forEach(function (mk) {
-        if (!mk || _umSaved.indexOf(String(mk.num)) < 0 || !state.upgradeData[mk.key]) return;
+        if (!mk || !_umSaved.some(function (x) { return _wsPieceKey(x) === _wsPieceKey(mk.num); }) || !state.upgradeData[mk.key]) return;   // 2026-11-27 (upgradesets3): 2343T = 2343T-D
         removeUpgradeItem(mk.key, { quiet: true }).catch(function (e) { console.warn('Upgrade cleanup error:', e); });
       });
       if (typeof buildUpgradePage === 'function') buildUpgradePage();
@@ -3641,4 +3649,12 @@ async function saveWizardItem() {
     // a row already recorded is not recorded twice.
     try { if (_rrSetBefore && d._setMode) rrSetWalkRecordAdded(d, _rrSetBefore, { gid: d._existingGroupId || d._setGroupId }); } catch (eAdF) {}
   }
+}
+
+// 2026-11-27 (upgradesets3): "is this the same piece?" for the Got It clean-ups
+// above — app.js _wantPieceKey is the ONE rule (a dummy's "-D" = the catalog's
+// "2343T"); the same words if it is ever not loaded.
+function _wsPieceKey(x) {
+  if (typeof _wantPieceKey === 'function') return _wantPieceKey(x);
+  return String(x == null ? '' : x).toUpperCase().replace(/\s+/g, '').replace(/([A-Z])-D$/, '$1').replace(/-/g, '');
 }

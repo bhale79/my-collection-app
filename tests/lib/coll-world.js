@@ -23,7 +23,9 @@ async function boot(browser, opts) {
     window.__confirms = [];
     window.appConfirm = async function (msg) { window.__confirms.push(String(msg)); return window.__confirmAnswer !== false; };
     state.user = { name: 'Biz', email: 'shop@example.test' };
-    window._subState = { sub: true, features: o.off ? [] : ['collections', 'scan_shelve'] };
+    // a FULL Pro business: every Pro switch (Pro Lite 2026-11-27 split the one 'collections'
+    // name into collections / invoices / capture / staff / handover — RR_PRO_FEATURES)
+    window._subState = { sub: true, features: o.off ? [] : (o.features || ['collections', 'scan_shelve', 'invoices', 'capture', 'staff', 'handover']) };
     const F = PERSONAL_FIELD_INDEX, N = PERSONAL_SCHEMA.length;
     const item = (num, inv, x) => { const r = new Array(N).fill(''); r[F.itemNum] = num; r[F.manufacturer] = 'Lionel'; r[F.inventoryId] = String(inv); r[F.era] = 'pw'; Object.keys(x || {}).forEach(k => { r[F[k]] = x[k]; }); return r; };
     window.__item = item;

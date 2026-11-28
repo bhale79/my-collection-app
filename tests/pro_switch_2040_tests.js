@@ -93,7 +93,7 @@ const PRO_ANSWER = { status: 200, sub: 'active', plan: 'pro', enforce: true, lev
   const vsrc = fs.readFileSync(path.join(APP, 'vault.js'), 'utf8');
   T('D4 the last answer kept per account includes the plan (vault.js)', /\['sub', 'enforce', 'level', 'features', 'plan',/.test(vsrc));
   const csrc = fs.readFileSync(path.join(APP, 'config.js'), 'utf8');
-  T('D5 the word "Pro" lives in config.js (RR_PLAN_WORDS), not typed in prefs.js', /const RR_PLAN_WORDS = \{ pro: 'Pro' \}/.test(csrc) && !/['"]Pro['"]/.test(fs.readFileSync(path.join(APP, 'prefs.js'), 'utf8')));
+  T('D5 the word "Pro" lives in config.js (RR_PLAN_WORDS), not typed in prefs.js', /const RR_PLAN_WORDS = \{ pro: 'Pro', lite: 'Pro Lite' \}/.test(csrc) && !/['"]Pro['"]/.test(fs.readFileSync(path.join(APP, 'prefs.js'), 'utf8')));
 
   const ex = '/opt/pw-browsers/chromium';
   const browser = await chromium.launch(fs.existsSync(ex) ? { executablePath: ex } : {});

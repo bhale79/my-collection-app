@@ -2825,9 +2825,12 @@ window._triggerCrossScopeSearch = _triggerCrossScopeSearch;
 // auto-generated name lives in the number slot; real catalog numbers never
 // contain a space, so a space reliably means "name, not number." Returns ''
 // for real numbers, so it is safe to call at ANY number-display spot.
-function _noNumTag(itemNum){
+// 2026-11-27 (nonumlabel): "name, not number" is asked of THE one rule,
+// rrNoNumberName (config.js) — a space, or the copy's own Custom Name — so a
+// one-word name ("Amtrak") gets its tag too.
+function _noNumTag(itemNum, pd){
   var v = String(itemNum == null ? '' : itemNum);
-  if (v.indexOf(' ') === -1) return '';
+  if (!((typeof rrNoNumberName === 'function') ? rrNoNumberName(v, pd) : v.indexOf(' ') !== -1)) return '';
   return ' <span style="font-size:0.58rem;font-weight:700;letter-spacing:0.04em;color:var(--text-dim);background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:0.05rem 0.3rem;vertical-align:middle;white-space:nowrap">NO #</span>';
 }
 if (typeof window !== 'undefined') window._noNumTag = _noNumTag;

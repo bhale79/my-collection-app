@@ -143,10 +143,10 @@ async function story(opts) {
   w.rrGiftPrice('2343|', '375');
   await tick(w, 120);
   const rowsWritten = w._writes.filter(x => x.kind === 'append' || x.kind === 'rowupdate');
-  R.tabMade = w._writes.some(x => x.kind === 'addSheet' && /"title":"Gift List"/.test(x.body)) && w._updates.some(u => /^Gift List!A1:K1$/.test(u.range));
+  R.tabMade = w._writes.some(x => x.kind === 'addSheet' && /"title":"Gift List"/.test(x.body)) && w._updates.some(u => /^Gift List!A1:L1$/.test(u.range));   // 2026-11-25 (giftmax): column L "Don't Go Over" added at the end
   R.oneAppendThenUpdate = w._appends.length === 1 && rowsWritten.length === 2 && rowsWritten[1].kind === 'rowupdate' && rowsWritten[1].row === 3;
   R.priceLanded = rowsWritten.length === 2 && rowsWritten[1].values[0][3] === 375 && rowsWritten[1].values[0][2] === 'Yes' && rowsWritten[1].values[0][0] === '2343';
-  R.rowShape = rowsWritten.length > 0 && rowsWritten[0].values[0].length === 11;
+  R.rowShape = rowsWritten.length > 0 && rowsWritten[0].values[0].length === 12;   // 2026-11-25 (giftmax): + L "Don't Go Over"
   // C — the link check
   w.rrGiftPendingUrl('2343|', 'https://www.trainz.com/products/lionel-2343-santa-fe-f3');
   R.storeGuessed = ($(w, '[data-gift-store="2343|"]') || {}).value === 'trainz.com';
@@ -259,7 +259,7 @@ async function story(opts) {
   ok('the "Gift List" tab is made on the first save, with its header row', R.tabMade);
   ok('tick then a price: ONE new row, then an update of that same row', R.oneAppendThenUpdate);
   ok('the price typed straight after the tick lands', R.priceLanded);
-  ok('the saved row has the 11 agreed columns', R.rowShape);
+  ok('the saved row has the 12 agreed columns (L = Don\'t Go Over, 2026-11-25)', R.rowShape);
   ok('the ✕ closes the screen', R.closed);
 
   section('G. Words drawn as words');

@@ -83,8 +83,10 @@ function _prefsSubRowHtml() {
     // v0.9.2040: a Pro account says so ("Pro — Renews …"). The regular price
     // is not quoted to a Pro account (Pro's price is not set yet — it comes
     // from the Stripe receipt, not from here). rrPlan() is the one reader.
-    var isPro = (typeof rrPlan === 'function') && !rec && rrPlan() === RR_PLAN_PRO;
-    var proWord = isPro ? ((typeof RR_PLAN_WORDS !== 'undefined' && RR_PLAN_WORDS.pro) || '') : '';
+    // Pro Lite (2026-11-27): plan 'lite' says "Pro Lite" the same way.
+    var _plan = (typeof rrPlan === 'function' && !rec) ? rrPlan() : 'regular';
+    var isPro = (typeof RR_PLAN_PRO !== 'undefined' && _plan === RR_PLAN_PRO) || (typeof RR_PLAN_LITE !== 'undefined' && _plan === RR_PLAN_LITE);
+    var proWord = isPro ? ((typeof RR_PLAN_WORDS !== 'undefined' && RR_PLAN_WORDS[_plan]) || '') : '';
     var price = isPro ? '' : ((typeof RR_PRICE_TEXT !== 'undefined') ? RR_PRICE_TEXT : '');
     var line = '', btn = '';
     var email = String((state.user && state.user.email) || '');

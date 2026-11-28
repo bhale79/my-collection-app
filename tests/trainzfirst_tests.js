@@ -166,7 +166,9 @@ async function giftStory(src) {
   section('C · Need a part');
   function grab(src, sig) { const i = src.indexOf(sig); if (i < 0) return ''; let d = 0; for (let k = src.indexOf('{', i); k < src.length; k++) { if (src[k] === '{') d++; else if (src[k] === '}') { d--; if (!d) return src.slice(i, k + 1); } } return ''; }
   const SIGS = ['function _builtInDealer()', 'function _dealerPick()', 'function _dealerSite(d)', 'function _plainWords(s)',
-    'function _partsUrl(dealer, item, quoted, plain, makerWord)', 'function _favKind(prefKey)', 'function _favPanelHtml(prefKey, selectId, label, pick)', 'function _favRow(prefKey, selectId, label)'];
+    'function _partsUrl(dealer, item, quoted, plain, makerWord)', 'function _favKind(prefKey)', 'function _favPanelHtml(prefKey, selectId, label, pick)', 'function _favRow(prefKey, selectId, label)',
+    // 2026-11-28 (suggestchan): read by _favPanelHtml for the channel list
+    'function _chanKey(v)', 'function _suggestedChannelList()', 'function _suggestedChannels()', 'function _suggestedChannelName(v)'];
   function room(src, opts) {
     opts = opts || {};
     const parts = SIGS.map(s => grab(src, s));

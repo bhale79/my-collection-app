@@ -37,7 +37,10 @@ function staffConfig() {
   const i = src.indexOf('const RR_STAFF = {');
   const j = src.indexOf('\n};\n', i);
   if (i < 0 || j < 0) return null;
-  return vm.runInNewContext('(function(){ ' + src.slice(i, j + 3) + ' return RR_STAFF; })()', {});
+  // Pro Lite (2026-11-27): RR_STAFF takes its switch name from RR_PRO_FEATURES — read that block too
+  const pi = src.indexOf('var RR_PRO_FEATURES = {'), pj = src.indexOf('\n};\n', pi);
+  const pro = (pi >= 0 && pj >= 0) ? src.slice(pi, pj + 3) : '';
+  return vm.runInNewContext('(function(){ ' + pro + src.slice(i, j + 3) + ' return RR_STAFF; })()', {});
 }
 // The first statement of a named function in a source text.
 function firstStatement(src, fn) {

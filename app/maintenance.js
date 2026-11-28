@@ -29,6 +29,9 @@
     // through rrFeatureOn (config.js). NOT the Yardmaster's Office; that stays
     // owner-only in yardmaster.js.
     PREF_CHANNELS: 'maint_yt_channels',   // JSON array of channel names
+    // 2026-11-28 (suggestchan): the suggested channels (RR_SUGGESTED_CHANNELS,
+    // the config file) this member took off his list — JSON array of @handles
+    PREF_CHANNELS_HIDDEN: 'maint_yt_channels_hidden',
     PREF_DEALERS:  'maint_parts_dealers', // JSON array of dealer names
     // v0.9.1759: the dealer dropdown remembers its pick ('' = Any dealer, a
     // favorite as typed, or MAKER_STORE) so the Workbench drawer's catalog
@@ -1884,6 +1887,28 @@
     try { b = (typeof RR_BUILTIN_STORE !== 'undefined' && RR_BUILTIN_STORE) || window.RR_BUILTIN_STORE || null; } catch (e) { b = (typeof window !== 'undefined' && window.RR_BUILTIN_STORE) || null; }
     return b ? String(b.site || '').trim().toLowerCase().replace(/^www\./, '') : '';
   }
+  // 2026-11-28 (suggestchan, [stated] Brad 2026-11-27 23:52 CT + 2026-11-28 07:29
+  // CT "just leave it as a drop down selection"): the suggested video channels
+  // (RR_SUGGESTED_CHANNELS, the config file) are LISTED in the Repair Videos channel
+  // list beside the member's own — never written into his list, never the
+  // starting pick. One a member took off (✕) stays off; one he typed in himself
+  // is shown once, as his own. A channel is matched by its handle without the
+  // @, spaces or capitals — the same way _ytUrl builds the channel's address.
+  function _chanKey(v) { return String(v == null ? '' : v).trim().replace(/^@/, '').replace(/\s+/g, '').toLowerCase(); }
+  function _suggestedChannelList() {
+    var list = null;
+    try { list = (typeof RR_SUGGESTED_CHANNELS !== 'undefined' && RR_SUGGESTED_CHANNELS) || window.RR_SUGGESTED_CHANNELS || null; } catch (e) { list = (typeof window !== 'undefined' && window.RR_SUGGESTED_CHANNELS) || null; }
+    return Array.isArray(list) ? list.filter(function (c) { return c && _chanKey(c.handle); }) : [];
+  }
+  function _suggestedChannels() {
+    var hidden = _favs(MAINT.PREF_CHANNELS_HIDDEN).map(_chanKey);
+    var mine = _favs(MAINT.PREF_CHANNELS).map(_chanKey);
+    return _suggestedChannelList().filter(function (c) { var k = _chanKey(c.handle); return hidden.indexOf(k) < 0 && mine.indexOf(k) < 0; });
+  }
+  function _suggestedChannelName(v) {
+    var k = _chanKey(v), hit = k ? _suggestedChannelList().filter(function (c) { return _chanKey(c.handle) === k; })[0] : null;
+    return hit ? String(hit.name || hit.handle) : '';
+  }
   function _dealerPick() {
     var sel = (typeof document !== 'undefined') ? document.getElementById('maint-pop-dealer') : null;
     var v;
@@ -2005,10 +2030,10 @@
     var bi = k.isDealer ? _builtInDealer() : '';
     if (bi) favs = favs.filter(function (f) { return String(f).trim().toLowerCase() !== bi; });
     var LINE = 'display:flex;align-items:center;justify-content:space-between;gap:0.5rem;width:100%;box-sizing:border-box;text-align:left;padding:0.45rem 0.7rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem;font-weight:500;cursor:pointer';
-    var line = function (v, t, removable) {
+    var line = function (v, t, removable, tag) {
       var on = String(v) === String(pick || '');
       return '<button type="button" data-fav="' + _esc(v) + '" onclick="_favPick(\'' + rrJsArg(prefKey) + '\',\'' + rrJsArg(selectId) + '\',\'' + rrJsArg(v) + '\')" style="' + LINE + (on ? ';border-color:var(--accent);font-weight:700' : '') + '">'
-        + '<span>' + (on ? '✓ ' : '') + _esc(t) + '</span>'
+        + '<span>' + (on ? '✓ ' : '') + _esc(t) + (tag ? ' <span style="font-size:0.7rem;font-weight:500;color:var(--text-dim)">' + _esc(tag) + '</span>' : '') + '</span>'
         + (removable ? '<span role="button" onclick="event.stopPropagation();_maintDelFav(\'' + rrJsArg(prefKey) + '\',\'' + rrJsArg(selectId) + '\',\'' + rrJsArg(v) + '\')" title="Take this one off the list" style="color:var(--text-dim);font-size:0.8rem;padding:0 0.2rem">&#x2715;</span>' : '')
         + '</button>';
     };
@@ -2016,6 +2041,8 @@
       + (bi ? line(bi, bi, false) : '')
       + line('', label, false)
       + (k.isDealer ? line(MAINT.MAKER_STORE, "The maker's own store", false) : '')
+      // 2026-11-28 (suggestchan): the suggested channels, under "All of YouTube", each with a ✕
+      + (prefKey === MAINT.PREF_CHANNELS ? _suggestedChannels().map(function (c) { return line(c.handle, c.name || c.handle, true, 'Suggested'); }).join('') : '')
       + favs.map(function (f) { return line(f, f, true); }).join('')
       + '<button type="button" onclick="_favAddShow(\'' + rrJsArg(selectId) + '\')" style="' + LINE + ';color:var(--t-link)">' + _esc(k.addLine) + '</button>'
       + '<div id="' + selectId + '-addrow" style="display:none;gap:0.4rem;margin-top:0.2rem">'
@@ -2054,7 +2081,9 @@
     var hid = document.getElementById(selectId), txt = document.getElementById(selectId + '-txt'), wrap = document.getElementById(selectId + '-wrap'), panel = document.getElementById(selectId + '-panel');
     if (!hid) return;
     hid.value = String(value || '');
-    if (txt) txt.textContent = hid.value === MAINT.MAKER_STORE ? "The maker's own store" : (hid.value || (wrap ? wrap.getAttribute('data-label') : '') || '');
+    if (txt) txt.textContent = hid.value === MAINT.MAKER_STORE ? "The maker's own store"
+      : (prefKey === MAINT.PREF_CHANNELS && _suggestedChannelName(hid.value) && _favs(prefKey).indexOf(hid.value) < 0) ? _suggestedChannelName(hid.value)   // 2026-11-28: a suggested channel reads by its name
+      : (hid.value || (wrap ? wrap.getAttribute('data-label') : '') || '');
     if (panel) panel.style.display = 'none';
     if (prefKey === MAINT.PREF_DEALERS) window._maintDealerPicked(hid);   // v0.9.1759: the pick is remembered, the lane follows it
   };
@@ -2092,8 +2121,17 @@
     if (!gone) return;
     if (gone === MAINT.MAKER_STORE) return;   // v0.9.1759: the built-in choice is not a favorite
     if (prefKey === MAINT.PREF_DEALERS && gone === _builtInDealer()) return;   // 2026-11-24: nor is the built-in store
-    var favs = _favs(prefKey).filter(function (f) { return f !== gone; });
-    _saveFavs(prefKey, favs);
+    var had = _favs(prefKey), favs = had.filter(function (f) { return f !== gone; });
+    // 2026-11-28 (suggestchan, the fresh review): the member's own list is saved
+    // only when the ✕ took something out of it — a ✕ on a suggested channel must
+    // not re-stamp this device's (maybe older) copy of his list as the newest
+    if (favs.length !== had.length) _saveFavs(prefKey, favs);
+    // 2026-11-28 (suggestchan): taking off a suggested channel (or his own copy of
+    // one) keeps it off — remembered by its handle, so it does not come back
+    if (prefKey === MAINT.PREF_CHANNELS && _suggestedChannelName(gone)) {
+      var hidden = _favs(MAINT.PREF_CHANNELS_HIDDEN), gk = _chanKey(gone);
+      if (hidden.map(_chanKey).indexOf(gk) < 0) { hidden.push(gone.charAt(0) === '@' ? gone : '@' + gone); _saveFavs(MAINT.PREF_CHANNELS_HIDDEN, hidden); }
+    }
     try { if (typeof _prefSet === 'function') _prefSet(prefKey + '_touched', '1'); } catch (e2) {}
     var hid = document.getElementById(selectId);
     if (hid && hid.value === gone) {
@@ -2355,7 +2393,7 @@
     // whole panel and lose everything typed. Close is the × (or Back) only.
     var html = '<div id="maint-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9500;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem">'
       + _cardOpen(560)
-      + _cardHead('No. ' + _esc(item.itemNum || '') + (item.roadName ? ' · ' + _esc(item.roadName) : ''), 'Maintenance', '_maintClosePanel()')
+      + _cardHead(_esc((typeof rrNumLabel === 'function' ? rrNumLabel(item.itemNum || '', item) : 'No. ' + (item.itemNum || ''))) + (item.roadName ? ' · ' + _esc(item.roadName) : ''), 'Maintenance', '_maintClosePanel()')
       + '<div style="font-size:0.72rem;color:var(--text-dim);margin:-0.3rem 0 0.8rem">Beta preview — only you (and invited testers) can see this button.</div>'
       + '<div id="maint-launcher" style="display:flex;flex-direction:column;gap:0.55rem;margin-bottom:0.8rem">'
       +   '<button onclick="_maintShowGrp(\'docs\')" ' + bigBtn + '>Find manuals &amp; diagrams<span style="display:block;font-weight:400;font-size:0.76rem;color:var(--text-dim);font-family:var(--font-body);text-transform:none;letter-spacing:0">Your saved docs, factory sources, searches</span></button>'
@@ -2394,7 +2432,7 @@
       // it that way). Filled by _maintRenderTasks, so one renderer draws the
       // part lines here and under the tasks, and neither can drift.
       + sec('Parts for this item',
-          '<button onclick="_maintPartsPopup(\'\',\'No. ' + rrJsArg(String(item.itemNum || '')) + '\')" ' + _btnPrimary('padding:0.5rem 0.9rem;font-size:0.78rem') + '>+ Add a part</button>'
+          '<button onclick="_maintPartsPopup(\'\',\'' + rrJsArg((typeof rrNumLabel === 'function' ? rrNumLabel(String(item.itemNum || ''), item) : 'No. ' + (String(item.itemNum || '')))) + '\')" ' + _btnPrimary('padding:0.5rem 0.9rem;font-size:0.78rem') + '>+ Add a part</button>'
           + '<div id="maint-parts" style="margin-top:0.6rem"></div>'
           + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">What you have on hand for this one, and anything you\'re still waiting on. A part that belongs to an open job shows under that job instead, so nothing is listed twice.</div>', 'work')
 
@@ -2592,7 +2630,7 @@
     // nothing at all, and the confirm goes with it — see the note by _wbOverlay.
     var html = '<div id="maint-docform" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9700;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem">'
       + _cardOpen(480)
-      + _cardHead('My Manuals' + (general ? '' : ' · No. ' + _esc(String(_panelItem && _panelItem.itemNum || ''))), (type === 'picture' ? 'Save a picture' : type === 'document' ? 'Save a document' : type === 'video' ? 'Save a video' : 'Save a link'), "_maintDocformClose()")
+      + _cardHead('My Manuals' + (general ? '' : ' · ' + _esc((typeof rrNumLabel === 'function' ? rrNumLabel(String(_panelItem && _panelItem.itemNum || ''), _panelItem) : 'No. ' + (String(_panelItem && _panelItem.itemNum || ''))))), (type === 'picture' ? 'Save a picture' : type === 'document' ? 'Save a document' : type === 'video' ? 'Save a video' : 'Save a link'), "_maintDocformClose()")
       + ((type === 'link' || type === 'video')
           ? '<label style="' + LB + '">' + (type === 'video' ? 'YouTube link (paste it)' : 'Link (paste it — switch windows all you like, this form waits)') + '</label><input id="docf-url" type="text" placeholder="https://…" style="' + IN + '">'
           : '<div style="font-size:0.82rem;color:var(--text);margin-bottom:0.7rem">' + _esc(pendingFile && pendingFile.name || 'File') + ' chosen ✓ — it uploads when you hit Save.</div>')
@@ -2907,7 +2945,7 @@
     var old = document.getElementById('maint-addtask-pop'); if (old) old.remove();
     var html = '<div id="maint-addtask-pop" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100025;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem">'
       + _cardOpen(520)
-      + _cardHead('No. ' + _esc(String(tg.item.itemNum || '')) + (tg.item.roadName ? ' · ' + _esc(tg.item.roadName) : ''), 'Add a task', "document.getElementById('maint-addtask-pop').remove()")
+      + _cardHead(_esc((typeof rrNumLabel === 'function' ? rrNumLabel(String(tg.item.itemNum || ''), tg.item) : 'No. ' + (String(tg.item.itemNum || '')))) + (tg.item.roadName ? ' · ' + _esc(tg.item.roadName) : ''), 'Add a task', "document.getElementById('maint-addtask-pop').remove()")
       + _choreFormHtml('_maintAddChore()')
       + '</div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
@@ -2976,7 +3014,7 @@
         else showToast('✓ On the Workbench: ' + chore + (onIt ? ' (' + onIt + ' part' + (onIt === 1 ? '' : 's') + ' on it)' : ''));
       }
       // v0.9.1858: "+ Add a part for it" — the task exists now, so Need a part opens FOR it
-      if (andPart && typeof window._maintPartsPopup === 'function') window._maintPartsPopup(logId, 'No. ' + String(tg.item.itemNum || '') + ' \u00b7 ' + chore);
+      if (andPart && typeof window._maintPartsPopup === 'function') window._maintPartsPopup(logId, (typeof rrNumLabel === 'function' ? rrNumLabel(String(tg.item.itemNum || ''), tg.item) : 'No. ' + (String(tg.item.itemNum || ''))) + ' \u00b7 ' + chore);
     } catch (e) { if (typeof showToast === 'function') showToast(rrSaveError(e, 'the chore'), 4000, true); }
   }
 
@@ -3046,7 +3084,7 @@
     }).join('') || '<div style="color:var(--text-dim);font-size:0.85rem;padding:0.6rem 0">No service history yet.</div>';
     var html = '<div id="wb-history" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9600;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem">'   // v0.9.1789: guarded below, not dismissed by the backdrop
       + _cardOpen(520)
-      + _cardHead('No. ' + _esc(itemNum), 'Service history', "document.getElementById('wb-history').remove();window._wbHistoryCtx=null")
+      + _cardHead(_esc((typeof rrNumLabel === 'function' ? rrNumLabel(itemNum) : 'No. ' + (itemNum))), 'Service history', "document.getElementById('wb-history').remove();window._wbHistoryCtx=null")
       + lines
       + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.6rem">Tap an entry to view or edit it.</div>'
       + '</div></div>';
@@ -3064,7 +3102,7 @@
     var kind = l.type === 'part-installed' ? 'Part installed' : l.type === 'chore' ? (l.status === 'open' ? 'Open task' : 'Completed task') : 'Service note';
     var html = '<div id="wb-entry" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9700;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem">'
       + _cardOpen(480)
-      + _cardHead('No. ' + _esc(l.itemNum) + ' · Service history', kind, "document.getElementById('wb-entry').remove()")
+      + _cardHead(_esc((typeof rrNumLabel === 'function' ? rrNumLabel(l.itemNum) : 'No. ' + (l.itemNum))) + ' · Service history', kind, "document.getElementById('wb-entry').remove()")
       + '<label style="' + LB + '">What was done</label><input id="ent-text" type="text" value="' + _esc(l.text) + '" style="' + IN + '">'
       + '<div style="display:flex;gap:0.6rem"><div style="flex:1"><label style="' + LB + '">Date</label><input id="ent-date" type="date" value="' + _esc(l.dateDone || l.dateAdded) + '" style="' + IN + '"></div>'
       + '<div style="flex:1"><label style="' + LB + '">Serviced by</label><input id="ent-by" type="text" value="' + _esc(l.by) + '" placeholder="self / service station" style="' + IN + '"></div></div>'
@@ -3868,7 +3906,7 @@
     // (and on the card, for its own padding) keeps it inside its half.
     el.innerHTML = _cardOpen(600).replace('class="rr-card maint-card"', 'class="rr-card rr-card-flex maint-card" id="maint-dg-card"').replace('margin-bottom:2rem', 'margin-bottom:0;pointer-events:auto;box-sizing:border-box')
       + '<div id="maint-dg-head" style="' + (side ? 'cursor:move;touch-action:none;' : '') + '">'
-      +   _cardHead('No. ' + _esc(String(tg.item.itemNum || '')), 'Parts diagrams', '_maintDiagramsClose()')
+      +   _cardHead(_esc((typeof rrNumLabel === 'function' ? rrNumLabel(String(tg.item.itemNum || ''), tg.item) : 'No. ' + (String(tg.item.itemNum || '')))), 'Parts diagrams', '_maintDiagramsClose()')
       + '</div>'
       + '<div id="maint-dg-body" style="flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-right:0.25rem">' + _dgListHtml(tg.item) + '</div>'
       + '</div>';
@@ -3941,7 +3979,7 @@
       if (typeof buildPartsPage === 'function') await buildPartsPage();
       var pop = document.getElementById('maint-parts-pop'); if (pop) pop.remove();
       _maintRenderTasks(); _wbBadge();
-      if (typeof showToast === 'function') showToast(taskId ? '✓ Added to Parts Wanted — linked to this task' : '✓ Added to Parts Wanted for No. ' + String(tg.item && tg.item.itemNum || ''));
+      if (typeof showToast === 'function') showToast(taskId ? '✓ Added to Parts Wanted — linked to this task' : '✓ Added to Parts Wanted for ' + (typeof rrNumLabel === 'function' ? rrNumLabel(String(tg.item && tg.item.itemNum || ''), tg.item) : 'No. ' + (String(tg.item && tg.item.itemNum || ''))));
       return true;
     } finally { delete _busy.saveWanted; }
   }
@@ -5127,7 +5165,7 @@
     if (!document.getElementById('maint-overlay') || !_panelItem) return;
     if (String(window._maintPanelInvId || '') !== String(invId || '')) return;
     if (purpose === 'task') window._maintAddTaskPopup();
-    else if (purpose === 'part') window._maintPartsPopup('', 'No. ' + String(_panelItem.itemNum || ''));
+    else if (purpose === 'part') window._maintPartsPopup('', (typeof rrNumLabel === 'function' ? rrNumLabel(String(_panelItem.itemNum || ''), _panelItem) : 'No. ' + (String(_panelItem.itemNum || ''))));
   }
   // click a Workbench row -> that item's Maintenance card, straight to Work on it
   window._wbOpen = function (invId, itemNum, focusTaskId, thenAdd) {
@@ -5151,7 +5189,7 @@
             var _m = (typeof findMaster === 'function') ? findMaster(c.itemNum, c.variation, c) : null;
             var _e = null; try { _e = (typeof _itemEraKey === 'function') ? _itemEraKey(c) : null; } catch (eK) {}
             var _lbl = (typeof ERAS !== 'undefined' && _e && ERAS[_e]) ? ERAS[_e].label : '';
-            return { label: _esc('No. ' + c.itemNum + (_m && _m.roadName ? ' — ' + _m.roadName : '') + (c.variation ? ' (var. ' + c.variation + ')' : '') + (_lbl ? ' · ' + _lbl : '')),
+            return { label: _esc((typeof rrNumLabel === 'function' ? rrNumLabel(c.itemNum, c) : 'No. ' + (c.itemNum)) + (_m && _m.roadName ? ' — ' + _m.roadName : '') + (c.variation ? ' (var. ' + c.variation + ')' : '') + (_lbl ? ' · ' + _lbl : '')),
                      run: function () { window._wbOpen(String(c.inventoryId), c.itemNum, focusTaskId); } };
           }));
         return;

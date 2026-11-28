@@ -204,7 +204,12 @@
   }
 
   // ── the screen ─────────────────────────────────────────────────────────
+  // Pro Lite (2026-11-27): the intake has its own switch (RR_CAPTURE.feature), on top of collections
+  function rrCaptureOn() {
+    try { return typeof rrCollUiOn === 'function' && rrCollUiOn() && typeof rrFeatureOn === 'function' && !!rrFeatureOn(C().feature); } catch (e) { return false; }
+  }
   function rrCaptureOpen() {
+    if (!rrCaptureOn()) return false;
     if (typeof rrCollectionIsArchived === 'function' && rrCollectionIsArchived()) { toast(W('archived'), 5000, true); return false; }
     rrCaptureClose();
     _cap = { coll: collKey(), step: 'sticker', sticker: '', shots: 0, pending: 0, place: null, last: null, lastPlace: null, keep: false,
@@ -564,7 +569,7 @@
   function rrCaptureButtonSync() {
     var b = document.getElementById('pin-capture-btn'); if (!b) return false;
     var on = false;
-    try { on = typeof rrCollUiOn === 'function' && rrCollUiOn() && !(typeof rrCollectionIsArchived === 'function' && rrCollectionIsArchived()); } catch (e) {}
+    try { on = rrCaptureOn() && !(typeof rrCollectionIsArchived === 'function' && rrCollectionIsArchived()); } catch (e) {}
     b.textContent = W('startBtn');
     b.title = W('startHelp', { label: collLabel() });
     b.style.display = on ? '' : 'none';
@@ -579,6 +584,7 @@
   root.rrCaptureCardOpen = rrCaptureCardOpen;
   root.rrCaptureOpen = rrCaptureOpen;
   root.rrCaptureButtonSync = rrCaptureButtonSync;
+  root.rrCaptureOn = rrCaptureOn;
   root.rrCaptureIdentify = rrCaptureIdentify;
   root.rrCaptureBlankOpen = rrCaptureBlankOpen;
   root.rrCaptureBlankCodes = rrCaptureBlankCodes;

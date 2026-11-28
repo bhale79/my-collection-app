@@ -356,11 +356,13 @@
       (f ? '<button type="button" class="pref-btn" data-pp-prefs-again onclick="rrPickerProofAgain()">' + esc(W('proofAgain', { name: f.name || f.id })) + '</button>' : '') +
       '<button type="button" class="pref-btn" data-pp-prefs-pick onclick="rrPickerProofOpen()">' + esc(W('proofPick')) + '</button></div>';
   }
+  // Pro Lite (2026-11-27): each row asks its OWN switch — staff PINs and this
+  // proof row (RR_DRIVE_PICKER.feature = staff), invoices (RR_COLL_INVOICE.feature).
+  // No row on = no Business tools section (a Pro Lite account sees none).
   function rrPrefsPickerHtml() {
-    if (!on()) return '';
     var rows = ((typeof rrPrefsStaffHtml === 'function') ? rrPrefsStaffHtml() : '') +   // TRR Pro staff PINs (staff.js)
       ((typeof rrPrefsInvHtml === 'function') ? rrPrefsInvHtml() : '') +   // "We do our own invoices" (collections-invoice.js, owners)
-      ((typeof rrStaffCan !== 'function' || rrStaffCan('business')) ? '<div class="pref-row" id="rr-pp-prefs-row">' + _rowInner() + '</div>' : '');
+      ((on() && (typeof rrStaffCan !== 'function' || rrStaffCan('business'))) ? '<div class="pref-row" id="rr-pp-prefs-row">' + _rowInner() + '</div>' : '');
     if (!rows) return '';   // Staff (PINs in use) see no Business tools at all
     return '<div class="pref-section" data-pp-prefs>' +
       '<div class="pref-section-title" onclick="_togglePrefSection(this)" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center">' +

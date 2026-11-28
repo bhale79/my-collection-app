@@ -58,7 +58,10 @@
   function jsArg(s) { return "'" + (typeof rrJsArg === 'function' ? rrJsArg(s) : String(s == null ? '' : s).replace(/[\\']/g, '\\$&').replace(/[&<>"]/g, '')) + "'"; }
   function toast(m, ms, bad) { try { if (typeof showToast === 'function') showToast(m, ms || 3500, !!bad); } catch (e) {} }
   function st() { try { return (typeof state !== 'undefined' && state) || root.state || {}; } catch (e) { return root.state || {}; } }
-  function _on() { try { return typeof rrCollUiOn === 'function' && rrCollUiOn(); } catch (e) { return false; } }
+  // Pro Lite (2026-11-27): invoices have their own switch (RR_COLL_INVOICE.feature), on top of collections
+  function _on() {
+    try { return typeof rrCollUiOn === 'function' && rrCollUiOn() && typeof rrFeatureOn === 'function' && !!rrFeatureOn(I().feature); } catch (e) { return false; }
+  }
   function _offline() {
     try { if (root._offlineMode) return true; } catch (e) {}
     try { if (typeof navigator !== 'undefined' && navigator.onLine === false) return true; } catch (e) {}

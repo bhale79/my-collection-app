@@ -1191,7 +1191,7 @@ function getDieselConfigs(itemNum) {
 // alone: two rows with one number (two copies on the Upgrade list) are two
 // rows. Each folded lead also carries _mateRows (the pieces' own entries) so
 // Got It / Remove can act on every piece.
-function _wantGroupOf(e) {
+function _wantGroupOf(e, invMap) {
   // A loaded row keeps its group as a "[grp:ID]" mark at the front of its
   // notes; a row the want save just made keeps it in .groupId (clean notes).
   // Both are the same group — read either. (Reading only the notes is how a
@@ -1199,9 +1199,35 @@ function _wantGroupOf(e) {
   if (!e) return '';
   if (e.groupId) return String(e.groupId);
   var m = String(e.notes || '').match(/^\[grp:([^\]]+)\]/);
-  return m ? m[1] : '';
+  return m ? m[1] : _wantOwnedGroupOf(e, invMap);
 }
 window._wantGroupOf = _wantGroupOf;
+// 2026-11-27 (upgradesets3, [stated] Brad 09:19 CT "yes" to
+// PLAN_2026-11-27_UPGRADE_SET_THREE_PIECES.md): an UPGRADE row points at a
+// copy you own, and that copy already knows its set (its group in My
+// Collection). That owned set IS the Upgrade row's group — "Upgrade the whole
+// set" writes no mark of its own, and the catalog names the second A "2343T"
+// while the set saves "2343T-D", so a 3-piece set split into "AB SET" + a loose
+// dummy (T-2026-11-26-03). Want rows (no owned copy) are untouched.
+function _wantOwnedGroupOf(e, invMap) {
+  if (!e || String(e.listType || '') === 'Want' || !e.inventoryId) return '';
+  var want = String(e.inventoryId), pd = null;
+  if (invMap) pd = invMap[want] || null;   // the fold builds this map ONCE per redraw (no scan per row)
+  else if (typeof _rrPdByInv === 'function') pd = _rrPdByInv(want);
+  else if (typeof state !== 'undefined' && state && state.personalData) {
+    var all = Object.values(state.personalData);
+    for (var i = 0; i < all.length; i++) if (all[i] && String(all[i].inventoryId || '') === want) { pd = all[i]; break; }
+  }
+  return (pd && pd.groupId) ? 'own:' + String(pd.groupId) : '';
+}
+// ONE rule for "is this the same piece?": a dummy's "-D" (2343T-D, the save's
+// power mark) is the catalog's "2343T"; case, spaces and dashes do not count.
+function _wantPieceKey(x) {
+  // the "-D" goes only after a letter (2343T-D → 2343T), so a quick-entry
+  // "2343-D" never becomes the bare "2343" (review, 2026-11-27)
+  return String(x == null ? '' : x).toUpperCase().replace(/\s+/g, '').replace(/([A-Z])-D$/, '$1').replace(/-/g, '');
+}
+window._wantPieceKey = _wantPieceKey;
 function _wantIsCompanion(n) {
   // My Collection's rule for "this piece is never the lead" (browse.js
   // _isGroupCompanionSfx) when it is loaded; the same words otherwise.
@@ -1214,10 +1240,25 @@ function foldWantEntries(rows) {
   rows = rows || [];
   var leadOf = rows.map(function () { return -1; });   // index of the row this one folds into
   var isLead = rows.map(function () { return false; });
-  var nk = function (x) { return String(x == null ? '' : x).toUpperCase().replace(/[\s-]/g, ''); };
-  // 1. saved together — one group is one set
+  var nk = _wantPieceKey;   // 2026-11-27 (upgradesets3): 2343T-D = 2343T
+  // Upgrade rows: each one's owned set, read through ONE map built here (the
+  // owned copies are scanned once per redraw, not once per row — review 2026-11-27)
+  var invMap = null;
+  if (rows.some(function (w) { return w && String(w.listType || '') !== 'Want' && w.inventoryId; })
+      && typeof state !== 'undefined' && state && state.personalData) {
+    invMap = {};
+    Object.values(state.personalData).forEach(function (p) { if (p && p.inventoryId && !(String(p.inventoryId) in invMap)) invMap[String(p.inventoryId)] = p; });
+  }
+  var gOf = rows.map(function (w) { return _wantGroupOf(w, invMap); });
+  var gN = {};
+  gOf.forEach(function (g) { if (g) gN[g] = (gN[g] || 0) + 1; });
+  // a piece COUNTS as part of an owned set only when 2+ of that set's pieces are
+  // on this list — an engine kept with just its box is not a set here, so it can
+  // still pair with its tender or B unit (review 2026-11-27)
+  var owned = rows.map(function (w, i) { return /^own:/.test(gOf[i]) && gN[gOf[i]] >= 2; });
+  // 1. saved together — one group is one set (an Upgrade row: its owned set)
   var byGrp = {};
-  rows.forEach(function (w, i) { var g = _wantGroupOf(w); if (g) (byGrp[g] = byGrp[g] || []).push(i); });
+  rows.forEach(function (w, i) { var g = gOf[i]; if (g) (byGrp[g] = byGrp[g] || []).push(i); });
   Object.keys(byGrp).forEach(function (g) {
     var ix = byGrp[g];
     if (ix.length < 2) return;
@@ -1225,11 +1266,13 @@ function foldWantEntries(rows) {
     if (lead === undefined) lead = ix[0];
     ix.forEach(function (i) { if (i !== lead) { leadOf[i] = lead; isLead[lead] = true; } });
   });
-  // 2. added separately — the catalog's partners
+  // 2. added separately — the catalog's partners. An Upgrade piece of an owned
+  // set never pairs this way: its set already says what belongs with it, and a
+  // piece of ANOTHER owned copy is not part of it (2026-11-27 upgradesets3).
   var byNum = {};
-  rows.forEach(function (w, i) { if (leadOf[i] < 0) { var k = nk(w.itemNum); if (!(k in byNum)) byNum[k] = i; } });
+  rows.forEach(function (w, i) { if (leadOf[i] < 0 && !owned[i]) { var k = nk(w.itemNum); if (!(k in byNum)) byNum[k] = i; } });
   rows.forEach(function (w, i) {
-    if (leadOf[i] >= 0) return;
+    if (leadOf[i] >= 0 || owned[i]) return;
     var n = String(w.itemNum);
     var mates = [];
     try {
@@ -1242,7 +1285,9 @@ function foldWantEntries(rows) {
     } catch (e) {}
     mates.forEach(function (mn) {
       var j = byNum[nk(mn)];
-      if (j === undefined || j === i || leadOf[j] >= 0 || isLead[j]) return;
+      if (j === undefined || j === i || leadOf[j] >= 0 || isLead[j] || owned[j]) return;
+      // two pieces of two DIFFERENT owned copies are never one set
+      if (/^own:/.test(gOf[i]) && /^own:/.test(gOf[j]) && gOf[i] !== gOf[j]) return;
       leadOf[j] = i; isLead[i] = true;
     });
   });
@@ -1259,15 +1304,30 @@ function foldWantEntries(rows) {
     // v0.9.717 (Brad's $700 AB set showing $1,400): the grouped want-save
     // writes the GROUP price onto EVERY row of the set. Same group ⇒ ONE
     // price, not a sum. Only sum truly separate wants.
-    var _leadGrp = _wantGroupOf(w);
-    var sum = parseFloat(w.expectedPrice) || 0;
-    var _summed = false;
-    mi.forEach(function (j) {
-      var mate = rows[j] || {};
-      if (_leadGrp && _wantGroupOf(mate) === _leadGrp) return;   // same group — price already covers it
-      var mp = parseFloat(mate.expectedPrice) || 0;
-      if (mp) { sum += mp; _summed = true; }
-    });
+    var _leadGrp = gOf[i];
+    var sum = 0, _summed = false;
+    var _isUpg = String(w.listType || '') === 'Upgrade' || (!w.listType && !!w.inventoryId);   // an Upgrade added from a list row carries no listType until a reload
+    if (_isUpg) {
+      // 2026-11-27 (upgradesets3): an Upgrade set's price is its pieces' MAX
+      // prices. "Upgrade the whole set" writes the ONE price typed for the set
+      // on every piece ($300, $300, $300): when every piece is of ONE owned set
+      // and the prices are all the same ⇒ that one price. Anything else — pieces
+      // priced one by one, or loose pieces paired by the catalog — is added up.
+      var _ps = [w].concat(mi.map(function (j) { return rows[j] || {}; }))
+        .map(function (r) { return parseFloat(r.maxPrice || r.expectedPrice) || 0; }).filter(function (v) { return v > 0; });
+      var _ownSet = /^own:/.test(_leadGrp) && mi.every(function (j) { return gOf[j] === _leadGrp; });
+      var _same = _ownSet && _ps.length > 0 && _ps.every(function (v) { return Math.abs(v - _ps[0]) < 0.005; });
+      if (_same) sum = _ps[0];
+      else { _ps.forEach(function (v) { sum += v; }); _summed = _ps.length > 1; }
+    } else {
+      sum = parseFloat(w.expectedPrice) || 0;
+      mi.forEach(function (j) {
+        var mate = rows[j] || {};
+        if (_leadGrp && _wantGroupOf(mate, invMap) === _leadGrp) return;   // same group — price already covers it
+        var mp = parseFloat(mate.expectedPrice) || 0;
+        if (mp) { sum += mp; _summed = true; }
+      });
+    }
     o._pairPrice = sum > 0 ? String(sum) : '';
     o._pairIsGroup = !_summed;   // label: group price vs summed pieces
     o._groupCfg = (typeof window.groupConfigLabel === 'function') ? window.groupConfigLabel(String(w.itemNum), mates) : '';   // v0.9.723

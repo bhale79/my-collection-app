@@ -467,7 +467,7 @@ window._catalogDisplayLabel = function (year, type, fallback) {
     // ── Science ──────────────────────────────────────────────────
     science: {
       label: 'Science Set',
-      pageTitle:       function(e) { return 'No. ' + (e.itemNum || '—'); },
+      pageTitle:       function(e) { return (typeof rrNumLabel === 'function' ? rrNumLabel(e.itemNum || '—', e) : 'No. ' + (e.itemNum || '—')); },
       subtitle:        function(e) { return e.description || ''; },
       typeBadge:       function(e) { return 'Science Set'; },
       itemNumDisplay:  function(e) { return e.itemNum || ''; },
@@ -539,7 +539,7 @@ window._catalogDisplayLabel = function (year, type, fallback) {
     // ── Construction ─────────────────────────────────────────────
     construction: {
       label: 'Construction Set',
-      pageTitle:       function(e) { return 'No. ' + (e.itemNum || '—'); },
+      pageTitle:       function(e) { return (typeof rrNumLabel === 'function' ? rrNumLabel(e.itemNum || '—', e) : 'No. ' + (e.itemNum || '—')); },
       subtitle:        function(e) { return e.description || ''; },
       typeBadge:       function(e) { return 'Construction Set'; },
       itemNumDisplay:  function(e) { return e.itemNum || ''; },
@@ -675,7 +675,7 @@ window._catalogDisplayLabel = function (year, type, fallback) {
     // future-proofs the layout.
     service: {
       label: 'Service Tool',
-      pageTitle:       function(e) { return 'No. ' + (e.itemNum || '—'); },
+      pageTitle:       function(e) { return (typeof rrNumLabel === 'function' ? rrNumLabel(e.itemNum || '—', e) : 'No. ' + (e.itemNum || '—')); },
       subtitle:        function(e) { return e.description || ''; },
       typeBadge:       function(e) { return e.itemType || 'Service Tool'; },
       itemNumDisplay:  function(e) { return e.itemNum || ''; },

@@ -41,7 +41,7 @@ const ROWS = [PW('2343', 'A', 'P'), PW('2343T', 'A', 'D'), PW('2343C', 'B', 'C')
 
 // ── THE fold + its helpers, from app.js, on one shared state ────────────────
 const FOLD_HELPERS = ['rrMthUnitRole', 'buildPartnerMap', '_stripSuffix', '_getPartner', 'isTender', 'isLocomotive', 'getMatchingTenders', 'getBUnit', 'getAUnit',
-  'getADummyPartner', 'getSetPartner', 'normalizeItemNum', 'baseItemNum', '_wantGroupOf', '_wantIsCompanion', 'foldWantEntries', 'wantSetLabel'];
+  'getADummyPartner', 'getSetPartner', 'normalizeItemNum', 'baseItemNum', '_wantGroupOf', '_wantOwnedGroupOf', '_wantPieceKey', '_wantIsCompanion', 'foldWantEntries', 'wantSetLabel'];
 function foldWorld(appSrc) {
   const state = { masterData: ROWS, companionData: [], setData: [], personalData: {}, wantData: {} };
   const win = {};
@@ -79,11 +79,11 @@ function sharedChecks(pagesSrc) {
 }
 
 // ── I · the Upgrade page folds a set into one row that knows its pieces ────
-function pageChecks(pagesSrc) {
+function pageChecks(pagesSrc, appSrc) {
   const r = {};
   const body = grab(pagesSrc, 'buildUpgradePage');
   const inner = grab(body, '_wuFoldPairs');
-  const W = foldWorld(SRC.app);
+  const W = foldWorld(appSrc || SRC.app);
   const fp = new Function('foldWantEntries', inner + '\nreturn _wuFoldPairs;')(W.foldWantEntries);
   const rows = fp([
     { itemNum: '2343-P', variation: '', maxPrice: '300', listType: 'Upgrade', inventoryId: 'INV76', row: 21 },
@@ -143,7 +143,8 @@ function gotItChecks(pagesSrc) {
     return wizard;
   }
   let w = run('INV76', 'INV77');
-  r.aa = w.data._itemGrouping === 'aa' && w.data.unit2ItemNum === '2343T' && w.data.itemNum === '2343-P' && w.data._fromUpgradeKey === 'INV76';
+  // 2026-11-27 (gotitp): a set's lead is handed over BARE (2343) — the save puts -P on it; "2343-P" here saved 2343-P-P.
+  r.aa = w.data._itemGrouping === 'aa' && w.data.unit2ItemNum === '2343T' && w.data.itemNum === '2343' && w.data._fromUpgradeKey === 'INV76';
   r.mateKeys = JSON.stringify(w.data._fromUpgradeMateKeys) === JSON.stringify([{ num: '2343T', key: 'INV77' }]);
   r.lands = w.steps[w.step] && w.steps[w.step].id === 'conditionDetails';
   w = run('INV80', '');
@@ -158,7 +159,7 @@ function saveChecks(saveSrc, wizSrc) {
   const r = {};
   const a = saveSrc.indexOf('// ── If this came from the Upgrade List, clean up the upgrade entry ──');
   const b = saveSrc.indexOf('// ── General case:', a);
-  const block = saveSrc.slice(a, b);
+  const block = saveSrc.slice(a, b) + '\n' + grab(saveSrc, '_wsPieceKey');   // 2026-11-27 (upgradesets3): the clean-up's same-piece rule
   function run(d) {
     const state = { personalSheetId: 'S', upgradeData: {
       INV76: { itemNum: '2343-P', row: 21, inventoryId: 'INV76' }, INV77: { itemNum: '2343T', row: 22, inventoryId: 'INV77' }, INV80: { itemNum: '6520', row: 23, inventoryId: 'INV80' } } };
@@ -209,7 +210,7 @@ function saveChecks(saveSrc, wizSrc) {
 
   section('K · Got It on an Upgrade set adds the whole set');
   const K = gotItChecks(SRC.pages);
-  ok('Got It on the 2343 AA upgrade opens Add as an AA set: 2343-P + 2343T', K.aa);
+  ok('Got It on the 2343 AA upgrade opens Add as an AA set from the bare 2343 (saves 2343-P + 2343T-D)', K.aa);
   ok('…and hands the save the second piece\'s upgrade key', K.mateKeys);
   ok('…landing on Condition & Details, like the Want list\'s Got It', K.lands);
   ok('a single upgrade opens as a single piece, as before', K.single);
@@ -232,18 +233,19 @@ function saveChecks(saveSrc, wizSrc) {
   ok('P2 planted: the ⋯ Remove forgets the pieces → caught (red)', !p2.removeHands);
   const p3 = pageChecks(plant(SRC.pages, "\"','\" + rrJsArg(_wuMateKeys(u)) + \"')\"", "\"')\""));
   ok('P3 planted: the Got It button forgets the pieces → caught (red)', !p3.gotItHands);
-  const p4 = gotItChecks(plant(SRC.pages, "    if (_ugMates.length) {\n      var _ugIn", "    if (false) {\n      var _ugIn"));
+  const p4 = gotItChecks(plant(SRC.pages, "    if (_ugMates.length) {\n      // 2026-11-27 (upgradesets3)", "    if (false) {\n      // 2026-11-27 (upgradesets3)"));
   ok('P4 planted: Got It does not seed the set → opens as one piece (red)', !p4.aa);
   const p5 = saveChecks(plant(SRC.save, "if ((d._itemGrouping || 'single') !== 'single' && typeof removeUpgradeItem === 'function') (d._fromUpgradeMateKeys || [])", "if (false) (d._fromUpgradeMateKeys || [])"), SRC.wiz);
   ok('P5 planted: the save clears only the lead → 2343T is left on the Upgrade list (red)', !p5.bothGone);
-  const p6 = saveChecks(plant(SRC.save, "        if (!mk || _umSaved.indexOf(String(mk.num)) < 0 || !state.upgradeData[mk.key]) return;\n", "        if (!mk || !state.upgradeData[mk.key]) return;\n"), SRC.wiz);
+  const p6 = saveChecks(plant(SRC.save, "        if (!mk || !_umSaved.some(function (x) { return _wsPieceKey(x) === _wsPieceKey(mk.num); }) || !state.upgradeData[mk.key]) return;", "        if (!mk || !state.upgradeData[mk.key]) return;"), SRC.wiz);
   ok('P6 planted: the save clears a piece that was not the partner it saved → caught (red)', !p6.otherPartner);
   const p7 = sharedChecks(plant(SRC.pages, "    var _wcP = _wcPartnersOf(itemNum), _pTender = _wcP.tender, _pBunit = _wcP.bunit, _pDummy = _wcP.dummy;", "    var _pTender = '', _pBunit = '', _pDummy = ''; (state.companionData || []).forEach(function(){});"));
   ok('P7 planted: the Want list grows its own partner loop again → caught (red)', !p7.wantUsesShared);
   const p8 = await removeChecks(plant(SRC.pages, "  if (state.upgradeData[ugKey]) return;   // the lead could not be cleared: nothing changes\n", ""));
   ok('P8 planted: the lead refused but the rest cleared anyway → caught (red)', !p8.leadRefused);
 
-  const p9 = pageChecks(plant(SRC.pages, "  if (u && u._wantMates && !isWant) {\n", "  if (false) {\n"));
+  // 2026-11-27 (upgradesets3): an Upgrade set's price is worked out in the fold (app.js) now
+  const p9 = pageChecks(SRC.pages, plant(SRC.app, "    if (_isUpg) {", "    if (false) {"));
   ok('P9 planted: the Upgrade set priced as the lead alone → caught (red)', !p9.price);
 
   console.log('\n' + pass + ' passed, ' + fail + ' failed');

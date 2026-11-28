@@ -166,7 +166,9 @@ ok('EVERY showItemDetailPage call names a copy — a new one that forgets turns 
 
 section('Nothing acts on a guess — the paths that cost data');
 ok('Remove refuses outright when the number names several copies and no id was given',
-   /if \(!pdKey && typeof rrOwnedCopyKeys === 'function'\)[\s\S]{0,700}_rmCands\.length > 1[\s\S]{0,400}return;/.test(ac));
+   // 2026-11-27 (nonumlabel): the refusal's notice now names the item through rrNumLabel (guarded) — ~70 characters longer;
+   // the window after _rmCands.length > 1 grows 400 → 600 (seen red first; the rule it pins is unchanged).
+   /if \(!pdKey && typeof rrOwnedCopyKeys === 'function'\)[\s\S]{0,700}_rmCands\.length > 1[\s\S]{0,600}return;/.test(ac));
 ok('…and it refuses BEFORE thisPd is resolved, so nothing downstream sees a wrong copy',
    ac.indexOf('_rmCands.length > 1') < ac.indexOf('var thisPd = pdKey ? state.personalData[pdKey] : null;'));
 ok('the photo-folder repair only writes when the copy is NAMED (id given, or only one owned)',

@@ -1163,6 +1163,16 @@ function _wcPartnersOf(itemNum) {
 // Seed the wizard's grouping for the partners that come along (blank = not in
 // the set): engine + tender, ABA, AB, AA — else a single piece.
 function _wcSeedGrouping(data, itemNum, _wcTender, _wcBunit, _wcDummy) {
+  // 2026-11-27 (gotitp, PLAN_2026-11-26_GOT_IT_DOUBLE_P.md): a Want / Upgrade row
+  // keeps the lead's power mark (2343-P). The Add screen and the save put that
+  // mark on a set's lead themselves, so a SET starts from the bare number (2343)
+  // — exactly where a normal add starts. Only a P right after a digit is a
+  // power mark (RK-2005LP is an MTH number, not 2005L + P).
+  if (!_wcTender && (_wcBunit || _wcDummy)) {   // a set (AA / AB / ABA): the lead starts bare
+    itemNum = String(itemNum == null ? '' : itemNum).trim().replace(/(\d)-?P$/i, '$1');
+    data.itemNum = itemNum;
+    data._rawItemNum = itemNum;
+  }
   var _wcNewSetId = function(){ return (typeof genSetId === 'function') ? genSetId(itemNum) : ('set-' + Date.now()); };
   if (_wcTender) {
     // Engine + Tender pair
@@ -1341,7 +1351,7 @@ function wantFindOnEbay(itemNum, roadName, variation) {   // v0.9.1838: the vari
       </div>
 
       <div style="background:var(--surface2);border-radius:8px;padding:0.6rem 0.8rem;margin-bottom:1rem;font-family:var(--font-mono);font-size:0.85rem;color:var(--gold)">
-        No. ${itemNum}${roadName ? ' · ' + roadName : ''}
+        ${(typeof rrNumLabel === 'function' ? rrNumLabel(itemNum) : 'No. ' + (itemNum))}${roadName ? ' · ' + roadName : ''}
       </div>
 
       <div style="margin-bottom:0.85rem">
@@ -1694,7 +1704,7 @@ function showSoldDetailPage(key) {
   if (typeof showPage === 'function') showPage('itemdetail');
   var container = document.getElementById('item-detail-content');
   if (!container) return;
-  var titleNum = sd.itemNum ? ('No. ' + sd.itemNum) : (desc || 'Sold item');
+  var titleNum = sd.itemNum ? (typeof rrNumLabel === 'function' ? rrNumLabel(sd.itemNum, sd) : 'No. ' + (sd.itemNum)) : (desc || 'Sold item');
   var keyArg = "'" + String(key).replace(/'/g, "\\'") + "'";
 
   var fields = [
@@ -3166,7 +3176,7 @@ async function markForSaleAsSold(fsKey, askingPrice) {
   // v0.9.1944: price, who, where, when and notes — one box (rrSaleDetailsDialog).
   const _fsMaster = (typeof findMaster === 'function') ? (findMaster(itemNum, variation, fs) || {}) : {};
   const _det = await rrSaleDetailsDialog({
-    subtitle: 'No. ' + itemNum + ((_fsMaster.roadName || _fsMaster.description) ? ' \u2014 ' + (_fsMaster.roadName || _fsMaster.description) : ''),
+    subtitle: (typeof rrNumLabel === 'function' ? rrNumLabel(itemNum, fs) : 'No. ' + (itemNum)) + ((_fsMaster.roadName || _fsMaster.description) ? ' \u2014 ' + (_fsMaster.roadName || _fsMaster.description) : ''),
     price: askingPrice || '', priceHint: true, notes: fs.notes || '',
   });
   if (!_det) { _rrSellBusy = false; return; } // cancelled — the flag goes back
@@ -3473,7 +3483,7 @@ async function _removeForSaleFromDetail(idx, inventoryId) {
     if (_ent) { fsKey = _ent[0]; fsEntry = _ent[1]; }
   }
   if (!fsEntry) { showToast('Item is not on For Sale list'); return; }
-  if (!(await appConfirm('Remove No. ' + fsEntry.itemNum + ' from your For Sale list?', { danger: true, ok: 'Remove' }))) return;
+  if (!(await appConfirm('Remove ' + (typeof rrNumLabel === 'function' ? rrNumLabel(fsEntry.itemNum, fsEntry) : 'No. ' + (fsEntry.itemNum)) + ' from your For Sale list?', { danger: true, ok: 'Remove' }))) return;
   if (fsEntry.row) {
     // v0.9.1288 (R3-3): waited, ignored the answer. See _removeForSaleFromCollection.
     if (!(await rrRemoveRowConfirmed(state.personalSheetId, 'For Sale', fsEntry.row, `For Sale!A${fsEntry.row}:J${fsEntry.row}`, [['','','','','','','','','','']], { num: fsEntry.itemNum || '', invId: fsEntry.inventoryId || '' }, 'For Sale list'))) return;
@@ -4014,7 +4024,7 @@ function _wuSortVal(u, col) {
   if (col === 'mfr') return (u.manufacturer || '').toLowerCase();
   if (col === 'cond') return parseFloat(u.targetCondition) || 0;
   if (col === 'priority') { var o = { High: 0, Medium: 1, Low: 2 }; return (o[u.priority] != null ? o[u.priority] : 1); }
-  if (col === 'price') return parseFloat(u.expectedPrice || u.maxPrice) || 0;
+  if (col === 'price') return parseFloat(u._pairPrice || u.expectedPrice || u.maxPrice) || 0;   // 2026-11-27 (upgradesets3): a set sorts by the price it shows
   return '';
 }
 // 2026-11-25 (wantsets): a set row reads like My Collection's — the lead's
@@ -4031,13 +4041,10 @@ function _wuItemNumHTML(u) {
 // The price a Want / Upgrade row shows: a set's ONE price (its group price,
 // or its separately-added pieces added up) — app.js foldWantEntries works it out.
 function _wuPriceOf(u, isWant) {
-  // 2026-11-25 (upgradesets): an Upgrade SET — each piece is its own owned copy
-  // with its own target price, so the set's price is the pieces added up.
-  if (u && u._wantMates && !isWant) {
-    var _ut = parseFloat(u.maxPrice) || 0;
-    (u._mateRows || []).forEach(function (m) { _ut += parseFloat(m && m.maxPrice) || 0; });
-    if (_ut > 0) return String(_ut);
-  }
+  // 2026-11-27 (upgradesets3): an Upgrade set's price is worked out in ONE
+  // place too — foldWantEntries (a set saved whole: its one price; pieces
+  // priced one by one: added up). This used to add the pieces up here, which
+  // showed a whole set's $300 as $600.
   if (u && u._wantMates && u._pairPrice) return u._pairPrice;
   return isWant ? u.expectedPrice : u.maxPrice;
 }
@@ -4970,7 +4977,9 @@ function upgradeGotIt(ugKey, mateKeys) {   // mateKeys (2026-11-25 upgradesets):
     var _ugMates = String(mateKeys || '').split('|').filter(function (k) { return k && k !== ugKey && state.upgradeData[k]; })
       .map(function (k) { return { num: String(state.upgradeData[k].itemNum || ''), key: k }; });
     if (_ugMates.length) {
-      var _ugIn = function (n) { return n && _ugMates.some(function (m) { return _wcNorm(m.num) === _wcNorm(n); }) ? n : ''; };
+      // 2026-11-27 (upgradesets3): the catalog's "2343T" is the set's "2343T-D" (one rule, app.js _wantPieceKey)
+      var _ugPk = (typeof _wantPieceKey === 'function') ? _wantPieceKey : _wcNorm;
+      var _ugIn = function (n) { return n && _ugMates.some(function (m) { return _ugPk(m.num) === _ugPk(n); }) ? n : ''; };
       var _ugP = _wcPartnersOf(itemNum);
       _wcSeedGrouping(wizard.data, itemNum, _ugIn(_ugP.tender), _ugIn(_ugP.bunit), _ugIn(_ugP.dummy));
       wizard.data._fromUpgradeMateKeys = _ugMates;
@@ -5042,7 +5051,7 @@ async function _upgradeGotItFinish(ugKey, action) {
       // several is a question, and a Remove must never answer it itself.
       const _ugCands = (typeof rrOwnedCopyKeys === 'function') ? rrOwnedCopyKeys(itemNum, variation) : [];
       if (_ugCands.length > 1) {
-        showToast('You own ' + _ugCands.length + ' of No. ' + itemNum + ' — open the one you mean and remove it from its own page.', 6000, true);
+        showToast('You own ' + _ugCands.length + ' of ' + (typeof rrNumLabel === 'function' ? rrNumLabel(itemNum) : 'No. ' + (itemNum)) + ' — open the one you mean and remove it from its own page.', 6000, true);
         return;
       }
       pd = _ugCands.length === 1 ? state.personalData[_ugCands[0]] : null;
@@ -5824,7 +5833,7 @@ function markPartInstalled(partId, opts) {
   if (!opts.jobPicked) {
     var _open = _log.filter(function (l) { return l.type === 'chore' && l.status === 'open' && String(l.invId || '') === String(p.forInv); });
     if (_open.length) {
-      _partsChooser(PARTS_COPY.whichJobTitle, _partsEsc(p.description || p.partNum || 'part') + ' \u2014 No. ' + _partsEsc(pd.itemNum),
+      _partsChooser(PARTS_COPY.whichJobTitle, _partsEsc(p.description || p.partNum || 'part') + ' \u2014 ' + _partsEsc((typeof rrNumLabel === 'function' ? rrNumLabel(pd.itemNum, pd) : 'No. ' + (pd.itemNum))),
         _open.map(function (t) {
           return { label: _partsEsc(t.text) + ' <span style="color:var(--text-dim);font-size:0.78rem">since ' + _partsEsc(t.dateAdded || '') + '</span>', run: function () {
             var w = (typeof window._maintPartSetTask === 'function') ? window._maintPartSetTask(p.id, t.id) : Promise.resolve(true);

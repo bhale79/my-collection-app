@@ -3227,7 +3227,7 @@ function showOwnedItemMenu(idx, pdKey) {
   box.appendChild(hdr);
   const itemLbl = document.createElement('div');
   itemLbl.style.cssText = 'font-size:0.85rem;color:var(--text-mid);margin-bottom:0.1rem';
-  itemLbl.textContent = 'No. ' + item.itemNum + (item.variation ? ' — Var. ' + item.variation : '') + (item.roadName ? ' · ' + item.roadName : '');
+  itemLbl.textContent = (typeof rrNumLabel === 'function' ? rrNumLabel(item.itemNum, item) : 'No. ' + (item.itemNum)) + (item.variation ? ' — Var. ' + item.variation : '') + (item.roadName ? ' · ' + item.roadName : '');
   box.appendChild(itemLbl);
   const condLbl = document.createElement('div');
   condLbl.style.cssText = 'font-size:0.75rem;color:var(--text-dim);margin-bottom:1.25rem';
@@ -3308,7 +3308,7 @@ function _showSpecialOwnedMenu(idx, item, ownedItems) {
   box.appendChild(hdr);
   const itemLbl = document.createElement('div');
   itemLbl.style.cssText = 'font-size:0.85rem;color:var(--text-mid);margin-bottom:0.15rem';
-  itemLbl.textContent = 'No. ' + item.itemNum + (item.variation ? ' — Var. ' + item.variation : '');
+  itemLbl.textContent = (typeof rrNumLabel === 'function' ? rrNumLabel(item.itemNum, item) : 'No. ' + (item.itemNum)) + (item.variation ? ' — Var. ' + item.variation : '');
   box.appendChild(itemLbl);
   const descLbl = document.createElement('div');
   descLbl.style.cssText = 'font-size:0.78rem;color:var(--text-dim);margin-bottom:1rem';
@@ -3431,7 +3431,7 @@ function _checkGroupBeforeForSale(globalIdx, pdKey) {
         </button>
         <button id="_grpfs-indiv" style="padding:0.8rem 1rem;border-radius:10px;border:2px solid var(--accent);background:var(--bg-card);background:color-mix(in srgb, rgb(232,64,28) 8%, var(--bg-card));color:var(--t-accent);font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer;text-align:left">
           Sell individually<br>
-          <span style="font-weight:400;font-size:0.78rem;color:var(--text-dim)">List only No. ${pd.itemNum} and break up the group</span>
+          <span style="font-weight:400;font-size:0.78rem;color:var(--text-dim)">List only ${rrEsc((typeof rrNumLabel === 'function' ? rrNumLabel(pd.itemNum, pd) : 'No. ' + (pd.itemNum)))} and break up the group</span>
         </button>
         <button id="_grpfs-cancel" style="padding:0.75rem;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Cancel</button>
       </div>
@@ -3751,7 +3751,7 @@ async function removeCollectionItem(itemNum, variation, row, invId, opts) {
     var _rmCands = rrOwnedCopyKeys(itemNum, variation);
     if (_rmCands.length > 1) {
       console.warn('[remove] ' + itemNum + ' names ' + _rmCands.length + ' owned copies and no Inventory ID was given — refusing to guess which one.');
-      if (typeof showToast === 'function') showToast('You own ' + _rmCands.length + ' of No. ' + itemNum + ' — open the one you mean and remove it from its own page.', 6000, true);
+      if (typeof showToast === 'function') showToast('You own ' + _rmCands.length + ' of ' + (typeof rrNumLabel === 'function' ? rrNumLabel(itemNum) : 'No. ' + (itemNum)) + ' — open the one you mean and remove it from its own page.', 6000, true);
       return;
     }
   }
@@ -3767,7 +3767,7 @@ async function removeCollectionItem(itemNum, variation, row, invId, opts) {
 
   if (isGrouped && opts && opts.scope === 'piece') {
     // Member-card removal: exactly one piece, said plainly.
-    if (!(await appConfirm('Remove No. ' + itemNum + (_rmVar ? ' (Var. ' + _rmVar + ')' : '')
+    if (!(await appConfirm('Remove ' + (typeof rrNumLabel === 'function' ? rrNumLabel(itemNum, pdKey && state.personalData[pdKey]) : 'No. ' + (itemNum)) + (_rmVar ? ' (Var. ' + _rmVar + ')' : '')
         + ' — one piece of this group?\n\nThe other ' + (groupSiblings.length - 1) + ' piece'
         + (groupSiblings.length - 1 === 1 ? ' stays' : 's stay') + ' in your collection, still grouped.'
         + '\n\nA copy of the row is kept in your sheet\u2019s "Deleted Rows" tab, so this can be undone.',
@@ -3928,7 +3928,7 @@ async function removeCollectionItem(itemNum, variation, row, invId, opts) {
     // else fall through to remove just this one item
   } else {
     // Standalone item — simple confirm
-    if (!(await appConfirm('Remove No. ' + itemNum + (_rmVar ? ' (Var. ' + _rmVar + ')' : '') + ' from your collection?\n\nA copy of the row is kept in your sheet\u2019s "Deleted Rows" tab, so this can be undone.', { danger: true, ok: 'Remove' }))) return;
+    if (!(await appConfirm('Remove ' + (typeof rrNumLabel === 'function' ? rrNumLabel(itemNum, pdKey && state.personalData[pdKey]) : 'No. ' + (itemNum)) + (_rmVar ? ' (Var. ' + _rmVar + ')' : '') + ' from your collection?\n\nA copy of the row is kept in your sheet\u2019s "Deleted Rows" tab, so this can be undone.', { danger: true, ok: 'Remove' }))) return;
   }
 
   // ── Remove single item ──
@@ -4792,7 +4792,7 @@ function showItemPanel(idx, pdKey, mode) {
   header.style.cssText = 'padding:1.25rem 1.5rem;border-bottom:1px solid var(--border);flex-shrink:0';
   header.innerHTML = '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.5rem">'
     + '<div>'
-    + '<div style="font-family:var(--font-head);font-size:1rem;color:var(--t-link)">No. ' + item.itemNum + (item.variation ? ' <span style="color:var(--text-dim);font-size:0.75rem">Var. ' + item.variation + '</span>' : '') + '</div>'
+    + '<div style="font-family:var(--font-head);font-size:1rem;color:var(--t-link)">' + (typeof rrNumLabel === 'function' ? rrNumLabel(item.itemNum, item) : 'No. ' + (item.itemNum)) + (item.variation ? ' <span style="color:var(--text-dim);font-size:0.75rem">Var. ' + item.variation + '</span>' : '') + '</div>'
     + '<div style="font-size:0.82rem;color:var(--text-mid);margin-top:2px">' + (item.roadName || item.itemType || '') + (item.yearProd ? ' · ' + item.yearProd : '') + '</div>'
     + ((typeof rrCatalogStatusChip === 'function') ? rrCatalogStatusChip(item, { block: true }) : '')   // v0.9.1873
     + '</div>'
