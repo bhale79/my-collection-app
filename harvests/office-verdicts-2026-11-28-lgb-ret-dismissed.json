@@ -1,0 +1,4952 @@
+{
+ "title": "Office verdicts — the old September LGB batch CB-20260906-LGB-RET (449) closed: rows rejected, batch dismissed",
+ "rule": "status rejected + decided date in P:Q on every row (each was pending); crawl_batches status 'pending' -> 'dismissed'; before = value the cell must hold now",
+ "review": "MARKLIN_LGB_NEW_ITEMS_REVIEW_2026-11-27.xlsx (Read me: 379 of the 449 are in the new 450; 49 on 'Held — your call'; 21 on 'Not added')",
+ "said": "[stated] Brad 2026-11-28 07:56 CT \"yes\" to \"Should I mark that old batch 'dismissed' so it stops showing as waiting?\"",
+ "batch": {
+  "batch_id": "CB-20260906-LGB-RET",
+  "status_before": "pending",
+  "status_after": "dismissed"
+ },
+ "rows": [
+  {
+   "delta_id": "CB-20260906-LGB-RET-0001",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "02421",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0002",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "10006",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0003",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "10345",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0004",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "17010",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0005",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "19901",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0006",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "19903",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0007",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "20011",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0008",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "20120",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0009",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "20183",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0010",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "20220",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0011",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "20274",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0012",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "20275",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0013",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "20280",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0014",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "20284",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0015",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "20313",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0016",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "20320",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0017",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "20323",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0018",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "20480",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0019",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "20481",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0020",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "20482",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0021",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "20483",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0022",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "20584",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0023",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "20750",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0024",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "20755",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0025",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "20756",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0026",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "20782",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0027",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "20930",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0028",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "20980",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0029",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "20981",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0030",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "21272",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0031",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "21410",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0032",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "21423",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0033",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "21426",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0034",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "21429",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0035",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "21431",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0036",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "21751",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0037",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "21755",
+   "status": "rejected",
+   "why": "no page on lgb.com 2026-11-27 — cannot be checked against the maker (review list tab \"Not added\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0038",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "21930",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0039",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "21936",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0040",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "21940",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0041",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "22040",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0042",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "22042",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0043",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "22062",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0044",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "22065",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0045",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "22130",
+   "status": "rejected",
+   "why": "no page on lgb.com 2026-11-27 — cannot be checked against the maker (review list tab \"Not added\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0046",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "22155",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0047",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "22222",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0048",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "22225",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0049",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "22226",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0050",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "22310",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0051",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "22390",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0052",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "22405",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0053",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "22412",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0054",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "22470",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0055",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "22660",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0056",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "22963",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0057",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "23100",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0058",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "23101",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0059",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "23196",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0060",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "23363",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0061",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "23405",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0062",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "23406",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0063",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "23450",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0064",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "23461",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0065",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "23530",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0066",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "23552",
+   "status": "rejected",
+   "why": "no page on lgb.com 2026-11-27 — cannot be checked against the maker (review list tab \"Not added\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0067",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "23570",
+   "status": "rejected",
+   "why": "no page on lgb.com 2026-11-27 — cannot be checked against the maker (review list tab \"Not added\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0068",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "23591",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0069",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "23592",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0070",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "23660",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0071",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "23741",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0072",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "23892",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0073",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "23930",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0074",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "23940",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0075",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "23945",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0076",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "24265",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0077",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "24450",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0078",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "24500",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0079",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "24520",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0080",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "24601",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0081",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "24661",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0082",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "24662",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0083",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "24841",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0084",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "24842",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0085",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "24900",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0086",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "25192",
+   "status": "rejected",
+   "why": "no page on lgb.com 2026-11-27 — cannot be checked against the maker (review list tab \"Not added\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0087",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "25409",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0088",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "25522",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0089",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "25701",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0090",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "25811",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0091",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "25812",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0092",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "25841",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0093",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "26252",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0094",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "26253",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0095",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "26254",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0096",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "26270",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0097",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "26271",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0098",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "26273",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0099",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "26601",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0100",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "26602",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0101",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "26811",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0102",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "26812",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0103",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "26814",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0104",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "26816",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0105",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "26817",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0106",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "26818",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0107",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "26842",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0108",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "26843",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0109",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "26844",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0110",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "26845",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0111",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "26846",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0112",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "27211",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0113",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "27510",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0114",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "27520",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0115",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "27802",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0116",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "27872",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0117",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "28004",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0118",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "28005",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0119",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "28432",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0120",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "28434",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0121",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "28435",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0122",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "28438",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0123",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "28439",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0124",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "28441",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0125",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "28445",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0126",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "28515",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0127",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "29272",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0128",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "29650",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0129",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "30094",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0130",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "30320",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0131",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "30322",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0132",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "30324",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0133",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "30402",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0134",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "30506",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0135",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "30507",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0136",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "30508",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0137",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "30510",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0138",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "30511",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0139",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "30514",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0140",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "30520",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0141",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "30521",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0142",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "30523",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0143",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "31040",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0144",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "31077",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0145",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "31090",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0146",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "31311",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0147",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "31352",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0148",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "31355",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0149",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "31356",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0150",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "31357",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0151",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "31432",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0152",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "31520",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0153",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "31523",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0154",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "31676",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0155",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "31677",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0156",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "32040",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0157",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "32077",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0158",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "32078",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0159",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "32170",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0160",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "32310",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0161",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "32352",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0162",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "32355",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0163",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "32524",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0164",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "32550",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0165",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "32734",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0166",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "33150",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0167",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "33202",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0168",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "33353",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0169",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "33401",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0170",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "33402",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0171",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "33403",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0172",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "33521",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0173",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "33550",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0174",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "33551",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0175",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "33610",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0176",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "33613",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0177",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "33624",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0178",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "33662",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0179",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "33664",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0180",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "33665",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0181",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "33668",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0182",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "33669",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0183",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "33704",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0184",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "33736",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0185",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "34513",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0186",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "34556",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0187",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "35074",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0188",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "35093",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0189",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "35357",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0190",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "35359",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0191",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "35690",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0192",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "35730",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0193",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "35731",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0194",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "36310",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0195",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "36313",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0196",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "36314",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0197",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "36315",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0198",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "36316",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0199",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "36350",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0200",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "36351",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0201",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "36352",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0202",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "36355",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0203",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "36358",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0204",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "36360",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0205",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "36361",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0206",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "36642",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0207",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "36659",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0208",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "37675",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0209",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "37732",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0210",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "37734",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0211",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "39075",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0212",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "39359",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0213",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "39661",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0214",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "39666",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0215",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "39667",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0216",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40018",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0217",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40020",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0218",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40021",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0219",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40024",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0220",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40030",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0221",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40031",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0222",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40032",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0223",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40033",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0224",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40035",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0225",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40036",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0226",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40037",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0227",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40038",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0228",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40039",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0229",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40081",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0230",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40082",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0231",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40084",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0232",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40093",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0233",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40099",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0234",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40121",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0235",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40122",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0236",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40268",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0237",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40269",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0238",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40271",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0239",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40272",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0240",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40274",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0241",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40552",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0242",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40554",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0243",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40555",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0244",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40809",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0245",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40813",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0246",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40818",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0247",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40835",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0248",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40874",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0249",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40875",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0250",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40883",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0251",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40884",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0252",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40895",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0253",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40980",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0254",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "40982",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0255",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "41032",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0256",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "41033",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0257",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "41034",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0258",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "41103",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0259",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "41160",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0260",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "41253",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0261",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "41283",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0262",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "41331",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0263",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "41409",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0264",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "41410",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0265",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "41411",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0266",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "41590",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0267",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "41591",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0268",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "41810",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0269",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "41890",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0270",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "41891",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0271",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "41923",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0272",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "42123",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0273",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "42125",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0274",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "42262",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0275",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "42264",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0276",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "42269",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0277",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "42355",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0278",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "42591",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0279",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "42614",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0280",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "42615",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0281",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "42634",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0282",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "42636",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0283",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "42637",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0284",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "42639",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0285",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "42916",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0286",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "42919",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0287",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "43120",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0288",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "43121",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0289",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "43213",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0290",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "43230",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0291",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "43231",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0292",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "43232",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0293",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "43234",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0294",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "43261",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0295",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "43355",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0296",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "43521",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0297",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "43600",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0298",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "43621",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0299",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "43811",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0300",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "43882",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0301",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "43883",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0302",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "44390",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0303",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "44890",
+   "status": "rejected",
+   "why": "no page on lgb.com 2026-11-27 — cannot be checked against the maker (review list tab \"Not added\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0304",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "44894",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0305",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "44920",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0306",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "45002",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0307",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "45141",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0308",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "45144",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0309",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "45145",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0310",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "45256",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0311",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "45306",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0312",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "45409",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0313",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "45690",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0314",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "45883",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0315",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "45896",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0316",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "45897",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0317",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "45898",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0318",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "45899",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0319",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "45920",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0320",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "45924",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0321",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "46170",
+   "status": "rejected",
+   "why": "no page on lgb.com 2026-11-27 — cannot be checked against the maker (review list tab \"Not added\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0322",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "46695",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0323",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "46895",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0324",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "46897",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0325",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "47570",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0326",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "47571",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0327",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "47690",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0328",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "47831",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0329",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "47899",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0330",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "48180",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0331",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "48574",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0332",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "48671",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0333",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "48681",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0334",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "48830",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0335",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "49181",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0336",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "49189",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0337",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "49390",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0338",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "49431",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0339",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "49550",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0340",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "49560",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0341",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "49660",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0342",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "49690",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0343",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "49890",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0344",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "50010",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0345",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "50019",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0346",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "50023",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0347",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "50110",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0348",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "50130",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0349",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "50131",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0350",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "50140",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0351",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "50170",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0352",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "50174",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0353",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "50177",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0354",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "50220",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0355",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "50356",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0356",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "50366",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0357",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "50720",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0358",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "50730",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0359",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "51010",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0360",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "51020",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0361",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "51090",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0362",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "51092",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0363",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "51098",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0364",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "51233",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0365",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "51235",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0366",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "51570",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0367",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "53009",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0368",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "53010",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0369",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "53400",
+   "status": "rejected",
+   "why": "no page on lgb.com 2026-11-27 — cannot be checked against the maker (review list tab \"Not added\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0370",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "55017",
+   "status": "rejected",
+   "why": "no page on lgb.com 2026-11-27 — cannot be checked against the maker (review list tab \"Not added\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0371",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "55019",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0372",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "55024",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0373",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "55025",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0374",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "55026",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0375",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "55027",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0376",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "55045",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0377",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "55050",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0378",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "55055",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0379",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "55057",
+   "status": "rejected",
+   "why": "no page on lgb.com 2026-11-27 — cannot be checked against the maker (review list tab \"Not added\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0380",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "55080",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0381",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "55081",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0382",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "55085",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0383",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "55129",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0384",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "55429",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0385",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "55524",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0386",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "55529",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0387",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "56301",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0388",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "60041",
+   "status": "rejected",
+   "why": "no page on lgb.com 2026-11-27 — cannot be checked against the maker (review list tab \"Not added\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0389",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "60061",
+   "status": "rejected",
+   "why": "no page on lgb.com 2026-11-27 — cannot be checked against the maker (review list tab \"Not added\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0390",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "60101",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0391",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "60117",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0392",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "60128",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0393",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "60130",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0394",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "60174",
+   "status": "rejected",
+   "why": "no page on lgb.com 2026-11-27 — cannot be checked against the maker (review list tab \"Not added\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0395",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "60175",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0396",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "60200",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0397",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "60213",
+   "status": "rejected",
+   "why": "no page on lgb.com 2026-11-27 — cannot be checked against the maker (review list tab \"Not added\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0398",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "60216",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0399",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "60226",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0400",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "60667",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0401",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "60971",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0402",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "65003",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0403",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "65004",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0404",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "65006",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0405",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "65011",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0406",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "65012",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0407",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "65103",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0408",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "65154",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0409",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "65203",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0410",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "66095",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0411",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "66626",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0412",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "67900",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0413",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "68333",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0414",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "70231",
+   "status": "rejected",
+   "why": "no page on lgb.com 2026-11-27 — cannot be checked against the maker (review list tab \"Not added\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0415",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "70302",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0416",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "70304",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0417",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "70305",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0418",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "70307",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0419",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "70308",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0420",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "70400",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0421",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "70403",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0422",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "70410",
+   "status": "rejected",
+   "why": "no page on lgb.com 2026-11-27 — cannot be checked against the maker (review list tab \"Not added\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0423",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "70500",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0424",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "70503",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0425",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "70530",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0426",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "70580",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0427",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "70642",
+   "status": "rejected",
+   "why": "no page on lgb.com 2026-11-27 — cannot be checked against the maker (review list tab \"Not added\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0428",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "71400",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0429",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "72090",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0430",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "72710",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0431",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "72730",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0432",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "74044",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0433",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "74302",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0434",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "74403",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0435",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "77302",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0436",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "77403",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0437",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "78302",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0438",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "78403",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0439",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "84499",
+   "status": "rejected",
+   "why": "held: supply / wiring / decoder / sound / spare part the crawl leaves off LGB G (review list tab \"Held — your call\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0440",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "90200",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0441",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "90450",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0442",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "90470",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0443",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "92080",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0444",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "93612",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0445",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "94042",
+   "status": "rejected",
+   "why": "no page on lgb.com 2026-11-27 — cannot be checked against the maker (review list tab \"Not added\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0446",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "94061",
+   "status": "rejected",
+   "why": "no page on lgb.com 2026-11-27 — cannot be checked against the maker (review list tab \"Not added\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0447",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "94268",
+   "status": "rejected",
+   "why": "now in the catalog: added 2026-11-28 from CB-LGB-20261123 (Master 3.24)",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0448",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "94380",
+   "status": "rejected",
+   "why": "no page on lgb.com 2026-11-27 — cannot be checked against the maker (review list tab \"Not added\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  },
+  {
+   "delta_id": "CB-20260906-LGB-RET-0449",
+   "batch": "CB-20260906-LGB-RET",
+   "item_num": "95023",
+   "status": "rejected",
+   "why": "no page on lgb.com 2026-11-27 — cannot be checked against the maker (review list tab \"Not added\")",
+   "set": {},
+   "before": {
+    "status": "pending"
+   }
+  }
+ ]
+}
