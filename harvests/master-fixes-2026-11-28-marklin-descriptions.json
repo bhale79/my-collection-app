@@ -1,0 +1,2028 @@
+{
+ "title": "Master fix — Märklin descriptions: \"New Item —\" placeholders dropped and cut-off / wrong names finished from Märklin's own page (201 rows)",
+ "rule": "cell UPDATE keyed by Row ID + sheet row; before = the value that must be in the cell right before the write; written RAW; nothing else on the tabs changes",
+ "said": "[stated] Brad 2026-11-28 12:15 CT \"Yes\" (review the placeholders) and 12:30 CT \"Yes\" (write the 201 of MARKLIN_DESCRIPTIONS_REVIEW_2026-11-28.xlsx). German is never translated ([stated] 12:10 CT \"Just leave them alone\") — on German rows only \"New Item —\" comes off.",
+ "source": "each row's own marklin.com product page (its name heading), read 2026-11-28; \"New Item —\" came from the one-time September 2026 import",
+ "plan": "PLAN_2026-11-25_MARKLIN_LGB_FIXES.md step 3 (placeholders)",
+ "read": "2026-11-28 live, Sheets API UNFORMATTED_VALUE, Marklin H0 / Z / Gauge 1",
+ "counts": {
+  "rows": 201,
+  "cells": 201,
+  "Description": 201,
+  "Marklin H0": 147,
+  "Marklin Z": 35,
+  "Marklin Gauge 1": 19
+ },
+ "changes": [
+  {
+   "tab": "Marklin H0",
+   "row": 145,
+   "row_id": "UPT8TTU7Z8",
+   "num": "20196",
+   "col": "Description",
+   "cell": "H145",
+   "old": "New Item — Curved C Track Radius R1 = 360 mm / 14-3/16\"/ 30° Transparent",
+   "new": "Curved C Track Radius R1 = 360 mm / 14-3/16\"/ 30° Transparent"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 146,
+   "row_id": "TFHPVXX6X5",
+   "num": "20197",
+   "col": "Description",
+   "cell": "H146",
+   "old": "New Item — Straight C Track Length 188.3 mm / 7-3/8\" Transparent",
+   "new": "Straight C Track Length 188.3 mm / 7-3/8\" Transparent"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 147,
+   "row_id": "6RCCW8M7RJ",
+   "num": "20199",
+   "col": "Description",
+   "cell": "H147",
+   "old": "New Item — C Track End Piece for Track Roadbed Transparent",
+   "new": "C Track End Piece for Track Roadbed Transparent"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 279,
+   "row_id": "8SBGF3X83S",
+   "num": "26180",
+   "col": "Description",
+   "cell": "H279",
+   "old": "New Item — \"Leonhard Weiss Construction Train\" Set",
+   "new": "\"Leonhard Weiss Construction Train\" Set"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 402,
+   "row_id": "QHSWFACYGC",
+   "num": "29030",
+   "col": "Description",
+   "cell": "H402",
+   "old": "New Item — Märklin Start up - “Europa-Park” Starter Set",
+   "new": "Märklin Start up - “Europa-Park” Starter Set"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 443,
+   "row_id": "X9P6B7QDDA",
+   "num": "29185",
+   "col": "Description",
+   "cell": "H443",
+   "old": "BR 81 DB — 'My Start with Märklin' Freight Train Starter Set with Oval of",
+   "new": "BR 81 DB — 'My Start with Märklin' Freight Train Starter Set with Oval of C Track and Transformer."
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 444,
+   "row_id": "JQEN5VUP6T",
+   "num": "29186",
+   "col": "Description",
+   "cell": "H444",
+   "old": "BR 81 DB — 'My Start with Märklin' Freight Train Starter Set with Oval of",
+   "new": "BR 81 DB — 'My Start with Märklin' Freight Train Starter Set with Oval of C Track and Transformer."
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 471,
+   "row_id": "5MCZU6DPKU",
+   "num": "29296",
+   "col": "Description",
+   "cell": "H471",
+   "old": "New Item — Henschel DHG 300 B",
+   "new": "Henschel DHG 300 B — Märklin Start up - \"Communal Service\" Starter Set"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 504,
+   "row_id": "CBRJYNMAGH",
+   "num": "29381",
+   "col": "Description",
+   "cell": "H504",
+   "old": "New Item — ICE 3",
+   "new": "Märklin my world - \"Mouse Train\" Starter Set for Children Ages 3 and Above"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 509,
+   "row_id": "7GDV4M7224",
+   "num": "29420",
+   "col": "Description",
+   "cell": "H509",
+   "old": "New Item — ICE 3",
+   "new": "ICE 3 — Märklin my world - \"ICE 3\" Starter Set for Children Ages 3 and Above"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 521,
+   "row_id": "AMGDZHETP5",
+   "num": "29470",
+   "col": "Description",
+   "cell": "H521",
+   "old": "BR 146.1 DB AG — Digital starter set \"Regional",
+   "new": "BR 146.1 DB AG — Digital starter set \"Regional Express\"."
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 545,
+   "row_id": "DB9Z9XTPVX",
+   "num": "29530",
+   "col": "Description",
+   "cell": "H545",
+   "old": "BR 86 — Steam Locomotive Digital Starter Set.",
+   "new": "BR 86 — Steam Locomotive Digital Starter Set. Freight Train with a Large C Track Layout, Transformer, and Mobile Station. 230 volts."
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 546,
+   "row_id": "CVDAQZA22Y",
+   "num": "29531",
+   "col": "Description",
+   "cell": "H546",
+   "old": "BR 86 — Steam Locomotive Digital Starter Set.",
+   "new": "BR 86 — Steam Locomotive Digital Starter Set. Freight Train with a Large C Track Layout, Transformer, and Mobile Station. 120 volts."
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 594,
+   "row_id": "9HBAWUTCRD",
+   "num": "29794",
+   "col": "Description",
+   "cell": "H594",
+   "old": "ICE BR 402 DB AG — High-Speed Train Digital Starter Set.",
+   "new": "ICE BR 402 DB AG — High-Speed Train Digital Starter Set. High-Speed Train with Large C Track Layout, Transformer, and Mobile Station. 120 Volt."
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 595,
+   "row_id": "VJ3NRR2GNQ",
+   "num": "29795",
+   "col": "Description",
+   "cell": "H595",
+   "old": "ICE BR 402 DB AG — High-Speed Train Digital Starter Set.",
+   "new": "ICE BR 402 DB AG — High-Speed Train Digital Starter Set. High-Speed Train with Large C Track Layout, Transformer, and Mobile Station. 230 Volt."
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 598,
+   "row_id": "ZEM3N48HEJ",
+   "num": "29811",
+   "col": "Description",
+   "cell": "H598",
+   "old": "BR 221 DB — Kombi Digital Starter Set.",
+   "new": "BR 221 DB — Kombi Digital Starter Set. Freight Train with Diesel Locomotive, large C Track Layout, Transformer, and Mobile Station. 230 Volt (transformer 60 VA)."
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 599,
+   "row_id": "QXFZE3VFXT",
+   "num": "29812",
+   "col": "Description",
+   "cell": "H599",
+   "old": "BR 221 DB — Kombi Digital Starter Set.",
+   "new": "BR 221 DB — Kombi Digital Starter Set. Freight Train with Diesel Locomotive, large C Track Layout, Transformer, and Mobile Station. 120 Volt (transformer 42 VA)."
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 603,
+   "row_id": "PCJN4KTDKK",
+   "num": "29820",
+   "col": "Description",
+   "cell": "H603",
+   "old": "BR 50 DB / V 160 DB — Digital Mega Starter Set with 2 trains.",
+   "new": "BR 50 DB / V 160 DB — Digital Mega Starter Set with 2 trains. Passenger Train with Large C Track Layout, Transformer, and Mobile Station. 230 Volt (transformer 60 VA)."
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 604,
+   "row_id": "68S5SJDSSS",
+   "num": "29821",
+   "col": "Description",
+   "cell": "H604",
+   "old": "BR 50 DB / V 160 DB — Digital Mega Starter Set with 2 trains.",
+   "new": "BR 50 DB / V 160 DB — Digital Mega Starter Set with 2 trains. Passenger Train with Large C Track Layout, Transformer, and Mobile Station. 120 Volt (transformer 42 VA)."
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 647,
+   "row_id": "KG98QGMRZ9",
+   "num": "30391",
+   "col": "Description",
+   "cell": "H647",
+   "old": "New Item — Rheingold Class E10.12 Electric Locomotive",
+   "new": "Rheingold Class E10.12 Electric Locomotive"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 769,
+   "row_id": "HS8MHNU989",
+   "num": "36217",
+   "col": "Description",
+   "cell": "H769",
+   "old": "New Item — Class 216 Diesel Locomotive",
+   "new": "Class 216 Diesel Locomotive"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 824,
+   "row_id": "U58R5WQZRM",
+   "num": "36438",
+   "col": "Description",
+   "cell": "H824",
+   "old": "New Item — Class 232 Diesel Locomotive",
+   "new": "Class 232 Diesel Locomotive"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 832,
+   "row_id": "C59MB74S6Z",
+   "num": "36506",
+   "col": "Description",
+   "cell": "H832",
+   "old": "New Item — Märklin Start up - DB Cargo Class DHG 500 Diesel Locomotive, Era VI",
+   "new": "Märklin Start up - DB Cargo Class DHG 500 Diesel Locomotive, Era VI"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 877,
+   "row_id": "D8EPNUR3VE",
+   "num": "36646",
+   "col": "Description",
+   "cell": "H877",
+   "old": "New Item — Class 17 Electric Locomotive",
+   "new": "Class 17 Electric Locomotive"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 890,
+   "row_id": "595CUV3W6K",
+   "num": "36702",
+   "col": "Description",
+   "cell": "H890",
+   "old": "New Item — Diesellok BR 367, DBG, Ep. VI",
+   "new": "Diesellok BR 367, DBG, Ep. VI"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 966,
+   "row_id": "WB7A4675S6",
+   "num": "36968",
+   "col": "Description",
+   "cell": "H966",
+   "old": "New Item — Class 650 Regio Shuttle RS1 Diesel-Powered Rail Car",
+   "new": "Class 650 Regio Shuttle RS1 Diesel-Powered Rail Car"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 967,
+   "row_id": "92GP377WS3",
+   "num": "36971",
+   "col": "Description",
+   "cell": "H967",
+   "old": "New Item — Class 650 Regio Shuttle RS1 Diesel-Powered Rail Car",
+   "new": "Class 650 Regio Shuttle RS1 Diesel-Powered Rail Car"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 1024,
+   "row_id": "T6R8ZU3C9Q",
+   "num": "37066",
+   "col": "Description",
+   "cell": "H1024",
+   "old": "New Item — Class 80 Steam Locomotive",
+   "new": "Class 80 Steam Locomotive"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 1041,
+   "row_id": "U6CYSCAJEF",
+   "num": "37088",
+   "col": "Description",
+   "cell": "H1041",
+   "old": "New Item — Class 086 Steam Locomotive",
+   "new": "Class 086 Steam Locomotive"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 1043,
+   "row_id": "H3SQKHFJFC",
+   "num": "37094",
+   "col": "Description",
+   "cell": "H1043",
+   "old": "New Item — Class 272 (G2000) Diesel Locomotive",
+   "new": "Class 272 (G2000) Diesel Locomotive"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 1183,
+   "row_id": "WBW3QWK6AT",
+   "num": "37278",
+   "col": "Description",
+   "cell": "H1183",
+   "old": "New Item — Class 1200 Electric Locomotive",
+   "new": "Class 1200 Electric Locomotive"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 1552,
+   "row_id": "7KX2869HTU",
+   "num": "37798",
+   "col": "Description",
+   "cell": "H1552",
+   "old": "New Item — TGV INOUI High-Speed Train",
+   "new": "TGV INOUI High-Speed Train"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 1558,
+   "row_id": "4N2R9Q4K3B",
+   "num": "37809",
+   "col": "Description",
+   "cell": "H1558",
+   "old": "New Item — Class 220 Diesel Locomotive",
+   "new": "Class 220 Diesel Locomotive"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 1573,
+   "row_id": "3THBMA82V6",
+   "num": "37825",
+   "col": "Description",
+   "cell": "H1573",
+   "old": "New Item — Class 221 Diesel Locomotive",
+   "new": "Class 221 Diesel Locomotive"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 1691,
+   "row_id": "5J3J23Q88A",
+   "num": "37983",
+   "col": "Description",
+   "cell": "H1691",
+   "old": "New Item — Berkshire 2-8-4 Steam Locomotive",
+   "new": "Berkshire 2-8-4 Steam Locomotive"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 1714,
+   "row_id": "TBGEK4P295",
+   "num": "38206",
+   "col": "Description",
+   "cell": "H1714",
+   "old": "New Item — Class 01.5 Steam Locomotive",
+   "new": "Class 01.5 Steam Locomotive"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 1715,
+   "row_id": "HCEVZJVZKU",
+   "num": "38243",
+   "col": "Description",
+   "cell": "H1715",
+   "old": "New Item — Class 249 Dual Power Locomotive",
+   "new": "Class 249 Dual Power Locomotive"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 1716,
+   "row_id": "PD385989G9",
+   "num": "38290",
+   "col": "Description",
+   "cell": "H1716",
+   "old": "New Item — Class MZ Diesel Locomotive",
+   "new": "Class MZ Diesel Locomotive"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 1718,
+   "row_id": "3RJSJ95R99",
+   "num": "38327",
+   "col": "Description",
+   "cell": "H1718",
+   "old": "New Item — Steam Locomotive, Road Number 18 323",
+   "new": "Steam Locomotive, Road Number 18 323"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 1719,
+   "row_id": "TD69BR7M86",
+   "num": "38350",
+   "col": "Description",
+   "cell": "H1719",
+   "old": "New Item — Class Ae 3/5 electric loco",
+   "new": "Class Ae 3/5 electric loco"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 1725,
+   "row_id": "8YKS5HEAH5",
+   "num": "38444",
+   "col": "Description",
+   "cell": "H1725",
+   "old": "New Item — Type GE ES44AC Diesel Locomotive",
+   "new": "Type GE ES44AC Diesel Locomotive"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 1731,
+   "row_id": "2888QRRKSG",
+   "num": "38477",
+   "col": "Description",
+   "cell": "H1731",
+   "old": "New Item — Class 477.0 Steam Locomotive “Papagei” (Parrot)",
+   "new": "Class 477.0 Steam Locomotive “Papagei” (Parrot)"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 1734,
+   "row_id": "QNV2D5ATWK",
+   "num": "38601",
+   "col": "Description",
+   "cell": "H1734",
+   "old": "New Item — Class 260 Diesel Locomotive",
+   "new": "Class 260 Diesel Locomotive"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 1735,
+   "row_id": "M5W2HXV2EZ",
+   "num": "38650",
+   "col": "Description",
+   "cell": "H1735",
+   "old": "New Item — Class CC 65000 Diesel Locomotive",
+   "new": "Class CC 65000 Diesel Locomotive"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 1745,
+   "row_id": "UW4FYWJSNE",
+   "num": "38902",
+   "col": "Description",
+   "cell": "H1745",
+   "old": "New Item — Class 2159 Dual Power Locomotive",
+   "new": "Class 2159 Dual Power Locomotive"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 1746,
+   "row_id": "7A64FRXHN3",
+   "num": "38903",
+   "col": "Description",
+   "cell": "H1746",
+   "old": "New Item — Class 2159 Dual Power Locomotive",
+   "new": "Class 2159 Dual Power Locomotive"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 1747,
+   "row_id": "RW439EFA4H",
+   "num": "38905",
+   "col": "Description",
+   "cell": "H1747",
+   "old": "New Item — Class 2019 Dual Power Locomotive",
+   "new": "Class 2019 Dual Power Locomotive"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 1750,
+   "row_id": "RREU732QKR",
+   "num": "38980",
+   "col": "Description",
+   "cell": "H1750",
+   "old": "New Item — Class 798 Rail Bus with Class 998 Control Car",
+   "new": "Class 798 Rail Bus with Class 998 Control Car"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 1793,
+   "row_id": "4WGKQDWTPP",
+   "num": "39067",
+   "col": "Description",
+   "cell": "H1793",
+   "old": "New Item — Class 66 Diesel locomotive",
+   "new": "Class 66 Diesel locomotive"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 1796,
+   "row_id": "DFKED5JZ8E",
+   "num": "39071",
+   "col": "Description",
+   "cell": "H1796",
+   "old": "New Item — Class 66 Diesel Locomotive",
+   "new": "Class 66 Diesel Locomotive"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 1800,
+   "row_id": "EB8EU276EN",
+   "num": "39076",
+   "col": "Description",
+   "cell": "H1800",
+   "old": "New Item — Class 66 Diesel Locomotive",
+   "new": "Class 66 Diesel Locomotive"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 1806,
+   "row_id": "ATGEVD4D99",
+   "num": "39092",
+   "col": "Description",
+   "cell": "H1806",
+   "old": "New Item — Class 1189 Electric Locomotive",
+   "new": "Class 1189 Electric Locomotive"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 1815,
+   "row_id": "GA6GXAGNV2",
+   "num": "39105",
+   "col": "Description",
+   "cell": "H1815",
+   "old": "New Item — Class 01.10 Steam Locomotive, New Design",
+   "new": "Class 01.10 Steam Locomotive, New Boiler Design"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 1864,
+   "row_id": "BFK58WUEXN",
+   "num": "39203",
+   "col": "Description",
+   "cell": "H1864",
+   "old": "New Item — Class 120 Diesel Locomotive",
+   "new": "Class 120 Diesel Locomotive"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 1885,
+   "row_id": "TECE86CBY8",
+   "num": "39228",
+   "col": "Description",
+   "cell": "H1885",
+   "old": "New Item — Class 218 Diesel Locomotive",
+   "new": "Class 218 Diesel Locomotive"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 1969,
+   "row_id": "UAM656UBZF",
+   "num": "39400",
+   "col": "Description",
+   "cell": "H1969",
+   "old": "New Item — Class 4000 Steam Locomotive",
+   "new": "Class 4000 Steam Locomotive"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 1991,
+   "row_id": "ZEXURTTUVY",
+   "num": "39435",
+   "col": "Description",
+   "cell": "H1991",
+   "old": "New Item — Class S 3/6 Steam Locomotive, the “Hochhaxige” / “High Stepper”",
+   "new": "Class S 3/6 Steam Locomotive, the “Hochhaxige” / “High Stepper”"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2005,
+   "row_id": "NQE3J9GGSQ",
+   "num": "39469",
+   "col": "Description",
+   "cell": "H2005",
+   "old": "New Item — Class Re 460 Electric Locomotive",
+   "new": "Class Re 460 Electric Locomotive"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2008,
+   "row_id": "D5XXAH998J",
+   "num": "39476",
+   "col": "Description",
+   "cell": "H2008",
+   "old": "New Item — Baureihe 101",
+   "new": "Baureihe 101"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2009,
+   "row_id": "7Y8AYRM9BU",
+   "num": "39478",
+   "col": "Description",
+   "cell": "H2009",
+   "old": "New Item — Class 101 Electric Locomotive",
+   "new": "Class 101 Electric Locomotive"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2012,
+   "row_id": "98TPVBU5PC",
+   "num": "39481",
+   "col": "Description",
+   "cell": "H2012",
+   "old": "New Item — Steam Locomotive 1.002",
+   "new": "Steam Locomotive 1.002"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2020,
+   "row_id": "2QFKV35Y5N",
+   "num": "39513",
+   "col": "Description",
+   "cell": "H2020",
+   "old": "New Item — Class Be 4/6 Electric Locomotive",
+   "new": "Class Be 4/6 Electric Locomotive"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2028,
+   "row_id": "UBNVHTFSP2",
+   "num": "39535",
+   "col": "Description",
+   "cell": "H2028",
+   "old": "New Item — Class 52 Steam Locomotive",
+   "new": "Class 52 Steam Locomotive"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2080,
+   "row_id": "3X5VW2MCZY",
+   "num": "39631",
+   "col": "Description",
+   "cell": "H2080",
+   "old": "New Item — Class 1600 Diesel Locomotive",
+   "new": "Class 1600 Diesel Locomotive"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2096,
+   "row_id": "K86E89K8DC",
+   "num": "39661",
+   "col": "Description",
+   "cell": "H2096",
+   "old": "New Item — Class 06 Steam Locomotive",
+   "new": "Class 06 Steam Locomotive"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2140,
+   "row_id": "TKZYGUJ47Z",
+   "num": "39772",
+   "col": "Description",
+   "cell": "H2140",
+   "old": "New Item — Class EG 524 Electric Locomotive",
+   "new": "Class EG 524 Electric Locomotive"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2178,
+   "row_id": "P5XEKPDXKX",
+   "num": "39852",
+   "col": "Description",
+   "cell": "H2178",
+   "old": "New Item — Class elT Rail Car 1126 with class elS control car 2126",
+   "new": "Class elT Rail Car 1126 with class elS control car 2126"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2248,
+   "row_id": "H83HFZJ4K3",
+   "num": "39993",
+   "col": "Description",
+   "cell": "H2248",
+   "old": "New Item — Class E 94 Electric Locomotive",
+   "new": "Class E 94 Electric Locomotive"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2279,
+   "row_id": "XYZ7M8JZR4",
+   "num": "40852",
+   "col": "Description",
+   "cell": "H2279",
+   "old": "New Item — TEE Rheingold \"Tin-Plate\" Car Set",
+   "new": "TEE Rheingold \"Tin-Plate\" Car Set"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2316,
+   "row_id": "54BQGJHT28",
+   "num": "41712",
+   "col": "Description",
+   "cell": "H2316",
+   "old": "New Item — BR 806.3",
+   "new": "BR 806.3 — Märklin Start up - Open Seating Car, 2nd Class, for ICE 2"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2340,
+   "row_id": "TVPHWMX4T9",
+   "num": "41981",
+   "col": "Description",
+   "cell": "H2340",
+   "old": "New Item — Class 998.0 Rail Bus Trailer Car",
+   "new": "Class 998.0 Rail Bus Trailer Car"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2433,
+   "row_id": "9T8XY6XM6A",
+   "num": "42491",
+   "col": "Description",
+   "cell": "H2433",
+   "old": "New Item — Express Train Passenger Car Set 1 for the “D 74”",
+   "new": "Express Train Passenger Car Set 1 for the “D 74”"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2440,
+   "row_id": "PJFTV6YCQW",
+   "num": "42526",
+   "col": "Description",
+   "cell": "H2440",
+   "old": "New Item — Type C4ü Express Train Passenger Car for the “D 74”",
+   "new": "Type C4ü Express Train Passenger Car for the “D 74”"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2441,
+   "row_id": "JTVK48JUSU",
+   "num": "42528",
+   "col": "Description",
+   "cell": "H2441",
+   "old": "New Item — \"Dom Pfeil\" / \"Cathedral Arrow\" Passenger Car Set",
+   "new": "\"Dom Pfeil\" / \"Cathedral Arrow\" Passenger Car Set"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2444,
+   "row_id": "2K4FU2836S",
+   "num": "42533",
+   "col": "Description",
+   "cell": "H2444",
+   "old": "New Item — Express Train Passenger Car Set 2 for the “D 74”",
+   "new": "Express Train Passenger Car Set 2 for the “D 74”"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2447,
+   "row_id": "23BCUXWH86",
+   "num": "42555",
+   "col": "Description",
+   "cell": "H2447",
+   "old": "New Item — Commuter Car, 1st/2nd Class",
+   "new": "Commuter Car, 1st/2nd Class"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2450,
+   "row_id": "5UHF8SDB62",
+   "num": "42565",
+   "col": "Description",
+   "cell": "H2450",
+   "old": "New Item — Commuter Car, 2nd Class",
+   "new": "Commuter Car, 2nd Class"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2453,
+   "row_id": "3WY46AMTAU",
+   "num": "42575",
+   "col": "Description",
+   "cell": "H2453",
+   "old": "New Item — Commuter Car with Control Cab.",
+   "new": "Commuter Car with Control Cab."
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2522,
+   "row_id": "X8WXR446FD",
+   "num": "42831",
+   "col": "Description",
+   "cell": "H2522",
+   "old": "New Item — Type Dm 903 Baggage Car",
+   "new": "Type Dm 903 Baggage Car"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2545,
+   "row_id": "XG549F7ZNX",
+   "num": "42930",
+   "col": "Description",
+   "cell": "H2545",
+   "old": "New Item — ICE Express Train Passenger Car Set",
+   "new": "ICE Express Train Passenger Car Set"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2636,
+   "row_id": "CM46JUTCA9",
+   "num": "43187",
+   "col": "Description",
+   "cell": "H2636",
+   "old": "New Item — “Deutsche Weinstraße / German Wine Road” Pair of Rebuild Passenger Cars",
+   "new": "“Deutsche Weinstraße / German Wine Road” Pair of Rebuild Passenger Cars"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2714,
+   "row_id": "DXTTJ9W9TC",
+   "num": "43363",
+   "col": "Description",
+   "cell": "H2714",
+   "old": "New Item — Lightweight Steel Passenger Car, 1st Class",
+   "new": "Lightweight Steel Passenger Car, 1st Class"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2719,
+   "row_id": "UJRT6CANXE",
+   "num": "43373",
+   "col": "Description",
+   "cell": "H2719",
+   "old": "New Item — Lightweight Steel Passenger Car, 2nd Class",
+   "new": "Lightweight Steel Passenger Car, 2nd Class"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2723,
+   "row_id": "FKUJZ5DC5N",
+   "num": "43383",
+   "col": "Description",
+   "cell": "H2723",
+   "old": "New Item — Lightweight Steel Passenger Car, 2nd Class",
+   "new": "Lightweight Steel Passenger Car, 2nd Class"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2740,
+   "row_id": "YZ7RAX9DXX",
+   "num": "43428",
+   "col": "Description",
+   "cell": "H2740",
+   "old": "New Item — Add-On Car Set 1 for the TGV INOUI",
+   "new": "Add-On Car Set 1 for the TGV INOUI"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2747,
+   "row_id": "N4848RGFJ2",
+   "num": "43438",
+   "col": "Description",
+   "cell": "H2747",
+   "old": "New Item — Add-On Car Set 2 for the TGV INOUI",
+   "new": "Add-On Car Set 2 for the TGV INOUI"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2754,
+   "row_id": "9KD725KAWB",
+   "num": "43448",
+   "col": "Description",
+   "cell": "H2754",
+   "old": "New Item — Add-On Car Set 3 for the TGV INOUI",
+   "new": "Add-On Car Set 3 for the TGV INOUI"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2809,
+   "row_id": "686YWWDVNJ",
+   "num": "43566",
+   "col": "Description",
+   "cell": "H2809",
+   "old": "New Item — SNCB Bi-Level Car Set",
+   "new": "SNCB Bi-Level Car Set"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2850,
+   "row_id": "NE9H5UU9QV",
+   "num": "43653",
+   "col": "Description",
+   "cell": "H2850",
+   "old": "New Item — Type Apm Passenger Car",
+   "new": "Type Apm Passenger Car"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2855,
+   "row_id": "GW23N35R6F",
+   "num": "43673",
+   "col": "Description",
+   "cell": "H2855",
+   "old": "New Item — EuroCity Express Train Passenger Car",
+   "new": "EuroCity Express Train Passenger Car"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2856,
+   "row_id": "FWH28FRQ6W",
+   "num": "43674",
+   "col": "Description",
+   "cell": "H2856",
+   "old": "New Item — EuroCity Express Train Passenger Car",
+   "new": "EuroCity Express Train Passenger Car"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2857,
+   "row_id": "EAUX4RFCEC",
+   "num": "43675",
+   "col": "Description",
+   "cell": "H2857",
+   "old": "New Item — EuroCity Express Train Passenger Car",
+   "new": "EuroCity Express Train Passenger Car"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2942,
+   "row_id": "7ACKHHFZSH",
+   "num": "43833",
+   "col": "Description",
+   "cell": "H2942",
+   "old": "New Item — “City-Bahn” Cab Control Car",
+   "new": "“City-Bahn” Cab Control Car"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2944,
+   "row_id": "V4RDZJ3D9Y",
+   "num": "43835",
+   "col": "Description",
+   "cell": "H2944",
+   "old": "New Item — City Bahn Passenger Car Set",
+   "new": "City Bahn Passenger Car Set"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2983,
+   "row_id": "B5D43BZRMH",
+   "num": "43886",
+   "col": "Description",
+   "cell": "H2983",
+   "old": "New Item — Type Apümh 121 Express Train Passenger Car",
+   "new": "Type Apümh 121 Express Train Passenger Car"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3067,
+   "row_id": "HPEMCP4FFH",
+   "num": "44125",
+   "col": "Description",
+   "cell": "H3067",
+   "old": "New Item — Märklin my world – Auto Transport Car",
+   "new": "Märklin my world – Auto Transport Car"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3068,
+   "row_id": "QQ9EVPBYN5",
+   "num": "44126",
+   "col": "Description",
+   "cell": "H3068",
+   "old": "New Item — Märklin Start up - Christmas Car with Light Module",
+   "new": "Märklin Start up - Christmas Car with Light Module"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3146,
+   "row_id": "U5MQVADYBR",
+   "num": "44254",
+   "col": "Description",
+   "cell": "H3146",
+   "old": "New Item — Märklin Start up - “Bluna” Refrigerator Car",
+   "new": "Märklin Start up - “Bluna” Refrigerator Car"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3160,
+   "row_id": "9ECWPA6Y6J",
+   "num": "44294",
+   "col": "Description",
+   "cell": "H3160",
+   "old": "New Item — Special Car with Charitable Promotion",
+   "new": "Special Car with Charitable Promotion"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3161,
+   "row_id": "Z9KQJCS7ER",
+   "num": "44295",
+   "col": "Description",
+   "cell": "H3161",
+   "old": "New Item — Refrigerator Car W:O:A® 2026",
+   "new": "Refrigerator Car W:O:A® 2026"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3189,
+   "row_id": "9AGJX88938",
+   "num": "44506",
+   "col": "Description",
+   "cell": "H3189",
+   "old": "New Item — Märklin Start up - Cargo Freight Car Set, Era VI",
+   "new": "Märklin Start up - Cargo Freight Car Set, Era VI"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3234,
+   "row_id": "YSMAHJYDC4",
+   "num": "44832",
+   "col": "Description",
+   "cell": "H3234",
+   "old": "New Item — “Moneytalks” Container Transport Car",
+   "new": "“Moneytalks” Container Transport Car"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3314,
+   "row_id": "M2D5NY4YYC",
+   "num": "45667",
+   "col": "Description",
+   "cell": "H3314",
+   "old": "New Item — Southern Pacific freight car set",
+   "new": "Southern Pacific freight car set"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3326,
+   "row_id": "AXUTWZPVYJ",
+   "num": "45707",
+   "col": "Description",
+   "cell": "H3326",
+   "old": "New Item — Southern Pacific Caboose",
+   "new": "Southern Pacific Caboose"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3344,
+   "row_id": "WX8FPJPPKU",
+   "num": "45908",
+   "col": "Description",
+   "cell": "H3344",
+   "old": "New Item — Märklin Katalogwagen 1937",
+   "new": "Märklin Katalogwagen 1937"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3345,
+   "row_id": "RSQW42RNVS",
+   "num": "45909",
+   "col": "Description",
+   "cell": "H3345",
+   "old": "New Item — Märklin Katalogwagen 1938",
+   "new": "Märklin Katalogwagen 1938"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3348,
+   "row_id": "HBD27Z2XS3",
+   "num": "46014",
+   "col": "Description",
+   "cell": "H3348",
+   "old": "New Item — Type Omm 37 High-Side Gondola",
+   "new": "Type Omm 37 High-Side Gondola"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3371,
+   "row_id": "QA7QMQ7ZQ6",
+   "num": "46047",
+   "col": "Description",
+   "cell": "H3371",
+   "old": "New Item — Coal Car Set",
+   "new": "Coal Car Set"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3413,
+   "row_id": "VGTGHN3UAZ",
+   "num": "46102",
+   "col": "Description",
+   "cell": "H3413",
+   "old": "New Item — Type Talbot Hopper Car",
+   "new": "Type Talbot Hopper Car"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3440,
+   "row_id": "RZ53ZC67D4",
+   "num": "46146",
+   "col": "Description",
+   "cell": "H3440",
+   "old": "New Item — Slag Car Set",
+   "new": "Slag Car Set"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3477,
+   "row_id": "27W5RDT28B",
+   "num": "46221",
+   "col": "Description",
+   "cell": "H3477",
+   "old": "New Item — Type Erz Id Hopper Car Set",
+   "new": "Type Erz Id Hopper Car Set"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3548,
+   "row_id": "SJJJT479AW",
+   "num": "46334",
+   "col": "Description",
+   "cell": "H3548",
+   "old": "New Item — Set of Type Tds Dump Cars with Hinged Roofs",
+   "new": "Set of Type Tds Dump Cars with Hinged Roofs"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3594,
+   "row_id": "QBU634PE8U",
+   "num": "46409",
+   "col": "Description",
+   "cell": "H3594",
+   "old": "New Item — Type Ks 446 Stake Car",
+   "new": "Type Ks 446 Stake Car"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3620,
+   "row_id": "NX7YWHBENW",
+   "num": "46479",
+   "col": "Description",
+   "cell": "H3620",
+   "old": "New Item — Tank car",
+   "new": "Tank car"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3621,
+   "row_id": "79FCJ693SF",
+   "num": "46485",
+   "col": "Description",
+   "cell": "H3621",
+   "old": "New Item — Tank car",
+   "new": "Tank car"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3622,
+   "row_id": "N8C6ZGEDKN",
+   "num": "46486",
+   "col": "Description",
+   "cell": "H3622",
+   "old": "New Item — Tank car",
+   "new": "Tank car"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3623,
+   "row_id": "FVNGAMDK2Y",
+   "num": "46491",
+   "col": "Description",
+   "cell": "H3623",
+   "old": "New Item — Tank Car Set with Three Containers",
+   "new": "Tank Car Set with Three Containers"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3653,
+   "row_id": "SPSX7QDBYY",
+   "num": "46563",
+   "col": "Description",
+   "cell": "H3653",
+   "old": "New Item — Stake Car Set 1 Loaded with Steel Pipes",
+   "new": "Stake Car Set 1 Loaded with Steel Pipes"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3658,
+   "row_id": "4BZ9CSWBVC",
+   "num": "46569",
+   "col": "Description",
+   "cell": "H3658",
+   "old": "New Item — Stake Car Set 2 Loaded with Steel Pipes",
+   "new": "Stake Car Set 2 Loaded with Steel Pipes"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3661,
+   "row_id": "2QJ8ARBGSE",
+   "num": "46591",
+   "col": "Description",
+   "cell": "H3661",
+   "old": "New Item — Type Gl Boxcar",
+   "new": "Type Gl 22 Boxcar"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3662,
+   "row_id": "Z8KVG7KBVA",
+   "num": "46592",
+   "col": "Description",
+   "cell": "H3662",
+   "old": "New Item — Type Gl 22 Boxcar",
+   "new": "Type Gl 22 Boxcar"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3694,
+   "row_id": "DR8G4R75J8",
+   "num": "46720",
+   "col": "Description",
+   "cell": "H3694",
+   "old": "New Item — Kranwagen-Set, DBG, Ep. VI",
+   "new": "Kranwagen-Set, DBG, Ep. VI"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3708,
+   "row_id": "CBN8RHC5KS",
+   "num": "46805",
+   "col": "Description",
+   "cell": "H3708",
+   "old": "New Item — Type Tnoms 35 Refrigerator Car",
+   "new": "Type Tnoms 35 Refrigerator Car"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3718,
+   "row_id": "GUE4YGDY9S",
+   "num": "46853",
+   "col": "Description",
+   "cell": "H3718",
+   "old": "New Item — “Sputnik” Caboose",
+   "new": "“Sputnik” Caboose"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3740,
+   "row_id": "9Z7VZFHMZP",
+   "num": "46919",
+   "col": "Description",
+   "cell": "H3740",
+   "old": "New Item — Type Eas Freight Car Set",
+   "new": "Type Eas Freight Car Set"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3754,
+   "row_id": "W3YC9KCYPV",
+   "num": "46939",
+   "col": "Description",
+   "cell": "H3754",
+   "old": "New Item — Type Kbs Stake Car Set",
+   "new": "Type Kbs Stake Car Set"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3912,
+   "row_id": "4RZ8SYT3JS",
+   "num": "47162",
+   "col": "Description",
+   "cell": "H3912",
+   "old": "New Item — Type Res-x Low-Sided Car Set",
+   "new": "Type Res-x Low-Sided Car Set"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3918,
+   "row_id": "KANX4J9Z7E",
+   "num": "47168",
+   "col": "Description",
+   "cell": "H3918",
+   "old": "New Item — Type Res Low-Sided Car",
+   "new": "Type Res Low-Sided Car"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3921,
+   "row_id": "EE5M5B7XU7",
+   "num": "47188",
+   "col": "Description",
+   "cell": "H3921",
+   "old": "New Item — Type Eanos-x High-Side Gondola Set",
+   "new": "Type Eanos-x High-Side Gondola Set"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3957,
+   "row_id": "KZSF4K5XB2",
+   "num": "47230",
+   "col": "Description",
+   "cell": "H3957",
+   "old": "New Item — Sliding Tarp Car Set",
+   "new": "Sliding Tarp Car Set"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3992,
+   "row_id": "KG8M7QRHHT",
+   "num": "47401",
+   "col": "Description",
+   "cell": "H3992",
+   "old": "New Item — Type Xaadkms Depressed-Floor Flat Car",
+   "new": "Type Xaadkms Depressed-Floor Flat Car"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 4002,
+   "row_id": "MKRYGPQVHA",
+   "num": "47412",
+   "col": "Description",
+   "cell": "H4002",
+   "old": "New Item — Type Saadkms Depressed-Floor Flat Car",
+   "new": "Type Saadkms Depressed-Floor Flat Car"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 4015,
+   "row_id": "7KRHPRT792",
+   "num": "47432",
+   "col": "Description",
+   "cell": "H4015",
+   "old": "New Item — Type Laads 800B Pair of Flat Cars",
+   "new": "Type Laads 800B Pair of Flat Cars"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 4040,
+   "row_id": "CEAB83U3FK",
+   "num": "47464",
+   "col": "Description",
+   "cell": "H4040",
+   "old": "New Item — Type Sdgkms Deep-Well Flat Car",
+   "new": "Type Sdgkms Deep-Well Flat Car"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 4046,
+   "row_id": "PPYSAG6DCY",
+   "num": "47475",
+   "col": "Description",
+   "cell": "H4046",
+   "old": "New Item — Type Sdggmrss Double Pocket Car",
+   "new": "Type Sdggmrss Double Pocket Car"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 4062,
+   "row_id": "3JV5CNWJZE",
+   "num": "47551",
+   "col": "Description",
+   "cell": "H4062",
+   "old": "New Item — Type Zacns Tank Car Set",
+   "new": "Type Zacns Tank Car Set"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 4085,
+   "row_id": "WDFYFERUA9",
+   "num": "47626",
+   "col": "Description",
+   "cell": "H4085",
+   "old": "New Item — Märklin Start up Club Annual Car 2026",
+   "new": "Märklin Start up Club Annual Car 2026"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 4223,
+   "row_id": "7C4RXQRUVA",
+   "num": "48126",
+   "col": "Description",
+   "cell": "H4223",
+   "old": "New Item — H0-Gauge Museum Car Set for 2026",
+   "new": "H0-Gauge Museum Car Set for 2026"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 4244,
+   "row_id": "8NQU9QMDTK",
+   "num": "48176",
+   "col": "Description",
+   "cell": "H4244",
+   "old": "New Item — H0-Gauge Insider Annual Car for 2026",
+   "new": "H0-Gauge Insider Annual Car for 2026"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 4296,
+   "row_id": "HWADY6CAVW",
+   "num": "48426",
+   "col": "Description",
+   "cell": "H4296",
+   "old": "New Item — H0 Christmas Car for 2026",
+   "new": "H0 Christmas Car for 2026"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 4344,
+   "row_id": "NVTN3YWR5E",
+   "num": "48526",
+   "col": "Description",
+   "cell": "H4344",
+   "old": "New Item — Märklin Magazin H0 Annual Car for 2026",
+   "new": "Märklin Magazin H0 Annual Car for 2026"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 4387,
+   "row_id": "XDTHMEWZC8",
+   "num": "48678",
+   "col": "Description",
+   "cell": "H4387",
+   "old": "New Item — Type SSym 46 Heavy-Duty Flat Car",
+   "new": "Type SSym 46 Heavy-Duty Flat Car"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 4501,
+   "row_id": "V4UV5UT2AX",
+   "num": "48884",
+   "col": "Description",
+   "cell": "H4501",
+   "old": "New Item — Smiley® Car 2026",
+   "new": "Smiley® Car 2026"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 4626,
+   "row_id": "35KQYAHFPD",
+   "num": "60971",
+   "col": "Description",
+   "cell": "H4626",
+   "old": "Decoder Programmer",
+   "new": "Decoder Programmer for Type mLD3/mSD3 Retrofit Decoder"
+  },
+  {
+   "tab": "Marklin Z",
+   "row": 71,
+   "row_id": "SHY3TUC95M",
+   "num": "80037",
+   "col": "Description",
+   "cell": "H71",
+   "old": "New Item — Z-Gauge Museum Car 2026",
+   "new": "Z-Gauge Museum Car 2026"
+  },
+  {
+   "tab": "Marklin Z",
+   "row": 93,
+   "row_id": "UY9862QKDZ",
+   "num": "80336",
+   "col": "Description",
+   "cell": "H93",
+   "old": "New Item — Z-Gauge Insider Annual Car 2026",
+   "new": "Z-Gauge Insider Annual Car 2026"
+  },
+  {
+   "tab": "Marklin Z",
+   "row": 124,
+   "row_id": "FNC4VBTSD6",
+   "num": "80636",
+   "col": "Description",
+   "cell": "H124",
+   "old": "New Item — Christmas Car Z-Gauge 2026",
+   "new": "Christmas Car Z-Gauge 2026"
+  },
+  {
+   "tab": "Marklin Z",
+   "row": 164,
+   "row_id": "AD3TGWHBSY",
+   "num": "81283",
+   "col": "Description",
+   "cell": "H164",
+   "old": "New Item — “Luxon” Train Set with Class 103",
+   "new": "“Luxon” Train Set with Class 103"
+  },
+  {
+   "tab": "Marklin Z",
+   "row": 219,
+   "row_id": "3QA353E8TA",
+   "num": "81520",
+   "col": "Description",
+   "cell": "H219",
+   "old": "BR 89 — Fun Starter Set with Battery",
+   "new": "BR 89 — Fun Starter Set with Battery Powered Train Controller."
+  },
+  {
+   "tab": "Marklin Z",
+   "row": 256,
+   "row_id": "6KRGXBE2K8",
+   "num": "81864",
+   "col": "Description",
+   "cell": "H256",
+   "old": "BR 50, DB — Starter Set, 230 Volts.",
+   "new": "BR 50, DB — Starter Set, 230 Volts. Freight Train with a Large Track Layout, Station Kit, and Plug-In Power Pack with a Suitable Smooth Train Controller"
+  },
+  {
+   "tab": "Marklin Z",
+   "row": 257,
+   "row_id": "RMGGY9RP6X",
+   "num": "81865",
+   "col": "Description",
+   "cell": "H257",
+   "old": "BR 50 DB — Large Freight Train Starter Set",
+   "new": "BR 50 DB — Large Freight Train Starter Set 120 Volts with a Large Track Layout and a Power Pack."
+  },
+  {
+   "tab": "Marklin Z",
+   "row": 259,
+   "row_id": "4QN7FTTTTR",
+   "num": "81870",
+   "col": "Description",
+   "cell": "H259",
+   "old": "BR 111, DB AG — Starter Set. 230 Volts.",
+   "new": "BR 111, DB AG — Starter Set. 230 Volts. Intercity passenger train with a large track layout and a wall-plug switched mode power pack and appropriate locomotive controller with smooth control"
+  },
+  {
+   "tab": "Marklin Z",
+   "row": 317,
+   "row_id": "RNVP2XTSAG",
+   "num": "82260",
+   "col": "Description",
+   "cell": "H317",
+   "old": "New Item — Type GL 11 Boxcar “Tannenzäpfle”",
+   "new": "Type Gl 11 Boxcar “Tannenzäpfle”"
+  },
+  {
+   "tab": "Marklin Z",
+   "row": 326,
+   "row_id": "8HAA4VVFR6",
+   "num": "82269",
+   "col": "Description",
+   "cell": "H326",
+   "old": "New Item — Type Gbkl 236 Boxcar",
+   "new": "Type Gbkl 236 Boxcar"
+  },
+  {
+   "tab": "Marklin Z",
+   "row": 463,
+   "row_id": "TB83U7QRNZ",
+   "num": "82524",
+   "col": "Description",
+   "cell": "H463",
+   "old": "New Item — VEB Deutzen DR Car Set",
+   "new": "VEB Deutzen DR Car Set"
+  },
+  {
+   "tab": "Marklin Z",
+   "row": 500,
+   "row_id": "JHHQ3DBBTQ",
+   "num": "82642",
+   "col": "Description",
+   "cell": "H500",
+   "old": "New Item — Type Sgns Container Transport Car with Containers",
+   "new": "Type Sgns Container Transport Car with Containers"
+  },
+  {
+   "tab": "Marklin Z",
+   "row": 508,
+   "row_id": "2A4F4MR77P",
+   "num": "82710",
+   "col": "Description",
+   "cell": "H508",
+   "old": "New Item — Type OOtz 44 Hopper Car Set",
+   "new": "Type OOtz 44 Hopper Car Set"
+  },
+  {
+   "tab": "Marklin Z",
+   "row": 514,
+   "row_id": "BXJQEX2US5",
+   "num": "83650",
+   "col": "Description",
+   "cell": "H514",
+   "old": "New Item — Class 65 Steam Locomotive",
+   "new": "Class 65 Steam Locomotive"
+  },
+  {
+   "tab": "Marklin Z",
+   "row": 551,
+   "row_id": "H9UAACYGY3",
+   "num": "86009",
+   "col": "Description",
+   "cell": "H551",
+   "old": "New Item — Z-Gauge Smiley® Car for 2026",
+   "new": "Z-Gauge Smiley® Car for 2026"
+  },
+  {
+   "tab": "Marklin Z",
+   "row": 579,
+   "row_id": "TTN8DAE5WF",
+   "num": "86234",
+   "col": "Description",
+   "cell": "H579",
+   "old": "New Item — Type Laae 540 Auto Transport Car Set",
+   "new": "Type Laae 540 Auto Transport Car Set"
+  },
+  {
+   "tab": "Marklin Z",
+   "row": 756,
+   "row_id": "5TR2UPJNW6",
+   "num": "87514",
+   "col": "Description",
+   "cell": "H756",
+   "old": "New Item — Type Pwghs Auxiliary Baggage Car",
+   "new": "Type Pwghs Auxiliary Baggage Car"
+  },
+  {
+   "tab": "Marklin Z",
+   "row": 757,
+   "row_id": "MSTV639VZB",
+   "num": "87515",
+   "col": "Description",
+   "cell": "H757",
+   "old": "New Item — Märklin Magazin Z-Gauge Annual Car for 2026",
+   "new": "Märklin Magazin Z-Gauge Annual Car for 2026"
+  },
+  {
+   "tab": "Marklin Z",
+   "row": 758,
+   "row_id": "P3675BK5HT",
+   "num": "87519",
+   "col": "Description",
+   "cell": "H758",
+   "old": "New Item — Two-Axle Passenger Car with a Real Bronze Body",
+   "new": "Two-Axle Passenger Car with a Real Bronze Body"
+  },
+  {
+   "tab": "Marklin Z",
+   "row": 779,
+   "row_id": "VKC2CFYN6H",
+   "num": "87615",
+   "col": "Description",
+   "cell": "H779",
+   "old": "New Item — “Blauer Enzian” (Blue Gentian) “F-Zug” Car Set",
+   "new": "“Blauer Enzian” (Blue Gentian) “F-Zug” Car Set"
+  },
+  {
+   "tab": "Marklin Z",
+   "row": 826,
+   "row_id": "FG6PXKTRH3",
+   "num": "88015",
+   "col": "Description",
+   "cell": "H826",
+   "old": "New Item — Class 01 Express Steam Locomotive",
+   "new": "Class 01 Express Steam Locomotive"
+  },
+  {
+   "tab": "Marklin Z",
+   "row": 830,
+   "row_id": "Q2RCQ5Z3VB",
+   "num": "88022",
+   "col": "Description",
+   "cell": "H830",
+   "old": "New Item — Vomag Rail Truck",
+   "new": "Vomag Rail Truck"
+  },
+  {
+   "tab": "Marklin Z",
+   "row": 892,
+   "row_id": "P2PNF6S5KW",
+   "num": "88148",
+   "col": "Description",
+   "cell": "H892",
+   "old": "New Item — Grand Ducal Baden State Railroad Kittel CidT",
+   "new": "Grand Ducal Baden State Railroad Kittel CidT"
+  },
+  {
+   "tab": "Marklin Z",
+   "row": 893,
+   "row_id": "BE2C3B5TMD",
+   "num": "88149",
+   "col": "Description",
+   "cell": "H893",
+   "old": "New Item — Class Kittel CidT Steam-Powered Rail Car",
+   "new": "Class Kittel CidT Steam-Powered Rail Car"
+  },
+  {
+   "tab": "Marklin Z",
+   "row": 962,
+   "row_id": "WZRB3KA75B",
+   "num": "88280",
+   "col": "Description",
+   "cell": "H962",
+   "old": "New Item — Class 491 Powered Observation Rail Car",
+   "new": "Class 491 Powered Observation Rail Car"
+  },
+  {
+   "tab": "Marklin Z",
+   "row": 968,
+   "row_id": "WRMA2WBKGB",
+   "num": "88295",
+   "col": "Description",
+   "cell": "H968",
+   "old": "New Item — Class Gt 2 x 4/4 Steam Locomotive",
+   "new": "Class Gt 2 x 4/4 Steam Locomotive"
+  },
+  {
+   "tab": "Marklin Z",
+   "row": 975,
+   "row_id": "J976SHVM96",
+   "num": "88315",
+   "col": "Description",
+   "cell": "H975",
+   "old": "New Item — Class 798/998 Rail Bus with Trailer Car",
+   "new": "Class 798/998 Rail Bus with Trailer Car"
+  },
+  {
+   "tab": "Marklin Z",
+   "row": 983,
+   "row_id": "6N6M3PD2TA",
+   "num": "88356",
+   "col": "Description",
+   "cell": "H983",
+   "old": "New Item — Class E 41 Electric Locomotive",
+   "new": "Class E 41 Electric Locomotive"
+  },
+  {
+   "tab": "Marklin Z",
+   "row": 1109,
+   "row_id": "32QJZK779N",
+   "num": "88666",
+   "col": "Description",
+   "cell": "H1109",
+   "old": "New Item — Class 101 W:O:A® Electric Locomotive",
+   "new": "Class 101 W:O:A® Electric Locomotive"
+  },
+  {
+   "tab": "Marklin Z",
+   "row": 1138,
+   "row_id": "TD7QYFXFUC",
+   "num": "88701",
+   "col": "Description",
+   "cell": "H1138",
+   "old": "New Item — Class 628.2 Diesel-Powered Rail Car with a Class 928.2 Cab Control Car",
+   "new": "Class 628.2 Diesel-Powered Rail Car with a Class 928.2 Cab Control Car"
+  },
+  {
+   "tab": "Marklin Z",
+   "row": 1158,
+   "row_id": "Y5RUM69JBF",
+   "num": "88762",
+   "col": "Description",
+   "cell": "H1158",
+   "old": "New Item — Rail Zeppelin Propeller-Powered Rail Car",
+   "new": "Rail Zeppelin Propeller-Powered Rail Car"
+  },
+  {
+   "tab": "Marklin Z",
+   "row": 1176,
+   "row_id": "PY6QZA5FH4",
+   "num": "88802",
+   "col": "Description",
+   "cell": "H1176",
+   "old": "New Item — Class V 80 Diesel-Hydraulic, General-Purpose Locomotive",
+   "new": "Class V 80 Diesel-Hydraulic, General-Purpose Locomotive"
+  },
+  {
+   "tab": "Marklin Z",
+   "row": 1185,
+   "row_id": "EMRT27UPS5",
+   "num": "88825",
+   "col": "Description",
+   "cell": "H1185",
+   "old": "New Item — Class VT 135 Rail Bus",
+   "new": "Class VT 135 Rail Bus"
+  },
+  {
+   "tab": "Marklin Z",
+   "row": 1189,
+   "row_id": "7RV5E9X633",
+   "num": "88837",
+   "col": "Description",
+   "cell": "H1189",
+   "old": "New Item — Class 52 Heavy Freight Locomotive with a Tub-Style Tender",
+   "new": "Class 52 Heavy Freight Locomotive with a Tub-Style Tender"
+  },
+  {
+   "tab": "Marklin Z",
+   "row": 1255,
+   "row_id": "K7K7XZTQ6M",
+   "num": "88987",
+   "col": "Description",
+   "cell": "H1255",
+   "old": "New Item — Class 55 Steam Loco",
+   "new": "Class 55 Steam Loco"
+  },
+  {
+   "tab": "Marklin Gauge 1",
+   "row": 248,
+   "row_id": "3QTDH27WTK",
+   "num": "55500",
+   "col": "Description",
+   "cell": "H248",
+   "old": "New Item — Type DH 500 Ca Diesel Locomotive",
+   "new": "Type DH 500 Ca Diesel Locomotive"
+  },
+  {
+   "tab": "Marklin Gauge 1",
+   "row": 249,
+   "row_id": "HARHESVPFF",
+   "num": "55501",
+   "col": "Description",
+   "cell": "H249",
+   "old": "New Item — RAG Type DH 500 Ca Diesel Locomotive",
+   "new": "RAG Type DH 500 Ca Diesel Locomotive"
+  },
+  {
+   "tab": "Marklin Gauge 1",
+   "row": 250,
+   "row_id": "FMU232GNA8",
+   "num": "55504",
+   "col": "Description",
+   "cell": "H250",
+   "old": "New Item — Type DH 500 Ca Diesel Locomotive",
+   "new": "Type DH 500 Ca Diesel Locomotive"
+  },
+  {
+   "tab": "Marklin Gauge 1",
+   "row": 251,
+   "row_id": "AZ7JTTXA4N",
+   "num": "55505",
+   "col": "Description",
+   "cell": "H251",
+   "old": "New Item — Type DH 500 Ca Diesel Locomotive",
+   "new": "Type DH 500 Ca Diesel Locomotive"
+  },
+  {
+   "tab": "Marklin Gauge 1",
+   "row": 252,
+   "row_id": "H79483RNM5",
+   "num": "55506",
+   "col": "Description",
+   "cell": "H252",
+   "old": "New Item — Class EG 507 Freight Train Electric Locomotive with Photographic Gray Paint",
+   "new": "Class EG 507 Electric Freight Locomotive with Photographic Gray Paint"
+  },
+  {
+   "tab": "Marklin Gauge 1",
+   "row": 253,
+   "row_id": "DK9EZV6JJK",
+   "num": "55507",
+   "col": "Description",
+   "cell": "H253",
+   "old": "New Item — Class EG 507 Freight Train Electric Locomotive",
+   "new": "Class EG 507 Freight Train Electric Locomotive"
+  },
+  {
+   "tab": "Marklin Gauge 1",
+   "row": 254,
+   "row_id": "VJ2WM8AUUT",
+   "num": "55508",
+   "col": "Description",
+   "cell": "H254",
+   "old": "New Item — Class E 70 08 Freight Train Electric Locomotive",
+   "new": "Class E 70 08 Freight Train Electric Locomotive"
+  },
+  {
+   "tab": "Marklin Gauge 1",
+   "row": 255,
+   "row_id": "5SWQ324BBD",
+   "num": "55509",
+   "col": "Description",
+   "cell": "H255",
+   "old": "New Item — Class EG 507 “Technology” Freight Train Electric Locomotive",
+   "new": "Class EG 507 “Technology” Freight Train Electric Locomotive"
+  },
+  {
+   "tab": "Marklin Gauge 1",
+   "row": 256,
+   "row_id": "JTE9R7VB3S",
+   "num": "55511",
+   "col": "Description",
+   "cell": "H256",
+   "old": "New Item — E+H Type DH 500 Ca Diesel Locomotive",
+   "new": "E+H Type DH 500 Ca Diesel Locomotive"
+  },
+  {
+   "tab": "Marklin Gauge 1",
+   "row": 296,
+   "row_id": "VPQQUSMX7D",
+   "num": "55814",
+   "col": "Description",
+   "cell": "H296",
+   "old": "New Item — SBB Class Ae 8/14 Electric Locomotive No. 11852 “LandiLok”",
+   "new": "SBB Class Ae 8/14 Electric Locomotive No. 11852 “LandiLok”"
+  },
+  {
+   "tab": "Marklin Gauge 1",
+   "row": 297,
+   "row_id": "UJ3VSAQPXJ",
+   "num": "55815",
+   "col": "Description",
+   "cell": "H297",
+   "old": "New Item — SBB Class Ae 8/14 Electric Locomotive No. 11852 “LandiLok”",
+   "new": "SBB Class Ae 8/14 Electric Locomotive No. 11852 “LandiLok”"
+  },
+  {
+   "tab": "Marklin Gauge 1",
+   "row": 298,
+   "row_id": "MK95H3PRGP",
+   "num": "55816",
+   "col": "Description",
+   "cell": "H298",
+   "old": "New Item — SBB Class Ae 8/14 Electric Locomotive No. 11852 “LandiLok”",
+   "new": "SBB Class Ae 8/14 Electric Locomotive No. 11852 “LandiLok”"
+  },
+  {
+   "tab": "Marklin Gauge 1",
+   "row": 299,
+   "row_id": "WFHK6TNCGT",
+   "num": "55817",
+   "col": "Description",
+   "cell": "H299",
+   "old": "New Item — SBB Class Ae 8/14 Electric Locomotive, Road Number 11851",
+   "new": "SBB Class Ae 8/14 Electric Locomotive, Road Number 11851"
+  },
+  {
+   "tab": "Marklin Gauge 1",
+   "row": 300,
+   "row_id": "9VYG3TW2QT",
+   "num": "55818",
+   "col": "Description",
+   "cell": "H300",
+   "old": "New Item — SBB Class Ae 8/14 Electric Locomotive, Road Number 11851",
+   "new": "SBB Class Ae 8/14 Electric Locomotive, Road Number 11851"
+  },
+  {
+   "tab": "Marklin Gauge 1",
+   "row": 301,
+   "row_id": "HD7VKEKS96",
+   "num": "55819",
+   "col": "Description",
+   "cell": "H301",
+   "old": "New Item — SBB Class Ae 8/14 Electric Locomotive, Road Number 11851",
+   "new": "SBB Class Ae 8/14 Electric Locomotive, Road Number 11851"
+  },
+  {
+   "tab": "Marklin Gauge 1",
+   "row": 371,
+   "row_id": "JAFPT9JKTD",
+   "num": "58002",
+   "col": "Description",
+   "cell": "H371",
+   "old": "New Item — 1-Gauge Museum Car 2026",
+   "new": "1-Gauge Museum Car 2026"
+  },
+  {
+   "tab": "Marklin Gauge 1",
+   "row": 678,
+   "row_id": "R4NP7N947T",
+   "num": "58837",
+   "col": "Description",
+   "cell": "H678",
+   "old": "New Item — Type GL 11 Boxcar “Tannenzäpfle”",
+   "new": "Type Gl 11 Boxcar “Tannenzäpfle”"
+  },
+  {
+   "tab": "Marklin Gauge 1",
+   "row": 762,
+   "row_id": "BN5EVKUE28",
+   "num": "59962",
+   "col": "Description",
+   "cell": "H762",
+   "old": "New Item — Working Display Case for Märklin 1 Gauge, Long Version",
+   "new": "Working Display Case for Märklin 1 Gauge, Long Version"
+  },
+  {
+   "tab": "Marklin Gauge 1",
+   "row": 763,
+   "row_id": "F3AWFMAPE5",
+   "num": "59963",
+   "col": "Description",
+   "cell": "H763",
+   "old": "New Item — Working Display Case for Märklin 1 Gauge, Short Version",
+   "new": "Working Display Case for Märklin 1 Gauge, Short Version"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 486,
+   "row_id": "K72E5TN6QJ",
+   "num": "29330",
+   "col": "Description",
+   "cell": "H486",
+   "old": "Märklin my world - — \"ICE 3\" Starter Set",
+   "new": "Märklin my world - \"ICE 3\" Starter Set"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 570,
+   "row_id": "PSUKAA28DC",
+   "num": "29652",
+   "col": "Description",
+   "cell": "H570",
+   "old": "Märklin Start up - — \"Farming Train\" Starter Set",
+   "new": "Märklin Start up - \"Farming Train\" Starter Set"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2367,
+   "row_id": "AE7EYA9KEH",
+   "num": "42142",
+   "col": "Description",
+   "cell": "H2367",
+   "old": "Physician\"s Coach.",
+   "new": "Physician's Coach."
+  }
+ ]
+}
