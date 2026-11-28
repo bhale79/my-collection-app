@@ -1,0 +1,626 @@
+{
+ "title": "Master fix — Atlas O: Track/Power (column T) on 77 of the 152 Atlas rows added by Master Version 3.23, where the item's own Trainz page says 3-rail (65) or 2-rail (12)",
+ "tab": "Atlas O",
+ "column": "T (Track/Power)",
+ "said": "[stated] Brad 2026-11-28 07:48 CT \"yes\" to: fill in Track/Power on the 77 Atlas rows where Trainz says it, then add Master Version 3.24.",
+ "left_blank": "75 rows: 4 pages say both 3-rail and 2-rail, 71 say neither.",
+ "words": "3-Rail / 2-Rail — the words the tab already uses (3-Rail 5,783 rows, 2-Rail 5,311 rows).",
+ "cells": [
+  {
+   "row": 14167,
+   "row_id": "JU7HSNZF54",
+   "item_num": "151-8319",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-151-8319-o-union-pacific-usra-40-wood-boxcar-126776-3-rail-ex"
+  },
+  {
+   "row": 14168,
+   "row_id": "E3DYKQRQBR",
+   "item_num": "189030",
+   "old": "",
+   "new": "2-Rail",
+   "source": "https://www.trainz.com/products/atlas-189030-o-scale-2-rail-bn-reefer"
+  },
+  {
+   "row": 14169,
+   "row_id": "S5DNPU5FVZ",
+   "item_num": "20010081",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-20010081-o-scale-family-lines-506boxcar-5311-3-rail"
+  },
+  {
+   "row": 14170,
+   "row_id": "33W4JDKN7R",
+   "item_num": "20010101",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-20010101-o-scale-railbox-506boxcar-30254-3-rail"
+  },
+  {
+   "row": 14171,
+   "row_id": "7PUJFUR7QA",
+   "item_num": "20010581",
+   "old": "",
+   "new": "2-Rail",
+   "source": "https://www.trainz.com/products/atlas-20010581-o-scale-family-lines-506-boxcar-5311-2-rail"
+  },
+  {
+   "row": 14172,
+   "row_id": "RZX7EY5J6W",
+   "item_num": "20010601",
+   "old": "",
+   "new": "2-Rail",
+   "source": "https://www.trainz.com/products/atlas-20010601-o-scale-railbox-506-boxcar-30254-2-rail"
+  },
+  {
+   "row": 14173,
+   "row_id": "FVKUGQRVJK",
+   "item_num": "20011829-1",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-20011829-1-o-gauge-cb-q-burlington-hopper-172947-3-rail-vg-box"
+  },
+  {
+   "row": 14174,
+   "row_id": "3R25W85TV9",
+   "item_num": "20052002",
+   "old": "",
+   "new": "2-Rail",
+   "source": "https://www.trainz.com/products/atlas-20052002-o-trainman-bnsf-esu-dash-8-40cw-locomotive-853-2-rail-dcc-box"
+  },
+  {
+   "row": 14175,
+   "row_id": "GHZ2DFR3DZ",
+   "item_num": "20052003",
+   "old": "",
+   "new": "2-Rail",
+   "source": "https://www.trainz.com/products/atlas-20052003-o-csx-esu-dash-8-40cw-locomotive-7818-2-rail-dcc-box"
+  },
+  {
+   "row": 14181,
+   "row_id": "7ZM7XPU8JD",
+   "item_num": "25590",
+   "old": "",
+   "new": "2-Rail",
+   "source": "https://www.trainz.com/products/atlas-25590-up-caboose-ex"
+  },
+  {
+   "row": 14182,
+   "row_id": "DSSXZ6JFXP",
+   "item_num": "300110210",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-300110210-bnsf-5161trinity-covered-hopper-3-rail"
+  },
+  {
+   "row": 14183,
+   "row_id": "7NWV3RW6NE",
+   "item_num": "300110212",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-300110212-bnsf-5161cf-covered-hopper-3-rail"
+  },
+  {
+   "row": 14184,
+   "row_id": "RUPA5N44HA",
+   "item_num": "30011029",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-30011029-bnsf-5161trinity-covered-hopper-3-rail"
+  },
+  {
+   "row": 14185,
+   "row_id": "S48RWJKBWA",
+   "item_num": "3001489",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-3001489-o-christmas-blue-2023-40-ps1-box-car-213-3-rail"
+  },
+  {
+   "row": 14187,
+   "row_id": "A3K3BF2K7E",
+   "item_num": "3001538-1",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/show-atlas-3001538-1-chicago-milwaukee-puget-sound-40-wood-reefer-3301-3rail-ex-box"
+  },
+  {
+   "row": 14189,
+   "row_id": "9MN6Y3Y3P8",
+   "item_num": "ATO-3001728-3",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-3001728-3-o-gauge-coil-steel-car-norfolk-southern-165775-ln-box"
+  },
+  {
+   "row": 14190,
+   "row_id": "GK9G99STFW",
+   "item_num": "ATO-3001728-4",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-3001728-4-o-gauge-coil-steel-car-norfolk-southern-165800-ln-box"
+  },
+  {
+   "row": 14191,
+   "row_id": "BXXWQ34JYW",
+   "item_num": "3001857S",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-3001857s-o-gauge-western-pacific-40-ps-1-box-car-1953-3-rail-ln-box"
+  },
+  {
+   "row": 14202,
+   "row_id": "GC6MCZDBQU",
+   "item_num": "3009020S",
+   "old": "",
+   "new": "2-Rail",
+   "source": "https://www.trainz.com/products/atlas-3009020s-o-cb-q-gsc-ltd-edition-california-zephyr-passenger-car-2-rail-set-ln-box"
+  },
+  {
+   "row": 14227,
+   "row_id": "3B83D85QYA",
+   "item_num": "451315",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-451315-53-evans-up-box-car"
+  },
+  {
+   "row": 14228,
+   "row_id": "AD7X6X3RG4",
+   "item_num": "451324",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-451324-53-evans-up-box-car"
+  },
+  {
+   "row": 14229,
+   "row_id": "ECGFJKZ62T",
+   "item_num": "6004/6014",
+   "old": "",
+   "new": "2-Rail",
+   "source": "https://www.trainz.com/products/atlas-6004-6014-o-assorted-straight-curved-track-sections-19-2-rail"
+  },
+  {
+   "row": 14231,
+   "row_id": "AZZWNQCQT6",
+   "item_num": "62454",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-62454-o-scale-nj-transit-comet-ii-coach-5667-3-rail"
+  },
+  {
+   "row": 14232,
+   "row_id": "BNCEQT88W2",
+   "item_num": "66010",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-66010-3-rail-terminal-section-roadbed"
+  },
+  {
+   "row": 14233,
+   "row_id": "HBEGECQ7ZK",
+   "item_num": "66045",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-66045-o45-curved-track-roadbed"
+  },
+  {
+   "row": 14234,
+   "row_id": "CTM62B3KG6",
+   "item_num": "66050",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-66050-10-straight-track-roadbed"
+  },
+  {
+   "row": 14235,
+   "row_id": "28UKGRHEMQ",
+   "item_num": "66051",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-66051-4-1-2-inch-straight-track-roadbed"
+  },
+  {
+   "row": 14236,
+   "row_id": "CQH4Q9822A",
+   "item_num": "66052",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-66052-1-3-4-inch-straight-track-roadbed"
+  },
+  {
+   "row": 14237,
+   "row_id": "DS3J25TRQM",
+   "item_num": "66053",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-66053-5-1-2-inch-straight-track-roadbed"
+  },
+  {
+   "row": 14238,
+   "row_id": "X9324NWV52",
+   "item_num": "66060",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-66060-o54-full-curve-track-roadbed"
+  },
+  {
+   "row": 14239,
+   "row_id": "GWBQMA95ZE",
+   "item_num": "66063",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-66063-o72-half-curve-track-roadbed"
+  },
+  {
+   "row": 14240,
+   "row_id": "A83B4VWR8F",
+   "item_num": "66066",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-66066-o36-full-curve-track-roadbed"
+  },
+  {
+   "row": 14241,
+   "row_id": "PT9ACBG7YA",
+   "item_num": "66070",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-66070-o54-left-hand-switch-roadbed"
+  },
+  {
+   "row": 14242,
+   "row_id": "9VZG4FPEF8",
+   "item_num": "66071",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-66071-o54-right-hand-switch-roadbed"
+  },
+  {
+   "row": 14243,
+   "row_id": "NYMZYVCRQH",
+   "item_num": "66072",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-66072-o-3-rail-o-72-left-hand-switch-roadbed"
+  },
+  {
+   "row": 14244,
+   "row_id": "DDMA9TXX8H",
+   "item_num": "66073",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-66073-o72-right-hand-switch-roadbed"
+  },
+  {
+   "row": 14245,
+   "row_id": "4VCT87FQCG",
+   "item_num": "66074",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-66074-o72-wye-switch-roadbed"
+  },
+  {
+   "row": 14246,
+   "row_id": "P3BTKYDCEA",
+   "item_num": "66075",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-66075-o36-left-hand-switch-roadbed"
+  },
+  {
+   "row": 14247,
+   "row_id": "AHZ7Y8CP9R",
+   "item_num": "66076",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-66076-o36-right-hand-switch-roadbed"
+  },
+  {
+   "row": 14248,
+   "row_id": "ZXXU9VRUYT",
+   "item_num": "66080",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-66080-90-degree-crossover-roadbed"
+  },
+  {
+   "row": 14249,
+   "row_id": "MDZESBXTZU",
+   "item_num": "66085",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-66085-o-3-rail-o-45-left-hand-remote-switch-roadbed"
+  },
+  {
+   "row": 14265,
+   "row_id": "3JJE5P3KGJ",
+   "item_num": "6703-1",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/show-atlas-6703-1-o-gauge-nadx-baby-ruth-40-woodside-reefer-car-6266-3-rail-ex-box"
+  },
+  {
+   "row": 14266,
+   "row_id": "TUNVNDPQ8P",
+   "item_num": "6706-3",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-6706-3-o-grand-union-40-wood-reefer-car-90101-3-rail-ln-box"
+  },
+  {
+   "row": 14267,
+   "row_id": "RBRE34SXAU",
+   "item_num": "6707-2",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/show-atlas-6707-2-o-gauge-ralston-purina-refrigerator-car-5592-3-rail-ln-box"
+  },
+  {
+   "row": 14268,
+   "row_id": "9P6J5EEV3R",
+   "item_num": "6708-1",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/show-atlas-6708-1-o-gauge-pfe-woodside-refrigerator-car-34485-3-rail-ln-box"
+  },
+  {
+   "row": 14269,
+   "row_id": "TJMU2YHRTN",
+   "item_num": "6708-10",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-6708-10-o-gauge-pfe-40-woodside-refrigerator-car-35164-3-rail-nib"
+  },
+  {
+   "row": 14270,
+   "row_id": "T79D3C86BU",
+   "item_num": "6708-11",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-6708-11-o-pfe-40-refrigerator-car-35188-3-rail-nib"
+  },
+  {
+   "row": 14271,
+   "row_id": "4H8FEMM6FT",
+   "item_num": "6708-12",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-6708-12-o-pfe-refrigerator-car-35306-3-rail-nib"
+  },
+  {
+   "row": 14272,
+   "row_id": "RD7P6W9JDC",
+   "item_num": "6708-2",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/show-atlas-6708-2-o-gauge-pfe-40-woodside-refrigerator-car-35199-3-rail-ln-box"
+  },
+  {
+   "row": 14273,
+   "row_id": "26NV3QFS9A",
+   "item_num": "6708-3",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-6708-3-o-gauge-pfe-40-woodside-refrigerator-car-35271-3-rail-nib"
+  },
+  {
+   "row": 14274,
+   "row_id": "CXTQQQU3Q4",
+   "item_num": "6708-4",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-6708-4-o-gauge-pacific-fruit-express-reefer-car-35333-3-rail-ln-box-1"
+  },
+  {
+   "row": 14275,
+   "row_id": "THRU5QST89",
+   "item_num": "6708-5",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-6708-5-pfe-woodside-reefer-car-34490-3-rail-ex-box"
+  },
+  {
+   "row": 14276,
+   "row_id": "SCEM4FSKQZ",
+   "item_num": "6708-6",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-6708-6-pacifc-fruit-express-40-reefer-car-35225-3-rail-nib"
+  },
+  {
+   "row": 14277,
+   "row_id": "58ZGKC2VPB",
+   "item_num": "6708-7",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-6708-7-o-gauge-pacific-fruit-express-refrigerator-car-35278-3-rail-nib"
+  },
+  {
+   "row": 14278,
+   "row_id": "W67UHXQK9S",
+   "item_num": "6708-8",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-6708-8-o-gauge-pfe-woodside-reefer-car-35331-3-rail-ex-box"
+  },
+  {
+   "row": 14279,
+   "row_id": "K7JP9UHY2S",
+   "item_num": "6708-9",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-6708-9-o-pacific-fruit-express-40-reefer-car-34499-ln-box"
+  },
+  {
+   "row": 14280,
+   "row_id": "748B26F9TX",
+   "item_num": "6722-6",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/show-atlas-6722-6-narragansett-40-woodside-refrigerator-car-16-3-rail-ln-box"
+  },
+  {
+   "row": 14281,
+   "row_id": "5N6NSYQSJW",
+   "item_num": "6729-1",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/show-atlas-6729-1-o-gauge-monarch-foods-reefer-14250-3-rail-ex-box"
+  },
+  {
+   "row": 14282,
+   "row_id": "K9K423AVEU",
+   "item_num": "6730-3",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/show-atlas-6730-3-o-gauge-schlitz-40-woodside-reefer-car-92131-3-rail-ex-box"
+  },
+  {
+   "row": 14283,
+   "row_id": "DUDYCRQZ7P",
+   "item_num": "6731-3",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-6731-3-pacific-fruit-express-reefer-car-3-rail-nib"
+  },
+  {
+   "row": 14284,
+   "row_id": "ZMQBGSFM4T",
+   "item_num": "6731-4",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-6731-4-o-pacific-fruit-express-refrigerator-car-13210-3-rail-nib"
+  },
+  {
+   "row": 14287,
+   "row_id": "ZBERWVN2SX",
+   "item_num": "80611",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-80611-o-scale-loomis-36-wood-reefer-3038-3-rail"
+  },
+  {
+   "row": 14290,
+   "row_id": "SMHZTASB82",
+   "item_num": "8529A",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-8529aa-mdt-40-steel-reefer-3-rail"
+  },
+  {
+   "row": 14291,
+   "row_id": "ZVHXRFZPCV",
+   "item_num": "8539B",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-8539b-pacific-fruit-express-40-steel-reefer-45698-3-rail-vg-box"
+  },
+  {
+   "row": 14292,
+   "row_id": "8W58JFXYQN",
+   "item_num": "92807",
+   "old": "",
+   "new": "2-Rail",
+   "source": "https://www.trainz.com/products/atlas-92807-o-scale-trusweet-trinity-tankcar-65235-2rail"
+  },
+  {
+   "row": 14293,
+   "row_id": "XHC8EUUXQ6",
+   "item_num": "96052",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-96052-o-scale-1-3-4-straight-tracks-pack-of-4"
+  },
+  {
+   "row": 14294,
+   "row_id": "MUKMA3SMJW",
+   "item_num": "96057",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-96057-o-scale-3-tie-snap-lock-clips-8"
+  },
+  {
+   "row": 14297,
+   "row_id": "3WYNVUX95X",
+   "item_num": "96063",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-96063-o-scale-o-72-half-curved-track"
+  },
+  {
+   "row": 14298,
+   "row_id": "2RM9TJM673",
+   "item_num": "96066",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-96066-3-rail-o36-full-curve-track-sections"
+  },
+  {
+   "row": 14299,
+   "row_id": "CXPZWVEH2G",
+   "item_num": "96068",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-96068-o-scale-o-36-quarter-curve-tracks-4"
+  },
+  {
+   "row": 14301,
+   "row_id": "CFCXXTPN6B",
+   "item_num": "96072",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-96072-o-o72-solid-steel-left-hand-remote-switch-turnout-vg-box"
+  },
+  {
+   "row": 14302,
+   "row_id": "8K3C4W8E67",
+   "item_num": "96073",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-96073-o-o72-right-hand-remote-switch-turnout"
+  },
+  {
+   "row": 14308,
+   "row_id": "G8TZBXKKDN",
+   "item_num": "6263",
+   "old": "",
+   "new": "2-Rail",
+   "source": "https://www.trainz.com/products/atlas-6263-o-scale-bessemer-lake-erie-70-ton-ore-car-20090-2-rail-ln-box"
+  },
+  {
+   "row": 14309,
+   "row_id": "XG3WX5WYHR",
+   "item_num": "6724",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/show-atlas-6724-o-miller-40-woodside-reefer-2-3-rail-pack-of-2-ln-box"
+  },
+  {
+   "row": 14311,
+   "row_id": "BHWXZUKCUR",
+   "item_num": "6935",
+   "old": "",
+   "new": "3-Rail",
+   "source": "https://www.trainz.com/products/atlas-6935-type-d-2-color-switch-signal-set-of-4-6931s"
+  },
+  {
+   "row": 14315,
+   "row_id": "C8BFZM249S",
+   "item_num": "7098",
+   "old": "",
+   "new": "2-Rail",
+   "source": "https://www.trainz.com/products/atlas-7098-o-2-rail-code-148-solid-nickel-silver-left-hand-switch-machine"
+  },
+  {
+   "row": 14318,
+   "row_id": "PA8937PBK9",
+   "item_num": "7922",
+   "old": "",
+   "new": "2-Rail",
+   "source": "https://www.trainz.com/products/atlas-7922-bridge-add-on-kit"
+  }
+ ]
+}
