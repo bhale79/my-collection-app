@@ -1,0 +1,4116 @@
+{
+ "title": "Office verdicts — Märklin / LGB new items (LGB G 450, Marklin H0 5, Marklin Z 1), approved",
+ "rule": "status approved + decided date in P:Q; set = crawl_deltas cells by header (none — the files were corrected before loading); before = value the cell must hold now",
+ "review": "MARKLIN_LGB_NEW_ITEMS_REVIEW_2026-11-27.xlsx (main folder, gray bands) — every item opened on its own lgb.com / marklin.com page 2026-11-27; sources _Claude_Work_Files\\marklin_lgb_new_1127\\",
+ "said": "[stated] Brad 2026-11-27 09:33 CT \"what about the marklin and lgb now that we have permission\" → \"yes\" (start with the new items); 2026-11-28 07:35 CT \"yes\" to \"Should I load the 456 into the Office and approve them?\". Märklin written permission 2026-11-25 (MARKLIN_PERMISSION_2026-11-25.md).",
+ "files": {
+  "Task38_crawl/crawl_inbox/CB-LGB-20261123.json": "f615ecbf7982ef715c485e59733f3a5834578198dfde2fd9ee539ffc06dda828",
+  "Task38_crawl/crawl_inbox/CB-MARKLIN-20261123.json": "d770943280ca8b30bdc799b971f12d8e1beec545d0641afa17d0ce3d4156b30f"
+ },
+ "rows": [
+  {
+   "delta_id": "CB-LGB-20261123-00001",
+   "batch": "CB-LGB-20261123",
+   "item_num": "10006",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00002",
+   "batch": "CB-LGB-20261123",
+   "item_num": "10345",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00003",
+   "batch": "CB-LGB-20261123",
+   "item_num": "17010",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00004",
+   "batch": "CB-LGB-20261123",
+   "item_num": "19901",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00005",
+   "batch": "CB-LGB-20261123",
+   "item_num": "19903",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00006",
+   "batch": "CB-LGB-20261123",
+   "item_num": "20011",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00007",
+   "batch": "CB-LGB-20261123",
+   "item_num": "20120",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00008",
+   "batch": "CB-LGB-20261123",
+   "item_num": "20183",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00009",
+   "batch": "CB-LGB-20261123",
+   "item_num": "20220",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00010",
+   "batch": "CB-LGB-20261123",
+   "item_num": "20274",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00011",
+   "batch": "CB-LGB-20261123",
+   "item_num": "20275",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00012",
+   "batch": "CB-LGB-20261123",
+   "item_num": "20280",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00013",
+   "batch": "CB-LGB-20261123",
+   "item_num": "20284",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00014",
+   "batch": "CB-LGB-20261123",
+   "item_num": "20313",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00015",
+   "batch": "CB-LGB-20261123",
+   "item_num": "20320",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00016",
+   "batch": "CB-LGB-20261123",
+   "item_num": "20323",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00017",
+   "batch": "CB-LGB-20261123",
+   "item_num": "20325",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00018",
+   "batch": "CB-LGB-20261123",
+   "item_num": "20480",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00019",
+   "batch": "CB-LGB-20261123",
+   "item_num": "20481",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00020",
+   "batch": "CB-LGB-20261123",
+   "item_num": "20482",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00021",
+   "batch": "CB-LGB-20261123",
+   "item_num": "20483",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00022",
+   "batch": "CB-LGB-20261123",
+   "item_num": "20584",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00023",
+   "batch": "CB-LGB-20261123",
+   "item_num": "20750",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00024",
+   "batch": "CB-LGB-20261123",
+   "item_num": "20755",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00025",
+   "batch": "CB-LGB-20261123",
+   "item_num": "20756",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00026",
+   "batch": "CB-LGB-20261123",
+   "item_num": "20782",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00027",
+   "batch": "CB-LGB-20261123",
+   "item_num": "20930",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00028",
+   "batch": "CB-LGB-20261123",
+   "item_num": "20980",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00029",
+   "batch": "CB-LGB-20261123",
+   "item_num": "20981",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00030",
+   "batch": "CB-LGB-20261123",
+   "item_num": "21120",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00031",
+   "batch": "CB-LGB-20261123",
+   "item_num": "21272",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00032",
+   "batch": "CB-LGB-20261123",
+   "item_num": "21410",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00033",
+   "batch": "CB-LGB-20261123",
+   "item_num": "21423",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00034",
+   "batch": "CB-LGB-20261123",
+   "item_num": "21426",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00035",
+   "batch": "CB-LGB-20261123",
+   "item_num": "21429",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00036",
+   "batch": "CB-LGB-20261123",
+   "item_num": "21431",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00037",
+   "batch": "CB-LGB-20261123",
+   "item_num": "21482",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00038",
+   "batch": "CB-LGB-20261123",
+   "item_num": "21484",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00039",
+   "batch": "CB-LGB-20261123",
+   "item_num": "21485",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00040",
+   "batch": "CB-LGB-20261123",
+   "item_num": "21486",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00041",
+   "batch": "CB-LGB-20261123",
+   "item_num": "21751",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00042",
+   "batch": "CB-LGB-20261123",
+   "item_num": "21930",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00043",
+   "batch": "CB-LGB-20261123",
+   "item_num": "21936",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00044",
+   "batch": "CB-LGB-20261123",
+   "item_num": "21940",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00045",
+   "batch": "CB-LGB-20261123",
+   "item_num": "22040",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00046",
+   "batch": "CB-LGB-20261123",
+   "item_num": "22042",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00047",
+   "batch": "CB-LGB-20261123",
+   "item_num": "22062",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00048",
+   "batch": "CB-LGB-20261123",
+   "item_num": "22064",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00049",
+   "batch": "CB-LGB-20261123",
+   "item_num": "22065",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00050",
+   "batch": "CB-LGB-20261123",
+   "item_num": "22155",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00051",
+   "batch": "CB-LGB-20261123",
+   "item_num": "22222",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00052",
+   "batch": "CB-LGB-20261123",
+   "item_num": "22225",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00053",
+   "batch": "CB-LGB-20261123",
+   "item_num": "22226",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00054",
+   "batch": "CB-LGB-20261123",
+   "item_num": "22310",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00055",
+   "batch": "CB-LGB-20261123",
+   "item_num": "22390",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00056",
+   "batch": "CB-LGB-20261123",
+   "item_num": "22405",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00057",
+   "batch": "CB-LGB-20261123",
+   "item_num": "22412",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00058",
+   "batch": "CB-LGB-20261123",
+   "item_num": "22470",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00059",
+   "batch": "CB-LGB-20261123",
+   "item_num": "22660",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00060",
+   "batch": "CB-LGB-20261123",
+   "item_num": "22963",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00061",
+   "batch": "CB-LGB-20261123",
+   "item_num": "23100",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00062",
+   "batch": "CB-LGB-20261123",
+   "item_num": "23101",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00063",
+   "batch": "CB-LGB-20261123",
+   "item_num": "23103",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00064",
+   "batch": "CB-LGB-20261123",
+   "item_num": "23105",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00065",
+   "batch": "CB-LGB-20261123",
+   "item_num": "23196",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00066",
+   "batch": "CB-LGB-20261123",
+   "item_num": "23363",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00067",
+   "batch": "CB-LGB-20261123",
+   "item_num": "23405",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00068",
+   "batch": "CB-LGB-20261123",
+   "item_num": "23406",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00069",
+   "batch": "CB-LGB-20261123",
+   "item_num": "23450",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00070",
+   "batch": "CB-LGB-20261123",
+   "item_num": "23461",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00071",
+   "batch": "CB-LGB-20261123",
+   "item_num": "23530",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00072",
+   "batch": "CB-LGB-20261123",
+   "item_num": "23531",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00073",
+   "batch": "CB-LGB-20261123",
+   "item_num": "23591",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00074",
+   "batch": "CB-LGB-20261123",
+   "item_num": "23592",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00075",
+   "batch": "CB-LGB-20261123",
+   "item_num": "23660",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00076",
+   "batch": "CB-LGB-20261123",
+   "item_num": "23741",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00077",
+   "batch": "CB-LGB-20261123",
+   "item_num": "23892",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00078",
+   "batch": "CB-LGB-20261123",
+   "item_num": "23930",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00079",
+   "batch": "CB-LGB-20261123",
+   "item_num": "23940",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00080",
+   "batch": "CB-LGB-20261123",
+   "item_num": "23945",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00081",
+   "batch": "CB-LGB-20261123",
+   "item_num": "24265",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00082",
+   "batch": "CB-LGB-20261123",
+   "item_num": "24268",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00083",
+   "batch": "CB-LGB-20261123",
+   "item_num": "24450",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00084",
+   "batch": "CB-LGB-20261123",
+   "item_num": "24500",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00085",
+   "batch": "CB-LGB-20261123",
+   "item_num": "24520",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00086",
+   "batch": "CB-LGB-20261123",
+   "item_num": "24601",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00087",
+   "batch": "CB-LGB-20261123",
+   "item_num": "24602",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00088",
+   "batch": "CB-LGB-20261123",
+   "item_num": "24661",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00089",
+   "batch": "CB-LGB-20261123",
+   "item_num": "24662",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00090",
+   "batch": "CB-LGB-20261123",
+   "item_num": "24743",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00091",
+   "batch": "CB-LGB-20261123",
+   "item_num": "24841",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00092",
+   "batch": "CB-LGB-20261123",
+   "item_num": "24842",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00093",
+   "batch": "CB-LGB-20261123",
+   "item_num": "24900",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00094",
+   "batch": "CB-LGB-20261123",
+   "item_num": "25020",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00095",
+   "batch": "CB-LGB-20261123",
+   "item_num": "25409",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00096",
+   "batch": "CB-LGB-20261123",
+   "item_num": "25522",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00097",
+   "batch": "CB-LGB-20261123",
+   "item_num": "25557",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00098",
+   "batch": "CB-LGB-20261123",
+   "item_num": "25559",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00099",
+   "batch": "CB-LGB-20261123",
+   "item_num": "25701",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00100",
+   "batch": "CB-LGB-20261123",
+   "item_num": "25811",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00101",
+   "batch": "CB-LGB-20261123",
+   "item_num": "25812",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00102",
+   "batch": "CB-LGB-20261123",
+   "item_num": "25841",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00103",
+   "batch": "CB-LGB-20261123",
+   "item_num": "26252",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00104",
+   "batch": "CB-LGB-20261123",
+   "item_num": "26253",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00105",
+   "batch": "CB-LGB-20261123",
+   "item_num": "26254",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00106",
+   "batch": "CB-LGB-20261123",
+   "item_num": "26270",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00107",
+   "batch": "CB-LGB-20261123",
+   "item_num": "26271",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00108",
+   "batch": "CB-LGB-20261123",
+   "item_num": "26273",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00109",
+   "batch": "CB-LGB-20261123",
+   "item_num": "26370",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00110",
+   "batch": "CB-LGB-20261123",
+   "item_num": "26450",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00111",
+   "batch": "CB-LGB-20261123",
+   "item_num": "26451",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00112",
+   "batch": "CB-LGB-20261123",
+   "item_num": "26592",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00113",
+   "batch": "CB-LGB-20261123",
+   "item_num": "26593",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00114",
+   "batch": "CB-LGB-20261123",
+   "item_num": "26601",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00115",
+   "batch": "CB-LGB-20261123",
+   "item_num": "26602",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00116",
+   "batch": "CB-LGB-20261123",
+   "item_num": "26606",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00117",
+   "batch": "CB-LGB-20261123",
+   "item_num": "26660",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00118",
+   "batch": "CB-LGB-20261123",
+   "item_num": "26662",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00119",
+   "batch": "CB-LGB-20261123",
+   "item_num": "26811",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00120",
+   "batch": "CB-LGB-20261123",
+   "item_num": "26812",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00121",
+   "batch": "CB-LGB-20261123",
+   "item_num": "26814",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00122",
+   "batch": "CB-LGB-20261123",
+   "item_num": "26816",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00123",
+   "batch": "CB-LGB-20261123",
+   "item_num": "26817",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00124",
+   "batch": "CB-LGB-20261123",
+   "item_num": "26818",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00125",
+   "batch": "CB-LGB-20261123",
+   "item_num": "26819",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00126",
+   "batch": "CB-LGB-20261123",
+   "item_num": "26842",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00127",
+   "batch": "CB-LGB-20261123",
+   "item_num": "26843",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00128",
+   "batch": "CB-LGB-20261123",
+   "item_num": "26844",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00129",
+   "batch": "CB-LGB-20261123",
+   "item_num": "26845",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00130",
+   "batch": "CB-LGB-20261123",
+   "item_num": "26846",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00131",
+   "batch": "CB-LGB-20261123",
+   "item_num": "26847",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00132",
+   "batch": "CB-LGB-20261123",
+   "item_num": "27211",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00133",
+   "batch": "CB-LGB-20261123",
+   "item_num": "27510",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00134",
+   "batch": "CB-LGB-20261123",
+   "item_num": "27520",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00135",
+   "batch": "CB-LGB-20261123",
+   "item_num": "27802",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00136",
+   "batch": "CB-LGB-20261123",
+   "item_num": "27872",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00137",
+   "batch": "CB-LGB-20261123",
+   "item_num": "28004",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00138",
+   "batch": "CB-LGB-20261123",
+   "item_num": "28005",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00139",
+   "batch": "CB-LGB-20261123",
+   "item_num": "28006",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00140",
+   "batch": "CB-LGB-20261123",
+   "item_num": "28432",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00141",
+   "batch": "CB-LGB-20261123",
+   "item_num": "28434",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00142",
+   "batch": "CB-LGB-20261123",
+   "item_num": "28435",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00143",
+   "batch": "CB-LGB-20261123",
+   "item_num": "28438",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00144",
+   "batch": "CB-LGB-20261123",
+   "item_num": "28439",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00145",
+   "batch": "CB-LGB-20261123",
+   "item_num": "28441",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00146",
+   "batch": "CB-LGB-20261123",
+   "item_num": "28445",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00147",
+   "batch": "CB-LGB-20261123",
+   "item_num": "28447",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00148",
+   "batch": "CB-LGB-20261123",
+   "item_num": "28448",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00149",
+   "batch": "CB-LGB-20261123",
+   "item_num": "28515",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00150",
+   "batch": "CB-LGB-20261123",
+   "item_num": "28516",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00151",
+   "batch": "CB-LGB-20261123",
+   "item_num": "29272",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00152",
+   "batch": "CB-LGB-20261123",
+   "item_num": "29650",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00153",
+   "batch": "CB-LGB-20261123",
+   "item_num": "30094",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00154",
+   "batch": "CB-LGB-20261123",
+   "item_num": "30142",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00155",
+   "batch": "CB-LGB-20261123",
+   "item_num": "30262",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00156",
+   "batch": "CB-LGB-20261123",
+   "item_num": "30320",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00157",
+   "batch": "CB-LGB-20261123",
+   "item_num": "30322",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00158",
+   "batch": "CB-LGB-20261123",
+   "item_num": "30324",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00159",
+   "batch": "CB-LGB-20261123",
+   "item_num": "30325",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00160",
+   "batch": "CB-LGB-20261123",
+   "item_num": "30326",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00161",
+   "batch": "CB-LGB-20261123",
+   "item_num": "30344",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00162",
+   "batch": "CB-LGB-20261123",
+   "item_num": "30402",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00163",
+   "batch": "CB-LGB-20261123",
+   "item_num": "30506",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00164",
+   "batch": "CB-LGB-20261123",
+   "item_num": "30507",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00165",
+   "batch": "CB-LGB-20261123",
+   "item_num": "30508",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00166",
+   "batch": "CB-LGB-20261123",
+   "item_num": "30510",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00167",
+   "batch": "CB-LGB-20261123",
+   "item_num": "30511",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00168",
+   "batch": "CB-LGB-20261123",
+   "item_num": "30514",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00169",
+   "batch": "CB-LGB-20261123",
+   "item_num": "30520",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00170",
+   "batch": "CB-LGB-20261123",
+   "item_num": "30521",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00171",
+   "batch": "CB-LGB-20261123",
+   "item_num": "30522",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00172",
+   "batch": "CB-LGB-20261123",
+   "item_num": "30523",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00173",
+   "batch": "CB-LGB-20261123",
+   "item_num": "30681",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00174",
+   "batch": "CB-LGB-20261123",
+   "item_num": "30682",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00175",
+   "batch": "CB-LGB-20261123",
+   "item_num": "30683",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00176",
+   "batch": "CB-LGB-20261123",
+   "item_num": "30821",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00177",
+   "batch": "CB-LGB-20261123",
+   "item_num": "30822",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00178",
+   "batch": "CB-LGB-20261123",
+   "item_num": "31040",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00179",
+   "batch": "CB-LGB-20261123",
+   "item_num": "31077",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00180",
+   "batch": "CB-LGB-20261123",
+   "item_num": "31090",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00181",
+   "batch": "CB-LGB-20261123",
+   "item_num": "31311",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00182",
+   "batch": "CB-LGB-20261123",
+   "item_num": "31352",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00183",
+   "batch": "CB-LGB-20261123",
+   "item_num": "31355",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00184",
+   "batch": "CB-LGB-20261123",
+   "item_num": "31356",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00185",
+   "batch": "CB-LGB-20261123",
+   "item_num": "31357",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00186",
+   "batch": "CB-LGB-20261123",
+   "item_num": "31390",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00187",
+   "batch": "CB-LGB-20261123",
+   "item_num": "31391",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00188",
+   "batch": "CB-LGB-20261123",
+   "item_num": "31432",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00189",
+   "batch": "CB-LGB-20261123",
+   "item_num": "31520",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00190",
+   "batch": "CB-LGB-20261123",
+   "item_num": "31523",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00191",
+   "batch": "CB-LGB-20261123",
+   "item_num": "31676",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00192",
+   "batch": "CB-LGB-20261123",
+   "item_num": "31677",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00193",
+   "batch": "CB-LGB-20261123",
+   "item_num": "32040",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00194",
+   "batch": "CB-LGB-20261123",
+   "item_num": "32077",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00195",
+   "batch": "CB-LGB-20261123",
+   "item_num": "32078",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00196",
+   "batch": "CB-LGB-20261123",
+   "item_num": "32170",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00197",
+   "batch": "CB-LGB-20261123",
+   "item_num": "32310",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00198",
+   "batch": "CB-LGB-20261123",
+   "item_num": "32352",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00199",
+   "batch": "CB-LGB-20261123",
+   "item_num": "32354",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00200",
+   "batch": "CB-LGB-20261123",
+   "item_num": "32355",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00201",
+   "batch": "CB-LGB-20261123",
+   "item_num": "32358",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00202",
+   "batch": "CB-LGB-20261123",
+   "item_num": "32524",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00203",
+   "batch": "CB-LGB-20261123",
+   "item_num": "32550",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00204",
+   "batch": "CB-LGB-20261123",
+   "item_num": "32734",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00205",
+   "batch": "CB-LGB-20261123",
+   "item_num": "33150",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00206",
+   "batch": "CB-LGB-20261123",
+   "item_num": "33202",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00207",
+   "batch": "CB-LGB-20261123",
+   "item_num": "33205",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00208",
+   "batch": "CB-LGB-20261123",
+   "item_num": "33353",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00209",
+   "batch": "CB-LGB-20261123",
+   "item_num": "33401",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00210",
+   "batch": "CB-LGB-20261123",
+   "item_num": "33402",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00211",
+   "batch": "CB-LGB-20261123",
+   "item_num": "33403",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00212",
+   "batch": "CB-LGB-20261123",
+   "item_num": "33521",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00213",
+   "batch": "CB-LGB-20261123",
+   "item_num": "33550",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00214",
+   "batch": "CB-LGB-20261123",
+   "item_num": "33551",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00215",
+   "batch": "CB-LGB-20261123",
+   "item_num": "33610",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00216",
+   "batch": "CB-LGB-20261123",
+   "item_num": "33613",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00217",
+   "batch": "CB-LGB-20261123",
+   "item_num": "33624",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00218",
+   "batch": "CB-LGB-20261123",
+   "item_num": "33662",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00219",
+   "batch": "CB-LGB-20261123",
+   "item_num": "33664",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00220",
+   "batch": "CB-LGB-20261123",
+   "item_num": "33665",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00221",
+   "batch": "CB-LGB-20261123",
+   "item_num": "33668",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00222",
+   "batch": "CB-LGB-20261123",
+   "item_num": "33669",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00223",
+   "batch": "CB-LGB-20261123",
+   "item_num": "33704",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00224",
+   "batch": "CB-LGB-20261123",
+   "item_num": "33736",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00225",
+   "batch": "CB-LGB-20261123",
+   "item_num": "34513",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00226",
+   "batch": "CB-LGB-20261123",
+   "item_num": "34556",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00227",
+   "batch": "CB-LGB-20261123",
+   "item_num": "35074",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00228",
+   "batch": "CB-LGB-20261123",
+   "item_num": "35093",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00229",
+   "batch": "CB-LGB-20261123",
+   "item_num": "35099",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00230",
+   "batch": "CB-LGB-20261123",
+   "item_num": "35357",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00231",
+   "batch": "CB-LGB-20261123",
+   "item_num": "35359",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00232",
+   "batch": "CB-LGB-20261123",
+   "item_num": "35361",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00233",
+   "batch": "CB-LGB-20261123",
+   "item_num": "35690",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00234",
+   "batch": "CB-LGB-20261123",
+   "item_num": "35730",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00235",
+   "batch": "CB-LGB-20261123",
+   "item_num": "35731",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00236",
+   "batch": "CB-LGB-20261123",
+   "item_num": "36310",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00237",
+   "batch": "CB-LGB-20261123",
+   "item_num": "36313",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00238",
+   "batch": "CB-LGB-20261123",
+   "item_num": "36314",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00239",
+   "batch": "CB-LGB-20261123",
+   "item_num": "36315",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00240",
+   "batch": "CB-LGB-20261123",
+   "item_num": "36316",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00241",
+   "batch": "CB-LGB-20261123",
+   "item_num": "36350",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00242",
+   "batch": "CB-LGB-20261123",
+   "item_num": "36351",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00243",
+   "batch": "CB-LGB-20261123",
+   "item_num": "36352",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00244",
+   "batch": "CB-LGB-20261123",
+   "item_num": "36355",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00245",
+   "batch": "CB-LGB-20261123",
+   "item_num": "36358",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00246",
+   "batch": "CB-LGB-20261123",
+   "item_num": "36360",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00247",
+   "batch": "CB-LGB-20261123",
+   "item_num": "36361",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00248",
+   "batch": "CB-LGB-20261123",
+   "item_num": "36364",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00249",
+   "batch": "CB-LGB-20261123",
+   "item_num": "36371",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00250",
+   "batch": "CB-LGB-20261123",
+   "item_num": "36372",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00251",
+   "batch": "CB-LGB-20261123",
+   "item_num": "36642",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00252",
+   "batch": "CB-LGB-20261123",
+   "item_num": "36659",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00253",
+   "batch": "CB-LGB-20261123",
+   "item_num": "36660",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00254",
+   "batch": "CB-LGB-20261123",
+   "item_num": "36661",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00255",
+   "batch": "CB-LGB-20261123",
+   "item_num": "37675",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00256",
+   "batch": "CB-LGB-20261123",
+   "item_num": "37732",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00257",
+   "batch": "CB-LGB-20261123",
+   "item_num": "37734",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00258",
+   "batch": "CB-LGB-20261123",
+   "item_num": "37738",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00259",
+   "batch": "CB-LGB-20261123",
+   "item_num": "39075",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00260",
+   "batch": "CB-LGB-20261123",
+   "item_num": "39359",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00261",
+   "batch": "CB-LGB-20261123",
+   "item_num": "39661",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00262",
+   "batch": "CB-LGB-20261123",
+   "item_num": "39666",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00263",
+   "batch": "CB-LGB-20261123",
+   "item_num": "39667",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00264",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40018",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00265",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40020",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00266",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40021",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00267",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40024",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00268",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40030",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00269",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40031",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00270",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40032",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00271",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40033",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00272",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40035",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00273",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40036",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00274",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40037",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00275",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40038",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00276",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40039",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00277",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40081",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00278",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40082",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00279",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40084",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00280",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40093",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00281",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40099",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00282",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40121",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00283",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40122",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00284",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40268",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00285",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40269",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00286",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40271",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00287",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40272",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00288",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40273",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00289",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40274",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00290",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40552",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00291",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40554",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00292",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40555",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00293",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40556",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00294",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40557",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00295",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40809",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00296",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40813",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00297",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40818",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00298",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40835",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00299",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40874",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00300",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40875",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00301",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40883",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00302",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40884",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00303",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40895",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00304",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40980",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00305",
+   "batch": "CB-LGB-20261123",
+   "item_num": "40982",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00306",
+   "batch": "CB-LGB-20261123",
+   "item_num": "41032",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00307",
+   "batch": "CB-LGB-20261123",
+   "item_num": "41033",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00308",
+   "batch": "CB-LGB-20261123",
+   "item_num": "41034",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00309",
+   "batch": "CB-LGB-20261123",
+   "item_num": "41035",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00310",
+   "batch": "CB-LGB-20261123",
+   "item_num": "41103",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00311",
+   "batch": "CB-LGB-20261123",
+   "item_num": "41160",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00312",
+   "batch": "CB-LGB-20261123",
+   "item_num": "41253",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00313",
+   "batch": "CB-LGB-20261123",
+   "item_num": "41283",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00314",
+   "batch": "CB-LGB-20261123",
+   "item_num": "41331",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00315",
+   "batch": "CB-LGB-20261123",
+   "item_num": "41409",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00316",
+   "batch": "CB-LGB-20261123",
+   "item_num": "41410",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00317",
+   "batch": "CB-LGB-20261123",
+   "item_num": "41411",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00318",
+   "batch": "CB-LGB-20261123",
+   "item_num": "41590",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00319",
+   "batch": "CB-LGB-20261123",
+   "item_num": "41591",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00320",
+   "batch": "CB-LGB-20261123",
+   "item_num": "41810",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00321",
+   "batch": "CB-LGB-20261123",
+   "item_num": "41890",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00322",
+   "batch": "CB-LGB-20261123",
+   "item_num": "41891",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00323",
+   "batch": "CB-LGB-20261123",
+   "item_num": "41923",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00324",
+   "batch": "CB-LGB-20261123",
+   "item_num": "42123",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00325",
+   "batch": "CB-LGB-20261123",
+   "item_num": "42125",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00326",
+   "batch": "CB-LGB-20261123",
+   "item_num": "42262",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00327",
+   "batch": "CB-LGB-20261123",
+   "item_num": "42264",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00328",
+   "batch": "CB-LGB-20261123",
+   "item_num": "42269",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00329",
+   "batch": "CB-LGB-20261123",
+   "item_num": "42355",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00330",
+   "batch": "CB-LGB-20261123",
+   "item_num": "42591",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00331",
+   "batch": "CB-LGB-20261123",
+   "item_num": "42614",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00332",
+   "batch": "CB-LGB-20261123",
+   "item_num": "42615",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00333",
+   "batch": "CB-LGB-20261123",
+   "item_num": "42634",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00334",
+   "batch": "CB-LGB-20261123",
+   "item_num": "42636",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00335",
+   "batch": "CB-LGB-20261123",
+   "item_num": "42637",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00336",
+   "batch": "CB-LGB-20261123",
+   "item_num": "42639",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00337",
+   "batch": "CB-LGB-20261123",
+   "item_num": "42916",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00338",
+   "batch": "CB-LGB-20261123",
+   "item_num": "42919",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00339",
+   "batch": "CB-LGB-20261123",
+   "item_num": "43120",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00340",
+   "batch": "CB-LGB-20261123",
+   "item_num": "43121",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00341",
+   "batch": "CB-LGB-20261123",
+   "item_num": "43213",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00342",
+   "batch": "CB-LGB-20261123",
+   "item_num": "43230",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00343",
+   "batch": "CB-LGB-20261123",
+   "item_num": "43231",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00344",
+   "batch": "CB-LGB-20261123",
+   "item_num": "43232",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00345",
+   "batch": "CB-LGB-20261123",
+   "item_num": "43234",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00346",
+   "batch": "CB-LGB-20261123",
+   "item_num": "43261",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00347",
+   "batch": "CB-LGB-20261123",
+   "item_num": "43355",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00348",
+   "batch": "CB-LGB-20261123",
+   "item_num": "43521",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00349",
+   "batch": "CB-LGB-20261123",
+   "item_num": "43600",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00350",
+   "batch": "CB-LGB-20261123",
+   "item_num": "43604",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00351",
+   "batch": "CB-LGB-20261123",
+   "item_num": "43605",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00352",
+   "batch": "CB-LGB-20261123",
+   "item_num": "43621",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00353",
+   "batch": "CB-LGB-20261123",
+   "item_num": "43811",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00354",
+   "batch": "CB-LGB-20261123",
+   "item_num": "43882",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00355",
+   "batch": "CB-LGB-20261123",
+   "item_num": "43883",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00356",
+   "batch": "CB-LGB-20261123",
+   "item_num": "44390",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00357",
+   "batch": "CB-LGB-20261123",
+   "item_num": "44894",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00358",
+   "batch": "CB-LGB-20261123",
+   "item_num": "44920",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00359",
+   "batch": "CB-LGB-20261123",
+   "item_num": "45002",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00360",
+   "batch": "CB-LGB-20261123",
+   "item_num": "45141",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00361",
+   "batch": "CB-LGB-20261123",
+   "item_num": "45144",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00362",
+   "batch": "CB-LGB-20261123",
+   "item_num": "45145",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00363",
+   "batch": "CB-LGB-20261123",
+   "item_num": "45256",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00364",
+   "batch": "CB-LGB-20261123",
+   "item_num": "45306",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00365",
+   "batch": "CB-LGB-20261123",
+   "item_num": "45409",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00366",
+   "batch": "CB-LGB-20261123",
+   "item_num": "45690",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00367",
+   "batch": "CB-LGB-20261123",
+   "item_num": "45883",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00368",
+   "batch": "CB-LGB-20261123",
+   "item_num": "45886",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00369",
+   "batch": "CB-LGB-20261123",
+   "item_num": "45887",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00370",
+   "batch": "CB-LGB-20261123",
+   "item_num": "45896",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00371",
+   "batch": "CB-LGB-20261123",
+   "item_num": "45897",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00372",
+   "batch": "CB-LGB-20261123",
+   "item_num": "45898",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00373",
+   "batch": "CB-LGB-20261123",
+   "item_num": "45899",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00374",
+   "batch": "CB-LGB-20261123",
+   "item_num": "45920",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00375",
+   "batch": "CB-LGB-20261123",
+   "item_num": "45924",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00376",
+   "batch": "CB-LGB-20261123",
+   "item_num": "46695",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00377",
+   "batch": "CB-LGB-20261123",
+   "item_num": "46836",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00378",
+   "batch": "CB-LGB-20261123",
+   "item_num": "46895",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00379",
+   "batch": "CB-LGB-20261123",
+   "item_num": "46896",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00380",
+   "batch": "CB-LGB-20261123",
+   "item_num": "46897",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00381",
+   "batch": "CB-LGB-20261123",
+   "item_num": "47570",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00382",
+   "batch": "CB-LGB-20261123",
+   "item_num": "47571",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00383",
+   "batch": "CB-LGB-20261123",
+   "item_num": "47690",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00384",
+   "batch": "CB-LGB-20261123",
+   "item_num": "47831",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00385",
+   "batch": "CB-LGB-20261123",
+   "item_num": "47835",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00386",
+   "batch": "CB-LGB-20261123",
+   "item_num": "47899",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00387",
+   "batch": "CB-LGB-20261123",
+   "item_num": "48180",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00388",
+   "batch": "CB-LGB-20261123",
+   "item_num": "48574",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00389",
+   "batch": "CB-LGB-20261123",
+   "item_num": "48671",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00390",
+   "batch": "CB-LGB-20261123",
+   "item_num": "48681",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00391",
+   "batch": "CB-LGB-20261123",
+   "item_num": "48830",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00392",
+   "batch": "CB-LGB-20261123",
+   "item_num": "49181",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00393",
+   "batch": "CB-LGB-20261123",
+   "item_num": "49189",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00394",
+   "batch": "CB-LGB-20261123",
+   "item_num": "49390",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00395",
+   "batch": "CB-LGB-20261123",
+   "item_num": "49431",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00396",
+   "batch": "CB-LGB-20261123",
+   "item_num": "49550",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00397",
+   "batch": "CB-LGB-20261123",
+   "item_num": "49560",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00398",
+   "batch": "CB-LGB-20261123",
+   "item_num": "49660",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00399",
+   "batch": "CB-LGB-20261123",
+   "item_num": "49690",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00400",
+   "batch": "CB-LGB-20261123",
+   "item_num": "49890",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00401",
+   "batch": "CB-LGB-20261123",
+   "item_num": "50110",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00402",
+   "batch": "CB-LGB-20261123",
+   "item_num": "50170",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00403",
+   "batch": "CB-LGB-20261123",
+   "item_num": "50174",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00404",
+   "batch": "CB-LGB-20261123",
+   "item_num": "50177",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00405",
+   "batch": "CB-LGB-20261123",
+   "item_num": "50356",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00406",
+   "batch": "CB-LGB-20261123",
+   "item_num": "50366",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00407",
+   "batch": "CB-LGB-20261123",
+   "item_num": "51085",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00408",
+   "batch": "CB-LGB-20261123",
+   "item_num": "51090",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00409",
+   "batch": "CB-LGB-20261123",
+   "item_num": "51092",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00410",
+   "batch": "CB-LGB-20261123",
+   "item_num": "51570",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00411",
+   "batch": "CB-LGB-20261123",
+   "item_num": "55050",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00412",
+   "batch": "CB-LGB-20261123",
+   "item_num": "55055",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00413",
+   "batch": "CB-LGB-20261123",
+   "item_num": "55080",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00414",
+   "batch": "CB-LGB-20261123",
+   "item_num": "55081",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00415",
+   "batch": "CB-LGB-20261123",
+   "item_num": "55085",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00416",
+   "batch": "CB-LGB-20261123",
+   "item_num": "56301",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00417",
+   "batch": "CB-LGB-20261123",
+   "item_num": "60117",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00418",
+   "batch": "CB-LGB-20261123",
+   "item_num": "60128",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00419",
+   "batch": "CB-LGB-20261123",
+   "item_num": "60175",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00420",
+   "batch": "CB-LGB-20261123",
+   "item_num": "60195",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00421",
+   "batch": "CB-LGB-20261123",
+   "item_num": "60667",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00422",
+   "batch": "CB-LGB-20261123",
+   "item_num": "70302",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00423",
+   "batch": "CB-LGB-20261123",
+   "item_num": "70304",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00424",
+   "batch": "CB-LGB-20261123",
+   "item_num": "70305",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00425",
+   "batch": "CB-LGB-20261123",
+   "item_num": "70307",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00426",
+   "batch": "CB-LGB-20261123",
+   "item_num": "70308",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00427",
+   "batch": "CB-LGB-20261123",
+   "item_num": "70400",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00428",
+   "batch": "CB-LGB-20261123",
+   "item_num": "70403",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00429",
+   "batch": "CB-LGB-20261123",
+   "item_num": "70500",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00430",
+   "batch": "CB-LGB-20261123",
+   "item_num": "70503",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00431",
+   "batch": "CB-LGB-20261123",
+   "item_num": "70504",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00432",
+   "batch": "CB-LGB-20261123",
+   "item_num": "70505",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00433",
+   "batch": "CB-LGB-20261123",
+   "item_num": "70530",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00434",
+   "batch": "CB-LGB-20261123",
+   "item_num": "70580",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00435",
+   "batch": "CB-LGB-20261123",
+   "item_num": "72710",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00436",
+   "batch": "CB-LGB-20261123",
+   "item_num": "72720",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00437",
+   "batch": "CB-LGB-20261123",
+   "item_num": "72730",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00438",
+   "batch": "CB-LGB-20261123",
+   "item_num": "72740",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00439",
+   "batch": "CB-LGB-20261123",
+   "item_num": "74302",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00440",
+   "batch": "CB-LGB-20261123",
+   "item_num": "74403",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00441",
+   "batch": "CB-LGB-20261123",
+   "item_num": "77302",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00442",
+   "batch": "CB-LGB-20261123",
+   "item_num": "77403",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00443",
+   "batch": "CB-LGB-20261123",
+   "item_num": "78302",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00444",
+   "batch": "CB-LGB-20261123",
+   "item_num": "78403",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00445",
+   "batch": "CB-LGB-20261123",
+   "item_num": "90200",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00446",
+   "batch": "CB-LGB-20261123",
+   "item_num": "90450",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00447",
+   "batch": "CB-LGB-20261123",
+   "item_num": "90470",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00448",
+   "batch": "CB-LGB-20261123",
+   "item_num": "92080",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00449",
+   "batch": "CB-LGB-20261123",
+   "item_num": "93612",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-LGB-20261123-00450",
+   "batch": "CB-LGB-20261123",
+   "item_num": "94268",
+   "proposed_tab": "LGB G",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-MARKLIN-20261123-00001",
+   "batch": "CB-MARKLIN-20261123",
+   "item_num": "18043",
+   "proposed_tab": "Marklin H0",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-MARKLIN-20261123-00002",
+   "batch": "CB-MARKLIN-20261123",
+   "item_num": "38044",
+   "proposed_tab": "Marklin H0",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-MARKLIN-20261123-00003",
+   "batch": "CB-MARKLIN-20261123",
+   "item_num": "39725",
+   "proposed_tab": "Marklin H0",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-MARKLIN-20261123-00004",
+   "batch": "CB-MARKLIN-20261123",
+   "item_num": "43548",
+   "proposed_tab": "Marklin H0",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-MARKLIN-20261123-00005",
+   "batch": "CB-MARKLIN-20261123",
+   "item_num": "48957",
+   "proposed_tab": "Marklin H0",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  },
+  {
+   "delta_id": "CB-MARKLIN-20261123-00006",
+   "batch": "CB-MARKLIN-20261123",
+   "item_num": "80955",
+   "proposed_tab": "Marklin Z",
+   "status": "approved",
+   "set": {},
+   "before": {}
+  }
+ ]
+}
