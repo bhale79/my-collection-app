@@ -1,0 +1,95 @@
+{
+ "title": "Master fix — Märklin H0: 8 dead picture links replaced with the item's current picture from its own marklin.com page",
+ "rule": "cell UPDATE keyed by Row ID + sheet row; before = the value that must be in the cell right before the write; written RAW; nothing else on the tab changes",
+ "said": "[stated] Brad 2026-11-28 14:01 CT \"yes\" (review list) and 14:43 CT \"yes\" (write the 8 of MARKLIN_PICTURES_REVIEW_2026-11-28.xlsx).",
+ "source": "all 7,283 Märklin picture links checked 2026-11-28 (7,275 answer, these 8 refused with HTTP 403); the new link is the first large product photo (itemprop=image) on the row's own marklin.com page, opened 2026-11-28 and returned image/jpeg",
+ "plan": "PLAN_2026-11-25_MARKLIN_LGB_FIXES.md step 4",
+ "counts": {
+  "rows": 8,
+  "cells": 8,
+  "Image URL": 8,
+  "Marklin H0": 8
+ },
+ "changes": [
+  {
+   "tab": "Marklin H0",
+   "row": 769,
+   "row_id": "HS8MHNU989",
+   "num": "36217",
+   "col": "Image URL",
+   "cell": "X769",
+   "old": "https://static.maerklin.de/damcontent/9e/6d/9e6d6634a5a244cda679a19ca3e2b5021765836027.jpg",
+   "new": "https://static.maerklin.de/damcontent/34/05/340593f358d4ddfcfd5ce4df611bcbea1789722004.jpg"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 888,
+   "row_id": "HG2PU6VSFT",
+   "num": "36659",
+   "col": "Image URL",
+   "cell": "X888",
+   "old": "https://static.maerklin.de/damcontent/12/01/120122a1ff2c8bd1522adb284745c1251787760022.jpg",
+   "new": "https://static.maerklin.de/damcontent/d8/a8/d8a8da7b0661f8186ac6c17a33d482b71793787303.jpg"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 1579,
+   "row_id": "KZBVGSCSKW",
+   "num": "37837",
+   "col": "Image URL",
+   "cell": "X1579",
+   "old": "https://static.maerklin.de/damcontent/ba/aa/baaa18f34b50e9930a8970ffee1bb9851757941204.jpg",
+   "new": "https://static.maerklin.de/damcontent/2a/df/2adf467977e5cd729e229071e57e54c31788944404.jpg"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 1793,
+   "row_id": "4WGKQDWTPP",
+   "num": "39067",
+   "col": "Image URL",
+   "cell": "X1793",
+   "old": "https://static.maerklin.de/damcontent/ac/1f/ac1faaa10d1fe1e432319b72b5e5db411765828813.jpg",
+   "new": "https://static.maerklin.de/damcontent/52/7f/527f6d6c41aef81896011adca908e4361790611203.jpg"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 2012,
+   "row_id": "98TPVBU5PC",
+   "num": "39481",
+   "col": "Image URL",
+   "cell": "X2012",
+   "old": "https://static.maerklin.de/damcontent/42/a4/42a4edc9ed24f4fe72e5f25e5864686d1765818018.jpg",
+   "new": "https://static.maerklin.de/damcontent/a6/1f/a61f410220e4bcf331e037975311d0291791886084.jpg"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3068,
+   "row_id": "QQ9EVPBYN5",
+   "num": "44126",
+   "col": "Image URL",
+   "cell": "X3068",
+   "old": "https://static.maerklin.de/damcontent/f8/d0/f8d05ea1bf82fc67ad5d9f665bc688021783076405.jpg",
+   "new": "https://static.maerklin.de/damcontent/8c/e9/8ce956da88425eaec7115a371e3aace81795598105.jpg"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3163,
+   "row_id": "5HH3VBGKTP",
+   "num": "44297",
+   "col": "Image URL",
+   "cell": "X3163",
+   "old": "https://static.maerklin.de/damcontent/92/e6/92e6fd2b20f50241e830fe7288c65afe1788429605.jpg",
+   "new": "https://static.maerklin.de/damcontent/8b/60/8b6039cd28f0c7fbd3fe8cc194a07f4e1790341204.jpg"
+  },
+  {
+   "tab": "Marklin H0",
+   "row": 3694,
+   "row_id": "DR8G4R75J8",
+   "num": "46720",
+   "col": "Image URL",
+   "cell": "X3694",
+   "old": "https://static.maerklin.de/damcontent/a9/09/a9090391f3a6b3c23d1d918ac1995a1d1765825208.jpg",
+   "new": "https://static.maerklin.de/damcontent/d9/49/d94958210147ea802ada3f6ce5442d351790085604.jpg"
+  }
+ ]
+}
