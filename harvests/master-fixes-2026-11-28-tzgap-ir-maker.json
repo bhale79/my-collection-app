@@ -1,0 +1,64 @@
+{
+ "title": "Master fix — Other O Brands: Manufacturer (column W) = Industrial Rail on the 8 Industrial Rail rows added by Master Version 3.23 (the Office Commit fills no Manufacturer)",
+ "tab": "Other O Brands",
+ "column": "W (Manufacturer)",
+ "said": "[stated] Brad 2026-11-28 07:33 CT \"yes\" to the commit and its two follow-ups (Industrial Rail maker filled in), \"Approve inserting the master version\".",
+ "cells": [
+  {
+   "row": 182,
+   "row_id": "VFYYW972SV",
+   "item_num": "1002302-2",
+   "old": "",
+   "new": "Industrial Rail"
+  },
+  {
+   "row": 183,
+   "row_id": "6DCFYMNJ3M",
+   "item_num": "1004006-1",
+   "old": "",
+   "new": "Industrial Rail"
+  },
+  {
+   "row": 184,
+   "row_id": "AECJ23XZUS",
+   "item_num": "1004203-2",
+   "old": "",
+   "new": "Industrial Rail"
+  },
+  {
+   "row": 185,
+   "row_id": "NG6VAQZ3PE",
+   "item_num": "820001",
+   "old": "",
+   "new": "Industrial Rail"
+  },
+  {
+   "row": 186,
+   "row_id": "DQA4GB6NDK",
+   "item_num": "820003",
+   "old": "",
+   "new": "Industrial Rail"
+  },
+  {
+   "row": 187,
+   "row_id": "U5XJ5U5SJA",
+   "item_num": "IDM6006",
+   "old": "",
+   "new": "Industrial Rail"
+  },
+  {
+   "row": 188,
+   "row_id": "6CQZTRAKQ5",
+   "item_num": "IDMU1403",
+   "old": "",
+   "new": "Industrial Rail"
+  },
+  {
+   "row": 189,
+   "row_id": "KACHVHAV73",
+   "item_num": "IDMU6001",
+   "old": "",
+   "new": "Industrial Rail"
+  }
+ ]
+}
