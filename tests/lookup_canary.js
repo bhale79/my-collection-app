@@ -590,5 +590,27 @@ T('regression: 9099 scale hint still HO',
   delete ERA_TABS.weaver; delete ERA_TABS.prewar;
 }
 
+// ── CANARY: a copy taken OFF the catalog (scaleunlink, 2026-11-27) — Update Info's
+// "None of these — keep it as my own item" makes it Era Manual with no Master Key /
+// Row ID. Its number may still be a catalog number (Paul Harris's case: a Lionel
+// entry attached by mistake). It must STAY off the catalog: never re-tied by the
+// number alone. rrCopyIsUnlinked is the one test every screen asks.
+// Full coverage: scale_unlink_tests.js.
+{
+  const _appU = fs.readFileSync(path.join(__dirname, '..', 'app', 'app.js'), 'utf8');
+  let asked = 0;
+  global.rrCopyCatalogRow = function () { asked++; return { itemNum: '9001', _era: 'mpc', rowId: 'LIONLIONLI' }; };   // the catalog DOES carry 9001
+  eval(grab(_appU, 'rrCopyIsUnlinked').replace('function rrCopyIsUnlinked', 'global.rrCopyIsUnlinked = function'));
+  T('scaleunlink: a 9001 taken off the catalog stays off, though the catalog carries 9001', rrCopyIsUnlinked({ era: 'Manual', itemNum: '9001', masterKey: '', masterRowId: '' }), true);
+  T('scaleunlink: ...and the catalog is not even asked by its number', asked, 0);
+  T('scaleunlink: a 9001 tied to its entry is still tied', rrCopyIsUnlinked({ era: 'mpc', itemNum: '9001', masterRowId: 'LIONLIONLI' }), false);
+  // planted: without the Manual check, the number alone ties it back (must be caught)
+  const _pl = grab(_appU, 'rrCopyIsUnlinked');
+  if (_pl.split("if (String(copy.era || '') === 'Manual') return true;").length !== 2) throw new Error('scaleunlink canary: the anchor moved; update this test');
+  eval(_pl.replace("if (String(copy.era || '') === 'Manual') return true;", '').replace('function rrCopyIsUnlinked', 'global._plantedUnlinked = function'));
+  T('scaleunlink planted: with the Manual check removed, the number alone re-ties it (this canary sees it)', _plantedUnlinked({ era: 'Manual', itemNum: '9001' }), false);
+  delete global.rrCopyCatalogRow; delete global._plantedUnlinked;
+}
+
 console.log(fails ? ('\n' + fails + ' CANARY FAILURE(S) — a lookup path regressed.') : '\nALL CANARIES GREEN');
 process.exit(fails ? 1 : 0);

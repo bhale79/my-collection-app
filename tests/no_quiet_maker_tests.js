@@ -342,14 +342,17 @@ section('S  scans of every app file');
 
   // S7: Update Info.
   const COLL = read('app-collection.js');
+  // 2026-11-27 (scaleunlink): the line is shown while _ownNow() — an item not tied to a catalog
+  // entry, or one staged "keep it as my own item" — so the rule now reads through that helper.
   ok('S7 Update Info shows Manufacturer only for an item not tied to a catalog entry',
-     /\.\.\.\(_panelUnlinked \? \[\{ label: 'Manufacturer', key: 'manufacturer'/.test(COLL)
+     /\{ label: 'Manufacturer', key: 'manufacturer', [^\n]*when: _ownNow \}/.test(COLL)
+     && /const _ownNow = function \(\) \{ return _panelUnlinked \|\| !!pd\._toOwn; \};/.test(COLL)
      && /const _panelUnlinked = \(typeof rrCopyIsUnlinked === 'function'\) \? rrCopyIsUnlinked\(_live\)/.test(COLL));
   ok('S7b …and its save keeps the maker set there (no lookup by number re-picks one)',
-     /_noCatalogRow: \(_panelUnlinked && !_entry\) \? true : undefined,/.test(COLL));
+     /_noCatalogRow: \(\(_panelUnlinked \|\| _toOwn\) && !_entry\) \? true : undefined,/.test(COLL));
   ok('S7c …offering the makers the app knows, and any other can be typed', /f\.suggest === 'makers' && typeof rrKnownMakers === 'function'/.test(COLL));
-  const p7 = plant(COLL, '...(_panelUnlinked ? [{ label', '...(true ? [{ label', 'always shown');
-  ok('S7p …a Manufacturer line shown on every item is caught', !/\.\.\.\(_panelUnlinked \? \[\{ label: 'Manufacturer'/.test(p7));
+  const p7 = plant(COLL, "suggest: 'makers', when: _ownNow }", "suggest: 'makers' }", 'always shown');
+  ok('S7p …a Manufacturer line shown on every item is caught', !/\{ label: 'Manufacturer', key: 'manufacturer', [^\n]*when: _ownNow \}/.test(p7));
 
   // S8: Market + Reports.
   const VAULT = code(SRC['vault.js']), REP = code(SRC['reports.js']), DASH = code(SRC['dashboard.js']);

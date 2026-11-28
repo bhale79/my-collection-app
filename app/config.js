@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.2170';
+const APP_VERSION = 'v0.9.2171';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -6834,6 +6834,25 @@ const RR_CHANGE_NUMBER = {
   offline: 'Connect to the internet to change the item number \u2014 nothing was changed.',
 };
 if (typeof window !== 'undefined') window.RR_CHANGE_NUMBER = RR_CHANGE_NUMBER;
+
+// ══ 2026-11-27 — SCALE + "KEEP IT AS MY OWN ITEM" (scaleunlink) ════════════
+// PLAN_2026-11-27_SCALE_AND_UNLINK.md ([stated] Brad 16:02 CT "Yes" to the plan,
+// 16:04 CT "Yes" to building it). Customer Paul Harris: a hand-entered item's
+// scale could not be changed after it was saved, and a catalog entry attached
+// by mistake could not be taken off. Every word of both is here; app-collection.js
+// (the Update Info panel) reads it.
+const RR_KEEP_OWN = {
+  scaleLabel: 'Scale',            // the Update Info field on an item not tied to the catalog
+  notSure: '— not sure —',   // its blank choice (the same words the Add screen uses)
+  choice: 'None of these — keep it as my own item',
+  choiceHelp: 'Not a catalog item. Its details, price, notes and pictures stay with it, and its box and instruction sheet come along; check the maker, type, description and scale below, then Save.',
+  staged: 'Your own item — not tied to the catalog',
+  done: '✓ Saved as your own item',
+  // [stated] Brad 2026-11-27 18:48 CT "yes": the item's box / instruction sheet / master carton follow it
+  partial: 'Saved as your own item, but these are still tied to the catalog: {what}. Open the item and save it again to bring them along.',
+  sharedGroup: 'Saved as your own item. Its group holds another No. {num}, so the group’s boxes and sheets stay as they are.',
+};
+if (typeof window !== 'undefined') window.RR_KEEP_OWN = RR_KEEP_OWN;
 
 // ══ 2026-11-24 — "NOW IN THE CATALOG" (catalognow) ═════════════════════════
 // PLAN_2026-11-24_HAND_TYPED_NOW_IN_CATALOG.md ([stated] Brad 11:30 CT "a

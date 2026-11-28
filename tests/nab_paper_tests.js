@@ -377,7 +377,9 @@ const PAPER = id => FIX.paper.find(p => p.rowId === id);
   console.log('\n== H · "Change catalog entry" and this pass share ONE rule ==');
   {
     const uses = f => (fs.readFileSync(path.join(APP, f), 'utf8').match(/rrCopyFieldsFromEntry\(/g) || []).length;
-    T('H1  defined once (app-data.js) and used by the edit panel and the pass', /function rrCopyFieldsFromEntry\(entry, copy\)/.test(DATA) && uses('app-collection.js') === 1 && uses('app-data.js') === 2, { coll: uses('app-collection.js'), data: uses('app-data.js') });
+    // 2026-11-27 (scaleunlink): the panel asks it twice — the Save of a picked entry, and the
+    // "keep it as my own item" pre-fill (it READS the entry's fields; it writes no link).
+    T('H1  defined once (app-data.js) and used by the edit panel and the pass', /function rrCopyFieldsFromEntry\(entry, copy\)/.test(DATA) && uses('app-collection.js') === 2 && uses('app-data.js') === 2, { coll: uses('app-collection.js'), data: uses('app-data.js') });
     T('H2  the edit panel no longer sets an entry\'s fields by hand', !/pd\.masterRowId = \(typeof rrMasterRowIdOf === 'function'\) \? rrMasterRowIdOf\(_entry\)/.test(COLL));
     const { pg, errs } = await bootApp(browser);
     const h = await pg.evaluate(`(function () { ${world({ gone: true })};

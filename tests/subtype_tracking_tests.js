@@ -234,7 +234,16 @@ async function open(browser, planted) {
   T('SRC: the import’s write loop reads RR_USER_FIELDS, not a hand list',   // 2026-10-31: now a forEach over the fields (the Command IDs are cleaned by their own rule)
     /\(window\.RR_USER_FIELDS \|\| \[\]\)\.forEach\(function \(f\) \{\s*\n\s*var k = f\.key;\s*\n\s*if \(!it\[k\]\) return;/.test(rd('import-ui.js')) && !/\['locationDetail', 'shipper', 'subCollection', 'custom1'/.test(rd('import-ui.js')), true);
   T('SRC: the import’s auto-enable goes through _ufToggle', /_ufToggle\(f\.key, true, \{ quiet: true \}\)/.test(rd('import-ui.js')), true);
-  T('SRC: the edit panel offers the saved list and the manual-only box steps aside', /suggest === 'subtypes' && typeof rrSavedSubTypes === 'function'/.test(rd('app-collection.js')) && /&& !_rrSubTypeIsUserField\(\) \? \[\{ label: 'Sub Type'/.test(rd('app-collection.js')), true);
+  // 2026-11-28 (scaleunlink): Update Info's fields carry a `when` test now — the manual-only
+  // Sub Type box is `when: _handNow` (hand-entered, or staged "keep it as my own") and still
+  // steps aside while the Sub Type user field is on. Same rule, the new form; planted below.
+  const _stBoxRe = /\.\.\.\(!_rrSubTypeIsUserField\(\) \? \[\{ label: 'Sub Type', key: 'subType'[^\]\n]*when: _handNow \}\] : \[\]\)/;
+  T('SRC: the edit panel offers the saved list and the manual-only box steps aside', /suggest === 'subtypes' && typeof rrSavedSubTypes === 'function'/.test(rd('app-collection.js')) && _stBoxRe.test(rd('app-collection.js')), true);
+  { const ac = rd('app-collection.js');
+    const noGuard = ac.replace("...(!_rrSubTypeIsUserField() ? [{ label: 'Sub Type'", "...(true ? [{ label: 'Sub Type'");
+    const notManualOnly = ac.replace(/(\[\{ label: 'Sub Type', key: 'subType'[^\]\n]*), when: _handNow \}/, '$1 }');
+    T('SRC PLANTED: the Sub Type box without the user-field guard is caught', noGuard !== ac && _stBoxRe.test(noGuard), false);
+    T('SRC PLANTED: the Sub Type box shown on catalog items too (no when: _handNow) is caught', notManualOnly !== ac && _stBoxRe.test(notManualOnly), false); }
   T('SRC: the paper sections’ own sub types are untouched (their save still writes _uniSubType)', /subType: _uniSubType,/.test(rd('wizard-save.js')), true);
   T('SRC: the Sub Types manager is guarded like every overlay', /modal\.id = 'st-setup-modal';[\s\S]{0,2200}rrDismissGuard\(modal\);/.test(rd('prefs.js')), true);
 

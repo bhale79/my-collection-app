@@ -267,6 +267,12 @@ const DRAWN_CHECK = `(function () {
     ['sell.js', 'var m = findMaster(num, vr, {', 'a lookup hint, not a write'],
     ['wizard-save.js', 'rrMasterKeyOf(rrRowForVariation(wizard.matchedItem, itemNum, variation))', 'the Add screen save'],
     ['wizard-save.js', 'rrMasterRowIdOf(rrRowForVariation(wizard.matchedItem, itemNum, variation))', 'the Add screen save'],
+    // 2026-11-27 (scaleunlink, Paul Harris): "None of these — keep it as my own item" — the
+    // link is EMPTIED (Era Manual), never pointed at another row; tests/scale_unlink_tests.js holds it.
+    ['app-collection.js', "if (_toOwn) { pd.era = 'Manual'; pd.masterKey = ''; pd.masterRowId = '';", 'scaleunlink: off the catalog — the link emptied, then rrPersonalUpdateRow (buildPersonalRow skips Manual)'],
+    ['app-collection.js', 'const _ownWas = _toOwn ? { era: pd.era, masterKey: pd.masterKey, masterRowId: pd.masterRowId', 'scaleunlink: remembers the link to put it back if the save does not land — not a write'],
+    ['app-collection.js', "p.era = 'Manual'; p.masterKey = ''; p.masterRowId = '';", 'scaleunlink: rrApplyOwnPieces — a hand-entered item\'s box / sheet follows it off the catalog (link emptied, never re-pointed)'],
+    ['app-collection.js', "era: 'Manual', manufacturer: p.manufacturer, masterKey: '', masterRowId: '',", 'scaleunlink: rrApplyOwnPieces — the same piece write, the link named empty'],
   ];
   const WRITE_RE = /master(Key|RowId)\s*(:|=(?!=))/;
   const scan = files => {

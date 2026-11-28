@@ -35,7 +35,7 @@ function plantedInbox() {
 }
 function plantedPanel() {
   const s = fs.readFileSync(path.join(APP, 'app-collection.js'), 'utf8');
-  const out = s.replace('if (_varChanged && !_entry) {', 'if (_varChanged) {');
+  const out = s.replace('if (_varChanged && !_entry && !_toOwn) {', 'if (_varChanged) {');   // 2026-11-27: the guard now also steps aside for "keep it as my own item"
   if (out === s) throw new Error('planted app-collection.js: the guard moved; update this test');
   return out;
 }

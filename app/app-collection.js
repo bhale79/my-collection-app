@@ -4226,6 +4226,73 @@ function updateCollectionItem(idx, pdKey) {
 // inventory id where the tab has one, else by the row's own number) and only
 // changes what follows the number. Returns the words for anything that could
 // NOT be changed — the copy itself is already right either way.
+// 2026-11-27 (scaleunlink — [stated] Brad 18:48 CT "yes" to the box following): when a
+// copy is turned "my own item", the pieces of its group named after it (9001-BOX,
+// 9001-IS, 9001-MBOX) follow it the way a number change carries them: hand-entered,
+// the catalog link + its two descriptions + stock picture emptied, the item's maker,
+// one identity-checked write each. A group holding ANOTHER copy of the same number
+// leaves its pieces alone (they cannot be told apart) — the same rule as a number move.
+// Returns { left: [words of pieces not updated], shared: true|false }.
+function rrOwnPiecesPlan(copy) {
+  const out = { pieces: [], shared: false };
+  if (!copy) return out;
+  const bare = function (v) { return String(v == null ? '' : v).trim().replace(/^'/, ''); };
+  const up = function (v) { return bare(v).toUpperCase(); };
+  const pieceRe = (typeof RR_ADD_PIECE !== 'undefined' && RR_ADD_PIECE.pieceRe) || /-(BOX|MBOX|IS)$/i;
+  const gid = bare(copy.groupId), num = up(copy.itemNum), inv = bare(copy.inventoryId);
+  if (!gid || !num || pieceRe.test(num)) return out;
+  // Review 2026-11-27: ONLY a copy that really is hand-entered carries its pieces off the catalog —
+  // never a catalog copy that merely LOOKS unlinked (outside the collector's filters, catalog not loaded yet)
+  if (String(copy.era || '') !== 'Manual' || bare(copy.masterKey) || bare(copy.masterRowId)) return out;
+  const pd = state.personalData || {};
+  Object.keys(pd).forEach(function (k) {
+    const p = pd[k];
+    if (!p || !p.owned || bare(p.groupId) !== gid || (inv && bare(p.inventoryId) === inv)) return;
+    if (!pieceRe.test(bare(p.itemNum)) && up(p.itemNum) === num) out.shared = true;
+  });
+  if (out.shared) return out;
+  Object.keys(pd).forEach(function (k) {
+    const p = pd[k];
+    if (!p || !p.owned || bare(p.groupId) !== gid || (inv && bare(p.inventoryId) === inv)) return;
+    const n = bare(p.itemNum);
+    if (!pieceRe.test(n) || up(n.replace(pieceRe, '')) !== num) return;
+    if (String(p.era || '') === 'Manual' && !bare(p.masterKey) && !bare(p.masterRowId)) return;   // already off the catalog
+    out.pieces.push(k);
+  });
+  return out;
+}
+async function rrApplyOwnPieces(copy, base) {
+  const left = [];
+  const plan = rrOwnPiecesPlan(copy);
+  const W = (typeof RR_CHANGE_NUMBER !== 'undefined') ? RR_CHANGE_NUMBER : {};
+  for (const k of plan.pieces) {
+    const live = (state.personalData || {})[k];
+    const end = String((live && live.itemNum) || '').replace(/^.*(-[A-Z]+)$/i, '$1').toUpperCase();
+    const kind = ((typeof RR_ADD_PIECE !== 'undefined' && RR_ADD_PIECE.pieces) || []).find(function (x) { return String(x.ending).toUpperCase() === end; });
+    const kindWord = String(W.pieceWord || '{kind}').replace('{kind}', kind ? String(kind.label).toLowerCase() : end.slice(1).toLowerCase());
+    if (!live) { left.push(kindWord); continue; }
+    try {
+      const pBase = Object.assign({}, live);
+      const p = Object.assign({}, live);
+      if (String(p.variation || '') === String((base && base.variation) || '')) p.variation = '';   // it carried its item's catalog variation
+      p.era = 'Manual'; p.masterKey = ''; p.masterRowId = ''; p.masterDescription = ''; p.variationDescription = ''; p.stockPhotoLink = '';
+      p.manufacturer = copy.manufacturer || p.manufacturer || '';
+      const keep = {};
+      ['itemType', 'subType', 'roadName', 'roadNumber'].forEach(function (f) { keep[f] = String(p[f] == null ? '' : p[f]); });
+      const row = rrPersonalUpdateRow(p, Object.assign(keep, {
+        variation: p.variation || '', era: 'Manual', manufacturer: p.manufacturer, masterKey: '', masterRowId: '',
+        masterDescription: '', variationDescription: '', stockPhotoLink: '', inventoryId: p.inventoryId || '', groupId: p.groupId || '',
+        _noCatalogRow: true,
+      }));
+      const out = {};
+      if (!(await rrPersonalSafeWrite(p, row, pBase, { out: out, user: true, quiet: true }))) { left.push(kindWord); continue; }
+      const now = out.row && typeof rrSavedRecord === 'function' ? rrSavedRecord(out.row, p.row, {}) : {};
+      Object.assign(live, p, now);
+    } catch (e) { console.warn('[keep own] piece', live && live.itemNum, e && e.message); left.push(kindWord); }
+  }
+  return { left: left, shared: plan.shared };
+}
+
 async function rrApplyNumberMove(plan, copy, base) {
   const left = [];
   if (!plan || !plan.change || !copy) return left;
@@ -4878,7 +4945,48 @@ function showItemPanel(idx, pdKey, mode) {
   function _panelMove() {
     return (pd._newEntry && typeof rrNumberMovePlan === 'function') ? rrNumberMovePlan(_base, pd._newEntry, null, _stagedTyped) : null;
   }
+  // 2026-11-27 (scaleunlink): stage "keep it as my own item". The hand-entry fields
+  // start from the entry the copy is tied to NOW — on screen, every value the
+  // collector's to change before Save (never a quiet fill-in: a blank stays blank
+  // when the entry has nothing). Picking a real entry again puts them back.
+  let _ownSnap = null;
+  const _OWN_KEYS = ['manufacturer', 'itemType', 'roadName', 'description', 'gauge'];   // review 2026-11-27 (2): + Road Name
+  function _panelOwnRefresh() {
+    fields.forEach(function (f) {
+      if (_OWN_KEYS.indexOf(f.key) >= 0) f.val = pd[f.key] || '—';
+      if (f.type === 'catalog') f.val = _panelEntryVal();
+    });
+  }
+  function _panelStageOwn() {
+    if (pd._toOwn) return;
+    var was = (typeof findMaster === 'function') ? findMaster(pd.itemNum || item.itemNum, pd.variation || '', pd) : null;
+    _ownSnap = {};
+    _OWN_KEYS.forEach(function (k) { _ownSnap[k] = pd[k]; });
+    delete pd._newEntry; _stagedTyped = '';
+    pd._toOwn = true;
+    var from = (was && typeof rrCopyFieldsFromEntry === 'function') ? rrCopyFieldsFromEntry(was, pd) : {};
+    if (!String(pd.manufacturer || '').trim() && from.manufacturer) pd.manufacturer = from.manufacturer;
+    if (!String(pd.itemType || '').trim() && from.itemType) pd.itemType = from.itemType;
+    if (!String(pd.description || '').trim()) {
+      var _d = [pd.masterDescription || from.masterDescription || '', pd.variationDescription || from.variationDescription || '']
+        .map(function (x) { return String(x || '').trim(); }).filter(Boolean).join(' \u2014 ');
+      if (_d) pd.description = _d;
+    }
+    if (!String(pd.gauge || '').trim() && was && typeof rrGaugeFromWords === 'function') {
+      var _g = rrGaugeFromWords(was.gauge);
+      if (_g) pd.gauge = _g;
+    }
+    _panelOwnRefresh();
+  }
+  function _panelUnstageOwn() {
+    if (!pd._toOwn) return;
+    delete pd._toOwn;
+    if (_ownSnap) _OWN_KEYS.forEach(function (k) { if (_ownSnap[k] === undefined) delete pd[k]; else pd[k] = _ownSnap[k]; });
+    _ownSnap = null;
+    _panelOwnRefresh();
+  }
   function _panelEntryVal() {
+    if (pd._toOwn && _KO) return _KO.staged;   // scaleunlink
     var mv = _panelMove();
     var C = (typeof RR_CHANGE_NUMBER !== 'undefined') ? RR_CHANGE_NUMBER : null;
     if (!mv || !mv.change || !C) return _panelEntryLabel(_panelCurrentShown());
@@ -4902,6 +5010,14 @@ function showItemPanel(idx, pdKey, mode) {
 
   // 2026-11-03: decided once, as the item was opened (rrCopyIsUnlinked, app.js).
   const _panelUnlinked = (typeof rrCopyIsUnlinked === 'function') ? rrCopyIsUnlinked(_live) : (pd.era === 'Manual');
+  // 2026-11-27 (scaleunlink, PLAN_2026-11-27_SCALE_AND_UNLINK — customer Paul Harris):
+  // "None of these — keep it as my own item" in Change catalog entry is STAGED on
+  // pd._toOwn. From then on the panel shows the hand-entry fields (maker, type,
+  // description, scale), exactly as for an item that was never tied to the catalog;
+  // Save turns the copy into a hand-entered item. Words: config.js RR_KEEP_OWN.
+  const _KO = (typeof RR_KEEP_OWN !== 'undefined') ? RR_KEEP_OWN : null;
+  const _ownNow = function () { return _panelUnlinked || !!pd._toOwn; };
+  const _handNow = function () { return idx < 0 || pd.era === 'Manual' || !!pd._toOwn; };
   const fields = [
     // v0.9.701 (Brad): a no-number item's TITLE is its identity — editable.
     ...((idx < 0 || pd.era === 'Manual') ? [{ label: 'Title / Name', key: 'itemNum', val: pd.itemNum || '—', type: 'textarea' }] : []),
@@ -4925,7 +5041,8 @@ function showItemPanel(idx, pdKey, mode) {
         _vOpts.push({ v: v, t: 'Var ' + v + ' — ' + String(m.varDesc || m.description || '').slice(0, 70), full: String(m.varDesc || m.description || '') });
       });
       if (_vOpts.length < 2) return [];   // one variation = nothing to change
-      return [{ label: 'Variation', key: 'variation', val: 'Var ' + (pd.variation || '—'), type: 'select', options: _vOpts }];
+      return [{ label: 'Variation', key: 'variation', val: 'Var ' + (pd.variation || '—'), type: 'select', options: _vOpts,
+                when: function () { return !pd._toOwn; } }];   // scaleunlink: not a catalog variation once it is your own item
     })() : []),
     // v0.9.1882: the catalog entry — every catalog item, changeable in Edit (cards)
     ...((pd.era !== 'Manual' && (pd.itemNum || item.itemNum) && typeof rrCatalogCandidates === 'function')
@@ -4935,25 +5052,36 @@ function showItemPanel(idx, pdKey, mode) {
     // changed here — the makers the app knows are offered and any other can be
     // typed. A catalog item keeps its row's maker (change it by changing the
     // Catalog entry above).
-    ...(_panelUnlinked ? [{ label: 'Manufacturer', key: 'manufacturer', val: pd.manufacturer || '—', type: 'text', suggest: 'makers' }] : []),
+    { label: 'Manufacturer', key: 'manufacturer', val: pd.manufacturer || '—', type: 'text', suggest: 'makers', when: _ownNow },
     // v0.9.987 (Brad): TYPE is editable on manual/off-catalog items — it
     // decides which Show chip the item appears under (Trains/Catalogs/
     // Paper Items). Catalog-matched items keep the catalog's type
     // (v0.9.798 rule), so no Type field for them.
-    ...((idx < 0 || pd.era === 'Manual') ? [{ label: 'Type', key: 'itemType', val: pd.itemType || '—', type: 'select',
-      options: (function() {
+    ...([{ label: 'Type', key: 'itemType', val: pd.itemType || '—', type: 'select', when: _handNow,
+      options: function() {   // review 2026-11-27 (7): read when the box opens, so a staged type is on it
         var o = (((window.MANUAL_ITEM_TYPES || {}).all) || []).slice();
         ['Paper', 'Catalog'].forEach(function(t) { if (o.indexOf(t) < 0) o.push(t); });
         var cur = String(pd.itemType || '');
         if (cur && o.indexOf(cur) < 0) o.unshift(cur);   // keep a custom typed-in value selectable
         return o;
-      })() }] : []),
+      } }]),
     // v0.9.989 (unified inventory Phase 1): optional detail under Type —
     // e.g. 'Drawing' under Paper, 'Advance' under Catalog.
     // v0.9.1863: when Track Sub Types is on, Sub Type is a user field and the
     // user-field loop below draws it (with the saved list as suggestions) —
     // this manual-only box steps aside so it is never shown twice.
-    ...((idx < 0 || pd.era === 'Manual') && !_rrSubTypeIsUserField() ? [{ label: 'Sub Type', key: 'subType', val: pd.subType || '—', type: 'text' }] : []),
+    ...(!_rrSubTypeIsUserField() ? [{ label: 'Sub Type', key: 'subType', val: pd.subType || '—', type: 'text', when: _handNow }] : []),
+    // 2026-11-27 (scaleunlink): an item NOT tied to the catalog keeps its own Scale/Gauge —
+    // asked on the Add screen, and until now never changeable afterwards (Paul Harris).
+    // The SAME list the Add screen offers (config.js RR_MANUAL_GAUGES); an older value
+    // that is not on it stays selectable. A catalog item's scale is its catalog entry's.
+    ...(_KO ? [{ label: _KO.scaleLabel, key: 'gauge', val: pd.gauge || '—', type: 'select', when: _ownNow,
+      options: function () {
+        var o = [{ v: '', t: _KO.notSure }].concat(((typeof RR_MANUAL_GAUGES !== 'undefined') ? RR_MANUAL_GAUGES : []).map(function (g) { return { v: g, t: g }; }));
+        var cur = String(pd.gauge || '');
+        if (cur && !o.some(function (x) { return x.v === cur; })) o.splice(1, 0, { v: cur, t: cur });
+        return o;
+      } }] : []),
     // 2026-11-26 (menardscars): THIS copy's own number on the car — changeable on
     // every piece (a Menards car with the wrong number typed, an engine's cab number)
     ...((typeof _isBoxItemNum === 'function' && _isBoxItemNum(pd.itemNum || item.itemNum || '')) ? [] : [{ label: 'Road Number', key: 'roadNumber', val: pd.roadNumber || '—', type: 'text' }]),
@@ -4982,7 +5110,10 @@ function showItemPanel(idx, pdKey, mode) {
       words: _panelSellerWords, wide: true }] : []),
     // v0.9.696 (Brad): manual entries carry their own description — editable
     // here (catalog items keep the master description, not shown as a field).
-    ...((idx < 0 || pd.era === 'Manual') ? [{ label: 'Description', key: 'description', val: pd.description || '—', type: 'textarea' }] : []),
+    // review 2026-11-27 (2): the old entry's road name rides along when the copy goes
+    // off the catalog — shown while that is staged, so the collector can check it.
+    { label: 'Road Name', key: 'roadName', val: pd.roadName || '—', type: 'text', when: function () { return !!pd._toOwn; } },
+    { label: 'Description', key: 'description', val: pd.description || '—', type: 'textarea', when: _handNow },
     { label: 'Notes',         key: 'notes',         val: pd.notes || '—',         type: 'textarea' },
     // v0.9.1531b: suggests the places saved in Preferences (still free text).
     { label: 'Location',      key: 'location',      val: pd.location || '—',      type: 'text', suggest: 'locations' },
@@ -5122,6 +5253,7 @@ function showItemPanel(idx, pdKey, mode) {
   function renderFields(activeKey) {
     fieldsContainer.innerHTML = '';
     fields.forEach(function(f) {
+      if (typeof f.when === 'function' && !f.when()) return;   // 2026-11-27 (scaleunlink): shown only while it applies
       const row = document.createElement('div');
       row.style.cssText = 'display:flex;align-items:center;gap:0.75rem;padding:0.65rem 0;border-bottom:1px solid var(--border);min-height:44px';
 
@@ -5168,7 +5300,8 @@ function showItemPanel(idx, pdKey, mode) {
         // under this copy's number and the ones under a number the collector types.
         const _entryCard = function (r, fromDoor) {
           // 2026-11-08 (notsure): a copy with no variation is not "current" on a variation's card
-          const isCur = cur && (r === cur || (curId && String(r.rowId || '').trim() === curId)) && (typeof rrCopyRowView !== 'function' || !!pd._newEntry || rrCopyRowView(r, pd) === r);
+          const isSaved = cur && (r === cur || (curId && String(r.rowId || '').trim() === curId)) && (typeof rrCopyRowView !== 'function' || !!pd._newEntry || rrCopyRowView(r, pd) === r);
+          const isCur = isSaved && !pd._toOwn;   // scaleunlink: not marked "current" while "keep it as my own" is staged
           const card = document.createElement('div');
           card.setAttribute('data-rr-entry', String(r.rowId || ''));
           card.style.cssText = 'border:1.5px solid ' + (isCur ? 'var(--accent)' : 'var(--border)') + ';border-radius:9px;padding:0.55rem 0.7rem;cursor:pointer;background:var(--surface2)';
@@ -5183,7 +5316,8 @@ function showItemPanel(idx, pdKey, mode) {
               (/cornucopiaoftoytrains/i.test(u) ? 'See this entry on COTT ↗' : 'See this entry ↗') + '</a>';
           }
           card.onclick = function () {
-            if (isCur) { delete pd._newEntry; _stagedTyped = ''; } else { pd._newEntry = r; _stagedTyped = fromDoor ? _numDoorTyped : ''; }
+            _panelUnstageOwn();   // scaleunlink: a real entry picked — not "my own item" any more
+            if (isSaved) { delete pd._newEntry; _stagedTyped = ''; } else { pd._newEntry = r; _stagedTyped = fromDoor ? _numDoorTyped : ''; }   // review 2026-11-27 (1): the SAVED entry = back to it, nothing staged
             f.val = _panelEntryVal();
             editingKey = null;
             renderFields(null);
@@ -5191,6 +5325,19 @@ function showItemPanel(idx, pdKey, mode) {
           return card;
         };
         cands.forEach(function (r) { cList.appendChild(_entryCard(r)); });
+        // 2026-11-27 (scaleunlink): the way OFF the catalog — "None of these — keep it as
+        // my own item" (Paul Harris: a catalog entry attached by mistake had no way off).
+        const _pieceKO = (typeof RR_ADD_PIECE !== 'undefined' && RR_ADD_PIECE.pieceRe) || /-(BOX|MBOX|IS)$/i;
+        if (_KO && !_pieceKO.test(String(_base.itemNum || '').trim())) {   // review 2026-11-27 (3): a piece follows its item
+          const ownCur = !!pd._toOwn;
+          const own = document.createElement('div');
+          own.setAttribute('data-rr-keepown', '1');
+          own.style.cssText = 'border:1.5px dashed ' + (ownCur ? 'var(--accent)' : 'var(--border)') + ';border-radius:9px;padding:0.55rem 0.7rem;cursor:pointer;background:var(--surface2)';
+          own.innerHTML = '<div style="font-size:0.8rem;font-weight:700;color:' + (ownCur ? 'var(--t-accent)' : 'var(--text)') + ';margin-bottom:0.2rem">' + rrEsc(_KO.choice) + '</div>'
+            + '<div style="font-size:0.78rem;color:var(--text-mid);line-height:1.5;white-space:normal">' + rrEsc(_KO.choiceHelp) + '</div>';
+          own.onclick = function () { _panelStageOwn(); editingKey = null; renderFields(null); };
+          cList.appendChild(own);
+        }
         // 2026-11-12 (itemnumfix, PLAN_2026-11-12_CHANGE_ITEM_NUMBER): the second
         // door — the collector types the RIGHT number and picks its entry. Only
         // real catalog rows (rrCatalogCandidates, the one place). A piece (box,
@@ -5504,6 +5651,8 @@ function showItemPanel(idx, pdKey, mode) {
       // decides follows it, the way a fresh save of that row would write it.
       // The variation re-derivation below is skipped then: the entry answers.
       const _entry = pd._newEntry || null;
+      // 2026-11-27 (scaleunlink): "keep it as my own item" staged — the copy becomes hand-entered
+      const _toOwn = !_entry && !!pd._toOwn;
       // 2026-11-12 (itemnumfix): an entry under ANOTHER number moves the copy —
       // what follows it is ONE plan (app-data.js rrNumberMovePlan), made from the
       // copy as this device opened it (by inventory id and group, never by number).
@@ -5531,9 +5680,9 @@ function showItemPanel(idx, pdKey, mode) {
         // Review 2026-11-12 (finding 2): the pick stays STAGED until the save lands, so a
         // refused save tapped again moves the copy — and everything that follows it — again.
       }
-      const _newVariation = String(pd.variation || item.variation || '');
+      const _newVariation = _toOwn ? '' : String(pd.variation || item.variation || '');   // review 2026-11-27 (2): a hand-entered copy has no catalog variation
       const _varChanged = _newVariation !== _origVariation;
-      if (_varChanged && !_entry) {
+      if (_varChanged && !_entry && !_toOwn) {
         const _nm = (typeof findMaster === 'function')
           ? findMaster(pd.itemNum || item.itemNum, _newVariation, { era: pd.era || '', manufacturer: pd.manufacturer || '' })
           : null;
@@ -5542,6 +5691,12 @@ function showItemPanel(idx, pdKey, mode) {
         pd.masterDescription = (_nm && _nm.description) ? String(_nm.description) : '';
         pd.variationDescription = (_nm && _nm.varDesc) ? String(_nm.varDesc) : '';
       }
+      // 2026-11-27 (scaleunlink): off the catalog — Era Manual, and the catalog link and
+      // its two auto-descriptions emptied (also NAMED below, so the save says so outright).
+      const _ownWas = _toOwn ? { era: pd.era, masterKey: pd.masterKey, masterRowId: pd.masterRowId, masterDescription: pd.masterDescription,
+        variationDescription: pd.variationDescription, variation: pd.variation, stockPhotoLink: pd.stockPhotoLink } : null;
+      const _ownPutBack = function () { if (_ownWas) Object.keys(_ownWas).forEach(function (k) { if (_ownWas[k] === undefined) delete pd[k]; else pd[k] = _ownWas[k]; }); };   // review 2026-11-27 (5)
+      if (_toOwn) { pd.era = 'Manual'; pd.masterKey = ''; pd.masterRowId = ''; pd.masterDescription = ''; pd.variationDescription = ''; pd.variation = ''; pd.stockPhotoLink = ''; }
       // v0.9.1919: through rrPersonalUpdateRow — every column this list does not
       // name is CARRIED from the record. Before, the 17 columns missing here
       // (Purchased From, Your Grade, Custom 1–5, Era override …) were blanked on
@@ -5584,10 +5739,15 @@ function showItemPanel(idx, pdKey, mode) {
         // item at a different product that shares its number and variation.
         masterRowId: pd.masterRowId || '',
         masterKey: pd.masterKey || '',   // v0.9.1882: the stored key rides along too — never re-guessed on a panel save
+        // 2026-11-27 (scaleunlink): NAMED only when they change (undefined = carried)
+        masterDescription: _toOwn ? '' : undefined,
+        variationDescription: _toOwn ? '' : undefined,
+        stockPhotoLink: _toOwn ? '' : undefined,   // review 2026-11-27 (2): the old entry's stock picture goes with it
+        gauge: _ownNow() ? (pd.gauge || '') : undefined,   // the Scale field (items not tied to the catalog)
         // 2026-11-03: an item not tied to a catalog entry keeps the maker the
         // collector set (no catalog lookup by its number re-picks one) — the
         // same flag an Add-screen save with no catalog row passes.
-        _noCatalogRow: (_panelUnlinked && !_entry) ? true : undefined,
+        _noCatalogRow: ((_panelUnlinked || _toOwn) && !_entry) ? true : undefined,
       });
       try {
         if (typeof _healPdRow === 'function') await _healPdRow(pd);
@@ -5602,6 +5762,7 @@ function showItemPanel(idx, pdKey, mode) {
         const _out = {};
         // STALEPAGE: user — the person's own save; a copy removed elsewhere closes this box (sheets.js)
         if (!(await rrPersonalSafeWrite(pd, newRow, _base, { out: _out, user: true }))) {
+          _ownPutBack();   // scaleunlink: the panel stays as it was, the choice still staged
           saveBtn.textContent = '💾 Save All Changes'; saveBtn.disabled = false;
           return;
         }
@@ -5611,6 +5772,7 @@ function showItemPanel(idx, pdKey, mode) {
           ? rrSavedRecord(_out.row, pd.row, {})
           : { priceComplete: calc > 0 ? calc.toFixed(2) : '' };
         delete pd._newEntry;   // landed: the pick has done its job (never onto the live record)
+        delete pd._toOwn;      // scaleunlink: the same
         state.personalData[pdKey] = Object.assign(_live, pd, _now);
         // v0.9.1315: a For Sale listing of THIS copy carries the variation
         // too — update it in the same save so the two can never disagree.
@@ -5636,7 +5798,13 @@ function showItemPanel(idx, pdKey, mode) {
         if (_move && _move.change && typeof rrApplyNumberMove === 'function') {
           _moveLeft = await rrApplyNumberMove(_move, state.personalData[pdKey], _base);
         }
-        if (_entry && typeof _rebuildPdIndex === 'function') { try { _rebuildPdIndex(); } catch (eIx) {} }   // the number / variation lookup index sees the change NOW
+        let _ownLeft = null;   // scaleunlink: its box / sheet / carton follow it off the catalog
+        // Review 2026-11-27: ANY save of a hand-entered item brings along a piece still tied to the
+        // catalog — so a piece left behind (a refused write) is fixed by saving the item again.
+        if ((_toOwn || pd.era === 'Manual') && typeof rrApplyOwnPieces === 'function') {
+          try { _ownLeft = await rrApplyOwnPieces(state.personalData[pdKey], _base); } catch (eOw) { console.warn('[keep own] pieces:', eOw && eOw.message); }
+        }
+        if ((_entry || _toOwn) && typeof _rebuildPdIndex === 'function') { try { _rebuildPdIndex(); } catch (eIx) {} }   // the number / variation lookup index sees the change NOW
         // v0.9.697: keep the offline snapshot in sync — edits were reverting
         // to pre-edit values on the next app load (cache had the old row).
         if (typeof _cachePersonalData === 'function') _cachePersonalData();
@@ -5646,14 +5814,19 @@ function showItemPanel(idx, pdKey, mode) {
           showToast(_NCw.partial.replace('{num}', _move.to).replace('{what}', _moveLeft.join(', ')).replace('{old}', _move.from), 9000, true);
         } else if (_move && _move.change && _NCw) {
           showToast(_NCw.done.replace('{num}', _move.to));
+        } else if (_KO && _ownLeft && _ownLeft.left.length) {
+          showToast(_KO.partial.replace('{what}', _ownLeft.left.join(', ')), 9000, true);
+        } else if (_toOwn && _KO && _ownLeft && _ownLeft.shared) {
+          const _numShown = String(pd.itemNum || '').trim().replace(/^\x27/, '');   // the sheet's text guard (an apostrophe) never shows
+          showToast(_KO.sharedGroup.replace('{num}', _numShown), 7000);
         } else {
-        showToast(_entry ? '✓ Updated — now ' + _panelEntryLabel(_entry) : (_varChanged ? ('✓ Updated — now Var ' + _newVariation) : '✓ Item updated!'));
+        showToast((_toOwn && _KO) ? _KO.done : (_entry ? '✓ Updated — now ' + _panelEntryLabel(_entry) : (_varChanged ? ('✓ Updated — now Var ' + _newVariation) : '✓ Item updated!')));
         }
         buildDashboard();
         // Re-render the detail page so edited fields + photos show immediately.
         // v0.9.1315: after a variation change the page must re-resolve to the
         // NEW variation's catalog row — the stored index points at the old one.
-        if ((_varChanged || _entry) && pd.inventoryId && typeof _openOwnedByInvId === 'function') {   // v0.9.1882: an entry change re-resolves the page too
+        if ((_varChanged || _entry || _toOwn) && pd.inventoryId && typeof _openOwnedByInvId === 'function') {   // v0.9.1882: an entry change re-resolves the page too
           _openOwnedByInvId(pd.inventoryId);
         } else {
           rrDetailRepaint(0);   // v0.9.1765: by identity, not by remembered position
@@ -5665,6 +5838,13 @@ function showItemPanel(idx, pdKey, mode) {
         if (_move && _move.change && typeof rrApplyNumberMove === 'function') {
           try { await rrApplyNumberMove(_move, Object.assign({}, _live, pd), _base); } catch (eMv) { console.warn('[number move] followers after a dropped save:', eMv && eMv.message); }
         }
+        // scaleunlink: the same for its pieces — only when the copy's row really went into the
+        // offline queue (pd still says Manual), never after a refusal
+        if (_toOwn && pd.era === 'Manual' && typeof rrApplyOwnPieces === 'function'
+            && ((typeof _rrOfflineNow === 'function') ? _rrOfflineNow() : (typeof navigator !== 'undefined' && navigator.onLine === false))) {
+          try { await rrApplyOwnPieces(Object.assign({}, _live, pd), _base); } catch (eOw) { console.warn('[keep own] pieces after a dropped save:', eOw && eOw.message); }
+        }
+        _ownPutBack();   // scaleunlink
         saveBtn.textContent = '💾 Save All Changes'; saveBtn.disabled = false;
         showToast(rrSaveError(e, 'your change'), 5000, true);
       }

@@ -18355,7 +18355,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('262 the ORIGINAL variation is captured once, before any edit',
          /const _origVariation = String\(pd\.variation \|\| item\.variation \|\| ''\);/.test(ac62));
       ok('262 the PANEL save writes the USER\'s pick, not the master row the page opened on',
-         /const _newVariation = String\(pd\.variation \|\| item\.variation \|\| ''\);/.test(ac62) &&
+         /const _newVariation = (?:_toOwn \? '' : )?String\(pd\.variation \|\| item\.variation \|\| ''\);/.test(ac62) &&   // 2026-11-27: a copy turned "my own item" has no catalog variation
          // the v0.9.720 dateAdded comment is unique to the panel save — the
          // variation line inside THAT call must be the pick (other flows'
          // `item.variation` uses are their own business)
@@ -18371,7 +18371,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /\{ num: _fs\.itemNum \|\| '', invId: _fs\.inventoryId \|\| '' \}, 'For Sale list'\)\)/.test(ac62) &&
          /_fs\.variation = _newVariation;/.test(ac62));
       ok('262 after a change the page reopens on the NEW variation via the copy\'s id',
-         /if \(\(_varChanged \|\| _entry\) && pd\.inventoryId && typeof _openOwnedByInvId === 'function'\) \{.*\n\s*_openOwnedByInvId\(pd\.inventoryId\);/.test(ac62) &&   // v0.9.1882: an entry change re-resolves too
+         /if \(\(_varChanged \|\| _entry(?: \|\| _toOwn)?\) && pd\.inventoryId && typeof _openOwnedByInvId === 'function'\) \{.*\n\s*_openOwnedByInvId\(pd\.inventoryId\);/.test(ac62) &&   // v0.9.1882: an entry change re-resolves too (2026-11-27: + "keep it as my own item")
          /'✓ Updated — now Var ' \+ _newVariation/.test(ac62));
       // The For Sale row rebuild must match the parser's column order exactly
       // (A–J: itemNum, variation, condition, askingPrice, dateListed, notes,
