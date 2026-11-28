@@ -1,0 +1,35 @@
+{
+ "title": "Master fix — Marx O: 5545 Var. 1 and Var. 3 Road Name (\"Erie\", \"NYC\") cleared — the name is on the load, the flatcar is CB&Q",
+ "rule": "cell UPDATE keyed by Row ID + sheet row; before = the value that must be in the cell right before the write; nothing else on the tab changes",
+ "said": "[stated] Brad 2026-11-28 \"yes\" (to: clear the two 5545 road names the same way as Master Version 3.29).",
+ "source": "every 5545 row is \"Maroon FCB&Q Flatcar\"; Var. 1 carries an Erie bridge girder, Var. 3 two NYC trailers — the names are the load's; Var. 2, 4, 5, 6 (Burlington, Western Auto, Walgreen, Allstate loads) are blank (3.29)",
+ "tab": "Marx O",
+ "read": "2026-11-28 live (export csv gid 2037724056), 1585 lines",
+ "counts": {
+  "rows": 2,
+  "cells": 2,
+  "Road Name": 2
+ },
+ "changes": [
+  {
+   "row": 1506,
+   "row_id": "J4GXBPJAW5",
+   "num": "5545",
+   "variation": "1",
+   "col": "Road Name",
+   "cell": "G1506",
+   "old": "Erie",
+   "new": ""
+  },
+  {
+   "row": 1508,
+   "row_id": "5GWW2QPCYP",
+   "num": "5545",
+   "variation": "3",
+   "col": "Road Name",
+   "cell": "G1508",
+   "old": "NYC",
+   "new": ""
+  }
+ ]
+}
