@@ -1,0 +1,24 @@
+{
+ "title": "Master fix — Marx O: 666 Variation 3 Road Name \"Sears\" cleared (1 row)",
+ "rule": "cell UPDATE keyed by Row ID + sheet row; before = the value that must be in the cell right before the write; nothing else on the tab changes",
+ "said": "[stated] Brad 2026-11-28 \"yes\" (to: clear the \"Sears\" road name on the Marx 666 Variation 3 row — Sears is the store that sold the set, not a railroad).",
+ "source": "rule: Road Name holds railroads only (Master 2.14); the store stays in the row's Variation Description (\"Olive drab, for Sears Army Set\"); Variations 1, 2 and 4 of 666 have a blank Road Name",
+ "tab": "Marx O",
+ "read": "2026-11-28 live (export csv gid 2037724056), 1,585 lines",
+ "counts": {
+  "rows": 1,
+  "cells": 1,
+  "Road Name": 1
+ },
+ "changes": [
+  {
+   "row": 1451,
+   "row_id": "9E2XF3UM87",
+   "num": "666",
+   "col": "Road Name",
+   "cell": "G1451",
+   "old": "Sears",
+   "new": ""
+  }
+ ]
+}
