@@ -1,0 +1,69 @@
+{
+ "title": "Master fix — Marx O: Road Name \"Allstate\" / \"Sears\" cleared on 6 rows where it is a company name, not the railroad",
+ "rule": "cell UPDATE keyed by Row ID + sheet row; before = the value that must be in the cell right before the write; nothing else on the tab changes",
+ "said": "[stated] Brad 2026-11-28 \"yes\" (to: clear the road name on the 6 rows of PLAN_2026-11-28_MARX_ALLSTATE_ROAD_NAMES.md; the 11 rows lettered Allstate as the railroad keep it).",
+ "source": "Road Name holds railroads only (2.14); the tab already leaves every other company name blank (Gulf, Sinclair, Cities Service, Exxon, Marathon tank cars; Cities Service / Gulf tanks on 5543; Burlington / Western Auto / Walgreen trailers on 5545); the words stay in each row's Description / Variation Description",
+ "tab": "Marx O",
+ "read": "2026-11-28 live (export csv gid 2037724056), 1,585 lines",
+ "counts": {
+  "rows": 6,
+  "cells": 6,
+  "Road Name": 6
+ },
+ "changes": [
+  {
+   "row": 834,
+   "row_id": "DQ6WHGZDF3",
+   "num": "9553",
+   "col": "Road Name",
+   "cell": "G834",
+   "old": "Allstate",
+   "new": ""
+  },
+  {
+   "row": 836,
+   "row_id": "FQ4YXQHCYB",
+   "num": "9553",
+   "col": "Road Name",
+   "cell": "G836",
+   "old": "Allstate",
+   "new": ""
+  },
+  {
+   "row": 901,
+   "row_id": "59V9BZMW2A",
+   "num": "5553",
+   "col": "Road Name",
+   "cell": "G901",
+   "old": "Allstate",
+   "new": ""
+  },
+  {
+   "row": 897,
+   "row_id": "V7R8DY45AV",
+   "num": "5543",
+   "col": "Road Name",
+   "cell": "G897",
+   "old": "Allstate",
+   "new": ""
+  },
+  {
+   "row": 1511,
+   "row_id": "5BQ2UFX4GT",
+   "num": "5545",
+   "col": "Road Name",
+   "cell": "G1511",
+   "old": "Allstate",
+   "new": ""
+  },
+  {
+   "row": 1289,
+   "row_id": "JNZNKKJ8P2",
+   "num": "9351",
+   "col": "Road Name",
+   "cell": "G1289",
+   "old": "Sears",
+   "new": ""
+  }
+ ]
+}
